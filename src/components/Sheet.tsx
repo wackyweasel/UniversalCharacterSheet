@@ -12,7 +12,8 @@ export default function Sheet() {
   const setMode = useStore((state) => state.setMode);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Default sidebar collapsed on mobile (< 768px)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 768);
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -51,6 +52,32 @@ export default function Sheet() {
   };
 
   const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  // Touch event handlers for mobile panning
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Ignore if touching a widget
+    if ((e.target as HTMLElement).closest('.react-draggable')) return;
+    
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsPanning(true);
+      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isPanning && e.touches.length === 1) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - lastMousePos.current.x;
+      const dy = touch.clientY - lastMousePos.current.y;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleTouchEnd = () => {
     setIsPanning(false);
   };
 
@@ -106,12 +133,24 @@ export default function Sheet() {
     }
   };
 
-  // Global event listener for mouse up to catch drags outside window
+  // Global event listeners for mouse up and move to handle panning outside window
   useEffect(() => {
     const handleGlobalMouseUp = () => setIsPanning(false);
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (isPanning) {
+        const dx = e.clientX - lastMousePos.current.x;
+        const dy = e.clientY - lastMousePos.current.y;
+        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+        lastMousePos.current = { x: e.clientX, y: e.clientY };
+      }
+    };
     window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, []);
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+    };
+  }, [isPanning]);
 
   if (!activeCharacter) return null;
 
@@ -133,6 +172,9 @@ export default function Sheet() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -186,6 +228,17 @@ export default function Sheet() {
           {mode === 'play' ? '✎ Edit Mode' : '▶ Play Mode'}
         </button>
       </div>
+
+      {/* Floating toolbox toggle button - only in edit mode */}
+      {mode === 'edit' && (
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="absolute bottom-4 left-4 w-12 h-12 bg-white border-2 border-black font-bold shadow-hard hover:bg-black hover:text-white transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center text-xl z-50"
+          title={sidebarCollapsed ? 'Show Toolbox' : 'Hide Toolbox'}
+        >
+          {sidebarCollapsed ? '🧰' : '✕'}
+        </button>
+      )}
     </div>
   );
 }
