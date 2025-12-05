@@ -6,7 +6,7 @@ function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
 
   return (
-    <div className="min-h-screen bg-gray-100 text-ink font-mono">
+    <div className="h-full bg-gray-100 text-ink font-mono overflow-hidden">
       {activeCharacterId ? <Sheet /> : <CharacterList />}
     </div>
   );

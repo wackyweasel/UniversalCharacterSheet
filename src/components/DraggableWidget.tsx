@@ -43,11 +43,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
     updateWidgetPosition(widget.id, snappedX, snappedY);
   };
 
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+  const startResize = useCallback((clientX: number, clientY: number) => {
     if (mode !== 'edit') return;
-    
-    e.preventDefault();
-    e.stopPropagation();
     
     // Prevent text selection during resize
     document.body.style.userSelect = 'none';
@@ -59,12 +56,26 @@ export default function DraggableWidget({ widget, scale }: Props) {
     const currentH = widget.h || nodeRef.current?.offsetHeight || MIN_HEIGHT;
     
     resizeStart.current = {
-      x: e.clientX,
-      y: e.clientY,
+      x: clientX,
+      y: clientY,
       w: currentW,
       h: currentH
     };
   }, [mode, widget.w, widget.h]);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startResize(e.clientX, e.clientY);
+  }, [startResize]);
+
+  const handleResizeTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.touches.length === 1) {
+      startResize(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, [startResize]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -81,7 +92,26 @@ export default function DraggableWidget({ widget, scale }: Props) {
       updateWidgetSize(widget.id, newW, newH);
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const deltaX = (e.touches[0].clientX - resizeStart.current.x) / scale;
+        const deltaY = (e.touches[0].clientY - resizeStart.current.y) / scale;
+        
+        const newW = Math.max(MIN_WIDTH, snapToGrid(resizeStart.current.w + deltaX));
+        const newH = Math.max(MIN_HEIGHT, snapToGrid(resizeStart.current.h + deltaY));
+        
+        updateWidgetSize(widget.id, newW, newH);
+      }
+    };
+
     const handleMouseUp = () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      setIsResizing(false);
+    };
+
+    const handleTouchEnd = () => {
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
       setIsResizing(false);
@@ -89,10 +119,14 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isResizing, scale, widget.id, updateWidgetSize]);
 
@@ -130,7 +164,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
     >
       <div 
         ref={nodeRef}
-        className="react-draggable absolute bg-white border-2 border-black shadow-hard p-4 cursor-default group"
+        className="react-draggable absolute bg-white border-2 border-black shadow-hard p-2 sm:p-4 cursor-default group touch-manipulation"
         style={{ 
           width: widget.w ? `${widget.w}px` : 'auto',
           height: widget.h ? `${widget.h}px` : 'auto',
@@ -140,17 +174,18 @@ export default function DraggableWidget({ widget, scale }: Props) {
       >
         {/* Drag Handle - only visible in edit mode */}
         {mode === 'edit' && (
-          <div className="drag-handle absolute top-0 left-0 right-0 h-4 bg-transparent cursor-move hover:bg-gray-100 flex justify-end pr-1">
+          <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:bg-gray-100 active:bg-gray-200 flex justify-end pr-1 touch-none">
              <div className="w-full h-full" />
           </div>
         )}
         
-        {/* Delete Button - only visible in edit mode */}
+        {/* Delete Button - larger touch target on mobile, always visible on mobile */}
         {mode === 'edit' && (
           <button
-            className="absolute -top-3 -right-3 w-6 h-6 bg-black text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600"
+            className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-black text-white rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600 text-lg sm:text-base"
             onClick={() => removeWidget(widget.id)}
             onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             ×
           </button>
@@ -159,8 +194,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
         {/* Resize Handle - only visible in edit mode */}
         {mode === 'edit' && (
           <div 
-            className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize z-20 opacity-30 hover:opacity-100 transition-opacity"
+            className="absolute bottom-0 right-0 w-7 h-7 sm:w-5 sm:h-5 cursor-nwse-resize z-20 opacity-50 sm:opacity-30 hover:opacity-100 transition-opacity touch-none"
             onMouseDown={handleResizeMouseDown}
+            onTouchStart={handleResizeTouchStart}
           >
             <svg viewBox="0 0 20 20" className="w-full h-full text-gray-600">
               <path d="M20 20L6 20L20 6Z" fill="currentColor" />
