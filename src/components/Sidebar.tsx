@@ -16,9 +16,13 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string; icon: string }[] = [
   { type: 'TABLE', label: 'Table', icon: '▦' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const addWidget = useStore((state) => state.addWidget);
-  const selectCharacter = useStore((state) => state.selectCharacter);
 
   const handleAdd = (type: WidgetType) => {
     // Add to center of screen roughly (fixed for now, could be dynamic based on viewport)
@@ -31,14 +35,21 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r-2 border-black z-50 flex flex-col p-4 shadow-hard overflow-y-auto">
+    <div 
+      className={`fixed left-0 top-0 bottom-0 w-64 bg-white border-r-2 border-black z-50 flex flex-col p-4 shadow-hard overflow-y-auto transition-transform duration-300 ease-in-out ${
+        collapsed ? '-translate-x-full' : 'translate-x-0'
+      }`}
+    >
+      {/* Toggle button - positioned on the edge of sidebar */}
+      <button
+        onClick={onToggle}
+        className="absolute -right-10 top-20 w-10 h-10 bg-white border-2 border-black border-l-0 font-bold shadow-hard hover:bg-black hover:text-white transition-all flex items-center justify-center"
+        title={collapsed ? 'Show Toolbox' : 'Hide Toolbox'}
+      >
+        {collapsed ? '▶' : '◀'}
+      </button>
+
       <div className="mb-8">
-        <button 
-          onClick={() => selectCharacter(null)}
-          className="text-sm font-bold underline hover:text-gray-600 mb-4 block"
-        >
-          ← Back to Menu
-        </button>
         <h2 className="text-2xl font-bold uppercase tracking-wider border-b-2 border-black pb-2">
           Toolbox
         </h2>

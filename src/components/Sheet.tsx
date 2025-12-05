@@ -10,7 +10,9 @@ export default function Sheet() {
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
+  const selectCharacter = useStore((state) => state.selectCharacter);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -113,9 +115,17 @@ export default function Sheet() {
 
   if (!activeCharacter) return null;
 
+  // Calculate left offset for buttons based on sidebar state
+  const buttonsLeftOffset = mode === 'edit' && !sidebarCollapsed ? 'left-72' : 'left-4';
+
   return (
     <div className="w-full h-screen overflow-hidden relative bg-gray-200">
-      {mode === 'edit' && <Sidebar />}
+      {mode === 'edit' && (
+        <Sidebar 
+          collapsed={sidebarCollapsed} 
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+        />
+      )}
       
       {/* Canvas Container */}
       <div 
@@ -158,8 +168,17 @@ export default function Sheet() {
         </p>
       </div>
 
-      {/* Mode Toggle Button */}
-      <div className={`absolute top-4 pointer-events-auto transition-all ${mode === 'edit' ? 'left-72' : 'left-4'}`}>
+      {/* Top-left button group - always visible */}
+      <div className={`absolute top-4 pointer-events-auto transition-all duration-300 ${buttonsLeftOffset} flex flex-col gap-2`}>
+        {/* Exit to Menu Button - always visible */}
+        <button
+          onClick={() => selectCharacter(null)}
+          className="px-4 py-2 bg-white border-2 border-black font-bold shadow-hard hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        >
+          ✕ Exit to Menu
+        </button>
+
+        {/* Mode Toggle Button */}
         <button
           onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
           className="px-4 py-2 bg-white border-2 border-black font-bold shadow-hard hover:bg-black hover:text-white transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
