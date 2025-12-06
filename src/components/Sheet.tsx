@@ -53,6 +53,8 @@ export default function Sheet() {
       const measured = widgetSizes.find(s => s.id === w.id);
       return {
         id: w.id,
+        x: w.x,  // Keep original position for sorting
+        y: w.y,
         w: measured ? measured.w + GAP : (w.w || 200) + GAP,
         h: measured ? measured.h + GAP : (w.h || 120) + GAP,
       };
@@ -62,10 +64,15 @@ export default function Sheet() {
     const totalArea = widgets.reduce((sum, w) => sum + w.w * w.h, 0);
     const CONTAINER_WIDTH = Math.max(800, Math.ceil(Math.sqrt(totalArea * 1.5) / GRID_SIZE) * GRID_SIZE);
 
-    // Sort by height descending, then by width descending
+    // Sort by original position: top-to-bottom, left-to-right (preserves relative layout)
     const sortedWidgets = [...widgets].sort((a, b) => {
-      if (b.h !== a.h) return b.h - a.h;
-      return b.w - a.w;
+      // Primary sort by Y (row), secondary by X (column)
+      // Use a threshold to group widgets in the same "row" together
+      const ROW_THRESHOLD = 50;
+      const rowA = Math.floor(a.y / ROW_THRESHOLD);
+      const rowB = Math.floor(b.y / ROW_THRESHOLD);
+      if (rowA !== rowB) return rowA - rowB;
+      return a.x - b.x;
     });
 
     // MaxRects bin packing algorithm
