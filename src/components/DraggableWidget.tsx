@@ -80,13 +80,27 @@ export default function DraggableWidget({ widget, scale }: Props) {
     };
   }, [isTouchActive]);
 
-  const handleWidgetTouchStart = () => {
+  const handleWidgetTouchStart = (e: React.TouchEvent) => {
     if (mode === 'edit') {
-      setIsTouchActive(true);
+      // If controls are not yet showing, prevent default and just show controls
+      if (!isTouchActive) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsTouchActive(true);
+      }
       // Reset the timeout
       if (touchTimeoutRef.current) {
         clearTimeout(touchTimeoutRef.current);
       }
+    }
+  };
+
+  // Handle click/tap on widget - in edit mode, first tap shows controls
+  const handleWidgetClick = (e: React.MouseEvent) => {
+    if (mode === 'edit' && !showControls) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsTouchActive(true);
     }
   };
 
@@ -217,6 +231,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onTouchStart={handleWidgetTouchStart}
+          onClick={handleWidgetClick}
         >
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
@@ -248,6 +263,23 @@ export default function DraggableWidget({ widget, scale }: Props) {
             >
               ×
             </button>
+          )}
+
+          {/* Touch overlay - blocks interactions with widget content when controls are showing on mobile */}
+          {mode === 'edit' && isTouchActive && (
+            <div 
+              className="absolute inset-0 z-40 bg-theme-accent/10 rounded-theme"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                // Reset timeout on any touch
+                if (touchTimeoutRef.current) {
+                  clearTimeout(touchTimeoutRef.current);
+                  touchTimeoutRef.current = setTimeout(() => {
+                    setIsTouchActive(false);
+                  }, 5000);
+                }
+              }}
+            />
           )}
 
           <div ref={contentRef}>
