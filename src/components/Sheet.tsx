@@ -5,6 +5,8 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import Sidebar from './Sidebar';
 import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
+import AttachmentButtons from './AttachmentButtons';
+import WidgetShadows from './WidgetShadows';
 import { WidgetType } from '../types';
 
 export default function Sheet() {
@@ -25,6 +27,7 @@ export default function Sheet() {
   const [editedName, setEditedName] = useState('');
 
   // Auto-stack function that measures actual DOM widget sizes
+  // Now preserves widget groups and treats them as single units
   const handleAutoStack = () => {
     if (!activeCharacter || activeCharacter.widgets.length === 0) return;
 
@@ -48,37 +51,91 @@ export default function Sheet() {
       }
     });
 
-    // If we couldn't measure any widgets, fall back to stored sizes
+    // Build widget info with measured sizes
     const widgets = activeCharacter.widgets.map(w => {
       const measured = widgetSizes.find(s => s.id === w.id);
       return {
         id: w.id,
-        x: w.x,  // Keep original position for sorting
+        groupId: w.groupId,
+        x: w.x,
         y: w.y,
-        w: measured ? measured.w + GAP : (w.w || 200) + GAP,
-        h: measured ? measured.h + GAP : (w.h || 120) + GAP,
+        w: measured ? measured.w : (w.w || 200),
+        h: measured ? measured.h : (w.h || 120),
       };
     });
 
-    // Calculate container width based on total widget area
-    const totalArea = widgets.reduce((sum, w) => sum + w.w * w.h, 0);
+    // Group widgets by groupId
+    const groupedWidgets = new Map<string, typeof widgets>();
+    const ungroupedWidgets: typeof widgets = [];
+    
+    for (const widget of widgets) {
+      if (widget.groupId) {
+        const group = groupedWidgets.get(widget.groupId) || [];
+        group.push(widget);
+        groupedWidgets.set(widget.groupId, group);
+      } else {
+        ungroupedWidgets.push(widget);
+      }
+    }
+
+    // Calculate bounding box for each group (preserving internal positions)
+    interface StackableItem {
+      type: 'group' | 'single';
+      id: string; // groupId for groups, widgetId for singles
+      widgets: typeof widgets; // widgets in this item
+      boundingBox: { x: number; y: number; w: number; h: number };
+      originalOffset: { x: number; y: number }; // offset of bounding box from origin
+    }
+
+    const stackableItems: StackableItem[] = [];
+
+    // Process groups
+    for (const [groupId, groupWidgets] of groupedWidgets) {
+      if (groupWidgets.length === 0) continue;
+      
+      // Calculate bounding box of the group
+      const minX = Math.min(...groupWidgets.map(w => w.x));
+      const minY = Math.min(...groupWidgets.map(w => w.y));
+      const maxX = Math.max(...groupWidgets.map(w => w.x + w.w));
+      const maxY = Math.max(...groupWidgets.map(w => w.y + w.h));
+      
+      stackableItems.push({
+        type: 'group',
+        id: groupId,
+        widgets: groupWidgets,
+        boundingBox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+        originalOffset: { x: minX, y: minY },
+      });
+    }
+
+    // Process ungrouped widgets
+    for (const widget of ungroupedWidgets) {
+      stackableItems.push({
+        type: 'single',
+        id: widget.id,
+        widgets: [widget],
+        boundingBox: { x: widget.x, y: widget.y, w: widget.w, h: widget.h },
+        originalOffset: { x: widget.x, y: widget.y },
+      });
+    }
+
+    // Calculate container width based on total area
+    const totalArea = stackableItems.reduce((sum, item) => sum + (item.boundingBox.w + GAP) * (item.boundingBox.h + GAP), 0);
     const CONTAINER_WIDTH = Math.max(800, Math.ceil(Math.sqrt(totalArea * 1.5) / GRID_SIZE) * GRID_SIZE);
 
-    // Sort by original position: top-to-bottom, left-to-right (preserves relative layout)
-    const sortedWidgets = [...widgets].sort((a, b) => {
-      // Primary sort by Y (row), secondary by X (column)
-      // Use a threshold to group widgets in the same "row" together
+    // Sort by original position: top-to-bottom, left-to-right
+    const sortedItems = [...stackableItems].sort((a, b) => {
       const ROW_THRESHOLD = 50;
-      const rowA = Math.floor(a.y / ROW_THRESHOLD);
-      const rowB = Math.floor(b.y / ROW_THRESHOLD);
+      const rowA = Math.floor(a.boundingBox.y / ROW_THRESHOLD);
+      const rowB = Math.floor(b.boundingBox.y / ROW_THRESHOLD);
       if (rowA !== rowB) return rowA - rowB;
-      return a.x - b.x;
+      return a.boundingBox.x - b.boundingBox.x;
     });
 
     // MaxRects bin packing algorithm
     interface Rect { x: number; y: number; w: number; h: number; }
     let freeRects: Rect[] = [{ x: 0, y: 0, w: CONTAINER_WIDTH, h: 100000 }];
-    const placed: { id: string; x: number; y: number }[] = [];
+    const placed: { item: StackableItem; x: number; y: number }[] = [];
 
     const findBestPosition = (width: number, height: number): { x: number; y: number } | null => {
       let bestScore = Infinity;
@@ -148,29 +205,39 @@ export default function Sheet() {
       });
     };
 
-    // Place each widget
-    for (const widget of sortedWidgets) {
-      const pos = findBestPosition(widget.w, widget.h);
+    // Place each stackable item
+    for (const item of sortedItems) {
+      const itemWidth = item.boundingBox.w + GAP;
+      const itemHeight = item.boundingBox.h + GAP;
+      const pos = findBestPosition(itemWidth, itemHeight);
 
       if (pos) {
         const snapX = Math.round(pos.x / GRID_SIZE) * GRID_SIZE;
         const snapY = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
-        placed.push({ id: widget.id, x: snapX, y: snapY });
-        splitFreeRects(snapX, snapY, widget.w, widget.h);
+        placed.push({ item, x: snapX, y: snapY });
+        splitFreeRects(snapX, snapY, itemWidth, itemHeight);
       } else {
         // Fallback: place below all others
         const maxY = placed.reduce((max, p) => {
-          const w = widgets.find(wg => wg.id === p.id);
-          return Math.max(max, p.y + (w?.h || 120));
+          return Math.max(max, p.y + p.item.boundingBox.h + GAP);
         }, 0);
-        placed.push({ id: widget.id, x: 0, y: maxY });
-        splitFreeRects(0, maxY, widget.w, widget.h);
+        placed.push({ item, x: 0, y: maxY });
+        splitFreeRects(0, maxY, itemWidth, itemHeight);
       }
     }
 
     // Update all widget positions
-    for (const p of placed) {
-      updateWidgetPosition(p.id, p.x, p.y);
+    for (const placement of placed) {
+      const { item, x: newX, y: newY } = placement;
+      const offsetX = newX - item.originalOffset.x;
+      const offsetY = newY - item.originalOffset.y;
+      
+      // Update each widget in the item, preserving relative positions within groups
+      for (const widget of item.widgets) {
+        const finalX = Math.round((widget.x + offsetX) / GRID_SIZE) * GRID_SIZE;
+        const finalY = Math.round((widget.y + offsetY) / GRID_SIZE) * GRID_SIZE;
+        updateWidgetPosition(widget.id, finalX, finalY);
+      }
     }
   };
 
@@ -450,6 +517,12 @@ export default function Sheet() {
             className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] pattern-grid opacity-20 pointer-events-none" 
           />
 
+          {/* Shadow Layer - rendered below all widgets */}
+          <WidgetShadows 
+            widgets={activeCharacter.widgets} 
+            scale={scale}
+          />
+
           {/* Widgets */}
           {activeCharacter.widgets.map(widget => (
             <DraggableWidget 
@@ -458,6 +531,14 @@ export default function Sheet() {
               scale={scale}
             />
           ))}
+          
+          {/* Attachment Buttons - only in edit mode */}
+          {mode === 'edit' && (
+            <AttachmentButtons 
+              widgets={activeCharacter.widgets} 
+              scale={scale}
+            />
+          )}
         </div>
       </div>
 

@@ -97,6 +97,8 @@ export interface Widget {
   y: number;
   w?: number; // width
   h?: number; // height
+  groupId?: string; // ID of the group this widget belongs to (for snap+attach)
+  attachedTo?: string[]; // IDs of widgets this widget is directly attached to (graph edges)
   data: WidgetData;
 }
 

@@ -27,6 +27,7 @@ const MIN_WIDTH = 120;
 
 export default function DraggableWidget({ widget, scale }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
+  const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
   const removeWidget = useStore((state) => state.removeWidget);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
@@ -35,6 +36,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
   // Measure widget and snap height to grid
   useEffect(() => {
@@ -64,10 +66,47 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
 
+  const handleStart = (_e: DraggableEvent, data: DraggableData) => {
+    // Store the starting position for calculating delta
+    dragStartPos.current = { x: data.x, y: data.y };
+  };
+
+  const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
+    // If widget is in a group, visually move sibling widgets during drag
+    if (widget.groupId) {
+      const deltaX = data.x - dragStartPos.current.x;
+      const deltaY = data.y - dragStartPos.current.y;
+      
+      // Find all sibling widgets in the same group and update their visual positions
+      const siblingElements = document.querySelectorAll(`[data-group-id="${widget.groupId}"]`);
+      siblingElements.forEach((el) => {
+        const siblingId = el.getAttribute('data-widget-id');
+        if (siblingId && siblingId !== widget.id) {
+          // Get original position from the store
+          const siblings = useStore.getState().getWidgetsInGroup(widget.groupId!);
+          const sibling = siblings.find(s => s.id === siblingId);
+          if (sibling) {
+            (el as HTMLElement).style.transform = `translate(${sibling.x + deltaX}px, ${sibling.y + deltaY}px)`;
+          }
+        }
+      });
+    }
+  };
+
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
     const snappedX = snapToGrid(data.x);
     const snappedY = snapToGrid(data.y);
-    updateWidgetPosition(widget.id, snappedX, snappedY);
+    
+    // If widget is in a group, move the entire group
+    if (widget.groupId) {
+      const deltaX = snappedX - widget.x;
+      const deltaY = snappedY - widget.y;
+      if (deltaX !== 0 || deltaY !== 0) {
+        moveWidgetGroup(widget.id, deltaX, deltaY);
+      }
+    } else {
+      updateWidgetPosition(widget.id, snappedX, snappedY);
+    }
   };
 
   // Calculate width based on widget type
@@ -118,6 +157,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
       <Draggable
         nodeRef={nodeRef}
         position={{ x: widget.x, y: widget.y }}
+        onStart={handleStart}
+        onDrag={handleDrag}
         onStop={handleStop}
         scale={scale}
         grid={[GRID_SIZE, GRID_SIZE]}
@@ -127,11 +168,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
         <div 
           ref={nodeRef}
           data-widget-id={widget.id}
-          className="react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme"
+          data-group-id={widget.groupId || ''}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme ${widget.groupId && mode === 'edit' ? 'ring-2 ring-green-500 ring-opacity-50' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${MIN_WIDTH}px`,
             minHeight: snappedHeight ? `${snappedHeight}px` : 'auto',
+            zIndex: isHovered && mode === 'edit' ? 100 : undefined,
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -144,9 +187,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
           )}
           
           {/* Edit Button - visible on hover in edit mode */}
-          {mode === 'edit' && (
+          {mode === 'edit' && isHovered && (
             <button
-              className={`absolute -top-3 -left-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-10 hover:bg-blue-600 text-sm ${isHovered ? 'opacity-100' : 'sm:opacity-0'}`}
+              className="absolute -top-3 -left-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-blue-600 text-sm"
               onClick={openEditModal}
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}
@@ -156,10 +199,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </button>
           )}
           
-          {/* Delete Button - larger touch target on mobile, always visible on mobile */}
-          {mode === 'edit' && (
+          {/* Delete Button - visible on hover in edit mode */}
+          {mode === 'edit' && isHovered && (
             <button
-              className={`absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-10 hover:bg-red-600 text-lg sm:text-base ${isHovered ? 'opacity-100' : 'sm:opacity-0'}`}
+              className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-red-600 text-lg sm:text-base"
               onClick={() => removeWidget(widget.id)}
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}

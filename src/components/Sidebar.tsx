@@ -1,20 +1,20 @@
 import { useStore } from '../store/useStore';
 import { WidgetType } from '../types';
 
-const WIDGET_OPTIONS: { type: WidgetType; label: string; icon: string }[] = [
-  { type: 'NUMBER', label: 'Number Tracker', icon: '#' },
-  { type: 'LIST', label: 'List', icon: '☰' },
-  { type: 'TEXT', label: 'Text Area', icon: '¶' },
-  { type: 'CHECKBOX', label: 'Checkbox', icon: '☑' },
-  { type: 'HEALTH_BAR', label: 'Health Bar', icon: '♥' },
-  { type: 'DICE_ROLLER', label: 'Dice Roller', icon: '🎲' },
-  { type: 'SPELL_SLOT', label: 'Spell Slots', icon: '✦' },
-  { type: 'SKILL', label: 'Skill', icon: '★' },
-  { type: 'IMAGE', label: 'Image', icon: '🖼' },
-  { type: 'POOL', label: 'Resource Pool', icon: '●' },
-  { type: 'TOGGLE_GROUP', label: 'Conditions', icon: '⚡' },
-  { type: 'TABLE', label: 'Table', icon: '▦' },
-  { type: 'TIME_TRACKER', label: 'Time Tracker', icon: '⏱' },
+const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
+  { type: 'NUMBER', label: 'Number Tracker' },
+  { type: 'LIST', label: 'List' },
+  { type: 'TEXT', label: 'Text Area' },
+  { type: 'CHECKBOX', label: 'Checkbox' },
+  { type: 'HEALTH_BAR', label: 'Health Bar' },
+  { type: 'DICE_ROLLER', label: 'Dice Roller' },
+  { type: 'SPELL_SLOT', label: 'Spell Slots' },
+  { type: 'SKILL', label: 'Skill' },
+  { type: 'IMAGE', label: 'Image' },
+  { type: 'POOL', label: 'Resource Pool' },
+  { type: 'TOGGLE_GROUP', label: 'Conditions' },
+  { type: 'TABLE', label: 'Table' },
+  { type: 'TIME_TRACKER', label: 'Time Tracker' },
 ];
 
 interface SidebarProps {
@@ -74,7 +74,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
 
         <div className="flex flex-col gap-2 sm:gap-3">
-          {WIDGET_OPTIONS.map(({ type, label, icon }) => (
+          {WIDGET_OPTIONS.map(({ type, label }) => (
             <div
               key={type}
               draggable
@@ -82,7 +82,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               onClick={() => handleAdd(type)}
               className="p-2 sm:p-3 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-theme"
             >
-              <span className="text-base sm:text-lg">{icon}</span>
               <span className="text-xs sm:text-sm font-body">+ {label}</span>
             </div>
           ))}
