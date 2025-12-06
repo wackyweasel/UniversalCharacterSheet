@@ -10,7 +10,8 @@ export type WidgetType =
   | 'IMAGE'
   | 'POOL'
   | 'TOGGLE_GROUP'
-  | 'TABLE';
+  | 'TABLE'
+  | 'TIME_TRACKER';
 
 export interface ToggleItem {
   name: string;
@@ -80,6 +81,13 @@ export interface WidgetData {
   // Table
   columns?: string[];
   rows?: TableRow[];
+  // Time Tracker
+  timedEffects?: TimedEffect[];
+}
+
+export interface TimedEffect {
+  name: string;
+  remainingSeconds: number;
 }
 
 export interface Widget {

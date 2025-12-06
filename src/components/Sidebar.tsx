@@ -14,6 +14,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string; icon: string }[] = [
   { type: 'POOL', label: 'Resource Pool', icon: '●' },
   { type: 'TOGGLE_GROUP', label: 'Conditions', icon: '⚡' },
   { type: 'TABLE', label: 'Table', icon: '▦' },
+  { type: 'TIME_TRACKER', label: 'Time Tracker', icon: '⏱' },
 ];
 
 interface SidebarProps {

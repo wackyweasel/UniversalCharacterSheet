@@ -14,6 +14,7 @@ import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
 import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
+import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import WidgetEditModal from './WidgetEditModal';
 
 interface Props {
@@ -71,6 +72,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   // Calculate width based on widget type
   const getWidgetWidth = () => {
+    // Use custom width if set on the widget
+    if (widget.w) {
+      return widget.w;
+    }
     if (widget.type === 'TABLE') {
       // Dynamic width for tables based on number of columns
       const columns = widget.data.columns || ['Item', 'Qty', 'Weight'];
@@ -103,6 +108,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'POOL': return <PoolWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
+      case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       default: return null;
     }
   };

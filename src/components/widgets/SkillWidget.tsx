@@ -35,6 +35,9 @@ export default function SkillWidget({ widget, width }: Props) {
 
   const formatModifier = (value: number) => value >= 0 ? `+${value}` : `${value}`;
 
+  // Fixed width for the modifier section to ensure alignment across all rows
+  const modifierSectionWidth = isCompact ? 'w-[52px]' : isLarge ? 'w-[76px]' : 'w-[64px]';
+
   return (
     <div className={`flex flex-col ${gapClass} w-full`}>
       <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
@@ -46,16 +49,16 @@ export default function SkillWidget({ widget, width }: Props) {
         {(skillItems as SkillItem[]).map((skill, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Skill Name */}
-            <span className={`flex-1 ${itemClass} text-theme-ink font-body`}>
+            <span className={`flex-1 ${itemClass} text-theme-ink font-body truncate`}>
               {skill.name}
             </span>
 
-            {/* Modifier with +/- buttons */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
+            {/* Modifier with +/- buttons - fixed width container for alignment */}
+            <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${modifierSectionWidth}`}>
               <button
                 onClick={() => adjustSkillValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme flex-shrink-0`}
               >
                 -
               </button>
@@ -65,7 +68,7 @@ export default function SkillWidget({ widget, width }: Props) {
               <button
                 onClick={() => adjustSkillValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme flex-shrink-0`}
               >
                 +
               </button>

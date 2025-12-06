@@ -82,34 +82,41 @@ export default function DiceRollerWidget({ widget, width }: Props) {
         🎲 Roll {diceNotation}
       </button>
 
-      {/* Result Display */}
-      {result && !isRolling && (
-        <div className={`text-center border-t border-theme-border/50 ${isCompact ? 'pt-1' : 'pt-2'} flex-shrink-0`}>
-          <div className={`${resultClass} font-bold text-theme-ink font-heading`}>{result.total}</div>
-          <div className={`${smallTextClass} text-theme-muted font-body`}>
-            {result.groups.map((g, i) => (
-              <span key={i}>
-                {i > 0 && ' + '}
-                <span title={`d${g.faces}`}>[{g.rolls.join(', ')}]</span>
-              </span>
-            ))}
-            {result.modifier !== 0 && (
-              <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+      {/* Result Display - Always visible to maintain consistent height */}
+      <div className={`text-center border-t border-theme-border/50 ${isCompact ? 'pt-1' : 'pt-2'} flex-shrink-0`}>
+        {result && !isRolling ? (
+          <>
+            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>{result.total}</div>
+            <div className={`${smallTextClass} text-theme-muted font-body`}>
+              {result.groups.map((g, i) => (
+                <span key={i}>
+                  {i > 0 && ' + '}
+                  <span title={`d${g.faces}`}>[{g.rolls.join(', ')}]</span>
+                </span>
+              ))}
+              {result.modifier !== 0 && (
+                <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+              )}
+            </div>
+            {/* Critical roll detection for single d20 */}
+            {result.groups.length === 1 && result.groups[0].rolls.length === 1 && result.groups[0].faces === 20 && (
+              <>
+                {result.groups[0].rolls[0] === 20 && (
+                  <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT 20!</div>
+                )}
+                {result.groups[0].rolls[0] === 1 && (
+                  <div className={`text-red-600 font-bold ${smallTextClass}`}>NAT 1!</div>
+                )}
+              </>
             )}
-          </div>
-          {/* Critical roll detection for single d20 */}
-          {result.groups.length === 1 && result.groups[0].rolls.length === 1 && result.groups[0].faces === 20 && (
-            <>
-              {result.groups[0].rolls[0] === 20 && (
-                <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT 20!</div>
-              )}
-              {result.groups[0].rolls[0] === 1 && (
-                <div className={`text-red-600 font-bold ${smallTextClass}`}>NAT 1!</div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+          </>
+        ) : (
+          <>
+            <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>
+            <div className={`${smallTextClass} text-theme-muted font-body`}>&nbsp;</div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ interface Props {
 interface EditorProps {
   widget: Widget;
   updateData: (data: any) => void;
+  updateWidth?: (width: number) => void;
 }
 
 // Individual widget editors
@@ -167,8 +168,23 @@ function ListEditor({ widget, updateData }: EditorProps) {
   );
 }
 
-function TextEditor({ widget, updateData }: EditorProps) {
+function TextEditor({ widget, updateData, updateWidth }: EditorProps) {
   const { label } = widget.data;
+  
+  const GRID_SIZE = 10;
+  const MIN_WIDTH = 120;
+  const MAX_WIDTH = 600;
+  const currentWidth = widget.w || 200;
+
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = parseInt(e.target.value) || MIN_WIDTH;
+    // Snap to grid
+    const snappedValue = Math.round(rawValue / GRID_SIZE) * GRID_SIZE;
+    const clampedValue = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, snappedValue));
+    if (updateWidth) {
+      updateWidth(clampedValue);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -180,6 +196,24 @@ function TextEditor({ widget, updateData }: EditorProps) {
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Title"
         />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">
+          Width: {currentWidth}px
+        </label>
+        <input
+          type="range"
+          min={MIN_WIDTH}
+          max={MAX_WIDTH}
+          step={GRID_SIZE}
+          value={currentWidth}
+          onChange={handleWidthChange}
+          className="w-full accent-theme-accent"
+        />
+        <div className="flex justify-between text-xs text-theme-muted mt-1">
+          <span>{MIN_WIDTH}px</span>
+          <span>{MAX_WIDTH}px</span>
+        </div>
       </div>
     </div>
   );
@@ -753,6 +787,33 @@ function ConditionEditor({ widget, updateData }: EditorProps) {
   );
 }
 
+function TimeTrackerEditor({ widget, updateData }: EditorProps) {
+  const { label } = widget.data;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+        <input
+          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          value={label || ''}
+          onChange={(e) => updateData({ label: e.target.value })}
+          placeholder="Time Tracker"
+        />
+      </div>
+      
+      <div className="text-sm text-theme-muted">
+        <p>Use this widget to track timed effects in your game.</p>
+        <ul className="list-disc ml-4 mt-2 space-y-1">
+          <li>Add effects with their remaining duration</li>
+          <li>Use the "Pass Time" controls to advance all timers at once</li>
+          <li>Expired effects will be highlighted</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function TableEditor({ widget, updateData }: EditorProps) {
   const { label, columns = ['Item', 'Qty', 'Weight'] } = widget.data;
 
@@ -831,6 +892,7 @@ import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
 import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
+import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
@@ -846,13 +908,16 @@ function getWidgetTitle(type: WidgetType): string {
     'POOL': 'Resource Pool',
     'TOGGLE_GROUP': 'Conditions',
     'TABLE': 'Table',
+    'TIME_TRACKER': 'Time Tracker',
   };
   return titles[type] || 'Widget';
 }
 
 export default function WidgetEditModal({ widget, onClose }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const [localData, setLocalData] = useState({ ...widget.data });
+  const [localWidth, setLocalWidth] = useState(widget.w || 200);
 
   const handleUpdateData = (data: any) => {
     const newData = { ...localData, ...data };
@@ -860,11 +925,16 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     updateWidgetData(widget.id, data);
   };
 
-  // Create a preview widget with the current data
-  const previewWidget = { ...widget, data: localData };
+  const handleUpdateWidth = (width: number) => {
+    setLocalWidth(width);
+    updateWidgetSize(widget.id, width, widget.h || 0);
+  };
+
+  // Create a preview widget with the current data and width
+  const previewWidget = { ...widget, data: localData, w: localWidth };
 
   const renderEditor = () => {
-    const editorProps = { widget: previewWidget, updateData: handleUpdateData };
+    const editorProps = { widget: previewWidget, updateData: handleUpdateData, updateWidth: handleUpdateWidth };
     
     switch (widget.type) {
       case 'NUMBER': return <NumberEditor {...editorProps} />;
@@ -879,12 +949,15 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'POOL': return <PoolEditor {...editorProps} />;
       case 'TOGGLE_GROUP': return <ConditionEditor {...editorProps} />;
       case 'TABLE': return <TableEditor {...editorProps} />;
+      case 'TIME_TRACKER': return <TimeTrackerEditor {...editorProps} />;
       default: return null;
     }
   };
 
   const renderPreview = () => {
-    const props = { widget: previewWidget, mode: 'play' as const, width: 280, height: 200 };
+    // Use widget's custom width for TEXT type, otherwise default to 200
+    const previewWidth = widget.type === 'TEXT' ? localWidth : 200;
+    const props = { widget: previewWidget, mode: 'play' as const, width: previewWidth, height: 200 };
     
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
@@ -899,6 +972,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'POOL': return <PoolWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
+      case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       default: return null;
     }
   };
@@ -944,21 +1018,46 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Editor Section */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
-              {renderEditor()}
-            </div>
+          {/* For TEXT widgets, use vertical layout so preview can expand without pushing slider */}
+          {widget.type === 'TEXT' ? (
+            <div className="flex flex-col gap-6">
+              {/* Editor Section */}
+              <div>
+                <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
+                {renderEditor()}
+              </div>
 
-            {/* Preview Section */}
-            <div className="lg:w-72 flex-shrink-0">
-              <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
-              <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-4 shadow-theme">
-                {renderPreview()}
+              {/* Preview Section - below editor, can expand freely */}
+              <div>
+                <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
+                <div 
+                  className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 sm:p-4 shadow-theme inline-block transition-all"
+                  style={{ width: `${localWidth}px` }}
+                >
+                  {renderPreview()}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Editor Section */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
+                {renderEditor()}
+              </div>
+
+              {/* Preview Section */}
+              <div className="lg:w-72 flex-shrink-0">
+                <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
+                <div 
+                  className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 sm:p-4 shadow-theme"
+                  style={{ width: '200px' }}
+                >
+                  {renderPreview()}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

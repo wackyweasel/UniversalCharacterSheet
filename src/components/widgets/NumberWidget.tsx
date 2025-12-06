@@ -33,6 +33,9 @@ export default function NumberWidget({ widget, width }: Props) {
     updateWidgetData(widget.id, { numberItems: updated });
   };
 
+  // Fixed width for the value controls section to ensure alignment across all rows
+  const controlsSectionWidth = isCompact ? 'w-[62px]' : isLarge ? 'w-[94px]' : 'w-[74px]';
+
   return (
     <div className={`flex flex-col ${gapClass} w-full`}>
       <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
@@ -44,26 +47,26 @@ export default function NumberWidget({ widget, width }: Props) {
         {(numberItems as NumberItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
-            <span className={`flex-1 ${itemClass} text-theme-ink font-body`}>
+            <span className={`flex-1 ${itemClass} text-theme-ink font-body truncate`}>
               {item.name}
             </span>
 
-            {/* Value Controls */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
+            {/* Value Controls - fixed width container for alignment */}
+            <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${controlsSectionWidth}`}>
               <button
                 onClick={() => adjustItemValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme flex-shrink-0`}
               >
                 -
               </button>
-              <span className={`${valueClass} text-center font-bold text-theme-ink`}>
+              <span className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0`}>
                 {item.value}
               </span>
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme flex-shrink-0`}
               >
                 +
               </button>
