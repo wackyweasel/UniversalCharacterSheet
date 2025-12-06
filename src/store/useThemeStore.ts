@@ -329,7 +329,7 @@ export const THEMES: Theme[] = [
     borderRadius: '4px',
     borderWidth: '1px',
     shadowStyle: '0 4px 12px var(--color-shadow)',
-    cardTexture: TEXTURES.darkGrain,
+    cardTexture: TEXTURES.none,
     borderStyle: 'solid',
   },
   {
@@ -511,7 +511,7 @@ export const THEMES: Theme[] = [
     borderRadius: '12px',
     borderWidth: '2px',
     shadowStyle: '0 4px 12px var(--color-shadow)',
-    cardTexture: TEXTURES.leafPattern,
+    cardTexture: TEXTURES.none,
     borderStyle: 'solid',
   },
 ];
