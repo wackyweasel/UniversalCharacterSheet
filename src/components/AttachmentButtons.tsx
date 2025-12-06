@@ -57,7 +57,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  // Track which widget is being hovered
+  // Track which widget is being hovered or touched
   useEffect(() => {
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -78,8 +78,30 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
       }
     };
 
+    const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Check if touching an attachment button - keep the current hovered widget
+      const attachButton = target.closest('[data-attach-widget-ids]');
+      if (attachButton) {
+        return;
+      }
+      
+      // Check if touching a widget
+      const widgetEl = target.closest('[data-widget-id]');
+      if (widgetEl) {
+        setHoveredWidgetId(widgetEl.getAttribute('data-widget-id'));
+      } else {
+        setHoveredWidgetId(null);
+      }
+    };
+
     document.addEventListener('mouseover', handleMouseOver);
-    return () => document.removeEventListener('mouseover', handleMouseOver);
+    document.addEventListener('touchstart', handleTouchStart);
+    return () => {
+      document.removeEventListener('mouseover', handleMouseOver);
+      document.removeEventListener('touchstart', handleTouchStart);
+    };
   }, []);
 
   // Refresh bounds calculation when widgets change position or scale changes

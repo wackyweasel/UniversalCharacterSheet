@@ -35,8 +35,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isTouchActive, setIsTouchActive] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const touchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Measure widget and snap height to grid
   useEffect(() => {
@@ -53,6 +55,42 @@ export default function DraggableWidget({ widget, scale }: Props) {
       return () => resizeObserver.disconnect();
     }
   }, [widget.data]);
+
+  // Clear touch state when clicking outside or after timeout
+  useEffect(() => {
+    const handleTouchOutside = (e: TouchEvent) => {
+      if (nodeRef.current && !nodeRef.current.contains(e.target as Node)) {
+        setIsTouchActive(false);
+      }
+    };
+
+    if (isTouchActive) {
+      document.addEventListener('touchstart', handleTouchOutside);
+      // Auto-hide after 5 seconds of inactivity
+      touchTimeoutRef.current = setTimeout(() => {
+        setIsTouchActive(false);
+      }, 5000);
+    }
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchOutside);
+      if (touchTimeoutRef.current) {
+        clearTimeout(touchTimeoutRef.current);
+      }
+    };
+  }, [isTouchActive]);
+
+  const handleWidgetTouchStart = () => {
+    if (mode === 'edit') {
+      setIsTouchActive(true);
+      // Reset the timeout
+      if (touchTimeoutRef.current) {
+        clearTimeout(touchTimeoutRef.current);
+      }
+    }
+  };
+
+  const showControls = isHovered || isTouchActive;
 
   const openEditModal = () => {
     setShowEditModal(true);
@@ -174,10 +212,11 @@ export default function DraggableWidget({ widget, scale }: Props) {
             width: `${widgetWidth}px`,
             minWidth: `${MIN_WIDTH}px`,
             minHeight: snappedHeight ? `${snappedHeight}px` : 'auto',
-            zIndex: isHovered && mode === 'edit' ? 100 : undefined,
+            zIndex: showControls && mode === 'edit' ? 100 : undefined,
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          onTouchStart={handleWidgetTouchStart}
         >
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
@@ -186,8 +225,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
           
-          {/* Edit Button - visible on hover in edit mode */}
-          {mode === 'edit' && isHovered && (
+          {/* Edit Button - visible on hover/touch in edit mode */}
+          {mode === 'edit' && showControls && (
             <button
               className="absolute -top-3 -left-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-blue-600 text-sm"
               onClick={openEditModal}
@@ -199,8 +238,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </button>
           )}
           
-          {/* Delete Button - visible on hover in edit mode */}
-          {mode === 'edit' && isHovered && (
+          {/* Delete Button - visible on hover/touch in edit mode */}
+          {mode === 'edit' && showControls && (
             <button
               className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-red-600 text-lg sm:text-base"
               onClick={() => removeWidget(widget.id)}
