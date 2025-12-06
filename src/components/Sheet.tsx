@@ -15,6 +15,7 @@ export default function Sheet() {
   const setMode = useStore((state) => state.setMode);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
+  const editingWidgetId = useStore((state) => state.editingWidgetId);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   // Default sidebar collapsed on mobile (< 768px)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 768);
@@ -50,6 +51,9 @@ export default function Sheet() {
   }, [activeCharacter?.theme, activeCharacter?.id]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Disable panning when editing a widget
+    if (editingWidgetId) return;
+    
     // Ignore if clicking on a widget (unless it's the background of the widget and we want to allow panning through it? No, usually widgets block panning)
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
 
@@ -101,6 +105,9 @@ export default function Sheet() {
 
   // Touch event handlers for mobile panning and pinch zoom
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Disable touch interactions when editing a widget
+    if (editingWidgetId) return;
+    
     // Ignore if touching a widget
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
     
@@ -171,6 +178,9 @@ export default function Sheet() {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
+    // Disable zoom when editing a widget
+    if (editingWidgetId) return;
+    
     // Zoom with scroll wheel relative to mouse cursor
     const zoomFactor = Math.exp(-e.deltaY * 0.001);
     const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 5);

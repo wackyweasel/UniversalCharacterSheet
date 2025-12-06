@@ -8,6 +8,7 @@ interface StoreState {
   characters: Character[];
   activeCharacterId: string | null;
   mode: Mode;
+  editingWidgetId: string | null;
   
   // Actions
   createCharacter: (name: string) => void;
@@ -16,6 +17,7 @@ interface StoreState {
   updateCharacterName: (id: string, name: string) => void;
   updateCharacterTheme: (id: string, theme: string) => void;
   setMode: (mode: Mode) => void;
+  setEditingWidgetId: (id: string | null) => void;
   
   // Widget Actions (for active character)
   addWidget: (type: WidgetType, x: number, y: number) => void;
@@ -45,6 +47,7 @@ export const useStore = create<StoreState>((set) => {
     characters: initialCharacters,
     activeCharacterId: initialActive,
     mode: 'play',
+    editingWidgetId: null,
 
     createCharacter: (name) => set((state) => {
       const newChar: Character = {
@@ -74,6 +77,8 @@ export const useStore = create<StoreState>((set) => {
     })),
 
     setMode: (mode) => set({ mode }),
+
+    setEditingWidgetId: (id) => set({ editingWidgetId: id }),
 
     addWidget: (type, x, y) => set((state) => {
       if (!state.activeCharacterId) return state;

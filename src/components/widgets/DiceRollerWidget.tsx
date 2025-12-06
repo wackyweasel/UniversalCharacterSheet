@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Widget } from '../../types';
-import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
@@ -9,109 +8,71 @@ interface Props {
   height: number;
 }
 
-export default function DiceRollerWidget({ widget, mode, width, height }: Props) {
-  const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, diceCount = 1, diceType = 20, modifier = 0 } = widget.data;
-  const [result, setResult] = useState<{ rolls: number[]; total: number } | null>(null);
+interface RollResult {
+  groups: { faces: number; rolls: number[] }[];
+  modifier: number;
+  total: number;
+}
+
+export default function DiceRollerWidget({ widget, width }: Props) {
+  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0 } = widget.data;
+  const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
 
   // Responsive sizing
-  const isCompact = width < 180 || height < 150;
-  const isLarge = width >= 350 && height >= 250;
+  const isCompact = width < 180;
+  const isLarge = width >= 350;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const selectClass = isCompact ? 'text-xs px-0.5 py-0' : isLarge ? 'text-base px-2 py-1' : 'text-sm px-1 py-0.5';
-  const modifierInputClass = isCompact ? 'w-7 text-xs' : isLarge ? 'w-14 text-base' : 'w-10 text-sm';
   const buttonClass = isCompact ? 'py-1 px-2 text-xs' : isLarge ? 'py-3 px-6 text-lg' : 'py-2 px-4 text-sm';
   const resultClass = isCompact ? 'text-xl' : isLarge ? 'text-5xl' : 'text-3xl';
   const smallTextClass = isCompact ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
 
-  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateWidgetData(widget.id, { label: e.target.value });
-  };
-
-  const handleDiceCountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateWidgetData(widget.id, { diceCount: parseInt(e.target.value) });
-  };
-
-  const handleDiceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateWidgetData(widget.id, { diceType: parseInt(e.target.value) });
-  };
-
-  const handleModifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateWidgetData(widget.id, { modifier: parseInt(e.target.value) || 0 });
-  };
-
   const rollDice = () => {
     setIsRolling(true);
     
-    // Animate for a moment
     setTimeout(() => {
-      const rolls: number[] = [];
-      for (let i = 0; i < diceCount; i++) {
-        rolls.push(Math.floor(Math.random() * diceType) + 1);
+      const groups: { faces: number; rolls: number[] }[] = [];
+      let sum = 0;
+      
+      for (const group of diceGroups) {
+        const rolls: number[] = [];
+        for (let i = 0; i < group.count; i++) {
+          const roll = Math.floor(Math.random() * group.faces) + 1;
+          rolls.push(roll);
+          sum += roll;
+        }
+        groups.push({ faces: group.faces, rolls });
       }
-      const sum = rolls.reduce((a, b) => a + b, 0);
-      setResult({ rolls, total: sum + modifier });
+      
+      setResult({ groups, modifier, total: sum + modifier });
       setIsRolling(false);
     }, 300);
   };
 
-  const diceNotation = `${diceCount}d${diceType}${modifier >= 0 ? '+' : ''}${modifier !== 0 ? modifier : ''}`;
+  const buildDiceNotation = () => {
+    const parts = diceGroups.map((g: { count: number; faces: number }) => `${g.count}d${g.faces}`);
+    let notation = parts.join(' + ');
+    if (modifier !== 0) {
+      notation += modifier >= 0 ? ` + ${modifier}` : ` - ${Math.abs(modifier)}`;
+    }
+    return notation;
+  };
+
+  const diceNotation = buildDiceNotation();
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none text-center flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
-        value={label}
-        onChange={handleLabelChange}
-        placeholder="Roll Name"
-        disabled={mode === 'play'}
-        onMouseDown={(e) => e.stopPropagation()}
-      />
-
-      {/* Dice Configuration */}
-      <div className={`flex items-center justify-center gap-1 ${isCompact ? 'text-xs' : 'text-sm'} text-theme-ink font-body`}>
-        <select
-          value={diceCount}
-          onChange={handleDiceCountChange}
-          className={`${selectClass} border border-theme-border/50 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={mode === 'play'}
-        >
-          {[1, 2, 3, 4, 5, 6, 8, 10].map(n => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        <span>d</span>
-        <select
-          value={diceType}
-          onChange={handleDiceTypeChange}
-          className={`${selectClass} border border-theme-border/50 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={mode === 'play'}
-        >
-          {[4, 6, 8, 10, 12, 20, 100].map(n => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        <span>+</span>
-        <input
-          type="number"
-          value={modifier}
-          onChange={handleModifierChange}
-          className={`${modifierInputClass} border border-theme-border/50 px-1 py-0.5 focus:border-theme-border focus:outline-none text-center bg-theme-paper text-theme-ink rounded-theme`}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={mode === 'play'}
-        />
+    <div className={`flex flex-col ${gapClass} w-full`}>
+      <div className={`font-bold text-center ${labelClass} text-theme-ink font-heading`}>
+        {label || 'Dice Roller'}
       </div>
 
       {/* Roll Button */}
       <button
         onClick={rollDice}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme ${
+        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme flex-shrink-0 ${
           isRolling 
             ? 'bg-theme-muted animate-pulse text-theme-paper' 
             : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
@@ -123,18 +84,29 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
 
       {/* Result Display */}
       {result && !isRolling && (
-        <div className={`text-center border-t border-theme-border/50 ${isCompact ? 'pt-1' : 'pt-2'}`}>
+        <div className={`text-center border-t border-theme-border/50 ${isCompact ? 'pt-1' : 'pt-2'} flex-shrink-0`}>
           <div className={`${resultClass} font-bold text-theme-ink font-heading`}>{result.total}</div>
-          {diceCount > 1 && (
-            <div className={`${smallTextClass} text-theme-muted font-body`}>
-              [{result.rolls.join(', ')}] {modifier !== 0 && `${modifier >= 0 ? '+' : ''}${modifier}`}
-            </div>
-          )}
-          {result.rolls.includes(diceType) && diceCount === 1 && (
-            <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT {diceType}!</div>
-          )}
-          {result.rolls.includes(1) && diceCount === 1 && (
-            <div className={`text-red-600 font-bold ${smallTextClass}`}>NAT 1!</div>
+          <div className={`${smallTextClass} text-theme-muted font-body`}>
+            {result.groups.map((g, i) => (
+              <span key={i}>
+                {i > 0 && ' + '}
+                <span title={`d${g.faces}`}>[{g.rolls.join(', ')}]</span>
+              </span>
+            ))}
+            {result.modifier !== 0 && (
+              <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+            )}
+          </div>
+          {/* Critical roll detection for single d20 */}
+          {result.groups.length === 1 && result.groups[0].rolls.length === 1 && result.groups[0].faces === 20 && (
+            <>
+              {result.groups[0].rolls[0] === 20 && (
+                <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT 20!</div>
+              )}
+              {result.groups[0].rolls[0] === 1 && (
+                <div className={`text-red-600 font-bold ${smallTextClass}`}>NAT 1!</div>
+              )}
+            </>
           )}
         </div>
       )}

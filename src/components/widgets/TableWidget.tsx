@@ -9,7 +9,7 @@ interface Props {
   height: number;
 }
 
-export default function TableWidget({ widget, mode, width, height }: Props) {
+export default function TableWidget({ widget, width }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { 
     label, 
@@ -20,25 +20,14 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
 
   // Responsive sizing
-  const isCompact = width < 200 || height < 150;
-  const isLarge = width >= 400 && height >= 300;
+  const isCompact = width < 200;
+  const isLarge = width >= 400;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const cellClass = isCompact ? 'text-[10px] p-0.5' : isLarge ? 'text-base p-2' : 'text-sm p-1';
   const buttonClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const deleteButtonClass = isCompact ? 'w-3 h-3 -top-1.5 -right-1.5 text-[10px]' : isLarge ? 'w-5 h-5 -top-2.5 -right-2.5 text-sm' : 'w-4 h-4 -top-2 -right-2 text-xs';
   const countClass = isCompact ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
-
-  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateWidgetData(widget.id, { label: e.target.value });
-  };
-
-  const handleColumnChange = (index: number, value: string) => {
-    const newColumns = [...columns];
-    newColumns[index] = value;
-    updateWidgetData(widget.id, { columns: newColumns });
-  };
 
   const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {
     const newRows = [...rows];
@@ -61,67 +50,23 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
-  const addColumn = () => {
-    const newColumns = [...columns, 'New'];
-    const newRows = rows.map((row: TableRow) => ({
-      ...row,
-      cells: [...row.cells, '']
-    }));
-    updateWidgetData(widget.id, { columns: newColumns, rows: newRows });
-  };
-
-  const removeColumn = (index: number) => {
-    if (columns.length <= 1) return;
-    const newColumns = [...columns];
-    newColumns.splice(index, 1);
-    const newRows = rows.map((row: TableRow) => {
-      const newCells = [...row.cells];
-      newCells.splice(index, 1);
-      return { ...row, cells: newCells };
-    });
-    updateWidgetData(widget.id, { columns: newColumns, rows: newRows });
-  };
-
   return (
-    <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
-        value={label}
-        onChange={handleLabelChange}
-        placeholder="Inventory"
-        disabled={mode === 'play'}
-        onMouseDown={(e) => e.stopPropagation()}
-      />
+    <div className={`flex flex-col ${gapClass} w-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+        {label || 'Table'}
+      </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto min-h-0">
+      <div>
         <table className={`w-full border-collapse ${cellClass}`}>
           <thead>
             <tr>
               {columns.map((col: string, idx: number) => (
-                <th key={idx} className={`border border-theme-border bg-theme-background ${cellClass} relative group text-theme-ink font-heading`}>
-                  {mode === 'edit' ? (
-                    <input
-                      value={col}
-                      onChange={(e) => handleColumnChange(idx, e.target.value)}
-                      className={`w-full bg-transparent text-center font-bold focus:outline-none ${isCompact ? 'text-[10px]' : isLarge ? 'text-base' : 'text-sm'} text-theme-ink`}
-                      onMouseDown={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    col
-                  )}
-                  {mode === 'edit' && columns.length > 1 && (
-                    <button
-                      onClick={() => removeColumn(idx)}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      className={`absolute ${deleteButtonClass} bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100`}
-                    >
-                      ×
-                    </button>
-                  )}
+                <th key={idx} className={`border border-theme-border bg-theme-background ${cellClass} text-theme-ink font-heading`}>
+                  {col}
                 </th>
               ))}
-              {mode === 'edit' && <th className={isCompact ? 'w-4' : 'w-6'}></th>}
+              <th className={isCompact ? 'w-4' : 'w-6'}></th>
             </tr>
           </thead>
           <tbody>
@@ -150,24 +95,22 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
                     )}
                   </td>
                 ))}
-                {mode === 'edit' && (
-                  <td className={`${isCompact ? 'w-4' : 'w-6'} p-0`}>
-                    <button
-                      onClick={() => removeRow(rowIdx)}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      className="w-full h-full text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
-                    >
-                      ×
-                    </button>
-                  </td>
-                )}
+                <td className={`${isCompact ? 'w-4' : 'w-6'} p-0`}>
+                  <button
+                    onClick={() => removeRow(rowIdx)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="w-full h-full text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
+                  >
+                    ×
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Add Controls */}
+      {/* Add Row Button */}
       <div className={`flex ${gapClass}`}>
         <button
           onClick={addRow}
@@ -176,15 +119,6 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
         >
           + Row
         </button>
-        {mode === 'edit' && (
-          <button
-            onClick={addColumn}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={`flex-1 ${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
-          >
-            + Column
-          </button>
-        )}
       </div>
 
       {/* Row Count */}

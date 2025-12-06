@@ -9,24 +9,20 @@ interface Props {
   height: number;
 }
 
-export default function ListWidget({ widget, mode, width, height }: Props) {
+export default function ListWidget({ widget, width }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, items = [] } = widget.data;
   const [newItem, setNewItem] = useState('');
 
   // Responsive sizing
-  const isCompact = width < 160 || height < 100;
-  const isLarge = width >= 300 && height >= 200;
+  const isCompact = width < 160;
+  const isLarge = width >= 300;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const itemClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const inputClass = isCompact ? 'text-xs py-0.5' : isLarge ? 'text-base py-2' : 'text-sm py-1';
   const buttonClass = isCompact ? 'text-base' : isLarge ? 'text-2xl' : 'text-lg';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
-
-  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateWidgetData(widget.id, { label: e.target.value });
-  };
 
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,16 +39,12 @@ export default function ListWidget({ widget, mode, width, height }: Props) {
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none w-full flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
-        value={label}
-        onChange={handleLabelChange}
-        placeholder="List Title"
-        disabled={mode === 'play'}
-      />
-      <ul className="space-y-1 flex-1 overflow-y-auto min-h-0">
-        {items.map((item, idx) => (
+    <div className={`flex flex-col ${gapClass} w-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+        {label || 'List'}
+      </div>
+      <ul className="space-y-1">
+        {items.map((item: string, idx: number) => (
           <li key={idx} className={`flex justify-between items-center group ${itemClass} text-theme-ink font-body`}>
             <span>• {item}</span>
             <button 
@@ -64,6 +56,9 @@ export default function ListWidget({ widget, mode, width, height }: Props) {
             </button>
           </li>
         ))}
+        {items.length === 0 && (
+          <li className={`${itemClass} text-theme-muted italic`}>No items yet</li>
+        )}
       </ul>
       <form onSubmit={addItem} className="flex gap-1 flex-shrink-0">
         <input

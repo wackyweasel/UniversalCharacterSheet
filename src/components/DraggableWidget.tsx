@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
@@ -14,6 +14,7 @@ import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
 import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
+import WidgetEditModal from './WidgetEditModal';
 
 interface Props {
   widget: Widget;
@@ -22,119 +23,55 @@ interface Props {
 
 const GRID_SIZE = 20;
 const MIN_WIDTH = 120;
-const MIN_HEIGHT = 60;
 
 export default function DraggableWidget({ widget, scale }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
-  const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const removeWidget = useStore((state) => state.removeWidget);
   const mode = useStore((state) => state.mode);
+  const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const nodeRef = useRef<HTMLDivElement>(null);
-  
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const openEditModal = () => {
+    setShowEditModal(true);
+    setEditingWidgetId(widget.id);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingWidgetId(null);
+  };
 
   const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
-    if (isResizing) return;
     const snappedX = snapToGrid(data.x);
     const snappedY = snapToGrid(data.y);
     updateWidgetPosition(widget.id, snappedX, snappedY);
   };
 
-  const startResize = useCallback((clientX: number, clientY: number) => {
-    if (mode !== 'edit') return;
-    
-    // Prevent text selection during resize
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'nwse-resize';
-    
-    setIsResizing(true);
-    
-    const currentW = widget.w || nodeRef.current?.offsetWidth || MIN_WIDTH;
-    const currentH = widget.h || nodeRef.current?.offsetHeight || MIN_HEIGHT;
-    
-    resizeStart.current = {
-      x: clientX,
-      y: clientY,
-      w: currentW,
-      h: currentH
-    };
-  }, [mode, widget.w, widget.h]);
-
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    startResize(e.clientX, e.clientY);
-  }, [startResize]);
-
-  const handleResizeTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.touches.length === 1) {
-      startResize(e.touches[0].clientX, e.touches[0].clientY);
+  // Calculate width based on widget type
+  const getWidgetWidth = () => {
+    if (widget.type === 'TABLE') {
+      // Dynamic width for tables based on number of columns
+      const columns = widget.data.columns || ['Item', 'Qty', 'Weight'];
+      const columnCount = columns.length;
+      // Base width per column (minimum 60px) + some padding for delete button
+      const baseColumnWidth = 80;
+      const minWidth = 200;
+      const calculatedWidth = Math.max(minWidth, columnCount * baseColumnWidth + 40);
+      // Snap to grid
+      return snapToGrid(calculatedWidth);
     }
-  }, [startResize]);
+    return 200; // Default fixed width for other widgets
+  };
 
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      e.preventDefault();
-      
-      const deltaX = (e.clientX - resizeStart.current.x) / scale;
-      const deltaY = (e.clientY - resizeStart.current.y) / scale;
-      
-      const newW = Math.max(MIN_WIDTH, snapToGrid(resizeStart.current.w + deltaX));
-      const newH = Math.max(MIN_HEIGHT, snapToGrid(resizeStart.current.h + deltaY));
-      
-      updateWidgetSize(widget.id, newW, newH);
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      if (e.touches.length === 1) {
-        const deltaX = (e.touches[0].clientX - resizeStart.current.x) / scale;
-        const deltaY = (e.touches[0].clientY - resizeStart.current.y) / scale;
-        
-        const newW = Math.max(MIN_WIDTH, snapToGrid(resizeStart.current.w + deltaX));
-        const newH = Math.max(MIN_HEIGHT, snapToGrid(resizeStart.current.h + deltaY));
-        
-        updateWidgetSize(widget.id, newW, newH);
-      }
-    };
-
-    const handleMouseUp = () => {
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      setIsResizing(false);
-    };
-
-    const handleTouchEnd = () => {
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      setIsResizing(false);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
-    
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [isResizing, scale, widget.id, updateWidgetSize]);
-
-  const widgetWidth = widget.w || 200;
-  const widgetHeight = widget.h || 120;
+  const widgetWidth = getWidgetWidth();
 
   const renderContent = () => {
-    const props = { widget, mode, width: widgetWidth, height: widgetHeight };
+    // Always render in play mode style - the modal handles editing
+    const props = { widget, mode: 'play' as const, width: widgetWidth, height: 200 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'LIST': return <ListWidget {...props} />;
@@ -153,61 +90,71 @@ export default function DraggableWidget({ widget, scale }: Props) {
   };
 
   return (
-    <Draggable
-      nodeRef={nodeRef}
-      position={{ x: widget.x, y: widget.y }}
-      onStop={handleStop}
-      scale={scale}
-      grid={[GRID_SIZE, GRID_SIZE]}
-      handle=".drag-handle"
-      disabled={mode === 'play' || isResizing}
-    >
-      <div 
-        ref={nodeRef}
-        className="react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme"
-        style={{ 
-          width: widget.w ? `${widget.w}px` : 'auto',
-          height: widget.h ? `${widget.h}px` : 'auto',
-          minWidth: `${MIN_WIDTH}px`,
-          minHeight: `${MIN_HEIGHT}px`,
-        }}
+    <>
+      <Draggable
+        nodeRef={nodeRef}
+        position={{ x: widget.x, y: widget.y }}
+        onStop={handleStop}
+        scale={scale}
+        grid={[GRID_SIZE, GRID_SIZE]}
+        handle=".drag-handle"
+        disabled={mode === 'play'}
       >
-        {/* Drag Handle - only visible in edit mode */}
-        {mode === 'edit' && (
-          <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-end pr-1 touch-none rounded-t-theme">
-             <div className="w-full h-full" />
-          </div>
-        )}
-        
-        {/* Delete Button - larger touch target on mobile, always visible on mobile */}
-        {mode === 'edit' && (
-          <button
-            className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600 text-lg sm:text-base"
-            onClick={() => removeWidget(widget.id)}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            ×
-          </button>
-        )}
+        <div 
+          ref={nodeRef}
+          className="react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme"
+          style={{ 
+            width: `${widgetWidth}px`,
+            minWidth: `${MIN_WIDTH}px`,
+          }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {/* Drag Handle - only visible in edit mode */}
+          {mode === 'edit' && (
+            <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-end pr-1 touch-none rounded-t-theme">
+              <div className="w-full h-full" />
+            </div>
+          )}
+          
+          {/* Edit Button - visible on hover in edit mode */}
+          {mode === 'edit' && (
+            <button
+              className={`absolute -top-3 -left-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-10 hover:bg-blue-600 text-sm ${isHovered ? 'opacity-100' : 'sm:opacity-0'}`}
+              onClick={openEditModal}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              title="Edit widget"
+            >
+              ✏️
+            </button>
+          )}
+          
+          {/* Delete Button - larger touch target on mobile, always visible on mobile */}
+          {mode === 'edit' && (
+            <button
+              className={`absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-10 hover:bg-red-600 text-lg sm:text-base ${isHovered ? 'opacity-100' : 'sm:opacity-0'}`}
+              onClick={() => removeWidget(widget.id)}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              ×
+            </button>
+          )}
 
-        {/* Resize Handle - only visible in edit mode */}
-        {mode === 'edit' && (
-          <div 
-            className="absolute bottom-0 right-0 w-7 h-7 sm:w-5 sm:h-5 cursor-nwse-resize z-20 opacity-50 sm:opacity-30 hover:opacity-100 transition-opacity touch-none"
-            onMouseDown={handleResizeMouseDown}
-            onTouchStart={handleResizeTouchStart}
-          >
-            <svg viewBox="0 0 20 20" className="w-full h-full text-theme-muted">
-              <path d="M20 20L6 20L20 6Z" fill="currentColor" />
-            </svg>
+          <div className="mt-2">
+            {renderContent()}
           </div>
-        )}
-
-        <div className="mt-2 h-[calc(100%-0.5rem)] overflow-auto">
-          {renderContent()}
         </div>
-      </div>
-    </Draggable>
+      </Draggable>
+      
+      {/* Edit Modal */}
+      {showEditModal && (
+        <WidgetEditModal 
+          widget={widget} 
+          onClose={closeEditModal} 
+        />
+      )}
+    </>
   );
 }

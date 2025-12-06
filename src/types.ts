@@ -42,6 +42,11 @@ export interface NumberItem {
   value: number;
 }
 
+export interface DiceGroup {
+  count: number;
+  faces: number;
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -57,6 +62,7 @@ export interface WidgetData {
   diceCount?: number;
   diceType?: number;
   modifier?: number;
+  diceGroups?: DiceGroup[];
   // Spell Slot
   spellLevels?: SpellLevel[];
   // Skill
