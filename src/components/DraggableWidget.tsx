@@ -102,6 +102,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       >
         <div 
           ref={nodeRef}
+          data-widget-id={widget.id}
           className="react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme"
           style={{ 
             width: `${widgetWidth}px`,

@@ -16,12 +16,156 @@ export default function Sheet() {
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
+  const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   // Default sidebar collapsed on mobile (< 768px)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 768);
   const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
+
+  // Auto-stack function that measures actual DOM widget sizes
+  const handleAutoStack = () => {
+    if (!activeCharacter || activeCharacter.widgets.length === 0) return;
+
+    const GRID_SIZE = 20;
+    const GAP = 20;
+
+    // Get all widget DOM elements and measure their actual sizes
+    const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
+    const widgetSizes: { id: string; w: number; h: number }[] = [];
+
+    widgetElements.forEach((el) => {
+      const id = el.getAttribute('data-widget-id');
+      if (id) {
+        const rect = el.getBoundingClientRect();
+        // Account for current scale
+        widgetSizes.push({
+          id,
+          w: Math.ceil(rect.width / scale / GRID_SIZE) * GRID_SIZE,
+          h: Math.ceil(rect.height / scale / GRID_SIZE) * GRID_SIZE,
+        });
+      }
+    });
+
+    // If we couldn't measure any widgets, fall back to stored sizes
+    const widgets = activeCharacter.widgets.map(w => {
+      const measured = widgetSizes.find(s => s.id === w.id);
+      return {
+        id: w.id,
+        w: measured ? measured.w + GAP : (w.w || 200) + GAP,
+        h: measured ? measured.h + GAP : (w.h || 120) + GAP,
+      };
+    });
+
+    // Calculate container width based on total widget area
+    const totalArea = widgets.reduce((sum, w) => sum + w.w * w.h, 0);
+    const CONTAINER_WIDTH = Math.max(800, Math.ceil(Math.sqrt(totalArea * 1.5) / GRID_SIZE) * GRID_SIZE);
+
+    // Sort by height descending, then by width descending
+    const sortedWidgets = [...widgets].sort((a, b) => {
+      if (b.h !== a.h) return b.h - a.h;
+      return b.w - a.w;
+    });
+
+    // MaxRects bin packing algorithm
+    interface Rect { x: number; y: number; w: number; h: number; }
+    let freeRects: Rect[] = [{ x: 0, y: 0, w: CONTAINER_WIDTH, h: 100000 }];
+    const placed: { id: string; x: number; y: number }[] = [];
+
+    const findBestPosition = (width: number, height: number): { x: number; y: number } | null => {
+      let bestScore = Infinity;
+      let bestX = 0;
+      let bestY = 0;
+      let found = false;
+
+      for (const rect of freeRects) {
+        if (width <= rect.w && height <= rect.h) {
+          const leftoverH = rect.w - width;
+          const leftoverV = rect.h - height;
+          const shortSide = Math.min(leftoverH, leftoverV);
+          const score = rect.y * 10000 + shortSide;
+
+          if (score < bestScore) {
+            bestScore = score;
+            bestX = rect.x;
+            bestY = rect.y;
+            found = true;
+          }
+        }
+      }
+
+      return found ? { x: bestX, y: bestY } : null;
+    };
+
+    const splitFreeRects = (px: number, py: number, pw: number, ph: number) => {
+      const newFreeRects: Rect[] = [];
+
+      for (const rect of freeRects) {
+        // No intersection - keep as is
+        if (px >= rect.x + rect.w || px + pw <= rect.x ||
+            py >= rect.y + rect.h || py + ph <= rect.y) {
+          newFreeRects.push(rect);
+          continue;
+        }
+
+        // Left part
+        if (px > rect.x) {
+          newFreeRects.push({ x: rect.x, y: rect.y, w: px - rect.x, h: rect.h });
+        }
+        // Right part
+        if (px + pw < rect.x + rect.w) {
+          newFreeRects.push({ x: px + pw, y: rect.y, w: rect.x + rect.w - (px + pw), h: rect.h });
+        }
+        // Top part
+        if (py > rect.y) {
+          newFreeRects.push({ x: rect.x, y: rect.y, w: rect.w, h: py - rect.y });
+        }
+        // Bottom part
+        if (py + ph < rect.y + rect.h) {
+          newFreeRects.push({ x: rect.x, y: py + ph, w: rect.w, h: rect.y + rect.h - (py + ph) });
+        }
+      }
+
+      // Remove rects contained in others
+      freeRects = newFreeRects.filter((a, i) => {
+        for (let j = 0; j < newFreeRects.length; j++) {
+          if (i === j) continue;
+          const b = newFreeRects[j];
+          if (a.x >= b.x && a.y >= b.y &&
+              a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
+            return false;
+          }
+        }
+        return true;
+      });
+    };
+
+    // Place each widget
+    for (const widget of sortedWidgets) {
+      const pos = findBestPosition(widget.w, widget.h);
+
+      if (pos) {
+        const snapX = Math.round(pos.x / GRID_SIZE) * GRID_SIZE;
+        const snapY = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
+        placed.push({ id: widget.id, x: snapX, y: snapY });
+        splitFreeRects(snapX, snapY, widget.w, widget.h);
+      } else {
+        // Fallback: place below all others
+        const maxY = placed.reduce((max, p) => {
+          const w = widgets.find(wg => wg.id === p.id);
+          return Math.max(max, p.y + (w?.h || 120));
+        }, 0);
+        placed.push({ id: widget.id, x: 0, y: maxY });
+        splitFreeRects(0, maxY, widget.w, widget.h);
+      }
+    }
+
+    // Update all widget positions
+    for (const p of placed) {
+      updateWidgetPosition(p.id, p.x, p.y);
+    }
+  };
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -417,6 +561,17 @@ export default function Sheet() {
                 <span className="hidden sm:inline">✕ Hide Themes</span>
               </>
             )}
+          </button>
+        )}
+
+        {/* Auto Stack Button - only in edit mode */}
+        {mode === 'edit' && (
+          <button
+            onClick={handleAutoStack}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          >
+            <span className="sm:hidden">📐</span>
+            <span className="hidden sm:inline">📐 Auto Stack</span>
           </button>
         )}
       </div>
