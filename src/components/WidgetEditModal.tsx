@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, WidgetType, ToggleItem, CheckboxItem, SpellLevel, SkillItem, NumberItem, DiceGroup } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -913,9 +914,9 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -927,7 +928,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchMove={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
     >
-      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-none sm:rounded-theme shadow-theme sm:max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border">
           <h2 className="text-lg font-bold text-theme-ink font-heading">
@@ -970,6 +971,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
