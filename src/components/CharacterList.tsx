@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { THEMES } from '../store/useThemeStore';
+import { THEMES, getShadowStyleCSS, getTextureCSS } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
 
 // Helper to get theme colors for a character
@@ -8,6 +8,8 @@ function getThemeStyles(themeId?: string) {
   // First check if it's a custom theme
   const customTheme = themeId ? getCustomTheme(themeId) : undefined;
   if (customTheme) {
+    const shadowCSS = getShadowStyleCSS(customTheme.shadowStyle || 'hard', customTheme.colors.glow || 'transparent');
+    const textureCSS = getTextureCSS(customTheme.cardTexture || 'none');
     return {
       '--card-background': customTheme.colors.paper,
       '--card-ink': customTheme.colors.ink,
@@ -15,8 +17,12 @@ function getThemeStyles(themeId?: string) {
       '--card-shadow': customTheme.colors.shadow,
       '--card-muted': customTheme.colors.muted,
       '--card-accent': customTheme.colors.accent,
+      '--card-glow': customTheme.colors.glow || 'transparent',
       '--card-radius': customTheme.borderRadius,
       '--card-border-width': customTheme.borderWidth,
+      '--card-border-style': customTheme.borderStyle || 'solid',
+      '--card-shadow-style': shadowCSS,
+      '--card-texture': textureCSS,
       fontFamily: customTheme.fonts.body,
     } as React.CSSProperties;
   }
@@ -30,8 +36,12 @@ function getThemeStyles(themeId?: string) {
     '--card-shadow': theme.colors.shadow,
     '--card-muted': theme.colors.muted,
     '--card-accent': theme.colors.accent,
+    '--card-glow': theme.colors.glow,
     '--card-radius': theme.borderRadius,
     '--card-border-width': theme.borderWidth,
+    '--card-border-style': theme.borderStyle,
+    '--card-shadow-style': theme.shadowStyle,
+    '--card-texture': theme.cardTexture,
     fontFamily: theme.fonts.body,
   } as React.CSSProperties;
 }
@@ -91,9 +101,10 @@ export default function CharacterList() {
                 className="absolute inset-0 pointer-events-none"
                 style={{
                   backgroundColor: 'var(--card-background)',
+                  backgroundImage: 'var(--card-texture)',
                   borderRadius: 'var(--card-radius)',
-                  border: 'var(--card-border-width) solid var(--card-border)',
-                  boxShadow: `4px 4px 0 var(--card-shadow)`,
+                  border: 'var(--card-border-width) var(--card-border-style) var(--card-border)',
+                  boxShadow: 'var(--card-shadow-style)',
                 }}
               />
               <div className="relative">

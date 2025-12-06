@@ -6,6 +6,13 @@ import {
   ICON_OPTIONS, 
   createDefaultCustomTheme,
 } from '../store/useCustomThemeStore';
+import {
+  TEXTURE_OPTIONS,
+  SHADOW_STYLE_OPTIONS,
+  BORDER_STYLE_OPTIONS,
+  getTextureCSS,
+  getShadowStyleCSS,
+} from '../store/useThemeStore';
 
 interface CustomThemeEditorProps {
   theme?: CustomTheme; // If provided, we're editing; otherwise creating new
@@ -26,6 +33,9 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [bodyFont, setBodyFont] = useState(theme?.fonts.body || defaultTheme.fonts.body);
   const [borderRadius, setBorderRadius] = useState(theme?.borderRadius || defaultTheme.borderRadius);
   const [borderWidth, setBorderWidth] = useState(theme?.borderWidth || defaultTheme.borderWidth);
+  const [shadowStyle, setShadowStyle] = useState(theme?.shadowStyle || defaultTheme.shadowStyle);
+  const [cardTexture, setCardTexture] = useState(theme?.cardTexture || defaultTheme.cardTexture);
+  const [borderStyle, setBorderStyle] = useState(theme?.borderStyle || defaultTheme.borderStyle);
   const [showIconPicker, setShowIconPicker] = useState(false);
 
   const handleColorChange = (key: keyof typeof colors, value: string) => {
@@ -45,6 +55,9 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
       },
       borderRadius,
       borderWidth,
+      shadowStyle,
+      cardTexture,
+      borderStyle,
     };
     onSave(newTheme);
   };
@@ -58,6 +71,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
     { key: 'border', label: 'Border' },
     { key: 'shadow', label: 'Shadow' },
     { key: 'muted', label: 'Muted Text' },
+    { key: 'glow', label: 'Glow' },
   ];
 
   return (
@@ -233,6 +247,42 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                   <option value="4px">Extra Thick (4px)</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Style</label>
+                <select
+                  value={borderStyle}
+                  onChange={(e) => setBorderStyle(e.target.value)}
+                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                >
+                  {BORDER_STYLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Shadow Style</label>
+                <select
+                  value={shadowStyle}
+                  onChange={(e) => setShadowStyle(e.target.value)}
+                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                >
+                  {SHADOW_STYLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Card Texture</label>
+                <select
+                  value={cardTexture}
+                  onChange={(e) => setCardTexture(e.target.value)}
+                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                >
+                  {TEXTURE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </section>
 
@@ -250,9 +300,13 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 className="p-4"
                 style={{ 
                   backgroundColor: colors.paper,
-                  border: `${borderWidth} solid ${colors.border}`,
+                  backgroundImage: getTextureCSS(cardTexture),
+                  border: `${borderWidth} ${borderStyle} ${colors.border}`,
                   borderRadius: borderRadius,
-                  boxShadow: `4px 4px 0 ${colors.shadow}`,
+                  boxShadow: getShadowStyleCSS(shadowStyle, colors.glow)
+                    .replace(/var\(--color-shadow\)/g, colors.shadow)
+                    .replace(/var\(--color-border\)/g, colors.border)
+                    .replace(/var\(--color-glow\)/g, colors.glow),
                 }}
               >
                 <h4 

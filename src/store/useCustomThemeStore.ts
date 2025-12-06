@@ -14,6 +14,7 @@ export interface CustomTheme {
     border: string;
     shadow: string;
     muted: string;
+    glow: string;
   };
   fonts: {
     heading: string;
@@ -21,6 +22,9 @@ export interface CustomTheme {
   };
   borderRadius: string;
   borderWidth: string;
+  shadowStyle: string;
+  cardTexture: string;
+  borderStyle: string;
 }
 
 // Available font options for custom themes
@@ -110,6 +114,7 @@ export function createDefaultCustomTheme(): Omit<CustomTheme, 'id'> {
       border: '#374151',
       shadow: '#1f2937',
       muted: '#6b7280',
+      glow: 'transparent',
     },
     fonts: {
       heading: '"Arial", "Helvetica Neue", sans-serif',
@@ -117,5 +122,8 @@ export function createDefaultCustomTheme(): Omit<CustomTheme, 'id'> {
     },
     borderRadius: '4px',
     borderWidth: '2px',
+    shadowStyle: 'hard',
+    cardTexture: 'none',
+    borderStyle: 'solid',
   };
 }
