@@ -73,14 +73,14 @@ export default function PoolWidget({ widget, mode, width, height }: Props) {
     if (poolStyle === 'hearts') {
       return base;
     }
-    return `${base} ${filled ? 'text-black' : 'text-gray-400'}`;
+    return `${base} ${filled ? 'text-theme-ink' : 'text-theme-muted'}`;
   };
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <div className={`flex items-center ${gapClass} flex-shrink-0`}>
         <input
-          className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none flex-1 ${labelClass} min-w-0`}
+          className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none flex-1 ${labelClass} min-w-0 text-theme-ink font-heading`}
           value={label}
           onChange={handleLabelChange}
           placeholder="Resource Pool"
@@ -91,7 +91,7 @@ export default function PoolWidget({ widget, mode, width, height }: Props) {
           <select
             value={poolStyle}
             onChange={handleStyleChange}
-            className={`${selectClass} border border-gray-300 py-0.5 focus:border-black focus:outline-none bg-white`}
+            className={`${selectClass} border border-theme-border/50 py-0.5 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <option value="dots">Dots</option>
@@ -117,19 +117,19 @@ export default function PoolWidget({ widget, mode, width, height }: Props) {
       </div>
 
       {/* Counter */}
-      <div className={`${counterClass} text-center text-gray-600`}>
+      <div className={`${counterClass} text-center text-theme-muted font-body`}>
         {currentPool} / {maxPool}
       </div>
 
       {/* Edit Controls */}
       {mode === 'edit' && (
-        <div className={`flex items-center ${gapClass} ${counterClass} border-t border-gray-200 pt-2`}>
+        <div className={`flex items-center ${gapClass} ${counterClass} border-t border-theme-border/50 pt-2 text-theme-ink`}>
           <span>Max:</span>
           <input
             type="number"
             value={maxPool}
             onChange={handleMaxChange}
-            className={`${inputClass} border border-gray-300 px-1 py-0.5 focus:border-black focus:outline-none`}
+            className={`${inputClass} border border-theme-border/50 px-1 py-0.5 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
             min={1}
             max={20}
             onMouseDown={(e) => e.stopPropagation()}
@@ -137,7 +137,7 @@ export default function PoolWidget({ widget, mode, width, height }: Props) {
           <button
             onClick={() => updateWidgetData(widget.id, { currentPool: maxPool })}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`ml-auto ${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+            className={`ml-auto ${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
           >
             Reset
           </button>

@@ -70,7 +70,7 @@ export default function NumberWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none ${labelClass} flex-shrink-0`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none ${labelClass} flex-shrink-0 text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Trackers"
@@ -84,7 +84,7 @@ export default function NumberWidget({ widget, mode, width, height }: Props) {
           <div key={idx} className={`flex items-center ${gapClass} group`}>
             {/* Item Name */}
             <input
-              className={`flex-1 ${itemClass} bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none min-w-0`}
+              className={`flex-1 ${itemClass} bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none min-w-0 text-theme-ink font-body`}
               value={item.name}
               onChange={(e) => updateItemName(idx, e.target.value)}
               placeholder="Name"
@@ -97,7 +97,7 @@ export default function NumberWidget({ widget, mode, width, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-black hover:bg-black hover:text-white transition-colors flex items-center justify-center`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme`}
               >
                 -
               </button>
@@ -106,18 +106,18 @@ export default function NumberWidget({ widget, mode, width, height }: Props) {
                   type="number"
                   value={item.value}
                   onChange={(e) => updateItemValue(idx, parseInt(e.target.value) || 0)}
-                  className={`${valueClass} text-center font-bold border border-gray-300 focus:border-black focus:outline-none`}
+                  className={`${valueClass} text-center font-bold border border-theme-border/50 focus:border-theme-border focus:outline-none text-theme-ink bg-theme-paper rounded-theme`}
                   onMouseDown={(e) => e.stopPropagation()}
                 />
               ) : (
-                <span className={`${valueClass} text-center font-bold`}>
+                <span className={`${valueClass} text-center font-bold text-theme-ink`}>
                   {item.value}
                 </span>
               )}
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-black hover:bg-black hover:text-white transition-colors flex items-center justify-center`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme`}
               >
                 +
               </button>
@@ -145,12 +145,12 @@ export default function NumberWidget({ widget, mode, width, height }: Props) {
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Add tracker..."
-            className={`flex-1 ${itemClass} border-b border-gray-300 focus:border-black focus:outline-none py-1`}
+            className={`flex-1 ${itemClass} border-b border-theme-border/50 focus:border-theme-border focus:outline-none py-1 text-theme-ink bg-transparent font-body`}
             onMouseDown={(e) => e.stopPropagation()}
           />
           <button
             type="submit"
-            className={`${isCompact ? 'text-base' : 'text-lg'} font-bold hover:text-gray-600 px-1`}
+            className={`${isCompact ? 'text-base' : 'text-lg'} font-bold hover:text-theme-muted px-1 text-theme-ink`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             +

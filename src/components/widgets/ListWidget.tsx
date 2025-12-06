@@ -45,7 +45,7 @@ export default function ListWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none w-full flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none w-full flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="List Title"
@@ -53,7 +53,7 @@ export default function ListWidget({ widget, mode, width, height }: Props) {
       />
       <ul className="space-y-1 flex-1 overflow-y-auto min-h-0">
         {items.map((item, idx) => (
-          <li key={idx} className={`flex justify-between items-center group ${itemClass}`}>
+          <li key={idx} className={`flex justify-between items-center group ${itemClass} text-theme-ink font-body`}>
             <span>• {item}</span>
             <button 
               onClick={() => removeItem(idx)}
@@ -67,7 +67,7 @@ export default function ListWidget({ widget, mode, width, height }: Props) {
       </ul>
       <form onSubmit={addItem} className="flex gap-1 flex-shrink-0">
         <input
-          className={`flex-1 border-b border-gray-300 focus:border-black focus:outline-none ${inputClass} min-w-0`}
+          className={`flex-1 border-b border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           placeholder="Add item..."
@@ -75,7 +75,7 @@ export default function ListWidget({ widget, mode, width, height }: Props) {
         />
         <button 
           type="submit"
-          className={`${buttonClass} font-bold hover:text-gray-600 px-1 flex-shrink-0`}
+          className={`${buttonClass} font-bold hover:text-theme-muted px-1 flex-shrink-0 text-theme-ink`}
           onMouseDown={(e) => e.stopPropagation()}
         >
           +

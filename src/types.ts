@@ -86,8 +86,22 @@ export interface Widget {
   data: WidgetData;
 }
 
+export type ThemeId = 
+  | 'default'
+  | 'pen-and-paper'
+  | 'medieval'
+  | 'scifi'
+  | 'pirate'
+  | 'high-magic'
+  | 'necrotic'
+  | 'modern'
+  | 'steampunk'
+  | 'cyberpunk'
+  | 'nature';
+
 export interface Character {
   id: string;
   name: string;
+  theme?: ThemeId | string; // Can be a built-in ThemeId or a custom theme ID
   widgets: Widget[];
 }

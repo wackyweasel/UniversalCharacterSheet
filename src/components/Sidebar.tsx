@@ -45,14 +45,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
       
       <div 
-        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-white border-r-2 border-black z-50 flex flex-col p-3 sm:p-4 shadow-hard overflow-y-auto transition-transform duration-300 ease-in-out safe-area-bottom ${
+        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-y-auto transition-transform duration-300 ease-in-out safe-area-bottom ${
           collapsed ? '-translate-x-full' : 'translate-x-0'
         }`}
       >
         {/* Toggle button - positioned on the edge of sidebar (hidden on mobile, use floating button instead) */}
         <button
           onClick={onToggle}
-          className="hidden md:flex absolute -right-10 top-20 w-10 h-10 bg-white border-2 border-black border-l-0 font-bold shadow-hard hover:bg-black hover:text-white transition-all items-center justify-center"
+          className="hidden md:flex absolute -right-10 top-20 w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border border-l-0 font-bold shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all items-center justify-center text-theme-ink"
           title={collapsed ? 'Show Toolbox' : 'Hide Toolbox'}
         >
           {collapsed ? '▶' : '◀'}
@@ -61,13 +61,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {/* Mobile close button */}
         <button
           onClick={onToggle}
-          className="md:hidden absolute top-3 right-3 w-8 h-8 bg-black text-white font-bold flex items-center justify-center"
+          className="md:hidden absolute top-3 right-3 w-8 h-8 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme"
         >
           ✕
         </button>
 
         <div className="mb-4 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider border-b-2 border-black pb-2">
+          <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
             Toolbox
           </h2>
         </div>
@@ -79,20 +79,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               draggable
               onDragStart={(e) => handleDragStart(e, type)}
               onClick={() => handleAdd(type)}
-              className="p-2 sm:p-3 border-2 border-black hover:bg-black hover:text-white transition-all text-left font-bold shadow-hard active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2"
+              className="p-2 sm:p-3 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-theme"
             >
               <span className="text-base sm:text-lg">{icon}</span>
-              <span className="text-xs sm:text-sm">+ {label}</span>
+              <span className="text-xs sm:text-sm font-body">+ {label}</span>
             </div>
           ))}
         </div>
 
-        <div className="mt-auto pt-4 text-[10px] sm:text-xs text-gray-500 border-t border-gray-200">
+        <div className="mt-auto pt-4 text-[10px] sm:text-xs text-theme-muted border-t border-theme-border/50 font-body">
           <p className="hidden sm:block">Drag widgets to arrange.</p>
           <p className="sm:hidden">Tap to add widgets.</p>
           <p>Pan with finger/mouse.</p>
           <p>Pinch/scroll to zoom.</p>
-          <p className="mt-2 text-gray-700 font-bold">Edit Mode Active</p>
+          <p className="mt-2 text-theme-ink font-bold">Edit Mode Active</p>
         </div>
       </div>
     </>

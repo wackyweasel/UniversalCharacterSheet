@@ -46,7 +46,7 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none text-center ${labelClass} flex-shrink-0`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none text-center ${labelClass} flex-shrink-0 text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Portrait"
@@ -55,7 +55,7 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
       />
 
       {/* Image Display */}
-      <div className={`flex-1 border-2 border-black bg-gray-100 flex items-center justify-center overflow-hidden ${minHeightClass}`}>
+      <div className={`flex-1 border-[length:var(--border-width)] border-theme-border bg-theme-background flex items-center justify-center overflow-hidden ${minHeightClass} rounded-theme`}>
         {imageUrl ? (
           <img 
             src={imageUrl} 
@@ -66,9 +66,9 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
             }}
           />
         ) : (
-          <div className={`text-gray-400 text-center ${isCompact ? 'p-1' : 'p-2'}`}>
+          <div className={`text-theme-muted text-center ${isCompact ? 'p-1' : 'p-2'}`}>
             <div className={`${placeholderIconClass} mb-1`}>👤</div>
-            <span className={placeholderTextClass}>No image</span>
+            <span className={`${placeholderTextClass} font-body`}>No image</span>
           </div>
         )}
       </div>
@@ -76,7 +76,7 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
       {/* Edit Controls */}
       {mode === 'edit' && (
         <div className="flex gap-1">
-          <label className={`flex-1 ${buttonClass} border border-black hover:bg-black hover:text-white transition-colors text-center cursor-pointer`}>
+          <label className={`flex-1 ${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-center cursor-pointer text-theme-ink rounded-theme`}>
             Upload
             <input
               type="file"
@@ -89,7 +89,7 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
             <button
               onClick={clearImage}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+              className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
             >
               Clear
             </button>

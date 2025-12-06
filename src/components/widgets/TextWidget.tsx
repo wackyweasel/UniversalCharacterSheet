@@ -31,14 +31,14 @@ export default function TextWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none w-full flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none w-full flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Title"
         disabled={mode === 'play'}
       />
       <textarea
-        className={`w-full flex-1 ${textClass} border border-gray-300 focus:border-black focus:outline-none resize-none bg-transparent`}
+        className={`w-full flex-1 ${textClass} border border-theme-border/50 focus:border-theme-border focus:outline-none resize-none bg-transparent text-theme-ink font-body rounded-theme`}
         value={text}
         onChange={handleTextChange}
         placeholder="Enter text here..."

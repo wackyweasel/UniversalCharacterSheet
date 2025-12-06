@@ -2,9 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-background: #e5e7eb;
+  --color-paper: #ffffff;
+  --color-ink: #000000;
+  --color-accent: #000000;
+  --color-accent-hover: #374151;
+  --color-border: #000000;
+  --color-shadow: #000000;
+  --color-muted: #6b7280;
+  --font-heading: "Courier New", Courier, monospace;
+  --font-body: "Courier New", Courier, monospace;
+  --border-radius: 0px;
+  --border-width: 2px;
+}
+
 @layer base {
   body {
-    @apply bg-gray-100 text-ink font-mono antialiased;
+    background-color: var(--color-background);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    @apply antialiased;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
@@ -19,8 +37,42 @@
   }
 }
 
+@layer utilities {
+  /* Theme color utilities */
+  .bg-theme-background { background-color: var(--color-background); }
+  .bg-theme-paper { background-color: var(--color-paper); }
+  .bg-theme-ink { background-color: var(--color-ink); }
+  .bg-theme-accent { background-color: var(--color-accent); }
+  .bg-theme-accent-hover { background-color: var(--color-accent-hover); }
+  .bg-theme-border { background-color: var(--color-border); }
+  .bg-theme-muted { background-color: var(--color-muted); }
+  
+  .text-theme-background { color: var(--color-background); }
+  .text-theme-paper { color: var(--color-paper); }
+  .text-theme-ink { color: var(--color-ink); }
+  .text-theme-accent { color: var(--color-accent); }
+  .text-theme-muted { color: var(--color-muted); }
+  
+  .border-theme-border { border-color: var(--color-border); }
+  .border-theme-ink { border-color: var(--color-ink); }
+  .border-theme-accent { border-color: var(--color-accent); }
+  
+  .shadow-theme { box-shadow: 4px 4px 0 0 var(--color-shadow); }
+  
+  .font-heading { font-family: var(--font-heading); }
+  .font-body { font-family: var(--font-body); }
+  
+  .rounded-theme { border-radius: var(--border-radius); }
+  
+  .hover\:bg-theme-accent:hover { background-color: var(--color-accent); }
+  .hover\:bg-theme-accent-hover:hover { background-color: var(--color-accent-hover); }
+  .hover\:text-theme-paper:hover { color: var(--color-paper); }
+  .hover\:text-theme-ink:hover { color: var(--color-ink); }
+  .hover\:border-theme-accent:hover { border-color: var(--color-accent); }
+}
+
 .pattern-grid {
-  background-image: radial-gradient(#000 1px, transparent 1px);
+  background-image: radial-gradient(var(--color-ink) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 

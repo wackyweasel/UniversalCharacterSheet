@@ -12,7 +12,7 @@ import SpellSlotWidget from './widgets/SpellSlotWidget';
 import SkillWidget from './widgets/SkillWidget';
 import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
-import ToggleGroupWidget from './widgets/ToggleGroupWidget';
+import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 
 interface Props {
@@ -146,7 +146,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'SKILL': return <SkillWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
-      case 'TOGGLE_GROUP': return <ToggleGroupWidget {...props} />;
+      case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       default: return null;
     }
@@ -164,7 +164,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
     >
       <div 
         ref={nodeRef}
-        className="react-draggable absolute bg-white border-2 border-black shadow-hard p-2 sm:p-4 cursor-default group touch-manipulation"
+        className="react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme"
         style={{ 
           width: widget.w ? `${widget.w}px` : 'auto',
           height: widget.h ? `${widget.h}px` : 'auto',
@@ -174,7 +174,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       >
         {/* Drag Handle - only visible in edit mode */}
         {mode === 'edit' && (
-          <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:bg-gray-100 active:bg-gray-200 flex justify-end pr-1 touch-none">
+          <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-end pr-1 touch-none rounded-t-theme">
              <div className="w-full h-full" />
           </div>
         )}
@@ -182,7 +182,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
         {/* Delete Button - larger touch target on mobile, always visible on mobile */}
         {mode === 'edit' && (
           <button
-            className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-black text-white rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600 text-lg sm:text-base"
+            className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 hover:bg-red-600 text-lg sm:text-base"
             onClick={() => removeWidget(widget.id)}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -198,7 +198,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             onMouseDown={handleResizeMouseDown}
             onTouchStart={handleResizeTouchStart}
           >
-            <svg viewBox="0 0 20 20" className="w-full h-full text-gray-600">
+            <svg viewBox="0 0 20 20" className="w-full h-full text-theme-muted">
               <path d="M20 20L6 20L20 6Z" fill="currentColor" />
             </svg>
           </div>

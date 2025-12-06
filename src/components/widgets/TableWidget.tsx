@@ -85,7 +85,7 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Inventory"
@@ -99,12 +99,12 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
           <thead>
             <tr>
               {columns.map((col: string, idx: number) => (
-                <th key={idx} className={`border border-black bg-gray-100 ${cellClass} relative group`}>
+                <th key={idx} className={`border border-theme-border bg-theme-background ${cellClass} relative group text-theme-ink font-heading`}>
                   {mode === 'edit' ? (
                     <input
                       value={col}
                       onChange={(e) => handleColumnChange(idx, e.target.value)}
-                      className={`w-full bg-transparent text-center font-bold focus:outline-none ${isCompact ? 'text-[10px]' : isLarge ? 'text-base' : 'text-sm'}`}
+                      className={`w-full bg-transparent text-center font-bold focus:outline-none ${isCompact ? 'text-[10px]' : isLarge ? 'text-base' : 'text-sm'} text-theme-ink`}
                       onMouseDown={(e) => e.stopPropagation()}
                     />
                   ) : (
@@ -128,7 +128,7 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
             {rows.map((row: TableRow, rowIdx: number) => (
               <tr key={rowIdx} className="group">
                 {row.cells.map((cell: string, colIdx: number) => (
-                  <td key={colIdx} className={`border border-black ${cellClass}`}>
+                  <td key={colIdx} className={`border border-theme-border ${cellClass} text-theme-ink`}>
                     {editingCell?.row === rowIdx && editingCell?.col === colIdx ? (
                       <input
                         autoFocus
@@ -136,16 +136,16 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
                         onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
                         onBlur={() => setEditingCell(null)}
                         onKeyDown={(e) => e.key === 'Enter' && setEditingCell(null)}
-                        className={`w-full bg-transparent focus:outline-none ${isCompact ? 'text-[10px]' : isLarge ? 'text-base' : 'text-sm'}`}
+                        className={`w-full bg-transparent focus:outline-none ${isCompact ? 'text-[10px]' : isLarge ? 'text-base' : 'text-sm'} text-theme-ink font-body`}
                         onMouseDown={(e) => e.stopPropagation()}
                       />
                     ) : (
                       <div 
                         onClick={() => setEditingCell({ row: rowIdx, col: colIdx })}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className={`${isCompact ? 'min-h-[1em]' : 'min-h-[1.5em]'} cursor-text hover:bg-gray-50`}
+                        className={`${isCompact ? 'min-h-[1em]' : 'min-h-[1.5em]'} cursor-text hover:opacity-70 font-body`}
                       >
-                        {cell || <span className="text-gray-300">-</span>}
+                        {cell || <span className="text-theme-muted">-</span>}
                       </div>
                     )}
                   </td>
@@ -172,7 +172,7 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
         <button
           onClick={addRow}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`flex-1 ${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+          className={`flex-1 ${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
         >
           + Row
         </button>
@@ -180,7 +180,7 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
           <button
             onClick={addColumn}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`flex-1 ${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+            className={`flex-1 ${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
           >
             + Column
           </button>
@@ -188,7 +188,7 @@ export default function TableWidget({ widget, mode, width, height }: Props) {
       </div>
 
       {/* Row Count */}
-      <div className={`${countClass} text-gray-500 text-right`}>
+      <div className={`${countClass} text-theme-muted text-right font-body`}>
         {rows.length} item{rows.length !== 1 ? 's' : ''}
       </div>
     </div>

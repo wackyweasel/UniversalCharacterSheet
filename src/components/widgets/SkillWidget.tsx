@@ -73,7 +73,7 @@ export default function SkillWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none ${labelClass} flex-shrink-0`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none ${labelClass} flex-shrink-0 text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Skills"
@@ -87,7 +87,7 @@ export default function SkillWidget({ widget, mode, width, height }: Props) {
           <div key={idx} className={`flex items-center ${gapClass} group`}>
             {/* Skill Name */}
             <input
-              className={`flex-1 ${itemClass} bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none min-w-0`}
+              className={`flex-1 ${itemClass} bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none min-w-0 text-theme-ink font-body`}
               value={skill.name}
               onChange={(e) => updateSkillName(idx, e.target.value)}
               placeholder="Skill"
@@ -101,7 +101,7 @@ export default function SkillWidget({ widget, mode, width, height }: Props) {
                 <button
                   onClick={() => adjustSkillValue(idx, -1)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className={`${buttonSize} border border-black hover:bg-black hover:text-white transition-colors`}
+                  className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
                 >
                   -
                 </button>
@@ -109,19 +109,19 @@ export default function SkillWidget({ widget, mode, width, height }: Props) {
                   type="number"
                   value={skill.value}
                   onChange={(e) => updateSkillValue(idx, parseInt(e.target.value) || 0)}
-                  className={`${inputWidth} text-center font-bold border border-gray-300 focus:border-black focus:outline-none`}
+                  className={`${inputWidth} text-center font-bold border border-theme-border/50 focus:border-theme-border focus:outline-none text-theme-ink bg-theme-paper rounded-theme`}
                   onMouseDown={(e) => e.stopPropagation()}
                 />
                 <button
                   onClick={() => adjustSkillValue(idx, 1)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className={`${buttonSize} border border-black hover:bg-black hover:text-white transition-colors`}
+                  className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
                 >
                   +
                 </button>
               </div>
             ) : (
-              <span className={`font-bold ${itemClass} ${modifierWidth} text-center flex-shrink-0`}>
+              <span className={`font-bold ${itemClass} ${modifierWidth} text-center flex-shrink-0 text-theme-ink`}>
                 {formatModifier(skill.value)}
               </span>
             )}
@@ -148,12 +148,12 @@ export default function SkillWidget({ widget, mode, width, height }: Props) {
             value={newSkillName}
             onChange={(e) => setNewSkillName(e.target.value)}
             placeholder="Add skill..."
-            className={`flex-1 ${itemClass} border-b border-gray-300 focus:border-black focus:outline-none py-1`}
+            className={`flex-1 ${itemClass} border-b border-theme-border/50 focus:border-theme-border focus:outline-none py-1 bg-transparent text-theme-ink font-body`}
             onMouseDown={(e) => e.stopPropagation()}
           />
           <button
             type="submit"
-            className={`${isCompact ? 'text-base' : 'text-lg'} font-bold hover:text-gray-600 px-1`}
+            className={`${isCompact ? 'text-base' : 'text-lg'} font-bold hover:text-theme-muted px-1 text-theme-ink`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             +

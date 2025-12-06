@@ -63,7 +63,7 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none text-center flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none text-center flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Roll Name"
@@ -72,11 +72,11 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
       />
 
       {/* Dice Configuration */}
-      <div className={`flex items-center justify-center gap-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>
+      <div className={`flex items-center justify-center gap-1 ${isCompact ? 'text-xs' : 'text-sm'} text-theme-ink font-body`}>
         <select
           value={diceCount}
           onChange={handleDiceCountChange}
-          className={`${selectClass} border border-gray-300 focus:border-black focus:outline-none bg-white`}
+          className={`${selectClass} border border-theme-border/50 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
           onMouseDown={(e) => e.stopPropagation()}
           disabled={mode === 'play'}
         >
@@ -88,7 +88,7 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
         <select
           value={diceType}
           onChange={handleDiceTypeChange}
-          className={`${selectClass} border border-gray-300 focus:border-black focus:outline-none bg-white`}
+          className={`${selectClass} border border-theme-border/50 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
           onMouseDown={(e) => e.stopPropagation()}
           disabled={mode === 'play'}
         >
@@ -101,7 +101,7 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
           type="number"
           value={modifier}
           onChange={handleModifierChange}
-          className={`${modifierInputClass} border border-gray-300 px-1 py-0.5 focus:border-black focus:outline-none text-center`}
+          className={`${modifierInputClass} border border-theme-border/50 px-1 py-0.5 focus:border-theme-border focus:outline-none text-center bg-theme-paper text-theme-ink rounded-theme`}
           onMouseDown={(e) => e.stopPropagation()}
           disabled={mode === 'play'}
         />
@@ -111,10 +111,10 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
       <button
         onClick={rollDice}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border-2 border-black font-bold transition-all ${
+        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme ${
           isRolling 
-            ? 'bg-gray-300 animate-pulse' 
-            : 'bg-white text-black hover:bg-black hover:text-white'
+            ? 'bg-theme-muted animate-pulse text-theme-paper' 
+            : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
         }`}
         disabled={isRolling}
       >
@@ -123,10 +123,10 @@ export default function DiceRollerWidget({ widget, mode, width, height }: Props)
 
       {/* Result Display */}
       {result && !isRolling && (
-        <div className={`text-center border-t border-gray-300 ${isCompact ? 'pt-1' : 'pt-2'}`}>
-          <div className={`${resultClass} font-bold`}>{result.total}</div>
+        <div className={`text-center border-t border-theme-border/50 ${isCompact ? 'pt-1' : 'pt-2'}`}>
+          <div className={`${resultClass} font-bold text-theme-ink font-heading`}>{result.total}</div>
           {diceCount > 1 && (
-            <div className={`${smallTextClass} text-gray-500`}>
+            <div className={`${smallTextClass} text-theme-muted font-body`}>
               [{result.rolls.join(', ')}] {modifier !== 0 && `${modifier >= 0 ? '+' : ''}${modifier}`}
             </div>
           )}

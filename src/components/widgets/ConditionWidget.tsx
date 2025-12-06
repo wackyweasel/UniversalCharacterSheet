@@ -16,7 +16,7 @@ const SUGGESTIONS = [
   'Afraid', 'Angry', 'Confused', 'Wounded', 'Dazed'
 ];
 
-export default function ToggleGroupWidget({ widget, mode, width, height }: Props) {
+export default function ConditionWidget({ widget, mode, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, toggleItems = [] } = widget.data;
   const [newItemName, setNewItemName] = useState('');
@@ -28,9 +28,7 @@ export default function ToggleGroupWidget({ widget, mode, width, height }: Props
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const toggleClass = isCompact ? 'px-1.5 py-0.5 text-[10px]' : isLarge ? 'px-3 py-1.5 text-sm' : 'px-2 py-1 text-xs';
-  const summaryClass = isCompact ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
-  const inputClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const buttonClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
+  const inputClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-2 py-1' : 'text-xs px-2 py-1';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,10 +74,13 @@ export default function ToggleGroupWidget({ widget, mode, width, height }: Props
          s.toLowerCase().includes(newItemName.toLowerCase())
   );
 
+  const hasActiveItems = toggleItems.some((item: ToggleItem) => item.active);
+
   return (
-    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+    <div className="flex flex-col w-full h-full">
+      {/* Header */}
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none w-full flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none w-full flex-shrink-0 mb-1 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Conditions"
@@ -87,17 +88,17 @@ export default function ToggleGroupWidget({ widget, mode, width, height }: Props
         onMouseDown={(e) => e.stopPropagation()}
       />
 
-      {/* Toggle Items */}
-      <div className={`flex flex-wrap ${gapClass} flex-1 overflow-y-auto min-h-0 content-start`}>
+      {/* Toggle Items - scrollable area */}
+      <div className={`flex flex-wrap ${gapClass} flex-1 overflow-y-auto min-h-0 content-start py-1`}>
         {toggleItems.map((item: ToggleItem, idx: number) => (
           <div key={idx} className="flex items-center group">
             <button
               onClick={() => toggleItem(idx)}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${toggleClass} border border-black transition-all ${
+              className={`${toggleClass} border border-theme-border transition-all rounded-theme font-body ${
                 item.active 
-                  ? 'bg-black text-white' 
-                  : 'bg-white hover:bg-gray-100'
+                  ? 'bg-theme-accent text-theme-paper' 
+                  : 'bg-theme-paper text-theme-ink hover:opacity-80'
               }`}
             >
               {item.name}
@@ -106,7 +107,7 @@ export default function ToggleGroupWidget({ widget, mode, width, height }: Props
               <button
                 onClick={() => removeItem(idx)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`ml-0.5 ${isCompact ? 'w-3 h-3 text-[10px]' : 'w-4 h-4 text-xs'} text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100`}
+                className={`ml-0.5 ${isCompact ? 'w-3 h-3 text-[10px]' : 'w-4 h-4 text-xs'} text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity`}
               >
                 ×
               </button>
@@ -115,16 +116,9 @@ export default function ToggleGroupWidget({ widget, mode, width, height }: Props
         ))}
       </div>
 
-      {/* Active Conditions Summary */}
-      {toggleItems.filter((item: ToggleItem) => item.active).length > 0 && (
-        <div className={`${summaryClass} text-gray-600 border-t border-gray-200 pt-1`}>
-          Active: {toggleItems.filter((item: ToggleItem) => item.active).map((item: ToggleItem) => item.name).join(', ')}
-        </div>
-      )}
-
-      {/* Add New Condition */}
-      <div className={`border-t border-gray-200 pt-2 ${isCompact ? 'space-y-0.5' : 'space-y-1'}`}>
-        <form onSubmit={handleSubmit} className="flex gap-1 relative">
+      {/* Add New Condition - fixed at bottom */}
+      <div className="border-t border-theme-border/50 pt-1 mt-auto flex-shrink-0 relative">
+        <form onSubmit={handleSubmit} className="flex gap-1 items-center">
           <input
             type="text"
             value={newItemName}
@@ -134,44 +128,47 @@ export default function ToggleGroupWidget({ widget, mode, width, height }: Props
             }}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-            placeholder="Add condition..."
-            className={`flex-1 ${inputClass} border border-gray-300 focus:border-black focus:outline-none`}
+            placeholder="Add..."
+            className={`flex-1 min-w-0 ${inputClass} border border-theme-border/50 focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink font-body rounded-theme`}
             onMouseDown={(e) => e.stopPropagation()}
           />
           <button
             type="submit"
-            className={`${buttonClass} border border-black hover:bg-black hover:text-white`}
+            className={`${inputClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper flex-shrink-0 text-theme-ink rounded-theme`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             +
           </button>
+          {hasActiveItems && (
+            <button
+              type="button"
+              onClick={clearAll}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`${inputClass} border border-theme-border/50 text-theme-muted hover:opacity-80 flex-shrink-0 rounded-theme`}
+              title="Clear all active"
+            >
+              ✕
+            </button>
+          )}
         </form>
 
-        {/* Suggestions Dropdown */}
+        {/* Suggestions Dropdown - positioned above the input */}
         {showSuggestions && filteredSuggestions.length > 0 && (
-          <div className={`border border-gray-300 bg-white ${isCompact ? 'max-h-16' : 'max-h-24'} overflow-y-auto`}>
+          <div 
+            className={`absolute bottom-full left-0 right-0 mb-1 border border-theme-border bg-theme-paper ${isCompact ? 'max-h-20' : 'max-h-28'} overflow-y-auto shadow-theme z-10 rounded-theme`}
+            onWheel={(e) => e.stopPropagation()}
+          >
             {filteredSuggestions.slice(0, 5).map((suggestion) => (
               <button
                 key={suggestion}
                 onClick={() => addItem(suggestion)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`w-full text-left ${inputClass} hover:bg-gray-100`}
+                className={`w-full text-left ${inputClass} hover:bg-theme-accent hover:text-theme-paper border-b border-theme-border/30 last:border-b-0 text-theme-ink font-body`}
               >
                 {suggestion}
               </button>
             ))}
           </div>
-        )}
-
-        {/* Clear All */}
-        {toggleItems.length > 0 && (
-          <button
-            onClick={clearAll}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={`w-full ${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
-          >
-            Clear All Active
-          </button>
         )}
       </div>
     </div>

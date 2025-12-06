@@ -13,6 +13,8 @@ interface StoreState {
   createCharacter: (name: string) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
+  updateCharacterName: (id: string, name: string) => void;
+  updateCharacterTheme: (id: string, theme: string) => void;
   setMode: (mode: Mode) => void;
   
   // Widget Actions (for active character)
@@ -61,6 +63,14 @@ export const useStore = create<StoreState>((set) => {
     deleteCharacter: (id) => set((state) => ({
       characters: state.characters.filter(c => c.id !== id),
       activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId
+    })),
+
+    updateCharacterName: (id, name) => set((state) => ({
+      characters: state.characters.map(c => c.id === id ? { ...c, name } : c)
+    })),
+
+    updateCharacterTheme: (id, theme) => set((state) => ({
+      characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
     })),
 
     setMode: (mode) => set({ mode }),

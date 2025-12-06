@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
+import { applyTheme, applyCustomTheme } from '../store/useThemeStore';
+import { getCustomTheme } from '../store/useCustomThemeStore';
 import Sidebar from './Sidebar';
+import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import { WidgetType } from '../types';
 
@@ -11,9 +14,13 @@ export default function Sheet() {
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
   const selectCharacter = useStore((state) => state.selectCharacter);
+  const updateCharacterName = useStore((state) => state.updateCharacterName);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   // Default sidebar collapsed on mobile (< 768px)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 768);
+  const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -23,6 +30,24 @@ export default function Sheet() {
   // Touch pinch zoom state
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
+
+  // Apply character's theme when entering sheet, revert to default when leaving
+  useEffect(() => {
+    if (activeCharacter) {
+      const themeId = activeCharacter.theme || 'default';
+      // Check if it's a custom theme
+      const customTheme = getCustomTheme(themeId);
+      if (customTheme) {
+        applyCustomTheme(customTheme);
+      } else {
+        applyTheme(themeId);
+      }
+    }
+    return () => {
+      // Revert to default theme when component unmounts (going back to main menu)
+      applyTheme('default');
+    };
+  }, [activeCharacter?.theme, activeCharacter?.id]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Ignore if clicking on a widget (unless it's the background of the widget and we want to allow panning through it? No, usually widgets block panning)
@@ -223,11 +248,19 @@ export default function Sheet() {
   const buttonsLeftOffset = mode === 'edit' && !sidebarCollapsed && !isMobile ? 'md:left-72' : '';
 
   return (
-    <div className="w-full h-screen overflow-hidden relative bg-gray-200 touch-none">
+    <div className="w-full h-screen overflow-hidden relative bg-theme-background touch-none">
       {mode === 'edit' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+        />
+      )}
+      
+      {/* Theme Sidebar - available in edit mode */}
+      {mode === 'edit' && (
+        <ThemeSidebar
+          collapsed={themeSidebarCollapsed}
+          onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
         />
       )}
       
@@ -268,14 +301,44 @@ export default function Sheet() {
       </div>
 
       {/* HUD / Info - simplified on mobile */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white border-2 border-black p-1.5 sm:p-2 shadow-hard pointer-events-none max-w-[45%] sm:max-w-none">
-        <h1 className="font-bold text-sm sm:text-xl truncate">{activeCharacter.name}</h1>
-        <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
-          Pos: {Math.round(pan.x)}, {Math.round(pan.y)} | Zoom: {Math.round(scale * 100)}%
-        </p>
-        <p className="text-[10px] text-gray-500 sm:hidden">
-          {Math.round(scale * 100)}%
-        </p>
+      <div className={`absolute top-2 right-2 sm:top-4 sm:right-4 bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1.5 sm:p-2 shadow-theme max-w-[45%] sm:max-w-none rounded-theme ${mode === 'edit' && !isEditingName ? 'cursor-pointer hover:opacity-90' : ''} ${isEditingName ? '' : 'pointer-events-auto'}`}>
+        {isEditingName ? (
+          <input
+            type="text"
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
+            onBlur={() => {
+              if (editedName.trim()) {
+                updateCharacterName(activeCharacter.id, editedName.trim());
+              }
+              setIsEditingName(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (editedName.trim()) {
+                  updateCharacterName(activeCharacter.id, editedName.trim());
+                }
+                setIsEditingName(false);
+              } else if (e.key === 'Escape') {
+                setIsEditingName(false);
+              }
+            }}
+            autoFocus
+            className="font-bold text-sm sm:text-xl bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
+          />
+        ) : (
+          <h1 
+            className="font-bold text-sm sm:text-xl truncate text-theme-ink font-heading"
+            onClick={() => {
+              if (mode === 'edit') {
+                setEditedName(activeCharacter.name);
+                setIsEditingName(true);
+              }
+            }}
+          >
+            {activeCharacter.name}
+          </h1>
+        )}
       </div>
 
       {/* Top-left button group - responsive positioning */}
@@ -283,7 +346,7 @@ export default function Sheet() {
         {/* Exit to Menu Button - always visible */}
         <button
           onClick={() => selectCharacter(null)}
-          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-white border-2 border-black font-bold text-xs sm:text-base shadow-hard hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
         >
           <span className="sm:hidden">✕</span>
           <span className="hidden sm:inline">✕ Exit to Menu</span>
@@ -292,7 +355,7 @@ export default function Sheet() {
         {/* Mode Toggle Button */}
         <button
           onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
-          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-white border-2 border-black font-bold text-xs sm:text-base shadow-hard hover:bg-black hover:text-white transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
         >
           {mode === 'play' ? (
             <>
@@ -306,36 +369,65 @@ export default function Sheet() {
             </>
           )}
         </button>
-      </div>
 
-      {/* Floating toolbox toggle button - only in edit mode, larger on mobile */}
-      {mode === 'edit' && (
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="absolute bottom-4 left-4 w-14 h-14 sm:w-12 sm:h-12 bg-white border-2 border-black font-bold shadow-hard hover:bg-black hover:text-white transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center text-2xl sm:text-xl z-50"
-          title={sidebarCollapsed ? 'Show Toolbox' : 'Hide Toolbox'}
-        >
-          {sidebarCollapsed ? '🧰' : '✕'}
-        </button>
-      )}
+        {/* Toolbox Toggle Button - only in edit mode */}
+        {mode === 'edit' && (
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          >
+            {sidebarCollapsed ? (
+              <>
+                <span className="sm:hidden">🧰</span>
+                <span className="hidden sm:inline">🧰 Show Toolbox</span>
+              </>
+            ) : (
+              <>
+                <span className="sm:hidden">✕</span>
+                <span className="hidden sm:inline">✕ Hide Toolbox</span>
+              </>
+            )}
+          </button>
+        )}
+
+        {/* Theme Toggle Button - only in edit mode */}
+        {mode === 'edit' && (
+          <button
+            onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          >
+            {themeSidebarCollapsed ? (
+              <>
+                <span className="sm:hidden">🎨</span>
+                <span className="hidden sm:inline">🎨 Change Theme</span>
+              </>
+            ) : (
+              <>
+                <span className="sm:hidden">✕</span>
+                <span className="hidden sm:inline">✕ Hide Themes</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
 
       {/* Mobile zoom controls */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2 sm:hidden z-30">
         <button
           onClick={() => setScale(s => Math.min(5, s * 1.3))}
-          className="w-12 h-12 bg-white border-2 border-black font-bold text-xl shadow-hard active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center"
+          className="w-12 h-12 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
         >
           +
         </button>
         <button
           onClick={() => setScale(s => Math.max(0.1, s / 1.3))}
-          className="w-12 h-12 bg-white border-2 border-black font-bold text-xl shadow-hard active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center"
+          className="w-12 h-12 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
         >
           −
         </button>
         <button
           onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
-          className="w-12 h-12 bg-white border-2 border-black font-bold text-xs shadow-hard active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center"
+          className="w-12 h-12 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
         >
           Reset
         </button>

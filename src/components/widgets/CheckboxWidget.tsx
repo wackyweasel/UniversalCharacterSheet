@@ -57,7 +57,7 @@ export default function CheckboxWidget({ widget, mode, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Checklist Title"
@@ -72,13 +72,13 @@ export default function CheckboxWidget({ widget, mode, width, height }: Props) {
             <button
               onClick={() => toggleItem(idx)}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${checkboxClass} border-2 border-black flex items-center justify-center transition-colors flex-shrink-0 ${
-                item.checked ? 'bg-black text-white' : 'bg-white hover:bg-gray-100'
+              className={`${checkboxClass} border-[length:var(--border-width)] border-theme-border flex items-center justify-center transition-colors flex-shrink-0 rounded-theme ${
+                item.checked ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper hover:opacity-80'
               }`}
             >
               {item.checked && <span className={checkClass}>✓</span>}
             </button>
-            <span className={`flex-1 ${itemClass} ${item.checked ? 'line-through text-gray-400' : ''}`}>
+            <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked ? 'line-through text-theme-muted' : ''}`}>
               {item.name}
             </span>
             {mode === 'edit' && (
@@ -102,12 +102,12 @@ export default function CheckboxWidget({ widget, mode, width, height }: Props) {
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Add item..."
-            className={`flex-1 ${itemClass} border-b border-gray-300 focus:border-black focus:outline-none py-1`}
+            className={`flex-1 ${itemClass} border-b border-theme-border/50 focus:border-theme-border focus:outline-none py-1 bg-transparent text-theme-ink font-body`}
             onMouseDown={(e) => e.stopPropagation()}
           />
           <button
             type="submit"
-            className={`${isCompact ? 'text-base' : 'text-lg'} font-bold hover:text-gray-600 px-1`}
+            className={`${isCompact ? 'text-base' : 'text-lg'} font-bold hover:text-theme-muted px-1 text-theme-ink`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             +

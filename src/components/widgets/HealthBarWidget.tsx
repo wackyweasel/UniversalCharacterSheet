@@ -41,7 +41,7 @@ export default function HealthBarWidget({ widget, mode, width, height }: Props) 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none w-full flex-shrink-0 ${labelClass}`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none w-full flex-shrink-0 ${labelClass} text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Health"
@@ -50,12 +50,12 @@ export default function HealthBarWidget({ widget, mode, width, height }: Props) 
       />
       
       {/* Health Bar */}
-      <div className={`relative ${barHeight} border-2 border-black bg-white overflow-hidden flex-shrink-0`}>
+      <div className={`relative ${barHeight} border-[length:var(--border-width)] border-theme-border bg-theme-paper overflow-hidden flex-shrink-0 rounded-theme`}>
         <div 
-          className="absolute top-0 left-0 h-full transition-all duration-300 bg-gray-500"
+          className="absolute top-0 left-0 h-full transition-all duration-300 bg-theme-accent"
           style={{ width: `${percentage}%` }}
         />
-        <div className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass}`}>
+        <div className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink mix-blend-difference`}>
           {currentValue} / {maxValue}
         </div>
       </div>
@@ -65,28 +65,28 @@ export default function HealthBarWidget({ widget, mode, width, height }: Props) 
         <button
           onClick={() => adjustCurrent(-5)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
         >
           -5
         </button>
         <button
           onClick={() => adjustCurrent(-1)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
         >
           -1
         </button>
         <button
           onClick={() => adjustCurrent(1)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
         >
           +1
         </button>
         <button
           onClick={() => adjustCurrent(5)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
         >
           +5
         </button>
@@ -94,13 +94,13 @@ export default function HealthBarWidget({ widget, mode, width, height }: Props) 
 
       {/* Max Value Editor (edit mode only) */}
       {mode === 'edit' && (
-        <div className={`flex items-center gap-2 ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
+        <div className={`flex items-center gap-2 ${isCompact ? 'text-[10px]' : 'text-xs'} text-theme-ink`}>
           <span>Max:</span>
           <input
             type="number"
             value={maxValue}
             onChange={handleMaxChange}
-            className={`w-16 border border-gray-300 px-1 py-0.5 focus:border-black focus:outline-none ${isCompact ? 'text-[10px]' : 'text-xs'}`}
+            className={`w-16 border border-theme-border/50 px-1 py-0.5 focus:border-theme-border focus:outline-none ${isCompact ? 'text-[10px]' : 'text-xs'} bg-theme-paper text-theme-ink rounded-theme`}
             min={1}
             onMouseDown={(e) => e.stopPropagation()}
           />

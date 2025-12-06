@@ -91,7 +91,7 @@ export default function SpellSlotWidget({ widget, mode, width, height }: Props) 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       <input
-        className={`font-bold bg-transparent border-b border-transparent hover:border-gray-300 focus:border-black focus:outline-none ${labelClass} flex-shrink-0`}
+        className={`font-bold bg-transparent border-b border-transparent hover:border-theme-border/50 focus:border-theme-border focus:outline-none ${labelClass} flex-shrink-0 text-theme-ink font-heading`}
         value={label}
         onChange={handleLabelChange}
         placeholder="Spell Slots"
@@ -109,13 +109,13 @@ export default function SpellSlotWidget({ widget, mode, width, height }: Props) 
                 type="number"
                 value={levelData.level}
                 onChange={(e) => updateLevelNumber(levelIdx, parseInt(e.target.value) || 1)}
-                className={`${levelLabelClass} font-bold border border-gray-300 text-center focus:border-black focus:outline-none`}
+                className={`${levelLabelClass} font-bold border border-theme-border/50 text-center focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
                 min={1}
                 max={9}
                 onMouseDown={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className={`${levelLabelClass} font-bold text-center`}>{ordinalSuffix(levelData.level)}</span>
+              <span className={`${levelLabelClass} font-bold text-center text-theme-ink`}>{ordinalSuffix(levelData.level)}</span>
             )}
 
             {/* Slot Circles */}
@@ -125,10 +125,10 @@ export default function SpellSlotWidget({ widget, mode, width, height }: Props) 
                   key={slotIdx}
                   onClick={() => toggleSlot(levelIdx, slotIdx)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className={`${slotSize} rounded-full border-2 border-black transition-all ${
+                  className={`${slotSize} rounded-full border-[length:var(--border-width)] border-theme-border transition-all ${
                     slotIdx < levelData.used 
-                      ? 'bg-gray-400' 
-                      : 'bg-white hover:bg-gray-100'
+                      ? 'bg-theme-accent' 
+                      : 'bg-theme-paper hover:opacity-80'
                   }`}
                   title={slotIdx < levelData.used ? 'Click to restore' : 'Click to use'}
                 />
@@ -142,7 +142,7 @@ export default function SpellSlotWidget({ widget, mode, width, height }: Props) 
                   type="number"
                   value={levelData.max}
                   onChange={(e) => updateLevelMax(levelIdx, parseInt(e.target.value) || 1)}
-                  className={`${inputClass} border border-gray-300 text-center focus:border-black focus:outline-none`}
+                  className={`${inputClass} border border-theme-border/50 text-center focus:border-theme-border focus:outline-none bg-theme-paper text-theme-ink rounded-theme`}
                   min={1}
                   max={10}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -161,12 +161,12 @@ export default function SpellSlotWidget({ widget, mode, width, height }: Props) 
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-between ${gapClass} border-t border-gray-200 pt-2`}>
+      <div className={`flex items-center justify-between ${gapClass} border-t border-theme-border/50 pt-2`}>
         {mode === 'edit' && (spellLevels as SpellLevel[]).length < 9 && (
           <button
             onClick={addLevel}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors`}
+            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
           >
             + Level
           </button>
@@ -174,7 +174,7 @@ export default function SpellSlotWidget({ widget, mode, width, height }: Props) 
         <button
           onClick={resetAll}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-black hover:bg-black hover:text-white transition-colors ml-auto`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors ml-auto text-theme-ink rounded-theme`}
         >
           Reset All
         </button>
