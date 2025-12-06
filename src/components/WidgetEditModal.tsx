@@ -104,22 +104,7 @@ function NumberEditor({ widget, updateData }: EditorProps) {
 }
 
 function ListEditor({ widget, updateData }: EditorProps) {
-  const { label, items = [] } = widget.data;
-  const [newItem, setNewItem] = useState('');
-
-  const addItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newItem.trim()) {
-      updateData({ items: [...items, newItem.trim()] });
-      setNewItem('');
-    }
-  };
-
-  const removeItem = (index: number) => {
-    const newItems = [...items];
-    newItems.splice(index, 1);
-    updateData({ items: newItems });
-  };
+  const { label, itemCount = 5 } = widget.data;
 
   return (
     <div className="space-y-4">
@@ -134,35 +119,16 @@ function ListEditor({ widget, updateData }: EditorProps) {
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Items</label>
-        <div className="space-y-1 max-h-48 overflow-y-auto">
-          {items.map((item: string, idx: number) => (
-            <div key={idx} className="flex items-center gap-2 text-sm">
-              <span className="flex-1 text-theme-ink">• {item}</span>
-              <button
-                onClick={() => removeItem(idx)}
-                className="text-red-500 hover:text-red-700 px-2"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-        <form onSubmit={addItem} className="flex gap-2 mt-2">
-          <input
-            type="text"
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            placeholder="Add new item..."
-            className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
-          />
-          <button
-            type="submit"
-            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-theme text-sm hover:opacity-90"
-          >
-            Add
-          </button>
-        </form>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Number of Item Slots</label>
+        <input
+          type="number"
+          min="1"
+          max="50"
+          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          value={itemCount}
+          onChange={(e) => updateData({ itemCount: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)) })}
+        />
+        <p className="text-xs text-theme-muted mt-1">Items can be filled in during play mode</p>
       </div>
     </div>
   );
@@ -815,7 +781,7 @@ function TimeTrackerEditor({ widget, updateData }: EditorProps) {
 }
 
 function TableEditor({ widget, updateData }: EditorProps) {
-  const { label, columns = ['Item', 'Qty', 'Weight'] } = widget.data;
+  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [] } = widget.data;
 
   const handleColumnChange = (index: number, value: string) => {
     const newColumns = [...columns];
@@ -832,6 +798,18 @@ function TableEditor({ widget, updateData }: EditorProps) {
     const newColumns = [...columns];
     newColumns.splice(index, 1);
     updateData({ columns: newColumns });
+  };
+
+  const addRow = () => {
+    const newRow = { cells: columns.map(() => '') };
+    updateData({ rows: [...rows, newRow] });
+  };
+
+  const removeRow = (index: number) => {
+    if (rows.length <= 1) return;
+    const newRows = [...rows];
+    newRows.splice(index, 1);
+    updateData({ rows: newRows });
   };
 
   return (
@@ -874,6 +852,27 @@ function TableEditor({ widget, updateData }: EditorProps) {
         >
           + Add Column
         </button>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-2">Rows ({rows.length})</label>
+        <div className="flex gap-2">
+          <button
+            onClick={addRow}
+            className="px-3 py-1 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+          >
+            + Add Row
+          </button>
+          {rows.length > 1 && (
+            <button
+              onClick={() => removeRow(rows.length - 1)}
+              className="px-3 py-1 border border-theme-border rounded-theme text-sm text-red-500 hover:bg-red-500 hover:text-white"
+            >
+              - Remove Row
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-theme-muted mt-1">Row contents can be edited in play mode</p>
       </div>
     </div>
   );

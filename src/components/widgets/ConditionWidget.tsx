@@ -18,7 +18,6 @@ export default function ConditionWidget({ widget, width }: Props) {
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const toggleClass = isCompact ? 'px-1.5 py-0.5 text-[10px]' : isLarge ? 'px-3 py-1.5 text-sm' : 'px-2 py-1 text-xs';
-  const buttonClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-2 py-1' : 'text-xs px-2 py-1';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
 
   const toggleItem = (index: number) => {
@@ -26,13 +25,6 @@ export default function ConditionWidget({ widget, width }: Props) {
     updated[index] = { ...updated[index], active: !updated[index].active };
     updateWidgetData(widget.id, { toggleItems: updated });
   };
-
-  const clearAll = () => {
-    const updated = toggleItems.map((item: ToggleItem) => ({ ...item, active: false }));
-    updateWidgetData(widget.id, { toggleItems: updated });
-  };
-
-  const hasActiveItems = toggleItems.some((item: ToggleItem) => item.active);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full`}>
@@ -61,19 +53,6 @@ export default function ConditionWidget({ widget, width }: Props) {
           <div className={`${toggleClass} text-theme-muted italic`}>No conditions configured</div>
         )}
       </div>
-
-      {/* Clear All Button */}
-      {hasActiveItems && (
-        <div className="border-t border-theme-border/50 pt-1">
-          <button
-            onClick={clearAll}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border border-theme-border text-theme-muted hover:opacity-80 rounded-theme`}
-          >
-            Clear All
-          </button>
-        </div>
-      )}
     </div>
   );
 }

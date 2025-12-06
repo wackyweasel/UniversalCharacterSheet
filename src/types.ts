@@ -52,6 +52,7 @@ export interface WidgetData {
   label?: string;
   value?: number;
   items?: string[];
+  itemCount?: number;
   text?: string;
   // Checkbox
   checked?: boolean;

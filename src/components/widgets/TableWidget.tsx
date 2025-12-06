@@ -25,8 +25,6 @@ export default function TableWidget({ widget, width }: Props) {
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const cellClass = isCompact ? 'text-[10px] p-0.5' : isLarge ? 'text-base p-2' : 'text-sm p-1';
-  const buttonClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const countClass = isCompact ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
 
   const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {
@@ -39,14 +37,9 @@ export default function TableWidget({ widget, width }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
-  const addRow = () => {
-    const newRow: TableRow = { cells: columns.map(() => '') };
-    updateWidgetData(widget.id, { rows: [...rows, newRow] });
-  };
-
-  const removeRow = (index: number) => {
+  const clearRow = (index: number) => {
     const newRows = [...rows];
-    newRows.splice(index, 1);
+    newRows[index] = { cells: columns.map(() => '') };
     updateWidgetData(widget.id, { rows: newRows });
   };
 
@@ -97,9 +90,9 @@ export default function TableWidget({ widget, width }: Props) {
                 ))}
                 <td className={`${isCompact ? 'w-4' : 'w-6'} p-0`}>
                   <button
-                    onClick={() => removeRow(rowIdx)}
+                    onClick={() => clearRow(rowIdx)}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="w-full h-full text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
+                    className="w-full h-full text-theme-muted hover:text-theme-ink opacity-0 group-hover:opacity-100"
                   >
                     ×
                   </button>
@@ -108,22 +101,6 @@ export default function TableWidget({ widget, width }: Props) {
             ))}
           </tbody>
         </table>
-      </div>
-
-      {/* Add Row Button */}
-      <div className={`flex ${gapClass}`}>
-        <button
-          onClick={addRow}
-          onMouseDown={(e) => e.stopPropagation()}
-          className={`flex-1 ${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
-        >
-          + Row
-        </button>
-      </div>
-
-      {/* Row Count */}
-      <div className={`${countClass} text-theme-muted text-right font-body`}>
-        {rows.length} item{rows.length !== 1 ? 's' : ''}
       </div>
     </div>
   );

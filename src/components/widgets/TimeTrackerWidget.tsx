@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, TimedEffect } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -7,6 +8,40 @@ interface Props {
   mode: 'play' | 'edit';
   width: number;
   height: number;
+}
+
+// Modal component for forms
+interface ModalProps {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function Modal({ title, onClose, children }: ModalProps) {
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      onClick={onClose}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div 
+        className="bg-theme-paper border border-theme-border rounded-theme shadow-xl p-4 min-w-[280px] max-w-[400px]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-theme-ink font-heading">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-theme-muted hover:text-theme-ink text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 // Convert seconds to a human-readable format
@@ -65,7 +100,6 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const itemClass = isCompact ? 'text-xs' : isLarge ? 'text-sm' : 'text-xs';
-  const inputClass = isCompact ? 'text-xs py-0.5 px-1' : isLarge ? 'text-sm py-1.5 px-2' : 'text-xs py-1 px-1.5';
   const buttonClass = isCompact ? 'text-xs px-2 py-1' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
 
@@ -112,13 +146,6 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
     setShowPassTime(false);
   };
 
-  const clearExpired = () => {
-    const updated = (timedEffects as TimedEffect[]).filter(effect => effect.remainingSeconds > 0);
-    updateWidgetData(widget.id, { timedEffects: updated });
-  };
-
-  const hasExpired = (timedEffects as TimedEffect[]).some(e => e.remainingSeconds <= 0);
-
   // Fixed height for approximately 3 effects (each effect ~40px + spacing)
   const effectsListHeight = isCompact ? 'h-28' : isLarge ? 'h-36' : 'h-32';
 
@@ -164,145 +191,127 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
         )}
       </div>
 
-      {/* Action Buttons Row */}
-      {!showAddForm && !showPassTime && (
-        <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2`}>
+      {/* Action Buttons Row - Always visible */}
+      <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2`}>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          + Add Effect
+        </button>
+        {timedEffects.length > 0 && (
           <button
-            onClick={() => setShowAddForm(true)}
+            onClick={() => setShowPassTime(true)}
             className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            + Add Effect
+            ⏱ Pass Time
           </button>
-          {timedEffects.length > 0 && (
-            <button
-              onClick={() => setShowPassTime(true)}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ⏱ Pass Time
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Add Effect Form (expandable) */}
+      {/* Add Effect Modal */}
       {showAddForm && (
-        <div className={`flex flex-col ${gapClass} border-t border-theme-border/50 pt-2`}>
-          <input
-            className={`w-full border border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} bg-transparent text-theme-ink font-body rounded-theme`}
-            value={newEffectName}
-            onChange={(e) => setNewEffectName(e.target.value)}
-            placeholder="Effect name..."
-            autoFocus
-            onMouseDown={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') confirmAddEffect();
-              if (e.key === 'Escape') cancelAddEffect();
-            }}
-          />
-          <div className="flex gap-1">
+        <Modal title="Add Effect" onClose={cancelAddEffect}>
+          <div className="space-y-3">
             <input
-              type="number"
-              min="1"
-              className={`w-16 border border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} bg-transparent text-theme-ink font-body rounded-theme text-center`}
-              value={newEffectTime}
-              onChange={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
-              onMouseDown={(e) => e.stopPropagation()}
-            />
-            <select
-              className={`flex-1 border border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} bg-theme-paper text-theme-ink font-body rounded-theme`}
-              value={newEffectUnit}
-              onChange={(e) => setNewEffectUnit(e.target.value)}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <option value="seconds">Seconds</option>
-              <option value="minutes">Minutes</option>
-              <option value="hours">Hours</option>
-              <option value="days">Days</option>
-              <option value="months">Months</option>
-              <option value="years">Years</option>
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={confirmAddEffect}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ✓ Add
-            </button>
-            <button
-              onClick={cancelAddEffect}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ✕ Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pass Time Form (expandable) */}
-      {showPassTime && (
-        <div className={`flex flex-col ${gapClass} border-t border-theme-border/50 pt-2`}>
-          <div className={`font-medium ${itemClass} text-theme-muted`}>How much time passes?</div>
-          <div className="flex gap-1">
-            <input
-              type="number"
-              min="1"
-              className={`w-16 border border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} bg-transparent text-theme-ink font-body rounded-theme text-center`}
-              value={passedTime}
-              onChange={(e) => setPassedTime(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-full border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+              value={newEffectName}
+              onChange={(e) => setNewEffectName(e.target.value)}
+              placeholder="Effect name..."
               autoFocus
-              onMouseDown={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') confirmPassTime();
-                if (e.key === 'Escape') cancelPassTime();
+                if (e.key === 'Enter') confirmAddEffect();
+                if (e.key === 'Escape') cancelAddEffect();
               }}
             />
-            <select
-              className={`flex-1 border border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} bg-theme-paper text-theme-ink font-body rounded-theme`}
-              value={passedUnit}
-              onChange={(e) => setPassedUnit(e.target.value)}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <option value="seconds">Seconds</option>
-              <option value="minutes">Minutes</option>
-              <option value="hours">Hours</option>
-              <option value="days">Days</option>
-              <option value="months">Months</option>
-              <option value="years">Years</option>
-            </select>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="1"
+                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                value={newEffectTime}
+                onChange={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
+              />
+              <select
+                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+                value={newEffectUnit}
+                onChange={(e) => setNewEffectUnit(e.target.value)}
+              >
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+                <option value="months">Months</option>
+                <option value="years">Years</option>
+              </select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={confirmAddEffect}
+                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-theme hover:opacity-90 transition-colors font-bold"
+              >
+                Add Effect
+              </button>
+              <button
+                onClick={cancelAddEffect}
+                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={confirmPassTime}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ✓ Confirm
-            </button>
-            <button
-              onClick={cancelPassTime}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ✕ Cancel
-            </button>
-          </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Clear Expired Button */}
-      {hasExpired && !showAddForm && !showPassTime && (
-        <button
-          onClick={clearExpired}
-          className={`${buttonClass} border border-theme-accent text-theme-accent rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors`}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          Clear Expired
-        </button>
+      {/* Pass Time Modal */}
+      {showPassTime && (
+        <Modal title="Pass Time" onClose={cancelPassTime}>
+          <div className="space-y-3">
+            <p className="text-theme-muted text-sm">How much time passes for all effects?</p>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="1"
+                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                value={passedTime}
+                onChange={(e) => setPassedTime(Math.max(1, parseInt(e.target.value) || 1))}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmPassTime();
+                  if (e.key === 'Escape') cancelPassTime();
+                }}
+              />
+              <select
+                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+                value={passedUnit}
+                onChange={(e) => setPassedUnit(e.target.value)}
+              >
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+                <option value="months">Months</option>
+                <option value="years">Years</option>
+              </select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={confirmPassTime}
+                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-theme hover:opacity-90 transition-colors font-bold"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={cancelPassTime}
+                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
