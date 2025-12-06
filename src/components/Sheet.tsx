@@ -250,6 +250,75 @@ export default function Sheet() {
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
 
+  // Fit all widgets in view with maximum zoom
+  const handleFitAllWidgets = () => {
+    if (!activeCharacter || activeCharacter.widgets.length === 0) {
+      // No widgets, just reset to default
+      setScale(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+
+    // Get all widget DOM elements and measure their actual sizes
+    const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
+    const widgetBounds: { x: number; y: number; w: number; h: number }[] = [];
+
+    widgetElements.forEach((el) => {
+      const id = el.getAttribute('data-widget-id');
+      const widget = activeCharacter.widgets.find(w => w.id === id);
+      if (widget) {
+        const rect = el.getBoundingClientRect();
+        // Account for current scale to get actual widget dimensions
+        widgetBounds.push({
+          x: widget.x,
+          y: widget.y,
+          w: rect.width / scale,
+          h: rect.height / scale,
+        });
+      }
+    });
+
+    if (widgetBounds.length === 0) {
+      setScale(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+
+    // Calculate bounding box of all widgets
+    const minX = Math.min(...widgetBounds.map(b => b.x));
+    const minY = Math.min(...widgetBounds.map(b => b.y));
+    const maxX = Math.max(...widgetBounds.map(b => b.x + b.w));
+    const maxY = Math.max(...widgetBounds.map(b => b.y + b.h));
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Add padding (in pixels)
+    const padding = 60;
+    const availableWidth = viewportWidth - padding * 2;
+    const availableHeight = viewportHeight - padding * 2;
+
+    // Calculate scale to fit all widgets
+    const scaleX = availableWidth / contentWidth;
+    const scaleY = availableHeight / contentHeight;
+    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.1), 5);
+
+    // Calculate center of widgets bounding box
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // Calculate pan to center the content
+    const newPanX = viewportWidth / 2 - centerX * newScale;
+    const newPanY = viewportHeight / 2 - centerY * newScale;
+
+    setScale(newScale);
+    setPan({ x: newPanX, y: newPanY });
+  };
+
   // Apply character's theme when entering sheet, revert to default when leaving
   useEffect(() => {
     if (activeCharacter) {
@@ -543,44 +612,68 @@ export default function Sheet() {
       </div>
 
       {/* HUD / Info - simplified on mobile */}
-      <div className={`absolute top-2 right-2 sm:top-4 sm:right-4 bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1.5 sm:p-2 shadow-theme max-w-[45%] sm:max-w-none rounded-theme ${mode === 'edit' && !isEditingName ? 'cursor-pointer hover:opacity-90' : ''} ${isEditingName ? '' : 'pointer-events-auto'}`}>
-        {isEditingName ? (
-          <input
-            type="text"
-            value={editedName}
-            onChange={(e) => setEditedName(e.target.value)}
-            onBlur={() => {
-              if (editedName.trim()) {
-                updateCharacterName(activeCharacter.id, editedName.trim());
-              }
-              setIsEditingName(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex flex-col gap-2 pointer-events-auto z-30">
+        <div className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1.5 sm:p-2 shadow-theme rounded-theme ${mode === 'edit' && !isEditingName ? 'cursor-pointer hover:opacity-90' : ''}`}>
+          {isEditingName ? (
+            <input
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={() => {
                 if (editedName.trim()) {
                   updateCharacterName(activeCharacter.id, editedName.trim());
                 }
                 setIsEditingName(false);
-              } else if (e.key === 'Escape') {
-                setIsEditingName(false);
-              }
-            }}
-            autoFocus
-            className="font-bold text-sm sm:text-xl bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
-          />
-        ) : (
-          <h1 
-            className="font-bold text-sm sm:text-xl truncate text-theme-ink font-heading"
-            onClick={() => {
-              if (mode === 'edit') {
-                setEditedName(activeCharacter.name);
-                setIsEditingName(true);
-              }
-            }}
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (editedName.trim()) {
+                    updateCharacterName(activeCharacter.id, editedName.trim());
+                  }
+                  setIsEditingName(false);
+                } else if (e.key === 'Escape') {
+                  setIsEditingName(false);
+                }
+              }}
+              autoFocus
+              className="font-bold text-sm sm:text-xl bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
+            />
+          ) : (
+            <h1 
+              className="font-bold text-sm sm:text-xl text-theme-ink font-heading"
+              onClick={() => {
+                if (mode === 'edit') {
+                  setEditedName(activeCharacter.name);
+                  setIsEditingName(true);
+                }
+              }}
+            >
+              {activeCharacter.name}
+            </h1>
+          )}
+        </div>
+        
+        {/* Zoom controls */}
+        <div className="flex gap-1 justify-end">
+          <button
+            onClick={() => setScale(s => Math.min(5, s * 1.3))}
+            className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base sm:text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
           >
-            {activeCharacter.name}
-          </h1>
-        )}
+            +
+          </button>
+          <button
+            onClick={() => setScale(s => Math.max(0.1, s / 1.3))}
+            className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base sm:text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
+          >
+            −
+          </button>
+          <button
+            onClick={handleFitAllWidgets}
+            className="px-2 h-8 sm:h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
+          >
+            Fit
+          </button>
+        </div>
       </div>
 
       {/* Top-left button group - responsive positioning */}
@@ -662,28 +755,6 @@ export default function Sheet() {
             <span className="hidden sm:inline">📐 Auto Stack</span>
           </button>
         )}
-      </div>
-
-      {/* Mobile zoom controls */}
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2 sm:hidden z-30">
-        <button
-          onClick={() => setScale(s => Math.min(5, s * 1.3))}
-          className="w-12 h-12 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
-        >
-          +
-        </button>
-        <button
-          onClick={() => setScale(s => Math.max(0.1, s / 1.3))}
-          className="w-12 h-12 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
-        >
-          −
-        </button>
-        <button
-          onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
-          className="w-12 h-12 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
-        >
-          Reset
-        </button>
       </div>
     </div>
   );
