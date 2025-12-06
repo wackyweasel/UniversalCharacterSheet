@@ -31,14 +31,16 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const removeWidget = useStore((state) => state.removeWidget);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
+  const selectedWidgetId = useStore((state) => state.selectedWidgetId);
+  const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [isTouchActive, setIsTouchActive] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
-  const touchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isSelected = selectedWidgetId === widget.id;
 
   // Measure widget and snap height to grid
   useEffect(() => {
@@ -56,41 +58,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
     }
   }, [widget.data]);
 
-  // Clear touch state when clicking outside or after timeout
-  useEffect(() => {
-    const handleTouchOutside = (e: TouchEvent) => {
-      if (nodeRef.current && !nodeRef.current.contains(e.target as Node)) {
-        setIsTouchActive(false);
-      }
-    };
-
-    if (isTouchActive) {
-      document.addEventListener('touchstart', handleTouchOutside);
-      // Auto-hide after 5 seconds of inactivity
-      touchTimeoutRef.current = setTimeout(() => {
-        setIsTouchActive(false);
-      }, 5000);
-    }
-
-    return () => {
-      document.removeEventListener('touchstart', handleTouchOutside);
-      if (touchTimeoutRef.current) {
-        clearTimeout(touchTimeoutRef.current);
-      }
-    };
-  }, [isTouchActive]);
-
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
     if (mode === 'edit') {
-      // If controls are not yet showing, prevent default and just show controls
-      if (!isTouchActive) {
+      // If this widget is not selected, prevent default and select it
+      if (!isSelected) {
         e.preventDefault();
         e.stopPropagation();
-        setIsTouchActive(true);
-      }
-      // Reset the timeout
-      if (touchTimeoutRef.current) {
-        clearTimeout(touchTimeoutRef.current);
+        setSelectedWidgetId(widget.id);
       }
     }
   };
@@ -100,11 +74,11 @@ export default function DraggableWidget({ widget, scale }: Props) {
     if (mode === 'edit' && !showControls) {
       e.preventDefault();
       e.stopPropagation();
-      setIsTouchActive(true);
+      setSelectedWidgetId(widget.id);
     }
   };
 
-  const showControls = isHovered || isTouchActive;
+  const showControls = isHovered || isSelected;
 
   const openEditModal = () => {
     setShowEditModal(true);
@@ -265,20 +239,11 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </button>
           )}
 
-          {/* Touch overlay - blocks interactions with widget content when controls are showing on mobile */}
-          {mode === 'edit' && isTouchActive && (
+          {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
+          {mode === 'edit' && isSelected && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10 rounded-theme"
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                // Reset timeout on any touch
-                if (touchTimeoutRef.current) {
-                  clearTimeout(touchTimeoutRef.current);
-                  touchTimeoutRef.current = setTimeout(() => {
-                    setIsTouchActive(false);
-                  }, 5000);
-                }
-              }}
+              onTouchStart={(e) => e.stopPropagation()}
             />
           )}
 

@@ -9,6 +9,7 @@ interface StoreState {
   activeCharacterId: string | null;
   mode: Mode;
   editingWidgetId: string | null;
+  selectedWidgetId: string | null; // For showing edit/delete/attach buttons on mobile
   
   // Actions
   createCharacter: (name: string) => void;
@@ -18,6 +19,7 @@ interface StoreState {
   updateCharacterTheme: (id: string, theme: string) => void;
   setMode: (mode: Mode) => void;
   setEditingWidgetId: (id: string | null) => void;
+  setSelectedWidgetId: (id: string | null) => void;
   
   // Widget Actions (for active character)
   addWidget: (type: WidgetType, x: number, y: number) => void;
@@ -54,6 +56,7 @@ export const useStore = create<StoreState>((set) => {
     activeCharacterId: initialActive,
     mode: 'play',
     editingWidgetId: null,
+    selectedWidgetId: null,
 
     createCharacter: (name) => set((state) => {
       const newChar: Character = {
@@ -82,9 +85,11 @@ export const useStore = create<StoreState>((set) => {
       characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
     })),
 
-    setMode: (mode) => set({ mode }),
+    setMode: (mode) => set({ mode, selectedWidgetId: null }),
 
     setEditingWidgetId: (id) => set({ editingWidgetId: id }),
+
+    setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
 
     addWidget: (type, x, y) => set((state) => {
       if (!state.activeCharacterId) return state;

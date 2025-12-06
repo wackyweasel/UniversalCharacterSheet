@@ -32,9 +32,13 @@ const OVERLAP_MIN = 20; // minimum overlap needed to show button
 export default function AttachmentButtons({ widgets, scale }: Props) {
   const attachWidgets = useStore((state) => state.attachWidgets);
   const detachWidgets = useStore((state) => state.detachWidgets);
+  const selectedWidgetId = useStore((state) => state.selectedWidgetId);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+
+  // Use selectedWidgetId (from touch) or hoveredWidgetId (from mouse)
+  const activeWidgetId = selectedWidgetId || hoveredWidgetId;
 
   // Create a key based on widget positions to detect when they change
   const positionKey = widgets.map(w => `${w.id}:${w.x}:${w.y}:${w.groupId || ''}`).join('|');
@@ -222,10 +226,10 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
 
   const handleClick = (edge: TouchingEdge) => {
     if (edge.isAttached) {
-      // Break the connection - detaches only the hovered widget completely from its group
-      // Determine which widget is hovered and detach that one
-      const widgetToDetach = hoveredWidgetId === edge.widget1Id ? edge.widget1Id 
-        : hoveredWidgetId === edge.widget2Id ? edge.widget2Id 
+      // Break the connection - detaches only the active widget completely from its group
+      // Determine which widget is active and detach that one
+      const widgetToDetach = activeWidgetId === edge.widget1Id ? edge.widget1Id 
+        : activeWidgetId === edge.widget2Id ? edge.widget2Id 
         : edge.widget1Id; // fallback
       detachWidgets(widgetToDetach, edge.widget2Id);
     } else {
@@ -287,9 +291,9 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
     return null;
   }
 
-  // Filter edges to only show those connected to the hovered widget
-  const visibleEdges = hoveredWidgetId 
-    ? touchingEdges.filter(edge => edge.widget1Id === hoveredWidgetId || edge.widget2Id === hoveredWidgetId)
+  // Filter edges to only show those connected to the active widget (hovered or selected)
+  const visibleEdges = activeWidgetId 
+    ? touchingEdges.filter(edge => edge.widget1Id === activeWidgetId || edge.widget2Id === activeWidgetId)
     : [];
 
   return (
