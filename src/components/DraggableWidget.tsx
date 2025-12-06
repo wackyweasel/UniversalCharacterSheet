@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
@@ -21,7 +21,7 @@ interface Props {
   scale: number;
 }
 
-const GRID_SIZE = 20;
+const GRID_SIZE = 10;
 const MIN_WIDTH = 120;
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -30,8 +30,26 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const nodeRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
+
+  // Measure widget and snap height to grid
+  useEffect(() => {
+    if (nodeRef.current) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          // Measure the actual rendered height of the widget
+          const naturalHeight = entry.target.scrollHeight;
+          const snapped = Math.ceil(naturalHeight / GRID_SIZE) * GRID_SIZE;
+          setSnappedHeight(snapped);
+        }
+      });
+      resizeObserver.observe(nodeRef.current);
+      return () => resizeObserver.disconnect();
+    }
+  }, [widget.data]);
 
   const openEditModal = () => {
     setShowEditModal(true);
@@ -107,6 +125,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${MIN_WIDTH}px`,
+            minHeight: snappedHeight ? `${snappedHeight}px` : 'auto',
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -143,7 +162,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </button>
           )}
 
-          <div className="mt-2">
+          <div ref={contentRef}>
             {renderContent()}
           </div>
         </div>

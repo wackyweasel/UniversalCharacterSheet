@@ -28,8 +28,8 @@ export default function Sheet() {
   const handleAutoStack = () => {
     if (!activeCharacter || activeCharacter.widgets.length === 0) return;
 
-    const GRID_SIZE = 20;
-    const GAP = 20;
+    const GRID_SIZE = 10;
+    const GAP = 10;
 
     // Get all widget DOM elements and measure their actual sizes
     const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
@@ -373,7 +373,7 @@ export default function Sheet() {
       const rawX = (e.clientX - pan.x) / scale;
       const rawY = (e.clientY - pan.y) / scale;
 
-      const GRID_SIZE = 20;
+      const GRID_SIZE = 10;
       const snap = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
 
       const x = snap(rawX);
