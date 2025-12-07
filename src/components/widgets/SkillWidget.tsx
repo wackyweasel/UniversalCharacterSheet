@@ -13,7 +13,7 @@ interface SkillItem {
   value: number;
 }
 
-export default function SkillWidget({ widget, width }: Props) {
+export default function SkillWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, skillItems = [] } = widget.data;
 
@@ -26,6 +26,12 @@ export default function SkillWidget({ widget, width }: Props) {
   const buttonSize = isCompact ? 'w-4 h-4 text-[10px]' : isLarge ? 'w-6 h-6 text-sm' : 'w-5 h-5 text-xs';
   const modifierWidth = isCompact ? 'w-6' : isLarge ? 'w-10' : 'w-8';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  
+  // Calculate items area height
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const gapSize = isCompact ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
   const adjustSkillValue = (index: number, delta: number) => {
     const updated = [...skillItems] as SkillItem[];
@@ -39,13 +45,17 @@ export default function SkillWidget({ widget, width }: Props) {
   const modifierSectionWidth = isCompact ? 'w-[52px]' : isLarge ? 'w-[76px]' : 'w-[64px]';
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Skills'}
       </div>
 
       {/* Skill Items */}
-      <div className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'}`}>
+      <div 
+        className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'} overflow-y-auto flex-1`}
+        style={{ maxHeight: `${itemsHeight}px` }}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {(skillItems as SkillItem[]).map((skill, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Skill Name */}

@@ -8,7 +8,7 @@ interface Props {
   height: number;
 }
 
-export default function TextWidget({ widget, width }: Props) {
+export default function TextWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, text = '' } = widget.data;
 
@@ -17,20 +17,27 @@ export default function TextWidget({ widget, width }: Props) {
   const isLarge = width >= 300;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const textClass = isCompact ? 'text-xs p-1 min-h-[2rem]' : isLarge ? 'text-base p-3 min-h-[6rem]' : 'text-sm p-2 min-h-[4rem]';
+  const textClass = isCompact ? 'text-xs p-1' : isLarge ? 'text-base p-3' : 'text-sm p-2';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  
+  // Calculate textarea height based on available space
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const gapSize = isCompact ? 4 : 8;
+  const padding = isCompact ? 8 : 16; // p-2 or p-4 from parent
+  const textareaHeight = Math.max(32, height - labelHeight - gapSize - padding * 2);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     updateWidgetData(widget.id, { text: e.target.value });
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Notes'}
       </div>
       <textarea
-        className={`w-full ${textClass} border border-theme-border/50 focus:border-theme-border focus:outline-none resize-none bg-transparent text-theme-ink font-body rounded-theme`}
+        className={`w-full flex-1 ${textClass} border border-theme-border/50 focus:border-theme-border focus:outline-none resize-none bg-transparent text-theme-ink font-body rounded-theme`}
+        style={{ height: `${textareaHeight}px` }}
         value={text}
         onChange={handleTextChange}
         placeholder="Enter text here..."

@@ -79,7 +79,7 @@ function parseTimeToSeconds(value: number, unit: string): number {
   }
 }
 
-export default function TimeTrackerWidget({ widget, width }: Props) {
+export default function TimeTrackerWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, timedEffects = [] } = widget.data;
   
@@ -97,11 +97,12 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
   // Responsive sizing
   const isCompact = width < 200;
   const isLarge = width >= 350;
+  const isShort = height < 180;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const itemClass = isCompact ? 'text-xs' : isLarge ? 'text-sm' : 'text-xs';
-  const buttonClass = isCompact ? 'text-xs px-2 py-1' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  const itemClass = isCompact || isShort ? 'text-xs' : isLarge ? 'text-sm' : 'text-xs';
+  const buttonClass = isCompact || isShort ? 'text-xs px-2 py-1' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
+  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
 
   const confirmAddEffect = () => {
     if (newEffectName.trim()) {
@@ -146,8 +147,12 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
     setShowPassTime(false);
   };
 
-  // Fixed height for approximately 3 effects (each effect ~40px + spacing)
-  const effectsListHeight = isCompact ? 'h-28' : isLarge ? 'h-36' : 'h-32';
+  // Calculate effects list height based on available space
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const buttonsHeight = isCompact || isShort ? 32 : isLarge ? 44 : 36;
+  const gapSize = isCompact || isShort ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const effectsListHeight = Math.max(60, height - labelHeight - buttonsHeight - gapSize * 3 - padding * 2);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -155,9 +160,10 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
         {label || 'Time Tracker'}
       </div>
       
-      {/* Effects List - Fixed height, scrollable */}
+      {/* Effects List - Dynamic height, scrollable */}
       <div 
-        className={`space-y-1 ${effectsListHeight} overflow-y-auto flex-shrink-0 ${itemClass}`}
+        className={`space-y-1 overflow-y-auto flex-1 ${itemClass}`}
+        style={{ maxHeight: `${effectsListHeight}px` }}
         onWheel={(e) => e.stopPropagation()}
       >
         {(timedEffects as TimedEffect[]).map((effect, idx) => (
@@ -192,7 +198,7 @@ export default function TimeTrackerWidget({ widget, width }: Props) {
       </div>
 
       {/* Action Buttons Row - Always visible */}
-      <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2`}>
+      <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0`}>
         <button
           onClick={() => setShowAddForm(true)}
           className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}

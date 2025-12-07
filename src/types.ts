@@ -6,7 +6,6 @@ export type WidgetType =
   | 'HEALTH_BAR'
   | 'DICE_ROLLER'
   | 'SPELL_SLOT'
-  | 'SKILL'
   | 'IMAGE'
   | 'POOL'
   | 'TOGGLE_GROUP'
@@ -31,11 +30,6 @@ export interface SpellLevel {
   level: number;
   max: number;
   used: number;
-}
-
-export interface SkillItem {
-  name: string;
-  value: number;
 }
 
 export interface NumberItem {
@@ -67,8 +61,6 @@ export interface WidgetData {
   diceGroups?: DiceGroup[];
   // Spell Slot
   spellLevels?: SpellLevel[];
-  // Skill
-  skillItems?: SkillItem[];
   // Number
   numberItems?: NumberItem[];
   // Image

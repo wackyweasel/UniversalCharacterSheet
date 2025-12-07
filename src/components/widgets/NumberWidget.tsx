@@ -13,7 +13,7 @@ interface NumberItem {
   value: number;
 }
 
-export default function NumberWidget({ widget, width }: Props) {
+export default function NumberWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, numberItems = [] } = widget.data;
 
@@ -26,6 +26,12 @@ export default function NumberWidget({ widget, width }: Props) {
   const buttonSize = isCompact ? 'w-5 h-5 text-xs' : isLarge ? 'w-8 h-8 text-base' : 'w-6 h-6 text-sm';
   const valueClass = isCompact ? 'text-sm w-8' : isLarge ? 'text-xl w-14' : 'text-base w-10';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  
+  // Calculate items area height
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const gapSize = isCompact ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
   const adjustItemValue = (index: number, delta: number) => {
     const updated = [...numberItems] as NumberItem[];
@@ -37,13 +43,17 @@ export default function NumberWidget({ widget, width }: Props) {
   const controlsSectionWidth = isCompact ? 'w-[62px]' : isLarge ? 'w-[94px]' : 'w-[74px]';
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Trackers'}
       </div>
 
       {/* Number Items */}
-      <div className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'}`}>
+      <div 
+        className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'} overflow-y-auto overflow-x-hidden flex-1 pr-4`}
+        style={{ maxHeight: `${itemsHeight}px` }}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {(numberItems as NumberItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}

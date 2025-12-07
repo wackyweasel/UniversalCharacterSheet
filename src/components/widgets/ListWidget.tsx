@@ -8,7 +8,7 @@ interface Props {
   height: number;
 }
 
-export default function ListWidget({ widget, width }: Props) {
+export default function ListWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, items = [], itemCount = 5 } = widget.data;
 
@@ -19,6 +19,12 @@ export default function ListWidget({ widget, width }: Props) {
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const inputClass = isCompact ? 'text-xs py-0.5' : isLarge ? 'text-base py-1' : 'text-sm py-0.5';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  
+  // Calculate list area height
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const gapSize = isCompact ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const listHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
   // Ensure items array matches itemCount
   const normalizedItems = Array.from({ length: itemCount }, (_, i) => items[i] || '');
@@ -36,11 +42,15 @@ export default function ListWidget({ widget, width }: Props) {
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'List'}
       </div>
-      <div className="space-y-1">
+      <div 
+        className="space-y-1 overflow-y-auto flex-1"
+        style={{ maxHeight: `${listHeight}px` }}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>

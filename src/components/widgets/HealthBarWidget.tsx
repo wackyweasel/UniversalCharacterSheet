@@ -8,18 +8,19 @@ interface Props {
   height: number;
 }
 
-export default function HealthBarWidget({ widget, width }: Props) {
+export default function HealthBarWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, currentValue = 10, maxValue = 10 } = widget.data;
 
   // Responsive sizing
   const isCompact = width < 180;
   const isLarge = width >= 350;
+  const isShort = height < 100;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const barTextClass = isCompact ? 'text-xs' : isLarge ? 'text-lg' : 'text-sm';
-  const buttonClass = isCompact ? 'px-1 py-0.5 text-[10px]' : isLarge ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
-  const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  const barTextClass = isCompact || isShort ? 'text-xs' : isLarge ? 'text-lg' : 'text-sm';
+  const buttonClass = isCompact || isShort ? 'px-1 py-0.5 text-[10px]' : isLarge ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
+  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
 
   const adjustCurrent = (delta: number) => {
     const newVal = Math.max(0, Math.min(maxValue, currentValue + delta));
@@ -27,18 +28,18 @@ export default function HealthBarWidget({ widget, width }: Props) {
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full justify-between`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Health'}
       </div>
       
       {/* Health Value */}
-      <div className={`flex items-center justify-center font-bold ${barTextClass} text-theme-ink`}>
+      <div className={`flex items-center justify-center font-bold ${barTextClass} text-theme-ink flex-1`}>
         {currentValue} / {maxValue}
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center justify-between gap-1 flex-shrink-0">
         <button
           onClick={() => adjustCurrent(-5)}
           onMouseDown={(e) => e.stopPropagation()}

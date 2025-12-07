@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Widget, WidgetType, ToggleItem, CheckboxItem, SpellLevel, SkillItem, NumberItem, DiceGroup } from '../types';
+import { Widget, WidgetType, ToggleItem, CheckboxItem, SpellLevel, NumberItem, DiceGroup } from '../types';
 import { useStore } from '../store/useStore';
 
 interface Props {
@@ -134,23 +134,8 @@ function ListEditor({ widget, updateData }: EditorProps) {
   );
 }
 
-function TextEditor({ widget, updateData, updateWidth }: EditorProps) {
+function TextEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
-  
-  const GRID_SIZE = 10;
-  const MIN_WIDTH = 120;
-  const MAX_WIDTH = 600;
-  const currentWidth = widget.w || 200;
-
-  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = parseInt(e.target.value) || MIN_WIDTH;
-    // Snap to grid
-    const snappedValue = Math.round(rawValue / GRID_SIZE) * GRID_SIZE;
-    const clampedValue = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, snappedValue));
-    if (updateWidth) {
-      updateWidth(clampedValue);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -163,24 +148,9 @@ function TextEditor({ widget, updateData, updateWidth }: EditorProps) {
           placeholder="Title"
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">
-          Width: {currentWidth}px
-        </label>
-        <input
-          type="range"
-          min={MIN_WIDTH}
-          max={MAX_WIDTH}
-          step={GRID_SIZE}
-          value={currentWidth}
-          onChange={handleWidthChange}
-          className="w-full accent-theme-accent"
-        />
-        <div className="flex justify-between text-xs text-theme-muted mt-1">
-          <span>{MIN_WIDTH}px</span>
-          <span>{MAX_WIDTH}px</span>
-        </div>
-      </div>
+      <p className="text-xs text-theme-muted">
+        Use the resize handle on the widget in edit mode to adjust the size.
+      </p>
     </div>
   );
 }
@@ -454,96 +424,6 @@ function SpellSlotEditor({ widget, updateData }: EditorProps) {
             + Add Level
           </button>
         )}
-      </div>
-    </div>
-  );
-}
-
-function SkillEditor({ widget, updateData }: EditorProps) {
-  const { label, skillItems = [] } = widget.data;
-  const [newSkillName, setNewSkillName] = useState('');
-
-  const addSkill = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newSkillName.trim()) {
-      updateData({
-        skillItems: [...skillItems, { name: newSkillName.trim(), value: 0 }]
-      });
-      setNewSkillName('');
-    }
-  };
-
-  const removeSkill = (index: number) => {
-    const updated = [...skillItems];
-    updated.splice(index, 1);
-    updateData({ skillItems: updated });
-  };
-
-  const updateSkillName = (index: number, name: string) => {
-    const updated = [...skillItems] as SkillItem[];
-    updated[index] = { ...updated[index], name };
-    updateData({ skillItems: updated });
-  };
-
-  const updateSkillValue = (index: number, value: number) => {
-    const updated = [...skillItems] as SkillItem[];
-    updated[index] = { ...updated[index], value };
-    updateData({ skillItems: updated });
-  };
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
-        <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-          value={label || ''}
-          onChange={(e) => updateData({ label: e.target.value })}
-          placeholder="Skills"
-        />
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Skills</label>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {(skillItems as SkillItem[]).map((skill, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
-                value={skill.name}
-                onChange={(e) => updateSkillName(idx, e.target.value)}
-                placeholder="Skill Name"
-              />
-              <input
-                type="number"
-                className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
-                value={skill.value}
-                onChange={(e) => updateSkillValue(idx, parseInt(e.target.value) || 0)}
-              />
-              <button
-                onClick={() => removeSkill(idx)}
-                className="text-red-500 hover:text-red-700 px-2"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-        <form onSubmit={addSkill} className="flex gap-2 mt-2">
-          <input
-            type="text"
-            value={newSkillName}
-            onChange={(e) => setNewSkillName(e.target.value)}
-            placeholder="Add new skill..."
-            className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
-          />
-          <button
-            type="submit"
-            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-theme text-sm hover:opacity-90"
-          >
-            Add
-          </button>
-        </form>
       </div>
     </div>
   );
@@ -886,7 +766,6 @@ import CheckboxWidget from './widgets/CheckboxWidget';
 import HealthBarWidget from './widgets/HealthBarWidget';
 import DiceRollerWidget from './widgets/DiceRollerWidget';
 import SpellSlotWidget from './widgets/SpellSlotWidget';
-import SkillWidget from './widgets/SkillWidget';
 import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
 import ConditionWidget from './widgets/ConditionWidget';
@@ -943,7 +822,6 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'HEALTH_BAR': return <HealthBarEditor {...editorProps} />;
       case 'DICE_ROLLER': return <DiceRollerEditor {...editorProps} />;
       case 'SPELL_SLOT': return <SpellSlotEditor {...editorProps} />;
-      case 'SKILL': return <SkillEditor {...editorProps} />;
       case 'IMAGE': return <ImageEditor {...editorProps} />;
       case 'POOL': return <PoolEditor {...editorProps} />;
       case 'TOGGLE_GROUP': return <ConditionEditor {...editorProps} />;
@@ -954,9 +832,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   };
 
   const renderPreview = () => {
-    // Use widget's custom width for TEXT type, otherwise default to 200
-    const previewWidth = widget.type === 'TEXT' ? localWidth : 200;
-    const props = { widget: previewWidget, mode: 'play' as const, width: previewWidth, height: 200 };
+    // Use fixed preview dimensions
+    const props = { widget: previewWidget, mode: 'play' as const, width: 200, height: 200 };
     
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
@@ -966,7 +843,6 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
-      case 'SKILL': return <SkillWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
@@ -1017,46 +893,24 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
-          {/* For TEXT widgets, use vertical layout so preview can expand without pushing slider */}
-          {widget.type === 'TEXT' ? (
-            <div className="flex flex-col gap-6">
-              {/* Editor Section */}
-              <div>
-                <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
-                {renderEditor()}
-              </div>
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Editor Section */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
+              {renderEditor()}
+            </div>
 
-              {/* Preview Section - below editor, can expand freely */}
-              <div>
-                <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
-                <div 
-                  className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 sm:p-4 shadow-theme inline-block transition-all"
-                  style={{ width: `${localWidth}px` }}
-                >
-                  {renderPreview()}
-                </div>
+            {/* Preview Section */}
+            <div className="lg:w-72 flex-shrink-0">
+              <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
+              <div 
+                className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 sm:p-4 shadow-theme"
+                style={{ width: '200px' }}
+              >
+                {renderPreview()}
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Editor Section */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
-                {renderEditor()}
-              </div>
-
-              {/* Preview Section */}
-              <div className="lg:w-72 flex-shrink-0">
-                <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
-                <div 
-                  className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 sm:p-4 shadow-theme"
-                  style={{ width: '200px' }}
-                >
-                  {renderPreview()}
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Footer */}

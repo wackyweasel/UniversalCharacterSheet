@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
-import { Widget } from '../types';
+import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import NumberWidget from './widgets/NumberWidget';
 import ListWidget from './widgets/ListWidget';
@@ -9,7 +9,6 @@ import CheckboxWidget from './widgets/CheckboxWidget';
 import HealthBarWidget from './widgets/HealthBarWidget';
 import DiceRollerWidget from './widgets/DiceRollerWidget';
 import SpellSlotWidget from './widgets/SpellSlotWidget';
-import SkillWidget from './widgets/SkillWidget';
 import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
 import ConditionWidget from './widgets/ConditionWidget';
@@ -23,12 +22,29 @@ interface Props {
 }
 
 const GRID_SIZE = 10;
-const MIN_WIDTH = 120;
+
+// Minimum dimensions per widget type
+const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
+  'NUMBER': { width: 140, height: 60 },
+  'LIST': { width: 140, height: 80 },
+  'TEXT': { width: 120, height: 60 },
+  'CHECKBOX': { width: 140, height: 60 },
+  'HEALTH_BAR': { width: 160, height: 80 },
+  'DICE_ROLLER': { width: 160, height: 120 },
+  'SPELL_SLOT': { width: 160, height: 80 },
+  'IMAGE': { width: 100, height: 100 },
+  'POOL': { width: 120, height: 80 },
+  'TOGGLE_GROUP': { width: 140, height: 60 },
+  'TABLE': { width: 180, height: 80 },
+  'TIME_TRACKER': { width: 180, height: 140 },
+};
 
 export default function DraggableWidget({ widget, scale }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
+  const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
   const removeWidget = useStore((state) => state.removeWidget);
+  const detachWidgets = useStore((state) => state.detachWidgets);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
@@ -39,11 +55,24 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  
+  // Resize state
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
 
   const isSelected = selectedWidgetId === widget.id;
+  
+  // Get minimum dimensions for this widget type
+  const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
 
-  // Measure widget and snap height to grid
+  // Measure widget and snap height to grid (only when not manually resized)
   useEffect(() => {
+    // If widget has a manual height set, use that
+    if (widget.h && widget.h > 0) {
+      setSnappedHeight(widget.h);
+      return;
+    }
+    
     if (nodeRef.current) {
       const resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
@@ -56,7 +85,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       resizeObserver.observe(nodeRef.current);
       return () => resizeObserver.disconnect();
     }
-  }, [widget.data]);
+  }, [widget.data, widget.h]);
 
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
     if (mode === 'edit') {
@@ -91,6 +120,91 @@ export default function DraggableWidget({ widget, scale }: Props) {
   };
 
   const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+
+  // Calculate width based on widget type (used for both display and resize)
+  const getWidgetWidth = () => {
+    // Use custom width if set on the widget
+    if (widget.w) {
+      return widget.w;
+    }
+    if (widget.type === 'TABLE') {
+      // Dynamic width for tables based on number of columns
+      const columns = widget.data.columns || ['Item', 'Qty', 'Weight'];
+      const columnCount = columns.length;
+      // Base width per column (minimum 60px) + some padding for delete button
+      const baseColumnWidth = 80;
+      const minWidth = 200;
+      const calculatedWidth = Math.max(minWidth, columnCount * baseColumnWidth + 40);
+      // Snap to grid
+      return snapToGrid(calculatedWidth);
+    }
+    return 200; // Default fixed width for other widgets
+  };
+
+  const widgetWidth = getWidgetWidth();
+
+  // Resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Detach widget from any group when resizing
+    if (widget.groupId) {
+      detachWidgets(widget.id, widget.id);
+    }
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    // Get current width and height
+    const currentWidth = widget.w || 200;
+    const currentHeight = widget.h || 120;
+    
+    resizeStartRef.current = {
+      mouseX: clientX,
+      mouseY: clientY,
+      width: currentWidth,
+      height: currentHeight,
+    };
+    
+    setIsResizing(true);
+  }, [widget.w, widget.h, widget.groupId, widget.id, detachWidgets]);
+
+  const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isResizing) return;
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    const deltaX = (clientX - resizeStartRef.current.mouseX) / scale;
+    const deltaY = (clientY - resizeStartRef.current.mouseY) / scale;
+    
+    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + deltaX));
+    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + deltaY));
+    
+    updateWidgetSize(widget.id, newWidth, newHeight);
+  }, [isResizing, scale, minDimensions, widget.id, updateWidgetSize]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Global mouse/touch move and up handlers for resize
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResizeMove);
+      window.addEventListener('mouseup', handleResizeEnd);
+      window.addEventListener('touchmove', handleResizeMove);
+      window.addEventListener('touchend', handleResizeEnd);
+      
+      return () => {
+        window.removeEventListener('mousemove', handleResizeMove);
+        window.removeEventListener('mouseup', handleResizeEnd);
+        window.removeEventListener('touchmove', handleResizeMove);
+        window.removeEventListener('touchend', handleResizeEnd);
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   const handleStart = (_e: DraggableEvent, data: DraggableData) => {
     // Store the starting position for calculating delta
@@ -134,32 +248,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
       updateWidgetPosition(widget.id, snappedX, snappedY);
     }
   };
-
-  // Calculate width based on widget type
-  const getWidgetWidth = () => {
-    // Use custom width if set on the widget
-    if (widget.w) {
-      return widget.w;
-    }
-    if (widget.type === 'TABLE') {
-      // Dynamic width for tables based on number of columns
-      const columns = widget.data.columns || ['Item', 'Qty', 'Weight'];
-      const columnCount = columns.length;
-      // Base width per column (minimum 60px) + some padding for delete button
-      const baseColumnWidth = 80;
-      const minWidth = 200;
-      const calculatedWidth = Math.max(minWidth, columnCount * baseColumnWidth + 40);
-      // Snap to grid
-      return snapToGrid(calculatedWidth);
-    }
-    return 200; // Default fixed width for other widgets
-  };
-
-  const widgetWidth = getWidgetWidth();
+  
+  // Calculate height - use manual height if set, otherwise use snapped auto height
+  const widgetHeight = widget.h && widget.h > 0 ? widget.h : snappedHeight;
 
   const renderContent = () => {
     // Always render in play mode style - the modal handles editing
-    const props = { widget, mode: 'play' as const, width: widgetWidth, height: 200 };
+    const props = { widget, mode: 'play' as const, width: widgetWidth, height: widgetHeight || 120 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'LIST': return <ListWidget {...props} />;
@@ -168,7 +263,6 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
-      case 'SKILL': return <SkillWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
@@ -195,11 +289,12 @@ export default function DraggableWidget({ widget, scale }: Props) {
           ref={nodeRef}
           data-widget-id={widget.id}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme ${widget.groupId && mode === 'edit' ? 'ring-2 ring-green-500 ring-opacity-50' : ''}`}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme ${widget.groupId && mode === 'edit' ? 'ring-2 ring-green-500 ring-opacity-50' : ''} ${isResizing ? 'select-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
-            minWidth: `${MIN_WIDTH}px`,
-            minHeight: snappedHeight ? `${snappedHeight}px` : 'auto',
+            minWidth: `${minDimensions.width}px`,
+            height: widgetHeight ? `${widgetHeight}px` : 'auto',
+            minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
             zIndex: showControls && mode === 'edit' ? 100 : undefined,
           }}
           onMouseEnter={() => setIsHovered(true)}
@@ -247,7 +342,31 @@ export default function DraggableWidget({ widget, scale }: Props) {
             />
           )}
 
-          <div ref={contentRef}>
+          {/* Resize Handle - only visible in edit mode when hovered/selected */}
+          {mode === 'edit' && showControls && (
+            <div
+              className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+              onMouseDown={handleResizeStart}
+              onTouchStart={handleResizeStart}
+              title="Drag to resize"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                className="text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                <path
+                  d="M10 2L2 10M10 6L6 10M10 10L10 10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          )}
+
+          <div ref={contentRef} className="h-full overflow-hidden">
             {renderContent()}
           </div>
         </div>

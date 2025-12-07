@@ -7,7 +7,7 @@ interface Props {
   height: number;
 }
 
-export default function ImageWidget({ widget, width }: Props) {
+export default function ImageWidget({ widget, width, height }: Props) {
   const { label, imageUrl = '' } = widget.data;
 
   // Responsive sizing
@@ -18,16 +18,24 @@ export default function ImageWidget({ widget, width }: Props) {
   const placeholderIconClass = isCompact ? 'text-2xl' : isLarge ? 'text-6xl' : 'text-4xl';
   const placeholderTextClass = isCompact ? 'text-[10px]' : isLarge ? 'text-base' : 'text-sm';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
-  const minHeightClass = isCompact ? 'min-h-[60px]' : isLarge ? 'min-h-[120px]' : 'min-h-[80px]';
+  
+  // Calculate image area height
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const gapSize = isCompact ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const imageHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold text-center ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold text-center ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Portrait'}
       </div>
 
       {/* Image Display */}
-      <div className={`border-[length:var(--border-width)] border-theme-border bg-theme-background flex items-center justify-center overflow-hidden ${minHeightClass} rounded-theme`}>
+      <div 
+        className={`border-[length:var(--border-width)] border-theme-border bg-theme-background flex items-center justify-center overflow-hidden rounded-theme flex-1`}
+        style={{ height: `${imageHeight}px` }}
+      >
         {imageUrl ? (
           <img 
             src={imageUrl} 

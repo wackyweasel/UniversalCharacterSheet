@@ -14,7 +14,7 @@ interface RollResult {
   total: number;
 }
 
-export default function DiceRollerWidget({ widget, width }: Props) {
+export default function DiceRollerWidget({ widget, width, height }: Props) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0 } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
@@ -22,12 +22,13 @@ export default function DiceRollerWidget({ widget, width }: Props) {
   // Responsive sizing
   const isCompact = width < 180;
   const isLarge = width >= 350;
+  const isShort = height < 150;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const buttonClass = isCompact ? 'py-1 px-2 text-xs' : isLarge ? 'py-3 px-6 text-lg' : 'py-2 px-4 text-sm';
-  const resultClass = isCompact ? 'text-xl' : isLarge ? 'text-5xl' : 'text-3xl';
-  const smallTextClass = isCompact ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
-  const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  const buttonClass = isCompact || isShort ? 'py-1 px-2 text-xs' : isLarge ? 'py-3 px-6 text-lg' : 'py-2 px-4 text-sm';
+  const resultClass = isCompact || isShort ? 'text-xl' : isLarge ? 'text-5xl' : 'text-3xl';
+  const smallTextClass = isCompact || isShort ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
+  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
 
   const rollDice = () => {
     setIsRolling(true);
@@ -63,8 +64,8 @@ export default function DiceRollerWidget({ widget, width }: Props) {
   const diceNotation = buildDiceNotation();
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold text-center ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold text-center ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Dice Roller'}
       </div>
 
@@ -83,7 +84,7 @@ export default function DiceRollerWidget({ widget, width }: Props) {
       </button>
 
       {/* Result Display - Always visible to maintain consistent height */}
-      <div className={`text-center border-t border-theme-border/50 ${isCompact ? 'pt-1' : 'pt-2'} flex-shrink-0`}>
+      <div className={`text-center border-t border-theme-border/50 ${isCompact || isShort ? 'pt-1' : 'pt-2'} flex-1 flex flex-col justify-center`}>
         {result && !isRolling ? (
           <>
             <div className={`${resultClass} font-bold text-theme-ink font-heading`}>{result.total}</div>

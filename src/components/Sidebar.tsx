@@ -9,7 +9,6 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'HEALTH_BAR', label: 'Health Bar' },
   { type: 'DICE_ROLLER', label: 'Dice Roller' },
   { type: 'SPELL_SLOT', label: 'Spell Slots' },
-  { type: 'SKILL', label: 'Skill' },
   { type: 'IMAGE', label: 'Image' },
   { type: 'POOL', label: 'Resource Pool' },
   { type: 'TOGGLE_GROUP', label: 'Conditions' },

@@ -14,19 +14,27 @@ interface SpellLevel {
   used: number;
 }
 
-export default function SpellSlotWidget({ widget, width }: Props) {
+export default function SpellSlotWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, spellLevels = [{ level: 1, max: 4, used: 0 }] } = widget.data;
 
   // Responsive sizing
   const isCompact = width < 180;
   const isLarge = width >= 350;
+  const isShort = height < 120;
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const levelLabelClass = isCompact ? 'w-6 text-[10px]' : isLarge ? 'w-12 text-sm' : 'w-8 text-xs';
-  const slotSize = isCompact ? 'w-4 h-4' : isLarge ? 'w-7 h-7' : 'w-5 h-5';
-  const buttonClass = isCompact ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  const levelLabelClass = isCompact || isShort ? 'w-6 text-[10px]' : isLarge ? 'w-12 text-sm' : 'w-8 text-xs';
+  const slotSize = isCompact || isShort ? 'w-4 h-4' : isLarge ? 'w-7 h-7' : 'w-5 h-5';
+  const buttonClass = isCompact || isShort ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
+  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
+  
+  // Calculate spell levels area height
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const controlsHeight = isCompact || isShort ? 28 : isLarge ? 40 : 32;
+  const gapSize = isCompact || isShort ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const levelsHeight = Math.max(30, height - labelHeight - controlsHeight - gapSize * 3 - padding * 2);
 
   const toggleSlot = (levelIdx: number, slotIdx: number) => {
     const updated = [...spellLevels] as SpellLevel[];
@@ -51,13 +59,17 @@ export default function SpellSlotWidget({ widget, width }: Props) {
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Spell Slots'}
       </div>
 
       {/* Spell Levels */}
-      <div className={`flex flex-col ${gapClass}`}>
+      <div 
+        className={`flex flex-col ${gapClass} overflow-y-auto flex-1`}
+        style={{ maxHeight: `${levelsHeight}px` }}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {(spellLevels as SpellLevel[]).map((levelData, levelIdx) => (
           <div key={levelIdx} className={`flex items-center ${gapClass}`}>
             {/* Level Label */}
@@ -87,7 +99,7 @@ export default function SpellSlotWidget({ widget, width }: Props) {
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-end ${gapClass} border-t border-theme-border/50 pt-2`}>
+      <div className={`flex items-center justify-end ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0`}>
         <button
           onClick={resetAll}
           onMouseDown={(e) => e.stopPropagation()}

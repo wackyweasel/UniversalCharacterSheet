@@ -26,7 +26,7 @@ interface WidgetBounds {
   bottom: number;
 }
 
-const EDGE_TOLERANCE = 5; // pixels tolerance for edge detection
+const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 const OVERLAP_MIN = 20; // minimum overlap needed to show button
 
 export default function AttachmentButtons({ widgets, scale }: Props) {

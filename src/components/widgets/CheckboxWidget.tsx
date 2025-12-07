@@ -13,7 +13,7 @@ interface Props {
   height: number;
 }
 
-export default function CheckboxWidget({ widget, width }: Props) {
+export default function CheckboxWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, checkboxItems = [] } = widget.data;
 
@@ -26,6 +26,12 @@ export default function CheckboxWidget({ widget, width }: Props) {
   const checkboxClass = isCompact ? 'w-4 h-4' : isLarge ? 'w-6 h-6' : 'w-5 h-5';
   const checkClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  
+  // Calculate items area height
+  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
+  const gapSize = isCompact ? 4 : 8;
+  const padding = isCompact ? 8 : 16;
+  const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
   const toggleItem = (index: number) => {
     const updated = [...checkboxItems] as CheckboxItem[];
@@ -34,13 +40,17 @@ export default function CheckboxWidget({ widget, width }: Props) {
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading`}>
+    <div className={`flex flex-col ${gapClass} w-full h-full`}>
+      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Checklist'}
       </div>
       
       {/* Checkbox Items */}
-      <div className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'}`}>
+      <div 
+        className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'} overflow-y-auto flex-1`}
+        style={{ maxHeight: `${itemsHeight}px` }}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             <button
