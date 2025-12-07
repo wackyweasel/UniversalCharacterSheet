@@ -781,7 +781,6 @@ function getWidgetTitle(type: WidgetType): string {
     'HEALTH_BAR': 'Health Bar',
     'DICE_ROLLER': 'Dice Roller',
     'SPELL_SLOT': 'Spell Slots',
-    'SKILL': 'Skills',
     'IMAGE': 'Image',
     'POOL': 'Resource Pool',
     'TOGGLE_GROUP': 'Conditions',
