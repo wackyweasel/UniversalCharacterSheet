@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { THEMES, getShadowStyleCSS, getTextureCSS } from '../store/useThemeStore';
+import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
 
 // Helper to get theme colors for a character
@@ -9,7 +9,8 @@ function getThemeStyles(themeId?: string) {
   const customTheme = themeId ? getCustomTheme(themeId) : undefined;
   if (customTheme) {
     const shadowCSS = getShadowStyleCSS(customTheme.shadowStyle || 'hard', customTheme.colors.glow || 'transparent');
-    const textureCSS = getTextureCSS(customTheme.cardTexture || 'none');
+    const textureKey = customTheme.cardTexture || 'none';
+    const textureCSS = isImageTexture(textureKey) ? 'none' : getTextureCSS(textureKey, customTheme.textureColor, customTheme.textureOpacity);
     return {
       '--card-background': customTheme.colors.paper,
       '--card-ink': customTheme.colors.ink,
@@ -23,6 +24,9 @@ function getThemeStyles(themeId?: string) {
       '--card-border-style': customTheme.borderStyle || 'solid',
       '--card-shadow-style': shadowCSS,
       '--card-texture': textureCSS,
+      '--card-texture-key': textureKey,
+      '--card-texture-color': customTheme.textureColor || '#ffffff',
+      '--card-texture-opacity': String(customTheme.textureOpacity ?? 0.15),
       fontFamily: customTheme.fonts.body,
     } as React.CSSProperties;
   }
@@ -42,6 +46,9 @@ function getThemeStyles(themeId?: string) {
     '--card-border-style': theme.borderStyle,
     '--card-shadow-style': theme.shadowStyle,
     '--card-texture': theme.cardTexture,
+    '--card-texture-key': 'none',
+    '--card-texture-color': '#ffffff',
+    '--card-texture-opacity': '0.15',
     fontFamily: theme.fonts.body,
   } as React.CSSProperties;
 }
@@ -91,6 +98,9 @@ export default function CharacterList() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pb-4">
         {characters.map((char) => {
           const cardStyles = getThemeStyles(char.theme);
+          const customTheme = char.theme ? getCustomTheme(char.theme) : undefined;
+          const textureKey = customTheme?.cardTexture || 'none';
+          const hasImageTexture = isImageTexture(textureKey);
           return (
             <div 
               key={char.id}
@@ -99,15 +109,38 @@ export default function CharacterList() {
               onClick={() => selectCharacter(char.id)}
             >
               <div 
-                className="absolute inset-0 pointer-events-none"
+                className="absolute inset-0 pointer-events-none overflow-hidden"
                 style={{
                   backgroundColor: 'var(--card-background)',
-                  backgroundImage: 'var(--card-texture)',
+                  backgroundImage: hasImageTexture ? 'none' : 'var(--card-texture)',
                   borderRadius: 'var(--card-radius)',
                   border: 'var(--card-border-width) var(--card-border-style) var(--card-border)',
                   boxShadow: 'var(--card-shadow-style)',
                 }}
-              />
+              >
+                {/* Image texture overlay - grayscale texture tinted with card color */}
+                {hasImageTexture && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundColor: 'var(--card-background)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
+                        backgroundSize: 'cover',
+                        filter: 'grayscale(100%)',
+                        opacity: 'var(--card-texture-opacity)',
+                        mixBlendMode: 'overlay',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <h2 
                   className="text-xl sm:text-2xl font-bold mb-2 pr-12"

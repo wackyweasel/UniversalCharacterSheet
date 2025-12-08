@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
+import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
+import { getCustomTheme } from '../store/useCustomThemeStore';
 import NumberWidget from './widgets/NumberWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
@@ -49,6 +51,16 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
   const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
+  
+  // Get current character's theme for texture info
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
+  const characters = useStore((state) => state.characters);
+  const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
+  const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
+  const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
+  const hasImageTexture = isImageTexture(textureKey);
+  
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -302,9 +314,28 @@ export default function DraggableWidget({ widget, scale }: Props) {
           onTouchStart={handleWidgetTouchStart}
           onClick={handleWidgetClick}
         >
+          {/* Image texture overlay - grayscale texture tinted with card color */}
+          {hasImageTexture && (
+            <div
+              className="absolute inset-0 pointer-events-none rounded-theme z-0 overflow-hidden"
+              style={{ backgroundColor: 'var(--color-paper)' }}
+            >
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
+                  backgroundSize: 'cover',
+                  filter: 'grayscale(100%)',
+                  opacity: 'var(--card-texture-opacity)',
+                  mixBlendMode: 'overlay',
+                }}
+              />
+            </div>
+          )}
+          
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-end pr-1 touch-none rounded-t-theme">
+            <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-end pr-1 touch-none rounded-t-theme z-10">
               <div className="w-full h-full" />
             </div>
           )}
@@ -366,7 +397,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
 
-          <div ref={contentRef} className="h-full overflow-hidden">
+          <div ref={contentRef} className="h-full overflow-hidden relative z-10">
             {renderContent()}
           </div>
         </div>

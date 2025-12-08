@@ -1,5 +1,7 @@
 import { useStore } from '../store/useStore';
 import { WidgetType } from '../types';
+import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
+import { getCustomTheme } from '../store/useCustomThemeStore';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'NUMBER', label: 'Number Tracker' },
@@ -23,6 +25,13 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const addWidget = useStore((state) => state.addWidget);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
+  const characters = useStore((state) => state.characters);
+  const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
+  const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
+  const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
+  const hasImageTexture = isImageTexture(textureKey);
 
   const handleAdd = (type: WidgetType) => {
     // Add to center of screen roughly (fixed for now, could be dynamic based on viewport)
@@ -45,10 +54,32 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
       
       <div 
-        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-y-auto transition-transform duration-300 ease-in-out safe-area-bottom ${
+        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom ${
           collapsed ? '-translate-x-full' : 'translate-x-0'
         }`}
       >
+        {/* Image texture overlay - grayscale texture tinted with card color */}
+        {hasImageTexture && (
+          <div
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{ backgroundColor: 'var(--color-paper)' }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
+                backgroundSize: 'cover',
+                filter: 'grayscale(100%)',
+                opacity: 'var(--card-texture-opacity)',
+                mixBlendMode: 'overlay',
+              }}
+            />
+          </div>
+        )}
+        
+        {/* Sidebar content */}
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto">
+        
         {/* Toggle button - positioned on the edge of sidebar (hidden on mobile, use floating button instead) */}
         <button
           onClick={onToggle}
@@ -92,6 +123,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <p>Pan with finger/mouse.</p>
           <p>Pinch/scroll to zoom.</p>
           <p className="mt-2 text-theme-ink font-bold">Edit Mode Active</p>
+        </div>
         </div>
       </div>
     </>

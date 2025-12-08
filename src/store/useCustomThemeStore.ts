@@ -24,6 +24,8 @@ export interface CustomTheme {
   borderWidth: string;
   shadowStyle: string;
   cardTexture: string;
+  textureColor: string;
+  textureOpacity: number;
   borderStyle: string;
 }
 
@@ -124,6 +126,8 @@ export function createDefaultCustomTheme(): Omit<CustomTheme, 'id'> {
     borderWidth: '2px',
     shadowStyle: 'hard',
     cardTexture: 'none',
+    textureColor: '#ffffff',
+    textureOpacity: 0.15,
     borderStyle: 'solid',
   };
 }

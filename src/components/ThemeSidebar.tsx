@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { THEMES, applyTheme, applyCustomTheme } from '../store/useThemeStore';
+import { THEMES, applyTheme, applyCustomTheme, isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { useStore } from '../store/useStore';
 import { useCustomThemeStore, CustomTheme, getCustomTheme } from '../store/useCustomThemeStore';
 import CustomThemeEditor from './CustomThemeEditor';
@@ -15,6 +15,12 @@ export default function ThemeSidebar({ collapsed, onToggle }: ThemeSidebarProps)
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const currentTheme = activeCharacter?.theme || 'default';
+  
+  // Get texture info for the current theme
+const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
+  const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
+  const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
+  const hasImageTexture = isImageTexture(textureKey);
 
   const customThemes = useCustomThemeStore((state) => state.customThemes);
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
@@ -108,10 +114,32 @@ export default function ThemeSidebar({ collapsed, onToggle }: ThemeSidebarProps)
       )}
       
       <div 
-        className={`fixed right-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-y-auto transition-transform duration-300 ease-in-out safe-area-bottom ${
+        className={`fixed right-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom ${
           collapsed ? 'translate-x-full' : 'translate-x-0'
         }`}
       >
+        {/* Image texture overlay - grayscale texture tinted with card color */}
+        {hasImageTexture && (
+          <div
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{ backgroundColor: 'var(--color-paper)' }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
+                backgroundSize: 'cover',
+                filter: 'grayscale(100%)',
+                opacity: 'var(--card-texture-opacity)',
+                mixBlendMode: 'overlay',
+              }}
+            />
+          </div>
+        )}
+        
+        {/* Sidebar content */}
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto">
+        
         {/* Toggle button - positioned on the edge of sidebar (hidden on mobile) */}
         <button
           onClick={onToggle}
@@ -137,53 +165,78 @@ export default function ThemeSidebar({ collapsed, onToggle }: ThemeSidebarProps)
 
         {/* Built-in Themes */}
         <div className="flex flex-col gap-2 sm:gap-3">
-          {THEMES.map((theme) => (
-            <button
-              key={theme.id}
-              onClick={() => handleSelectTheme(theme.id)}
-              style={{
-                backgroundColor: currentTheme === theme.id ? theme.colors.accent : theme.colors.paper,
-                color: currentTheme === theme.id ? theme.colors.paper : theme.colors.ink,
-                borderColor: theme.colors.border,
-                borderRadius: theme.borderRadius,
-                borderWidth: theme.borderWidth,
-                fontFamily: theme.fonts.body,
-                boxShadow: `3px 3px 0 ${theme.colors.shadow}`,
-              }}
-              className="p-2 sm:p-3 border-solid transition-all text-left font-bold active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-base sm:text-lg">{theme.icon}</span>
-                <span className="text-xs sm:text-sm" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
-              </div>
-              <p className="text-[10px] sm:text-xs mt-1 opacity-70">
-                {theme.description}
-              </p>
-              {/* Color preview dots */}
-              <div className="flex gap-1 mt-2">
-                <div 
-                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                  style={{ backgroundColor: theme.colors.paper }}
-                  title="Paper"
-                />
-                <div 
-                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                  style={{ backgroundColor: theme.colors.ink }}
-                  title="Ink"
-                />
-                <div 
-                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                  style={{ backgroundColor: theme.colors.accent }}
-                  title="Accent"
-                />
-                <div 
-                  className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                  style={{ backgroundColor: theme.colors.background }}
-                  title="Background"
-                />
-              </div>
-            </button>
-          ))}
+          {THEMES.map((theme) => {
+            const themeTextureKey = isImageTexture(theme.cardTexture) ? theme.cardTexture : null;
+            const isSelected = currentTheme === theme.id;
+            return (
+              <button
+                key={theme.id}
+                onClick={() => handleSelectTheme(theme.id)}
+                style={{
+                  backgroundColor: isSelected ? theme.colors.accent : theme.colors.paper,
+                  color: isSelected ? theme.colors.paper : theme.colors.ink,
+                  borderColor: theme.colors.border,
+                  borderRadius: theme.borderRadius,
+                  borderWidth: theme.borderWidth,
+                  fontFamily: theme.fonts.body,
+                  boxShadow: `3px 3px 0 ${theme.colors.shadow}`,
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+                className="p-2 sm:p-3 border-solid transition-all text-left font-bold active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              >
+                {/* Texture overlay for theme preview */}
+                {themeTextureKey && !isSelected && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ backgroundColor: theme.colors.paper, borderRadius: theme.borderRadius }}
+                  >
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(${IMAGE_TEXTURES[themeTextureKey]})`,
+                        backgroundSize: 'cover',
+                        filter: 'grayscale(100%)',
+                        opacity: theme.textureOpacity ?? 0.15,
+                        mixBlendMode: 'overlay',
+                        borderRadius: theme.borderRadius,
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="relative flex items-center gap-2">
+                  <span className="text-base sm:text-lg">{theme.icon}</span>
+                  <span className="text-xs sm:text-sm" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
+                </div>
+                <p className="relative text-[10px] sm:text-xs mt-1 opacity-70">
+                  {theme.description}
+                </p>
+                {/* Color preview dots */}
+                <div className="relative flex gap-1 mt-2">
+                  <div 
+                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    style={{ backgroundColor: theme.colors.paper }}
+                    title="Paper"
+                  />
+                  <div 
+                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    style={{ backgroundColor: theme.colors.ink }}
+                    title="Ink"
+                  />
+                  <div 
+                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    style={{ backgroundColor: theme.colors.accent }}
+                    title="Accent"
+                  />
+                  <div 
+                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    style={{ backgroundColor: theme.colors.background }}
+                    title="Background"
+                  />
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Custom Themes Section */}
@@ -208,69 +261,94 @@ export default function ThemeSidebar({ collapsed, onToggle }: ThemeSidebarProps)
 
           {/* List of Custom Themes */}
           <div className="flex flex-col gap-2 sm:gap-3 mt-3">
-            {customThemes.map((theme) => (
-              <div
-                key={theme.id}
-                style={{
-                  backgroundColor: currentTheme === theme.id ? theme.colors.accent : theme.colors.paper,
-                  color: currentTheme === theme.id ? theme.colors.paper : theme.colors.ink,
-                  borderColor: theme.colors.border,
-                  borderRadius: theme.borderRadius,
-                  borderWidth: theme.borderWidth,
-                  fontFamily: theme.fonts.body,
-                  boxShadow: `3px 3px 0 ${theme.colors.shadow}`,
-                }}
-                className="p-2 sm:p-3 border-solid transition-all text-left font-bold relative"
-              >
-                <button
-                  onClick={() => handleSelectTheme(theme.id)}
-                  className="w-full text-left"
-                >
-                  <div className="flex items-center gap-2 pr-8">
-                    <span className="text-base sm:text-lg">{theme.icon}</span>
-                    <span className="text-xs sm:text-sm" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
-                  </div>
-                  <p className="text-[10px] sm:text-xs mt-1 opacity-70">
-                    {theme.description}
-                  </p>
-                  {/* Color preview dots */}
-                  <div className="flex gap-1 mt-2">
-                    <div 
-                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.paper }}
-                      title="Paper"
-                    />
-                    <div 
-                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.ink }}
-                      title="Ink"
-                    />
-                    <div 
-                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.accent }}
-                      title="Accent"
-                    />
-                    <div 
-                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.background }}
-                      title="Background"
-                    />
-                  </div>
-                </button>
-                {/* Edit button */}
-                <button
-                  onClick={(e) => handleEditCustom(theme, e)}
+            {customThemes.map((theme) => {
+              const customTextureKey = isImageTexture(theme.cardTexture || '') ? theme.cardTexture : null;
+              const isSelected = currentTheme === theme.id;
+              return (
+                <div
+                  key={theme.id}
                   style={{
-                    backgroundColor: currentTheme === theme.id ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
-                    color: currentTheme === theme.id ? theme.colors.paper : theme.colors.accent,
+                    backgroundColor: isSelected ? theme.colors.accent : theme.colors.paper,
+                    color: isSelected ? theme.colors.paper : theme.colors.ink,
+                    borderColor: theme.colors.border,
+                    borderRadius: theme.borderRadius,
+                    borderWidth: theme.borderWidth,
+                    fontFamily: theme.fonts.body,
+                    boxShadow: `3px 3px 0 ${theme.colors.shadow}`,
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
-                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform"
+                  className="p-2 sm:p-3 border-solid transition-all text-left font-bold"
+                >
+                  {/* Texture overlay for custom theme preview */}
+                  {customTextureKey && !isSelected && (
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ backgroundColor: theme.colors.paper, borderRadius: theme.borderRadius }}
+                    >
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          backgroundImage: `url(${IMAGE_TEXTURES[customTextureKey]})`,
+                          backgroundSize: 'cover',
+                          filter: 'grayscale(100%)',
+                          opacity: theme.textureOpacity ?? 0.15,
+                          mixBlendMode: 'overlay',
+                          borderRadius: theme.borderRadius,
+                        }}
+                      />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleSelectTheme(theme.id)}
+                    className="relative w-full text-left"
+                  >
+                    <div className="flex items-center gap-2 pr-8">
+                      <span className="text-base sm:text-lg">{theme.icon}</span>
+                      <span className="text-xs sm:text-sm" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
+                    </div>
+                    <p className="text-[10px] sm:text-xs mt-1 opacity-70">
+                      {theme.description}
+                    </p>
+                    {/* Color preview dots */}
+                    <div className="flex gap-1 mt-2">
+                      <div 
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.paper }}
+                        title="Paper"
+                      />
+                      <div 
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.ink }}
+                        title="Ink"
+                      />
+                      <div 
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.accent }}
+                        title="Accent"
+                      />
+                      <div 
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.background }}
+                        title="Background"
+                      />
+                    </div>
+                  </button>
+                  {/* Edit button */}
+                  <button
+                    onClick={(e) => handleEditCustom(theme, e)}
+                    style={{
+                      backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
+                      color: isSelected ? theme.colors.paper : theme.colors.accent,
+                    }}
+                    className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
                   title="Edit theme"
                 >
                   ✏️
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {customThemes.length === 0 && (
@@ -283,6 +361,7 @@ export default function ThemeSidebar({ collapsed, onToggle }: ThemeSidebarProps)
         <div className="mt-auto pt-4 text-[10px] sm:text-xs text-theme-muted border-t border-theme-border/50 font-body">
           <p>Select a theme to change the appearance of your character sheet.</p>
           <p className="mt-2 text-theme-ink font-bold">Current: {getCurrentThemeName()}</p>
+        </div>
         </div>
       </div>
     </>

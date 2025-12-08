@@ -532,11 +532,11 @@ function PoolEditor({ widget, updateData }: EditorProps) {
             updateData({ maxPool: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
           }}
           onBlur={(e) => {
-            const val = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
+            const val = Math.max(1, Math.min(1000, parseInt(e.target.value) || 1));
             updateData({ maxPool: val });
           }}
           min={1}
-          max={20}
+          max={1000}
         />
       </div>
       

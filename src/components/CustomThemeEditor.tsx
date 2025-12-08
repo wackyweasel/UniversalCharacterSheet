@@ -12,6 +12,8 @@ import {
   BORDER_STYLE_OPTIONS,
   getTextureCSS,
   getShadowStyleCSS,
+  isImageTexture,
+  IMAGE_TEXTURES,
 } from '../store/useThemeStore';
 
 interface CustomThemeEditorProps {
@@ -35,6 +37,8 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [borderWidth, setBorderWidth] = useState(theme?.borderWidth || defaultTheme.borderWidth);
   const [shadowStyle, setShadowStyle] = useState(theme?.shadowStyle || defaultTheme.shadowStyle);
   const [cardTexture, setCardTexture] = useState(theme?.cardTexture || defaultTheme.cardTexture);
+  const textureColor = '#ffffff'; // Fixed white texture color
+  const [textureOpacity, setTextureOpacity] = useState(theme?.textureOpacity ?? defaultTheme.textureOpacity);
   const [borderStyle, setBorderStyle] = useState(theme?.borderStyle || defaultTheme.borderStyle);
   const [showIconPicker, setShowIconPicker] = useState(false);
 
@@ -57,6 +61,8 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
       borderWidth,
       shadowStyle,
       cardTexture,
+      textureColor: '#ffffff',
+      textureOpacity,
       borderStyle,
     };
     onSave(newTheme);
@@ -150,25 +156,16 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           {/* Colors Section */}
           <section>
             <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Colors</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
               {colorFields.map(({ key, label }) => (
-                <div key={key}>
-                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">{label}</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={colors[key]}
-                      onChange={(e) => handleColorChange(key, e.target.value)}
-                      className="w-10 h-10 border-[length:var(--border-width)] border-theme-border rounded cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={colors[key]}
-                      onChange={(e) => handleColorChange(key, e.target.value)}
-                      className="flex-1 p-1 text-xs border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded font-mono"
-                      placeholder="#000000"
-                    />
-                  </div>
+                <div key={key} className="flex flex-col items-center">
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
+                  <input
+                    type="color"
+                    value={colors[key]}
+                    onChange={(e) => handleColorChange(key, e.target.value)}
+                    className="w-12 h-12 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                  />
                 </div>
               ))}
             </div>
@@ -271,7 +268,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                   ))}
                 </select>
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Card Texture</label>
                 <select
                   value={cardTexture}
@@ -282,6 +279,21 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">
+                  Texture Opacity: {Math.round(textureOpacity * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={textureOpacity}
+                  onChange={(e) => setTextureOpacity(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-theme-border rounded-theme appearance-none cursor-pointer"
+                  disabled={cardTexture === 'none'}
+                />
               </div>
             </div>
           </section>
@@ -297,10 +309,10 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
               }}
             >
               <div 
-                className="p-4"
+                className="p-4 relative overflow-hidden"
                 style={{ 
                   backgroundColor: colors.paper,
-                  backgroundImage: getTextureCSS(cardTexture),
+                  backgroundImage: isImageTexture(cardTexture) ? 'none' : getTextureCSS(cardTexture, textureColor, textureOpacity),
                   border: `${borderWidth} ${borderStyle} ${colors.border}`,
                   borderRadius: borderRadius,
                   boxShadow: getShadowStyleCSS(shadowStyle, colors.glow)
@@ -309,20 +321,42 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     .replace(/var\(--color-glow\)/g, colors.glow),
                 }}
               >
+                {/* Image texture overlay for preview - grayscale texture tinted with card color */}
+                {isImageTexture(cardTexture) && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      backgroundColor: colors.paper,
+                      borderRadius: borderRadius,
+                    }}
+                  >
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(${IMAGE_TEXTURES[cardTexture]})`,
+                        backgroundSize: 'cover',
+                        filter: 'grayscale(100%)',
+                        opacity: textureOpacity,
+                        mixBlendMode: 'overlay',
+                        borderRadius: borderRadius,
+                      }}
+                    />
+                  </div>
+                )}
                 <h4 
-                  className="text-lg font-bold mb-2"
+                  className="text-lg font-bold mb-2 relative"
                   style={{ color: colors.ink, fontFamily: headingFont }}
                 >
                   {icon} {name}
                 </h4>
                 <p 
-                  className="text-sm mb-3"
+                  className="text-sm mb-3 relative"
                   style={{ color: colors.muted, fontFamily: bodyFont }}
                 >
                   {description}
                 </p>
                 <button
-                  className="px-4 py-2 font-bold transition-colors"
+                  className="px-4 py-2 font-bold transition-colors relative"
                   style={{ 
                     backgroundColor: colors.accent,
                     color: colors.paper,

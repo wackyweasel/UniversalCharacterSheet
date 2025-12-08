@@ -1,5 +1,30 @@
 import { create } from 'zustand';
 
+// Import texture images
+import paperTexture from '../textures/paper.jpg';
+import crumpledPaperTexture from '../textures/paper_2.jpg';
+import graphPaperTexture from '../textures/paper_3.jpg';
+import woodTexture from '../textures/wood.jpg';
+import arcsTexture from '../textures/arcs.jpg';
+import circuitBoardTexture from '../textures/circuit_board.jpg';
+import clothTexture from '../textures/cloth.jpg';
+import fireTexture from '../textures/fire.jpg';
+import fogTexture from '../textures/fog.jpg';
+import gearsTexture from '../textures/gears.jpg';
+import glyphsTexture from '../textures/glyphs.jpg';
+import leafTexture from '../textures/leaf.jpg';
+import leatherTexture from '../textures/leather.jpg';
+import metalTexture from '../textures/metal.jpg';
+import smokeTexture from '../textures/smoke.jpg';
+import snowTexture from '../textures/snow.jpg';
+import soilTexture from '../textures/soil.jpg';
+import solarTexture from '../textures/solar.jpg';
+import starsTexture from '../textures/stars.jpg';
+import stoneTexture from '../textures/stone.jpg';
+import techTexture from '../textures/tech.jpg';
+import waterTexture from '../textures/water.jpg';
+import wavesTexture from '../textures/waves.jpg';
+
 export type ThemeId = 
   | 'default'
   | 'pen-and-paper'
@@ -14,121 +39,97 @@ export type ThemeId =
   | 'cyberpunk'
   | 'nature';
 
-// Textures for card backgrounds
-export const TEXTURES = {
+// Textures for card backgrounds (legacy - kept for compatibility)
+export const TEXTURES: Record<string, string> = {
   none: 'none',
-  parchment: `repeating-linear-gradient(
-    120deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(139, 115, 85, 0.03) 2px,
-    rgba(139, 115, 85, 0.03) 4px
-  ), repeating-linear-gradient(
-    60deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(139, 115, 85, 0.02) 2px,
-    rgba(139, 115, 85, 0.02) 4px
-  )`,
-  darkGrain: `repeating-linear-gradient(
-    45deg,
-    transparent 0px,
-    transparent 1px,
-    rgba(255, 255, 255, 0.02) 1px,
-    rgba(255, 255, 255, 0.02) 2px
-  ), repeating-linear-gradient(
-    -45deg,
-    transparent 0px,
-    transparent 1px,
-    rgba(255, 255, 255, 0.015) 1px,
-    rgba(255, 255, 255, 0.015) 2px
-  )`,
-  scanlines: `repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(0, 255, 255, 0.04) 2px,
-    rgba(0, 255, 255, 0.04) 4px
-  )`,
-  holographic: `linear-gradient(
-    135deg,
-    rgba(0, 255, 255, 0.08) 0%,
-    transparent 25%,
-    rgba(0, 255, 136, 0.06) 50%,
-    transparent 75%,
-    rgba(0, 200, 255, 0.08) 100%
-  )`,
-  arcaneRunes: `radial-gradient(
-    circle at 50% 50%,
-    transparent 30%,
-    rgba(191, 127, 255, 0.06) 31%,
-    rgba(191, 127, 255, 0.06) 32%,
-    transparent 33%,
-    transparent 60%,
-    rgba(191, 127, 255, 0.04) 61%,
-    rgba(191, 127, 255, 0.04) 62%,
-    transparent 63%
-  )`,
-  brassPlate: `repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 18px,
-    rgba(205, 127, 50, 0.08) 18px,
-    rgba(205, 127, 50, 0.08) 20px
-  )`,
-  neonGrid: `repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 48px,
-    rgba(255, 0, 255, 0.1) 48px,
-    rgba(255, 0, 255, 0.1) 50px
-  ), repeating-linear-gradient(
-    90deg,
-    transparent 0px,
-    transparent 48px,
-    rgba(255, 0, 255, 0.1) 48px,
-    rgba(255, 0, 255, 0.1) 50px
-  )`,
-  leafPattern: `radial-gradient(
-    ellipse 20px 10px at 25% 75%,
-    rgba(74, 124, 89, 0.12) 0%,
-    transparent 100%
-  ), radial-gradient(
-    ellipse 15px 8px at 75% 25%,
-    rgba(74, 124, 89, 0.1) 0%,
-    transparent 100%
-  )`,
-  sketchLines: `repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 26px,
-    rgba(153, 194, 255, 0.25) 26px,
-    rgba(153, 194, 255, 0.25) 28px
-  )`,
-  necroticMist: `radial-gradient(
-    ellipse at 30% 70%,
-    rgba(74, 170, 0, 0.1) 0%,
-    transparent 50%
-  ), radial-gradient(
-    ellipse at 80% 20%,
-    rgba(74, 170, 0, 0.08) 0%,
-    transparent 40%
-  )`,
+  paper: `url(${paperTexture})`,
+  crumpledPaper: `url(${crumpledPaperTexture})`,
+  graphPaper: `url(${graphPaperTexture})`,
+  wood: `url(${woodTexture})`,
+  arcs: `url(${arcsTexture})`,
+  circuitBoard: `url(${circuitBoardTexture})`,
+  cloth: `url(${clothTexture})`,
+  fire: `url(${fireTexture})`,
+  fog: `url(${fogTexture})`,
+  gears: `url(${gearsTexture})`,
+  glyphs: `url(${glyphsTexture})`,
+  leaf: `url(${leafTexture})`,
+  leather: `url(${leatherTexture})`,
+  metal: `url(${metalTexture})`,
+  smoke: `url(${smokeTexture})`,
+  snow: `url(${snowTexture})`,
+  soil: `url(${soilTexture})`,
+  solar: `url(${solarTexture})`,
+  stars: `url(${starsTexture})`,
+  stone: `url(${stoneTexture})`,
+  tech: `url(${techTexture})`,
+  water: `url(${waterTexture})`,
+  waves: `url(${wavesTexture})`,
 };
+
+// Image-based textures map (exported for components that need to render overlays)
+export const IMAGE_TEXTURES: Record<string, string> = {
+  paper: paperTexture,
+  crumpledPaper: crumpledPaperTexture,
+  graphPaper: graphPaperTexture,
+  wood: woodTexture,
+  arcs: arcsTexture,
+  circuitBoard: circuitBoardTexture,
+  cloth: clothTexture,
+  fire: fireTexture,
+  fog: fogTexture,
+  gears: gearsTexture,
+  glyphs: glyphsTexture,
+  leaf: leafTexture,
+  leather: leatherTexture,
+  metal: metalTexture,
+  smoke: smokeTexture,
+  snow: snowTexture,
+  soil: soilTexture,
+  solar: solarTexture,
+  stars: starsTexture,
+  stone: stoneTexture,
+  tech: techTexture,
+  water: waterTexture,
+  waves: wavesTexture,
+};
+
+// Helper to check if a texture is image-based
+export function isImageTexture(textureKey: string): boolean {
+  return textureKey in IMAGE_TEXTURES;
+}
+
+// Helper to get a built-in theme by ID
+export function getBuiltInTheme(themeId: string): Theme | undefined {
+  return THEMES.find(t => t.id === themeId);
+}
 
 // Available texture options for custom themes
 export const TEXTURE_OPTIONS = [
   { value: 'none', label: 'None' },
-  { value: 'parchment', label: 'Parchment' },
-  { value: 'darkGrain', label: 'Dark Grain' },
-  { value: 'scanlines', label: 'Scanlines' },
-  { value: 'holographic', label: 'Holographic' },
-  { value: 'arcaneRunes', label: 'Arcane Runes' },
-  { value: 'brassPlate', label: 'Brass Plate' },
-  { value: 'neonGrid', label: 'Neon Grid' },
-  { value: 'leafPattern', label: 'Leaf Pattern' },
-  { value: 'sketchLines', label: 'Sketch Lines' },
-  { value: 'necroticMist', label: 'Necrotic Mist' },
+  { value: 'paper', label: 'Paper' },
+  { value: 'crumpledPaper', label: 'Crumpled Paper' },
+  { value: 'graphPaper', label: 'Graph Paper' },
+  { value: 'wood', label: 'Wood' },
+  { value: 'leather', label: 'Leather' },
+  { value: 'cloth', label: 'Cloth' },
+  { value: 'stone', label: 'Stone' },
+  { value: 'metal', label: 'Metal' },
+  { value: 'soil', label: 'Soil' },
+  { value: 'leaf', label: 'Leaf' },
+  { value: 'water', label: 'Water' },
+  { value: 'waves', label: 'Waves' },
+  { value: 'snow', label: 'Snow' },
+  { value: 'fog', label: 'Fog' },
+  { value: 'fire', label: 'Fire' },
+  { value: 'smoke', label: 'Smoke' },
+  { value: 'stars', label: 'Stars' },
+  { value: 'solar', label: 'Solar' },
+  { value: 'tech', label: 'Technology' },
+  { value: 'circuitBoard', label: 'Circuit Board' },
+  { value: 'gears', label: 'Gears' },
+  { value: 'arcs', label: 'Arcs' },
+  { value: 'glyphs', label: 'Glyphs' },
 ];
 
 // Available shadow style options for custom themes
@@ -150,7 +151,17 @@ export const BORDER_STYLE_OPTIONS = [
 ];
 
 // Helper to get texture CSS from texture key
-export function getTextureCSS(textureKey: string): string {
+// For image textures, this returns 'none' - they should be rendered via overlay elements
+export function getTextureCSS(textureKey: string, _customColor?: string, _opacity: number = 0.15): string {
+  if (textureKey === 'none' || !textureKey) return 'none';
+  
+  // All textures are now image-based and need to be rendered via overlay elements
+  // Return 'none' here - components should check isImageTexture and render overlay
+  if (isImageTexture(textureKey)) {
+    return 'none';
+  }
+  
+  // Fall back to predefined textures (for legacy compatibility)
   return TEXTURES[textureKey as keyof typeof TEXTURES] || TEXTURES.none;
 }
 
@@ -198,6 +209,7 @@ export interface Theme {
   borderWidth: string;
   shadowStyle: string;
   cardTexture: string;
+  textureOpacity?: number;
   borderStyle: string;
 }
 
@@ -234,8 +246,8 @@ export const THEMES: Theme[] = [
     icon: '📝',
     description: 'Handwritten style with lined paper feel',
     colors: {
-      background: '#f5f0e6',
-      paper: '#fffef9',
+      background: '#d7d7d7',
+      paper: '#d7d7d7',
       ink: '#2c3e50',
       accent: '#8b4513',
       accentHover: '#a0522d',
@@ -251,7 +263,8 @@ export const THEMES: Theme[] = [
     borderRadius: '2px',
     borderWidth: '1px',
     shadowStyle: '2px 2px 0 0 var(--color-shadow)',
-    cardTexture: TEXTURES.sketchLines,
+    cardTexture: 'graphPaper',
+    textureOpacity: 1,
     borderStyle: 'solid',
   },
   {
@@ -277,7 +290,8 @@ export const THEMES: Theme[] = [
     borderRadius: '0px',
     borderWidth: '3px',
     shadowStyle: '3px 3px 6px 0 var(--color-shadow)',
-    cardTexture: TEXTURES.parchment,
+    cardTexture: 'paper',
+    textureOpacity: 1.0,
     borderStyle: 'double',
   },
   {
@@ -294,7 +308,7 @@ export const THEMES: Theme[] = [
       border: '#00ffff',
       shadow: '#00ffff40',
       muted: '#4a9eff',
-      glow: '#00ffff',
+      glow: '#008cffff',
     },
     fonts: {
       heading: '"Orbitron", "Segoe UI", sans-serif',
@@ -303,7 +317,8 @@ export const THEMES: Theme[] = [
     borderRadius: '4px',
     borderWidth: '1px',
     shadowStyle: '0 0 8px var(--color-glow), 0 0 16px var(--color-shadow)',
-    cardTexture: `${TEXTURES.scanlines}, ${TEXTURES.holographic}`,
+    cardTexture: 'circuitBoard',
+    textureOpacity: 0.4,
     borderStyle: 'solid',
   },
   {
@@ -381,7 +396,8 @@ export const THEMES: Theme[] = [
     borderRadius: '8px',
     borderWidth: '2px',
     shadowStyle: '0 0 12px var(--color-glow), 0 0 24px var(--color-shadow)',
-    cardTexture: TEXTURES.arcaneRunes,
+    cardTexture: 'arcs',
+    textureOpacity: 0.15,
     borderStyle: 'solid',
   },
   {
@@ -407,7 +423,8 @@ export const THEMES: Theme[] = [
     borderRadius: '0px',
     borderWidth: '1px',
     shadowStyle: '0 0 10px var(--color-shadow), inset 0 0 30px rgba(74, 170, 0, 0.05)',
-    cardTexture: TEXTURES.necroticMist,
+    cardTexture: 'smoke',
+    textureOpacity: 0.6,
     borderStyle: 'solid',
   },
   {
@@ -459,7 +476,8 @@ export const THEMES: Theme[] = [
     borderRadius: '2px',
     borderWidth: '2px',
     shadowStyle: '2px 2px 0 var(--color-border), 4px 4px 8px var(--color-shadow)',
-    cardTexture: TEXTURES.brassPlate,
+    cardTexture: 'gears',
+    textureOpacity: 0.25,
     borderStyle: 'solid',
   },
   {
@@ -469,7 +487,7 @@ export const THEMES: Theme[] = [
     description: 'Neon lights in a dark future',
     colors: {
       background: '#0f0f23',
-      paper: '#1a1a2e',
+      paper: '#24243fff',
       ink: '#eeff00',
       accent: '#ff00ff',
       accentHover: '#cc00cc',
@@ -485,7 +503,8 @@ export const THEMES: Theme[] = [
     borderRadius: '0px',
     borderWidth: '2px',
     shadowStyle: '0 0 10px var(--color-glow), 0 0 20px var(--color-shadow), 4px 4px 0 var(--color-border)',
-    cardTexture: TEXTURES.neonGrid,
+    cardTexture: 'tech',
+    textureOpacity: 0.4,
     borderStyle: 'solid',
   },
   {
@@ -495,7 +514,7 @@ export const THEMES: Theme[] = [
     description: 'Organic earthy woodland feel',
     colors: {
       background: '#2d4a3e',
-      paper: '#f4f1e0',
+      paper: '#f4f1e0cc',
       ink: '#2d3b2d',
       accent: '#4a7c59',
       accentHover: '#3d6b4f',
@@ -511,7 +530,8 @@ export const THEMES: Theme[] = [
     borderRadius: '12px',
     borderWidth: '2px',
     shadowStyle: '0 4px 12px var(--color-shadow)',
-    cardTexture: TEXTURES.none,
+    cardTexture: 'leaf',
+    textureOpacity: 0.6,
     borderStyle: 'solid',
   },
 ];
@@ -562,6 +582,11 @@ export function applyTheme(themeId: ThemeId | string) {
   root.style.setProperty('--border-width', theme.borderWidth);
   root.style.setProperty('--shadow-style', theme.shadowStyle);
   root.style.setProperty('--card-texture', theme.cardTexture);
+  // Use theme's texture key if it's an image texture, otherwise 'none'
+  const textureKey = isImageTexture(theme.cardTexture) ? theme.cardTexture : 'none';
+  root.style.setProperty('--card-texture-key', textureKey);
+  root.style.setProperty('--card-texture-color', '#ffffff');
+  root.style.setProperty('--card-texture-opacity', String(theme.textureOpacity ?? 0.15));
   root.style.setProperty('--border-style', theme.borderStyle);
 }
 
@@ -586,7 +611,9 @@ export function applyCustomTheme(theme: {
   borderWidth: string;
   shadowStyle?: string;
   cardTexture?: string;
+  textureColor?: string;
   borderStyle?: string;
+  textureOpacity?: number;
 }) {
   const root = document.documentElement;
   
@@ -608,9 +635,17 @@ export function applyCustomTheme(theme: {
   const shadowCSS = getShadowStyleCSS(theme.shadowStyle || 'hard', theme.colors.glow || 'transparent');
   root.style.setProperty('--shadow-style', shadowCSS);
   
-  // Convert texture key to CSS
-  const textureCSS = getTextureCSS(theme.cardTexture || 'none');
+  // Store texture key for components to detect image textures
+  const textureKey = theme.cardTexture || 'none';
+  root.style.setProperty('--card-texture-key', textureKey);
+  
+  // Convert texture key to CSS with custom color if provided (returns 'none' for image textures)
+  const textureCSS = getTextureCSS(textureKey, theme.textureColor, theme.textureOpacity ?? 0.15);
   root.style.setProperty('--card-texture', textureCSS);
+  
+  // Store texture metadata for components that render image texture overlays
+  root.style.setProperty('--card-texture-color', theme.textureColor || '#ffffff');
+  root.style.setProperty('--card-texture-opacity', String(theme.textureOpacity ?? 0.15));
   
   root.style.setProperty('--border-style', theme.borderStyle || 'solid');
 }

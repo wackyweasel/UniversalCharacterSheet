@@ -18,6 +18,8 @@
   --border-width: 2px;
   --shadow-style: 4px 4px 0 0 var(--color-shadow);
   --card-texture: none;
+  --card-texture-color: #ffffff;
+  --card-texture-opacity: 0.15;
   --border-style: solid;
 }
 
@@ -47,6 +49,7 @@
   .bg-theme-paper { 
     background-color: var(--color-paper); 
     background-image: var(--card-texture);
+    background-blend-mode: multiply;
   }
   .bg-theme-ink { background-color: var(--color-ink); }
   .bg-theme-accent { background-color: var(--color-accent); }

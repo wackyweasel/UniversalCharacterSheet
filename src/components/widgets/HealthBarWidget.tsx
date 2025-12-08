@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -8,9 +9,80 @@ interface Props {
   height: number;
 }
 
+// Modal component for damage/heal input
+function HealthModal({ 
+  title, 
+  onConfirm, 
+  onCancel,
+  buttonLabel,
+  isDamage 
+}: { 
+  title: string; 
+  onConfirm: (amount: number) => void; 
+  onCancel: () => void;
+  buttonLabel: string;
+  isDamage: boolean;
+}) {
+  const [amount, setAmount] = useState<number | string>(1);
+
+  const handleConfirm = () => {
+    const val = typeof amount === 'string' ? parseInt(amount) || 1 : amount;
+    onConfirm(Math.max(1, val));
+  };
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 bg-black/50 z-50" 
+        onClick={onCancel}
+      />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[200px]">
+        <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
+        <input
+          type="number"
+          min="1"
+          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+          onBlur={(e) => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleConfirm();
+            if (e.key === 'Escape') onCancel();
+          }}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors border border-theme-border"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            className={`flex-1 px-3 py-1.5 text-sm font-body rounded-theme transition-colors ${
+              isDamage 
+                ? 'bg-theme-accent text-theme-paper hover:opacity-80' 
+                : 'bg-theme-accent text-theme-paper hover:opacity-80'
+            }`}
+          >
+            {buttonLabel}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function HealthBarWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, currentValue = 10, maxValue = 10 } = widget.data;
+  
+  const [showDamageModal, setShowDamageModal] = useState(false);
+  const [showHealModal, setShowHealModal] = useState(false);
+
+  // Calculate health percentage
+  const healthPercent = Math.max(0, Math.min(100, (currentValue / maxValue) * 100));
 
   // Responsive sizing
   const isCompact = width < 180;
@@ -19,56 +91,103 @@ export default function HealthBarWidget({ widget, width, height }: Props) {
   
   const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
   const barTextClass = isCompact || isShort ? 'text-xs' : isLarge ? 'text-lg' : 'text-sm';
-  const buttonClass = isCompact || isShort ? 'px-1 py-0.5 text-[10px]' : isLarge ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
+  const buttonClass = isCompact || isShort ? 'px-1.5 py-0.5 text-[10px]' : isLarge ? 'px-3 py-1.5 text-sm' : 'px-2 py-1 text-xs';
   const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
+  const barHeight = isCompact || isShort ? 'h-4' : isLarge ? 'h-8' : 'h-6';
 
-  const adjustCurrent = (delta: number) => {
-    const newVal = Math.max(0, Math.min(maxValue, currentValue + delta));
+  const applyDamage = (amount: number) => {
+    const newVal = Math.max(0, currentValue - amount);
     updateWidgetData(widget.id, { currentValue: newVal });
+    setShowDamageModal(false);
+  };
+
+  const applyHeal = (amount: number) => {
+    const newVal = Math.min(maxValue, currentValue + amount);
+    updateWidgetData(widget.id, { currentValue: newVal });
+    setShowHealModal(false);
+  };
+
+  const fullHeal = () => {
+    updateWidgetData(widget.id, { currentValue: maxValue });
   };
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full justify-between`}>
+      {/* Label */}
       <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
         {label || 'Health'}
       </div>
       
-      {/* Health Value */}
-      <div className={`flex items-center justify-center font-bold ${barTextClass} text-theme-ink flex-1`}>
-        {currentValue} / {maxValue}
+      {/* Health Bar */}
+      <div className="flex-1 flex flex-col justify-center">
+        <div className={`relative ${barHeight} bg-theme-accent rounded-theme overflow-hidden border border-theme-border`}>
+          {/* Filled portion - uses theme accent color with opacity based on health */}
+          <div 
+            className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
+            style={{ 
+              width: `${healthPercent}%`,
+            }}
+          />
+          {/* Unfilled portion overlay */}
+          <div 
+            className="absolute inset-y-0 right-0 bg-theme-paper/70"
+            style={{ 
+              width: `${100 - healthPercent}%`,
+            }}
+          />
+          {/* Health text overlay */}
+          <div className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-paper`}>
+            {currentValue} / {maxValue}
+          </div>
+        </div>
       </div>
 
       {/* Controls */}
       <div className="flex items-center justify-between gap-1 flex-shrink-0">
         <button
-          onClick={() => adjustCurrent(-5)}
+          onClick={() => setShowDamageModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme font-bold`}
         >
-          -5
+          Damage
         </button>
         <button
-          onClick={() => adjustCurrent(-1)}
+          onClick={() => setShowHealModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme font-bold`}
         >
-          -1
+          Heal
         </button>
         <button
-          onClick={() => adjustCurrent(1)}
+          onClick={fullHeal}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
+          className={`${buttonClass} bg-theme-accent text-theme-paper hover:opacity-80 transition-colors rounded-theme font-bold`}
         >
-          +1
-        </button>
-        <button
-          onClick={() => adjustCurrent(5)}
-          onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
-        >
-          +5
+          Full
         </button>
       </div>
+
+      {/* Damage Modal */}
+      {showDamageModal && (
+        <HealthModal
+          title="Take Damage"
+          onConfirm={applyDamage}
+          onCancel={() => setShowDamageModal(false)}
+          buttonLabel="Damage"
+          isDamage={true}
+        />
+      )}
+
+      {/* Heal Modal */}
+      {showHealModal && (
+        <HealthModal
+          title="Heal"
+          onConfirm={applyHeal}
+          onCancel={() => setShowHealModal(false)}
+          buttonLabel="Heal"
+          isDamage={false}
+        />
+      )}
     </div>
   );
 }
