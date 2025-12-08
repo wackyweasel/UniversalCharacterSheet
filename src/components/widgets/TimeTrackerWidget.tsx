@@ -85,7 +85,7 @@ function formatRounds(rounds: number): string {
   return rounds === 1 ? '1 round' : `${rounds} rounds`;
 }
 
-export default function TimeTrackerWidget({ widget, width, height }: Props) {
+export default function TimeTrackerWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, timedEffects = [], roundMode = false } = widget.data;
   
@@ -100,15 +100,11 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
   const [passedTime, setPassedTime] = useState(1);
   const [passedUnit, setPassedUnit] = useState('minutes');
 
-  // Responsive sizing
-  const isCompact = width < 200;
-  const isLarge = width >= 350;
-  const isShort = height < 180;
-  
-  const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const itemClass = isCompact || isShort ? 'text-xs' : isLarge ? 'text-sm' : 'text-xs';
-  const buttonClass = isCompact || isShort ? 'text-xs px-2 py-1' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
+  // Fixed small sizing
+  const labelClass = 'text-xs';
+  const itemClass = 'text-xs';
+  const buttonClass = 'text-xs px-2 py-1';
+  const gapClass = 'gap-1';
 
   const confirmAddEffect = () => {
     if (newEffectName.trim()) {
@@ -167,17 +163,19 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
   };
 
   // Calculate effects list height based on available space
-  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
-  const buttonsHeight = isCompact || isShort ? 32 : isLarge ? 44 : 36;
-  const gapSize = isCompact || isShort ? 4 : 8;
-  const padding = isCompact ? 8 : 16;
+  const labelHeight = 16;
+  const buttonsHeight = 32;
+  const gapSize = 4;
+  const padding = 8;
   const effectsListHeight = Math.max(60, height - labelHeight - buttonsHeight - gapSize * 3 - padding * 2);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-        {label || 'Time Tracker'}
-      </div>
+      {label && (
+        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
+          {label}
+        </div>
+      )}
       
       {/* Effects List - Dynamic height, scrollable */}
       <div 
@@ -188,20 +186,18 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
         {(timedEffects as TimedEffect[]).map((effect, idx) => (
           <div 
             key={idx} 
-            className={`flex justify-between items-center group p-1.5 rounded-theme border ${
+            className={`flex items-center group px-1.5 py-0.5 rounded-theme border ${
               effect.remainingSeconds <= 0 
                 ? 'bg-theme-accent/20 border-theme-accent animate-pulse' 
                 : 'border-theme-border/30 hover:border-theme-border'
             }`}
           >
-            <div className="flex-1 min-w-0">
-              <span className={`font-medium ${effect.remainingSeconds <= 0 ? 'text-theme-accent' : 'text-theme-ink'}`}>
-                {effect.name}
-              </span>
-              <div className={`${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
-                {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
-              </div>
-            </div>
+            <span className={`flex-1 min-w-0 truncate font-medium ${effect.remainingSeconds <= 0 ? 'text-theme-accent' : 'text-theme-ink'}`}>
+              {effect.name}
+            </span>
+            <span className={`flex-shrink-0 ml-2 ${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
+              {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
+            </span>
             <button 
               onClick={() => removeEffect(idx)}
               className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 px-1 flex-shrink-0"

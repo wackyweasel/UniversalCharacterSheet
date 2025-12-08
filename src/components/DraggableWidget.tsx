@@ -16,6 +16,7 @@ import PoolWidget from './widgets/PoolWidget';
 import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
+import FormWidget from './widgets/FormWidget';
 import WidgetEditModal from './WidgetEditModal';
 
 interface Props {
@@ -39,6 +40,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'TOGGLE_GROUP': { width: 140, height: 60 },
   'TABLE': { width: 180, height: 80 },
   'TIME_TRACKER': { width: 180, height: 140 },
+  'FORM': { width: 160, height: 60 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -280,6 +282,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
+      case 'FORM': return <FormWidget {...props} />;
       default: return null;
     }
   };

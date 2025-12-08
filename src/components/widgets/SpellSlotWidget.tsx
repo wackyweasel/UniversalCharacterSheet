@@ -14,26 +14,22 @@ interface SpellLevel {
   used: number;
 }
 
-export default function SpellSlotWidget({ widget, width, height }: Props) {
+export default function SpellSlotWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, spellLevels = [{ level: 1, max: 4, used: 0 }] } = widget.data;
 
-  // Responsive sizing
-  const isCompact = width < 180;
-  const isLarge = width >= 350;
-  const isShort = height < 120;
-  
-  const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const levelLabelClass = isCompact || isShort ? 'w-6 text-[10px]' : isLarge ? 'w-12 text-sm' : 'w-8 text-xs';
-  const slotSize = isCompact || isShort ? 'w-4 h-4' : isLarge ? 'w-7 h-7' : 'w-5 h-5';
-  const buttonClass = isCompact || isShort ? 'text-[10px] px-1 py-0.5' : isLarge ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
-  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
+  // Fixed small sizing
+  const labelClass = 'text-xs';
+  const levelLabelClass = 'w-6 text-[10px]';
+  const slotSize = 'w-4 h-4';
+  const buttonClass = 'text-[10px] px-1 py-0.5';
+  const gapClass = 'gap-1';
   
   // Calculate spell levels area height
-  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
-  const controlsHeight = isCompact || isShort ? 28 : isLarge ? 40 : 32;
-  const gapSize = isCompact || isShort ? 4 : 8;
-  const padding = isCompact ? 8 : 16;
+  const labelHeight = 16;
+  const controlsHeight = 28;
+  const gapSize = 4;
+  const padding = 8;
   const levelsHeight = Math.max(30, height - labelHeight - controlsHeight - gapSize * 3 - padding * 2);
 
   const toggleSlot = (levelIdx: number, slotIdx: number) => {
@@ -60,9 +56,11 @@ export default function SpellSlotWidget({ widget, width, height }: Props) {
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-        {label || 'Spell Slots'}
-      </div>
+      {label && (
+        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
+          {label}
+        </div>
+      )}
 
       {/* Spell Levels */}
       <div 

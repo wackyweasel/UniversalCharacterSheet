@@ -74,7 +74,7 @@ function HealthModal({
   );
 }
 
-export default function HealthBarWidget({ widget, width, height }: Props) {
+export default function HealthBarWidget({ widget }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, currentValue = 10, maxValue = 10 } = widget.data;
   
@@ -84,16 +84,12 @@ export default function HealthBarWidget({ widget, width, height }: Props) {
   // Calculate health percentage
   const healthPercent = Math.max(0, Math.min(100, (currentValue / maxValue) * 100));
 
-  // Responsive sizing
-  const isCompact = width < 180;
-  const isLarge = width >= 350;
-  const isShort = height < 100;
-  
-  const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const barTextClass = isCompact || isShort ? 'text-xs' : isLarge ? 'text-lg' : 'text-sm';
-  const buttonClass = isCompact || isShort ? 'px-1.5 py-0.5 text-[10px]' : isLarge ? 'px-3 py-1.5 text-sm' : 'px-2 py-1 text-xs';
-  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
-  const barHeight = isCompact || isShort ? 'h-4' : isLarge ? 'h-8' : 'h-6';
+  // Fixed small sizing
+  const labelClass = 'text-xs';
+  const barTextClass = 'text-xs';
+  const buttonClass = 'px-1.5 py-0.5 text-[10px]';
+  const gapClass = 'gap-1';
+  const barHeight = 'h-4';
 
   const applyDamage = (amount: number) => {
     const newVal = Math.max(0, currentValue - amount);
@@ -114,9 +110,11 @@ export default function HealthBarWidget({ widget, width, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full justify-between`}>
       {/* Label */}
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-        {label || 'Health'}
-      </div>
+      {label && (
+        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
+          {label}
+        </div>
+      )}
       
       {/* Health Bar */}
       <div className="flex-1 flex flex-col justify-center">

@@ -8,7 +8,7 @@ interface Props {
   height: number;
 }
 
-export default function PoolWidget({ widget, width, height }: Props) {
+export default function PoolWidget({ widget }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { 
     label, 
@@ -17,15 +17,11 @@ export default function PoolWidget({ widget, width, height }: Props) {
     poolStyle = 'dots' // 'dots' | 'boxes' | 'hearts'
   } = widget.data;
 
-  // Responsive sizing
-  const isCompact = width < 160;
-  const isLarge = width >= 300;
-  const isShort = height < 100;
-  
-  const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const symbolSize = isCompact || isShort ? 'w-5 h-5 text-sm' : isLarge ? 'w-8 h-8 text-xl' : 'w-6 h-6 text-base';
-  const counterClass = isCompact || isShort ? 'text-[10px]' : isLarge ? 'text-sm' : 'text-xs';
-  const gapClass = isCompact || isShort ? 'gap-1' : 'gap-2';
+  // Fixed small sizing
+  const labelClass = 'text-xs';
+  const symbolSize = 'w-5 h-5 text-sm';
+  const counterClass = 'text-[10px]';
+  const gapClass = 'gap-1';
 
   const togglePoint = (index: number) => {
     // If clicking on a filled point, empty from that point onwards
@@ -59,12 +55,14 @@ export default function PoolWidget({ widget, width, height }: Props) {
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-        {label || 'Resource Pool'}
-      </div>
+      {label && (
+        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
+          {label}
+        </div>
+      )}
 
       {/* Pool Display */}
-      <div className={`flex flex-wrap ${isCompact || isShort ? 'gap-0.5' : 'gap-1'} flex-1 content-start overflow-y-auto`} onWheel={(e) => e.stopPropagation()}>
+      <div className={`flex flex-wrap gap-0.5 flex-1 content-start overflow-y-auto`} onWheel={(e) => e.stopPropagation()}>
         {Array.from({ length: maxPool }).map((_, idx) => (
           <button
             key={idx}

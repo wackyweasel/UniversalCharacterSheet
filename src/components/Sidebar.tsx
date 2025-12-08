@@ -4,17 +4,18 @@ import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThe
 import { getCustomTheme } from '../store/useCustomThemeStore';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
-  { type: 'NUMBER', label: 'Number Tracker' },
-  { type: 'LIST', label: 'List' },
-  { type: 'TEXT', label: 'Text Area' },
   { type: 'CHECKBOX', label: 'Checkbox' },
-  { type: 'HEALTH_BAR', label: 'Health Bar' },
-  { type: 'DICE_ROLLER', label: 'Dice Roller' },
-  { type: 'SPELL_SLOT', label: 'Spell Slots' },
-  { type: 'IMAGE', label: 'Image' },
-  { type: 'POOL', label: 'Resource Pool' },
   { type: 'TOGGLE_GROUP', label: 'Conditions' },
+  { type: 'DICE_ROLLER', label: 'Dice Roller' },
+  { type: 'FORM', label: 'Form' },
+  { type: 'HEALTH_BAR', label: 'Health Bar' },
+  { type: 'IMAGE', label: 'Image' },
+  { type: 'LIST', label: 'List' },
+  { type: 'NUMBER', label: 'Number Tracker' },
+  { type: 'POOL', label: 'Resource Pool' },
+  { type: 'SPELL_SLOT', label: 'Spell Slots' },
   { type: 'TABLE', label: 'Table' },
+  { type: 'TEXT', label: 'Text Area' },
   { type: 'TIME_TRACKER', label: 'Time Tracker' },
 ];
 
@@ -54,7 +55,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
       
       <div 
-        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom ${
+        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? '-translate-x-full' : 'translate-x-0'
         }`}
       >
@@ -77,25 +78,25 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         )}
         
-        {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto">
-        
         {/* Toggle button - positioned on the edge of sidebar (hidden on mobile, use floating button instead) */}
         <button
           onClick={onToggle}
-          className="hidden md:flex absolute -right-10 top-20 w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border border-l-0 font-bold shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all items-center justify-center text-theme-ink"
+          className="hidden md:flex absolute -right-10 top-20 w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border border-l-0 font-bold shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all items-center justify-center text-theme-ink z-20"
           title={collapsed ? 'Show Toolbox' : 'Hide Toolbox'}
         >
           {collapsed ? '▶' : '◀'}
         </button>
-
-        {/* Mobile close button */}
+        
+        {/* Mobile close button - top right corner */}
         <button
           onClick={onToggle}
-          className="md:hidden absolute top-3 right-3 w-8 h-8 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme"
+          className="md:hidden absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme z-20 shadow-theme"
         >
           ✕
         </button>
+        
+        {/* Sidebar content */}
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 md:pt-0">
 
         <div className="mb-4 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">

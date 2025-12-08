@@ -1,0 +1,730 @@
+{
+  "id": "ab354335-a46a-4564-9e80-51b8900d987f",
+  "name": "DnD preset",
+  "sheets": [
+    {
+      "id": "c04ff32a-56f2-4a3b-a392-7b2ad6f1b1b7",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "ba6bae45-2b0c-421d-868f-21fcf18d207b",
+          "type": "IMAGE",
+          "x": 0,
+          "y": 0,
+          "w": 190,
+          "h": 220,
+          "data": {
+            "label": "Name",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "4361bcbb-1c2c-4773-9341-853f566717a1",
+            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
+            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+          ]
+        },
+        {
+          "id": "4361bcbb-1c2c-4773-9341-853f566717a1",
+          "type": "HEALTH_BAR",
+          "x": 0,
+          "y": 220,
+          "w": 190,
+          "h": 100,
+          "data": {
+            "label": "Health",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "ba6bae45-2b0c-421d-868f-21fcf18d207b",
+            "55f06d23-f8d5-421f-9747-f03ad9319356",
+            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+          ]
+        },
+        {
+          "id": "d2327abf-c6a7-4f8a-b8de-26124b65fe76",
+          "type": "DICE_ROLLER",
+          "x": 470,
+          "y": 120,
+          "w": 180,
+          "h": 120,
+          "data": {
+            "label": "Damage",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "diceGroups": [
+              {
+                "count": 1,
+                "faces": 6
+              }
+            ]
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "1eca844b-cbdc-4462-89f8-297566d9843d",
+            "c9ce0e76-74fc-4d0a-8caa-469071ef1209",
+            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
+            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+          ]
+        },
+        {
+          "id": "ab2c2510-a9e0-418f-bb11-f861388b03fa",
+          "type": "NUMBER",
+          "x": 190,
+          "y": 340,
+          "w": 280,
+          "h": 450,
+          "data": {
+            "label": "Skills",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Acrobatics(DEX)",
+                "value": 0
+              },
+              {
+                "name": "Animal Handling (WIS)",
+                "value": 0
+              },
+              {
+                "name": "Arcana (INT)",
+                "value": 0
+              },
+              {
+                "name": "Athletics (STR)",
+                "value": 0
+              },
+              {
+                "name": "Deception (CHA)",
+                "value": 0
+              },
+              {
+                "name": "History (INT)",
+                "value": 0
+              },
+              {
+                "name": "Insight (WIS)",
+                "value": 0
+              },
+              {
+                "name": "Intimidation (CHA)",
+                "value": 0
+              },
+              {
+                "name": "Investigation (INT)",
+                "value": 0
+              },
+              {
+                "name": "Medicine (WIS)",
+                "value": 0
+              },
+              {
+                "name": "Nature (INT)",
+                "value": 0
+              },
+              {
+                "name": "Perception (WIS)",
+                "value": 0
+              },
+              {
+                "name": "Performance (CHA)",
+                "value": 0
+              },
+              {
+                "name": "Persuasion (CHA)",
+                "value": 0
+              },
+              {
+                "name": "Religion (INT)",
+                "value": 0
+              },
+              {
+                "name": "Sleight of Hand (DEX)",
+                "value": 0
+              },
+              {
+                "name": "Stealth (DEX)",
+                "value": 0
+              },
+              {
+                "name": "Survival (WIS)",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "6068dca9-c537-42c2-b4c8-ef1cb3697aed",
+            "06adfbda-5857-4bdf-83c7-233c1d7466be",
+            "55f06d23-f8d5-421f-9747-f03ad9319356",
+            "c9ce0e76-74fc-4d0a-8caa-469071ef1209",
+            "0452783b-0cc1-40b3-9e1b-a7c0f38dbf32"
+          ]
+        },
+        {
+          "id": "55f06d23-f8d5-421f-9747-f03ad9319356",
+          "type": "NUMBER",
+          "x": 0,
+          "y": 320,
+          "w": 190,
+          "h": 170,
+          "data": {
+            "label": "Stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Level",
+                "value": 1
+              },
+              {
+                "name": "XP",
+                "value": 0
+              },
+              {
+                "name": "AC",
+                "value": 10
+              },
+              {
+                "name": "Init",
+                "value": 0
+              },
+              {
+                "name": "Speed",
+                "value": 30
+              }
+            ]
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "0452783b-0cc1-40b3-9e1b-a7c0f38dbf32",
+            "ab2c2510-a9e0-418f-bb11-f861388b03fa",
+            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+          ]
+        },
+        {
+          "id": "cc54bf1f-db8a-4637-afd6-f74199f9c783",
+          "type": "TABLE",
+          "x": 670,
+          "y": 570,
+          "w": 650,
+          "h": 220,
+          "data": {
+            "label": "Backback",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "rows": [
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            ]
+          },
+          "groupId": "1b1abaef-6f7c-45a2-9923-83ccfdf837c4",
+          "attachedTo": [
+            "b218af9a-2dbf-400b-89d3-84f9b65ac4e9",
+            "402c930f-4b54-43d2-b5a9-a452297a525d"
+          ]
+        },
+        {
+          "id": "6068dca9-c537-42c2-b4c8-ef1cb3697aed",
+          "type": "TIME_TRACKER",
+          "x": 470,
+          "y": 500,
+          "w": 180,
+          "h": 290,
+          "data": {
+            "label": "Effects",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "timedEffects": []
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "ab2c2510-a9e0-418f-bb11-f861388b03fa",
+            "c9ce0e76-74fc-4d0a-8caa-469071ef1209"
+          ]
+        },
+        {
+          "id": "c9ce0e76-74fc-4d0a-8caa-469071ef1209",
+          "type": "TOGGLE_GROUP",
+          "x": 470,
+          "y": 240,
+          "w": 180,
+          "h": 260,
+          "data": {
+            "label": "Conditions",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleItems": [
+              {
+                "name": "Blinded",
+                "active": false
+              },
+              {
+                "name": "Charmed",
+                "active": false
+              },
+              {
+                "name": "Deafened",
+                "active": false
+              },
+              {
+                "name": "Frightened",
+                "active": false
+              },
+              {
+                "name": "Grappled",
+                "active": false
+              },
+              {
+                "name": "Incapacitated",
+                "active": false
+              },
+              {
+                "name": "Invisible",
+                "active": false
+              },
+              {
+                "name": "Paralyzed",
+                "active": false
+              },
+              {
+                "name": "Petrified",
+                "active": false
+              },
+              {
+                "name": "Poisoned",
+                "active": false
+              },
+              {
+                "name": "Prone",
+                "active": false
+              },
+              {
+                "name": "Restrained",
+                "active": false
+              },
+              {
+                "name": "Stunned",
+                "active": false
+              },
+              {
+                "name": "Unconscious",
+                "active": false
+              }
+            ]
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "06adfbda-5857-4bdf-83c7-233c1d7466be",
+            "ab2c2510-a9e0-418f-bb11-f861388b03fa"
+          ]
+        },
+        {
+          "id": "06adfbda-5857-4bdf-83c7-233c1d7466be",
+          "type": "NUMBER",
+          "x": 190,
+          "y": 150,
+          "w": 280,
+          "h": 190,
+          "data": {
+            "label": "Attributes",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Strength",
+                "value": 10
+              },
+              {
+                "name": "Dexterity",
+                "value": 10
+              },
+              {
+                "name": "Constitution",
+                "value": 10
+              },
+              {
+                "name": "Intelligence",
+                "value": 10
+              },
+              {
+                "name": "Wisdom",
+                "value": 10
+              },
+              {
+                "name": "Charisma",
+                "value": 10
+              }
+            ]
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
+            "ab2c2510-a9e0-418f-bb11-f861388b03fa",
+            "55f06d23-f8d5-421f-9747-f03ad9319356",
+            "4361bcbb-1c2c-4773-9341-853f566717a1",
+            "ba6bae45-2b0c-421d-868f-21fcf18d207b",
+            "d2327abf-c6a7-4f8a-b8de-26124b65fe76"
+          ]
+        },
+        {
+          "id": "0452783b-0cc1-40b3-9e1b-a7c0f38dbf32",
+          "type": "LIST",
+          "x": 0,
+          "y": 490,
+          "w": 190,
+          "h": 300,
+          "data": {
+            "label": "Features & Traits",
+            "value": 0,
+            "items": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "text": "",
+            "itemCount": 8
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "55f06d23-f8d5-421f-9747-f03ad9319356",
+            "ab2c2510-a9e0-418f-bb11-f861388b03fa"
+          ]
+        },
+        {
+          "id": "1eca844b-cbdc-4462-89f8-297566d9843d",
+          "type": "DICE_ROLLER",
+          "x": 470,
+          "y": 0,
+          "w": 180,
+          "h": 120,
+          "data": {
+            "label": "Attack",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "d2327abf-c6a7-4f8a-b8de-26124b65fe76",
+            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276"
+          ]
+        },
+        {
+          "id": "b218af9a-2dbf-400b-89d3-84f9b65ac4e9",
+          "type": "NUMBER",
+          "x": 1180,
+          "y": 400,
+          "w": 140,
+          "h": 170,
+          "data": {
+            "label": "Wealth",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "PP",
+                "value": 0
+              },
+              {
+                "name": "GP",
+                "value": 0
+              },
+              {
+                "name": "EP",
+                "value": 0
+              },
+              {
+                "name": "SP",
+                "value": 0
+              },
+              {
+                "name": "CP",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "1b1abaef-6f7c-45a2-9923-83ccfdf837c4",
+          "attachedTo": [
+            "402c930f-4b54-43d2-b5a9-a452297a525d",
+            "cc54bf1f-db8a-4637-afd6-f74199f9c783"
+          ]
+        },
+        {
+          "id": "a14807b0-b531-4ecb-9fc1-cfd79efb4f7a",
+          "type": "SPELL_SLOT",
+          "x": 670,
+          "y": 120,
+          "w": 170,
+          "h": 240,
+          "data": {
+            "label": "Spell Slots",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "spellLevels": [
+              {
+                "level": 1,
+                "max": 4,
+                "used": 0
+              },
+              {
+                "level": 2,
+                "max": 2,
+                "used": 0
+              }
+            ]
+          },
+          "groupId": "20e26d52-420a-4d58-8d67-5e49fdebae69",
+          "attachedTo": [
+            "e2446c7d-8726-4b34-88be-ff37563050f8",
+            "7149c344-778b-4992-994a-e3cb949cb8c8"
+          ]
+        },
+        {
+          "id": "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
+          "type": "FORM",
+          "x": 190,
+          "y": 0,
+          "w": 280,
+          "h": 150,
+          "data": {
+            "label": "Info",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Class",
+                "value": ""
+              },
+              {
+                "name": "Background",
+                "value": ""
+              },
+              {
+                "name": "Race",
+                "value": ""
+              },
+              {
+                "name": "Alignment",
+                "value": ""
+              }
+            ]
+          },
+          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "attachedTo": [
+            "06adfbda-5857-4bdf-83c7-233c1d7466be",
+            "d2327abf-c6a7-4f8a-b8de-26124b65fe76"
+          ]
+        },
+        {
+          "id": "402c930f-4b54-43d2-b5a9-a452297a525d",
+          "type": "TEXT",
+          "x": 670,
+          "y": 400,
+          "w": 510,
+          "h": 170,
+          "data": {
+            "label": "Notes",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "1b1abaef-6f7c-45a2-9923-83ccfdf837c4",
+          "attachedTo": [
+            "b218af9a-2dbf-400b-89d3-84f9b65ac4e9",
+            "cc54bf1f-db8a-4637-afd6-f74199f9c783"
+          ]
+        },
+        {
+          "id": "e2446c7d-8726-4b34-88be-ff37563050f8",
+          "type": "TABLE",
+          "x": 840,
+          "y": 120,
+          "w": 480,
+          "h": 240,
+          "data": {
+            "label": "Spells",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "columns": [
+              "Name",
+              "Level",
+              "Notes"
+            ],
+            "rows": [
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  "",
+                  "",
+                  ""
+                ]
+              }
+            ]
+          },
+          "groupId": "20e26d52-420a-4d58-8d67-5e49fdebae69",
+          "attachedTo": [
+            "a14807b0-b531-4ecb-9fc1-cfd79efb4f7a",
+            "7149c344-778b-4992-994a-e3cb949cb8c8"
+          ]
+        },
+        {
+          "id": "7149c344-778b-4992-994a-e3cb949cb8c8",
+          "type": "FORM",
+          "x": 670,
+          "y": 0,
+          "w": 650,
+          "h": 120,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Spellcasting class",
+                "value": ""
+              },
+              {
+                "name": "Spellcasting ability",
+                "value": ""
+              },
+              {
+                "name": "Spell Save DC",
+                "value": ""
+              },
+              {
+                "name": "Spell Attack Bonus",
+                "value": ""
+              }
+            ]
+          },
+          "groupId": "20e26d52-420a-4d58-8d67-5e49fdebae69",
+          "attachedTo": [
+            "a14807b0-b531-4ecb-9fc1-cfd79efb4f7a",
+            "e2446c7d-8726-4b34-88be-ff37563050f8"
+          ]
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "c04ff32a-56f2-4a3b-a392-7b2ad6f1b1b7",
+  "theme": "default"
+}

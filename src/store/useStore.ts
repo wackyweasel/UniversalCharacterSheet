@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Character, Widget, WidgetType, Sheet } from '../types';
+import { CharacterPreset } from '../presets';
 
 type Mode = 'play' | 'edit';
 
@@ -54,6 +55,7 @@ interface StoreState {
   
   // Actions
   createCharacter: (name: string) => void;
+  createCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
   importCharacter: (character: Character) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
@@ -125,7 +127,71 @@ export const useStore = create<StoreState>((set) => {
       };
       return { 
         characters: [...state.characters, newChar],
-        activeCharacterId: newChar.id 
+        activeCharacterId: newChar.id,
+        mode: 'edit' as const
+      };
+    }),
+
+    createCharacterFromPreset: (preset, name) => set((state) => {
+      // Generate new IDs to avoid conflicts
+      const newCharId = uuidv4();
+      const sheetIdMap = new Map<string, string>();
+      const widgetIdMap = new Map<string, string>();
+      const groupIdMap = new Map<string, string>();
+
+      // Create new sheets with new IDs
+      const newSheets = preset.sheets.map(sheet => {
+        const newSheetId = uuidv4();
+        sheetIdMap.set(sheet.id, newSheetId);
+        
+        // Create new widgets with new IDs
+        const newWidgets = sheet.widgets.map(widget => {
+          const newWidgetId = uuidv4();
+          widgetIdMap.set(widget.id, newWidgetId);
+          
+          // Handle group IDs
+          let newGroupId = widget.groupId;
+          if (widget.groupId) {
+            if (!groupIdMap.has(widget.groupId)) {
+              groupIdMap.set(widget.groupId, uuidv4());
+            }
+            newGroupId = groupIdMap.get(widget.groupId);
+          }
+          
+          return {
+            ...widget,
+            id: newWidgetId,
+            groupId: newGroupId,
+            attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
+          };
+        });
+        
+        // Second pass to update attachedTo references
+        newWidgets.forEach(widget => {
+          if (widget.attachedTo) {
+            widget.attachedTo = widget.attachedTo.map(id => widgetIdMap.get(id) || id);
+          }
+        });
+        
+        return {
+          ...sheet,
+          id: newSheetId,
+          widgets: newWidgets
+        };
+      });
+
+      const newChar: Character = {
+        id: newCharId,
+        name: name || preset.name,
+        theme: preset.theme,
+        sheets: newSheets,
+        activeSheetId: sheetIdMap.get(preset.activeSheetId) || newSheets[0]?.id
+      };
+
+      return {
+        characters: [...state.characters, newChar],
+        activeCharacterId: newChar.id,
+        mode: 'edit' as const
       };
     }),
 

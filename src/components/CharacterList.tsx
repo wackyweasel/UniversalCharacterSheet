@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
 import { Character } from '../types';
+import { getPresetNames, getPreset } from '../presets';
 
 // Helper to get theme colors for a character
 function getThemeStyles(themeId?: string) {
@@ -60,20 +61,53 @@ export default function CharacterList() {
   
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
+  const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const importCharacter = useStore((state) => state.importCharacter);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   
-  const [newName, setNewName] = useState('');
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCharName, setNewCharName] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+  const [selectedTheme, setSelectedTheme] = useState<string>('default');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const presetNames = getPresetNames();
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newName.trim()) {
-      createCharacter(newName);
-      setNewName('');
+  const handleCreateCharacter = () => {
+    const name = newCharName.trim() || 'New Character';
+    
+    if (selectedPreset && selectedPreset !== '') {
+      // Create from preset
+      const preset = getPreset(selectedPreset);
+      if (preset) {
+        createCharacterFromPreset(preset, name);
+        // Get the newly created character and update its theme
+        // Since the preset might have its own theme, we override it with the selected one
+        const state = useStore.getState();
+        const newChar = state.characters[state.characters.length - 1];
+        if (newChar && selectedTheme !== 'default') {
+          updateCharacterTheme(newChar.id, selectedTheme);
+        }
+      }
+    } else {
+      // Create blank character
+      createCharacter(name);
+      // Update theme if not default
+      const state = useStore.getState();
+      const newChar = state.characters[state.characters.length - 1];
+      if (newChar && selectedTheme !== 'default') {
+        updateCharacterTheme(newChar.id, selectedTheme);
+      }
     }
+    
+    // Reset form
+    setNewCharName('');
+    setSelectedPreset('');
+    setSelectedTheme('default');
+    setShowCreateModal(false);
   };
 
   const handleExport = (char: Character) => {
@@ -122,21 +156,15 @@ export default function CharacterList() {
         Character Select
       </h1>
 
-      <form onSubmit={handleCreate} className="mb-6 sm:mb-12 flex flex-col sm:flex-row gap-2 sm:gap-4">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New Character Name"
-          className="flex-1 p-3 sm:p-4 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body"
-        />
+      {/* Create and Import buttons */}
+      <div className="mb-6 sm:mb-12 flex gap-2 sm:gap-4">
         <button 
-          type="submit"
-          className="bg-theme-accent text-theme-paper px-6 sm:px-8 py-3 sm:py-4 font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading"
+          onClick={() => setShowCreateModal(true)}
+          className="flex-1 bg-theme-accent text-theme-paper px-6 sm:px-8 py-4 sm:py-5 text-lg sm:text-xl font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading"
         >
-          CREATE
+          + CREATE NEW CHARACTER
         </button>
-        <label className="bg-theme-paper text-theme-ink px-6 sm:px-8 py-3 sm:py-4 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center">
+        <label className="bg-theme-paper text-theme-ink px-4 sm:px-6 py-4 sm:py-5 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center flex items-center justify-center">
           IMPORT
           <input
             ref={fileInputRef}
@@ -146,7 +174,7 @@ export default function CharacterList() {
             className="hidden"
           />
         </label>
-      </form>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pb-4">
         {characters.map((char) => {
@@ -289,6 +317,82 @@ export default function CharacterList() {
                 className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-theme transition-colors"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      
+      {/* Create Character Modal */}
+      {showCreateModal && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => setShowCreateModal(false)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px]">
+            <h3 className="font-heading text-theme-ink font-bold text-xl mb-4">Create New Character</h3>
+            
+            {/* Character Name */}
+            <div className="mb-4">
+              <label className="block text-sm font-body text-theme-muted mb-1">Character Name</label>
+              <input
+                type="text"
+                value={newCharName}
+                onChange={(e) => setNewCharName(e.target.value)}
+                placeholder="Enter character name..."
+                className="w-full p-3 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body"
+                autoFocus
+              />
+            </div>
+            
+            {/* Preset Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-body text-theme-muted mb-1">Preset</label>
+              <select
+                value={selectedPreset}
+                onChange={(e) => setSelectedPreset(e.target.value)}
+                className="w-full p-3 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body cursor-pointer"
+              >
+                <option value="">No Preset</option>
+                {presetNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Theme Selection */}
+            <div className="mb-6">
+              <label className="block text-sm font-body text-theme-muted mb-1">Theme</label>
+              <select
+                value={selectedTheme}
+                onChange={(e) => setSelectedTheme(e.target.value)}
+                className="w-full p-3 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body cursor-pointer"
+              >
+                {THEMES.map((theme) => (
+                  <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewCharName('');
+                  setSelectedPreset('');
+                  setSelectedTheme('default');
+                }}
+                className="px-4 py-2 font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors border-[length:var(--border-width)] border-theme-border"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCharacter}
+                className="px-6 py-2 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-theme transition-colors font-bold"
+              >
+                Create
               </button>
             </div>
           </div>

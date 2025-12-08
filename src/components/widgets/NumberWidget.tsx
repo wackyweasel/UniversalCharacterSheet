@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -13,24 +14,23 @@ interface NumberItem {
   value: number;
 }
 
-export default function NumberWidget({ widget, width, height }: Props) {
+export default function NumberWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, numberItems = [] } = widget.data;
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
 
-  // Responsive sizing based on widget dimensions
-  const isCompact = width < 180;
-  const isLarge = width >= 300;
-  
-  const labelClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const itemClass = isCompact ? 'text-xs' : isLarge ? 'text-base' : 'text-sm';
-  const buttonSize = isCompact ? 'w-5 h-5 text-xs' : isLarge ? 'w-8 h-8 text-base' : 'w-6 h-6 text-sm';
-  const valueClass = isCompact ? 'text-sm w-8' : isLarge ? 'text-xl w-14' : 'text-base w-10';
-  const gapClass = isCompact ? 'gap-1' : 'gap-2';
+  // Fixed small sizing
+  const labelClass = 'text-xs';
+  const itemClass = 'text-xs';
+  const buttonSize = 'w-5 h-5 text-xs';
+  const valueClass = 'text-sm w-8';
+  const gapClass = 'gap-1';
   
   // Calculate items area height
-  const labelHeight = isCompact ? 16 : isLarge ? 24 : 20;
-  const gapSize = isCompact ? 4 : 8;
-  const padding = isCompact ? 8 : 16;
+  const labelHeight = 16;
+  const gapSize = 4;
+  const padding = 8;
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
   const adjustItemValue = (index: number, delta: number) => {
@@ -39,18 +39,49 @@ export default function NumberWidget({ widget, width, height }: Props) {
     updateWidgetData(widget.id, { numberItems: updated });
   };
 
+  const handleValueClick = (index: number, currentValue: number) => {
+    setEditingIndex(index);
+    setEditValue(String(currentValue));
+  };
+
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value);
+  };
+
+  const handleValueBlur = (index: number) => {
+    const newValue = parseInt(editValue, 10);
+    if (!isNaN(newValue)) {
+      const updated = [...numberItems] as NumberItem[];
+      updated[index] = { ...updated[index], value: newValue };
+      updateWidgetData(widget.id, { numberItems: updated });
+    }
+    setEditingIndex(null);
+    setEditValue('');
+  };
+
+  const handleValueKeyDown = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Enter') {
+      handleValueBlur(index);
+    } else if (e.key === 'Escape') {
+      setEditingIndex(null);
+      setEditValue('');
+    }
+  };
+
   // Fixed width for the value controls section to ensure alignment across all rows
-  const controlsSectionWidth = isCompact ? 'w-[62px]' : isLarge ? 'w-[94px]' : 'w-[74px]';
+  const controlsSectionWidth = 'w-[62px]';
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-        {label || 'Trackers'}
-      </div>
+      {label && (
+        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
+          {label}
+        </div>
+      )}
 
       {/* Number Items */}
       <div 
-        className={`flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'} overflow-y-auto overflow-x-hidden flex-1 pr-4`}
+        className={`flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden flex-1 pr-4`}
         style={{ maxHeight: `${itemsHeight}px` }}
         onWheel={(e) => e.stopPropagation()}
       >
@@ -70,9 +101,27 @@ export default function NumberWidget({ widget, width, height }: Props) {
               >
                 -
               </button>
-              <span className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0`}>
-                {item.value}
-              </span>
+              {editingIndex === idx ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={editValue}
+                  onChange={handleValueChange}
+                  onBlur={() => handleValueBlur(idx)}
+                  onKeyDown={(e) => handleValueKeyDown(e, idx)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  autoFocus
+                  className={`${valueClass} text-center font-bold text-theme-ink bg-theme-paper border border-theme-border rounded-theme flex-shrink-0 outline-none focus:border-theme-accent`}
+                />
+              ) : (
+                <span 
+                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-theme`}
+                  onClick={() => handleValueClick(idx, item.value)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {item.value}
+                </span>
+              )}
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}

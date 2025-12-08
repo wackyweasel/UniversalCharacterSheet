@@ -337,6 +337,18 @@ export default function Sheet() {
     setPan({ x: newPanX, y: newPanY });
   };
 
+  // Fit all widgets when character sheet is opened
+  useEffect(() => {
+    if (activeCharacterId && activeSheetWidgets.length > 0) {
+      // Small delay to ensure DOM elements are rendered
+      const timer = setTimeout(() => {
+        handleFitAllWidgets();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCharacterId]);
+
   // Apply character's theme when entering sheet, revert to default when leaving
   useEffect(() => {
     if (activeCharacter) {

@@ -10,7 +10,8 @@ export type WidgetType =
   | 'POOL'
   | 'TOGGLE_GROUP'
   | 'TABLE'
-  | 'TIME_TRACKER';
+  | 'TIME_TRACKER'
+  | 'FORM';
 
 export interface ToggleItem {
   name: string;
@@ -35,6 +36,11 @@ export interface SpellLevel {
 export interface NumberItem {
   name: string;
   value: number;
+}
+
+export interface FormItem {
+  name: string;
+  value: string;
 }
 
 export interface DiceGroup {
@@ -63,6 +69,8 @@ export interface WidgetData {
   spellLevels?: SpellLevel[];
   // Number
   numberItems?: NumberItem[];
+  // Form
+  formItems?: FormItem[];
   // Image
   imageUrl?: string;
   // Pool
