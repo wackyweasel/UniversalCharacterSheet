@@ -76,6 +76,7 @@ export interface WidgetData {
   rows?: TableRow[];
   // Time Tracker
   timedEffects?: TimedEffect[];
+  roundMode?: boolean;
 }
 
 export interface TimedEffect {

@@ -80,299 +80,309 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
     { key: 'glow', label: 'Glow' },
   ];
 
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+  // Preview component - reused for both mobile and desktop
+  const PreviewCard = () => (
+    <div 
+      className="p-3 sm:p-4"
+      style={{ 
+        backgroundColor: colors.background,
+        borderRadius: borderRadius,
+      }}
+    >
       <div 
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="p-3 sm:p-4 relative overflow-hidden"
+        style={{ 
+          backgroundColor: colors.paper,
+          backgroundImage: isImageTexture(cardTexture) ? 'none' : getTextureCSS(cardTexture, textureColor, textureOpacity),
+          border: `${borderWidth} ${borderStyle} ${colors.border}`,
+          borderRadius: borderRadius,
+          boxShadow: getShadowStyleCSS(shadowStyle, colors.glow)
+            .replace(/var\(--color-shadow\)/g, colors.shadow)
+            .replace(/var\(--color-border\)/g, colors.border)
+            .replace(/var\(--color-glow\)/g, colors.glow),
+        }}
+      >
+        {/* Image texture overlay for preview */}
+        {isImageTexture(cardTexture) && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundColor: colors.paper,
+              borderRadius: borderRadius,
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${IMAGE_TEXTURES[cardTexture]})`,
+                backgroundSize: 'cover',
+                filter: 'grayscale(100%)',
+                opacity: textureOpacity,
+                mixBlendMode: 'overlay',
+                borderRadius: borderRadius,
+              }}
+            />
+          </div>
+        )}
+        <h4 
+          className="text-base sm:text-lg font-bold mb-2 relative"
+          style={{ color: colors.ink, fontFamily: headingFont }}
+        >
+          {icon} {name}
+        </h4>
+        <p 
+          className="text-xs sm:text-sm mb-3 relative"
+          style={{ color: colors.muted, fontFamily: bodyFont }}
+        >
+          {description}
+        </p>
+        <button
+          className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-bold transition-colors relative"
+          style={{ 
+            backgroundColor: colors.accent,
+            color: colors.paper,
+            borderRadius: borderRadius,
+            fontFamily: headingFont,
+          }}
+        >
+          Sample Button
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2 sm:p-4">
+      <div 
+        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-4xl max-h-[95vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b-[length:var(--border-width)] border-theme-border sticky top-0 bg-theme-paper z-10">
-          <h2 className="text-xl font-bold text-theme-ink font-heading">
+        <div className="p-3 sm:p-4 border-b-[length:var(--border-width)] border-theme-border bg-theme-paper flex-shrink-0">
+          <h2 className="text-lg sm:text-xl font-bold text-theme-ink font-heading">
             {isEditing ? '✏️ Edit Custom Theme' : '🎨 Create Custom Theme'}
           </h2>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-6">
-          {/* Basic Info Section */}
-          <section>
-            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Basic Info</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Name */}
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Theme Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                  placeholder="My Custom Theme"
-                />
-              </div>
-
-              {/* Icon */}
-              <div className="relative">
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Icon</label>
-                <button
-                  onClick={() => setShowIconPicker(!showIconPicker)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body text-left flex items-center gap-2"
-                >
-                  <span className="text-xl">{icon}</span>
-                  <span className="text-xs text-theme-muted">Click to change</span>
-                </button>
-                {showIconPicker && (
-                  <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-20 grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
-                    {ICON_OPTIONS.map((ic) => (
-                      <button
-                        key={ic}
-                        onClick={() => {
-                          setIcon(ic);
-                          setShowIconPicker(false);
-                        }}
-                        className={`p-1 text-lg hover:bg-theme-accent hover:text-theme-paper rounded ${icon === ic ? 'bg-theme-accent text-theme-paper' : ''}`}
-                      >
-                        {ic}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Description</label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                  placeholder="A personalized theme"
-                />
-              </div>
+        {/* Content - Column on mobile, row on desktop */}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          {/* Preview - top on mobile, right on desktop */}
+          <div className="order-first md:order-last w-full md:w-80 flex-shrink-0 border-b-[length:var(--border-width)] md:border-b-0 md:border-l-[length:var(--border-width)] border-theme-border p-3 sm:p-4 bg-theme-background/50 max-h-[40vh] md:max-h-none overflow-auto md:overflow-visible">
+            <h3 className="text-sm font-bold text-theme-ink mb-2 sm:mb-3 uppercase tracking-wider font-heading">Preview</h3>
+            <div className="md:sticky md:top-0">
+              <PreviewCard />
             </div>
-          </section>
+          </div>
 
-          {/* Colors Section */}
-          <section>
-            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Colors</h3>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {colorFields.map(({ key, label }) => (
-                <div key={key} className="flex flex-col items-center">
-                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
+          {/* Form - scrollable */}
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-5 sm:space-y-6">
+            {/* Basic Info Section */}
+            <section>
+              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Basic Info</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Theme Name</label>
                   <input
-                    type="color"
-                    value={colors[key]}
-                    onChange={(e) => handleColorChange(key, e.target.value)}
-                    className="w-12 h-12 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                    placeholder="My Custom Theme"
                   />
                 </div>
-              ))}
-            </div>
-          </section>
 
-          {/* Fonts Section */}
-          <section>
-            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Fonts</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Heading Font</label>
-                <select
-                  value={headingFont}
-                  onChange={(e) => setHeadingFont(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  {FONT_OPTIONS.map((font) => (
-                    <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                      {font.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-theme-muted mt-1" style={{ fontFamily: headingFont }}>
-                  Preview: The quick brown fox
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Body Font</label>
-                <select
-                  value={bodyFont}
-                  onChange={(e) => setBodyFont(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  {FONT_OPTIONS.map((font) => (
-                    <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                      {font.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-theme-muted mt-1" style={{ fontFamily: bodyFont }}>
-                  Preview: The quick brown fox
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Style Section */}
-          <section>
-            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Style</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Radius</label>
-                <select
-                  value={borderRadius}
-                  onChange={(e) => setBorderRadius(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  <option value="0px">Sharp (0px)</option>
-                  <option value="2px">Subtle (2px)</option>
-                  <option value="4px">Small (4px)</option>
-                  <option value="8px">Medium (8px)</option>
-                  <option value="12px">Large (12px)</option>
-                  <option value="16px">Extra Large (16px)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Width</label>
-                <select
-                  value={borderWidth}
-                  onChange={(e) => setBorderWidth(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  <option value="1px">Thin (1px)</option>
-                  <option value="2px">Medium (2px)</option>
-                  <option value="3px">Thick (3px)</option>
-                  <option value="4px">Extra Thick (4px)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Style</label>
-                <select
-                  value={borderStyle}
-                  onChange={(e) => setBorderStyle(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  {BORDER_STYLE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Shadow Style</label>
-                <select
-                  value={shadowStyle}
-                  onChange={(e) => setShadowStyle(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  {SHADOW_STYLE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Card Texture</label>
-                <select
-                  value={cardTexture}
-                  onChange={(e) => setCardTexture(e.target.value)}
-                  className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
-                >
-                  {TEXTURE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-theme-muted mb-1 font-body">
-                  Texture Opacity: {Math.round(textureOpacity * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={textureOpacity}
-                  onChange={(e) => setTextureOpacity(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-theme-border rounded-theme appearance-none cursor-pointer"
-                  disabled={cardTexture === 'none'}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Preview Section */}
-          <section>
-            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Preview</h3>
-            <div 
-              className="p-4"
-              style={{ 
-                backgroundColor: colors.background,
-                borderRadius: borderRadius,
-              }}
-            >
-              <div 
-                className="p-4 relative overflow-hidden"
-                style={{ 
-                  backgroundColor: colors.paper,
-                  backgroundImage: isImageTexture(cardTexture) ? 'none' : getTextureCSS(cardTexture, textureColor, textureOpacity),
-                  border: `${borderWidth} ${borderStyle} ${colors.border}`,
-                  borderRadius: borderRadius,
-                  boxShadow: getShadowStyleCSS(shadowStyle, colors.glow)
-                    .replace(/var\(--color-shadow\)/g, colors.shadow)
-                    .replace(/var\(--color-border\)/g, colors.border)
-                    .replace(/var\(--color-glow\)/g, colors.glow),
-                }}
-              >
-                {/* Image texture overlay for preview - grayscale texture tinted with card color */}
-                {isImageTexture(cardTexture) && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      backgroundColor: colors.paper,
-                      borderRadius: borderRadius,
-                    }}
+                {/* Icon */}
+                <div className="relative">
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Icon</label>
+                  <button
+                    onClick={() => setShowIconPicker(!showIconPicker)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body text-left flex items-center gap-2"
                   >
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `url(${IMAGE_TEXTURES[cardTexture]})`,
-                        backgroundSize: 'cover',
-                        filter: 'grayscale(100%)',
-                        opacity: textureOpacity,
-                        mixBlendMode: 'overlay',
-                        borderRadius: borderRadius,
-                      }}
+                    <span className="text-xl">{icon}</span>
+                    <span className="text-xs text-theme-muted">Click to change</span>
+                  </button>
+                  {showIconPicker && (
+                    <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-20 grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
+                      {ICON_OPTIONS.map((ic) => (
+                        <button
+                          key={ic}
+                          onClick={() => {
+                            setIcon(ic);
+                            setShowIconPicker(false);
+                          }}
+                          className={`p-1 text-lg hover:bg-theme-accent hover:text-theme-paper rounded ${icon === ic ? 'bg-theme-accent text-theme-paper' : ''}`}
+                        >
+                          {ic}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Description</label>
+                  <input
+                    type="text"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                    placeholder="A personalized theme"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Colors Section */}
+            <section>
+              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Colors</h3>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+                {colorFields.map(({ key, label }) => (
+                  <div key={key} className="flex flex-col items-center">
+                    <label className="block text-[10px] sm:text-xs font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
+                    <input
+                      type="color"
+                      value={colors[key]}
+                      onChange={(e) => handleColorChange(key, e.target.value)}
+                      className="w-10 h-10 sm:w-12 sm:h-12 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
                     />
                   </div>
-                )}
-                <h4 
-                  className="text-lg font-bold mb-2 relative"
-                  style={{ color: colors.ink, fontFamily: headingFont }}
-                >
-                  {icon} {name}
-                </h4>
-                <p 
-                  className="text-sm mb-3 relative"
-                  style={{ color: colors.muted, fontFamily: bodyFont }}
-                >
-                  {description}
-                </p>
-                <button
-                  className="px-4 py-2 font-bold transition-colors relative"
-                  style={{ 
-                    backgroundColor: colors.accent,
-                    color: colors.paper,
-                    borderRadius: borderRadius,
-                    fontFamily: headingFont,
-                  }}
-                >
-                  Sample Button
-                </button>
+                ))}
               </div>
-            </div>
-          </section>
+            </section>
+
+            {/* Fonts Section */}
+            <section>
+              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Fonts</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Heading Font</label>
+                  <select
+                    value={headingFont}
+                    onChange={(e) => setHeadingFont(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {FONT_OPTIONS.map((font) => (
+                      <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-theme-muted mt-1" style={{ fontFamily: headingFont }}>
+                    Preview: The quick brown fox
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Body Font</label>
+                  <select
+                    value={bodyFont}
+                    onChange={(e) => setBodyFont(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {FONT_OPTIONS.map((font) => (
+                      <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-theme-muted mt-1" style={{ fontFamily: bodyFont }}>
+                    Preview: The quick brown fox
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Style Section */}
+            <section>
+              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Style</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Radius</label>
+                  <select
+                    value={borderRadius}
+                    onChange={(e) => setBorderRadius(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    <option value="0px">Sharp (0px)</option>
+                    <option value="2px">Subtle (2px)</option>
+                    <option value="4px">Small (4px)</option>
+                    <option value="8px">Medium (8px)</option>
+                    <option value="12px">Large (12px)</option>
+                    <option value="16px">Extra Large (16px)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Width</label>
+                  <select
+                    value={borderWidth}
+                    onChange={(e) => setBorderWidth(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    <option value="1px">Thin (1px)</option>
+                    <option value="2px">Medium (2px)</option>
+                    <option value="3px">Thick (3px)</option>
+                    <option value="4px">Extra Thick (4px)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Style</label>
+                  <select
+                    value={borderStyle}
+                    onChange={(e) => setBorderStyle(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {BORDER_STYLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Shadow Style</label>
+                  <select
+                    value={shadowStyle}
+                    onChange={(e) => setShadowStyle(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {SHADOW_STYLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Card Texture</label>
+                  <select
+                    value={cardTexture}
+                    onChange={(e) => setCardTexture(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {TEXTURE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">
+                    Texture Opacity: {Math.round(textureOpacity * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={textureOpacity}
+                    onChange={(e) => setTextureOpacity(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-theme-border rounded-theme appearance-none cursor-pointer"
+                    disabled={cardTexture === 'none'}
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t-[length:var(--border-width)] border-theme-border sticky bottom-0 bg-theme-paper flex flex-wrap gap-2 justify-between">
+        <div className="p-3 sm:p-4 border-t-[length:var(--border-width)] border-theme-border bg-theme-paper flex flex-wrap gap-2 justify-between flex-shrink-0">
           <div>
             {isEditing && onDelete && (
               <button
@@ -381,7 +391,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onDelete();
                   }
                 }}
-                className="px-4 py-2 bg-red-500 text-white font-bold rounded-theme hover:bg-red-600 transition-colors font-heading"
+                className="px-3 sm:px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-theme hover:bg-red-600 transition-colors font-heading"
               >
                 🗑️ Delete
               </button>
@@ -390,13 +400,13 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="px-4 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink font-bold rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
+              className="px-3 sm:px-4 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-sm font-bold rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-theme-accent text-theme-paper font-bold rounded-theme hover:bg-theme-accent-hover transition-colors font-heading"
+              className="px-3 sm:px-4 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-theme hover:bg-theme-accent-hover transition-colors font-heading"
             >
               {isEditing ? '💾 Save Changes' : '✨ Create Theme'}
             </button>

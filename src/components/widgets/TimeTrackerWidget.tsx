@@ -79,9 +79,15 @@ function parseTimeToSeconds(value: number, unit: string): number {
   }
 }
 
+// Format time as rounds
+function formatRounds(rounds: number): string {
+  if (rounds <= 0) return 'Expired';
+  return rounds === 1 ? '1 round' : `${rounds} rounds`;
+}
+
 export default function TimeTrackerWidget({ widget, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, timedEffects = [] } = widget.data;
+  const { label, timedEffects = [], roundMode = false } = widget.data;
   
   // UI state for expandable sections
   const [showAddForm, setShowAddForm] = useState(false);
@@ -106,10 +112,12 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
 
   const confirmAddEffect = () => {
     if (newEffectName.trim()) {
-      const seconds = parseTimeToSeconds(newEffectTime, newEffectUnit);
+      // In round mode, store the number of rounds directly (using remainingSeconds field)
+      // In normal mode, convert time to seconds
+      const duration = roundMode ? newEffectTime : parseTimeToSeconds(newEffectTime, newEffectUnit);
       const newEffect: TimedEffect = {
         name: newEffectName.trim(),
-        remainingSeconds: seconds
+        remainingSeconds: duration
       };
       updateWidgetData(widget.id, { 
         timedEffects: [...timedEffects, newEffect] 
@@ -133,13 +141,24 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
   };
 
   const confirmPassTime = () => {
-    const secondsToPass = parseTimeToSeconds(passedTime, passedUnit);
+    // In round mode, pass exactly 1 round
+    // In normal mode, use the selected time
+    const amountToPass = roundMode ? 1 : parseTimeToSeconds(passedTime, passedUnit);
     const updated = (timedEffects as TimedEffect[]).map(effect => ({
       ...effect,
-      remainingSeconds: Math.max(0, effect.remainingSeconds - secondsToPass)
+      remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
     }));
     updateWidgetData(widget.id, { timedEffects: updated });
     setShowPassTime(false);
+  };
+
+  // In round mode, pass a round directly without modal
+  const passRound = () => {
+    const updated = (timedEffects as TimedEffect[]).map(effect => ({
+      ...effect,
+      remainingSeconds: Math.max(0, effect.remainingSeconds - 1)
+    }));
+    updateWidgetData(widget.id, { timedEffects: updated });
   };
 
   const cancelPassTime = () => {
@@ -180,7 +199,7 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
                 {effect.name}
               </span>
               <div className={`${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
-                {formatTime(effect.remainingSeconds)}
+                {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
               </div>
             </div>
             <button 
@@ -207,13 +226,23 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
           + Add Effect
         </button>
         {timedEffects.length > 0 && (
-          <button
-            onClick={() => setShowPassTime(true)}
-            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            ⏱ Pass Time
-          </button>
+          roundMode ? (
+            <button
+              onClick={passRound}
+              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              ⏱ Pass Round
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowPassTime(true)}
+              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              ⏱ Pass Time
+            </button>
+          )
         )}
       </div>
 
@@ -232,28 +261,42 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
                 if (e.key === 'Escape') cancelAddEffect();
               }}
             />
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="1"
-                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
-                value={newEffectTime}
-                onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
-                onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
-              />
-              <select
-                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
-                value={newEffectUnit}
-                onChange={(e) => setNewEffectUnit(e.target.value)}
-              >
-                <option value="seconds">Seconds</option>
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-                <option value="days">Days</option>
-                <option value="months">Months</option>
-                <option value="years">Years</option>
-              </select>
-            </div>
+            {roundMode ? (
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  min="1"
+                  className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                  value={newEffectTime}
+                  onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
+                  onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+                <span className="text-theme-ink">{newEffectTime === 1 ? 'round' : 'rounds'}</span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                  value={newEffectTime}
+                  onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
+                  onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+                <select
+                  className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+                  value={newEffectUnit}
+                  onChange={(e) => setNewEffectUnit(e.target.value)}
+                >
+                  <option value="seconds">Seconds</option>
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                  <option value="months">Months</option>
+                  <option value="years">Years</option>
+                </select>
+              </div>
+            )}
             <div className="flex gap-2 pt-2">
               <button
                 onClick={confirmAddEffect}
