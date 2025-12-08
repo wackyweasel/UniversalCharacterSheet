@@ -102,6 +102,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
   }, [widget.data, widget.h]);
 
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
+    // Don't interfere with multi-touch gestures (pinch zoom)
+    if (e.touches.length >= 2) return;
+    
     if (mode === 'edit') {
       // If this widget is not selected, prevent default and select it
       if (!isSelected) {

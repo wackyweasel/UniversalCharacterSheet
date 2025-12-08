@@ -267,6 +267,10 @@ export default function Sheet() {
   // Touch pinch zoom state
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
+  // Track if multi-touch gesture is active (for gestures that start on widgets)
+  const isMultiTouchActive = useRef(false);
+  // Track touch count to detect multi-touch regardless of where it starts
+  const touchCount = useRef(0);
 
   // Fit all widgets in view with maximum zoom
   const handleFitAllWidgets = () => {
@@ -367,6 +371,91 @@ export default function Sheet() {
     };
   }, [activeCharacter?.theme, activeCharacter?.id]);
 
+  // Global touch event listeners to capture multi-touch gestures that start on widgets
+  useEffect(() => {
+    const handleGlobalTouchStart = (e: TouchEvent) => {
+      if (editingWidgetId) return;
+      
+      touchCount.current = e.touches.length;
+      
+      if (e.touches.length === 2) {
+        // Two fingers detected - take over for pinch zoom regardless of target
+        isMultiTouchActive.current = true;
+        setIsPanning(false);
+        lastTouchDistance.current = getTouchDistance(e.touches);
+        lastTouchCenter.current = getTouchCenter(e.touches);
+      }
+    };
+    
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      if (editingWidgetId) return;
+      
+      if (e.touches.length === 2 && isMultiTouchActive.current) {
+        // Initialize if needed
+        if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
+          lastTouchDistance.current = getTouchDistance(e.touches);
+          lastTouchCenter.current = getTouchCenter(e.touches);
+          return;
+        }
+        
+        e.preventDefault();
+        
+        const newDistance = getTouchDistance(e.touches);
+        const newCenter = getTouchCenter(e.touches);
+        
+        // Calculate zoom
+        const zoomFactor = newDistance / lastTouchDistance.current;
+        const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 5);
+        
+        // Calculate pan to zoom towards center point
+        const canvasX = (newCenter.x - pan.x) / scale;
+        const canvasY = (newCenter.y - pan.y) / scale;
+        
+        const newPanX = newCenter.x - canvasX * newScale;
+        const newPanY = newCenter.y - canvasY * newScale;
+        
+        // Also handle pan movement during pinch
+        const panDx = newCenter.x - lastTouchCenter.current.x;
+        const panDy = newCenter.y - lastTouchCenter.current.y;
+        
+        setScale(newScale);
+        setPan({ x: newPanX + panDx, y: newPanY + panDy });
+        
+        lastTouchDistance.current = newDistance;
+        lastTouchCenter.current = newCenter;
+      }
+    };
+    
+    const handleGlobalTouchEnd = (e: TouchEvent) => {
+      touchCount.current = e.touches.length;
+      
+      if (e.touches.length < 2) {
+        // Ended multi-touch
+        if (e.touches.length === 0) {
+          setIsPanning(false);
+          isMultiTouchActive.current = false;
+        } else {
+          // One finger left - don't auto-start panning
+          setIsPanning(false);
+          isMultiTouchActive.current = false;
+        }
+        lastTouchDistance.current = null;
+        lastTouchCenter.current = null;
+      }
+    };
+    
+    // Add listeners with passive: false to allow preventDefault
+    document.addEventListener('touchstart', handleGlobalTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+    document.addEventListener('touchend', handleGlobalTouchEnd, { passive: true });
+    
+    return () => {
+      document.removeEventListener('touchstart', handleGlobalTouchStart);
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+    };
+  }, [editingWidgetId, scale, pan]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     // Disable panning when editing a widget
     if (editingWidgetId) return;
@@ -406,14 +495,14 @@ export default function Sheet() {
   };
 
   // Calculate distance between two touch points
-  const getTouchDistance = (touches: React.TouchList) => {
+  const getTouchDistance = (touches: React.TouchList | TouchList) => {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
   };
 
   // Calculate center point between two touches
-  const getTouchCenter = (touches: React.TouchList) => {
+  const getTouchCenter = (touches: React.TouchList | TouchList) => {
     return {
       x: (touches[0].clientX + touches[1].clientX) / 2,
       y: (touches[0].clientY + touches[1].clientY) / 2
@@ -425,32 +514,43 @@ export default function Sheet() {
     // Disable touch interactions when editing a widget
     if (editingWidgetId) return;
     
-    // Ignore if touching a widget
-    if ((e.target as HTMLElement).closest('.react-draggable')) return;
+    touchCount.current = e.touches.length;
+    
+    // Check if touching a widget
+    const onWidget = (e.target as HTMLElement).closest('.react-draggable');
     
     if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      setIsPanning(true);
-      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
+      // Single finger: only pan if not on a widget
+      if (!onWidget) {
+        const touch = e.touches[0];
+        setIsPanning(true);
+        lastMousePos.current = { x: touch.clientX, y: touch.clientY };
+      }
       lastTouchDistance.current = null;
       lastTouchCenter.current = null;
+      isMultiTouchActive.current = false;
     } else if (e.touches.length === 2) {
-      // Start pinch zoom
+      // Two fingers: always enable pinch zoom, even on widgets
       e.preventDefault();
       setIsPanning(false);
+      isMultiTouchActive.current = true;
       lastTouchDistance.current = getTouchDistance(e.touches);
       lastTouchCenter.current = getTouchCenter(e.touches);
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isPanning) {
-      const touch = e.touches[0];
-      const dx = touch.clientX - lastMousePos.current.x;
-      const dy = touch.clientY - lastMousePos.current.y;
-      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
-    } else if (e.touches.length === 2 && lastTouchDistance.current !== null && lastTouchCenter.current !== null) {
+    // Handle two-finger gestures regardless of where they started
+    if (e.touches.length === 2) {
+      // Initialize multi-touch if this is the first time we see 2 touches
+      if (!isMultiTouchActive.current || lastTouchDistance.current === null || lastTouchCenter.current === null) {
+        isMultiTouchActive.current = true;
+        setIsPanning(false);
+        lastTouchDistance.current = getTouchDistance(e.touches);
+        lastTouchCenter.current = getTouchCenter(e.touches);
+        return;
+      }
+      
       e.preventDefault();
       
       const newDistance = getTouchDistance(e.touches);
@@ -476,21 +576,36 @@ export default function Sheet() {
       
       lastTouchDistance.current = newDistance;
       lastTouchCenter.current = newCenter;
+    } else if (e.touches.length === 1 && isPanning && !isMultiTouchActive.current) {
+      // Single finger pan (only if we're already panning and not in multi-touch mode)
+      const touch = e.touches[0];
+      const dx = touch.clientX - lastMousePos.current.x;
+      const dy = touch.clientY - lastMousePos.current.y;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    touchCount.current = e.touches.length;
+    
     if (e.touches.length === 0) {
       setIsPanning(false);
       lastTouchDistance.current = null;
       lastTouchCenter.current = null;
+      isMultiTouchActive.current = false;
     } else if (e.touches.length === 1) {
-      // Transition from pinch to single-finger pan
-      const touch = e.touches[0];
-      setIsPanning(true);
-      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
+      // Transition from pinch - don't auto-start panning since finger might be on widget
+      // Only continue panning if we weren't in multi-touch mode
+      if (!isMultiTouchActive.current && isPanning) {
+        const touch = e.touches[0];
+        lastMousePos.current = { x: touch.clientX, y: touch.clientY };
+      } else {
+        setIsPanning(false);
+      }
       lastTouchDistance.current = null;
       lastTouchCenter.current = null;
+      isMultiTouchActive.current = false;
     }
   };
 
