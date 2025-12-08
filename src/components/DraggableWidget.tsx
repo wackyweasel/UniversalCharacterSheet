@@ -335,8 +335,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className="drag-handle absolute top-0 left-0 right-0 h-6 sm:h-4 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-end pr-1 touch-none rounded-t-theme z-10">
-              <div className="w-full h-full" />
+            <div className="drag-handle absolute -top-2 left-8 right-8 h-8 sm:h-6 sm:top-0 sm:left-0 sm:right-0 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]">
+              {/* Visual grip indicator for mobile - only show when controls visible */}
+              {showControls && (
+                <div className="sm:hidden flex gap-1">
+                  <div className="w-8 h-1 bg-theme-muted/50 rounded-full" />
+                </div>
+              )}
             </div>
           )}
           
