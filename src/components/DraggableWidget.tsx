@@ -307,7 +307,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           ref={nodeRef}
           data-widget-id={widget.id}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 sm:p-4 cursor-default group touch-manipulation rounded-theme ${widget.groupId && mode === 'edit' ? 'ring-2 ring-green-500 ring-opacity-50' : ''} ${isResizing ? 'select-none' : ''}`}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 sm:p-4 cursor-default group rounded-theme ${widget.groupId && mode === 'edit' ? 'ring-2 ring-green-500 ring-opacity-50' : ''} ${isResizing ? 'select-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,

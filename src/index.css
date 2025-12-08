@@ -30,7 +30,6 @@
     font-family: var(--font-body);
     @apply antialiased;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
   }
   
   html, body, #root {

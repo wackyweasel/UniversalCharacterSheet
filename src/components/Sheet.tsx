@@ -690,7 +690,7 @@ export default function Sheet() {
   const buttonsLeftOffset = mode === 'edit' && !sidebarCollapsed && !isMobile ? 'md:left-72' : '';
 
   return (
-    <div className="w-full h-screen overflow-hidden relative bg-theme-background touch-none">
+    <div className="w-full h-screen overflow-hidden relative bg-theme-background">
       {mode === 'edit' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 
@@ -709,6 +709,7 @@ export default function Sheet() {
       {/* Canvas Container */}
       <div 
         className={`absolute inset-0 ${isPanning ? 'cursor-grabbing' : 'cursor-default'}`}
+        style={{ touchAction: 'none' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
