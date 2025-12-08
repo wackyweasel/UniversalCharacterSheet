@@ -238,7 +238,8 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
                 min="1"
                 className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
                 value={newEffectTime}
-                onChange={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
+                onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
               />
               <select
                 className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
@@ -282,7 +283,8 @@ export default function TimeTrackerWidget({ widget, width, height }: Props) {
                 min="1"
                 className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
                 value={passedTime}
-                onChange={(e) => setPassedTime(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setPassedTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
+                onBlur={(e) => setPassedTime(Math.max(1, parseInt(e.target.value) || 1))}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') confirmPassTime();

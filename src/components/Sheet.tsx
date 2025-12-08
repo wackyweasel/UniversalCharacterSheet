@@ -7,7 +7,13 @@ import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import AttachmentButtons from './AttachmentButtons';
 import WidgetShadows from './WidgetShadows';
-import { WidgetType } from '../types';
+import { WidgetType, Widget } from '../types';
+
+// Helper to get active sheet widgets
+function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
+  const sheet = character.sheets.find(s => s.id === character.activeSheetId);
+  return sheet?.widgets || [];
+}
 
 export default function Sheet() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -19,17 +25,29 @@ export default function Sheet() {
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
+  const createSheet = useStore((state) => state.createSheet);
+  const selectSheet = useStore((state) => state.selectSheet);
+  const deleteSheet = useStore((state) => state.deleteSheet);
+  const renameSheet = useStore((state) => state.renameSheet);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  
+  // Get widgets from active sheet
+  const activeSheetWidgets = activeCharacter ? getActiveSheetWidgets(activeCharacter) : [];
+  
   // Default sidebar collapsed on mobile (< 768px)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 768);
   const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
+  const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
+  const [editedSheetName, setEditedSheetName] = useState('');
+  const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
+  const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
 
   // Auto-stack function that measures actual DOM widget sizes
   // Now preserves widget groups and treats them as single units
   const handleAutoStack = () => {
-    if (!activeCharacter || activeCharacter.widgets.length === 0) return;
+    if (!activeCharacter || activeSheetWidgets.length === 0) return;
 
     const GRID_SIZE = 10;
     const GAP = 10;
@@ -52,7 +70,7 @@ export default function Sheet() {
     });
 
     // Build widget info with measured sizes
-    const widgets = activeCharacter.widgets.map(w => {
+    const widgets = activeSheetWidgets.map(w => {
       const measured = widgetSizes.find(s => s.id === w.id);
       return {
         id: w.id,
@@ -252,7 +270,7 @@ export default function Sheet() {
 
   // Fit all widgets in view with maximum zoom
   const handleFitAllWidgets = () => {
-    if (!activeCharacter || activeCharacter.widgets.length === 0) {
+    if (!activeCharacter || activeSheetWidgets.length === 0) {
       // No widgets, just reset to default
       setScale(1);
       setPan({ x: 0, y: 0 });
@@ -265,7 +283,7 @@ export default function Sheet() {
 
     widgetElements.forEach((el) => {
       const id = el.getAttribute('data-widget-id');
-      const widget = activeCharacter.widgets.find(w => w.id === id);
+      const widget = activeSheetWidgets.find(w => w.id === id);
       if (widget) {
         const rect = el.getBoundingClientRect();
         // Account for current scale to get actual widget dimensions
@@ -588,12 +606,12 @@ export default function Sheet() {
 
           {/* Shadow Layer - rendered below all widgets */}
           <WidgetShadows 
-            widgets={activeCharacter.widgets} 
+            widgets={activeSheetWidgets} 
             scale={scale}
           />
 
           {/* Widgets */}
-          {activeCharacter.widgets.map(widget => (
+          {activeSheetWidgets.map(widget => (
             <DraggableWidget 
               key={widget.id} 
               widget={widget} 
@@ -604,7 +622,7 @@ export default function Sheet() {
           {/* Attachment Buttons - only in edit mode */}
           {mode === 'edit' && (
             <AttachmentButtons 
-              widgets={activeCharacter.widgets} 
+              widgets={activeSheetWidgets} 
               scale={scale}
             />
           )}
@@ -650,6 +668,157 @@ export default function Sheet() {
             >
               {activeCharacter.name}
             </h1>
+          )}
+        </div>
+        
+        {/* Sheet Dropdown */}
+        <div className="relative w-full">
+          <button
+            onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+            className="w-full bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme px-3 py-1.5 flex items-center justify-between gap-2 hover:bg-theme-accent/10 transition-colors"
+          >
+            <span className="text-xs sm:text-sm font-body text-theme-ink">
+              {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+            </span>
+            <span className="text-theme-muted text-xs">▼</span>
+          </button>
+          
+          {sheetDropdownOpen && (
+            <>
+              {/* Backdrop to close dropdown */}
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setSheetDropdownOpen(false)}
+              />
+              
+              {/* Dropdown menu */}
+              <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px]">
+                {activeCharacter.sheets.map((sheet) => (
+                  <div key={sheet.id} className="group relative">
+                    {editingSheetId === sheet.id ? (
+                      <input
+                        type="text"
+                        value={editedSheetName}
+                        onChange={(e) => setEditedSheetName(e.target.value)}
+                        onBlur={() => {
+                          if (editedSheetName.trim()) {
+                            renameSheet(sheet.id, editedSheetName.trim());
+                          }
+                          setEditingSheetId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            if (editedSheetName.trim()) {
+                              renameSheet(sheet.id, editedSheetName.trim());
+                            }
+                            setEditingSheetId(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingSheetId(null);
+                          }
+                        }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent border-b border-theme-border outline-none text-theme-ink font-body"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => {
+                          selectSheet(sheet.id);
+                          setSheetDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-xs sm:text-sm text-left font-body transition-colors flex items-center justify-between ${
+                          sheet.id === activeCharacter.activeSheetId
+                            ? 'bg-theme-accent text-theme-paper'
+                            : 'text-theme-ink hover:bg-theme-accent/20'
+                        }`}
+                      >
+                        <span>{sheet.name}</span>
+                        {/* Edit buttons - only show in edit mode */}
+                        {mode === 'edit' && (
+                          <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Rename button */}
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditedSheetName(sheet.name);
+                                setEditingSheetId(sheet.id);
+                              }}
+                              className={`w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                                sheet.id === activeCharacter.activeSheetId
+                                  ? 'bg-theme-paper/30 text-theme-paper hover:bg-theme-paper/50'
+                                  : 'bg-theme-accent/20 text-theme-ink hover:bg-theme-accent/40'
+                              }`}
+                              title="Rename sheet"
+                            >
+                              ✎
+                            </span>
+                            {/* Delete button - only if more than 1 sheet */}
+                            {activeCharacter.sheets.length > 1 && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSheetToDelete(sheet.id);
+                                }}
+                                className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                                title="Delete sheet"
+                              >
+                                ×
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {/* Add Sheet Button - only in edit mode */}
+                {mode === 'edit' && (
+                  <button
+                    onClick={() => {
+                      createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
+                      setSheetDropdownOpen(false);
+                    }}
+                    className="w-full px-3 py-2 text-xs sm:text-sm text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
+                  >
+                    + Add New Sheet
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+          
+          {/* Delete Confirmation Modal */}
+          {sheetToDelete && (
+            <>
+              <div 
+                className="fixed inset-0 bg-black/50 z-50" 
+                onClick={() => setSheetToDelete(null)}
+              />
+              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
+                <h3 className="font-heading text-theme-ink font-bold mb-2">Delete Sheet?</h3>
+                <p className="text-sm text-theme-muted font-body mb-4">
+                  Are you sure you want to delete "{activeCharacter.sheets.find(s => s.id === sheetToDelete)?.name}"? This will delete all widgets on this sheet.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setSheetToDelete(null)}
+                    className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      deleteSheet(sheetToDelete);
+                      setSheetToDelete(null);
+                      setSheetDropdownOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-theme transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
         

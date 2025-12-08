@@ -56,6 +56,7 @@ export default function CharacterList() {
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   
   const [newName, setNewName] = useState('');
+  const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,12 +116,12 @@ export default function CharacterList() {
                 <p 
                   className="text-sm sm:text-base mb-2 sm:mb-4"
                   style={{ color: 'var(--card-muted)' }}
-                >{char.widgets.length} Widgets</p>
+                >{char.sheets.reduce((sum, s) => sum + s.widgets.length, 0)} Widgets • {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}</p>
                 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if(confirm('Delete character?')) deleteCharacter(char.id);
+                    setCharacterToDelete(char.id);
                   }}
                   className="absolute top-0 right-0 w-10 h-10 sm:w-auto sm:h-auto sm:opacity-0 sm:group-hover:opacity-100 text-red-500 font-bold hover:text-red-700 flex items-center justify-center"
                 >
@@ -137,6 +138,39 @@ export default function CharacterList() {
           </div>
         )}
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      {characterToDelete && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => setCharacterToDelete(null)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
+            <h3 className="font-heading text-theme-ink font-bold mb-2">Delete Character?</h3>
+            <p className="text-sm text-theme-muted font-body mb-4">
+              Are you sure you want to delete "{characters.find(c => c.id === characterToDelete)?.name}"? This will delete all sheets and widgets.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setCharacterToDelete(null)}
+                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteCharacter(characterToDelete);
+                  setCharacterToDelete(null);
+                }}
+                className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-theme transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

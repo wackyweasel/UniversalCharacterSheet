@@ -1,8 +1,49 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetType } from '../types';
+import { Character, Widget, WidgetType, Sheet } from '../types';
 
 type Mode = 'play' | 'edit';
+
+// Helper to get the active sheet's widgets from a character
+function getActiveSheetWidgets(character: Character): Widget[] {
+  const sheet = character.sheets.find(s => s.id === character.activeSheetId);
+  return sheet?.widgets || [];
+}
+
+// Helper to update the active sheet's widgets
+function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widget[]) => Widget[]): Character {
+  return {
+    ...character,
+    sheets: character.sheets.map(s => 
+      s.id === character.activeSheetId 
+        ? { ...s, widgets: updateFn(s.widgets) }
+        : s
+    )
+  };
+}
+
+// Migration helper: convert old character format to new sheets format
+function migrateCharacter(char: any): Character {
+  // If character already has sheets, return as-is
+  if (char.sheets && char.sheets.length > 0) {
+    return char as Character;
+  }
+  
+  // Migrate: create a default sheet with the old widgets
+  const defaultSheet: Sheet = {
+    id: uuidv4(),
+    name: 'Main',
+    widgets: char.widgets || []
+  };
+  
+  return {
+    id: char.id,
+    name: char.name,
+    theme: char.theme,
+    sheets: [defaultSheet],
+    activeSheetId: defaultSheet.id
+  };
+}
 
 interface StoreState {
   characters: Character[];
@@ -21,7 +62,13 @@ interface StoreState {
   setEditingWidgetId: (id: string | null) => void;
   setSelectedWidgetId: (id: string | null) => void;
   
-  // Widget Actions (for active character)
+  // Sheet Actions
+  createSheet: (name: string) => void;
+  selectSheet: (sheetId: string) => void;
+  deleteSheet: (sheetId: string) => void;
+  renameSheet: (sheetId: string, name: string) => void;
+  
+  // Widget Actions (for active character's active sheet)
   addWidget: (type: WidgetType, x: number, y: number) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetSize: (id: string, w: number, h: number) => void;
@@ -41,7 +88,12 @@ export const useStore = create<StoreState>((set) => {
     try {
       const raw = localStorage.getItem('ucs:store');
       if (!raw) return null;
-      return JSON.parse(raw) as { characters: Character[]; activeCharacterId: string | null };
+      const data = JSON.parse(raw) as { characters: any[]; activeCharacterId: string | null };
+      // Migrate all characters to new format
+      return {
+        characters: data.characters.map(migrateCharacter),
+        activeCharacterId: data.activeCharacterId
+      };
     } catch (e) {
       console.error('Failed to load persisted store', e);
       return null;
@@ -59,10 +111,16 @@ export const useStore = create<StoreState>((set) => {
     selectedWidgetId: null,
 
     createCharacter: (name) => set((state) => {
+      const defaultSheet: Sheet = {
+        id: uuidv4(),
+        name: 'Main',
+        widgets: []
+      };
       const newChar: Character = {
         id: uuidv4(),
         name,
-        widgets: []
+        sheets: [defaultSheet],
+        activeSheetId: defaultSheet.id
       };
       return { 
         characters: [...state.characters, newChar],
@@ -91,16 +149,131 @@ export const useStore = create<StoreState>((set) => {
 
     setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
 
+    // Sheet Actions
+    createSheet: (name) => set((state) => {
+      if (!state.activeCharacterId) return state;
+      
+      const newSheet: Sheet = {
+        id: uuidv4(),
+        name,
+        widgets: []
+      };
+      
+      return {
+        characters: state.characters.map(c => {
+          if (c.id === state.activeCharacterId) {
+            return {
+              ...c,
+              sheets: [...c.sheets, newSheet],
+              activeSheetId: newSheet.id
+            };
+          }
+          return c;
+        })
+      };
+    }),
+
+    selectSheet: (sheetId) => set((state) => {
+      if (!state.activeCharacterId) return state;
+      
+      return {
+        characters: state.characters.map(c => {
+          if (c.id === state.activeCharacterId) {
+            return { ...c, activeSheetId: sheetId };
+          }
+          return c;
+        })
+      };
+    }),
+
+    deleteSheet: (sheetId) => set((state) => {
+      if (!state.activeCharacterId) return state;
+      
+      return {
+        characters: state.characters.map(c => {
+          if (c.id !== state.activeCharacterId) return c;
+          
+          // Don't delete if it's the only sheet
+          if (c.sheets.length <= 1) return c;
+          
+          const newSheets = c.sheets.filter(s => s.id !== sheetId);
+          const newActiveSheetId = c.activeSheetId === sheetId 
+            ? newSheets[0].id 
+            : c.activeSheetId;
+          
+          return {
+            ...c,
+            sheets: newSheets,
+            activeSheetId: newActiveSheetId
+          };
+        })
+      };
+    }),
+
+    renameSheet: (sheetId, name) => set((state) => {
+      if (!state.activeCharacterId) return state;
+      
+      return {
+        characters: state.characters.map(c => {
+          if (c.id !== state.activeCharacterId) return c;
+          
+          return {
+            ...c,
+            sheets: c.sheets.map(s => 
+              s.id === sheetId ? { ...s, name } : s
+            )
+          };
+        })
+      };
+    }),
+
     addWidget: (type, x, y) => set((state) => {
       if (!state.activeCharacterId) return state;
+      
+      // Find the active character and get current widgets
+      const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
+      if (!activeChar) return state;
+      
+      const currentWidgets = getActiveSheetWidgets(activeChar);
+      
+      // Calculate smart position
+      let finalX = x;
+      let finalY = y;
+      const GRID_SIZE = 10;
+      const DEFAULT_WIDTH = 200;
+      const DEFAULT_HEIGHT = 120;
+      const GAP = 20;
+      
+      if (currentWidgets.length === 0) {
+        // No widgets - place in center of viewport (roughly)
+        // Use a reasonable center position
+        finalX = Math.round(400 / GRID_SIZE) * GRID_SIZE;
+        finalY = Math.round(300 / GRID_SIZE) * GRID_SIZE;
+      } else {
+        // Find the bounding box of all existing widgets
+        const minX = Math.min(...currentWidgets.map(w => w.x));
+        const maxX = Math.max(...currentWidgets.map(w => w.x + (w.w || DEFAULT_WIDTH)));
+        const minY = Math.min(...currentWidgets.map(w => w.y));
+        const maxY = Math.max(...currentWidgets.map(w => w.y + (w.h || DEFAULT_HEIGHT)));
+        
+        // Place new widget to the right of existing widgets
+        finalX = Math.round((maxX + GAP) / GRID_SIZE) * GRID_SIZE;
+        finalY = Math.round(minY / GRID_SIZE) * GRID_SIZE;
+        
+        // If it would be too far right (> 1500px), start a new row below
+        if (finalX > 1500) {
+          finalX = Math.round(minX / GRID_SIZE) * GRID_SIZE;
+          finalY = Math.round((maxY + GAP) / GRID_SIZE) * GRID_SIZE;
+        }
+      }
       
       const newWidget: Widget = {
         id: uuidv4(),
         type,
-        x,
-        y,
-        w: 200, // Default width (grid-aligned: 200 = 10 * 20)
-        h: 120, // Default height (grid-aligned: 120 = 6 * 20)
+        x: finalX,
+        y: finalY,
+        w: DEFAULT_WIDTH,
+        h: DEFAULT_HEIGHT,
         data: {
           label: 'New Widget',
           value: 0,
@@ -112,7 +285,7 @@ export const useStore = create<StoreState>((set) => {
       return {
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
-            return { ...c, widgets: [...c.widgets, newWidget] };
+            return updateActiveSheetWidgets(c, widgets => [...widgets, newWidget]);
           }
           return c;
         })
@@ -122,10 +295,9 @@ export const useStore = create<StoreState>((set) => {
     updateWidgetPosition: (id, x, y) => set((state) => ({
       characters: state.characters.map(c => {
         if (c.id === state.activeCharacterId) {
-          return {
-            ...c,
-            widgets: c.widgets.map(w => w.id === id ? { ...w, x, y } : w)
-          };
+          return updateActiveSheetWidgets(c, widgets => 
+            widgets.map(w => w.id === id ? { ...w, x, y } : w)
+          );
         }
         return c;
       })
@@ -134,10 +306,9 @@ export const useStore = create<StoreState>((set) => {
     updateWidgetSize: (id, w, h) => set((state) => ({
       characters: state.characters.map(c => {
         if (c.id === state.activeCharacterId) {
-          return {
-            ...c,
-            widgets: c.widgets.map(widget => widget.id === id ? { ...widget, w, h } : widget)
-          };
+          return updateActiveSheetWidgets(c, widgets => 
+            widgets.map(widget => widget.id === id ? { ...widget, w, h } : widget)
+          );
         }
         return c;
       })
@@ -146,10 +317,9 @@ export const useStore = create<StoreState>((set) => {
     updateWidgetData: (id, data) => set((state) => ({
       characters: state.characters.map(c => {
         if (c.id === state.activeCharacterId) {
-          return {
-            ...c,
-            widgets: c.widgets.map(w => w.id === id ? { ...w, data: { ...w.data, ...data } } : w)
-          };
+          return updateActiveSheetWidgets(c, widgets => 
+            widgets.map(w => w.id === id ? { ...w, data: { ...w.data, ...data } } : w)
+          );
         }
         return c;
       })
@@ -158,17 +328,15 @@ export const useStore = create<StoreState>((set) => {
     removeWidget: (id) => set((state) => ({
       characters: state.characters.map(c => {
         if (c.id === state.activeCharacterId) {
-          return {
-            ...c,
-            widgets: c.widgets.filter(w => w.id !== id)
-          };
+          return updateActiveSheetWidgets(c, widgets => 
+            widgets.filter(w => w.id !== id)
+          );
         }
         return c;
       })
     })),
 
     // Attach two widgets together (create or merge groups)
-    // This creates an edge in the connection graph
     attachWidgets: (widgetId1, widgetId2) => set((state) => {
       if (!state.activeCharacterId) return state;
       
@@ -176,8 +344,9 @@ export const useStore = create<StoreState>((set) => {
         characters: state.characters.map(c => {
           if (c.id !== state.activeCharacterId) return c;
           
-          const widget1 = c.widgets.find(w => w.id === widgetId1);
-          const widget2 = c.widgets.find(w => w.id === widgetId2);
+          const widgets = getActiveSheetWidgets(c);
+          const widget1 = widgets.find(w => w.id === widgetId1);
+          const widget2 = widgets.find(w => w.id === widgetId2);
           
           if (!widget1 || !widget2) return c;
           
@@ -190,13 +359,11 @@ export const useStore = create<StoreState>((set) => {
             // Both have different groups - merge widget2's group into widget1's
             newGroupId = widget1.groupId;
             const oldGroupId = widget2.groupId;
-            return {
-              ...c,
-              widgets: c.widgets.map(w => {
+            return updateActiveSheetWidgets(c, widgets => 
+              widgets.map(w => {
                 if (w.groupId === oldGroupId) {
                   return { ...w, groupId: newGroupId };
                 }
-                // Add edge between the two widgets
                 if (w.id === widgetId1) {
                   return { ...w, attachedTo: [...(w.attachedTo || []), widgetId2] };
                 }
@@ -205,7 +372,7 @@ export const useStore = create<StoreState>((set) => {
                 }
                 return w;
               })
-            };
+            );
           } else if (widget1.groupId) {
             newGroupId = widget1.groupId;
           } else if (widget2.groupId) {
@@ -214,9 +381,8 @@ export const useStore = create<StoreState>((set) => {
             newGroupId = uuidv4();
           }
           
-          return {
-            ...c,
-            widgets: c.widgets.map(w => {
+          return updateActiveSheetWidgets(c, widgets => 
+            widgets.map(w => {
               if (w.id === widgetId1) {
                 return { 
                   ...w, 
@@ -233,13 +399,12 @@ export const useStore = create<StoreState>((set) => {
               }
               return w;
             })
-          };
+          );
         })
       };
     }),
 
-    // Detach a widget completely from its group (break all its edges)
-    // Then recalculate connected components to potentially split the group
+    // Detach a widget completely from its group
     detachWidgets: (widgetId1, _widgetId2) => set((state) => {
       if (!state.activeCharacterId) return state;
       
@@ -247,7 +412,8 @@ export const useStore = create<StoreState>((set) => {
         characters: state.characters.map(c => {
           if (c.id !== state.activeCharacterId) return c;
           
-          const widget1 = c.widgets.find(w => w.id === widgetId1);
+          const widgets = getActiveSheetWidgets(c);
+          const widget1 = widgets.find(w => w.id === widgetId1);
           
           if (!widget1) return c;
           if (!widget1.groupId) return c;
@@ -255,12 +421,9 @@ export const useStore = create<StoreState>((set) => {
           const groupId = widget1.groupId;
           const widget1Neighbors = widget1.attachedTo || [];
           
-          // Remove widget1 from the group entirely:
-          // 1. Clear widget1's attachedTo and groupId
-          // 2. Remove widget1 from all neighbors' attachedTo arrays
-          let updatedWidgets = c.widgets.map(w => {
+          // Remove widget1 from the group entirely
+          let updatedWidgets = widgets.map(w => {
             if (w.id === widgetId1) {
-              // Completely detach this widget
               return { 
                 ...w, 
                 groupId: undefined,
@@ -268,7 +431,6 @@ export const useStore = create<StoreState>((set) => {
               };
             }
             if (widget1Neighbors.includes(w.id)) {
-              // Remove widget1 from this neighbor's attachedTo
               return { 
                 ...w, 
                 attachedTo: (w.attachedTo || []).filter(id => id !== widgetId1)
@@ -277,17 +439,16 @@ export const useStore = create<StoreState>((set) => {
             return w;
           });
           
-          // Now find connected components in the remaining group using BFS
+          // Find connected components in the remaining group using BFS
           const remainingGroupWidgetIds = updatedWidgets
             .filter(w => w.groupId === groupId)
             .map(w => w.id);
           
-          // If no widgets remain in the group, we're done
           if (remainingGroupWidgetIds.length === 0) {
-            return { ...c, widgets: updatedWidgets };
+            return updateActiveSheetWidgets(c, () => updatedWidgets);
           }
           
-          // Build adjacency map from the updated widgets
+          // Build adjacency map
           const adjacency = new Map<string, string[]>();
           for (const wid of remainingGroupWidgetIds) {
             const w = updatedWidgets.find(w => w.id === wid);
@@ -323,17 +484,14 @@ export const useStore = create<StoreState>((set) => {
           }
           
           // Assign new group IDs based on connected components
-          // Single-widget components get no groupId
-          // Multi-widget components get a new groupId (or keep existing if only one component)
           const componentGroupIds = components.map((comp, idx) => {
-            if (comp.length <= 1) return undefined; // Single widgets don't need a group
+            if (comp.length <= 1) return undefined;
             if (idx === 0 && components.filter(c => c.length > 1).length <= 1) {
-              return groupId; // Keep existing group ID if only one multi-widget component remains
+              return groupId;
             }
-            return uuidv4(); // New group ID for additional components
+            return uuidv4();
           });
           
-          // Create a map from widget ID to new group ID
           const widgetToGroupId = new Map<string, string | undefined>();
           components.forEach((comp, idx) => {
             for (const wid of comp) {
@@ -341,11 +499,9 @@ export const useStore = create<StoreState>((set) => {
             }
           });
           
-          // Update widgets with new group IDs
           updatedWidgets = updatedWidgets.map(w => {
             if (widgetToGroupId.has(w.id)) {
               const newGid = widgetToGroupId.get(w.id);
-              // Also clean up attachedTo for single widgets
               if (!newGid) {
                 return { ...w, groupId: undefined, attachedTo: undefined };
               }
@@ -354,55 +510,54 @@ export const useStore = create<StoreState>((set) => {
             return w;
           });
           
-          return { ...c, widgets: updatedWidgets };
+          return updateActiveSheetWidgets(c, () => updatedWidgets);
         })
       };
     }),
 
-    // Get all widgets in a group
+    // Get all widgets in a group (from active sheet)
     getWidgetsInGroup: (groupId) => {
       const state = useStore.getState();
       const character = state.characters.find(c => c.id === state.activeCharacterId);
       if (!character) return [];
-      return character.widgets.filter(w => w.groupId === groupId);
+      const widgets = getActiveSheetWidgets(character);
+      return widgets.filter(w => w.groupId === groupId);
     },
 
-    // Move all widgets in the same group as the given widget
+    // Move all widgets in the same group
     moveWidgetGroup: (widgetId, deltaX, deltaY) => set((state) => {
       if (!state.activeCharacterId) return state;
       
       const character = state.characters.find(c => c.id === state.activeCharacterId);
       if (!character) return state;
       
-      const widget = character.widgets.find(w => w.id === widgetId);
+      const widgets = getActiveSheetWidgets(character);
+      const widget = widgets.find(w => w.id === widgetId);
+      
       if (!widget || !widget.groupId) {
-        // No group, just move the single widget
         return {
           characters: state.characters.map(c => {
             if (c.id === state.activeCharacterId) {
-              return {
-                ...c,
-                widgets: c.widgets.map(w => 
+              return updateActiveSheetWidgets(c, widgets => 
+                widgets.map(w => 
                   w.id === widgetId ? { ...w, x: w.x + deltaX, y: w.y + deltaY } : w
                 )
-              };
+              );
             }
             return c;
           })
         };
       }
       
-      // Move all widgets in the group
       const groupId = widget.groupId;
       return {
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
-            return {
-              ...c,
-              widgets: c.widgets.map(w => 
+            return updateActiveSheetWidgets(c, widgets => 
+              widgets.map(w => 
                 w.groupId === groupId ? { ...w, x: w.x + deltaX, y: w.y + deltaY } : w
               )
-            };
+            );
           }
           return c;
         })

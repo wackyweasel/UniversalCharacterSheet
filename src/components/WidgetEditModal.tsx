@@ -126,7 +126,8 @@ function ListEditor({ widget, updateData }: EditorProps) {
           max="50"
           className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={itemCount}
-          onChange={(e) => updateData({ itemCount: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)) })}
+          onChange={(e) => updateData({ itemCount: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
+          onBlur={(e) => updateData({ itemCount: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)) })}
         />
         <p className="text-xs text-theme-muted mt-1">Items can be filled in during play mode</p>
       </div>
@@ -242,8 +243,11 @@ function HealthBarEditor({ widget, updateData }: EditorProps) {
           className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={maxValue}
           onChange={(e) => {
+            updateData({ maxValue: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
+          }}
+          onBlur={(e) => {
             const val = parseInt(e.target.value) || 1;
-            updateData({ maxValue: val });
+            updateData({ maxValue: Math.max(1, val) });
           }}
           min={1}
         />
@@ -255,9 +259,9 @@ function HealthBarEditor({ widget, updateData }: EditorProps) {
 function DiceRollerEditor({ widget, updateData }: EditorProps) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0 } = widget.data;
 
-  const updateDiceGroup = (index: number, field: 'count' | 'faces', value: number) => {
+  const updateDiceGroup = (index: number, field: 'count' | 'faces', value: number | string) => {
     const newGroups = [...diceGroups];
-    newGroups[index] = { ...newGroups[index], [field]: Math.max(1, value) };
+    newGroups[index] = { ...newGroups[index], [field]: value };
     updateData({ diceGroups: newGroups });
   };
 
@@ -293,7 +297,8 @@ function DiceRollerEditor({ widget, updateData }: EditorProps) {
                 type="number"
                 min="1"
                 value={group.count}
-                onChange={(e) => updateDiceGroup(index, 'count', parseInt(e.target.value) || 1)}
+                onChange={(e) => updateDiceGroup(index, 'count', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                onBlur={(e) => updateDiceGroup(index, 'count', Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
               />
               <span className="text-theme-ink">d</span>
@@ -301,7 +306,8 @@ function DiceRollerEditor({ widget, updateData }: EditorProps) {
                 type="number"
                 min="1"
                 value={group.faces}
-                onChange={(e) => updateDiceGroup(index, 'faces', parseInt(e.target.value) || 1)}
+                onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
               />
               {diceGroups.length > 1 && (
@@ -355,20 +361,28 @@ function SpellSlotEditor({ widget, updateData }: EditorProps) {
     updateData({ spellLevels: updated });
   };
 
-  const updateLevelMax = (levelIdx: number, max: number) => {
+  const updateLevelMax = (levelIdx: number, max: number | string) => {
     const updated = [...spellLevels] as SpellLevel[];
-    const newMax = Math.max(1, Math.min(10, max));
-    updated[levelIdx] = { 
-      ...updated[levelIdx], 
-      max: newMax,
-      used: Math.min(updated[levelIdx].used, newMax)
-    };
+    if (typeof max === 'string') {
+      updated[levelIdx] = { ...updated[levelIdx], max: max as unknown as number };
+    } else {
+      const newMax = Math.max(1, Math.min(10, max));
+      updated[levelIdx] = { 
+        ...updated[levelIdx], 
+        max: newMax,
+        used: Math.min(updated[levelIdx].used, newMax)
+      };
+    }
     updateData({ spellLevels: updated });
   };
 
-  const updateLevelNumber = (levelIdx: number, level: number) => {
+  const updateLevelNumber = (levelIdx: number, level: number | string) => {
     const updated = [...spellLevels] as SpellLevel[];
-    updated[levelIdx] = { ...updated[levelIdx], level: Math.max(1, Math.min(9, level)) };
+    if (typeof level === 'string') {
+      updated[levelIdx] = { ...updated[levelIdx], level: level as unknown as number };
+    } else {
+      updated[levelIdx] = { ...updated[levelIdx], level: Math.max(1, Math.min(9, level)) };
+    }
     updateData({ spellLevels: updated });
   };
 
@@ -393,7 +407,8 @@ function SpellSlotEditor({ widget, updateData }: EditorProps) {
               <input
                 type="number"
                 value={levelData.level}
-                onChange={(e) => updateLevelNumber(levelIdx, parseInt(e.target.value) || 1)}
+                onChange={(e) => updateLevelNumber(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                onBlur={(e) => updateLevelNumber(levelIdx, Math.max(1, Math.min(9, parseInt(e.target.value) || 1)))}
                 className="w-12 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
                 min={1}
                 max={9}
@@ -402,7 +417,8 @@ function SpellSlotEditor({ widget, updateData }: EditorProps) {
               <input
                 type="number"
                 value={levelData.max}
-                onChange={(e) => updateLevelMax(levelIdx, parseInt(e.target.value) || 1)}
+                onChange={(e) => updateLevelMax(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                onBlur={(e) => updateLevelMax(levelIdx, Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
                 className="w-12 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
                 min={1}
                 max={10}
@@ -513,6 +529,9 @@ function PoolEditor({ widget, updateData }: EditorProps) {
           className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={maxPool}
           onChange={(e) => {
+            updateData({ maxPool: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
+          }}
+          onBlur={(e) => {
             const val = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
             updateData({ maxPool: val });
           }}

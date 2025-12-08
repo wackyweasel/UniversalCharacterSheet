@@ -95,6 +95,12 @@ export interface Widget {
   data: WidgetData;
 }
 
+export interface Sheet {
+  id: string;
+  name: string;
+  widgets: Widget[];
+}
+
 export type ThemeId = 
   | 'default'
   | 'pen-and-paper'
@@ -113,5 +119,8 @@ export interface Character {
   id: string;
   name: string;
   theme?: ThemeId | string; // Can be a built-in ThemeId or a custom theme ID
-  widgets: Widget[];
+  sheets: Sheet[];
+  activeSheetId: string;
+  // Legacy: widgets array for migration (will be moved to sheets)
+  widgets?: Widget[];
 }
