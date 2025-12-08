@@ -263,12 +263,15 @@ export default function Sheet() {
   const [scale, setScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
   
-  // Touch pinch zoom state
+  // Touch state - all managed via refs to work in global handlers
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
-  // Track if multi-touch gesture is active (for gestures that start on widgets)
-  const isMultiTouchActive = useRef(false);
+  const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const isTouchPanning = useRef(false);
+  const touchStartedOnScrollable = useRef(false);
+  
   // Refs to avoid stale closures in global touch handlers
   const scaleRef = useRef(scale);
   const panRef = useRef(pan);
@@ -376,49 +379,141 @@ export default function Sheet() {
     };
   }, [activeCharacter?.theme, activeCharacter?.id]);
 
-  // Global touch event listeners to capture multi-touch gestures even when starting on widgets
+  // Get mode ref for use in global touch handler
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // Unified global touch handler for camera controls
+  // This runs at the document level to capture ALL touch events
   useEffect(() => {
-    const getTouchDist = (touches: TouchList) => {
-      const dx = touches[0].clientX - touches[1].clientX;
-      const dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
+    // Check if an element or its ancestors have scrollable overflow
+    const isScrollableElement = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        const style = window.getComputedStyle(el);
+        const overflowY = style.overflowY;
+        const overflowX = style.overflowX;
+        const isScrollable = overflowY === 'auto' || overflowY === 'scroll' || 
+                            overflowX === 'auto' || overflowX === 'scroll';
+        if (isScrollable) {
+          // Check if it actually has content to scroll
+          const hasScrollableContent = el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
+          if (hasScrollableContent) return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
     };
     
-    const getTouchCtr = (touches: TouchList) => ({
-      x: (touches[0].clientX + touches[1].clientX) / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2
-    });
+    // Check if the target is inside a widget
+    const isOnWidget = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        if (el.classList.contains('react-draggable')) return true;
+        el = el.parentElement;
+      }
+      return false;
+    };
+    
+    // Check if the target is inside the sidebar
+    const isOnSidebar = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        // Sidebars have z-50 and specific positioning
+        if (el.classList.contains('fixed') && (el.classList.contains('left-0') || el.classList.contains('right-0'))) {
+          return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    };
 
-    const handleGlobalTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        // Two fingers detected - activate pinch zoom
-        isMultiTouchActive.current = true;
-        lastTouchDistance.current = getTouchDist(e.touches);
-        lastTouchCenter.current = getTouchCtr(e.touches);
+    let touchStartTarget: Element | null = null;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Store the target of the first touch
+      if (e.touches.length === 1) {
+        touchStartTarget = e.target as Element;
+      }
+      
+      // Store all active touches
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
+      }
+      
+      // Skip if touching sidebar elements
+      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
+        return;
+      }
+      
+      // Check if the first touch started on a scrollable element
+      if (e.touches.length === 1) {
+        touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
+      }
+      
+      // Two or more fingers - always take over for camera control
+      if (activeTouches.current.size >= 2) {
+        const touches = Array.from(activeTouches.current.values());
+        const dx = touches[0].x - touches[1].x;
+        const dy = touches[0].y - touches[1].y;
+        lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
+        lastTouchCenter.current = {
+          x: (touches[0].x + touches[1].x) / 2,
+          y: (touches[0].y + touches[1].y) / 2
+        };
+        isTouchPanning.current = false; // Disable single-finger pan when multi-touch starts
+      } else if (activeTouches.current.size === 1) {
+        // Single finger - determine if we should pan
+        const onWidget = touchStartTarget && isOnWidget(touchStartTarget);
+        const onScrollable = touchStartedOnScrollable.current;
+        
+        // In edit mode, don't pan if on a widget (allow widget dragging)
+        // In play mode, pan anywhere except scrollable areas
+        const shouldPan = !onScrollable && (modeRef.current === 'play' ? true : !onWidget);
+        
+        if (shouldPan) {
+          const touch = activeTouches.current.values().next().value;
+          if (touch) {
+            lastTouchCenter.current = { x: touch.x, y: touch.y };
+            isTouchPanning.current = true;
+          }
+        }
       }
     };
-    
-    const handleGlobalTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        // Always handle 2-finger gestures
-        if (!isMultiTouchActive.current) {
-          // Just became 2 fingers
-          isMultiTouchActive.current = true;
-          lastTouchDistance.current = getTouchDist(e.touches);
-          lastTouchCenter.current = getTouchCtr(e.touches);
-          return;
-        }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // Skip if we started on a sidebar
+      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
+        return;
+      }
+      
+      // Update all active touch positions
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
+      }
+      
+      const touchCount = activeTouches.current.size;
+      
+      // Two-finger gesture: pinch zoom + pan (ALWAYS works, even on widgets)
+      if (touchCount >= 2) {
+        const touches = Array.from(activeTouches.current.values());
+        const dx = touches[0].x - touches[1].x;
+        const dy = touches[0].y - touches[1].y;
+        const newDistance = Math.sqrt(dx * dx + dy * dy);
+        const newCenter = {
+          x: (touches[0].x + touches[1].x) / 2,
+          y: (touches[0].y + touches[1].y) / 2
+        };
         
+        // Initialize if needed (user added second finger)
         if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
-          lastTouchDistance.current = getTouchDist(e.touches);
-          lastTouchCenter.current = getTouchCtr(e.touches);
+          lastTouchDistance.current = newDistance;
+          lastTouchCenter.current = newCenter;
+          isTouchPanning.current = false;
           return;
         }
         
-        e.preventDefault();
-        
-        const newDistance = getTouchDist(e.touches);
-        const newCenter = getTouchCtr(e.touches);
+        e.preventDefault(); // Prevent browser zoom/scroll
+        e.stopPropagation(); // Stop other handlers
         
         const currentScale = scaleRef.current;
         const currentPan = panRef.current;
@@ -444,25 +539,53 @@ export default function Sheet() {
         lastTouchDistance.current = newDistance;
         lastTouchCenter.current = newCenter;
       }
-    };
-    
-    const handleGlobalTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
-        isMultiTouchActive.current = false;
-        lastTouchDistance.current = null;
-        lastTouchCenter.current = null;
+      // Single finger pan (only if we determined we should pan at start)
+      else if (touchCount === 1 && isTouchPanning.current && lastTouchCenter.current) {
+        const touch = activeTouches.current.values().next().value;
+        if (touch) {
+          e.preventDefault();
+          
+          const dx = touch.x - lastTouchCenter.current.x;
+          const dy = touch.y - lastTouchCenter.current.y;
+          
+          setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+          lastTouchCenter.current = { x: touch.x, y: touch.y };
+        }
       }
     };
-    
-    // Use capture phase to get events before they're handled by children
-    document.addEventListener('touchstart', handleGlobalTouchStart, { passive: true, capture: true });
-    document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false, capture: true });
-    document.addEventListener('touchend', handleGlobalTouchEnd, { passive: true, capture: true });
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      // Remove ended touches
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        activeTouches.current.delete(e.changedTouches[i].identifier);
+      }
+      
+      // Reset state if all touches ended
+      if (activeTouches.current.size === 0) {
+        lastTouchDistance.current = null;
+        lastTouchCenter.current = null;
+        isTouchPanning.current = false;
+        touchStartedOnScrollable.current = false;
+        touchStartTarget = null;
+      }
+      // If we go from 2+ to 1 finger, don't auto-start panning
+      else if (activeTouches.current.size === 1) {
+        lastTouchDistance.current = null;
+        isTouchPanning.current = false; // Don't continue single-finger pan after pinch
+      }
+    };
+
+    // Add to document with capture phase to intercept before any child handlers
+    document.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true });
     
     return () => {
-      document.removeEventListener('touchstart', handleGlobalTouchStart, { capture: true });
-      document.removeEventListener('touchmove', handleGlobalTouchMove, { capture: true });
-      document.removeEventListener('touchend', handleGlobalTouchEnd, { capture: true });
+      document.removeEventListener('touchstart', handleTouchStart, { capture: true });
+      document.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      document.removeEventListener('touchend', handleTouchEnd, { capture: true });
+      document.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
     };
   }, []); // Empty deps - uses refs for current values
 
@@ -502,46 +625,6 @@ export default function Sheet() {
 
   const handleMouseUp = () => {
     setIsPanning(false);
-  };
-
-  // Touch event handlers for mobile panning (pinch zoom handled by global listeners)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Disable touch interactions when editing a widget
-    if (editingWidgetId) return;
-    
-    // Check if touching a widget
-    const onWidget = (e.target as HTMLElement).closest('.react-draggable');
-    
-    if (e.touches.length === 1 && !onWidget) {
-      // Single finger on background: start panning
-      const touch = e.touches[0];
-      setIsPanning(true);
-      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
-    }
-    // Note: Two-finger gestures are handled by global document listeners
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // Two-finger gestures handled by global listeners
-    if (e.touches.length === 2) {
-      return; // Let global handler deal with it
-    }
-    
-    // Single finger pan (only if we started panning on background)
-    if (e.touches.length === 1 && isPanning && !isMultiTouchActive.current) {
-      const touch = e.touches[0];
-      const dx = touch.clientX - lastMousePos.current.x;
-      const dy = touch.clientY - lastMousePos.current.y;
-      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePos.current = { x: touch.clientX, y: touch.clientY };
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (e.touches.length === 0) {
-      setIsPanning(false);
-    }
-    // Note: Multi-touch cleanup handled by global listeners
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -625,7 +708,7 @@ export default function Sheet() {
   const buttonsLeftOffset = mode === 'edit' && !sidebarCollapsed && !isMobile ? 'md:left-72' : '';
 
   return (
-    <div className="w-full h-screen overflow-hidden relative bg-theme-background">
+    <div ref={containerRef} className="w-full h-screen overflow-hidden relative bg-theme-background">
       {mode === 'edit' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 
@@ -641,16 +724,12 @@ export default function Sheet() {
         />
       )}
       
-      {/* Canvas Container */}
+      {/* Canvas Container - touch events handled globally */}
       <div 
-        className={`absolute inset-0 ${isPanning ? 'cursor-grabbing' : 'cursor-default'}`}
-        style={{ touchAction: 'none' }}
+        className={`absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
