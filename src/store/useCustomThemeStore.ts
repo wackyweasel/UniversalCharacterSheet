@@ -29,18 +29,44 @@ export interface CustomTheme {
   borderStyle: string;
 }
 
-// Available font options for custom themes
+// Available font options for custom themes (web-safe fonts available on all browsers/OS)
 export const FONT_OPTIONS = [
-  { value: '"Courier New", Courier, monospace', label: 'Courier New' },
-  { value: '"Times New Roman", "Palatino Linotype", serif', label: 'Times New Roman' },
-  { value: '"Arial", "Helvetica Neue", sans-serif', label: 'Arial' },
+  // Sans-serif fonts
+  { value: '"Arial", "Helvetica Neue", "Helvetica", sans-serif', label: 'Arial' },
+  { value: '"Arial Black", "Arial Bold", sans-serif', label: 'Arial Black' },
+  { value: '"Verdana", "Geneva", sans-serif', label: 'Verdana' },
+  { value: '"Trebuchet MS", "Lucida Sans Unicode", sans-serif', label: 'Trebuchet MS' },
+  { value: '"Tahoma", "Geneva", sans-serif', label: 'Tahoma' },
+  { value: '"Segoe UI", "Helvetica Neue", sans-serif', label: 'Segoe UI' },
+  { value: '"Calibri", "Candara", sans-serif', label: 'Calibri' },
+  { value: '"Candara", "Calibri", sans-serif', label: 'Candara' },
+  { value: '"Optima", "Segoe UI", sans-serif', label: 'Optima' },
+  { value: '"Lucida Sans", "Lucida Grande", sans-serif', label: 'Lucida Sans' },
+  // Serif fonts
+  { value: '"Times New Roman", "Times", serif', label: 'Times New Roman' },
   { value: '"Georgia", "Palatino", serif', label: 'Georgia' },
+  { value: '"Palatino Linotype", "Book Antiqua", "Palatino", serif', label: 'Palatino' },
+  { value: '"Book Antiqua", "Palatino Linotype", serif', label: 'Book Antiqua' },
+  { value: '"Garamond", "Baskerville", serif', label: 'Garamond' },
+  { value: '"Baskerville", "Garamond", serif', label: 'Baskerville' },
+  { value: '"Cambria", "Georgia", serif', label: 'Cambria' },
+  { value: '"Didot", "Bodoni MT", serif', label: 'Didot' },
+  { value: '"Rockwell", "Courier Bold", serif', label: 'Rockwell' },
+  // Monospace fonts
+  { value: '"Courier New", "Courier", monospace', label: 'Courier New' },
+  { value: '"Consolas", "Lucida Console", monospace', label: 'Consolas' },
+  { value: '"Lucida Console", "Monaco", monospace', label: 'Lucida Console' },
+  { value: '"Monaco", "Consolas", monospace', label: 'Monaco' },
+  { value: '"Andale Mono", "Consolas", monospace', label: 'Andale Mono' },
+  // Display/Fantasy fonts
+  { value: '"Impact", "Haettenschweiler", sans-serif', label: 'Impact' },
+  { value: '"Copperplate", "Copperplate Gothic Light", fantasy', label: 'Copperplate' },
+  { value: '"Papyrus", fantasy', label: 'Papyrus' },
+  { value: '"Brush Script MT", cursive', label: 'Brush Script' },
+  // Cursive/Handwriting fonts
   { value: '"Comic Sans MS", "Segoe Print", cursive', label: 'Comic Sans' },
   { value: '"Segoe Print", "Comic Sans MS", cursive', label: 'Segoe Print' },
-  { value: '"Trebuchet MS", "Lucida Sans", sans-serif', label: 'Trebuchet MS' },
-  { value: '"Verdana", "Geneva", sans-serif', label: 'Verdana' },
-  { value: '"Impact", "Charcoal", sans-serif', label: 'Impact' },
-  { value: '"Lucida Console", "Monaco", monospace', label: 'Lucida Console' },
+  { value: '"Lucida Handwriting", cursive', label: 'Lucida Handwriting' },
 ];
 
 // Available icons for custom themes

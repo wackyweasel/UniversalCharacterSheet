@@ -417,7 +417,7 @@ export const THEMES: Theme[] = [
       glow: '#4a0',
     },
     fonts: {
-      heading: '"Nosifer", "Impact", sans-serif',
+      heading: '"Copperplate", "Copperplate Gothic Light", "Impact", fantasy',
       body: '"Courier New", monospace',
     },
     borderRadius: '0px',
@@ -497,8 +497,8 @@ export const THEMES: Theme[] = [
       glow: '#ff00ff',
     },
     fonts: {
-      heading: '"Audiowide", "Impact", sans-serif',
-      body: '"Share Tech Mono", "Consolas", monospace',
+      heading: '"Consolas", "Lucida Console", "Monaco", monospace',
+      body: '"Consolas", "Lucida Console", "Monaco", monospace',
     },
     borderRadius: '0px',
     borderWidth: '2px',
