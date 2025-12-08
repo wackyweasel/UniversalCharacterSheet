@@ -5,6 +5,14 @@ import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStor
 import { Character } from '../types';
 import { getPresetNames, getPreset } from '../presets';
 
+// Backup data structure
+interface BackupData {
+  version: 1;
+  timestamp: string;
+  characters: Character[];
+  customThemes: Record<string, any>;
+}
+
 // Helper to get theme colors for a character
 function getThemeStyles(themeId?: string) {
   // First check if it's a custom theme
@@ -57,7 +65,7 @@ function getThemeStyles(themeId?: string) {
 
 export default function CharacterList() {
   // Subscribe to custom theme changes so cards update when themes are edited
-  useCustomThemeStore((state) => state.customThemes);
+  const customThemes = useCustomThemeStore((state) => state.customThemes);
   
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
@@ -69,10 +77,12 @@ export default function CharacterList() {
   
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>('default');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
   
   const presetNames = getPresetNames();
 
@@ -150,11 +160,93 @@ export default function CharacterList() {
     }
   };
 
+  const handleBackup = () => {
+    const backupData: BackupData = {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      characters: characters,
+      customThemes: customThemes
+    };
+    
+    const dataStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ucs_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const backupData = JSON.parse(event.target?.result as string) as BackupData;
+        
+        // Validate backup structure
+        if (!backupData.characters || !Array.isArray(backupData.characters)) {
+          alert('Invalid backup file format');
+          return;
+        }
+        
+        // Confirm restore
+        const confirmRestore = window.confirm(
+          `This will replace all your current data with the backup from ${backupData.timestamp ? new Date(backupData.timestamp).toLocaleString() : 'unknown date'}.\n\n` +
+          `Backup contains ${backupData.characters.length} character(s).\n\n` +
+          `Are you sure you want to continue?`
+        );
+        
+        if (!confirmRestore) return;
+        
+        // Restore characters
+        localStorage.setItem('ucs:store', JSON.stringify({
+          characters: backupData.characters,
+          activeCharacterId: null
+        }));
+        
+        // Restore custom themes if present
+        if (backupData.customThemes) {
+          localStorage.setItem('ucs:customThemes', JSON.stringify(backupData.customThemes));
+        }
+        
+        // Reload the page to apply changes
+        window.location.reload();
+      } catch (err) {
+        alert('Failed to parse backup file');
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    if (backupFileInputRef.current) {
+      backupFileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-8 h-full overflow-auto">
-      <h1 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-8 border-b-[length:var(--border-width)] border-theme-border pb-2 sm:pb-4 uppercase tracking-wider text-theme-ink font-heading">
-        Character Select
-      </h1>
+      <div className="flex justify-between items-center mb-4 sm:mb-8 border-b-[length:var(--border-width)] border-theme-border pb-2 sm:pb-4">
+        <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-wider text-theme-ink font-heading">
+          Character Select
+        </h1>
+        <button
+          onClick={() => setShowBackupModal(true)}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-body text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper rounded-theme transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          title="Backup & Restore"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          </svg>
+          <span className="hidden sm:inline">Backup</span>
+        </button>
+      </div>
 
       {/* Create and Import buttons */}
       <div className="mb-6 sm:mb-12 flex gap-2 sm:gap-4">
@@ -394,6 +486,86 @@ export default function CharacterList() {
               >
                 Create
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Backup & Restore Modal */}
+      {showBackupModal && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => setShowBackupModal(false)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-heading text-theme-ink font-bold text-xl">Backup & Restore</h3>
+              <button
+                onClick={() => setShowBackupModal(false)}
+                className="text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Warning Message */}
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-theme p-4 mb-6">
+              <div className="flex gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <p className="font-body text-theme-ink text-sm font-semibold mb-1">
+                    Your data is stored locally
+                  </p>
+                  <p className="font-body text-theme-muted text-sm">
+                    All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Backup Section */}
+            <div className="mb-4">
+              <h4 className="font-body text-theme-ink font-semibold mb-2">Create Backup</h4>
+              <p className="font-body text-theme-muted text-sm mb-3">
+                Download a backup file containing all your characters and custom themes.
+              </p>
+              <button
+                onClick={handleBackup}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-theme transition-colors font-bold"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Backup
+              </button>
+            </div>
+            
+            <div className="border-t border-theme-border my-4"></div>
+            
+            {/* Restore Section */}
+            <div>
+              <h4 className="font-body text-theme-ink font-semibold mb-2">Restore from Backup</h4>
+              <p className="font-body text-theme-muted text-sm mb-3">
+                Upload a backup file to restore your characters and themes. <span className="text-red-500 font-semibold">This will replace all current data.</span>
+              </p>
+              <label className="w-full flex items-center justify-center gap-2 px-4 py-3 font-body border-[length:var(--border-width)] border-theme-border text-theme-ink hover:bg-theme-accent hover:text-theme-paper rounded-theme transition-colors font-bold cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Upload Backup File
+                <input
+                  ref={backupFileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleRestore}
+                  className="hidden"
+                />
+              </label>
             </div>
           </div>
         </>
