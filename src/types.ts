@@ -5,6 +5,7 @@ export type WidgetType =
   | 'CHECKBOX'
   | 'HEALTH_BAR'
   | 'DICE_ROLLER'
+  | 'DICE_TRAY'
   | 'SPELL_SLOT'
   | 'IMAGE'
   | 'POOL'
@@ -65,6 +66,8 @@ export interface WidgetData {
   diceType?: number;
   modifier?: number;
   diceGroups?: DiceGroup[];
+  // Dice Tray
+  availableDice?: number[];
   // Spell Slot
   spellLevels?: SpellLevel[];
   // Number

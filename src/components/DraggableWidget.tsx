@@ -10,6 +10,7 @@ import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
 import HealthBarWidget from './widgets/HealthBarWidget';
 import DiceRollerWidget from './widgets/DiceRollerWidget';
+import DiceTrayWidget from './widgets/DiceTrayWidget';
 import SpellSlotWidget from './widgets/SpellSlotWidget';
 import ImageWidget from './widgets/ImageWidget';
 import PoolWidget from './widgets/PoolWidget';
@@ -34,6 +35,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'CHECKBOX': { width: 140, height: 60 },
   'HEALTH_BAR': { width: 160, height: 80 },
   'DICE_ROLLER': { width: 160, height: 120 },
+  'DICE_TRAY': { width: 180, height: 180 },
   'SPELL_SLOT': { width: 160, height: 80 },
   'IMAGE': { width: 100, height: 100 },
   'POOL': { width: 120, height: 80 },
@@ -279,6 +281,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
+      case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;

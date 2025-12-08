@@ -7,6 +7,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'CHECKBOX', label: 'Checkbox' },
   { type: 'TOGGLE_GROUP', label: 'Conditions' },
   { type: 'DICE_ROLLER', label: 'Dice Roller' },
+  { type: 'DICE_TRAY', label: 'Dice Tray' },
   { type: 'FORM', label: 'Form' },
   { type: 'HEALTH_BAR', label: 'Health Bar' },
   { type: 'IMAGE', label: 'Image' },
