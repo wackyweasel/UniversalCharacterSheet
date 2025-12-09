@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Widget, TableRow } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -20,16 +20,7 @@ export default function TableWidget({ widget, height }: Props) {
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
-  const dragRowItem = useRef<number | null>(null);
-  
-  // Touch drag state
-  const touchDragState = useRef<{
-    isDragging: boolean;
-    startY: number;
-    currentIndex: number;
-    rowElements: HTMLTableRowElement[];
-  } | null>(null);
-  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  const dragRowItem = React.useRef<number | null>(null);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -100,84 +91,6 @@ export default function TableWidget({ widget, height }: Props) {
     setDragOverRowIndex(null);
   };
 
-  // Touch drag handlers for mobile support
-  const handleRowTouchStart = useCallback((e: React.TouchEvent, index: number) => {
-    e.stopPropagation();
-    
-    const touch = e.touches[0];
-    const rowElements = tableBodyRef.current 
-      ? Array.from(tableBodyRef.current.querySelectorAll('tr')) as HTMLTableRowElement[]
-      : [];
-    
-    touchDragState.current = {
-      isDragging: true,
-      startY: touch.clientY,
-      currentIndex: index,
-      rowElements
-    };
-    
-    setDraggedRowIndex(index);
-    dragRowItem.current = index;
-  }, []);
-
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!touchDragState.current?.isDragging) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const touch = e.touches[0];
-    const { rowElements, currentIndex } = touchDragState.current;
-    
-    // Find which row the touch is over
-    for (let i = 0; i < rowElements.length; i++) {
-      const rect = rowElements[i].getBoundingClientRect();
-      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-        if (i !== currentIndex) {
-          setDragOverRowIndex(i);
-        } else {
-          setDragOverRowIndex(null);
-        }
-        break;
-      }
-    }
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!touchDragState.current?.isDragging) return;
-    
-    const fromIndex = dragRowItem.current;
-    const toIndex = dragOverRowIndex;
-    
-    if (fromIndex !== null && toIndex !== null && fromIndex !== toIndex) {
-      const newRows = [...rows];
-      const [movedRow] = newRows.splice(fromIndex, 1);
-      const insertIndex = fromIndex < toIndex ? toIndex : toIndex;
-      newRows.splice(insertIndex, 0, movedRow);
-      updateWidgetData(widget.id, { rows: newRows });
-    }
-    
-    touchDragState.current = null;
-    dragRowItem.current = null;
-    setDraggedRowIndex(null);
-    setDragOverRowIndex(null);
-  }, [dragOverRowIndex, rows, updateWidgetData, widget.id]);
-
-  // Add global touch event listeners when dragging
-  useEffect(() => {
-    if (draggedRowIndex !== null) {
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd);
-      document.addEventListener('touchcancel', handleTouchEnd);
-      
-      return () => {
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
-        document.removeEventListener('touchcancel', handleTouchEnd);
-      };
-    }
-  }, [draggedRowIndex, handleTouchMove, handleTouchEnd]);
-
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
@@ -210,7 +123,7 @@ export default function TableWidget({ widget, height }: Props) {
               <th className={'w-4'}></th>
             </tr>
           </thead>
-          <tbody ref={tableBodyRef}>
+          <tbody>
             {rows.map((row: TableRow, rowIdx: number) => (
               <tr 
                 key={rowIdx} 
@@ -233,7 +146,6 @@ export default function TableWidget({ widget, height }: Props) {
                   onDragStart={(e) => handleRowDragStart(e, rowIdx)}
                   onDragEnd={handleRowDragEnd}
                   onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => handleRowTouchStart(e, rowIdx)}
                 >
                   <div className="text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none">
                     ⠿
