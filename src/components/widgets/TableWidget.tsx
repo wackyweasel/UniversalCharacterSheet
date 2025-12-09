@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Widget, TableRow } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -20,7 +20,9 @@ export default function TableWidget({ widget, height }: Props) {
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
-  const dragRowItem = React.useRef<number | null>(null);
+  const dragRowItem = useRef<number | null>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const touchDragActive = useRef<boolean>(false);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -91,6 +93,80 @@ export default function TableWidget({ widget, height }: Props) {
     setDragOverRowIndex(null);
   };
 
+  // Touch drag handlers for mobile devices
+  const handleTouchStart = useCallback((e: React.TouchEvent, index: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dragRowItem.current = index;
+    touchDragActive.current = true;
+    setDraggedRowIndex(index);
+  }, []);
+
+  const getRowIndexFromTouch = useCallback((touch: Touch): number | null => {
+    if (!tableRef.current) return null;
+    const rows = tableRef.current.querySelectorAll('tbody tr');
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        return i;
+      }
+    }
+    return null;
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!touchDragActive.current || dragRowItem.current === null) return;
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const targetRowIndex = getRowIndexFromTouch(touch);
+    
+    if (targetRowIndex !== null && targetRowIndex !== dragRowItem.current) {
+      setDragOverRowIndex(targetRowIndex);
+    } else {
+      setDragOverRowIndex(null);
+    }
+  }, [getRowIndexFromTouch]);
+
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    if (!touchDragActive.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const fromIndex = dragRowItem.current;
+    const toIndex = dragOverRowIndex;
+    
+    if (fromIndex !== null && toIndex !== null && fromIndex !== toIndex) {
+      const newRows = [...rows];
+      const [movedRow] = newRows.splice(fromIndex, 1);
+      const insertIndex = fromIndex < toIndex ? toIndex : toIndex;
+      newRows.splice(insertIndex, 0, movedRow);
+      updateWidgetData(widget.id, { rows: newRows });
+    }
+    
+    dragRowItem.current = null;
+    touchDragActive.current = false;
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+  }, [rows, dragOverRowIndex, updateWidgetData, widget.id]);
+
+  // Add and remove touch event listeners on document
+  useEffect(() => {
+    const handleDocumentTouchMove = (e: TouchEvent) => handleTouchMove(e);
+    const handleDocumentTouchEnd = (e: TouchEvent) => handleTouchEnd(e);
+    
+    document.addEventListener('touchmove', handleDocumentTouchMove, { passive: false });
+    document.addEventListener('touchend', handleDocumentTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleDocumentTouchEnd, { passive: false });
+    
+    return () => {
+      document.removeEventListener('touchmove', handleDocumentTouchMove);
+      document.removeEventListener('touchend', handleDocumentTouchEnd);
+      document.removeEventListener('touchcancel', handleDocumentTouchEnd);
+    };
+  }, [handleTouchMove, handleTouchEnd]);
+
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
@@ -111,7 +187,7 @@ export default function TableWidget({ widget, height }: Props) {
         }}
         onDragOver={(e) => e.preventDefault()}
       >
-        <table className={`w-full border-collapse ${cellClass}`}>
+        <table ref={tableRef} className={`w-full border-collapse ${cellClass}`}>
           <thead className="sticky top-0">
             <tr>
               <th className="w-4"></th>
@@ -146,6 +222,7 @@ export default function TableWidget({ widget, height }: Props) {
                   onDragStart={(e) => handleRowDragStart(e, rowIdx)}
                   onDragEnd={handleRowDragEnd}
                   onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => handleTouchStart(e, rowIdx)}
                 >
                   <div className="text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none">
                     ⠿
