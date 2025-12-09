@@ -1135,6 +1135,7 @@ function TableEditor({ widget, updateData }: EditorProps) {
                 className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 touch-none"
                 title="Drag to reorder"
                 onTouchStart={(e) => handleColumnTouchStart(e, idx)}
+                data-touch-drag
               >
                 ⠿
               </div>
