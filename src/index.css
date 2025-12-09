@@ -96,29 +96,21 @@
   background-size: 20px 20px;
 }
 
-/* CRITICAL: Disable browser touch handling on ALL draggable elements
-   This allows our global touch handler to fully control pinch-to-zoom */
+/* Disable default touch actions on draggable elements to prevent browser gestures
+   from interfering, but allow our JS handlers to receive touch events */
 .react-draggable,
-.react-draggable *,
 .drag-handle {
   touch-action: none;
 }
 
-/* During pinch-to-zoom, completely disable ALL touch interactions except our handler */
-.pinch-active {
-  touch-action: none !important;
-}
-
-.pinch-active * {
+/* During pinch-to-zoom, disable interactions on widgets to prevent interference
+   but keep the main canvas receiving touch events for our handler */
+.pinch-active .react-draggable {
   pointer-events: none !important;
-  touch-action: none !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
 }
 
-/* Re-enable pointer events on the canvas container so our handler works */
-.pinch-active .pinch-canvas-container {
-  pointer-events: auto !important;
+.pinch-active .react-draggable * {
+  pointer-events: none !important;
 }
 
 /* Mobile-friendly scrollbars */
