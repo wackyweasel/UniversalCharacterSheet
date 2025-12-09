@@ -899,7 +899,7 @@ export default function Sheet() {
                         <span>{sheet.name}</span>
                         {/* Edit buttons - only show in edit mode */}
                         {mode === 'edit' && (
-                          <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             {/* Rename button */}
                             <span
                               onClick={(e) => {
