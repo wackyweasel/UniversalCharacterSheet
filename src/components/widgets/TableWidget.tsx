@@ -82,7 +82,28 @@ export default function TableWidget({ widget, height }: Props) {
                         value={cell}
                         onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
                         onBlur={() => setEditingCell(null)}
-                        onKeyDown={(e) => e.key === 'Enter' && setEditingCell(null)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            setEditingCell(null);
+                          } else if (e.key === 'Tab') {
+                            e.preventDefault();
+                            if (e.shiftKey) {
+                              // Move to previous cell
+                              if (colIdx > 0) {
+                                setEditingCell({ row: rowIdx, col: colIdx - 1 });
+                              } else if (rowIdx > 0) {
+                                setEditingCell({ row: rowIdx - 1, col: columns.length - 1 });
+                              }
+                            } else {
+                              // Move to next cell
+                              if (colIdx < columns.length - 1) {
+                                setEditingCell({ row: rowIdx, col: colIdx + 1 });
+                              } else if (rowIdx < rows.length - 1) {
+                                setEditingCell({ row: rowIdx + 1, col: 0 });
+                              }
+                            }
+                          }
+                        }}
                         className={`w-full bg-transparent focus:outline-none text-[10px] text-theme-ink font-body`}
                         onMouseDown={(e) => e.stopPropagation()}
                       />
