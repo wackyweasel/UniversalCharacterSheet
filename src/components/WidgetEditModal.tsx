@@ -1012,11 +1012,14 @@ function TableEditor({ widget, updateData }: EditorProps) {
   // Touch drag handlers for column reordering
   const handleColumnTouchStart = React.useCallback((e: React.TouchEvent, index: number) => {
     e.stopPropagation();
+    console.log('Column touch start', index);
     
     const touch = e.touches[0];
     const elements = columnsContainerRef.current 
       ? Array.from(columnsContainerRef.current.querySelectorAll('[data-column-item]')) as HTMLDivElement[]
       : [];
+    
+    console.log('Found elements:', elements.length);
     
     touchDragState.current = {
       isDragging: true,
@@ -1032,6 +1035,7 @@ function TableEditor({ widget, updateData }: EditorProps) {
   const handleColumnTouchMove = React.useCallback((e: TouchEvent) => {
     if (!touchDragState.current?.isDragging) return;
     
+    console.log('Column touch move');
     e.preventDefault();
     e.stopPropagation();
     
@@ -1052,6 +1056,12 @@ function TableEditor({ widget, updateData }: EditorProps) {
   }, []);
 
   const handleColumnTouchEnd = React.useCallback(() => {
+    console.log('Column touch end', { 
+      isDragging: touchDragState.current?.isDragging,
+      fromIndex: dragItem.current,
+      toIndex: dragOverIndexRef.current 
+    });
+    
     if (!touchDragState.current?.isDragging) return;
     
     const fromIndex = dragItem.current;
@@ -1060,6 +1070,7 @@ function TableEditor({ widget, updateData }: EditorProps) {
     const currentRows = rowsRef.current;
     
     if (fromIndex !== null && toIndex !== null && fromIndex !== toIndex) {
+      console.log('Moving column from', fromIndex, 'to', toIndex);
       const newColumns = [...currentColumns];
       const newRows = currentRows.map((row: { cells: string[] }) => ({ ...row, cells: [...row.cells] }));
       
