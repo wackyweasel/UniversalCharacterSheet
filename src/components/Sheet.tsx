@@ -458,19 +458,8 @@ export default function Sheet() {
       }
       return false;
     };
-    
-    // Check if the target or its ancestors have data-touch-drag attribute
-    // This indicates the element handles its own touch dragging (e.g., table row reorder handles)
-    const isOnTouchDragHandle = (el: Element | null): boolean => {
-      while (el && el !== document.body) {
-        if (el.hasAttribute('data-touch-drag')) return true;
-        el = el.parentElement;
-      }
-      return false;
-    };
 
     let touchStartTarget: Element | null = null;
-    let touchStartedOnDragHandle = false;
 
     const handleTouchStart = (e: TouchEvent) => {
       const totalTouches = e.touches.length;
@@ -479,12 +468,6 @@ export default function Sheet() {
       if (totalTouches === 1) {
         touchStartTarget = e.target as Element;
         touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
-        touchStartedOnDragHandle = isOnTouchDragHandle(e.target as Element);
-      }
-      
-      // If touch started on a drag handle, don't interfere with it
-      if (touchStartedOnDragHandle) {
-        return;
       }
       
       // TWO OR MORE FINGERS = PINCH ZOOM
@@ -574,8 +557,6 @@ export default function Sheet() {
       // Single finger pan
       if (totalTouches === 1 && isTouchPanning.current && lastTouchCenter.current && !isPinchingRef.current) {
         if (touchStartTarget && isOnSidebar(touchStartTarget)) return;
-        // Don't pan if touch started on a drag handle
-        if (touchStartedOnDragHandle) return;
         
         e.preventDefault();
         const touch = e.touches[0];
@@ -595,7 +576,6 @@ export default function Sheet() {
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
-        touchStartedOnDragHandle = false;
         touchStartTarget = null;
         setPinching(false);
       } else if (remainingTouches === 1) {

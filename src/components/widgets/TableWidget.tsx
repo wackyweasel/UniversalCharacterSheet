@@ -234,7 +234,6 @@ export default function TableWidget({ widget, height }: Props) {
                   onDragEnd={handleRowDragEnd}
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => handleRowTouchStart(e, rowIdx)}
-                  data-touch-drag
                 >
                   <div className="text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none">
                     ⠿
