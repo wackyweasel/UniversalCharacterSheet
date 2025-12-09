@@ -292,6 +292,27 @@ export default function Sheet() {
       document.body.classList.remove('pinch-active');
     }
   };
+  
+  // ULTRA-EARLY touch detector - runs at window level to catch touches before anything else
+  // This sets __isPinching IMMEDIATELY when 2+ touches are detected
+  useEffect(() => {
+    const earlyTouchDetector = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        (window as unknown as { __isPinching?: boolean }).__isPinching = true;
+        isPinchingRef.current = true;
+        document.body.classList.add('pinch-active');
+      }
+    };
+    
+    // Use capture phase at window level - fires before document handlers
+    window.addEventListener('touchstart', earlyTouchDetector, { capture: true, passive: true });
+    window.addEventListener('touchmove', earlyTouchDetector, { capture: true, passive: true });
+    
+    return () => {
+      window.removeEventListener('touchstart', earlyTouchDetector, { capture: true });
+      window.removeEventListener('touchmove', earlyTouchDetector, { capture: true });
+    };
+  }, []);
 
   // Fit all widgets in view with maximum zoom
   const handleFitAllWidgets = () => {
