@@ -168,16 +168,6 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   // Resize handlers
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    // Don't start resize if pinching
-    if ((window as unknown as { __isPinching?: boolean }).__isPinching) {
-      return;
-    }
-    
-    // Don't start resize if multi-touch
-    if ('touches' in e && e.touches.length >= 2) {
-      return;
-    }
-    
     e.preventDefault();
     e.stopPropagation();
     
@@ -205,12 +195,6 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isResizing) return;
-    
-    // Cancel resize if pinching starts
-    if ((window as unknown as { __isPinching?: boolean }).__isPinching) {
-      setIsResizing(false);
-      return;
-    }
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -245,28 +229,12 @@ export default function DraggableWidget({ widget, scale }: Props) {
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  const handleStart = (e: DraggableEvent, data: DraggableData) => {
-    // CRITICAL: Cancel drag if pinch-to-zoom is active
-    // This prevents react-draggable from interfering with pinch gestures
-    if ((window as unknown as { __isPinching?: boolean }).__isPinching) {
-      return false; // Returning false cancels the drag
-    }
-    
-    // Also check if this is a touch event with multiple touches
-    if ('touches' in (e as unknown as TouchEvent) && (e as unknown as TouchEvent).touches?.length >= 2) {
-      return false;
-    }
-    
+  const handleStart = (_e: DraggableEvent, data: DraggableData) => {
     // Store the starting position for calculating delta
     dragStartPos.current = { x: data.x, y: data.y };
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
-    // Cancel drag if pinch starts mid-drag
-    if ((window as unknown as { __isPinching?: boolean }).__isPinching) {
-      return false;
-    }
-    
     // If widget is in a group, visually move sibling widgets during drag
     if (widget.groupId) {
       const deltaX = data.x - dragStartPos.current.x;
