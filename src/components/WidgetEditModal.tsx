@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType, ToggleItem, CheckboxItem, SpellLevel, NumberItem, DiceGroup, FormItem } from '../types';
 import { useStore } from '../store/useStore';
@@ -896,6 +896,9 @@ function TimeTrackerEditor({ widget, updateData }: EditorProps) {
 
 function TableEditor({ widget, updateData }: EditorProps) {
   const { label, columns = ['Item', 'Qty', 'Weight'], rows = [] } = widget.data;
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragItem = React.useRef<number | null>(null);
 
   const handleColumnChange = (index: number, value: string) => {
     const newColumns = [...columns];
@@ -904,14 +907,83 @@ function TableEditor({ widget, updateData }: EditorProps) {
   };
 
   const addColumn = () => {
-    updateData({ columns: [...columns, 'New'] });
+    // Also add empty cell to all existing rows
+    const newRows = rows.map((row: { cells: string[] }) => ({
+      ...row,
+      cells: [...row.cells, '']
+    }));
+    updateData({ columns: [...columns, 'New'], rows: newRows });
   };
 
   const removeColumn = (index: number) => {
     if (columns.length <= 1) return;
     const newColumns = [...columns];
     newColumns.splice(index, 1);
-    updateData({ columns: newColumns });
+    // Also update rows to remove the column data
+    const newRows = rows.map((row: { cells: string[] }) => ({
+      ...row,
+      cells: row.cells.filter((_: string, i: number) => i !== index)
+    }));
+    updateData({ columns: newColumns, rows: newRows });
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    dragItem.current = index;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+    // Set a drag image
+    const target = e.currentTarget as HTMLElement;
+    if (target) {
+      e.dataTransfer.setDragImage(target, 0, 0);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragItem.current !== null && dragItem.current !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const fromIndex = dragItem.current;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      // Create new arrays
+      const newColumns = [...columns];
+      const newRows = rows.map((row: { cells: string[] }) => ({ ...row, cells: [...row.cells] }));
+      
+      // Move column: remove from old position, insert at new position
+      const [movedColumn] = newColumns.splice(fromIndex, 1);
+      // When moving down, the target index shifts after removal, so we use toIndex directly
+      // When moving up, toIndex is already correct
+      const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+      newColumns.splice(insertIndex, 0, movedColumn);
+      
+      // Do the same for row cells
+      newRows.forEach((row) => {
+        const [movedCell] = row.cells.splice(fromIndex, 1);
+        row.cells.splice(insertIndex, 0, movedCell);
+      });
+      
+      updateData({ columns: newColumns, rows: newRows });
+    }
+    dragItem.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragItem.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const addRow = () => {
@@ -940,14 +1012,42 @@ function TableEditor({ widget, updateData }: EditorProps) {
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Columns</label>
-        <div className="space-y-2">
+        <div 
+          className="space-y-2"
+          onDragOver={(e) => e.preventDefault()}
+        >
           {columns.map((col: string, idx: number) => (
-            <div key={idx} className="flex items-center gap-2">
+            <div 
+              key={idx} 
+              className={`flex items-center gap-2 ${draggedIndex === idx ? 'opacity-50' : ''} ${dragOverIndex === idx && draggedIndex !== idx ? 'border-t-2 border-theme-accent' : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDragOver(e, idx);
+              }}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDrop(e, idx);
+              }}
+              onDragEnd={handleDragEnd}
+            >
+              <div 
+                className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 touch-none"
+                title="Drag to reorder"
+              >
+                ⠿
+              </div>
               <input
                 className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
                 value={col}
                 onChange={(e) => handleColumnChange(idx, e.target.value)}
                 placeholder="Column name"
+                draggable={false}
+                onDragOver={(e) => e.stopPropagation()}
               />
               {columns.length > 1 && (
                 <button
@@ -1117,6 +1217,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
+      onDragOver={(e) => e.preventDefault()}
     >
       <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-none sm:rounded-theme shadow-theme sm:max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}

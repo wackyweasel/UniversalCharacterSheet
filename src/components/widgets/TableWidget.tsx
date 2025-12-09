@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Widget, TableRow } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -18,6 +18,9 @@ export default function TableWidget({ widget, height }: Props) {
   } = widget.data;
   
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
+  const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
+  const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
+  const dragRowItem = React.useRef<number | null>(null);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -46,6 +49,48 @@ export default function TableWidget({ widget, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
+  // Row drag handlers
+  const handleRowDragStart = (e: React.DragEvent, index: number) => {
+    dragRowItem.current = index;
+    setDraggedRowIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleRowDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragRowItem.current !== null && dragRowItem.current !== index) {
+      setDragOverRowIndex(index);
+    }
+  };
+
+  const handleRowDragLeave = () => {
+    setDragOverRowIndex(null);
+  };
+
+  const handleRowDrop = (e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const fromIndex = dragRowItem.current;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      const newRows = [...rows];
+      const [movedRow] = newRows.splice(fromIndex, 1);
+      const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+      newRows.splice(insertIndex, 0, movedRow);
+      updateWidgetData(widget.id, { rows: newRows });
+    }
+    dragRowItem.current = null;
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+  };
+
+  const handleRowDragEnd = () => {
+    dragRowItem.current = null;
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+  };
+
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
@@ -59,10 +104,12 @@ export default function TableWidget({ widget, height }: Props) {
         className="overflow-auto flex-1"
         style={{ maxHeight: `${tableHeight}px` }}
         onWheel={(e) => e.stopPropagation()}
+        onDragOver={(e) => e.preventDefault()}
       >
         <table className={`w-full border-collapse ${cellClass}`}>
           <thead className="sticky top-0">
             <tr>
+              <th className="w-4"></th>
               {columns.map((col: string, idx: number) => (
                 <th key={idx} className={`border border-theme-border bg-theme-background ${cellClass} text-theme-ink font-heading`}>
                   {col}
@@ -73,7 +120,32 @@ export default function TableWidget({ widget, height }: Props) {
           </thead>
           <tbody>
             {rows.map((row: TableRow, rowIdx: number) => (
-              <tr key={rowIdx} className="group">
+              <tr 
+                key={rowIdx} 
+                className={`group ${draggedRowIndex === rowIdx ? 'opacity-50' : ''} ${dragOverRowIndex === rowIdx && draggedRowIndex !== rowIdx ? 'border-t-2 border-theme-accent' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleRowDragOver(e, rowIdx);
+                }}
+                onDragLeave={handleRowDragLeave}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleRowDrop(e, rowIdx);
+                }}
+              >
+                <td 
+                  className="w-4 p-0 cursor-grab active:cursor-grabbing"
+                  draggable
+                  onDragStart={(e) => handleRowDragStart(e, rowIdx)}
+                  onDragEnd={handleRowDragEnd}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <div className="text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none">
+                    ⠿
+                  </div>
+                </td>
                 {row.cells.map((cell: string, colIdx: number) => (
                   <td key={colIdx} className={`border border-theme-border ${cellClass} text-theme-ink`}>
                     {editingCell?.row === rowIdx && editingCell?.col === colIdx ? (
