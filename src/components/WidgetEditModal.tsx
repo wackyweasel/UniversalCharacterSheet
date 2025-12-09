@@ -908,20 +908,6 @@ function TableEditor({ widget, updateData }: EditorProps) {
     currentIndex: number;
     elements: HTMLDivElement[];
   } | null>(null);
-  
-  // Ref to track dragOverIndex for touch handlers (avoids stale closure)
-  const dragOverIndexRef = React.useRef<number | null>(null);
-  React.useEffect(() => {
-    dragOverIndexRef.current = dragOverIndex;
-  }, [dragOverIndex]);
-  
-  // Refs for columns and rows to avoid stale closures in touch end handler
-  const columnsRef = React.useRef(columns);
-  const rowsRef = React.useRef(rows);
-  React.useEffect(() => {
-    columnsRef.current = columns;
-    rowsRef.current = rows;
-  }, [columns, rows]);
 
   const handleColumnChange = (index: number, value: string) => {
     const newColumns = [...columns];
@@ -1055,13 +1041,11 @@ function TableEditor({ widget, updateData }: EditorProps) {
     if (!touchDragState.current?.isDragging) return;
     
     const fromIndex = dragItem.current;
-    const toIndex = dragOverIndexRef.current;
-    const currentColumns = columnsRef.current;
-    const currentRows = rowsRef.current;
+    const toIndex = dragOverIndex;
     
     if (fromIndex !== null && toIndex !== null && fromIndex !== toIndex) {
-      const newColumns = [...currentColumns];
-      const newRows = currentRows.map((row: { cells: string[] }) => ({ ...row, cells: [...row.cells] }));
+      const newColumns = [...columns];
+      const newRows = rows.map((row: { cells: string[] }) => ({ ...row, cells: [...row.cells] }));
       
       const [movedColumn] = newColumns.splice(fromIndex, 1);
       const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
@@ -1079,7 +1063,7 @@ function TableEditor({ widget, updateData }: EditorProps) {
     dragItem.current = null;
     setDraggedIndex(null);
     setDragOverIndex(null);
-  }, [updateData]);
+  }, [columns, dragOverIndex, rows, updateData]);
 
   // Add global touch event listeners when dragging
   React.useEffect(() => {
