@@ -104,15 +104,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
   }, [widget.data, widget.h]);
 
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
-    // CRITICAL: Always allow multi-touch to propagate for pinch-zoom
-    // Check the NATIVE event's touches, not just this element's
-    if (e.nativeEvent.touches.length >= 2) {
-      // Don't prevent, don't stop - let Sheet.tsx handle pinch
-      return;
-    }
-    
-    // Also check global pinch state
-    if ((window as unknown as { __isPinching?: boolean }).__isPinching) {
+    // Don't interfere with multi-touch gestures (pinch zoom)
+    // Let the global handler in Sheet.tsx manage all multi-touch
+    if (e.touches.length >= 2) {
+      // Cancel any potential drag operation by not selecting
       return;
     }
     
@@ -252,14 +247,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   const handleStart = (e: DraggableEvent, data: DraggableData) => {
     // CRITICAL: Cancel drag if pinch-to-zoom is active
+    // This prevents react-draggable from interfering with pinch gestures
     if ((window as unknown as { __isPinching?: boolean }).__isPinching) {
-      return false;
+      return false; // Returning false cancels the drag
     }
     
-    // Check total touches on document (not just this event)
-    // This catches the case where one finger is on widget, another elsewhere
-    const touchEvent = e as unknown as TouchEvent;
-    if (touchEvent.touches && touchEvent.touches.length >= 2) {
+    // Also check if this is a touch event with multiple touches
+    if ('touches' in (e as unknown as TouchEvent) && (e as unknown as TouchEvent).touches?.length >= 2) {
       return false;
     }
     
