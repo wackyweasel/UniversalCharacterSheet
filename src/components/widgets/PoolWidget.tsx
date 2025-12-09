@@ -62,7 +62,12 @@ export default function PoolWidget({ widget }: Props) {
       )}
 
       {/* Pool Display */}
-      <div className={`flex flex-wrap gap-0.5 flex-1 content-start overflow-y-auto`} onWheel={(e) => e.stopPropagation()}>
+      <div className={`flex flex-wrap gap-0.5 flex-1 content-start overflow-y-auto`} onWheel={(e) => {
+        const el = e.currentTarget;
+        if (el.scrollHeight > el.clientHeight) {
+          e.stopPropagation();
+        }
+      }}>
         {Array.from({ length: maxPool }).map((_, idx) => (
           <button
             key={idx}

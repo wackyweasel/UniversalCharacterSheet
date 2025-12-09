@@ -103,7 +103,12 @@ export default function TableWidget({ widget, height }: Props) {
       <div 
         className="overflow-auto flex-1"
         style={{ maxHeight: `${tableHeight}px` }}
-        onWheel={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) {
+            e.stopPropagation();
+          }
+        }}
         onDragOver={(e) => e.preventDefault()}
       >
         <table className={`w-full border-collapse ${cellClass}`}>

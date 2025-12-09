@@ -96,6 +96,12 @@
   background-size: 20px 20px;
 }
 
+/* During pinch-to-zoom, disable touch events on widgets to prevent interference */
+.pinch-active .react-draggable {
+  pointer-events: none !important;
+  touch-action: none !important;
+}
+
 /* Mobile-friendly scrollbars */
 @media (max-width: 768px) {
   ::-webkit-scrollbar {

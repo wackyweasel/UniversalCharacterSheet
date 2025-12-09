@@ -48,7 +48,12 @@ export default function CheckboxWidget({ widget, height }: Props) {
       <div 
         className={`flex flex-col gap-0.5 overflow-y-auto flex-1`}
         style={{ maxHeight: `${itemsHeight}px` }}
-        onWheel={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation();
+          }
+        }}
       >
         {(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>

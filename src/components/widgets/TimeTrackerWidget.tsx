@@ -181,7 +181,12 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
       <div 
         className={`space-y-1 overflow-y-auto flex-1 ${itemClass}`}
         style={{ maxHeight: `${effectsListHeight}px` }}
-        onWheel={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation();
+          }
+        }}
       >
         {(timedEffects as TimedEffect[]).map((effect, idx) => (
           <div 

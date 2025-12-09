@@ -66,7 +66,12 @@ export default function SpellSlotWidget({ widget, height }: Props) {
       <div 
         className={`flex flex-col ${gapClass} overflow-y-auto flex-1`}
         style={{ maxHeight: `${levelsHeight}px` }}
-        onWheel={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation();
+          }
+        }}
       >
         {(spellLevels as SpellLevel[]).map((levelData, levelIdx) => (
           <div key={levelIdx} className={`flex items-center ${gapClass}`}>

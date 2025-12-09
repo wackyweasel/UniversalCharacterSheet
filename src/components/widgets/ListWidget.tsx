@@ -48,7 +48,12 @@ export default function ListWidget({ widget, height }: Props) {
       <div 
         className="space-y-1 overflow-y-auto flex-1"
         style={{ maxHeight: `${listHeight}px` }}
-        onWheel={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation();
+          }
+        }}
       >
         {normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">

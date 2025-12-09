@@ -262,6 +262,7 @@ export default function Sheet() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
+  const [isPinching, setIsPinching] = useState(false); // Track pinch state for CSS
   const lastMousePos = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -275,10 +276,12 @@ export default function Sheet() {
   // Refs to avoid stale closures in global touch handlers
   const scaleRef = useRef(scale);
   const panRef = useRef(pan);
+  const setIsPinchingRef = useRef(setIsPinching);
   
   // Keep refs in sync with state
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { setIsPinchingRef.current = setIsPinching; }, [setIsPinching]);
 
   // Fit all widgets in view with maximum zoom
   const handleFitAllWidgets = () => {
@@ -449,8 +452,18 @@ export default function Sheet() {
         touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
       }
       
-      // Two or more fingers - always take over for camera control
+      // Two or more fingers - always take over for camera control (pinch zoom)
+      // This must work even when one finger started on a widget
       if (activeTouches.current.size >= 2) {
+        // CRITICAL: Prevent default and stop propagation immediately to stop
+        // react-draggable and other handlers from interfering with pinch zoom
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // Set pinch state to disable touch events on widgets via CSS
+        setIsPinchingRef.current(true);
+        
         const touches = Array.from(activeTouches.current.values());
         const dx = touches[0].x - touches[1].x;
         const dy = touches[0].y - touches[1].y;
@@ -504,16 +517,23 @@ export default function Sheet() {
           y: (touches[0].y + touches[1].y) / 2
         };
         
-        // Initialize if needed (user added second finger)
+        // Initialize if needed (user added second finger during move)
         if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
           lastTouchDistance.current = newDistance;
           lastTouchCenter.current = newCenter;
           isTouchPanning.current = false;
+          // Prevent other handlers from processing this as a drag/scroll
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           return;
         }
         
-        e.preventDefault(); // Prevent browser zoom/scroll
-        e.stopPropagation(); // Stop other handlers
+        // CRITICAL: Prevent default and stop all propagation to ensure
+        // react-draggable and other handlers don't interfere with pinch zoom
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         
         const currentScale = scaleRef.current;
         const currentPan = panRef.current;
@@ -567,11 +587,13 @@ export default function Sheet() {
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
         touchStartTarget = null;
+        setIsPinchingRef.current(false); // Reset pinch state
       }
       // If we go from 2+ to 1 finger, don't auto-start panning
       else if (activeTouches.current.size === 1) {
         lastTouchDistance.current = null;
         isTouchPanning.current = false; // Don't continue single-finger pan after pinch
+        // Keep isPinching true until all fingers are lifted to prevent accidental widget interactions
       }
     };
 
@@ -726,7 +748,7 @@ export default function Sheet() {
       
       {/* Canvas Container - touch events handled globally */}
       <div 
-        className={`absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'}`}
+        className={`absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'} ${isPinching ? 'pinch-active' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

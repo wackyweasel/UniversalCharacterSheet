@@ -33,7 +33,12 @@ export default function ConditionWidget({ widget }: Props) {
       )}
 
       {/* Toggle Items */}
-      <div className={`flex flex-wrap ${gapClass} overflow-y-auto flex-1 content-start`} onWheel={(e) => e.stopPropagation()}>
+      <div className={`flex flex-wrap ${gapClass} overflow-y-auto flex-1 content-start`} onWheel={(e) => {
+        const el = e.currentTarget;
+        if (el.scrollHeight > el.clientHeight) {
+          e.stopPropagation();
+        }
+      }}>
         {toggleItems.map((item: ToggleItem, idx: number) => (
           <button
             key={idx}

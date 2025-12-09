@@ -83,7 +83,12 @@ export default function NumberWidget({ widget, height }: Props) {
       <div 
         className={`flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden flex-1 pr-4`}
         style={{ maxHeight: `${itemsHeight}px` }}
-        onWheel={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollHeight > el.clientHeight) {
+            e.stopPropagation();
+          }
+        }}
       >
         {(numberItems as NumberItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>

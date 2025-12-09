@@ -105,7 +105,11 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   const handleWidgetTouchStart = (e: React.TouchEvent) => {
     // Don't interfere with multi-touch gestures (pinch zoom)
-    if (e.touches.length >= 2) return;
+    // Let the global handler in Sheet.tsx manage all multi-touch
+    if (e.touches.length >= 2) {
+      // Cancel any potential drag operation by not selecting
+      return;
+    }
     
     if (mode === 'edit') {
       // If this widget is not selected, prevent default and select it
