@@ -83,6 +83,13 @@ interface StoreState {
   detachWidgets: (widgetId1: string, widgetId2: string) => void;
   getWidgetsInGroup: (groupId: string) => Widget[];
   moveWidgetGroup: (widgetId: string, deltaX: number, deltaY: number) => void;
+  
+  // Rest Action (for Rest Button widget)
+  performRest: (options: {
+    healAmount?: number | 'full';
+    clearConditions?: boolean;
+    resetSpellSlots?: boolean;
+  }) => void;
 }
 
 export const useStore = create<StoreState>((set) => {
@@ -685,6 +692,55 @@ export const useStore = create<StoreState>((set) => {
               widgets.map(w => 
                 w.groupId === groupId ? { ...w, x: w.x + deltaX, y: w.y + deltaY } : w
               )
+            );
+          }
+          return c;
+        })
+      };
+    }),
+    
+    // Perform rest action on all relevant widgets
+    performRest: (options) => set((state) => {
+      if (!state.activeCharacterId) return state;
+      
+      const { healAmount, clearConditions, resetSpellSlots } = options;
+      
+      return {
+        characters: state.characters.map(c => {
+          if (c.id === state.activeCharacterId) {
+            return updateActiveSheetWidgets(c, widgets => 
+              widgets.map(w => {
+                // Handle Health Bar widgets
+                if (w.type === 'HEALTH_BAR' && healAmount !== undefined) {
+                  const currentValue = w.data.currentValue ?? 0;
+                  const maxValue = w.data.maxValue ?? 10;
+                  
+                  let newValue: number;
+                  if (healAmount === 'full') {
+                    newValue = maxValue;
+                  } else {
+                    newValue = Math.min(maxValue, currentValue + healAmount);
+                  }
+                  
+                  return { ...w, data: { ...w.data, currentValue: newValue } };
+                }
+                
+                // Handle Condition widgets (TOGGLE_GROUP)
+                if (w.type === 'TOGGLE_GROUP' && clearConditions) {
+                  const toggleItems = w.data.toggleItems || [];
+                  const clearedItems = toggleItems.map((item: { name: string; active: boolean }) => ({ ...item, active: false }));
+                  return { ...w, data: { ...w.data, toggleItems: clearedItems } };
+                }
+                
+                // Handle Spell Slot widgets
+                if (w.type === 'SPELL_SLOT' && resetSpellSlots) {
+                  const spellLevels = w.data.spellLevels || [];
+                  const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
+                  return { ...w, data: { ...w.data, spellLevels: resetLevels } };
+                }
+                
+                return w;
+              })
             );
           }
           return c;

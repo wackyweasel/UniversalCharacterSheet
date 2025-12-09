@@ -1092,6 +1092,150 @@ function TableEditor({ widget, updateData }: EditorProps) {
   );
 }
 
+function RestButtonEditor({ widget, updateData }: EditorProps) {
+  const { 
+    buttonText = 'Rest',
+    healToFull = false,
+    healRandomDice = [],
+    healFlatAmount = 0,
+    clearConditions = false,
+    resetSpellSlots = false
+  } = widget.data;
+
+  const updateDiceGroup = (index: number, field: 'count' | 'faces', value: number | string) => {
+    const newGroups = [...healRandomDice];
+    newGroups[index] = { ...newGroups[index], [field]: value };
+    updateData({ healRandomDice: newGroups });
+  };
+
+  const addDiceGroup = () => {
+    updateData({ healRandomDice: [...healRandomDice, { count: 1, faces: 8 }] });
+  };
+
+  const removeDiceGroup = (index: number) => {
+    const newGroups = healRandomDice.filter((_: any, i: number) => i !== index);
+    updateData({ healRandomDice: newGroups });
+  };
+
+  // When healToFull is enabled, clear the random dice and flat amount
+  const handleHealToFullChange = (checked: boolean) => {
+    if (checked) {
+      updateData({ healToFull: true, healRandomDice: [], healFlatAmount: 0 });
+    } else {
+      updateData({ healToFull: false });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Button Text</label>
+        <input
+          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          value={buttonText}
+          onChange={(e) => updateData({ buttonText: e.target.value })}
+          placeholder="Rest"
+        />
+      </div>
+
+      <div className="border border-theme-border rounded-theme p-3">
+        <h4 className="font-medium text-theme-ink mb-3">Healing Options</h4>
+        
+        <label className="flex items-center gap-2 cursor-pointer mb-3">
+          <input
+            type="checkbox"
+            checked={healToFull}
+            onChange={(e) => handleHealToFullChange(e.target.checked)}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Heal to Full</span>
+        </label>
+
+        {!healToFull && (
+          <>
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-theme-ink mb-2">Random Heal Dice</label>
+              <div className="space-y-2">
+                {healRandomDice.map((group: { count: number; faces: number }, index: number) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={group.count}
+                      onChange={(e) => updateDiceGroup(index, 'count', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                      onBlur={(e) => updateDiceGroup(index, 'count', Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                    />
+                    <span className="text-theme-ink">d</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={group.faces}
+                      onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                      onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                    />
+                    <button
+                      onClick={() => removeDiceGroup(index)}
+                      className="text-red-500 hover:text-red-700 px-2"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={addDiceGroup}
+                className="mt-2 px-3 py-1 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+              >
+                + Add Dice
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-theme-ink mb-1">Flat Heal Amount</label>
+              <input
+                type="number"
+                min="0"
+                className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                value={healFlatAmount ?? 0}
+                onChange={(e) => updateData({ healFlatAmount: parseInt(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-theme-muted mt-1">Added to dice result if dice are configured</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="border border-theme-border rounded-theme p-3">
+        <h4 className="font-medium text-theme-ink mb-3">Other Actions</h4>
+        
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={clearConditions}
+            onChange={(e) => updateData({ clearConditions: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Clear All Conditions</span>
+        </label>
+        <p className="text-xs text-theme-muted ml-6 mb-3">Turns off all active conditions in Condition widgets</p>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={resetSpellSlots}
+            onChange={(e) => updateData({ resetSpellSlots: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Reset Spell Slots</span>
+        </label>
+        <p className="text-xs text-theme-muted ml-6">Restores all used spell slots in Spell Slot widgets</p>
+      </div>
+    </div>
+  );
+}
+
 // Widget preview components (play mode view)
 import NumberWidget from './widgets/NumberWidget';
 import ListWidget from './widgets/ListWidget';
@@ -1107,6 +1251,7 @@ import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
+import RestButtonWidget from './widgets/RestButtonWidget';
 
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
@@ -1124,6 +1269,7 @@ function getWidgetTitle(type: WidgetType): string {
     'TABLE': 'Table',
     'TIME_TRACKER': 'Time Tracker',
     'FORM': 'Form',
+    'REST_BUTTON': 'Rest Button',
   };
   return titles[type] || 'Widget';
 }
@@ -1166,6 +1312,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TABLE': return <TableEditor {...editorProps} />;
       case 'TIME_TRACKER': return <TimeTrackerEditor {...editorProps} />;
       case 'FORM': return <FormEditor {...editorProps} />;
+      case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -1189,6 +1336,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
+      case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       default: return null;
     }
   };

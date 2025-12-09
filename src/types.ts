@@ -12,7 +12,8 @@ export type WidgetType =
   | 'TOGGLE_GROUP'
   | 'TABLE'
   | 'TIME_TRACKER'
-  | 'FORM';
+  | 'FORM'
+  | 'REST_BUTTON';
 
 export interface ToggleItem {
   name: string;
@@ -88,6 +89,13 @@ export interface WidgetData {
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;
+  // Rest Button
+  buttonText?: string;
+  healToFull?: boolean;
+  healRandomDice?: DiceGroup[];
+  healFlatAmount?: number;
+  clearConditions?: boolean;
+  resetSpellSlots?: boolean;
 }
 
 export interface TimedEffect {

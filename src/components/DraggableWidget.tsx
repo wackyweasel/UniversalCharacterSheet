@@ -18,6 +18,7 @@ import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
+import RestButtonWidget from './widgets/RestButtonWidget';
 import WidgetEditModal from './WidgetEditModal';
 
 interface Props {
@@ -43,6 +44,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'TABLE': { width: 180, height: 80 },
   'TIME_TRACKER': { width: 180, height: 140 },
   'FORM': { width: 160, height: 60 },
+  'REST_BUTTON': { width: 120, height: 80 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -293,6 +295,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
+      case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       default: return null;
     }
   };
