@@ -96,15 +96,7 @@
   background-size: 20px 20px;
 }
 
-/* Disable default touch actions on draggable elements to prevent browser gestures
-   from interfering, but allow our JS handlers to receive touch events */
-.react-draggable,
-.drag-handle {
-  touch-action: none;
-}
-
-/* During pinch-to-zoom, disable interactions on widgets to prevent interference
-   but keep the main canvas receiving touch events for our handler */
+/* During pinch-to-zoom, disable interactions on widgets to prevent interference */
 .pinch-active .react-draggable {
   pointer-events: none !important;
 }
