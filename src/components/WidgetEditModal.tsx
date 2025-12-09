@@ -899,6 +899,15 @@ function TableEditor({ widget, updateData }: EditorProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragItem = React.useRef<number | null>(null);
+  const columnsContainerRef = React.useRef<HTMLDivElement>(null);
+  
+  // Touch drag state for columns
+  const touchDragState = React.useRef<{
+    isDragging: boolean;
+    startY: number;
+    currentIndex: number;
+    elements: HTMLDivElement[];
+  } | null>(null);
 
   const handleColumnChange = (index: number, value: string) => {
     const newColumns = [...columns];
@@ -986,6 +995,91 @@ function TableEditor({ widget, updateData }: EditorProps) {
     setDragOverIndex(null);
   };
 
+  // Touch drag handlers for column reordering
+  const handleColumnTouchStart = React.useCallback((e: React.TouchEvent, index: number) => {
+    e.stopPropagation();
+    
+    const touch = e.touches[0];
+    const elements = columnsContainerRef.current 
+      ? Array.from(columnsContainerRef.current.querySelectorAll('[data-column-item]')) as HTMLDivElement[]
+      : [];
+    
+    touchDragState.current = {
+      isDragging: true,
+      startY: touch.clientY,
+      currentIndex: index,
+      elements
+    };
+    
+    setDraggedIndex(index);
+    dragItem.current = index;
+  }, []);
+
+  const handleColumnTouchMove = React.useCallback((e: TouchEvent) => {
+    if (!touchDragState.current?.isDragging) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const touch = e.touches[0];
+    const { elements, currentIndex } = touchDragState.current;
+    
+    for (let i = 0; i < elements.length; i++) {
+      const rect = elements[i].getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        if (i !== currentIndex) {
+          setDragOverIndex(i);
+        } else {
+          setDragOverIndex(null);
+        }
+        break;
+      }
+    }
+  }, []);
+
+  const handleColumnTouchEnd = React.useCallback(() => {
+    if (!touchDragState.current?.isDragging) return;
+    
+    const fromIndex = dragItem.current;
+    const toIndex = dragOverIndex;
+    
+    if (fromIndex !== null && toIndex !== null && fromIndex !== toIndex) {
+      const newColumns = [...columns];
+      const newRows = rows.map((row: { cells: string[] }) => ({ ...row, cells: [...row.cells] }));
+      
+      const [movedColumn] = newColumns.splice(fromIndex, 1);
+      const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+      newColumns.splice(insertIndex, 0, movedColumn);
+      
+      newRows.forEach((row) => {
+        const [movedCell] = row.cells.splice(fromIndex, 1);
+        row.cells.splice(insertIndex, 0, movedCell);
+      });
+      
+      updateData({ columns: newColumns, rows: newRows });
+    }
+    
+    touchDragState.current = null;
+    dragItem.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, [columns, dragOverIndex, rows, updateData]);
+
+  // Add global touch event listeners when dragging
+  React.useEffect(() => {
+    if (draggedIndex !== null) {
+      document.addEventListener('touchmove', handleColumnTouchMove, { passive: false });
+      document.addEventListener('touchend', handleColumnTouchEnd);
+      document.addEventListener('touchcancel', handleColumnTouchEnd);
+      
+      return () => {
+        document.removeEventListener('touchmove', handleColumnTouchMove);
+        document.removeEventListener('touchend', handleColumnTouchEnd);
+        document.removeEventListener('touchcancel', handleColumnTouchEnd);
+      };
+    }
+  }, [draggedIndex, handleColumnTouchMove, handleColumnTouchEnd]);
+
   const addRow = () => {
     const newRow = { cells: columns.map(() => '') };
     updateData({ rows: [...rows, newRow] });
@@ -1013,12 +1107,14 @@ function TableEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Columns</label>
         <div 
+          ref={columnsContainerRef}
           className="space-y-2"
           onDragOver={(e) => e.preventDefault()}
         >
           {columns.map((col: string, idx: number) => (
             <div 
-              key={idx} 
+              key={idx}
+              data-column-item
               className={`flex items-center gap-2 ${draggedIndex === idx ? 'opacity-50' : ''} ${dragOverIndex === idx && draggedIndex !== idx ? 'border-t-2 border-theme-accent' : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, idx)}
@@ -1038,6 +1134,7 @@ function TableEditor({ widget, updateData }: EditorProps) {
               <div 
                 className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 touch-none"
                 title="Drag to reorder"
+                onTouchStart={(e) => handleColumnTouchStart(e, idx)}
               >
                 ⠿
               </div>
