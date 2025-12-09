@@ -96,6 +96,14 @@
   background-size: 20px 20px;
 }
 
+/* CRITICAL: Disable browser touch handling on ALL draggable elements
+   This allows our global touch handler to fully control pinch-to-zoom */
+.react-draggable,
+.react-draggable *,
+.drag-handle {
+  touch-action: none;
+}
+
 /* During pinch-to-zoom, completely disable ALL touch interactions except our handler */
 .pinch-active {
   touch-action: none !important;

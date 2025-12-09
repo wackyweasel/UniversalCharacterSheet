@@ -281,8 +281,11 @@ export default function Sheet() {
   useEffect(() => { panRef.current = pan; }, [pan]);
   
   // Helper to set pinch state - applies class to body for global CSS override
+  // Also exposes state globally so DraggableWidget can check it
   const setPinching = (pinching: boolean) => {
     isPinchingRef.current = pinching;
+    // Expose globally for other components to check (esp. react-draggable cancel)
+    (window as unknown as { __isPinching?: boolean }).__isPinching = pinching;
     if (pinching) {
       document.body.classList.add('pinch-active');
     } else {
@@ -458,6 +461,11 @@ export default function Sheet() {
         // Set pinch state to disable ALL touch events globally via CSS on body
         setPinching(true);
         
+        // Force cancel any ongoing react-draggable operation by dispatching a synthetic mouseup
+        // This tells react-draggable to stop dragging immediately
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        document.dispatchEvent(new TouchEvent('touchcancel', { bubbles: true }));
+        
         // Initialize pinch state with current touch positions
         const t1 = e.touches[0];
         const t2 = e.touches[1];
@@ -503,9 +511,12 @@ export default function Sheet() {
         e.stopPropagation();
         e.stopImmediatePropagation();
         
-        // Ensure pinch mode is active
+        // Ensure pinch mode is active and cancel any in-progress operations
         if (!isPinchingRef.current) {
           setPinching(true);
+          // Force cancel any ongoing react-draggable operation
+          document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+          document.dispatchEvent(new TouchEvent('touchcancel', { bubbles: true }));
         }
         
         const t1 = e.touches[0];
