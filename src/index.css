@@ -96,10 +96,21 @@
   background-size: 20px 20px;
 }
 
-/* During pinch-to-zoom, disable touch events on widgets to prevent interference */
-.pinch-active .react-draggable {
+/* During pinch-to-zoom, completely disable ALL touch interactions except our handler */
+.pinch-active {
+  touch-action: none !important;
+}
+
+.pinch-active * {
   pointer-events: none !important;
   touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Re-enable pointer events on the canvas container so our handler works */
+.pinch-active .pinch-canvas-container {
+  pointer-events: auto !important;
 }
 
 /* Mobile-friendly scrollbars */

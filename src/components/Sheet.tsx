@@ -262,26 +262,33 @@ export default function Sheet() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
-  const [isPinching, setIsPinching] = useState(false); // Track pinch state for CSS
   const lastMousePos = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Touch state - all managed via refs to work in global handlers
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
-  const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
   const isTouchPanning = useRef(false);
   const touchStartedOnScrollable = useRef(false);
+  const isPinchingRef = useRef(false);
   
   // Refs to avoid stale closures in global touch handlers
   const scaleRef = useRef(scale);
   const panRef = useRef(pan);
-  const setIsPinchingRef = useRef(setIsPinching);
   
   // Keep refs in sync with state
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { panRef.current = pan; }, [pan]);
-  useEffect(() => { setIsPinchingRef.current = setIsPinching; }, [setIsPinching]);
+  
+  // Helper to set pinch state - applies class to body for global CSS override
+  const setPinching = (pinching: boolean) => {
+    isPinchingRef.current = pinching;
+    if (pinching) {
+      document.body.classList.add('pinch-active');
+    } else {
+      document.body.classList.remove('pinch-active');
+    }
+  };
 
   // Fit all widgets in view with maximum zoom
   const handleFitAllWidgets = () => {
@@ -431,50 +438,47 @@ export default function Sheet() {
     let touchStartTarget: Element | null = null;
 
     const handleTouchStart = (e: TouchEvent) => {
+      // e.touches contains ALL current touches on screen
+      const totalTouches = e.touches.length;
+      
       // Store the target of the first touch
-      if (e.touches.length === 1) {
+      if (totalTouches === 1) {
         touchStartTarget = e.target as Element;
-      }
-      
-      // Store all active touches
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
-      }
-      
-      // Skip if touching sidebar elements
-      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
-        return;
-      }
-      
-      // Check if the first touch started on a scrollable element
-      if (e.touches.length === 1) {
         touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
       }
       
-      // Two or more fingers - always take over for camera control (pinch zoom)
-      // This must work even when one finger started on a widget
-      if (activeTouches.current.size >= 2) {
-        // CRITICAL: Prevent default and stop propagation immediately to stop
-        // react-draggable and other handlers from interfering with pinch zoom
+      // TWO OR MORE FINGERS: Immediately take over for pinch zoom
+      // This is the HIGHEST PRIORITY - nothing else should handle touch when pinching
+      if (totalTouches >= 2) {
+        // CRITICAL: Prevent default and stop ALL propagation immediately
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         
-        // Set pinch state to disable touch events on widgets via CSS
-        setIsPinchingRef.current(true);
+        // Set pinch state to disable ALL touch events globally via CSS on body
+        setPinching(true);
         
-        const touches = Array.from(activeTouches.current.values());
-        const dx = touches[0].x - touches[1].x;
-        const dy = touches[0].y - touches[1].y;
+        // Initialize pinch state with current touch positions
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
         lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
         lastTouchCenter.current = {
-          x: (touches[0].x + touches[1].x) / 2,
-          y: (touches[0].y + touches[1].y) / 2
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2
         };
-        isTouchPanning.current = false; // Disable single-finger pan when multi-touch starts
-      } else if (activeTouches.current.size === 1) {
-        // Single finger - determine if we should pan
+        isTouchPanning.current = false;
+        return; // Don't process anything else
+      }
+      
+      // Skip sidebar handling for single finger
+      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
+        return;
+      }
+      
+      // Single finger - determine if we should pan
+      if (totalTouches === 1) {
         const onWidget = touchStartTarget && isOnWidget(touchStartTarget);
         const onScrollable = touchStartedOnScrollable.current;
         
@@ -483,57 +487,44 @@ export default function Sheet() {
         const shouldPan = !onScrollable && (modeRef.current === 'play' ? true : !onWidget);
         
         if (shouldPan) {
-          const touch = activeTouches.current.values().next().value;
-          if (touch) {
-            lastTouchCenter.current = { x: touch.x, y: touch.y };
-            isTouchPanning.current = true;
-          }
+          lastTouchCenter.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          isTouchPanning.current = true;
         }
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Skip if we started on a sidebar
-      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
-        return;
-      }
+      const totalTouches = e.touches.length;
       
-      // Update all active touch positions
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
-      }
-      
-      const touchCount = activeTouches.current.size;
-      
-      // Two-finger gesture: pinch zoom + pan (ALWAYS works, even on widgets)
-      if (touchCount >= 2) {
-        const touches = Array.from(activeTouches.current.values());
-        const dx = touches[0].x - touches[1].x;
-        const dy = touches[0].y - touches[1].y;
+      // TWO OR MORE FINGERS: Handle pinch zoom - ALWAYS takes priority
+      if (totalTouches >= 2) {
+        // Always prevent default and stop propagation for multi-touch
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // Ensure pinch mode is active
+        if (!isPinchingRef.current) {
+          setPinching(true);
+        }
+        
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
         const newDistance = Math.sqrt(dx * dx + dy * dy);
         const newCenter = {
-          x: (touches[0].x + touches[1].x) / 2,
-          y: (touches[0].y + touches[1].y) / 2
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2
         };
         
-        // Initialize if needed (user added second finger during move)
+        // Initialize if this is the first move with 2 fingers
         if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
           lastTouchDistance.current = newDistance;
           lastTouchCenter.current = newCenter;
           isTouchPanning.current = false;
-          // Prevent other handlers from processing this as a drag/scroll
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
           return;
         }
-        
-        // CRITICAL: Prevent default and stop all propagation to ensure
-        // react-draggable and other handlers don't interfere with pinch zoom
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
         
         const currentScale = scaleRef.current;
         const currentPan = panRef.current;
@@ -558,39 +549,42 @@ export default function Sheet() {
         
         lastTouchDistance.current = newDistance;
         lastTouchCenter.current = newCenter;
+        return; // Don't process single-finger logic
       }
-      // Single finger pan (only if we determined we should pan at start)
-      else if (touchCount === 1 && isTouchPanning.current && lastTouchCenter.current) {
-        const touch = activeTouches.current.values().next().value;
-        if (touch) {
-          e.preventDefault();
-          
-          const dx = touch.x - lastTouchCenter.current.x;
-          const dy = touch.y - lastTouchCenter.current.y;
-          
-          setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-          lastTouchCenter.current = { x: touch.x, y: touch.y };
-        }
+      
+      // Skip if we started on a sidebar
+      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
+        return;
+      }
+      
+      // Single finger pan (only if we determined we should pan at start and not pinching)
+      if (totalTouches === 1 && isTouchPanning.current && lastTouchCenter.current && !isPinchingRef.current) {
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const dx = touch.clientX - lastTouchCenter.current.x;
+        const dy = touch.clientY - lastTouchCenter.current.y;
+        
+        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+        lastTouchCenter.current = { x: touch.clientX, y: touch.clientY };
       }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      // Remove ended touches
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        activeTouches.current.delete(e.changedTouches[i].identifier);
-      }
+      // e.touches contains remaining touches AFTER this event
+      const remainingTouches = e.touches.length;
       
       // Reset state if all touches ended
-      if (activeTouches.current.size === 0) {
+      if (remainingTouches === 0) {
         lastTouchDistance.current = null;
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
         touchStartTarget = null;
-        setIsPinchingRef.current(false); // Reset pinch state
+        setPinching(false); // Reset pinch state and remove body class
       }
       // If we go from 2+ to 1 finger, don't auto-start panning
-      else if (activeTouches.current.size === 1) {
+      else if (remainingTouches === 1) {
         lastTouchDistance.current = null;
         isTouchPanning.current = false; // Don't continue single-finger pan after pinch
         // Keep isPinching true until all fingers are lifted to prevent accidental widget interactions
@@ -608,6 +602,8 @@ export default function Sheet() {
       document.removeEventListener('touchmove', handleTouchMove, { capture: true });
       document.removeEventListener('touchend', handleTouchEnd, { capture: true });
       document.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
+      // Clean up pinch state on unmount
+      document.body.classList.remove('pinch-active');
     };
   }, []); // Empty deps - uses refs for current values
 
@@ -748,7 +744,7 @@ export default function Sheet() {
       
       {/* Canvas Container - touch events handled globally */}
       <div 
-        className={`absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'} ${isPinching ? 'pinch-active' : ''}`}
+        className={`pinch-canvas-container absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
