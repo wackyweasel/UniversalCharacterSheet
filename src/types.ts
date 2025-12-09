@@ -96,6 +96,9 @@ export interface WidgetData {
   healFlatAmount?: number;
   clearConditions?: boolean;
   resetSpellSlots?: boolean;
+  passTime?: boolean;
+  passTimeAmount?: number;
+  passTimeUnit?: string;
 }
 
 export interface TimedEffect {

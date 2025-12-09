@@ -89,6 +89,7 @@ interface StoreState {
     healAmount?: number | 'full';
     clearConditions?: boolean;
     resetSpellSlots?: boolean;
+    passTimeSeconds?: number;
   }) => void;
 }
 
@@ -703,7 +704,7 @@ export const useStore = create<StoreState>((set) => {
     performRest: (options) => set((state) => {
       if (!state.activeCharacterId) return state;
       
-      const { healAmount, clearConditions, resetSpellSlots } = options;
+      const { healAmount, clearConditions, resetSpellSlots, passTimeSeconds } = options;
       
       return {
         characters: state.characters.map(c => {
@@ -737,6 +738,19 @@ export const useStore = create<StoreState>((set) => {
                   const spellLevels = w.data.spellLevels || [];
                   const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
                   return { ...w, data: { ...w.data, spellLevels: resetLevels } };
+                }
+                
+                // Handle Time Tracker widgets
+                if (w.type === 'TIME_TRACKER' && passTimeSeconds !== undefined && passTimeSeconds > 0) {
+                  const timedEffects = w.data.timedEffects || [];
+                  const roundMode = w.data.roundMode || false;
+                  // In round mode, passTimeSeconds represents rounds (1 second = 1 round)
+                  const amountToPass = roundMode ? passTimeSeconds : passTimeSeconds;
+                  const updatedEffects = timedEffects.map((effect: { name: string; remainingSeconds: number }) => ({
+                    ...effect,
+                    remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
+                  }));
+                  return { ...w, data: { ...w.data, timedEffects: updatedEffects } };
                 }
                 
                 return w;

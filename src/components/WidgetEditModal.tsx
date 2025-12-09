@@ -1099,7 +1099,10 @@ function RestButtonEditor({ widget, updateData }: EditorProps) {
     healRandomDice = [],
     healFlatAmount = 0,
     clearConditions = false,
-    resetSpellSlots = false
+    resetSpellSlots = false,
+    passTime = false,
+    passTimeAmount = 0,
+    passTimeUnit = 'hours'
   } = widget.data;
 
   const updateDiceGroup = (index: number, field: 'count' | 'faces', value: number | string) => {
@@ -1230,7 +1233,45 @@ function RestButtonEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Reset Spell Slots</span>
         </label>
-        <p className="text-xs text-theme-muted ml-6">Restores all used spell slots in Spell Slot widgets</p>
+        <p className="text-xs text-theme-muted ml-6 mb-3">Restores all used spell slots in Spell Slot widgets</p>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={passTime}
+            onChange={(e) => updateData({ passTime: e.target.checked, passTimeAmount: 0, passTimeUnit: 'hours' })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Pass Time</span>
+        </label>
+        <p className="text-xs text-theme-muted ml-6 mb-2">Advances time for all Time Tracker widgets</p>
+        
+        {passTime && (
+          <div className="ml-6 mt-2">
+            <label className="block text-xs text-theme-muted mb-1">Flat Time Amount (leave 0 to prompt when clicked)</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                className="w-20 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                value={passTimeAmount ?? 0}
+                onChange={(e) => updateData({ passTimeAmount: parseInt(e.target.value) || 0 })}
+              />
+              <select
+                className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+                value={passTimeUnit}
+                onChange={(e) => updateData({ passTimeUnit: e.target.value })}
+              >
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+                <option value="months">Months</option>
+                <option value="years">Years</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
