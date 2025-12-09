@@ -532,9 +532,6 @@ export default function Sheet() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Don't interfere with touch handling in modals or on drag handles
-      if (touchStartedOnModal || touchStartedOnDragHandle) return;
-      
       const totalTouches = e.touches.length;
       
       // TWO OR MORE FINGERS = PINCH ZOOM
