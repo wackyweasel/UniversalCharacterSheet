@@ -30,6 +30,16 @@ export default function TableWidget({ widget, height }: Props) {
     rowElements: HTMLTableRowElement[];
   } | null>(null);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  
+  // Refs to avoid stale closures in touch handlers
+  const dragOverRowIndexRef = useRef<number | null>(null);
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    dragOverRowIndexRef.current = dragOverRowIndex;
+  }, [dragOverRowIndex]);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -147,10 +157,11 @@ export default function TableWidget({ widget, height }: Props) {
     if (!touchDragState.current?.isDragging) return;
     
     const fromIndex = dragRowItem.current;
-    const toIndex = dragOverRowIndex;
+    const toIndex = dragOverRowIndexRef.current;
+    const currentRows = rowsRef.current;
     
     if (fromIndex !== null && toIndex !== null && fromIndex !== toIndex) {
-      const newRows = [...rows];
+      const newRows = [...currentRows];
       const [movedRow] = newRows.splice(fromIndex, 1);
       const insertIndex = fromIndex < toIndex ? toIndex : toIndex;
       newRows.splice(insertIndex, 0, movedRow);
@@ -161,7 +172,7 @@ export default function TableWidget({ widget, height }: Props) {
     dragRowItem.current = null;
     setDraggedRowIndex(null);
     setDragOverRowIndex(null);
-  }, [dragOverRowIndex, rows, updateWidgetData, widget.id]);
+  }, [updateWidgetData, widget.id]);
 
   // Add global touch event listeners when dragging
   useEffect(() => {
