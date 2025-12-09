@@ -459,6 +459,17 @@ export default function Sheet() {
       return false;
     };
     
+    // Check if the target is inside a modal (portaled fixed overlay with z-50)
+    const isOnModal = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        if (el.classList.contains('fixed') && el.classList.contains('z-50') && el.classList.contains('inset-0')) {
+          return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    };
+    
     // Check if the target or its ancestors have data-touch-drag attribute
     // This indicates the element handles its own touch dragging (e.g., table row reorder handles)
     const isOnTouchDragHandle = (el: Element | null): boolean => {
@@ -471,6 +482,7 @@ export default function Sheet() {
 
     let touchStartTarget: Element | null = null;
     let touchStartedOnDragHandle = false;
+    let touchStartedOnModal = false;
 
     const handleTouchStart = (e: TouchEvent) => {
       const totalTouches = e.touches.length;
@@ -480,10 +492,11 @@ export default function Sheet() {
         touchStartTarget = e.target as Element;
         touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
         touchStartedOnDragHandle = isOnTouchDragHandle(e.target as Element);
+        touchStartedOnModal = isOnModal(e.target as Element);
       }
       
-      // If touch started on a drag handle, don't interfere with it
-      if (touchStartedOnDragHandle) {
+      // If touch started on a drag handle or inside a modal, don't interfere with it
+      if (touchStartedOnDragHandle || touchStartedOnModal) {
         return;
       }
       
@@ -574,8 +587,8 @@ export default function Sheet() {
       // Single finger pan
       if (totalTouches === 1 && isTouchPanning.current && lastTouchCenter.current && !isPinchingRef.current) {
         if (touchStartTarget && isOnSidebar(touchStartTarget)) return;
-        // Don't pan if touch started on a drag handle
-        if (touchStartedOnDragHandle) return;
+        // Don't pan if touch started on a drag handle or modal
+        if (touchStartedOnDragHandle || touchStartedOnModal) return;
         
         e.preventDefault();
         const touch = e.touches[0];
@@ -596,6 +609,7 @@ export default function Sheet() {
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
         touchStartedOnDragHandle = false;
+        touchStartedOnModal = false;
         touchStartTarget = null;
         setPinching(false);
       } else if (remainingTouches === 1) {
