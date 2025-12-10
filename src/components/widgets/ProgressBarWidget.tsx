@@ -124,7 +124,7 @@ export default function ProgressBarWidget({ widget }: Props) {
       {/* Progress Bar */}
       <div className="flex-1 flex flex-col justify-center">
         <div 
-          className={`relative ${barHeight} bg-theme-accent rounded-theme overflow-hidden border border-theme-border cursor-pointer`}
+          className={`relative ${barHeight} bg-theme-muted/30 rounded-theme overflow-hidden border border-theme-border cursor-pointer`}
           onClick={() => setShowValueModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
           title="Click to set value"
@@ -134,14 +134,12 @@ export default function ProgressBarWidget({ widget }: Props) {
             className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
-          {/* Unfilled portion overlay */}
-          <div 
-            className="absolute inset-y-0 right-0 bg-theme-paper/70"
-            style={{ width: `${100 - progressPercent}%` }}
-          />
           {/* Progress text overlay */}
           {(showValues || showPercentage) && (
-            <div className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-paper`}>
+            <div 
+              className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink`}
+              style={{ textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
+            >
               {getBarText()}
             </div>
           )}
