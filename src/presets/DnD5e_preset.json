@@ -1,13 +1,14 @@
 {
-  "id": "ab354335-a46a-4564-9e80-51b8900d987f",
-  "name": "DnD preset",
+  "id": "c24f789a-2330-47dd-a94d-192ce50298a1",
+  "name": "bob",
+  "theme": "default",
   "sheets": [
     {
-      "id": "c04ff32a-56f2-4a3b-a392-7b2ad6f1b1b7",
+      "id": "3fb5f4d0-f267-45f6-9980-dceb3ad17d7c",
       "name": "Main",
       "widgets": [
         {
-          "id": "ba6bae45-2b0c-421d-868f-21fcf18d207b",
+          "id": "b738b623-c278-47b1-a695-b5f5fd535d6b",
           "type": "IMAGE",
           "x": 0,
           "y": 0,
@@ -19,15 +20,15 @@
             "items": [],
             "text": ""
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "4361bcbb-1c2c-4773-9341-853f566717a1",
-            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
-            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+            "3282082c-406b-47c2-bbdf-d9a4d991e191",
+            "a361cd5c-03de-4a08-b24b-46826818eafa",
+            "7cfe9042-751c-423b-b8f4-1e54b6562928"
           ]
         },
         {
-          "id": "4361bcbb-1c2c-4773-9341-853f566717a1",
+          "id": "a361cd5c-03de-4a08-b24b-46826818eafa",
           "type": "HEALTH_BAR",
           "x": 0,
           "y": 220,
@@ -37,17 +38,18 @@
             "label": "Health",
             "value": 0,
             "items": [],
-            "text": ""
+            "text": "",
+            "currentValue": 10
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "ba6bae45-2b0c-421d-868f-21fcf18d207b",
-            "55f06d23-f8d5-421f-9747-f03ad9319356",
-            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+            "b738b623-c278-47b1-a695-b5f5fd535d6b",
+            "84f262e0-9899-44c5-85e4-863e2820a115",
+            "7cfe9042-751c-423b-b8f4-1e54b6562928"
           ]
         },
         {
-          "id": "d2327abf-c6a7-4f8a-b8de-26124b65fe76",
+          "id": "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1",
           "type": "DICE_ROLLER",
           "x": 470,
           "y": 120,
@@ -65,21 +67,20 @@
               }
             ]
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "1eca844b-cbdc-4462-89f8-297566d9843d",
-            "c9ce0e76-74fc-4d0a-8caa-469071ef1209",
-            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
-            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+            "80a324e4-b86b-4b79-8ed7-f135e702ad26",
+            "7cfe9042-751c-423b-b8f4-1e54b6562928",
+            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06"
           ]
         },
         {
-          "id": "ab2c2510-a9e0-418f-bb11-f861388b03fa",
+          "id": "13e8819e-bef0-45c9-a0b0-670e3baa27ba",
           "type": "NUMBER",
           "x": 190,
-          "y": 340,
+          "y": 320,
           "w": 280,
-          "h": 450,
+          "h": 470,
           "data": {
             "label": "Skills",
             "value": 0,
@@ -87,7 +88,7 @@
             "text": "",
             "numberItems": [
               {
-                "name": "Acrobatics(DEX)",
+                "name": "Acrobatics (DEX)",
                 "value": 0
               },
               {
@@ -160,24 +161,26 @@
               }
             ]
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "6068dca9-c537-42c2-b4c8-ef1cb3697aed",
-            "06adfbda-5857-4bdf-83c7-233c1d7466be",
-            "55f06d23-f8d5-421f-9747-f03ad9319356",
-            "c9ce0e76-74fc-4d0a-8caa-469071ef1209",
-            "0452783b-0cc1-40b3-9e1b-a7c0f38dbf32"
+            "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
+            "7cfe9042-751c-423b-b8f4-1e54b6562928",
+            "02176623-99f0-4592-9c91-a5183e11bafa",
+            "84f262e0-9899-44c5-85e4-863e2820a115",
+            "c9ad255a-d7f9-41c2-97a2-1766139781c4",
+            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06",
+            "8700792a-8136-4e03-aa86-0937a3719249"
           ]
         },
         {
-          "id": "55f06d23-f8d5-421f-9747-f03ad9319356",
+          "id": "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
           "type": "NUMBER",
           "x": 0,
-          "y": 320,
+          "y": 400,
           "w": 190,
-          "h": 170,
+          "h": 130,
           "data": {
-            "label": "Stats",
+            "label": "",
             "value": 0,
             "items": [],
             "text": "",
@@ -185,10 +188,6 @@
               {
                 "name": "Level",
                 "value": 1
-              },
-              {
-                "name": "XP",
-                "value": 0
               },
               {
                 "name": "AC",
@@ -204,15 +203,15 @@
               }
             ]
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "0452783b-0cc1-40b3-9e1b-a7c0f38dbf32",
-            "ab2c2510-a9e0-418f-bb11-f861388b03fa",
-            "06adfbda-5857-4bdf-83c7-233c1d7466be"
+            "84f262e0-9899-44c5-85e4-863e2820a115",
+            "02176623-99f0-4592-9c91-a5183e11bafa",
+            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
           ]
         },
         {
-          "id": "cc54bf1f-db8a-4637-afd6-f74199f9c783",
+          "id": "b8a1dd67-4a9c-4023-99cf-99dbcdd016f8",
           "type": "TABLE",
           "x": 670,
           "y": 570,
@@ -275,19 +274,19 @@
               }
             ]
           },
-          "groupId": "1b1abaef-6f7c-45a2-9923-83ccfdf837c4",
+          "groupId": "66cdfde4-1a3e-4602-b209-57bd722c1291",
           "attachedTo": [
-            "b218af9a-2dbf-400b-89d3-84f9b65ac4e9",
-            "402c930f-4b54-43d2-b5a9-a452297a525d"
+            "cbdaa1f3-0e21-4294-b74b-c388662a2366",
+            "aeff1711-ca69-4a91-8990-1f937e46d981"
           ]
         },
         {
-          "id": "6068dca9-c537-42c2-b4c8-ef1cb3697aed",
+          "id": "8700792a-8136-4e03-aa86-0937a3719249",
           "type": "TIME_TRACKER",
           "x": 470,
-          "y": 500,
+          "y": 620,
           "w": 180,
-          "h": 290,
+          "h": 170,
           "data": {
             "label": "Effects",
             "value": 0,
@@ -295,17 +294,17 @@
             "text": "",
             "timedEffects": []
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "ab2c2510-a9e0-418f-bb11-f861388b03fa",
-            "c9ce0e76-74fc-4d0a-8caa-469071ef1209"
+            "c9ad255a-d7f9-41c2-97a2-1766139781c4",
+            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
           ]
         },
         {
-          "id": "c9ce0e76-74fc-4d0a-8caa-469071ef1209",
+          "id": "c9ad255a-d7f9-41c2-97a2-1766139781c4",
           "type": "TOGGLE_GROUP",
           "x": 470,
-          "y": 240,
+          "y": 360,
           "w": 180,
           "h": 260,
           "data": {
@@ -372,17 +371,17 @@
               }
             ]
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "06adfbda-5857-4bdf-83c7-233c1d7466be",
-            "ab2c2510-a9e0-418f-bb11-f861388b03fa"
+            "8700792a-8136-4e03-aa86-0937a3719249",
+            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06"
           ]
         },
         {
-          "id": "06adfbda-5857-4bdf-83c7-233c1d7466be",
+          "id": "7cfe9042-751c-423b-b8f4-1e54b6562928",
           "type": "NUMBER",
           "x": 190,
-          "y": 150,
+          "y": 130,
           "w": 280,
           "h": 190,
           "data": {
@@ -417,23 +416,23 @@
               }
             ]
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
-            "ab2c2510-a9e0-418f-bb11-f861388b03fa",
-            "55f06d23-f8d5-421f-9747-f03ad9319356",
-            "4361bcbb-1c2c-4773-9341-853f566717a1",
-            "ba6bae45-2b0c-421d-868f-21fcf18d207b",
-            "d2327abf-c6a7-4f8a-b8de-26124b65fe76"
+            "b738b623-c278-47b1-a695-b5f5fd535d6b",
+            "a361cd5c-03de-4a08-b24b-46826818eafa",
+            "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1",
+            "3282082c-406b-47c2-bbdf-d9a4d991e191",
+            "13e8819e-bef0-45c9-a0b0-670e3baa27ba",
+            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06"
           ]
         },
         {
-          "id": "0452783b-0cc1-40b3-9e1b-a7c0f38dbf32",
+          "id": "02176623-99f0-4592-9c91-a5183e11bafa",
           "type": "LIST",
           "x": 0,
-          "y": 490,
+          "y": 530,
           "w": 190,
-          "h": 300,
+          "h": 260,
           "data": {
             "label": "Features & Traits",
             "value": 0,
@@ -448,16 +447,16 @@
               ""
             ],
             "text": "",
-            "itemCount": 8
+            "itemCount": 7
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "55f06d23-f8d5-421f-9747-f03ad9319356",
-            "ab2c2510-a9e0-418f-bb11-f861388b03fa"
+            "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
+            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
           ]
         },
         {
-          "id": "1eca844b-cbdc-4462-89f8-297566d9843d",
+          "id": "80a324e4-b86b-4b79-8ed7-f135e702ad26",
           "type": "DICE_ROLLER",
           "x": 470,
           "y": 0,
@@ -469,14 +468,14 @@
             "items": [],
             "text": ""
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "d2327abf-c6a7-4f8a-b8de-26124b65fe76",
-            "ca0cb9bc-0c1d-47e1-b8d0-955591c31276"
+            "3282082c-406b-47c2-bbdf-d9a4d991e191",
+            "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1"
           ]
         },
         {
-          "id": "b218af9a-2dbf-400b-89d3-84f9b65ac4e9",
+          "id": "cbdaa1f3-0e21-4294-b74b-c388662a2366",
           "type": "NUMBER",
           "x": 1180,
           "y": 400,
@@ -510,19 +509,19 @@
               }
             ]
           },
-          "groupId": "1b1abaef-6f7c-45a2-9923-83ccfdf837c4",
+          "groupId": "66cdfde4-1a3e-4602-b209-57bd722c1291",
           "attachedTo": [
-            "402c930f-4b54-43d2-b5a9-a452297a525d",
-            "cc54bf1f-db8a-4637-afd6-f74199f9c783"
+            "aeff1711-ca69-4a91-8990-1f937e46d981",
+            "b8a1dd67-4a9c-4023-99cf-99dbcdd016f8"
           ]
         },
         {
-          "id": "a14807b0-b531-4ecb-9fc1-cfd79efb4f7a",
+          "id": "154383ff-8288-4155-82d9-668dac7fa81c",
           "type": "SPELL_SLOT",
           "x": 670,
-          "y": 120,
+          "y": 130,
           "w": 170,
-          "h": 240,
+          "h": 250,
           "data": {
             "label": "Spell Slots",
             "value": 0,
@@ -541,21 +540,21 @@
               }
             ]
           },
-          "groupId": "20e26d52-420a-4d58-8d67-5e49fdebae69",
+          "groupId": "cf7da397-5f4d-4d6a-83c0-0354e30bd3a7",
           "attachedTo": [
-            "e2446c7d-8726-4b34-88be-ff37563050f8",
-            "7149c344-778b-4992-994a-e3cb949cb8c8"
+            "57b040f9-c236-4f49-9f07-beb9ca26fd56",
+            "64359a85-9ff5-4570-a81d-afca67ffaafa"
           ]
         },
         {
-          "id": "ca0cb9bc-0c1d-47e1-b8d0-955591c31276",
+          "id": "3282082c-406b-47c2-bbdf-d9a4d991e191",
           "type": "FORM",
           "x": 190,
           "y": 0,
           "w": 280,
-          "h": 150,
+          "h": 130,
           "data": {
-            "label": "Info",
+            "label": "",
             "value": 0,
             "items": [],
             "text": "",
@@ -578,14 +577,14 @@
               }
             ]
           },
-          "groupId": "2a5254dc-b728-442e-a414-46e02c6de2e0",
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
           "attachedTo": [
-            "06adfbda-5857-4bdf-83c7-233c1d7466be",
-            "d2327abf-c6a7-4f8a-b8de-26124b65fe76"
+            "80a324e4-b86b-4b79-8ed7-f135e702ad26",
+            "7cfe9042-751c-423b-b8f4-1e54b6562928"
           ]
         },
         {
-          "id": "402c930f-4b54-43d2-b5a9-a452297a525d",
+          "id": "aeff1711-ca69-4a91-8990-1f937e46d981",
           "type": "TEXT",
           "x": 670,
           "y": 400,
@@ -597,19 +596,19 @@
             "items": [],
             "text": ""
           },
-          "groupId": "1b1abaef-6f7c-45a2-9923-83ccfdf837c4",
+          "groupId": "66cdfde4-1a3e-4602-b209-57bd722c1291",
           "attachedTo": [
-            "b218af9a-2dbf-400b-89d3-84f9b65ac4e9",
-            "cc54bf1f-db8a-4637-afd6-f74199f9c783"
+            "cbdaa1f3-0e21-4294-b74b-c388662a2366",
+            "b8a1dd67-4a9c-4023-99cf-99dbcdd016f8"
           ]
         },
         {
-          "id": "e2446c7d-8726-4b34-88be-ff37563050f8",
+          "id": "64359a85-9ff5-4570-a81d-afca67ffaafa",
           "type": "TABLE",
           "x": 840,
-          "y": 120,
+          "y": 130,
           "w": 480,
-          "h": 240,
+          "h": 250,
           "data": {
             "label": "Spells",
             "value": 0,
@@ -679,19 +678,19 @@
               }
             ]
           },
-          "groupId": "20e26d52-420a-4d58-8d67-5e49fdebae69",
+          "groupId": "cf7da397-5f4d-4d6a-83c0-0354e30bd3a7",
           "attachedTo": [
-            "a14807b0-b531-4ecb-9fc1-cfd79efb4f7a",
-            "7149c344-778b-4992-994a-e3cb949cb8c8"
+            "154383ff-8288-4155-82d9-668dac7fa81c",
+            "57b040f9-c236-4f49-9f07-beb9ca26fd56"
           ]
         },
         {
-          "id": "7149c344-778b-4992-994a-e3cb949cb8c8",
+          "id": "57b040f9-c236-4f49-9f07-beb9ca26fd56",
           "type": "FORM",
           "x": 670,
           "y": 0,
           "w": 650,
-          "h": 120,
+          "h": 130,
           "data": {
             "label": "",
             "value": 0,
@@ -716,15 +715,74 @@
               }
             ]
           },
-          "groupId": "20e26d52-420a-4d58-8d67-5e49fdebae69",
+          "groupId": "cf7da397-5f4d-4d6a-83c0-0354e30bd3a7",
           "attachedTo": [
-            "a14807b0-b531-4ecb-9fc1-cfd79efb4f7a",
-            "e2446c7d-8726-4b34-88be-ff37563050f8"
+            "154383ff-8288-4155-82d9-668dac7fa81c",
+            "64359a85-9ff5-4570-a81d-afca67ffaafa"
+          ]
+        },
+        {
+          "id": "84f262e0-9899-44c5-85e4-863e2820a115",
+          "type": "PROGRESS_BAR",
+          "x": 0,
+          "y": 320,
+          "w": 190,
+          "h": 80,
+          "data": {
+            "label": "XP",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "maxValue": 300,
+            "showPercentage": false,
+            "currentValue": 0
+          },
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "attachedTo": [
+            "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
+            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
+          ]
+        },
+        {
+          "id": "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06",
+          "type": "POOL",
+          "x": 470,
+          "y": 240,
+          "w": 180,
+          "h": 120,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolStyle": "skulls",
+            "maxPool": 3,
+            "currentPool": 2,
+            "showPoolCount": false,
+            "poolResources": [
+              {
+                "name": "Death Save Success",
+                "max": 3,
+                "current": 0,
+                "style": "checkmarks"
+              },
+              {
+                "name": "Death Save Failure",
+                "max": 3,
+                "current": 0,
+                "style": "skulls"
+              }
+            ]
+          },
+          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "attachedTo": [
+            "c9ad255a-d7f9-41c2-97a2-1766139781c4",
+            "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1",
+            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
           ]
         }
       ]
     }
   ],
-  "activeSheetId": "c04ff32a-56f2-4a3b-a392-7b2ad6f1b1b7",
-  "theme": "default"
+  "activeSheetId": "3fb5f4d0-f267-45f6-9980-dceb3ad17d7c"
 }
