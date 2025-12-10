@@ -1,0 +1,227 @@
+{
+  "id": "adf1b615-a045-4a25-8c37-0ce4f0fe984d",
+  "name": "Mothership preset",
+  "sheets": [
+    {
+      "id": "049aefc1-3522-4907-b34f-1ec1074d7084",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "886cc172-510c-4785-8886-4efb4750f2bf",
+          "type": "IMAGE",
+          "x": 780,
+          "y": 200,
+          "w": 210,
+          "h": 250,
+          "data": {
+            "label": "Name",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "6997f591-11b1-4d95-9e0d-8c3ea4afc67d",
+            "9a23a152-a4d1-4056-a5e4-c8dd01e1bd6f",
+            "ef500703-4bd6-45c5-9dac-0e8667ffb231",
+            "979186c7-3065-4691-97c9-d4fb50057156"
+          ]
+        },
+        {
+          "id": "9a23a152-a4d1-4056-a5e4-c8dd01e1bd6f",
+          "type": "NUMBER_DISPLAY",
+          "x": 990,
+          "y": 280,
+          "w": 300,
+          "h": 110,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "Strength",
+                "value": 0
+              },
+              {
+                "label": "Speed",
+                "value": 0
+              },
+              {
+                "label": "Intellect",
+                "value": 0
+              },
+              {
+                "label": "Combat",
+                "value": 0
+              }
+            ],
+            "displayLayout": "horizontal"
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "979186c7-3065-4691-97c9-d4fb50057156",
+            "886cc172-510c-4785-8886-4efb4750f2bf",
+            "ef500703-4bd6-45c5-9dac-0e8667ffb231"
+          ]
+        },
+        {
+          "id": "ef500703-4bd6-45c5-9dac-0e8667ffb231",
+          "type": "NUMBER_DISPLAY",
+          "x": 990,
+          "y": 390,
+          "w": 300,
+          "h": 110,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "Sanity",
+                "value": 0
+              },
+              {
+                "label": "Fear",
+                "value": 0
+              },
+              {
+                "label": "Body",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "886cc172-510c-4785-8886-4efb4750f2bf",
+            "9a23a152-a4d1-4056-a5e4-c8dd01e1bd6f",
+            "6997f591-11b1-4d95-9e0d-8c3ea4afc67d",
+            "1d87cb28-79e5-4f20-b276-7a1aa6f4fe89"
+          ]
+        },
+        {
+          "id": "979186c7-3065-4691-97c9-d4fb50057156",
+          "type": "FORM",
+          "x": 990,
+          "y": 200,
+          "w": 300,
+          "h": 80,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Class",
+                "value": ""
+              },
+              {
+                "name": "High Score",
+                "value": ""
+              }
+            ]
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "886cc172-510c-4785-8886-4efb4750f2bf"
+          ]
+        },
+        {
+          "id": "6997f591-11b1-4d95-9e0d-8c3ea4afc67d",
+          "type": "HEALTH_BAR",
+          "x": 780,
+          "y": 450,
+          "w": 210,
+          "h": 100,
+          "data": {
+            "label": "Health",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "886cc172-510c-4785-8886-4efb4750f2bf",
+            "3bd49c92-b5d2-4f41-8351-06a21d6dc08a",
+            "ef500703-4bd6-45c5-9dac-0e8667ffb231",
+            "1d87cb28-79e5-4f20-b276-7a1aa6f4fe89"
+          ]
+        },
+        {
+          "id": "3bd49c92-b5d2-4f41-8351-06a21d6dc08a",
+          "type": "NUMBER",
+          "x": 780,
+          "y": 550,
+          "w": 210,
+          "h": 80,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Wounds",
+                "value": 0
+              },
+              {
+                "name": "Stress",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "6997f591-11b1-4d95-9e0d-8c3ea4afc67d",
+            "1d87cb28-79e5-4f20-b276-7a1aa6f4fe89"
+          ]
+        },
+        {
+          "id": "4a910aa1-2081-43d9-8597-e55af66f362f",
+          "type": "DICE_ROLLER",
+          "x": 1310,
+          "y": 200,
+          "w": 200,
+          "h": 120,
+          "data": {
+            "label": "New Widget",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "diceGroups": [
+              {
+                "count": 1,
+                "faces": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "1d87cb28-79e5-4f20-b276-7a1aa6f4fe89",
+          "type": "TEXT",
+          "x": 990,
+          "y": 500,
+          "w": 300,
+          "h": 130,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "5eb4b535-98e0-4a99-900b-dfac8f54c259",
+          "attachedTo": [
+            "ef500703-4bd6-45c5-9dac-0e8667ffb231",
+            "6997f591-11b1-4d95-9e0d-8c3ea4afc67d",
+            "3bd49c92-b5d2-4f41-8351-06a21d6dc08a"
+          ]
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "049aefc1-3522-4907-b34f-1ec1074d7084",
+  "theme": "default"
+}

@@ -1,0 +1,330 @@
+{
+  "id": "d1314816-deac-414a-aac4-ee8e34f3a43f",
+  "name": "Forbidden Lands Preset",
+  "sheets": [
+    {
+      "id": "24ccc8eb-ccbb-4017-bf4c-c41e1e1c3942",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "2a4977ab-5bf5-4249-bcbe-f85c98d44a0e",
+          "type": "IMAGE",
+          "x": 0,
+          "y": 0,
+          "w": 180,
+          "h": 220,
+          "data": {
+            "label": "New Widget",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "24a99c59-bcf1-43c4-81a3-27d1ba361b2b",
+          "attachedTo": [
+            "77dae175-0c90-4ae9-9bd2-09900b47b452"
+          ]
+        },
+        {
+          "id": "77dae175-0c90-4ae9-9bd2-09900b47b452",
+          "type": "POOL",
+          "x": 0,
+          "y": 220,
+          "w": 180,
+          "h": 240,
+          "data": {
+            "label": "Attributes",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Strength",
+                "max": 4,
+                "current": 4,
+                "style": "dots"
+              },
+              {
+                "name": "Agility",
+                "max": 4,
+                "current": 4,
+                "style": "dots"
+              },
+              {
+                "name": "Wits",
+                "max": 4,
+                "current": 4,
+                "style": "dots"
+              },
+              {
+                "name": "Empathy",
+                "max": 4,
+                "current": 4,
+                "style": "dots"
+              }
+            ],
+            "showPoolCount": false
+          },
+          "groupId": "24a99c59-bcf1-43c4-81a3-27d1ba361b2b",
+          "attachedTo": [
+            "2a4977ab-5bf5-4249-bcbe-f85c98d44a0e",
+            "b6005e83-2df9-4d9e-899a-c287d6174b61"
+          ]
+        },
+        {
+          "id": "b6005e83-2df9-4d9e-899a-c287d6174b61",
+          "type": "TOGGLE_GROUP",
+          "x": 0,
+          "y": 460,
+          "w": 180,
+          "h": 150,
+          "data": {
+            "label": "Conditions",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleItems": [
+              {
+                "name": "Sleepy",
+                "active": false
+              },
+              {
+                "name": "Thirsty",
+                "active": false
+              },
+              {
+                "name": "Hungry",
+                "active": false
+              },
+              {
+                "name": "Cold",
+                "active": false
+              }
+            ]
+          },
+          "groupId": "24a99c59-bcf1-43c4-81a3-27d1ba361b2b",
+          "attachedTo": [
+            "77dae175-0c90-4ae9-9bd2-09900b47b452"
+          ]
+        },
+        {
+          "id": "ebe42a9f-7198-406a-af8c-0ae26471caaf",
+          "type": "TIME_TRACKER",
+          "x": 470,
+          "y": 380,
+          "w": 260,
+          "h": 230,
+          "data": {
+            "label": "Critical Injuries",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "attachedTo": [
+            "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
+            "4735c60d-3ded-4680-a9dc-58a4d528c26c",
+            "8dc758e6-5b01-4c7d-9c6c-09680bcfd46e"
+          ]
+        },
+        {
+          "id": "89f10e14-d560-43dd-821f-cea26f89c170",
+          "type": "DICE_TRAY",
+          "x": 760,
+          "y": 0,
+          "w": 240,
+          "h": 200,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "availableDice": [
+              6,
+              8,
+              10,
+              12
+            ]
+          }
+        },
+        {
+          "id": "e8466ec2-dba6-467c-bccd-dd6606a39408",
+          "type": "FORM",
+          "x": 180,
+          "y": 0,
+          "w": 550,
+          "h": 180,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Kin",
+                "value": ""
+              },
+              {
+                "name": "Profession",
+                "value": ""
+              },
+              {
+                "name": "Age",
+                "value": ""
+              },
+              {
+                "name": "Reputation",
+                "value": ""
+              },
+              {
+                "name": "Pride",
+                "value": ""
+              },
+              {
+                "name": "Dark Secret",
+                "value": ""
+              }
+            ]
+          },
+          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "attachedTo": [
+            "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
+            "4735c60d-3ded-4680-a9dc-58a4d528c26c"
+          ]
+        },
+        {
+          "id": "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
+          "type": "NUMBER",
+          "x": 180,
+          "y": 180,
+          "w": 290,
+          "h": 430,
+          "data": {
+            "label": "Skills",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Might (str)",
+                "value": 0
+              },
+              {
+                "name": "Endurence (str)",
+                "value": 0
+              },
+              {
+                "name": "Melee (str)",
+                "value": 0
+              },
+              {
+                "name": "Crafting (str)",
+                "value": 0
+              },
+              {
+                "name": "Stealth (agi)",
+                "value": 0
+              },
+              {
+                "name": "Sleight of Hand (agi)",
+                "value": 0
+              },
+              {
+                "name": "Move (agi)",
+                "value": 0
+              },
+              {
+                "name": "Marksmanship (agi)",
+                "value": 0
+              },
+              {
+                "name": "Scouting (wits)",
+                "value": 0
+              },
+              {
+                "name": "Lore (wits)",
+                "value": 0
+              },
+              {
+                "name": "Survival (wits)",
+                "value": 0
+              },
+              {
+                "name": "Insight (wits)",
+                "value": 0
+              },
+              {
+                "name": "Manipulation (emp)",
+                "value": 0
+              },
+              {
+                "name": "PErformance (emp)",
+                "value": 0
+              },
+              {
+                "name": "Healing (emp)",
+                "value": 0
+              },
+              {
+                "name": "Healing (emp)",
+                "value": 0
+              },
+              {
+                "name": "Animal Handling (emp)",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "attachedTo": [
+            "e8466ec2-dba6-467c-bccd-dd6606a39408",
+            "4735c60d-3ded-4680-a9dc-58a4d528c26c",
+            "ebe42a9f-7198-406a-af8c-0ae26471caaf",
+            "8dc758e6-5b01-4c7d-9c6c-09680bcfd46e"
+          ]
+        },
+        {
+          "id": "4735c60d-3ded-4680-a9dc-58a4d528c26c",
+          "type": "LIST",
+          "x": 470,
+          "y": 180,
+          "w": 260,
+          "h": 200,
+          "data": {
+            "label": "Talents",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "itemCount": 5
+          },
+          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "attachedTo": [
+            "e8466ec2-dba6-467c-bccd-dd6606a39408",
+            "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
+            "ebe42a9f-7198-406a-af8c-0ae26471caaf"
+          ]
+        },
+        {
+          "id": "8dc758e6-5b01-4c7d-9c6c-09680bcfd46e",
+          "type": "LIST",
+          "x": 0,
+          "y": 610,
+          "w": 730,
+          "h": 230,
+          "data": {
+            "label": "Equipment",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "itemCount": 6
+          },
+          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "attachedTo": [
+            "ebe42a9f-7198-406a-af8c-0ae26471caaf",
+            "8944f7d8-d339-4345-a2ee-f0a54745dcd9"
+          ]
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "24ccc8eb-ccbb-4017-bf4c-c41e1e1c3942"
+}

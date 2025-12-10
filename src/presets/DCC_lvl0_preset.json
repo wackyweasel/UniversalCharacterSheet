@@ -241,6 +241,270 @@
           ]
         }
       ]
+    },
+    {
+      "id": "c43d96bc-78f2-4a13-85c7-40c9e63d13c0",
+      "name": "Tables",
+      "widgets": [
+        {
+          "id": "6e943b4e-f7ec-4f15-ac27-64861120dc55",
+          "type": "TABLE",
+          "x": 400,
+          "y": 300,
+          "w": 510,
+          "h": 400,
+          "data": {
+            "label": "Ability Score Modifiers",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "columns": [
+              "Ability Score",
+              "Modifier",
+              "Wizard Spells Known",
+              "Max Spell Level**"
+            ],
+            "rows": [
+              {
+                "cells": [
+                  "3",
+                  "-3",
+                  "No spellcasting possible",
+                  "No spellcasting possible"
+                ]
+              },
+              {
+                "cells": [
+                  "4",
+                  "-2",
+                  "-2 spells*",
+                  "1"
+                ]
+              },
+              {
+                "cells": [
+                  "5",
+                  "-2",
+                  "-2 spells*",
+                  "1"
+                ]
+              },
+              {
+                "cells": [
+                  "6",
+                  "-1",
+                  "-1 spell*",
+                  "1"
+                ]
+              },
+              {
+                "cells": [
+                  "7",
+                  "-1",
+                  "-1 spell*",
+                  "1"
+                ]
+              },
+              {
+                "cells": [
+                  "8",
+                  "-1",
+                  "No adjustment",
+                  "2"
+                ]
+              },
+              {
+                "cells": [
+                  "9",
+                  "None",
+                  "No adjustment",
+                  "2"
+                ]
+              },
+              {
+                "cells": [
+                  "10",
+                  "None",
+                  "No adjustment",
+                  "3"
+                ]
+              },
+              {
+                "cells": [
+                  "11",
+                  "None",
+                  "No adjustment",
+                  "3"
+                ]
+              },
+              {
+                "cells": [
+                  "12",
+                  "None",
+                  "No adjustment",
+                  "4"
+                ]
+              },
+              {
+                "cells": [
+                  "13",
+                  "+1",
+                  "No adjustment",
+                  "4"
+                ]
+              },
+              {
+                "cells": [
+                  "14",
+                  "+1",
+                  "+1 spell",
+                  "4"
+                ]
+              },
+              {
+                "cells": [
+                  "15",
+                  "+1",
+                  "\t +1 spell",
+                  "5"
+                ]
+              },
+              {
+                "cells": [
+                  "16",
+                  "+2",
+                  "\t +1 spell",
+                  "5"
+                ]
+              },
+              {
+                "cells": [
+                  "17",
+                  "+2",
+                  "\t +2 spells",
+                  "5"
+                ]
+              },
+              {
+                "cells": [
+                  "18",
+                  "+3",
+                  "+2 spells",
+                  "5"
+                ]
+              }
+            ]
+          },
+          "groupId": "63b0d9e8-fe5e-4d2e-98a9-04cdc74d0792",
+          "attachedTo": [
+            "5f23c535-f23c-4377-bf5a-e73ce686a93d"
+          ]
+        },
+        {
+          "id": "5f23c535-f23c-4377-bf5a-e73ce686a93d",
+          "type": "TEXT",
+          "x": 400,
+          "y": 700,
+          "w": 510,
+          "h": 100,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "* Minimum of 1 spell.\n** Based on Intelligence for wizards and Personality for clerics."
+          },
+          "groupId": "63b0d9e8-fe5e-4d2e-98a9-04cdc74d0792",
+          "attachedTo": [
+            "6e943b4e-f7ec-4f15-ac27-64861120dc55"
+          ]
+        },
+        {
+          "id": "5a2d16eb-3702-4e7f-b3b5-75efdb1f6a56",
+          "type": "TABLE",
+          "x": 930,
+          "y": 300,
+          "w": 180,
+          "h": 300,
+          "data": {
+            "label": "XP level Thresholds",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "columns": [
+              "Level",
+              "XP Required"
+            ],
+            "rows": [
+              {
+                "cells": [
+                  "0",
+                  "0"
+                ]
+              },
+              {
+                "cells": [
+                  "1",
+                  "10"
+                ]
+              },
+              {
+                "cells": [
+                  "2",
+                  "50"
+                ]
+              },
+              {
+                "cells": [
+                  "3",
+                  "110"
+                ]
+              },
+              {
+                "cells": [
+                  "4",
+                  "190"
+                ]
+              },
+              {
+                "cells": [
+                  "5",
+                  "290"
+                ]
+              },
+              {
+                "cells": [
+                  "6",
+                  "410"
+                ]
+              },
+              {
+                "cells": [
+                  "7",
+                  "550"
+                ]
+              },
+              {
+                "cells": [
+                  "8",
+                  "710"
+                ]
+              },
+              {
+                "cells": [
+                  "9",
+                  "890"
+                ]
+              },
+              {
+                "cells": [
+                  "10",
+                  "1090"
+                ]
+              }
+            ]
+          }
+        }
+      ]
     }
   ],
   "activeSheetId": "5e628031-65ea-4ed7-958d-eed3715907d1"

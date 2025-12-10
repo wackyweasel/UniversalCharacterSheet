@@ -1,6 +1,8 @@
 import { Character } from '../types';
 import DnD5ePreset from './DnD5e_preset.json';
 import DCCLvl0Preset from './DCC_lvl0_preset.json';
+import MothershipPreset from './Mothership_preset.json';
+import ForbiddenLandsPreset from './Forbidden_Lands_preset.json';
 
 /**
  * Character Presets
@@ -37,6 +39,8 @@ export type CharacterPreset = Omit<Character, 'id'>;
 export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
   'D&D 5e': DnD5ePreset as CharacterPreset,
   'Dungeon Crawl Classics - Level 0': DCCLvl0Preset as CharacterPreset,
+  'Mothership': MothershipPreset as CharacterPreset,
+  'Forbidden Lands': ForbiddenLandsPreset as CharacterPreset,
 };
 
 // Get list of available preset names
