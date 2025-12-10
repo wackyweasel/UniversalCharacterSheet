@@ -10,9 +10,9 @@
           "id": "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
           "type": "FORM",
           "x": 960,
-          "y": 380,
+          "y": 360,
           "w": 360,
-          "h": 110,
+          "h": 100,
           "data": {
             "label": "",
             "value": 0,
@@ -33,48 +33,20 @@
               }
             ]
           },
-          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
           "attachedTo": [
             "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
-            "0838b4e2-9abc-4e79-97d2-75ab9ca24f30"
+            "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
           ]
-        },
-        {
-          "id": "797ba619-4a91-42ba-bfb8-6a76cc105b9d",
-          "type": "NUMBER",
-          "x": 1320,
-          "y": 490,
-          "w": 200,
-          "h": 100,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "numberItems": [
-              {
-                "name": "AC",
-                "value": 0
-              },
-              {
-                "name": "Speed",
-                "value": 0
-              },
-              {
-                "name": "Init",
-                "value": 0
-              }
-            ]
-          }
         },
         {
           "id": "88a7db76-54ba-4f26-b480-21261f450e44",
           "type": "DICE_TRAY",
           "x": 1550,
-          "y": 380,
-          "w": 280,
-          "h": 190,
+          "y": 360,
+          "w": 270,
+          "h": 220,
           "data": {
             "label": "",
             "value": 0,
@@ -102,9 +74,9 @@
           "id": "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
           "type": "NUMBER",
           "x": 960,
-          "y": 490,
+          "y": 460,
           "w": 160,
-          "h": 170,
+          "h": 150,
           "data": {
             "label": "",
             "value": 0,
@@ -137,21 +109,21 @@
               }
             ]
           },
-          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
           "attachedTo": [
             "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
+            "279766de-d7e7-47b5-8cf2-905b4c266295",
             "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
-            "279766de-d7e7-47b5-8cf2-905b4c266295"
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
           ]
         },
         {
           "id": "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
           "type": "NUMBER",
           "x": 1120,
-          "y": 490,
+          "y": 460,
           "w": 200,
-          "h": 100,
+          "h": 90,
           "data": {
             "label": "",
             "value": 0,
@@ -172,20 +144,21 @@
               }
             ]
           },
-          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
           "attachedTo": [
             "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
             "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "279766de-d7e7-47b5-8cf2-905b4c266295"
+            "279766de-d7e7-47b5-8cf2-905b4c266295",
+            "52dcd513-d13a-4792-a9a2-f230389caf39"
           ]
         },
         {
           "id": "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
           "type": "HEALTH_BAR",
           "x": 1320,
-          "y": 380,
+          "y": 360,
           "w": 200,
-          "h": 110,
+          "h": 100,
           "data": {
             "label": "Health",
             "value": 0,
@@ -194,36 +167,38 @@
             "maxValue": 5,
             "currentValue": 5
           },
-          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
           "attachedTo": [
-            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc"
+            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
+            "52dcd513-d13a-4792-a9a2-f230389caf39"
           ]
         },
         {
           "id": "279766de-d7e7-47b5-8cf2-905b4c266295",
           "type": "TEXT",
           "x": 1120,
-          "y": 590,
+          "y": 550,
           "w": 400,
-          "h": 150,
+          "h": 140,
           "data": {
             "label": "Notes",
             "value": 0,
             "items": [],
             "text": ""
           },
-          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
           "attachedTo": [
             "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
-            "49a71ab5-cc63-490b-93ba-325cbccb0a8a"
+            "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
+            "52dcd513-d13a-4792-a9a2-f230389caf39",
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
           ]
         },
         {
           "id": "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
           "type": "PROGRESS_BAR",
           "x": 960,
-          "y": 660,
+          "y": 610,
           "w": 160,
           "h": 80,
           "data": {
@@ -234,10 +209,44 @@
             "maxValue": 10,
             "showPercentage": false
           },
-          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
           "attachedTo": [
             "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
             "279766de-d7e7-47b5-8cf2-905b4c266295"
+          ]
+        },
+        {
+          "id": "52dcd513-d13a-4792-a9a2-f230389caf39",
+          "type": "NUMBER_DISPLAY",
+          "x": 1320,
+          "y": 460,
+          "w": 200,
+          "h": 90,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "AC",
+                "value": 10
+              },
+              {
+                "label": "Init",
+                "value": 0
+              },
+              {
+                "label": "Speed",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
+          "attachedTo": [
+            "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
+            "279766de-d7e7-47b5-8cf2-905b4c266295",
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
           ]
         }
       ]
@@ -507,5 +516,6 @@
       ]
     }
   ],
-  "activeSheetId": "5e628031-65ea-4ed7-958d-eed3715907d1"
+  "activeSheetId": "5e628031-65ea-4ed7-958d-eed3715907d1",
+  "theme": "default"
 }

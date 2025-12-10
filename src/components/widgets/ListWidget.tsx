@@ -20,7 +20,7 @@ export default function ListWidget({ widget, height }: Props) {
   // Calculate list area height
   const labelHeight = 16;
   const gapSize = 4;
-  const padding = 8;
+  const padding = 0;
   const listHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
   // Ensure items array matches itemCount

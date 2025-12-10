@@ -1,14 +1,14 @@
 {
-  "id": "c24f789a-2330-47dd-a94d-192ce50298a1",
-  "name": "bob",
+  "id": "3f834d97-7148-4e93-b6c9-dde1ff490cc1",
+  "name": "dnd preset",
   "theme": "default",
   "sheets": [
     {
-      "id": "3fb5f4d0-f267-45f6-9980-dceb3ad17d7c",
+      "id": "8453b811-d0cd-4f81-a8a7-aef11ca7aaae",
       "name": "Main",
       "widgets": [
         {
-          "id": "b738b623-c278-47b1-a695-b5f5fd535d6b",
+          "id": "0ed12bd7-8b3b-4565-86fd-2c446c824cd2",
           "type": "IMAGE",
           "x": 0,
           "y": 0,
@@ -20,15 +20,15 @@
             "items": [],
             "text": ""
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "3282082c-406b-47c2-bbdf-d9a4d991e191",
-            "a361cd5c-03de-4a08-b24b-46826818eafa",
-            "7cfe9042-751c-423b-b8f4-1e54b6562928"
+            "5bd0607a-d32c-4094-a64a-2e0b11f5a7d4",
+            "ab749546-cd73-4c12-adaa-1ef22fa875e2",
+            "00dd44bd-d941-4edc-96c5-c47a0c320840"
           ]
         },
         {
-          "id": "a361cd5c-03de-4a08-b24b-46826818eafa",
+          "id": "ab749546-cd73-4c12-adaa-1ef22fa875e2",
           "type": "HEALTH_BAR",
           "x": 0,
           "y": 220,
@@ -41,15 +41,15 @@
             "text": "",
             "currentValue": 10
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "b738b623-c278-47b1-a695-b5f5fd535d6b",
-            "84f262e0-9899-44c5-85e4-863e2820a115",
-            "7cfe9042-751c-423b-b8f4-1e54b6562928"
+            "0ed12bd7-8b3b-4565-86fd-2c446c824cd2",
+            "ae8315af-9e02-4750-8160-99e2fe45d03b",
+            "00dd44bd-d941-4edc-96c5-c47a0c320840"
           ]
         },
         {
-          "id": "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1",
+          "id": "2a3c42aa-a933-4699-980f-b4ef75d7aa45",
           "type": "DICE_ROLLER",
           "x": 470,
           "y": 120,
@@ -67,20 +67,20 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "80a324e4-b86b-4b79-8ed7-f135e702ad26",
-            "7cfe9042-751c-423b-b8f4-1e54b6562928",
-            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06"
+            "ef17b625-4d96-4228-a61a-2cf2afad5b94",
+            "00dd44bd-d941-4edc-96c5-c47a0c320840",
+            "219a1327-916b-402d-91aa-13ab8217bdf2"
           ]
         },
         {
-          "id": "13e8819e-bef0-45c9-a0b0-670e3baa27ba",
+          "id": "999ddc53-5db8-4b1e-80ec-c0e0641a010c",
           "type": "NUMBER",
           "x": 190,
           "y": 320,
           "w": 280,
-          "h": 470,
+          "h": 440,
           "data": {
             "label": "Skills",
             "value": 0,
@@ -161,24 +161,24 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
-            "7cfe9042-751c-423b-b8f4-1e54b6562928",
-            "02176623-99f0-4592-9c91-a5183e11bafa",
-            "84f262e0-9899-44c5-85e4-863e2820a115",
-            "c9ad255a-d7f9-41c2-97a2-1766139781c4",
-            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06",
-            "8700792a-8136-4e03-aa86-0937a3719249"
+            "957f216a-eb02-4bdf-af82-3b5f7df4f9d0",
+            "6e09d399-6a28-4060-bc63-c615209be46f",
+            "00dd44bd-d941-4edc-96c5-c47a0c320840",
+            "ae8315af-9e02-4750-8160-99e2fe45d03b",
+            "219a1327-916b-402d-91aa-13ab8217bdf2",
+            "4eded84b-0623-48e2-bd9e-11d6d0570736",
+            "bfd6064b-0512-4875-8a26-6a1e8cb3829a"
           ]
         },
         {
-          "id": "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
+          "id": "4eded84b-0623-48e2-bd9e-11d6d0570736",
           "type": "NUMBER",
           "x": 0,
           "y": 400,
           "w": 190,
-          "h": 130,
+          "h": 110,
           "data": {
             "label": "",
             "value": 0,
@@ -203,20 +203,20 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "84f262e0-9899-44c5-85e4-863e2820a115",
-            "02176623-99f0-4592-9c91-a5183e11bafa",
-            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c",
+            "ae8315af-9e02-4750-8160-99e2fe45d03b",
+            "bfd6064b-0512-4875-8a26-6a1e8cb3829a"
           ]
         },
         {
-          "id": "b8a1dd67-4a9c-4023-99cf-99dbcdd016f8",
+          "id": "af24b2e5-bc7d-46cf-9781-7c307b9e9387",
           "type": "TABLE",
           "x": 670,
-          "y": 570,
+          "y": 550,
           "w": 650,
-          "h": 220,
+          "h": 210,
           "data": {
             "label": "Backback",
             "value": 0,
@@ -274,19 +274,19 @@
               }
             ]
           },
-          "groupId": "66cdfde4-1a3e-4602-b209-57bd722c1291",
+          "groupId": "55349067-3fce-40ac-a130-31fffe89be16",
           "attachedTo": [
-            "cbdaa1f3-0e21-4294-b74b-c388662a2366",
-            "aeff1711-ca69-4a91-8990-1f937e46d981"
+            "01ca39ba-b98a-4f94-9d20-274ecd291adf",
+            "774878f7-e786-4a79-a46f-7ba3b2c37484"
           ]
         },
         {
-          "id": "8700792a-8136-4e03-aa86-0937a3719249",
+          "id": "957f216a-eb02-4bdf-af82-3b5f7df4f9d0",
           "type": "TIME_TRACKER",
           "x": 470,
-          "y": 620,
+          "y": 570,
           "w": 180,
-          "h": 170,
+          "h": 190,
           "data": {
             "label": "Effects",
             "value": 0,
@@ -294,19 +294,19 @@
             "text": "",
             "timedEffects": []
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "c9ad255a-d7f9-41c2-97a2-1766139781c4",
-            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
+            "6e09d399-6a28-4060-bc63-c615209be46f",
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c"
           ]
         },
         {
-          "id": "c9ad255a-d7f9-41c2-97a2-1766139781c4",
+          "id": "6e09d399-6a28-4060-bc63-c615209be46f",
           "type": "TOGGLE_GROUP",
           "x": 470,
-          "y": 360,
+          "y": 350,
           "w": 180,
-          "h": 260,
+          "h": 220,
           "data": {
             "label": "Conditions",
             "value": 0,
@@ -371,14 +371,15 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "8700792a-8136-4e03-aa86-0937a3719249",
-            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06"
+            "219a1327-916b-402d-91aa-13ab8217bdf2",
+            "957f216a-eb02-4bdf-af82-3b5f7df4f9d0",
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c"
           ]
         },
         {
-          "id": "7cfe9042-751c-423b-b8f4-1e54b6562928",
+          "id": "00dd44bd-d941-4edc-96c5-c47a0c320840",
           "type": "NUMBER",
           "x": 190,
           "y": 130,
@@ -416,23 +417,23 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "b738b623-c278-47b1-a695-b5f5fd535d6b",
-            "a361cd5c-03de-4a08-b24b-46826818eafa",
-            "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1",
-            "3282082c-406b-47c2-bbdf-d9a4d991e191",
-            "13e8819e-bef0-45c9-a0b0-670e3baa27ba",
-            "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06"
+            "0ed12bd7-8b3b-4565-86fd-2c446c824cd2",
+            "ab749546-cd73-4c12-adaa-1ef22fa875e2",
+            "2a3c42aa-a933-4699-980f-b4ef75d7aa45",
+            "5bd0607a-d32c-4094-a64a-2e0b11f5a7d4",
+            "219a1327-916b-402d-91aa-13ab8217bdf2",
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c"
           ]
         },
         {
-          "id": "02176623-99f0-4592-9c91-a5183e11bafa",
+          "id": "bfd6064b-0512-4875-8a26-6a1e8cb3829a",
           "type": "LIST",
           "x": 0,
-          "y": 530,
+          "y": 510,
           "w": 190,
-          "h": 260,
+          "h": 250,
           "data": {
             "label": "Features & Traits",
             "value": 0,
@@ -449,14 +450,14 @@
             "text": "",
             "itemCount": 7
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
-            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c",
+            "4eded84b-0623-48e2-bd9e-11d6d0570736"
           ]
         },
         {
-          "id": "80a324e4-b86b-4b79-8ed7-f135e702ad26",
+          "id": "ef17b625-4d96-4228-a61a-2cf2afad5b94",
           "type": "DICE_ROLLER",
           "x": 470,
           "y": 0,
@@ -468,17 +469,17 @@
             "items": [],
             "text": ""
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "3282082c-406b-47c2-bbdf-d9a4d991e191",
-            "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1"
+            "5bd0607a-d32c-4094-a64a-2e0b11f5a7d4",
+            "2a3c42aa-a933-4699-980f-b4ef75d7aa45"
           ]
         },
         {
-          "id": "cbdaa1f3-0e21-4294-b74b-c388662a2366",
+          "id": "01ca39ba-b98a-4f94-9d20-274ecd291adf",
           "type": "NUMBER",
           "x": 1180,
-          "y": 400,
+          "y": 380,
           "w": 140,
           "h": 170,
           "data": {
@@ -509,14 +510,14 @@
               }
             ]
           },
-          "groupId": "66cdfde4-1a3e-4602-b209-57bd722c1291",
+          "groupId": "55349067-3fce-40ac-a130-31fffe89be16",
           "attachedTo": [
-            "aeff1711-ca69-4a91-8990-1f937e46d981",
-            "b8a1dd67-4a9c-4023-99cf-99dbcdd016f8"
+            "774878f7-e786-4a79-a46f-7ba3b2c37484",
+            "af24b2e5-bc7d-46cf-9781-7c307b9e9387"
           ]
         },
         {
-          "id": "154383ff-8288-4155-82d9-668dac7fa81c",
+          "id": "db426c1f-a727-432c-a50d-f28f4b648c38",
           "type": "SPELL_SLOT",
           "x": 670,
           "y": 130,
@@ -540,14 +541,15 @@
               }
             ]
           },
-          "groupId": "cf7da397-5f4d-4d6a-83c0-0354e30bd3a7",
+          "groupId": "55349067-3fce-40ac-a130-31fffe89be16",
           "attachedTo": [
-            "57b040f9-c236-4f49-9f07-beb9ca26fd56",
-            "64359a85-9ff5-4570-a81d-afca67ffaafa"
+            "a9a12c4e-5db4-4c7d-ab1a-7257d0416815",
+            "0af67232-d082-4841-8e34-ce26517ffed3",
+            "774878f7-e786-4a79-a46f-7ba3b2c37484"
           ]
         },
         {
-          "id": "3282082c-406b-47c2-bbdf-d9a4d991e191",
+          "id": "5bd0607a-d32c-4094-a64a-2e0b11f5a7d4",
           "type": "FORM",
           "x": 190,
           "y": 0,
@@ -577,17 +579,17 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "80a324e4-b86b-4b79-8ed7-f135e702ad26",
-            "7cfe9042-751c-423b-b8f4-1e54b6562928"
+            "ef17b625-4d96-4228-a61a-2cf2afad5b94",
+            "00dd44bd-d941-4edc-96c5-c47a0c320840"
           ]
         },
         {
-          "id": "aeff1711-ca69-4a91-8990-1f937e46d981",
+          "id": "774878f7-e786-4a79-a46f-7ba3b2c37484",
           "type": "TEXT",
           "x": 670,
-          "y": 400,
+          "y": 380,
           "w": 510,
           "h": 170,
           "data": {
@@ -596,14 +598,16 @@
             "items": [],
             "text": ""
           },
-          "groupId": "66cdfde4-1a3e-4602-b209-57bd722c1291",
+          "groupId": "55349067-3fce-40ac-a130-31fffe89be16",
           "attachedTo": [
-            "cbdaa1f3-0e21-4294-b74b-c388662a2366",
-            "b8a1dd67-4a9c-4023-99cf-99dbcdd016f8"
+            "01ca39ba-b98a-4f94-9d20-274ecd291adf",
+            "af24b2e5-bc7d-46cf-9781-7c307b9e9387",
+            "0af67232-d082-4841-8e34-ce26517ffed3",
+            "db426c1f-a727-432c-a50d-f28f4b648c38"
           ]
         },
         {
-          "id": "64359a85-9ff5-4570-a81d-afca67ffaafa",
+          "id": "0af67232-d082-4841-8e34-ce26517ffed3",
           "type": "TABLE",
           "x": 840,
           "y": 130,
@@ -678,14 +682,14 @@
               }
             ]
           },
-          "groupId": "cf7da397-5f4d-4d6a-83c0-0354e30bd3a7",
+          "groupId": "55349067-3fce-40ac-a130-31fffe89be16",
           "attachedTo": [
-            "154383ff-8288-4155-82d9-668dac7fa81c",
-            "57b040f9-c236-4f49-9f07-beb9ca26fd56"
+            "db426c1f-a727-432c-a50d-f28f4b648c38",
+            "a9a12c4e-5db4-4c7d-ab1a-7257d0416815"
           ]
         },
         {
-          "id": "57b040f9-c236-4f49-9f07-beb9ca26fd56",
+          "id": "a9a12c4e-5db4-4c7d-ab1a-7257d0416815",
           "type": "FORM",
           "x": 670,
           "y": 0,
@@ -715,14 +719,14 @@
               }
             ]
           },
-          "groupId": "cf7da397-5f4d-4d6a-83c0-0354e30bd3a7",
+          "groupId": "55349067-3fce-40ac-a130-31fffe89be16",
           "attachedTo": [
-            "154383ff-8288-4155-82d9-668dac7fa81c",
-            "64359a85-9ff5-4570-a81d-afca67ffaafa"
+            "db426c1f-a727-432c-a50d-f28f4b648c38",
+            "0af67232-d082-4841-8e34-ce26517ffed3"
           ]
         },
         {
-          "id": "84f262e0-9899-44c5-85e4-863e2820a115",
+          "id": "ae8315af-9e02-4750-8160-99e2fe45d03b",
           "type": "PROGRESS_BAR",
           "x": 0,
           "y": 320,
@@ -737,19 +741,19 @@
             "showPercentage": false,
             "currentValue": 0
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "eaf23d9f-843b-438b-8f4e-b6f4fcd04226",
-            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c",
+            "4eded84b-0623-48e2-bd9e-11d6d0570736"
           ]
         },
         {
-          "id": "ae8d7d8b-134f-4ae5-9ec4-e8a04aac1e06",
+          "id": "219a1327-916b-402d-91aa-13ab8217bdf2",
           "type": "POOL",
           "x": 470,
           "y": 240,
           "w": 180,
-          "h": 120,
+          "h": 110,
           "data": {
             "label": "",
             "value": 0,
@@ -774,15 +778,15 @@
               }
             ]
           },
-          "groupId": "a2d194ea-6456-49e9-abbd-67fbe699af30",
+          "groupId": "f2b6f235-4b41-40a8-9869-0047b90b3775",
           "attachedTo": [
-            "c9ad255a-d7f9-41c2-97a2-1766139781c4",
-            "47dd6ca4-eebc-4ce8-a516-f81ffb959cd1",
-            "13e8819e-bef0-45c9-a0b0-670e3baa27ba"
+            "6e09d399-6a28-4060-bc63-c615209be46f",
+            "2a3c42aa-a933-4699-980f-b4ef75d7aa45",
+            "999ddc53-5db8-4b1e-80ec-c0e0641a010c"
           ]
         }
       ]
     }
   ],
-  "activeSheetId": "3fb5f4d0-f267-45f6-9980-dceb3ad17d7c"
+  "activeSheetId": "8453b811-d0cd-4f81-a8a7-aef11ca7aaae"
 }

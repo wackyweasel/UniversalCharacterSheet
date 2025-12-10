@@ -323,7 +323,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           ref={nodeRef}
           data-widget-id={widget.id}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 sm:p-4 cursor-default group rounded-theme ${widget.groupId && mode === 'edit' ? 'ring-2 ring-green-500 ring-opacity-50' : ''} ${isResizing ? 'select-none' : ''}`}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 sm:p-2 cursor-default group rounded-theme ${isResizing ? 'select-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
@@ -403,7 +403,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Resize Handle - only visible in edit mode when hovered/selected */}
           {mode === 'edit' && showControls && (
             <div
-              className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+              className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
               onMouseDown={handleResizeStart}
               onTouchStart={handleResizeStart}
               title="Drag to resize"

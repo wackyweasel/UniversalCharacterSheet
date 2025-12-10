@@ -19,7 +19,7 @@ export default function ImageWidget({ widget, height }: Props) {
   // Calculate image area height
   const labelHeight = 16;
   const gapSize = 4;
-  const padding = 8;
+  const padding = 0;
   const imageHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
   return (

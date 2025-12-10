@@ -50,63 +50,35 @@ export default function NumberDisplayWidget({ widget, width, height }: Props) {
   };
 
   const isHorizontal = displayLayout === 'horizontal';
-  
-  // Calculate sizing based on available space and number of items
   const itemCount = displayNumbers.length || 1;
-  const padding = 16; // p-2 = 8px * 2
-  const labelHeight = label ? 20 : 0;
-  const gap = 8;
   
-  // Available space for numbers
-  const availableHeight = height - padding - labelHeight - (label ? gap : 0);
-  
-  // Calculate item size based on layout
-  let itemWidth: number;
-  let itemHeight: number;
-  
-  if (isHorizontal) {
-    // Items side by side with fixed width, scrollable if needed
-    itemWidth = 60;
-    itemHeight = Math.min(availableHeight, 70);
-  } else {
-    // Items stacked vertically
-    const availableWidth = width - padding;
-    const totalGaps = Math.max(0, itemCount - 1) * gap;
-    itemWidth = Math.min(80, availableWidth);
-    itemHeight = Math.min(60, (availableHeight - totalGaps) / itemCount);
-  }
-  
-  // Font sizes based on item dimensions
-  const numberFontSize = Math.max(14, Math.min(28, itemHeight * 0.45));
-  const labelFontSize = Math.max(8, Math.min(12, itemHeight * 0.2));
+  // Font sizes based on available space
+  const minDimension = Math.min(width / (isHorizontal ? itemCount : 1), height / (isHorizontal ? 1 : itemCount));
+  const numberFontSize = Math.max(10, Math.min(20, minDimension * 0.25));
+  const labelFontSize = Math.max(7, Math.min(10, minDimension * 0.12));
 
   return (
-    <div className="flex flex-col gap-1 w-full h-full">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       {label && (
-        <div className="font-bold text-xs text-theme-ink font-heading flex-shrink-0 truncate">
+        <div 
+          className="font-bold text-theme-ink font-heading shrink-0 truncate px-1"
+          style={{ fontSize: '11px', lineHeight: '16px' }}
+        >
           {label}
         </div>
       )}
 
-      {/* Number Items */}
+      {/* Number Items Container - uses flex to distribute space */}
       <div 
-        className={`flex ${isHorizontal ? 'flex-row flex-nowrap overflow-x-auto' : 'flex-col overflow-y-auto'} gap-2 items-center ${isHorizontal ? 'justify-start' : 'justify-center'} flex-1`}
-        onWheel={(e) => {
-          const el = e.currentTarget;
-          if ((isHorizontal && el.scrollWidth > el.clientWidth) || (!isHorizontal && el.scrollHeight > el.clientHeight)) {
-            e.stopPropagation();
-          }
-        }}
+        className={`flex-1 flex ${isHorizontal ? 'flex-row' : 'flex-col'} items-stretch justify-center gap-1 p-1 min-h-0 min-w-0 overflow-hidden`}
       >
         {(displayNumbers as DisplayNumber[]).map((item, idx) => (
           <div 
             key={idx} 
-            className="flex flex-col items-center justify-center border-2 border-theme-border rounded-theme bg-theme-paper/50 flex-shrink-0"
+            className={`flex flex-col items-center justify-center border-2 border-theme-border rounded-theme bg-theme-paper/50 overflow-hidden ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
             style={{ 
-              width: `${itemWidth}px`, 
-              height: `${itemHeight}px`,
-              minWidth: '50px',
-              minHeight: '40px'
+              minWidth: isHorizontal ? '30px' : undefined,
+              minHeight: !isHorizontal ? '30px' : undefined,
             }}
           >
             {/* Value - editable on click */}
@@ -125,7 +97,7 @@ export default function NumberDisplayWidget({ widget, width, height }: Props) {
               />
             ) : (
               <span 
-                className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors"
+                className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors leading-none"
                 style={{ fontSize: `${numberFontSize}px` }}
                 onClick={() => handleValueClick(idx, item.value)}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -136,7 +108,7 @@ export default function NumberDisplayWidget({ widget, width, height }: Props) {
             
             {/* Label */}
             <span 
-              className="text-theme-muted font-body truncate w-full text-center px-1"
+              className="text-theme-muted font-body truncate w-full text-center px-1 leading-tight"
               style={{ fontSize: `${labelFontSize}px` }}
             >
               {item.label}

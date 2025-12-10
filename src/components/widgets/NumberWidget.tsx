@@ -30,7 +30,7 @@ export default function NumberWidget({ widget, height }: Props) {
   // Calculate items area height
   const labelHeight = 16;
   const gapSize = 4;
-  const padding = 8;
+  const padding = 0;
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
   const adjustItemValue = (index: number, delta: number) => {

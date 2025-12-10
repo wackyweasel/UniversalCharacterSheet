@@ -30,7 +30,7 @@ export default function TableWidget({ widget, height }: Props) {
   // Calculate table area height
   const labelHeight = 16;
   const gapSize = 4;
-  const padding = 8;
+  const padding = 0;
   const tableHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
   const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {

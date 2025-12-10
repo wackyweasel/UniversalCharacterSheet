@@ -166,7 +166,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
   const labelHeight = 16;
   const buttonsHeight = 32;
   const gapSize = 4;
-  const padding = 8;
+  const padding = 0;
   const effectsListHeight = Math.max(60, height - labelHeight - buttonsHeight - gapSize * 3 - padding * 2);
 
   return (

@@ -20,7 +20,7 @@ export default function TextWidget({ widget, height }: Props) {
   // Calculate textarea height based on available space
   const labelHeight = 16;
   const gapSize = 4;
-  const padding = 8; // p-2 from parent
+  const padding = 0; // p-1 from parent
   const textareaHeight = Math.max(32, height - labelHeight - gapSize - padding * 2);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

@@ -29,7 +29,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
   const labelHeight = 16;
   const controlsHeight = 28;
   const gapSize = 4;
-  const padding = 8;
+  const padding = 0;
   const levelsHeight = Math.max(30, height - labelHeight - controlsHeight - gapSize * 3 - padding * 2);
 
   const toggleSlot = (levelIdx: number, slotIdx: number) => {
