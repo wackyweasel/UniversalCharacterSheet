@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import NumberWidget from './widgets/NumberWidget';
+import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -32,6 +33,7 @@ const GRID_SIZE = 10;
 // Minimum dimensions per widget type
 const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'NUMBER': { width: 140, height: 60 },
+  'NUMBER_DISPLAY': { width: 120, height: 80 },
   'LIST': { width: 140, height: 80 },
   'TEXT': { width: 120, height: 60 },
   'CHECKBOX': { width: 140, height: 60 },
@@ -284,6 +286,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
     const props = { widget, mode: 'play' as const, width: widgetWidth, height: widgetHeight || 120 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
       case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;

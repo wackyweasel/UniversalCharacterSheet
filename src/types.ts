@@ -1,5 +1,6 @@
 export type WidgetType = 
   | 'NUMBER' 
+  | 'NUMBER_DISPLAY'
   | 'LIST' 
   | 'TEXT' 
   | 'CHECKBOX'
@@ -38,6 +39,11 @@ export interface SpellLevel {
 
 export interface NumberItem {
   name: string;
+  value: number;
+}
+
+export interface DisplayNumber {
+  label: string;
   value: number;
 }
 
@@ -84,6 +90,9 @@ export interface WidgetData {
   spellLevels?: SpellLevel[];
   // Number
   numberItems?: NumberItem[];
+  // Number Display
+  displayNumbers?: DisplayNumber[];
+  displayLayout?: 'horizontal' | 'vertical';
   // Form
   formItems?: FormItem[];
   // Image
