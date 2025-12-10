@@ -51,6 +51,13 @@ export interface DiceGroup {
   faces: number;
 }
 
+export interface PoolResource {
+  name: string;
+  max: number;
+  current: number;
+  style: string;
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -85,6 +92,8 @@ export interface WidgetData {
   maxPool?: number;
   currentPool?: number;
   poolStyle?: string;
+  showPoolCount?: boolean;
+  poolResources?: PoolResource[];
   // Toggle Group
   toggleItems?: ToggleItem[];
   // Table
