@@ -1,0 +1,247 @@
+{
+  "id": "2e478f30-ed09-423e-9e67-5f76b4935c22",
+  "name": "dcc lvl0 preset",
+  "sheets": [
+    {
+      "id": "5e628031-65ea-4ed7-958d-eed3715907d1",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
+          "type": "FORM",
+          "x": 960,
+          "y": 380,
+          "w": 360,
+          "h": 110,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Name",
+                "value": ""
+              },
+              {
+                "name": "Occupation",
+                "value": ""
+              },
+              {
+                "name": "Alignment",
+                "value": ""
+              }
+            ]
+          },
+          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "attachedTo": [
+            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
+            "0838b4e2-9abc-4e79-97d2-75ab9ca24f30"
+          ]
+        },
+        {
+          "id": "797ba619-4a91-42ba-bfb8-6a76cc105b9d",
+          "type": "NUMBER",
+          "x": 1320,
+          "y": 490,
+          "w": 200,
+          "h": 100,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "AC",
+                "value": 0
+              },
+              {
+                "name": "Speed",
+                "value": 0
+              },
+              {
+                "name": "Init",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "id": "88a7db76-54ba-4f26-b480-21261f450e44",
+          "type": "DICE_TRAY",
+          "x": 1550,
+          "y": 380,
+          "w": 280,
+          "h": 190,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "availableDice": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              10,
+              12,
+              14,
+              16,
+              20,
+              24,
+              30,
+              100
+            ]
+          }
+        },
+        {
+          "id": "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
+          "type": "NUMBER",
+          "x": 960,
+          "y": 490,
+          "w": 160,
+          "h": 170,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "STR",
+                "value": 0
+              },
+              {
+                "name": "AGI",
+                "value": 0
+              },
+              {
+                "name": "STA",
+                "value": 0
+              },
+              {
+                "name": "PER",
+                "value": 0
+              },
+              {
+                "name": "INT",
+                "value": 0
+              },
+              {
+                "name": "LCK",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "attachedTo": [
+            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
+            "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
+            "279766de-d7e7-47b5-8cf2-905b4c266295"
+          ]
+        },
+        {
+          "id": "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
+          "type": "NUMBER",
+          "x": 1120,
+          "y": 490,
+          "w": 200,
+          "h": 100,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Reflex",
+                "value": 0
+              },
+              {
+                "name": "Fortitude",
+                "value": 0
+              },
+              {
+                "name": "Will",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "attachedTo": [
+            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
+            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
+            "279766de-d7e7-47b5-8cf2-905b4c266295"
+          ]
+        },
+        {
+          "id": "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
+          "type": "HEALTH_BAR",
+          "x": 1320,
+          "y": 380,
+          "w": 200,
+          "h": 110,
+          "data": {
+            "label": "Health",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "maxValue": 5,
+            "currentValue": 5
+          },
+          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "attachedTo": [
+            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc"
+          ]
+        },
+        {
+          "id": "279766de-d7e7-47b5-8cf2-905b4c266295",
+          "type": "TEXT",
+          "x": 1120,
+          "y": 590,
+          "w": 400,
+          "h": 150,
+          "data": {
+            "label": "Notes",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "attachedTo": [
+            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
+            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
+            "49a71ab5-cc63-490b-93ba-325cbccb0a8a"
+          ]
+        },
+        {
+          "id": "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
+          "type": "PROGRESS_BAR",
+          "x": 960,
+          "y": 660,
+          "w": 160,
+          "h": 80,
+          "data": {
+            "label": "XP",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "maxValue": 10,
+            "showPercentage": false
+          },
+          "groupId": "68f14866-9a47-4575-82e7-6381d1392d1d",
+          "attachedTo": [
+            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
+            "279766de-d7e7-47b5-8cf2-905b4c266295"
+          ]
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "5e628031-65ea-4ed7-958d-eed3715907d1"
+}

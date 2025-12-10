@@ -1,5 +1,6 @@
 import { Character } from '../types';
 import DnD5ePreset from './DnD5e_preset.json';
+import DCCLvl0Preset from './DCC_lvl0_preset.json';
 
 /**
  * Character Presets
@@ -35,6 +36,7 @@ export type CharacterPreset = Omit<Character, 'id'>;
 // Add your presets here!
 export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
   'D&D 5e': DnD5ePreset as CharacterPreset,
+  'Dungeon Crawl Classics - Level 0': DCCLvl0Preset as CharacterPreset,
 };
 
 // Get list of available preset names
