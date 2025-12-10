@@ -13,7 +13,8 @@ export type WidgetType =
   | 'TABLE'
   | 'TIME_TRACKER'
   | 'FORM'
-  | 'REST_BUTTON';
+  | 'REST_BUTTON'
+  | 'PROGRESS_BAR';
 
 export interface ToggleItem {
   name: string;
@@ -59,9 +60,12 @@ export interface WidgetData {
   // Checkbox
   checked?: boolean;
   checkboxItems?: CheckboxItem[];
-  // Health Bar
+  // Health Bar & Progress Bar
   currentValue?: number;
   maxValue?: number;
+  // Progress Bar
+  showPercentage?: boolean;
+  showValues?: boolean;
   // Dice Roller
   diceCount?: number;
   diceType?: number;

@@ -310,6 +310,90 @@ function CheckboxEditor({ widget, updateData }: EditorProps) {
   );
 }
 
+function ProgressBarEditor({ widget, updateData }: EditorProps) {
+  const { 
+    label, 
+    maxValue = 100, 
+    currentValue = 0,
+    showPercentage = true,
+    showValues = true
+  } = widget.data;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+        <input
+          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          value={label || ''}
+          onChange={(e) => updateData({ label: e.target.value })}
+          placeholder="Progress"
+        />
+      </div>
+      
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-theme-ink mb-1">Current Value</label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            value={currentValue}
+            onChange={(e) => {
+              const val = e.target.value === '' ? '' : parseInt(e.target.value) || 0;
+              updateData({ currentValue: val });
+            }}
+            onBlur={(e) => {
+              const val = parseInt(e.target.value) || 0;
+              updateData({ currentValue: Math.max(0, Math.min(maxValue, val)) });
+            }}
+            min={0}
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-theme-ink mb-1">Maximum Value</label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            value={maxValue}
+            onChange={(e) => {
+              updateData({ maxValue: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
+            }}
+            onBlur={(e) => {
+              const val = parseInt(e.target.value) || 1;
+              updateData({ maxValue: Math.max(1, val) });
+            }}
+            min={1}
+          />
+        </div>
+      </div>
+
+      <div className="border border-theme-border rounded-theme p-3">
+        <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
+        
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={showValues}
+            onChange={(e) => updateData({ showValues: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show Values (e.g., 50 / 100)</span>
+        </label>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showPercentage}
+            onChange={(e) => updateData({ showPercentage: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show Percentage</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function HealthBarEditor({ widget, updateData }: EditorProps) {
   const { label, maxValue = 10 } = widget.data;
 
@@ -1293,6 +1377,7 @@ import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
+import ProgressBarWidget from './widgets/ProgressBarWidget';
 
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
@@ -1311,6 +1396,7 @@ function getWidgetTitle(type: WidgetType): string {
     'TIME_TRACKER': 'Time Tracker',
     'FORM': 'Form',
     'REST_BUTTON': 'Rest Button',
+    'PROGRESS_BAR': 'Progress Bar',
   };
   return titles[type] || 'Widget';
 }
@@ -1354,6 +1440,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TIME_TRACKER': return <TimeTrackerEditor {...editorProps} />;
       case 'FORM': return <FormEditor {...editorProps} />;
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
+      case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -1378,6 +1465,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
+      case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       default: return null;
     }
   };

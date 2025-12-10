@@ -14,6 +14,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'LIST', label: 'List' },
   { type: 'NUMBER', label: 'Number Tracker' },
   { type: 'POOL', label: 'Resource Pool' },
+  { type: 'PROGRESS_BAR', label: 'Progress Bar' },
   { type: 'REST_BUTTON', label: 'Rest Button' },
   { type: 'SPELL_SLOT', label: 'Spell Slots' },
   { type: 'TABLE', label: 'Table' },
