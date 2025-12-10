@@ -39,6 +39,32 @@ export default function PoolWidget({ widget }: Props) {
         return filled ? '❤️' : '🖤';
       case 'boxes':
         return filled ? '■' : '□';
+      case 'stars':
+        return filled ? '★' : '☆';
+      case 'diamonds':
+        return filled ? '◆' : '◇';
+      case 'crosses':
+        return filled ? '✖' : '✕';
+      case 'checkmarks':
+        return filled ? '✔' : '○';
+      case 'flames':
+        return filled ? '🔥' : '·';
+      case 'skulls':
+        return filled ? '💀' : '·';
+      case 'shields':
+        return filled ? '🛡️' : '·';
+      case 'swords':
+        return filled ? '⚔️' : '·';
+      case 'lightning':
+        return filled ? '⚡' : '·';
+      case 'moons':
+        return filled ? '🌙' : '·';
+      case 'suns':
+        return filled ? '☀️' : '·';
+      case 'coins':
+        return filled ? '🪙' : '·';
+      case 'gems':
+        return filled ? '💎' : '·';
       case 'dots':
       default:
         return filled ? '●' : '○';
@@ -47,7 +73,9 @@ export default function PoolWidget({ widget }: Props) {
 
   const getClassName = (filled: boolean) => {
     const base = `${symbolSize} flex items-center justify-center transition-all cursor-pointer hover:scale-125`;
-    if (poolStyle === 'hearts') {
+    // Emoji styles don't need color classes
+    const emojiStyles = ['hearts', 'flames', 'skulls', 'shields', 'swords', 'lightning', 'moons', 'suns', 'coins', 'gems'];
+    if (emojiStyles.includes(poolStyle)) {
       return base;
     }
     return `${base} ${filled ? 'text-theme-ink' : 'text-theme-muted'}`;

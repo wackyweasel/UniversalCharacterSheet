@@ -831,9 +831,26 @@ function PoolEditor({ widget, updateData }: EditorProps) {
           onChange={(e) => updateData({ poolStyle: e.target.value })}
           className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
         >
-          <option value="dots">Dots</option>
-          <option value="boxes">Boxes</option>
-          <option value="hearts">Hearts</option>
+          <optgroup label="Basic">
+            <option value="dots">● Dots</option>
+            <option value="boxes">■ Boxes</option>
+            <option value="stars">★ Stars</option>
+            <option value="diamonds">◆ Diamonds</option>
+            <option value="crosses">✖ Crosses</option>
+            <option value="checkmarks">✔ Checkmarks</option>
+          </optgroup>
+          <optgroup label="Themed">
+            <option value="hearts">❤️ Hearts</option>
+            <option value="flames">🔥 Flames</option>
+            <option value="skulls">💀 Skulls</option>
+            <option value="shields">🛡️ Shields</option>
+            <option value="swords">⚔️ Swords</option>
+            <option value="lightning">⚡ Lightning</option>
+            <option value="moons">🌙 Moons</option>
+            <option value="suns">☀️ Suns</option>
+            <option value="coins">🪙 Coins</option>
+            <option value="gems">💎 Gems</option>
+          </optgroup>
         </select>
       </div>
     </div>
