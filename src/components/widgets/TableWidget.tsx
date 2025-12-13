@@ -69,8 +69,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
       className="fixed z-[9999] bg-theme-paper border border-theme-border rounded-theme shadow-lg"
       style={{
         left: isMobile ? '50%' : position.x,
-        top: isMobile ? 'auto' : position.y,
-        bottom: isMobile ? '16px' : 'auto',
+        top: isMobile ? '16px' : position.y,
         transform: isMobile ? 'translateX(-50%)' : 'none',
       }}
       onMouseDown={(e) => e.stopPropagation()}
@@ -131,7 +130,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           </button>
           {showColorPicker && (
             <div 
-              className={`absolute left-1/2 -translate-x-1/2 bg-theme-paper border border-theme-border rounded-theme shadow-lg p-2 z-10 ${isMobile ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-theme shadow-lg p-2 z-10"
               style={{ minWidth: '160px' }}
             >
               {/* No color option */}
