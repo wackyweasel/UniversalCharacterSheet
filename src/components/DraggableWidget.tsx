@@ -424,7 +424,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
 
-          <div ref={contentRef} className="h-full overflow-hidden relative z-10">
+          <div ref={contentRef} className="h-full overflow-hidden relative z-10 pt-1 pl-1">
             {renderContent()}
           </div>
         </div>
