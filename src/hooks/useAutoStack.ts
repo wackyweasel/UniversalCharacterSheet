@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { Widget } from '../types';
+import { useStore } from '../store/useStore';
 
 interface UseAutoStackOptions {
   widgets: Widget[];
   scale: number;
-  updateWidgetPosition: (id: string, x: number, y: number) => void;
 }
 
 const GRID_SIZE = 10;
@@ -25,9 +25,15 @@ interface StackableItem {
   originalOffset: { x: number; y: number };
 }
 
-export function useAutoStack({ widgets, scale, updateWidgetPosition }: UseAutoStackOptions) {
+export function useAutoStack({ widgets, scale }: UseAutoStackOptions) {
+  const _takeSnapshot = useStore((state) => state._takeSnapshot);
+  const updateWidgetPositionNoSnapshot = useStore((state) => state.updateWidgetPositionNoSnapshot);
+  
   const handleAutoStack = useCallback(() => {
     if (widgets.length === 0) return;
+    
+    // Take snapshot before auto-stack (batch operation)
+    _takeSnapshot('Auto stack');
 
     // Get all widget DOM elements and measure their actual sizes
     const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
@@ -218,10 +224,10 @@ export function useAutoStack({ widgets, scale, updateWidgetPosition }: UseAutoSt
       for (const widget of item.widgets) {
         const finalX = Math.round((widget.x + offsetX) / GRID_SIZE) * GRID_SIZE;
         const finalY = Math.round((widget.y + offsetY) / GRID_SIZE) * GRID_SIZE;
-        updateWidgetPosition(widget.id, finalX, finalY);
+        updateWidgetPositionNoSnapshot(widget.id, finalX, finalY);
       }
     }
-  }, [widgets, scale, updateWidgetPosition]);
+  }, [widgets, scale, _takeSnapshot, updateWidgetPositionNoSnapshot]);
 
   return { handleAutoStack };
 }

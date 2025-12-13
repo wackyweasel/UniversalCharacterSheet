@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
+import { useUndoStore } from '../store/useUndoStore';
 import { applyTheme, applyCustomTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
@@ -26,12 +27,15 @@ export default function Sheet() {
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
-  const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const reorderWidget = useStore((state) => state.reorderWidget);
   const createSheet = useStore((state) => state.createSheet);
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
   const renameSheet = useStore((state) => state.renameSheet);
+  const undo = useStore((state) => state.undo);
+  const redo = useStore((state) => state.redo);
+  const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
+  const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   
   // Get widgets from active sheet
@@ -96,7 +100,6 @@ export default function Sheet() {
   const { handleAutoStack } = useAutoStack({
     widgets: activeSheetWidgets,
     scale,
-    updateWidgetPosition,
   });
 
   // Fit widgets hook
@@ -106,6 +109,30 @@ export default function Sheet() {
     setScale,
     setPan,
   });
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      // Ctrl+Z for undo
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Ctrl+Y or Ctrl+Shift+Z for redo
+      if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // Fit all widgets when character sheet is opened
   useEffect(() => {
@@ -219,6 +246,37 @@ export default function Sheet() {
             >
               Grid View
             </button>
+            {/* Undo/Redo buttons */}
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+                canUndo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+              title="Undo (Ctrl+Z)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M3 7v6h6"/>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+              </svg>
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+                canRedo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+              title="Redo (Ctrl+Y)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M21 7v6h-6"/>
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+              </svg>
+            </button>
           </div>
           
           {/* Character name - truncated */}
@@ -291,6 +349,39 @@ export default function Sheet() {
           >
             ▲
           </button>
+          {/* Undo/Redo buttons for mobile */}
+          <div className="sm:hidden flex items-center gap-1">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+                canUndo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+              title="Undo"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M3 7v6h6"/>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+              </svg>
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+                canRedo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+              title="Redo"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M21 7v6h-6"/>
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Mobile: Dropdown menu */}
@@ -484,6 +575,37 @@ export default function Sheet() {
               </button>
             </>
           )}
+          {/* Undo/Redo buttons */}
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              canUndo 
+                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                : 'text-theme-muted opacity-50 cursor-not-allowed'
+            }`}
+            title="Undo (Ctrl+Z)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M3 7v6h6"/>
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+            </svg>
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              canRedo 
+                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                : 'text-theme-muted opacity-50 cursor-not-allowed'
+            }`}
+            title="Redo (Ctrl+Y)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M21 7v6h-6"/>
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+            </svg>
+          </button>
         </div>
         
         {/* Character name - truncated, editable in edit mode */}
@@ -547,6 +669,40 @@ export default function Sheet() {
         >
           Fit
         </button>
+        
+        {/* Undo/Redo buttons - visible on mobile and desktop */}
+        <div className="flex items-center gap-1 shrink-0 sm:hidden">
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              canUndo 
+                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                : 'text-theme-muted opacity-50 cursor-not-allowed'
+            }`}
+            title="Undo"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M3 7v6h6"/>
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+            </svg>
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              canRedo 
+                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                : 'text-theme-muted opacity-50 cursor-not-allowed'
+            }`}
+            title="Redo"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M21 7v6h-6"/>
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Grid menu dropdown - only on narrow screens */}
