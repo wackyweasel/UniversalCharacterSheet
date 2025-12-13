@@ -46,6 +46,9 @@ export default function Sheet() {
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
   
+  // Mobile menu state for grid mode
+  const [gridMenuOpen, setGridMenuOpen] = useState(false);
+  
   // Vertical mode drag state
   const [verticalDragIndex, setVerticalDragIndex] = useState<number | null>(null);
   const [verticalDropIndex, setVerticalDropIndex] = useState<number | null>(null);
@@ -756,13 +759,137 @@ export default function Sheet() {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const buttonsLeftOffset = mode === 'edit' && !sidebarCollapsed && !isMobile ? 'md:left-72' : '';
 
+  // Vertical mode menu state
+  const [verticalMenuOpen, setVerticalMenuOpen] = useState(false);
+
   // Render Vertical Mode
   if (mode === 'vertical') {
     return (
-      <div className="w-full h-screen overflow-hidden relative bg-theme-background">
+      <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
+        {/* Mobile: Single compact header bar */}
+        <div className="sm:hidden bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 shrink-0">
+          {/* Menu button */}
+          <button
+            onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
+            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink"
+          >
+            ☰
+          </button>
+          
+          {/* Character name - truncated */}
+          <h1 className="font-bold text-sm text-theme-ink font-heading truncate flex-1 min-w-0">
+            {activeCharacter.name}
+          </h1>
+          
+          {/* Sheet selector */}
+          <div className="relative">
+            <button
+              onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+              className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
+            >
+              <span className="text-theme-ink truncate max-w-[60px]">
+                {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+              </span>
+              <span className="text-theme-muted">▼</span>
+            </button>
+            
+            {sheetDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setSheetDropdownOpen(false)}
+                />
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px]">
+                  {activeCharacter.sheets.map((sheet) => (
+                    <button
+                      key={sheet.id}
+                      onClick={() => {
+                        selectSheet(sheet.id);
+                        setSheetDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-xs text-left font-body transition-colors ${
+                        sheet.id === activeCharacter.activeSheetId
+                          ? 'bg-theme-accent text-theme-paper'
+                          : 'text-theme-ink hover:bg-theme-accent/20'
+                      }`}
+                    >
+                      {sheet.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Expand/Collapse buttons */}
+          <button
+            onClick={() => {
+              activeSheetWidgets.forEach(w => {
+                localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'false');
+              });
+              window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
+            }}
+            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs"
+            title="Expand All"
+          >
+            ▼
+          </button>
+          <button
+            onClick={() => {
+              activeSheetWidgets.forEach(w => {
+                localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'true');
+              });
+              window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
+            }}
+            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs"
+            title="Collapse All"
+          >
+            ▲
+          </button>
+        </div>
+
+        {/* Mobile: Dropdown menu */}
+        {verticalMenuOpen && (
+          <>
+            <div 
+              className="sm:hidden fixed inset-0 z-40" 
+              onClick={() => setVerticalMenuOpen(false)}
+            />
+            <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50">
+              <button
+                onClick={() => {
+                  setMode('play');
+                  setVerticalMenuOpen(false);
+                }}
+                className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+              >
+                <span>⊞</span> Grid View
+              </button>
+              <button
+                onClick={() => {
+                  setMode('edit');
+                  setVerticalMenuOpen(false);
+                }}
+                className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+              >
+                <span>✎</span> Edit Mode
+              </button>
+              <button
+                onClick={() => {
+                  selectCharacter(null);
+                  setVerticalMenuOpen(false);
+                }}
+                className="w-full px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
+              >
+                <span>✕</span> Exit to Menu
+              </button>
+            </div>
+          </>
+        )}
+
         {/* Vertical Mode Container - scrollable */}
-        <div className="h-full overflow-y-auto">
-          <div className="max-w-md mx-auto px-3 py-16 pb-24">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-md mx-auto px-3 py-4 sm:py-16 pb-24">
             {/* Widgets in vertical layout */}
             {activeSheetWidgets.map((widget, index) => (
               <VerticalWidget
@@ -788,10 +915,10 @@ export default function Sheet() {
           </div>
         </div>
 
-        {/* HUD for Vertical Mode - Fixed at top */}
-        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex flex-col gap-2 pointer-events-auto z-30">
-          <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1.5 sm:p-2 shadow-theme rounded-theme">
-            <h1 className="font-bold text-sm sm:text-xl text-theme-ink font-heading">
+        {/* Desktop: HUD for Vertical Mode - Fixed at top right */}
+        <div className="hidden sm:flex absolute top-4 right-4 flex-col gap-2 pointer-events-auto z-30">
+          <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 shadow-theme rounded-theme">
+            <h1 className="font-bold text-xl text-theme-ink font-heading">
               {activeCharacter.name}
             </h1>
           </div>
@@ -802,7 +929,7 @@ export default function Sheet() {
               onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
               className="w-full bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme px-3 py-1.5 flex items-center justify-between gap-2 hover:bg-theme-accent/10 transition-colors"
             >
-              <span className="text-xs sm:text-sm font-body text-theme-ink">
+              <span className="text-sm font-body text-theme-ink">
                 {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
               </span>
               <span className="text-theme-muted text-xs">▼</span>
@@ -822,7 +949,7 @@ export default function Sheet() {
                         selectSheet(sheet.id);
                         setSheetDropdownOpen(false);
                       }}
-                      className={`w-full px-3 py-2 text-xs sm:text-sm text-left font-body transition-colors ${
+                      className={`w-full px-3 py-2 text-sm text-left font-body transition-colors ${
                         sheet.id === activeCharacter.activeSheetId
                           ? 'bg-theme-accent text-theme-paper'
                           : 'text-theme-ink hover:bg-theme-accent/20'
@@ -848,8 +975,7 @@ export default function Sheet() {
               className="flex-1 px-2 py-1.5 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
               title="Expand All"
             >
-              <span className="sm:hidden">▼</span>
-              <span className="hidden sm:inline">▼ Expand</span>
+              ▼ Expand
             </button>
             <button
               onClick={() => {
@@ -861,39 +987,35 @@ export default function Sheet() {
               className="flex-1 px-2 py-1.5 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
               title="Collapse All"
             >
-              <span className="sm:hidden">▲</span>
-              <span className="hidden sm:inline">▲ Collapse</span>
+              ▲ Collapse
             </button>
           </div>
         </div>
 
-        {/* Top-left buttons for Vertical Mode */}
-        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 pointer-events-auto flex flex-col gap-1.5 sm:gap-2 z-30">
+        {/* Desktop: Top-left buttons for Vertical Mode */}
+        <div className="hidden sm:flex absolute top-4 left-4 pointer-events-auto flex-col gap-2 z-30">
           {/* Exit to Menu */}
           <button
             onClick={() => selectCharacter(null)}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+            className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            <span className="sm:hidden">✕</span>
-            <span className="hidden sm:inline">✕ Exit to Menu</span>
+            ✕ Exit to Menu
           </button>
 
           {/* Edit Mode Button */}
           <button
             onClick={() => setMode('edit')}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+            className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            <span className="sm:hidden">✎</span>
-            <span className="hidden sm:inline">✎ Edit Mode</span>
+            ✎ Edit Mode
           </button>
 
           {/* Grid View Button - to go back to Play mode */}
           <button
             onClick={() => setMode('play')}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-accent text-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:opacity-90 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme"
+            className="px-4 py-2 bg-theme-accent text-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:opacity-90 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme"
           >
-            <span className="sm:hidden">⊞</span>
-            <span className="hidden sm:inline">⊞ Grid View</span>
+            ⊞ Grid View
           </button>
         </div>
       </div>
@@ -965,9 +1087,18 @@ export default function Sheet() {
         </div>
       </div>
 
-      {/* HUD / Info - simplified on mobile */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex flex-col gap-2 pointer-events-auto z-30">
-        <div className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1.5 sm:p-2 shadow-theme rounded-theme ${mode === 'edit' && !isEditingName ? 'cursor-pointer hover:opacity-90' : ''}`}>
+      {/* Mobile: Compact header bar for grid/edit mode */}
+      <div className="sm:hidden absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
+        {/* Menu button */}
+        <button
+          onClick={() => setGridMenuOpen(!gridMenuOpen)}
+          className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink shrink-0"
+        >
+          ☰
+        </button>
+        
+        {/* Character name - truncated, editable in edit mode */}
+        <div className="flex-1 min-w-0">
           {isEditingName ? (
             <input
               type="text"
@@ -990,11 +1121,254 @@ export default function Sheet() {
                 }
               }}
               autoFocus
-              className="font-bold text-sm sm:text-xl bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
+              className="font-bold text-sm bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
             />
           ) : (
             <h1 
-              className="font-bold text-sm sm:text-xl text-theme-ink font-heading"
+              className={`font-bold text-sm text-theme-ink font-heading truncate ${mode === 'edit' ? 'cursor-pointer' : ''}`}
+              onClick={() => {
+                if (mode === 'edit') {
+                  setEditedName(activeCharacter.name);
+                  setIsEditingName(true);
+                }
+              }}
+            >
+              {activeCharacter.name}
+            </h1>
+          )}
+        </div>
+        
+        {/* Sheet selector */}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+            className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
+          >
+            <span className="text-theme-ink truncate max-w-[60px]">
+              {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+            </span>
+            <span className="text-theme-muted">▼</span>
+          </button>
+        </div>
+        
+        {/* Fit button only on mobile */}
+        <button
+          onClick={handleFitAllWidgets}
+          className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border font-bold text-xs flex items-center justify-center rounded-theme text-theme-ink shrink-0"
+        >
+          Fit
+        </button>
+      </div>
+
+      {/* Mobile: Grid menu dropdown */}
+      {gridMenuOpen && (
+        <>
+          <div 
+            className="sm:hidden fixed inset-0 z-40" 
+            onClick={() => setGridMenuOpen(false)}
+          />
+          <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[160px]">
+            {/* Mode toggle */}
+            <button
+              onClick={() => {
+                setMode(mode === 'play' ? 'edit' : 'play');
+                setGridMenuOpen(false);
+              }}
+              className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+            >
+              {mode === 'play' ? (
+                <><span>✎</span> Edit Mode</>
+              ) : (
+                <><span>▶</span> Play Mode</>
+              )}
+            </button>
+            
+            {/* Vertical View - only in play mode */}
+            {mode === 'play' && (
+              <button
+                onClick={() => {
+                  setMode('vertical');
+                  setGridMenuOpen(false);
+                }}
+                className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+              >
+                <span>☰</span> Vertical View
+              </button>
+            )}
+            
+            {/* Edit mode specific options */}
+            {mode === 'edit' && (
+              <>
+                <button
+                  onClick={() => {
+                    setSidebarCollapsed(!sidebarCollapsed);
+                    setGridMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                >
+                  <span>🧰</span> {sidebarCollapsed ? 'Show Toolbox' : 'Hide Toolbox'}
+                </button>
+                <button
+                  onClick={() => {
+                    setThemeSidebarCollapsed(!themeSidebarCollapsed);
+                    setGridMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                >
+                  <span>🎨</span> {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+                </button>
+                <button
+                  onClick={() => {
+                    handleAutoStack();
+                    setGridMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                >
+                  <span>📐</span> Auto Stack
+                </button>
+              </>
+            )}
+            
+            {/* Exit */}
+            <button
+              onClick={() => {
+                selectCharacter(null);
+                setGridMenuOpen(false);
+              }}
+              className="w-full px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2 border-t border-theme-border/50"
+            >
+              <span>✕</span> Exit to Menu
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Mobile: Sheet dropdown (shared with header) */}
+      {sheetDropdownOpen && (
+        <>
+          <div 
+            className="sm:hidden fixed inset-0 z-40" 
+            onClick={() => setSheetDropdownOpen(false)}
+          />
+          <div className="sm:hidden absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px]">
+            {activeCharacter.sheets.map((sheet) => (
+              <div key={sheet.id} className="group relative">
+                {editingSheetId === sheet.id ? (
+                  <input
+                    type="text"
+                    value={editedSheetName}
+                    onChange={(e) => setEditedSheetName(e.target.value)}
+                    onBlur={() => {
+                      if (editedSheetName.trim()) {
+                        renameSheet(sheet.id, editedSheetName.trim());
+                      }
+                      setEditingSheetId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (editedSheetName.trim()) {
+                          renameSheet(sheet.id, editedSheetName.trim());
+                        }
+                        setEditingSheetId(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingSheetId(null);
+                      }
+                    }}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full px-3 py-2 text-xs bg-transparent border-b border-theme-border outline-none text-theme-ink font-body"
+                  />
+                ) : (
+                  <button
+                    onClick={() => {
+                      selectSheet(sheet.id);
+                      setSheetDropdownOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 text-xs text-left font-body transition-colors flex items-center justify-between ${
+                      sheet.id === activeCharacter.activeSheetId
+                        ? 'bg-theme-accent text-theme-paper'
+                        : 'text-theme-ink hover:bg-theme-accent/20'
+                    }`}
+                  >
+                    <span>{sheet.name}</span>
+                    {mode === 'edit' && (
+                      <span className="flex items-center gap-1">
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditedSheetName(sheet.name);
+                            setEditingSheetId(sheet.id);
+                          }}
+                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                            sheet.id === activeCharacter.activeSheetId
+                              ? 'bg-theme-paper/30 text-theme-paper hover:bg-theme-paper/50'
+                              : 'bg-theme-accent/20 text-theme-ink hover:bg-theme-accent/40'
+                          }`}
+                        >
+                          ✎
+                        </span>
+                        {activeCharacter.sheets.length > 1 && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSheetToDelete(sheet.id);
+                            }}
+                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                          >
+                            ×
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+            {mode === 'edit' && (
+              <button
+                onClick={() => {
+                  createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
+                  setSheetDropdownOpen(false);
+                }}
+                className="w-full px-3 py-2 text-xs text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
+              >
+                + Add New Sheet
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Desktop: HUD / Info */}
+      <div className="hidden sm:flex absolute top-4 right-4 flex-col gap-2 pointer-events-auto z-30">
+        <div className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border p-2 shadow-theme rounded-theme ${mode === 'edit' && !isEditingName ? 'cursor-pointer hover:opacity-90' : ''}`}>
+          {isEditingName ? (
+            <input
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={() => {
+                if (editedName.trim()) {
+                  updateCharacterName(activeCharacter.id, editedName.trim());
+                }
+                setIsEditingName(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (editedName.trim()) {
+                    updateCharacterName(activeCharacter.id, editedName.trim());
+                  }
+                  setIsEditingName(false);
+                } else if (e.key === 'Escape') {
+                  setIsEditingName(false);
+                }
+              }}
+              autoFocus
+              className="font-bold text-xl bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
+            />
+          ) : (
+            <h1 
+              className="font-bold text-xl text-theme-ink font-heading"
               onClick={() => {
                 if (mode === 'edit') {
                   setEditedName(activeCharacter.name);
@@ -1013,7 +1387,7 @@ export default function Sheet() {
             onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
             className="w-full bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme px-3 py-1.5 flex items-center justify-between gap-2 hover:bg-theme-accent/10 transition-colors"
           >
-            <span className="text-xs sm:text-sm font-body text-theme-ink">
+            <span className="text-sm font-body text-theme-ink">
               {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
             </span>
             <span className="text-theme-muted text-xs">▼</span>
@@ -1054,7 +1428,7 @@ export default function Sheet() {
                         }}
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full px-3 py-2 text-xs sm:text-sm bg-transparent border-b border-theme-border outline-none text-theme-ink font-body"
+                        className="w-full px-3 py-2 text-sm bg-transparent border-b border-theme-border outline-none text-theme-ink font-body"
                       />
                     ) : (
                       <button
@@ -1062,7 +1436,7 @@ export default function Sheet() {
                           selectSheet(sheet.id);
                           setSheetDropdownOpen(false);
                         }}
-                        className={`w-full px-3 py-2 text-xs sm:text-sm text-left font-body transition-colors flex items-center justify-between ${
+                        className={`w-full px-3 py-2 text-sm text-left font-body transition-colors flex items-center justify-between ${
                           sheet.id === activeCharacter.activeSheetId
                             ? 'bg-theme-accent text-theme-paper'
                             : 'text-theme-ink hover:bg-theme-accent/20'
@@ -1114,7 +1488,7 @@ export default function Sheet() {
                       createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
                       setSheetDropdownOpen(false);
                     }}
-                    className="w-full px-3 py-2 text-xs sm:text-sm text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
+                    className="w-full px-3 py-2 text-sm text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
                   >
                     + Add New Sheet
                   </button>
@@ -1162,62 +1536,50 @@ export default function Sheet() {
         <div className="flex gap-1 justify-end">
           <button
             onClick={() => setScale(s => Math.min(5, s * 1.3))}
-            className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base sm:text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
+            className="w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
           >
             +
           </button>
           <button
             onClick={() => setScale(s => Math.max(0.1, s / 1.3))}
-            className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base sm:text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
+            className="w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
           >
             −
           </button>
           <button
             onClick={handleFitAllWidgets}
-            className="px-2 h-8 sm:h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
+            className="px-2 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
           >
             Fit
           </button>
         </div>
       </div>
 
-      {/* Top-left button group - responsive positioning */}
-      <div className={`absolute top-2 left-2 sm:top-4 sm:left-4 ${buttonsLeftOffset} pointer-events-auto transition-all duration-300 flex flex-col gap-1.5 sm:gap-2 z-30`}>
-        {/* Exit to Menu Button - always visible */}
+      {/* Desktop: Top-left button group */}
+      <div className={`hidden sm:flex absolute top-4 left-4 ${buttonsLeftOffset} pointer-events-auto transition-all duration-300 flex-col gap-2 z-30`}>
+        {/* Exit to Menu Button */}
         <button
           onClick={() => selectCharacter(null)}
-          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
         >
-          <span className="sm:hidden">✕</span>
-          <span className="hidden sm:inline">✕ Exit to Menu</span>
+          ✕ Exit to Menu
         </button>
 
         {/* Mode Toggle Button */}
         <button
           onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
-          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
         >
-          {mode === 'play' ? (
-            <>
-              <span className="sm:hidden">✎</span>
-              <span className="hidden sm:inline">✎ Edit Mode</span>
-            </>
-          ) : (
-            <>
-              <span className="sm:hidden">▶</span>
-              <span className="hidden sm:inline">▶ Play Mode</span>
-            </>
-          )}
+          {mode === 'play' ? '✎ Edit Mode' : '▶ Play Mode'}
         </button>
 
         {/* Vertical View Button - only in play mode */}
         {mode === 'play' && (
           <button
             onClick={() => setMode('vertical')}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+            className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            <span className="sm:hidden">☰</span>
-            <span className="hidden sm:inline">☰ Vertical View</span>
+            ☰ Vertical View
           </button>
         )}
 
@@ -1225,19 +1587,9 @@ export default function Sheet() {
         {mode === 'edit' && (
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+            className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            {sidebarCollapsed ? (
-              <>
-                <span className="sm:hidden">🧰</span>
-                <span className="hidden sm:inline">🧰 Show Toolbox</span>
-              </>
-            ) : (
-              <>
-                <span className="sm:hidden">✕</span>
-                <span className="hidden sm:inline">✕ Hide Toolbox</span>
-              </>
-            )}
+            {sidebarCollapsed ? '🧰 Show Toolbox' : '✕ Hide Toolbox'}
           </button>
         )}
 
@@ -1245,19 +1597,9 @@ export default function Sheet() {
         {mode === 'edit' && (
           <button
             onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+            className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            {themeSidebarCollapsed ? (
-              <>
-                <span className="sm:hidden">🎨</span>
-                <span className="hidden sm:inline">🎨 Change Theme</span>
-              </>
-            ) : (
-              <>
-                <span className="sm:hidden">✕</span>
-                <span className="hidden sm:inline">✕ Hide Themes</span>
-              </>
-            )}
+            {themeSidebarCollapsed ? '🎨 Change Theme' : '✕ Hide Themes'}
           </button>
         )}
 
@@ -1265,10 +1607,9 @@ export default function Sheet() {
         {mode === 'edit' && (
           <button
             onClick={handleAutoStack}
-            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+            className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            <span className="sm:hidden">📐</span>
-            <span className="hidden sm:inline">📐 Auto Stack</span>
+            📐 Auto Stack
           </button>
         )}
       </div>
