@@ -164,6 +164,12 @@ export default function VerticalWidget({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    // Only allow drag from the handle
+    const target = e.target as HTMLElement;
+    if (!target.closest('.vertical-drag-handle')) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
     onDragStart(index);
@@ -212,8 +218,6 @@ export default function VerticalWidget({
       className={`vertical-widget relative transition-all duration-200 ${
         isDragging && draggedIndex === index ? 'opacity-50 scale-95' : ''
       }`}
-      draggable
-      onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onTouchStart={handleTouchStart}
@@ -250,16 +254,36 @@ export default function VerticalWidget({
 
         {/* Header with drag handle and collapse toggle */}
         <div className="flex items-center justify-between px-3 py-1.5 relative z-20">
-          {/* Drag Handle */}
-          <div className="vertical-drag-handle cursor-move flex items-center gap-2 flex-1 touch-none">
-            <div className="flex flex-col gap-0.5">
-              <div className="w-4 h-0.5 bg-theme-muted/50 rounded-full" />
-              <div className="w-4 h-0.5 bg-theme-muted/50 rounded-full" />
-            </div>
-            {isCollapsed && (
-              <span className="text-xs font-bold text-theme-ink font-heading truncate">{getWidgetLabel()}</span>
-            )}
+          {/* Drag Handle - positioned at left, only this area is draggable */}
+          <div 
+            className="vertical-drag-handle cursor-grab active:cursor-grabbing flex items-center gap-2 touch-none select-none"
+            draggable
+            onDragStart={handleDragStart}
+          >
+            {/* Grip icon (6 dots in 2 columns) */}
+            <svg 
+              width="10" 
+              height="16" 
+              viewBox="0 0 10 16" 
+              className="text-theme-muted flex-shrink-0"
+              fill="currentColor"
+            >
+              <circle cx="2" cy="2" r="1.5" />
+              <circle cx="8" cy="2" r="1.5" />
+              <circle cx="2" cy="8" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="2" cy="14" r="1.5" />
+              <circle cx="8" cy="14" r="1.5" />
+            </svg>
           </div>
+          
+          {/* Label when collapsed */}
+          {isCollapsed && (
+            <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1 ml-2">{getWidgetLabel()}</span>
+          )}
+          
+          {/* Spacer when not collapsed */}
+          {!isCollapsed && <div className="flex-1" />}
           
           {/* Collapse Toggle */}
           <button
