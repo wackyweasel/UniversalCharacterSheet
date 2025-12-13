@@ -177,7 +177,7 @@ export const useStore = create<StoreState>((set) => {
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
-        mode: 'edit' as const
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
 
@@ -195,7 +195,7 @@ export const useStore = create<StoreState>((set) => {
       return {
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
-        mode: 'edit' as const
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
 
@@ -215,7 +215,10 @@ export const useStore = create<StoreState>((set) => {
       };
     }),
 
-    selectCharacter: (id) => set({ activeCharacterId: id }),
+    selectCharacter: (id) => set((state) => ({
+      activeCharacterId: id,
+      mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+    })),
 
     deleteCharacter: (id) => set((state) => ({
       characters: state.characters.filter(c => c.id !== id),

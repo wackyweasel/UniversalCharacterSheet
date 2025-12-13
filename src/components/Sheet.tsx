@@ -191,13 +191,35 @@ export default function Sheet() {
       <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
         {/* Compact header bar */}
         <div className="bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 shrink-0">
-          {/* Menu button */}
+          {/* Mobile: Menu button */}
           <button
             onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
-            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink"
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink"
           >
             ☰
           </button>
+          
+          {/* Desktop: Inline menu buttons */}
+          <div className="hidden sm:flex items-center gap-1">
+            <button
+              onClick={() => selectCharacter(null)}
+              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
+            >
+              Exit
+            </button>
+            <button
+              onClick={() => setMode('edit')}
+              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              Edit Mode
+            </button>
+            <button
+              onClick={() => setMode('play')}
+              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              Grid View
+            </button>
+          </div>
           
           {/* Character name - truncated */}
           <h1 className="font-bold text-sm text-theme-ink font-heading truncate flex-1 min-w-0">
@@ -273,7 +295,7 @@ export default function Sheet() {
 
         {/* Mobile: Dropdown menu */}
         {verticalMenuOpen && (
-          <>
+          <div className="sm:hidden">
             <div 
               className="fixed inset-0 z-40" 
               onClick={() => setVerticalMenuOpen(false)}
@@ -307,7 +329,7 @@ export default function Sheet() {
                 Exit to Menu
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {/* Vertical Mode Container - scrollable */}
@@ -422,43 +444,43 @@ export default function Sheet() {
         <div className="hidden sm:flex items-center gap-1 shrink-0">
           <button
             onClick={() => selectCharacter(null)}
-            className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-bold hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
+            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
           >
             Exit
           </button>
           <button
             onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
-            className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            {mode === 'play' ? 'Edit' : 'Play'}
+            {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
           </button>
           {mode === 'play' && (
             <button
               onClick={() => setMode('vertical')}
-              className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              Vertical
+              Vertical View
             </button>
           )}
           {mode === 'edit' && (
             <>
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                {sidebarCollapsed ? '+ Widget' : 'Widgets'}
+                {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
               </button>
               <button
                 onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-                className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Theme
+                Change Theme
               </button>
               <button
                 onClick={() => setShowAutoStackConfirm(true)}
-                className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Stack
+                Auto Stack
               </button>
             </>
           )}
@@ -509,7 +531,7 @@ export default function Sheet() {
         <div className="relative shrink-0">
           <button
             onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-            className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
+            className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body"
           >
             <span className="text-theme-ink truncate max-w-[60px]">
               {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
@@ -521,7 +543,7 @@ export default function Sheet() {
         {/* Fit button only on mobile */}
         <button
           onClick={handleFitAllWidgets}
-          className="px-2 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border font-bold text-xs flex items-center justify-center rounded-theme text-theme-ink shrink-0"
+          className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-theme text-theme-ink shrink-0"
         >
           Fit
         </button>
