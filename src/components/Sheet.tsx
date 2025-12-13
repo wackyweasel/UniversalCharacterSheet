@@ -1057,10 +1057,12 @@ export default function Sheet() {
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
           }}
         >
-          {/* Infinite Grid Background */}
-          <div 
-            className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] pattern-grid opacity-20 pointer-events-none" 
-          />
+          {/* Infinite Grid Background - hidden in play mode */}
+          {mode !== 'play' && (
+            <div 
+              className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] pattern-grid opacity-20 pointer-events-none" 
+            />
+          )}
 
           {/* Shadow Layer - rendered below all widgets */}
           <WidgetShadows 
