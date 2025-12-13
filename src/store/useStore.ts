@@ -23,6 +23,44 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
   };
 }
 
+// Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
+function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): {
+  sheets: Sheet[];
+  activeSheetId: string;
+} {
+  const sheetIdMap = new Map<string, string>();
+  const widgetIdMap = new Map<string, string>();
+  const groupIdMap = new Map<string, string>();
+
+  // First pass: generate all new IDs
+  source.sheets.forEach(sheet => {
+    sheetIdMap.set(sheet.id, uuidv4());
+    sheet.widgets.forEach(widget => {
+      widgetIdMap.set(widget.id, uuidv4());
+      if (widget.groupId && !groupIdMap.has(widget.groupId)) {
+        groupIdMap.set(widget.groupId, uuidv4());
+      }
+    });
+  });
+
+  // Second pass: create new sheets with remapped IDs
+  const newSheets = source.sheets.map(sheet => ({
+    ...sheet,
+    id: sheetIdMap.get(sheet.id)!,
+    widgets: sheet.widgets.map(widget => ({
+      ...widget,
+      id: widgetIdMap.get(widget.id)!,
+      groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
+      attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
+    }))
+  }));
+
+  return {
+    sheets: newSheets,
+    activeSheetId: sheetIdMap.get(source.activeSheetId) || newSheets[0]?.id
+  };
+}
+
 // Migration helper: convert old character format to new sheets format
 function migrateCharacter(char: any): Character {
   // If character already has sheets, return as-is
@@ -144,59 +182,14 @@ export const useStore = create<StoreState>((set) => {
     }),
 
     createCharacterFromPreset: (preset, name) => set((state) => {
-      // Generate new IDs to avoid conflicts
-      const newCharId = uuidv4();
-      const sheetIdMap = new Map<string, string>();
-      const widgetIdMap = new Map<string, string>();
-      const groupIdMap = new Map<string, string>();
-
-      // Create new sheets with new IDs
-      const newSheets = preset.sheets.map(sheet => {
-        const newSheetId = uuidv4();
-        sheetIdMap.set(sheet.id, newSheetId);
-        
-        // Create new widgets with new IDs
-        const newWidgets = sheet.widgets.map(widget => {
-          const newWidgetId = uuidv4();
-          widgetIdMap.set(widget.id, newWidgetId);
-          
-          // Handle group IDs
-          let newGroupId = widget.groupId;
-          if (widget.groupId) {
-            if (!groupIdMap.has(widget.groupId)) {
-              groupIdMap.set(widget.groupId, uuidv4());
-            }
-            newGroupId = groupIdMap.get(widget.groupId);
-          }
-          
-          return {
-            ...widget,
-            id: newWidgetId,
-            groupId: newGroupId,
-            attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
-          };
-        });
-        
-        // Second pass to update attachedTo references
-        newWidgets.forEach(widget => {
-          if (widget.attachedTo) {
-            widget.attachedTo = widget.attachedTo.map(id => widgetIdMap.get(id) || id);
-          }
-        });
-        
-        return {
-          ...sheet,
-          id: newSheetId,
-          widgets: newWidgets
-        };
-      });
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
 
       const newChar: Character = {
-        id: newCharId,
+        id: uuidv4(),
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
-        activeSheetId: sheetIdMap.get(preset.activeSheetId) || newSheets[0]?.id
+        activeSheetId
       };
 
       return {
@@ -207,59 +200,14 @@ export const useStore = create<StoreState>((set) => {
     }),
 
     importCharacter: (character) => set((state) => {
-      // Generate new IDs to avoid conflicts
-      const newCharId = uuidv4();
-      const sheetIdMap = new Map<string, string>();
-      const widgetIdMap = new Map<string, string>();
-      const groupIdMap = new Map<string, string>();
-
-      // Create new sheets with new IDs
-      const newSheets = character.sheets.map(sheet => {
-        const newSheetId = uuidv4();
-        sheetIdMap.set(sheet.id, newSheetId);
-        
-        // Create new widgets with new IDs
-        const newWidgets = sheet.widgets.map(widget => {
-          const newWidgetId = uuidv4();
-          widgetIdMap.set(widget.id, newWidgetId);
-          
-          // Handle group IDs
-          let newGroupId = widget.groupId;
-          if (widget.groupId) {
-            if (!groupIdMap.has(widget.groupId)) {
-              groupIdMap.set(widget.groupId, uuidv4());
-            }
-            newGroupId = groupIdMap.get(widget.groupId);
-          }
-          
-          return {
-            ...widget,
-            id: newWidgetId,
-            groupId: newGroupId,
-            attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
-          };
-        });
-        
-        // Second pass to update attachedTo references
-        newWidgets.forEach(widget => {
-          if (widget.attachedTo) {
-            widget.attachedTo = widget.attachedTo.map(id => widgetIdMap.get(id) || id);
-          }
-        });
-        
-        return {
-          ...sheet,
-          id: newSheetId,
-          widgets: newWidgets
-        };
-      });
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
 
       const newChar: Character = {
         ...character,
-        id: newCharId,
+        id: uuidv4(),
         name: character.name,
         sheets: newSheets,
-        activeSheetId: sheetIdMap.get(character.activeSheetId) || newSheets[0]?.id
+        activeSheetId
       };
 
       return {
