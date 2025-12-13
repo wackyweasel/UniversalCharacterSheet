@@ -54,8 +54,32 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
     setShowEditor(true);
   };
 
+  const handleEditPreset = (theme: typeof THEMES[number], e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Create a new custom theme based on the preset
+    const customThemeFromPreset: CustomTheme = {
+      id: '', // Will be generated when saving
+      name: `${theme.name} (Copy)`,
+      icon: theme.icon,
+      description: theme.description,
+      colors: { ...theme.colors },
+      fonts: { ...theme.fonts },
+      borderRadius: theme.borderRadius,
+      borderWidth: theme.borderWidth,
+      shadowStyle: theme.shadowStyle,
+      cardTexture: theme.cardTexture,
+      textureColor: theme.colors.paper,
+      textureOpacity: theme.textureOpacity ?? 0.15,
+      borderStyle: theme.borderStyle,
+    };
+    setEditingTheme(customThemeFromPreset);
+    setShowEditor(true);
+  };
+
   const handleSaveTheme = (theme: CustomTheme) => {
-    if (editingTheme) {
+    // If editingTheme has an id, we're updating an existing custom theme
+    // If editingTheme has no id (empty string) or doesn't exist, we're creating a new one
+    if (editingTheme && editingTheme.id) {
       updateCustomTheme(theme.id, theme);
       // If this theme is currently active, re-apply it
       if (currentTheme === theme.id) {
@@ -101,7 +125,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
             setShowEditor(false);
             setEditingTheme(undefined);
           }}
-          onDelete={editingTheme ? handleDeleteTheme : undefined}
+          onDelete={editingTheme?.id ? handleDeleteTheme : undefined}
         />
       )}
 
@@ -160,9 +184,8 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
             const themeTextureKey = isImageTexture(theme.cardTexture) ? theme.cardTexture : null;
             const isSelected = currentTheme === theme.id;
             return (
-              <button
+              <div
                 key={theme.id}
-                onClick={() => handleSelectTheme(theme.id)}
                 style={{
                   backgroundColor: isSelected ? theme.colors.accent : theme.colors.paper,
                   color: isSelected ? theme.colors.paper : theme.colors.ink,
@@ -174,7 +197,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                   position: 'relative',
                   overflow: 'hidden',
                 }}
-                className="p-2 border-solid transition-all text-left font-bold active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                className="p-2 border-solid transition-all text-left font-bold"
               >
                 {/* Texture overlay for theme preview */}
                 {themeTextureKey && !isSelected && (
@@ -195,37 +218,54 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                     />
                   </div>
                 )}
-                <div className="relative flex items-center gap-2">
-                  <span className="text-base">{theme.icon}</span>
-                  <span className="text-xs" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
-                </div>
-                <p className="relative text-[10px] mt-1 opacity-70">
-                  {theme.description}
-                </p>
-                {/* Color preview dots */}
-                <div className="relative flex gap-1 mt-2">
-                  <div 
-                    className="w-3 h-3 rounded-full border border-black/20"
-                    style={{ backgroundColor: theme.colors.paper }}
-                    title="Paper"
-                  />
-                  <div 
-                    className="w-3 h-3 rounded-full border border-black/20"
-                    style={{ backgroundColor: theme.colors.ink }}
-                    title="Ink"
-                  />
-                  <div 
-                    className="w-3 h-3 rounded-full border border-black/20"
-                    style={{ backgroundColor: theme.colors.accent }}
-                    title="Accent"
-                  />
-                  <div 
-                    className="w-3 h-3 rounded-full border border-black/20"
-                    style={{ backgroundColor: theme.colors.background }}
-                    title="Background"
-                  />
-                </div>
-              </button>
+                <button
+                  onClick={() => handleSelectTheme(theme.id)}
+                  className="relative w-full text-left"
+                >
+                  <div className="flex items-center gap-2 pr-8">
+                    <span className="text-base">{theme.icon}</span>
+                    <span className="text-xs" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
+                  </div>
+                  <p className="text-[10px] mt-1 opacity-70">
+                    {theme.description}
+                  </p>
+                  {/* Color preview dots */}
+                  <div className="flex gap-1 mt-2">
+                    <div 
+                      className="w-3 h-3 rounded-full border border-black/20"
+                      style={{ backgroundColor: theme.colors.paper }}
+                      title="Paper"
+                    />
+                    <div 
+                      className="w-3 h-3 rounded-full border border-black/20"
+                      style={{ backgroundColor: theme.colors.ink }}
+                      title="Ink"
+                    />
+                    <div 
+                      className="w-3 h-3 rounded-full border border-black/20"
+                      style={{ backgroundColor: theme.colors.accent }}
+                      title="Accent"
+                    />
+                    <div 
+                      className="w-3 h-3 rounded-full border border-black/20"
+                      style={{ backgroundColor: theme.colors.background }}
+                      title="Background"
+                    />
+                  </div>
+                </button>
+                {/* Edit button */}
+                <button
+                  onClick={(e) => handleEditPreset(theme, e)}
+                  style={{
+                    backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
+                    color: isSelected ? theme.colors.paper : theme.colors.accent,
+                  }}
+                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                  title="Copy to custom theme"
+                >
+                  ✏️
+                </button>
+              </div>
             );
           })}
         </div>

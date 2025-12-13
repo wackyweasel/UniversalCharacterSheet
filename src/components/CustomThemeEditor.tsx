@@ -24,7 +24,7 @@ interface CustomThemeEditorProps {
 }
 
 export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }: CustomThemeEditorProps) {
-  const isEditing = !!theme;
+  const isEditing = !!(theme?.id && theme.id.length > 0);
   const defaultTheme = createDefaultCustomTheme();
   
   const [name, setName] = useState(theme?.name || defaultTheme.name);
@@ -48,7 +48,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
 
   const handleSave = () => {
     const newTheme: CustomTheme = {
-      id: theme?.id || `custom-${uuidv4()}`,
+      id: (theme?.id && theme.id.length > 0) ? theme.id : `custom-${uuidv4()}`,
       name,
       icon,
       description,
