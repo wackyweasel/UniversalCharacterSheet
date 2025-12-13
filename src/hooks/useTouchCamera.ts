@@ -70,6 +70,12 @@ export function useTouchCamera({
       return false;
     };
 
+    // Check if the target is a canvas (e.g., map sketcher)
+    const isOnCanvas = (el: Element | null): boolean => {
+      if (el && el.tagName === 'CANVAS') return true;
+      return false;
+    };
+
     let touchStartTarget: Element | null = null;
 
     const handleTouchStart = (e: TouchEvent) => {
@@ -110,8 +116,10 @@ export function useTouchCamera({
       } else if (activeTouches.current.size === 1) {
         const onWidget = touchStartTarget && isOnWidget(touchStartTarget);
         const onScrollable = touchStartedOnScrollable.current;
+        const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
         
-        const shouldPan = !onScrollable && (modeRef.current === 'play' ? true : !onWidget);
+        // Don't pan if on a canvas (map sketcher) - let it handle drawing
+        const shouldPan = !onScrollable && !onCanvas && (modeRef.current === 'play' ? true : !onWidget);
         
         if (shouldPan) {
           const touch = activeTouches.current.values().next().value;
