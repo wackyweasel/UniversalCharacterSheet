@@ -105,16 +105,16 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         />
       )}
 
-      {/* Mobile overlay backdrop */}
+      {/* Overlay backdrop */}
       {!collapsed && (
         <div 
-          className="fixed inset-0 bg-black/30 z-40 md:hidden"
+          className="fixed inset-0 bg-black/30 z-40"
           onClick={onToggle}
         />
       )}
       
       <div 
-        className={`fixed right-0 top-0 bottom-0 w-[80vw] max-w-[280px] md:w-64 bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 sm:p-4 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
+        className={`fixed right-0 top-0 bottom-0 w-[80vw] max-w-[280px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? 'translate-x-full' : 'translate-x-0'
         }`}
       >
@@ -137,34 +137,25 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
           </div>
         )}
         
-        {/* Toggle button - positioned on the edge of sidebar (hidden on mobile) */}
+        {/* Close button - top right corner */}
         <button
           onClick={onToggle}
-          className="hidden md:flex absolute -left-10 top-20 w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border border-r-0 font-bold shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all items-center justify-center text-theme-ink z-20"
-          title={collapsed ? 'Show Themes' : 'Hide Themes'}
-        >
-          {collapsed ? '◀' : '▶'}
-        </button>
-        
-        {/* Mobile close button - top right corner */}
-        <button
-          onClick={onToggle}
-          className="md:hidden absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme z-20 shadow-theme"
+          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme z-20 shadow-theme"
         >
           ✕
         </button>
         
         {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 md:pt-0">
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12">
 
-        <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
             🎨 Themes
           </h2>
         </div>
 
         {/* Built-in Themes */}
-        <div className="flex flex-col gap-2 sm:gap-3">
+        <div className="flex flex-col gap-2">
           {THEMES.map((theme) => {
             const themeTextureKey = isImageTexture(theme.cardTexture) ? theme.cardTexture : null;
             const isSelected = currentTheme === theme.id;
@@ -183,7 +174,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                   position: 'relative',
                   overflow: 'hidden',
                 }}
-                className="p-2 sm:p-3 border-solid transition-all text-left font-bold active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                className="p-2 border-solid transition-all text-left font-bold active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
               >
                 {/* Texture overlay for theme preview */}
                 {themeTextureKey && !isSelected && (
@@ -205,31 +196,31 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                   </div>
                 )}
                 <div className="relative flex items-center gap-2">
-                  <span className="text-base sm:text-lg">{theme.icon}</span>
-                  <span className="text-xs sm:text-sm" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
+                  <span className="text-base">{theme.icon}</span>
+                  <span className="text-xs" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
                 </div>
-                <p className="relative text-[10px] sm:text-xs mt-1 opacity-70">
+                <p className="relative text-[10px] mt-1 opacity-70">
                   {theme.description}
                 </p>
                 {/* Color preview dots */}
                 <div className="relative flex gap-1 mt-2">
                   <div 
-                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    className="w-3 h-3 rounded-full border border-black/20"
                     style={{ backgroundColor: theme.colors.paper }}
                     title="Paper"
                   />
                   <div 
-                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    className="w-3 h-3 rounded-full border border-black/20"
                     style={{ backgroundColor: theme.colors.ink }}
                     title="Ink"
                   />
                   <div 
-                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    className="w-3 h-3 rounded-full border border-black/20"
                     style={{ backgroundColor: theme.colors.accent }}
                     title="Accent"
                   />
                   <div 
-                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                    className="w-3 h-3 rounded-full border border-black/20"
                     style={{ backgroundColor: theme.colors.background }}
                     title="Background"
                   />
@@ -248,19 +239,19 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
           {/* Create New Custom Theme Button */}
           <button
             onClick={handleCreateCustom}
-            className="w-full p-2 sm:p-3 border-[length:var(--border-width)] border-dashed border-theme-border transition-all text-left font-bold rounded-theme bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper hover:border-solid mb-2"
+            className="w-full p-2 border-[length:var(--border-width)] border-dashed border-theme-border transition-all text-left font-bold rounded-theme bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper hover:border-solid mb-2"
           >
             <div className="flex items-center gap-2">
-              <span className="text-base sm:text-lg">➕</span>
-              <span className="text-xs sm:text-sm font-heading">Create Custom Theme</span>
+              <span className="text-base">➕</span>
+              <span className="text-xs font-heading">Create Custom Theme</span>
             </div>
-            <p className="text-[10px] sm:text-xs mt-1 opacity-70 font-body">
+            <p className="text-[10px] mt-1 opacity-70 font-body">
               Design your own unique theme
             </p>
           </button>
 
           {/* List of Custom Themes */}
-          <div className="flex flex-col gap-2 sm:gap-3 mt-3">
+          <div className="flex flex-col gap-2 mt-3">
             {customThemes.map((theme) => {
               const customTextureKey = isImageTexture(theme.cardTexture || '') ? theme.cardTexture : null;
               const isSelected = currentTheme === theme.id;
@@ -278,7 +269,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                     position: 'relative',
                     overflow: 'hidden',
                   }}
-                  className="p-2 sm:p-3 border-solid transition-all text-left font-bold"
+                  className="p-2 border-solid transition-all text-left font-bold"
                 >
                   {/* Texture overlay for custom theme preview */}
                   {customTextureKey && !isSelected && (
@@ -304,31 +295,31 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                     className="relative w-full text-left"
                   >
                     <div className="flex items-center gap-2 pr-8">
-                      <span className="text-base sm:text-lg">{theme.icon}</span>
-                      <span className="text-xs sm:text-sm" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
+                      <span className="text-base">{theme.icon}</span>
+                      <span className="text-xs" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
                     </div>
-                    <p className="text-[10px] sm:text-xs mt-1 opacity-70">
+                    <p className="text-[10px] mt-1 opacity-70">
                       {theme.description}
                     </p>
                     {/* Color preview dots */}
                     <div className="flex gap-1 mt-2">
                       <div 
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        className="w-3 h-3 rounded-full border border-black/20"
                         style={{ backgroundColor: theme.colors.paper }}
                         title="Paper"
                       />
                       <div 
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        className="w-3 h-3 rounded-full border border-black/20"
                         style={{ backgroundColor: theme.colors.ink }}
                         title="Ink"
                       />
                       <div 
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        className="w-3 h-3 rounded-full border border-black/20"
                         style={{ backgroundColor: theme.colors.accent }}
                         title="Accent"
                       />
                       <div 
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-black/20"
+                        className="w-3 h-3 rounded-full border border-black/20"
                         style={{ backgroundColor: theme.colors.background }}
                         title="Background"
                       />
@@ -352,13 +343,13 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
           </div>
 
           {customThemes.length === 0 && (
-            <p className="text-[10px] sm:text-xs text-theme-muted mt-2 font-body">
+            <p className="text-[10px] text-theme-muted mt-2 font-body">
               No custom themes yet. Create one above!
             </p>
           )}
         </div>
 
-        <div className="mt-auto pt-4 text-[10px] sm:text-xs text-theme-muted border-t border-theme-border/50 font-body">
+        <div className="mt-auto pt-4 text-[10px] text-theme-muted border-t border-theme-border/50 font-body">
           <p>Select a theme to change the appearance of your character sheet.</p>
           <p className="mt-2 text-theme-ink font-bold">Current: {getCurrentThemeName()}</p>
         </div>

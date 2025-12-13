@@ -323,7 +323,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           ref={nodeRef}
           data-widget-id={widget.id}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 sm:p-2 cursor-default group rounded-theme ${isResizing ? 'select-none' : ''}`}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group rounded-theme ${isResizing ? 'select-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
@@ -357,10 +357,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className="drag-handle absolute -top-2 left-8 right-8 h-8 sm:h-6 sm:top-0 sm:left-0 sm:right-0 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]">
-              {/* Visual grip indicator for mobile - only show when controls visible */}
+            <div className="drag-handle absolute -top-2 left-8 right-8 h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]">
+              {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
-                <div className="sm:hidden flex gap-1">
+                <div className="flex gap-1">
                   <div className="w-8 h-1 bg-theme-muted/50 rounded-full" />
                 </div>
               )}
@@ -370,7 +370,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Edit Button - visible on hover/touch in edit mode */}
           {mode === 'edit' && showControls && (
             <button
-              className="absolute -top-3 -left-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-blue-600 text-sm"
+              className="absolute -top-3 -left-3 w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-blue-600 text-sm"
               onClick={openEditModal}
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}
@@ -383,7 +383,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Delete Button - visible on hover/touch in edit mode */}
           {mode === 'edit' && showControls && (
             <button
-              className="absolute -top-3 -right-3 w-8 h-8 sm:w-6 sm:h-6 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-red-600 text-lg sm:text-base"
+              className="absolute -top-3 -right-3 w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-red-600 text-lg"
               onClick={() => removeWidget(widget.id)}
               onMouseDown={(e) => e.stopPropagation()}
               onTouchStart={(e) => e.stopPropagation()}

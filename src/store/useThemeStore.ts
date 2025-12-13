@@ -275,7 +275,7 @@ export const THEMES: Theme[] = [
     colors: {
       background: '#3d2914',
       paper: '#d4c4a8',
-      ink: '#2c1810',
+      ink: '#df7d57ff',
       accent: '#8b0000',
       accentHover: '#a52a2a',
       border: '#5c4033',
@@ -515,9 +515,9 @@ export const THEMES: Theme[] = [
     colors: {
       background: '#2d4a3e',
       paper: '#f4f1e0cc',
-      ink: '#2d3b2d',
-      accent: '#4a7c59',
-      accentHover: '#3d6b4f',
+      ink: '#7e9e7eff',
+      accent: '#2d5a3e',
+      accentHover: '#1e4a30',
       border: '#5a7247',
       shadow: '#2d3b2d40',
       muted: '#6b7c5a',
@@ -531,7 +531,7 @@ export const THEMES: Theme[] = [
     borderWidth: '2px',
     shadowStyle: '0 4px 12px var(--color-shadow)',
     cardTexture: 'leaf',
-    textureOpacity: 0.6,
+    textureOpacity: 0.3,
     borderStyle: 'solid',
   },
 ];

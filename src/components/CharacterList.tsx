@@ -231,9 +231,9 @@ export default function CharacterList() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 h-full overflow-auto">
-      <div className="flex justify-between items-center mb-4 sm:mb-8 border-b-[length:var(--border-width)] border-theme-border pb-2 sm:pb-4">
-        <h1 className="text-2xl sm:text-4xl font-bold uppercase tracking-wider text-theme-ink font-heading">
+    <div className="max-w-4xl mx-auto p-4 h-full overflow-auto">
+      <div className="flex justify-between items-center mb-4 border-b-[length:var(--border-width)] border-theme-border pb-2">
+        <h1 className="text-2xl font-bold uppercase tracking-wider text-theme-ink font-heading">
           Character Select
         </h1>
         <button
@@ -244,19 +244,19 @@ export default function CharacterList() {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
-          <span className="hidden sm:inline">Backup</span>
+          <span>Backup</span>
         </button>
       </div>
 
       {/* Create and Import buttons */}
-      <div className="mb-6 sm:mb-12 flex gap-2 sm:gap-4">
+      <div className="mb-6 flex gap-2">
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="flex-1 bg-theme-accent text-theme-paper px-6 sm:px-8 py-4 sm:py-5 text-lg sm:text-xl font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading"
+          className="flex-1 bg-theme-accent text-theme-paper px-6 py-4 text-lg font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading"
         >
           + CREATE NEW CHARACTER
         </button>
-        <label className="bg-theme-paper text-theme-ink px-4 sm:px-6 py-4 sm:py-5 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center flex items-center justify-center">
+        <label className="bg-theme-paper text-theme-ink px-4 py-4 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center flex items-center justify-center">
           IMPORT
           <input
             ref={fileInputRef}
@@ -268,7 +268,7 @@ export default function CharacterList() {
         </label>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
         {characters.map((char) => {
           const cardStyles = getThemeStyles(char.theme);
           const customTheme = char.theme ? getCustomTheme(char.theme) : undefined;
@@ -278,7 +278,7 @@ export default function CharacterList() {
             <div 
               key={char.id}
               style={cardStyles}
-              className="p-4 sm:p-6 active:translate-x-[2px] active:translate-y-[2px] sm:hover:-translate-y-1 transition-transform cursor-pointer relative group"
+              className="p-4 active:translate-x-[2px] active:translate-y-[2px] transition-transform cursor-pointer relative group"
               onClick={() => selectCharacter(char.id)}
             >
               <div 
@@ -316,11 +316,11 @@ export default function CharacterList() {
               </div>
               <div className="relative">
                 <h2 
-                  className="text-xl sm:text-2xl font-bold mb-2 pr-12"
+                  className="text-xl font-bold mb-2 pr-12"
                   style={{ color: 'var(--card-ink)' }}
                 >{char.name}</h2>
                 <p 
-                  className="text-sm sm:text-base mb-2 sm:mb-4"
+                  className="text-sm mb-2"
                   style={{ color: 'var(--card-muted)' }}
                 >{char.sheets.reduce((sum, s) => sum + s.widgets.length, 0)} Widgets • {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}</p>
                 
@@ -329,7 +329,7 @@ export default function CharacterList() {
                     e.stopPropagation();
                     handleExport(char);
                   }}
-                  className="absolute top-0 right-0 px-2 py-1 sm:opacity-0 sm:group-hover:opacity-100 font-bold flex items-center justify-center z-10 text-sm rounded transition-colors"
+                  className="absolute top-0 right-0 px-2 py-1 font-bold flex items-center justify-center z-10 text-sm rounded transition-colors"
                   style={{ 
                     color: 'var(--card-accent)',
                     border: '1px solid var(--card-border)',
@@ -352,7 +352,7 @@ export default function CharacterList() {
                     e.stopPropagation();
                     setCharacterToDelete(char.id);
                   }}
-                  className="absolute bottom-0 right-0 px-2 py-1 sm:opacity-0 sm:group-hover:opacity-100 font-bold flex items-center justify-center z-10 text-sm rounded transition-colors"
+                  className="absolute bottom-0 right-0 px-2 py-1 font-bold flex items-center justify-center z-10 text-sm rounded transition-colors"
                   style={{ 
                     color: 'var(--card-accent)',
                     border: '1px solid var(--card-border)',
@@ -376,7 +376,7 @@ export default function CharacterList() {
         })}
         
         {characters.length === 0 && (
-          <div className="col-span-full text-center py-8 sm:py-12 text-theme-muted border-[length:var(--border-width)] border-dashed border-theme-border/50 text-sm sm:text-base rounded-theme font-body">
+          <div className="col-span-full text-center py-8 text-theme-muted border-[length:var(--border-width)] border-dashed border-theme-border/50 text-sm rounded-theme font-body">
             No characters found. Create one to begin.
           </div>
         )}

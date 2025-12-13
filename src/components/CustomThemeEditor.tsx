@@ -83,14 +83,14 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   // Preview component - reused for both mobile and desktop
   const PreviewCard = () => (
     <div 
-      className="p-3 sm:p-4"
+      className="p-3"
       style={{ 
         backgroundColor: colors.background,
         borderRadius: borderRadius,
       }}
     >
       <div 
-        className="p-3 sm:p-4 relative overflow-hidden"
+        className="p-3 relative overflow-hidden"
         style={{ 
           backgroundColor: colors.paper,
           backgroundImage: isImageTexture(cardTexture) ? 'none' : getTextureCSS(cardTexture, textureColor, textureOpacity),
@@ -125,19 +125,19 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           </div>
         )}
         <h4 
-          className="text-base sm:text-lg font-bold mb-2 relative"
+          className="text-base font-bold mb-2 relative"
           style={{ color: colors.ink, fontFamily: headingFont }}
         >
           {icon} {name}
         </h4>
         <p 
-          className="text-xs sm:text-sm mb-3 relative"
+          className="text-xs mb-3 relative"
           style={{ color: colors.muted, fontFamily: bodyFont }}
         >
           {description}
         </p>
         <button
-          className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-bold transition-colors relative"
+          className="px-3 py-1.5 text-sm font-bold transition-colors relative"
           style={{ 
             backgroundColor: colors.accent,
             color: colors.paper,
@@ -152,34 +152,34 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2">
       <div 
         className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-4xl max-h-[95vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b-[length:var(--border-width)] border-theme-border bg-theme-paper flex-shrink-0">
-          <h2 className="text-lg sm:text-xl font-bold text-theme-ink font-heading">
+        <div className="p-3 border-b-[length:var(--border-width)] border-theme-border bg-theme-paper flex-shrink-0">
+          <h2 className="text-lg font-bold text-theme-ink font-heading">
             {isEditing ? '✏️ Edit Custom Theme' : '🎨 Create Custom Theme'}
           </h2>
         </div>
 
-        {/* Content - Column on mobile, row on desktop */}
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Preview - top on mobile, right on desktop */}
-          <div className="order-first md:order-last w-full md:w-80 flex-shrink-0 border-b-[length:var(--border-width)] md:border-b-0 md:border-l-[length:var(--border-width)] border-theme-border p-3 sm:p-4 bg-theme-background/50 max-h-[40vh] md:max-h-none overflow-auto md:overflow-visible">
-            <h3 className="text-sm font-bold text-theme-ink mb-2 sm:mb-3 uppercase tracking-wider font-heading">Preview</h3>
-            <div className="md:sticky md:top-0">
+        {/* Content - Column layout */}
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Preview - at top */}
+          <div className="w-full flex-shrink-0 border-b-[length:var(--border-width)] border-theme-border p-3 bg-theme-background/50 max-h-[40vh] overflow-auto">
+            <h3 className="text-sm font-bold text-theme-ink mb-2 uppercase tracking-wider font-heading">Preview</h3>
+            <div>
               <PreviewCard />
             </div>
           </div>
 
           {/* Form - scrollable */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-5 sm:space-y-6">
+          <div className="flex-1 overflow-y-auto p-3 space-y-5">
             {/* Basic Info Section */}
             <section>
               <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Basic Info</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {/* Name */}
                 <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Theme Name</label>
@@ -221,7 +221,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 </div>
 
                 {/* Description */}
-                <div className="sm:col-span-2">
+                <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Description</label>
                   <input
                     type="text"
@@ -237,15 +237,15 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
             {/* Colors Section */}
             <section>
               <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Colors</h3>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {colorFields.map(({ key, label }) => (
                   <div key={key} className="flex flex-col items-center">
-                    <label className="block text-[10px] sm:text-xs font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
+                    <label className="block text-[10px] font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
                     <input
                       type="color"
                       value={colors[key]}
                       onChange={(e) => handleColorChange(key, e.target.value)}
-                      className="w-10 h-10 sm:w-12 sm:h-12 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                      className="w-10 h-10 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
                     />
                   </div>
                 ))}
@@ -255,7 +255,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
             {/* Fonts Section */}
             <section>
               <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Fonts</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Heading Font</label>
                   <select
@@ -296,7 +296,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
             {/* Style Section */}
             <section>
               <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Style</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Radius</label>
                   <select
@@ -361,7 +361,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     ))}
                   </select>
                 </div>
-                <div className="sm:col-span-2">
+                <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">
                     Texture Opacity: {Math.round(textureOpacity * 100)}%
                   </label>
@@ -382,7 +382,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
         </div>
 
         {/* Footer */}
-        <div className="p-3 sm:p-4 border-t-[length:var(--border-width)] border-theme-border bg-theme-paper flex flex-wrap gap-2 justify-between flex-shrink-0">
+        <div className="p-3 border-t-[length:var(--border-width)] border-theme-border bg-theme-paper flex flex-wrap gap-2 justify-between flex-shrink-0">
           <div>
             {isEditing && onDelete && (
               <button
@@ -391,7 +391,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onDelete();
                   }
                 }}
-                className="px-3 sm:px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-theme hover:bg-red-600 transition-colors font-heading"
+                className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-theme hover:bg-red-600 transition-colors font-heading"
               >
                 🗑️ Delete
               </button>
@@ -400,13 +400,13 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="px-3 sm:px-4 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-sm font-bold rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
+              className="px-3 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-sm font-bold rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-3 sm:px-4 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-theme hover:bg-theme-accent-hover transition-colors font-heading"
+              className="px-3 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-theme hover:bg-theme-accent-hover transition-colors font-heading"
             >
               {isEditing ? '💾 Save Changes' : '✨ Create Theme'}
             </button>

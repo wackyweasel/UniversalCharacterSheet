@@ -160,7 +160,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 sm:p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -173,7 +173,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchEnd={(e) => e.stopPropagation()}
       onDragOver={(e) => e.preventDefault()}
     >
-      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-none sm:rounded-theme shadow-theme sm:max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-none shadow-theme w-full h-full overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border">
           <h2 className="text-lg font-bold text-theme-ink font-heading">
@@ -189,7 +189,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col gap-6">
             {/* Editor Section */}
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
@@ -197,10 +197,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
             </div>
 
             {/* Preview Section */}
-            <div className="lg:w-72 flex-shrink-0">
+            <div className="flex-shrink-0">
               <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
               <div 
-                className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 sm:p-4 shadow-theme"
+                className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 shadow-theme"
                 style={{ 
                   width: '200px',
                   height: widget.type === 'NUMBER_DISPLAY' && localData.displayLayout === 'vertical' 
