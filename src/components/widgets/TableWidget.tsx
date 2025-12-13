@@ -159,7 +159,6 @@ export default function TableWidget({ widget, height }: Props) {
                         value={cell}
                         onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
                         onBlur={() => setEditingCell(null)}
-                        onTouchStart={(e) => e.stopPropagation()}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             setEditingCell(null);
@@ -188,12 +187,7 @@ export default function TableWidget({ widget, height }: Props) {
                     ) : (
                       <div 
                         onClick={() => setEditingCell({ row: rowIdx, col: colIdx })}
-                        onTouchEnd={(e) => {
-                          e.stopPropagation();
-                          setEditingCell({ row: rowIdx, col: colIdx });
-                        }}
                         onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
                         className={`min-h-[1em] cursor-text hover:opacity-70 font-body`}
                       >
                         {cell || <span className="text-theme-muted">-</span>}
