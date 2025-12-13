@@ -111,6 +111,7 @@ export interface WidgetData {
   displayLayout?: 'horizontal' | 'vertical';
   // Form
   formItems?: FormItem[];
+  labelWidth?: number;
   // Image
   imageUrl?: string;
   // Pool

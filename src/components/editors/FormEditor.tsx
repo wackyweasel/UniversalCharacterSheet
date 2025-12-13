@@ -32,6 +32,8 @@ export function FormEditor({ widget, updateData }: EditorProps) {
     updateData({ formItems: updated });
   };
 
+  const labelWidth = widget.data.labelWidth ?? 33;
+
   return (
     <div className="space-y-4">
       <div>
@@ -41,6 +43,20 @@ export function FormEditor({ widget, updateData }: EditorProps) {
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Form Fields"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">
+          Label Width: {labelWidth}%
+        </label>
+        <input
+          type="range"
+          min="10"
+          max="70"
+          value={labelWidth}
+          onChange={(e) => updateData({ labelWidth: parseInt(e.target.value) })}
+          className="w-full accent-theme-accent"
         />
       </div>
       

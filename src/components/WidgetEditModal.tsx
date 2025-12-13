@@ -116,14 +116,21 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     }
   };
 
+  // Get actual widget dimensions for preview
+  const getPreviewDimensions = () => {
+    const actualWidth = localWidth || widget.w || 200;
+    const actualHeight = widget.h || 200;
+    
+    return {
+      width: actualWidth,
+      height: actualHeight
+    };
+  };
+
   const renderPreview = () => {
-    // Use fixed preview dimensions, but adjust for NUMBER_DISPLAY layout
-    let previewHeight = 200;
-    if (widget.type === 'NUMBER_DISPLAY' && localData.displayLayout === 'vertical') {
-      const itemCount = (localData.displayNumbers || []).length;
-      previewHeight = Math.max(200, 60 + itemCount * 70);
-    }
-    const props = { widget: previewWidget, mode: 'play' as const, width: 200, height: previewHeight };
+    const { width: previewWidth, height: previewHeight } = getPreviewDimensions();
+    
+    const props = { widget: previewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
     
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
@@ -202,10 +209,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               <div 
                 className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 shadow-theme"
                 style={{ 
-                  width: '200px',
-                  height: widget.type === 'NUMBER_DISPLAY' && localData.displayLayout === 'vertical' 
-                    ? `${Math.max(200, 60 + ((localData.displayNumbers || []).length) * 70)}px` 
-                    : '200px'
+                  width: `${getPreviewDimensions().width + 16}px`,
+                  height: `${getPreviewDimensions().height + 16}px`
                 }}
               >
                 {renderPreview()}

@@ -15,7 +15,7 @@ interface FormItem {
 
 export default function FormWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, formItems = [] } = widget.data;
+  const { label, formItems = [], labelWidth = 33 } = widget.data;
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -56,7 +56,10 @@ export default function FormWidget({ widget, height }: Props) {
         {(formItems as FormItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
-            <span className={`w-1/3 ${itemClass} text-theme-ink font-body truncate flex-shrink-0`}>
+            <span 
+              className={`${itemClass} text-theme-ink font-body truncate flex-shrink-0`}
+              style={{ width: `${labelWidth}%` }}
+            >
               {item.name}
             </span>
 
