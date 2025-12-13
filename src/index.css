@@ -102,6 +102,25 @@
   touch-action: none !important;
 }
 
+/* Vertical mode styles */
+.vertical-widget {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.vertical-widget[draggable="true"] {
+  cursor: grab;
+}
+
+.vertical-widget[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.vertical-drag-handle {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
 /* Mobile-friendly scrollbars */
 @media (max-width: 768px) {
   ::-webkit-scrollbar {

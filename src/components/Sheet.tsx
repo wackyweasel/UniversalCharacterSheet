@@ -5,6 +5,7 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import Sidebar from './Sidebar';
 import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
+import VerticalWidget from './VerticalWidget';
 import AttachmentButtons from './AttachmentButtons';
 import WidgetShadows from './WidgetShadows';
 import { WidgetType, Widget } from '../types';
@@ -25,6 +26,7 @@ export default function Sheet() {
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
+  const reorderWidget = useStore((state) => state.reorderWidget);
   const createSheet = useStore((state) => state.createSheet);
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
@@ -43,6 +45,10 @@ export default function Sheet() {
   const [editedSheetName, setEditedSheetName] = useState('');
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
+  
+  // Vertical mode drag state
+  const [verticalDragIndex, setVerticalDragIndex] = useState<number | null>(null);
+  const [verticalDropIndex, setVerticalDropIndex] = useState<number | null>(null);
 
   // Auto-stack function that measures actual DOM widget sizes
   // Now preserves widget groups and treats them as single units
@@ -723,12 +729,177 @@ export default function Sheet() {
     };
   }, [isPanning]);
 
+  // Vertical mode drag handlers
+  const handleVerticalDragStart = (index: number) => {
+    setVerticalDragIndex(index);
+    setVerticalDropIndex(index);
+  };
+
+  const handleVerticalDragOver = (index: number) => {
+    setVerticalDropIndex(index);
+  };
+
+  const handleVerticalDragEnd = () => {
+    if (verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
+      const widget = activeSheetWidgets[verticalDragIndex];
+      if (widget) {
+        reorderWidget(widget.id, verticalDropIndex);
+      }
+    }
+    setVerticalDragIndex(null);
+    setVerticalDropIndex(null);
+  };
+
   if (!activeCharacter) return null;
 
   // Calculate left offset for buttons based on sidebar state - simpler on mobile
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const buttonsLeftOffset = mode === 'edit' && !sidebarCollapsed && !isMobile ? 'md:left-72' : '';
 
+  // Render Vertical Mode
+  if (mode === 'vertical') {
+    return (
+      <div className="w-full h-screen overflow-hidden relative bg-theme-background">
+        {/* Vertical Mode Container - scrollable */}
+        <div className="h-full overflow-y-auto">
+          <div className="max-w-md mx-auto px-3 py-16 pb-24">
+            {/* Widgets in vertical layout */}
+            {activeSheetWidgets.map((widget, index) => (
+              <VerticalWidget
+                key={widget.id}
+                widget={widget}
+                index={index}
+                totalWidgets={activeSheetWidgets.length}
+                isDragging={verticalDragIndex !== null}
+                draggedIndex={verticalDragIndex}
+                onDragStart={handleVerticalDragStart}
+                onDragOver={handleVerticalDragOver}
+                onDragEnd={handleVerticalDragEnd}
+              />
+            ))}
+            
+            {activeSheetWidgets.length === 0 && (
+              <div className="text-center text-theme-muted py-12">
+                <p className="font-body">No widgets on this sheet</p>
+                <p className="text-sm mt-2">Switch to Edit mode to add widgets</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* HUD for Vertical Mode - Fixed at top */}
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex flex-col gap-2 pointer-events-auto z-30">
+          <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1.5 sm:p-2 shadow-theme rounded-theme">
+            <h1 className="font-bold text-sm sm:text-xl text-theme-ink font-heading">
+              {activeCharacter.name}
+            </h1>
+          </div>
+          
+          {/* Sheet Dropdown for Vertical Mode */}
+          <div className="relative w-full">
+            <button
+              onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+              className="w-full bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme px-3 py-1.5 flex items-center justify-between gap-2 hover:bg-theme-accent/10 transition-colors"
+            >
+              <span className="text-xs sm:text-sm font-body text-theme-ink">
+                {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+              </span>
+              <span className="text-theme-muted text-xs">▼</span>
+            </button>
+            
+            {sheetDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setSheetDropdownOpen(false)}
+                />
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px]">
+                  {activeCharacter.sheets.map((sheet) => (
+                    <button
+                      key={sheet.id}
+                      onClick={() => {
+                        selectSheet(sheet.id);
+                        setSheetDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-xs sm:text-sm text-left font-body transition-colors ${
+                        sheet.id === activeCharacter.activeSheetId
+                          ? 'bg-theme-accent text-theme-paper'
+                          : 'text-theme-ink hover:bg-theme-accent/20'
+                      }`}
+                    >
+                      {sheet.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Expand/Collapse All Buttons */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => {
+                activeSheetWidgets.forEach(w => {
+                  localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'false');
+                });
+                window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
+              }}
+              className="flex-1 px-2 py-1.5 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+              title="Expand All"
+            >
+              <span className="sm:hidden">▼</span>
+              <span className="hidden sm:inline">▼ Expand</span>
+            </button>
+            <button
+              onClick={() => {
+                activeSheetWidgets.forEach(w => {
+                  localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'true');
+                });
+                window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
+              }}
+              className="flex-1 px-2 py-1.5 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+              title="Collapse All"
+            >
+              <span className="sm:hidden">▲</span>
+              <span className="hidden sm:inline">▲ Collapse</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Top-left buttons for Vertical Mode */}
+        <div className="absolute top-2 left-2 sm:top-4 sm:left-4 pointer-events-auto flex flex-col gap-1.5 sm:gap-2 z-30">
+          {/* Exit to Menu */}
+          <button
+            onClick={() => selectCharacter(null)}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          >
+            <span className="sm:hidden">✕</span>
+            <span className="hidden sm:inline">✕ Exit to Menu</span>
+          </button>
+
+          {/* Edit Mode Button */}
+          <button
+            onClick={() => setMode('edit')}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          >
+            <span className="sm:hidden">✎</span>
+            <span className="hidden sm:inline">✎ Edit Mode</span>
+          </button>
+
+          {/* Grid View Button - to go back to Play mode */}
+          <button
+            onClick={() => setMode('play')}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-accent text-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:opacity-90 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme"
+          >
+            <span className="sm:hidden">⊞</span>
+            <span className="hidden sm:inline">⊞ Grid View</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Grid Mode (Edit or Play)
   return (
     <div ref={containerRef} className="w-full h-screen overflow-hidden relative bg-theme-background">
       {mode === 'edit' && (
@@ -1037,6 +1208,17 @@ export default function Sheet() {
             </>
           )}
         </button>
+
+        {/* Vertical View Button - only in play mode */}
+        {mode === 'play' && (
+          <button
+            onClick={() => setMode('vertical')}
+            className="px-2 py-1.5 sm:px-4 sm:py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xs sm:text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
+          >
+            <span className="sm:hidden">☰</span>
+            <span className="hidden sm:inline">☰ Vertical View</span>
+          </button>
+        )}
 
         {/* Toolbox Toggle Button - only in edit mode */}
         {mode === 'edit' && (

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Character, Widget, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 
-type Mode = 'play' | 'edit';
+type Mode = 'play' | 'edit' | 'vertical';
 
 // Helper to get the active sheet's widgets from a character
 function getActiveSheetWidgets(character: Character): Widget[] {
@@ -77,6 +77,7 @@ interface StoreState {
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
   removeWidget: (id: string) => void;
+  reorderWidget: (widgetId: string, newIndex: number) => void;
   
   // Widget Group Actions (for snap+attach)
   attachWidgets: (widgetId1: string, widgetId2: string) => void;
@@ -99,11 +100,12 @@ export const useStore = create<StoreState>((set) => {
     try {
       const raw = localStorage.getItem('ucs:store');
       if (!raw) return null;
-      const data = JSON.parse(raw) as { characters: any[]; activeCharacterId: string | null };
+      const data = JSON.parse(raw) as { characters: any[]; activeCharacterId: string | null; mode?: Mode };
       // Migrate all characters to new format
       return {
         characters: data.characters.map(migrateCharacter),
-        activeCharacterId: data.activeCharacterId
+        activeCharacterId: data.activeCharacterId,
+        mode: data.mode
       };
     } catch (e) {
       console.error('Failed to load persisted store', e);
@@ -113,11 +115,12 @@ export const useStore = create<StoreState>((set) => {
 
   const initialCharacters = persisted?.characters ?? [];
   const initialActive = persisted?.activeCharacterId ?? null;
+  const initialMode = persisted?.mode ?? 'play';
 
   const api: StoreState = {
     characters: initialCharacters,
     activeCharacterId: initialActive,
-    mode: 'play',
+    mode: initialMode,
     editingWidgetId: null,
     selectedWidgetId: null,
 
@@ -472,6 +475,26 @@ export const useStore = create<StoreState>((set) => {
       })
     })),
 
+    reorderWidget: (widgetId, newIndex) => set((state) => {
+      if (!state.activeCharacterId) return state;
+      
+      return {
+        characters: state.characters.map(c => {
+          if (c.id !== state.activeCharacterId) return c;
+          
+          return updateActiveSheetWidgets(c, widgets => {
+            const widgetIndex = widgets.findIndex(w => w.id === widgetId);
+            if (widgetIndex === -1) return widgets;
+            
+            const newWidgets = [...widgets];
+            const [removed] = newWidgets.splice(widgetIndex, 1);
+            newWidgets.splice(newIndex, 0, removed);
+            return newWidgets;
+          });
+        })
+      };
+    }),
+
     // Attach two widgets together (create or merge groups)
     attachWidgets: (widgetId1, widgetId2) => set((state) => {
       if (!state.activeCharacterId) return state;
@@ -774,7 +797,7 @@ export const useStore = create<StoreState>((set) => {
     saveTimeout = window.setTimeout(() => {
       try {
         const state = (useStore as any).getState();
-        const data = { characters: state.characters, activeCharacterId: state.activeCharacterId };
+        const data = { characters: state.characters, activeCharacterId: state.activeCharacterId, mode: state.mode };
         localStorage.setItem('ucs:store', JSON.stringify(data));
       } catch (e) {
         console.error('Failed to persist store', e);
