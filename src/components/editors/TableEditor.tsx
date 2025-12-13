@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EditorProps } from './types';
+import { TableRow } from '../../types';
 
 export function TableEditor({ widget, updateData }: EditorProps) {
   const { label, columns = ['Item', 'Qty', 'Weight'], rows = [] } = widget.data;
@@ -15,7 +16,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
 
   const addColumn = () => {
     // Also add empty cell to all existing rows
-    const newRows = rows.map((row: { cells: string[] }) => ({
+    const newRows = rows.map((row: TableRow) => ({
       ...row,
       cells: [...row.cells, '']
     }));
@@ -27,9 +28,9 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     const newColumns = [...columns];
     newColumns.splice(index, 1);
     // Also update rows to remove the column data
-    const newRows = rows.map((row: { cells: string[] }) => ({
+    const newRows = rows.map((row: TableRow) => ({
       ...row,
-      cells: row.cells.filter((_: string, i: number) => i !== index)
+      cells: row.cells.filter((_, i: number) => i !== index)
     }));
     updateData({ columns: newColumns, rows: newRows });
   };
@@ -65,7 +66,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     if (fromIndex !== null && fromIndex !== toIndex) {
       // Create new arrays
       const newColumns = [...columns];
-      const newRows = rows.map((row: { cells: string[] }) => ({ ...row, cells: [...row.cells] }));
+      const newRows = rows.map((row: TableRow) => ({ ...row, cells: [...row.cells] }));
       
       // Move column: remove from old position, insert at new position
       const [movedColumn] = newColumns.splice(fromIndex, 1);

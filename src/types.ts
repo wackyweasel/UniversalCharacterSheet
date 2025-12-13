@@ -22,8 +22,24 @@ export interface ToggleItem {
   active: boolean;
 }
 
+export interface CellFormat {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  bgColor?: string;
+  bgOpacity?: number;
+  hAlign?: 'left' | 'center' | 'right';
+  vAlign?: 'top' | 'middle' | 'bottom';
+}
+
+export interface TableCell {
+  value: string;
+  format?: CellFormat;
+}
+
 export interface TableRow {
-  cells: string[];
+  cells: (string | TableCell)[];  // Support both legacy string and new TableCell format
 }
 
 export interface CheckboxItem {
