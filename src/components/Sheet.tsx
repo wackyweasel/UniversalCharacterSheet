@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { applyTheme, applyCustomTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
 import Sidebar from './Sidebar';
 import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
@@ -53,313 +54,59 @@ export default function Sheet() {
   const [verticalDragIndex, setVerticalDragIndex] = useState<number | null>(null);
   const [verticalDropIndex, setVerticalDropIndex] = useState<number | null>(null);
 
-  // Auto-stack function that measures actual DOM widget sizes
-  // Now preserves widget groups and treats them as single units
-  const handleAutoStack = () => {
-    if (!activeCharacter || activeSheetWidgets.length === 0) return;
-
-    const GRID_SIZE = 10;
-    const GAP = 10;
-
-    // Get all widget DOM elements and measure their actual sizes
-    const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
-    const widgetSizes: { id: string; w: number; h: number }[] = [];
-
-    widgetElements.forEach((el) => {
-      const id = el.getAttribute('data-widget-id');
-      if (id) {
-        const rect = el.getBoundingClientRect();
-        // Account for current scale
-        widgetSizes.push({
-          id,
-          w: Math.ceil(rect.width / scale / GRID_SIZE) * GRID_SIZE,
-          h: Math.ceil(rect.height / scale / GRID_SIZE) * GRID_SIZE,
-        });
-      }
-    });
-
-    // Build widget info with measured sizes
-    const widgets = activeSheetWidgets.map(w => {
-      const measured = widgetSizes.find(s => s.id === w.id);
-      return {
-        id: w.id,
-        groupId: w.groupId,
-        x: w.x,
-        y: w.y,
-        w: measured ? measured.w : (w.w || 200),
-        h: measured ? measured.h : (w.h || 120),
-      };
-    });
-
-    // Group widgets by groupId
-    const groupedWidgets = new Map<string, typeof widgets>();
-    const ungroupedWidgets: typeof widgets = [];
-    
-    for (const widget of widgets) {
-      if (widget.groupId) {
-        const group = groupedWidgets.get(widget.groupId) || [];
-        group.push(widget);
-        groupedWidgets.set(widget.groupId, group);
-      } else {
-        ungroupedWidgets.push(widget);
-      }
-    }
-
-    // Calculate bounding box for each group (preserving internal positions)
-    interface StackableItem {
-      type: 'group' | 'single';
-      id: string; // groupId for groups, widgetId for singles
-      widgets: typeof widgets; // widgets in this item
-      boundingBox: { x: number; y: number; w: number; h: number };
-      originalOffset: { x: number; y: number }; // offset of bounding box from origin
-    }
-
-    const stackableItems: StackableItem[] = [];
-
-    // Process groups
-    for (const [groupId, groupWidgets] of groupedWidgets) {
-      if (groupWidgets.length === 0) continue;
-      
-      // Calculate bounding box of the group
-      const minX = Math.min(...groupWidgets.map(w => w.x));
-      const minY = Math.min(...groupWidgets.map(w => w.y));
-      const maxX = Math.max(...groupWidgets.map(w => w.x + w.w));
-      const maxY = Math.max(...groupWidgets.map(w => w.y + w.h));
-      
-      stackableItems.push({
-        type: 'group',
-        id: groupId,
-        widgets: groupWidgets,
-        boundingBox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
-        originalOffset: { x: minX, y: minY },
-      });
-    }
-
-    // Process ungrouped widgets
-    for (const widget of ungroupedWidgets) {
-      stackableItems.push({
-        type: 'single',
-        id: widget.id,
-        widgets: [widget],
-        boundingBox: { x: widget.x, y: widget.y, w: widget.w, h: widget.h },
-        originalOffset: { x: widget.x, y: widget.y },
-      });
-    }
-
-    // Calculate container width based on total area
-    const totalArea = stackableItems.reduce((sum, item) => sum + (item.boundingBox.w + GAP) * (item.boundingBox.h + GAP), 0);
-    const CONTAINER_WIDTH = Math.max(800, Math.ceil(Math.sqrt(totalArea * 1.5) / GRID_SIZE) * GRID_SIZE);
-
-    // Sort by original position: top-to-bottom, left-to-right
-    const sortedItems = [...stackableItems].sort((a, b) => {
-      const ROW_THRESHOLD = 50;
-      const rowA = Math.floor(a.boundingBox.y / ROW_THRESHOLD);
-      const rowB = Math.floor(b.boundingBox.y / ROW_THRESHOLD);
-      if (rowA !== rowB) return rowA - rowB;
-      return a.boundingBox.x - b.boundingBox.x;
-    });
-
-    // MaxRects bin packing algorithm
-    interface Rect { x: number; y: number; w: number; h: number; }
-    let freeRects: Rect[] = [{ x: 0, y: 0, w: CONTAINER_WIDTH, h: 100000 }];
-    const placed: { item: StackableItem; x: number; y: number }[] = [];
-
-    const findBestPosition = (width: number, height: number): { x: number; y: number } | null => {
-      let bestScore = Infinity;
-      let bestX = 0;
-      let bestY = 0;
-      let found = false;
-
-      for (const rect of freeRects) {
-        if (width <= rect.w && height <= rect.h) {
-          const leftoverH = rect.w - width;
-          const leftoverV = rect.h - height;
-          const shortSide = Math.min(leftoverH, leftoverV);
-          const score = rect.y * 10000 + shortSide;
-
-          if (score < bestScore) {
-            bestScore = score;
-            bestX = rect.x;
-            bestY = rect.y;
-            found = true;
-          }
-        }
-      }
-
-      return found ? { x: bestX, y: bestY } : null;
-    };
-
-    const splitFreeRects = (px: number, py: number, pw: number, ph: number) => {
-      const newFreeRects: Rect[] = [];
-
-      for (const rect of freeRects) {
-        // No intersection - keep as is
-        if (px >= rect.x + rect.w || px + pw <= rect.x ||
-            py >= rect.y + rect.h || py + ph <= rect.y) {
-          newFreeRects.push(rect);
-          continue;
-        }
-
-        // Left part
-        if (px > rect.x) {
-          newFreeRects.push({ x: rect.x, y: rect.y, w: px - rect.x, h: rect.h });
-        }
-        // Right part
-        if (px + pw < rect.x + rect.w) {
-          newFreeRects.push({ x: px + pw, y: rect.y, w: rect.x + rect.w - (px + pw), h: rect.h });
-        }
-        // Top part
-        if (py > rect.y) {
-          newFreeRects.push({ x: rect.x, y: rect.y, w: rect.w, h: py - rect.y });
-        }
-        // Bottom part
-        if (py + ph < rect.y + rect.h) {
-          newFreeRects.push({ x: rect.x, y: py + ph, w: rect.w, h: rect.y + rect.h - (py + ph) });
-        }
-      }
-
-      // Remove rects contained in others
-      freeRects = newFreeRects.filter((a, i) => {
-        for (let j = 0; j < newFreeRects.length; j++) {
-          if (i === j) continue;
-          const b = newFreeRects[j];
-          if (a.x >= b.x && a.y >= b.y &&
-              a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
-            return false;
-          }
-        }
-        return true;
-      });
-    };
-
-    // Place each stackable item
-    for (const item of sortedItems) {
-      const itemWidth = item.boundingBox.w + GAP;
-      const itemHeight = item.boundingBox.h + GAP;
-      const pos = findBestPosition(itemWidth, itemHeight);
-
-      if (pos) {
-        const snapX = Math.round(pos.x / GRID_SIZE) * GRID_SIZE;
-        const snapY = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
-        placed.push({ item, x: snapX, y: snapY });
-        splitFreeRects(snapX, snapY, itemWidth, itemHeight);
-      } else {
-        // Fallback: place below all others
-        const maxY = placed.reduce((max, p) => {
-          return Math.max(max, p.y + p.item.boundingBox.h + GAP);
-        }, 0);
-        placed.push({ item, x: 0, y: maxY });
-        splitFreeRects(0, maxY, itemWidth, itemHeight);
-      }
-    }
-
-    // Update all widget positions
-    for (const placement of placed) {
-      const { item, x: newX, y: newY } = placement;
-      const offsetX = newX - item.originalOffset.x;
-      const offsetY = newY - item.originalOffset.y;
-      
-      // Update each widget in the item, preserving relative positions within groups
-      for (const widget of item.widgets) {
-        const finalX = Math.round((widget.x + offsetX) / GRID_SIZE) * GRID_SIZE;
-        const finalY = Math.round((widget.y + offsetY) / GRID_SIZE) * GRID_SIZE;
-        updateWidgetPosition(widget.id, finalX, finalY);
-      }
-    }
-  };
-
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
-  const [isPanning, setIsPanning] = useState(false);
-  const [isPinching, setIsPinching] = useState(false); // Track pinch state for CSS
-  const lastMousePos = useRef({ x: 0, y: 0 });
+  // Pan/Zoom camera hook
+  const [isPinching, setIsPinching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Touch state - all managed via refs to work in global handlers
-  const lastTouchDistance = useRef<number | null>(null);
-  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
-  const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const isTouchPanning = useRef(false);
-  const touchStartedOnScrollable = useRef(false);
-  
-  // Refs to avoid stale closures in global touch handlers
+  const {
+    pan,
+    scale,
+    isPanning,
+    setPan,
+    setScale,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleWheel,
+    zoomIn,
+    zoomOut,
+  } = usePanZoom({
+    editingWidgetId,
+    mode,
+  });
+
+  // Touch camera controls hook
   const scaleRef = useRef(scale);
   const panRef = useRef(pan);
-  const setIsPinchingRef = useRef(setIsPinching);
-  
-  // Keep refs in sync with state
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { panRef.current = pan; }, [pan]);
-  useEffect(() => { setIsPinchingRef.current = setIsPinching; }, [setIsPinching]);
+  
+  const getScale = useCallback(() => scaleRef.current, []);
+  const getPan = useCallback(() => panRef.current, []);
+  
+  const { isTouchPanning } = useTouchCamera({
+    mode,
+    onPanChange: setPan,
+    onScaleChange: setScale,
+    onPinchingChange: setIsPinching,
+    getScale,
+    getPan,
+  });
 
-  // Fit all widgets in view with maximum zoom
-  const handleFitAllWidgets = () => {
-    if (!activeCharacter || activeSheetWidgets.length === 0) {
-      // No widgets, just reset to default
-      setScale(1);
-      setPan({ x: 0, y: 0 });
-      return;
-    }
+  // Auto-stack hook
+  const { handleAutoStack } = useAutoStack({
+    widgets: activeSheetWidgets,
+    scale,
+    updateWidgetPosition,
+  });
 
-    // Get all widget DOM elements and measure their actual sizes
-    const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
-    const widgetBounds: { x: number; y: number; w: number; h: number }[] = [];
-
-    widgetElements.forEach((el) => {
-      const id = el.getAttribute('data-widget-id');
-      const widget = activeSheetWidgets.find(w => w.id === id);
-      if (widget) {
-        const rect = el.getBoundingClientRect();
-        // Account for current scale to get actual widget dimensions
-        widgetBounds.push({
-          x: widget.x,
-          y: widget.y,
-          w: rect.width / scale,
-          h: rect.height / scale,
-        });
-      }
-    });
-
-    if (widgetBounds.length === 0) {
-      setScale(1);
-      setPan({ x: 0, y: 0 });
-      return;
-    }
-
-    // Calculate bounding box of all widgets
-    const minX = Math.min(...widgetBounds.map(b => b.x));
-    const minY = Math.min(...widgetBounds.map(b => b.y));
-    const maxX = Math.max(...widgetBounds.map(b => b.x + b.w));
-    const maxY = Math.max(...widgetBounds.map(b => b.y + b.h));
-
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-
-    // Get viewport dimensions
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // Add padding (in pixels)
-    const padding = 60;
-    const availableWidth = viewportWidth - padding * 2;
-    const availableHeight = viewportHeight - padding * 2;
-
-    // Calculate scale to fit all widgets
-    const scaleX = availableWidth / contentWidth;
-    const scaleY = availableHeight / contentHeight;
-    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.1), 5);
-
-    // Calculate center of widgets bounding box
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-
-    // Calculate pan to center the content
-    const newPanX = viewportWidth / 2 - centerX * newScale;
-    const newPanY = viewportHeight / 2 - centerY * newScale;
-
-    setScale(newScale);
-    setPan({ x: newPanX, y: newPanY });
-  };
+  // Fit widgets hook
+  const { handleFitAllWidgets } = useFitWidgets({
+    widgets: activeSheetWidgets,
+    scale,
+    setScale,
+    setPan,
+  });
 
   // Fit all widgets when character sheet is opened
   useEffect(() => {
@@ -391,300 +138,6 @@ export default function Sheet() {
     };
   }, [activeCharacter?.theme, activeCharacter?.id]);
 
-  // Get mode ref for use in global touch handler
-  const modeRef = useRef(mode);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
-
-  // Unified global touch handler for camera controls
-  // This runs at the document level to capture ALL touch events
-  useEffect(() => {
-    // Check if an element or its ancestors have scrollable overflow
-    const isScrollableElement = (el: Element | null): boolean => {
-      while (el && el !== document.body) {
-        const style = window.getComputedStyle(el);
-        const overflowY = style.overflowY;
-        const overflowX = style.overflowX;
-        const isScrollable = overflowY === 'auto' || overflowY === 'scroll' || 
-                            overflowX === 'auto' || overflowX === 'scroll';
-        if (isScrollable) {
-          // Check if it actually has content to scroll
-          const hasScrollableContent = el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
-          if (hasScrollableContent) return true;
-        }
-        el = el.parentElement;
-      }
-      return false;
-    };
-    
-    // Check if the target is inside a widget
-    const isOnWidget = (el: Element | null): boolean => {
-      while (el && el !== document.body) {
-        if (el.classList.contains('react-draggable')) return true;
-        el = el.parentElement;
-      }
-      return false;
-    };
-    
-    // Check if the target is inside the sidebar
-    const isOnSidebar = (el: Element | null): boolean => {
-      while (el && el !== document.body) {
-        // Sidebars have z-50 and specific positioning
-        if (el.classList.contains('fixed') && (el.classList.contains('left-0') || el.classList.contains('right-0'))) {
-          return true;
-        }
-        el = el.parentElement;
-      }
-      return false;
-    };
-
-    let touchStartTarget: Element | null = null;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      // Store the target of the first touch
-      if (e.touches.length === 1) {
-        touchStartTarget = e.target as Element;
-      }
-      
-      // Store all active touches
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
-      }
-      
-      // Skip if touching sidebar elements
-      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
-        return;
-      }
-      
-      // Check if the first touch started on a scrollable element
-      if (e.touches.length === 1) {
-        touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
-      }
-      
-      // Two or more fingers - always take over for camera control (pinch zoom)
-      // This must work even when one finger started on a widget
-      if (activeTouches.current.size >= 2) {
-        // CRITICAL: Prevent default and stop propagation immediately to stop
-        // react-draggable and other handlers from interfering with pinch zoom
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        
-        // Set pinch state to disable touch events on widgets via CSS
-        setIsPinchingRef.current(true);
-        
-        const touches = Array.from(activeTouches.current.values());
-        const dx = touches[0].x - touches[1].x;
-        const dy = touches[0].y - touches[1].y;
-        lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
-        lastTouchCenter.current = {
-          x: (touches[0].x + touches[1].x) / 2,
-          y: (touches[0].y + touches[1].y) / 2
-        };
-        isTouchPanning.current = false; // Disable single-finger pan when multi-touch starts
-      } else if (activeTouches.current.size === 1) {
-        // Single finger - determine if we should pan
-        const onWidget = touchStartTarget && isOnWidget(touchStartTarget);
-        const onScrollable = touchStartedOnScrollable.current;
-        
-        // In edit mode, don't pan if on a widget (allow widget dragging)
-        // In play mode, pan anywhere except scrollable areas
-        const shouldPan = !onScrollable && (modeRef.current === 'play' ? true : !onWidget);
-        
-        if (shouldPan) {
-          const touch = activeTouches.current.values().next().value;
-          if (touch) {
-            lastTouchCenter.current = { x: touch.x, y: touch.y };
-            isTouchPanning.current = true;
-          }
-        }
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      // Skip if we started on a sidebar
-      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
-        return;
-      }
-      
-      // Update all active touch positions
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
-      }
-      
-      const touchCount = activeTouches.current.size;
-      
-      // Two-finger gesture: pinch zoom + pan (ALWAYS works, even on widgets)
-      if (touchCount >= 2) {
-        const touches = Array.from(activeTouches.current.values());
-        const dx = touches[0].x - touches[1].x;
-        const dy = touches[0].y - touches[1].y;
-        const newDistance = Math.sqrt(dx * dx + dy * dy);
-        const newCenter = {
-          x: (touches[0].x + touches[1].x) / 2,
-          y: (touches[0].y + touches[1].y) / 2
-        };
-        
-        // Initialize if needed (user added second finger during move)
-        if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
-          lastTouchDistance.current = newDistance;
-          lastTouchCenter.current = newCenter;
-          isTouchPanning.current = false;
-          // Prevent other handlers from processing this as a drag/scroll
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          return;
-        }
-        
-        // CRITICAL: Prevent default and stop all propagation to ensure
-        // react-draggable and other handlers don't interfere with pinch zoom
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        
-        const currentScale = scaleRef.current;
-        const currentPan = panRef.current;
-        
-        // Calculate zoom
-        const zoomFactor = newDistance / lastTouchDistance.current;
-        const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.1), 5);
-        
-        // Calculate pan to zoom towards center point
-        const canvasX = (newCenter.x - currentPan.x) / currentScale;
-        const canvasY = (newCenter.y - currentPan.y) / currentScale;
-        
-        const newPanX = newCenter.x - canvasX * newScale;
-        const newPanY = newCenter.y - canvasY * newScale;
-        
-        // Also handle pan movement during pinch
-        const panDx = newCenter.x - lastTouchCenter.current.x;
-        const panDy = newCenter.y - lastTouchCenter.current.y;
-        
-        setScale(newScale);
-        setPan({ x: newPanX + panDx, y: newPanY + panDy });
-        
-        lastTouchDistance.current = newDistance;
-        lastTouchCenter.current = newCenter;
-      }
-      // Single finger pan (only if we determined we should pan at start)
-      else if (touchCount === 1 && isTouchPanning.current && lastTouchCenter.current) {
-        const touch = activeTouches.current.values().next().value;
-        if (touch) {
-          e.preventDefault();
-          
-          const dx = touch.x - lastTouchCenter.current.x;
-          const dy = touch.y - lastTouchCenter.current.y;
-          
-          setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-          lastTouchCenter.current = { x: touch.x, y: touch.y };
-        }
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      // Remove ended touches
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        activeTouches.current.delete(e.changedTouches[i].identifier);
-      }
-      
-      // Reset state if all touches ended
-      if (activeTouches.current.size === 0) {
-        lastTouchDistance.current = null;
-        lastTouchCenter.current = null;
-        isTouchPanning.current = false;
-        touchStartedOnScrollable.current = false;
-        touchStartTarget = null;
-        setIsPinchingRef.current(false); // Reset pinch state
-      }
-      // If we go from 2+ to 1 finger, don't auto-start panning
-      else if (activeTouches.current.size === 1) {
-        lastTouchDistance.current = null;
-        isTouchPanning.current = false; // Don't continue single-finger pan after pinch
-        // Keep isPinching true until all fingers are lifted to prevent accidental widget interactions
-      }
-    };
-
-    // Add to document with capture phase to intercept before any child handlers
-    document.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-    document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-    document.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true });
-    
-    return () => {
-      document.removeEventListener('touchstart', handleTouchStart, { capture: true });
-      document.removeEventListener('touchmove', handleTouchMove, { capture: true });
-      document.removeEventListener('touchend', handleTouchEnd, { capture: true });
-      document.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
-    };
-  }, []); // Empty deps - uses refs for current values
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Disable panning when editing a widget
-    if (editingWidgetId) return;
-    
-    // Ignore if clicking on a widget (unless it's the background of the widget and we want to allow panning through it? No, usually widgets block panning)
-    if ((e.target as HTMLElement).closest('.react-draggable')) return;
-
-    // In play mode: Left Click (0) to pan
-    // In edit mode: Middle Click (1) to pan
-    if (mode === 'play') {
-      if (e.button === 0) {
-        e.preventDefault();
-        setIsPanning(true);
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-      }
-    } else {
-      // Edit mode - left click and middle click for panning
-      if (e.button === 0 || e.button === 1) {
-        e.preventDefault();
-        setIsPanning(true);
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-      }
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
-      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsPanning(false);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    // Disable zoom when editing a widget
-    if (editingWidgetId) return;
-    
-    // Zoom with scroll wheel relative to mouse cursor
-    const zoomFactor = Math.exp(-e.deltaY * 0.001);
-    const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 5);
-    
-    // Get mouse position relative to the viewport
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-    
-    // Calculate the point in canvas space that the mouse is over
-    // Before zoom: canvasPoint = (mousePos - pan) / scale
-    const canvasX = (mouseX - pan.x) / scale;
-    const canvasY = (mouseY - pan.y) / scale;
-    
-    // After zoom, we want the same canvas point to be under the mouse
-    // mousePos = canvasPoint * newScale + newPan
-    // newPan = mousePos - canvasPoint * newScale
-    const newPanX = mouseX - canvasX * newScale;
-    const newPanY = mouseY - canvasY * newScale;
-    
-    setScale(newScale);
-    setPan({ x: newPanX, y: newPanY });
-  };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -694,12 +147,6 @@ export default function Sheet() {
     e.preventDefault();
     const type = e.dataTransfer.getData('widgetType') as WidgetType;
     if (type) {
-      // Calculate position relative to the canvas transform
-      // The canvas transform is: translate(pan.x, pan.y) scale(scale)
-      // So screen coordinate (clientX, clientY) maps to:
-      // x = (clientX - pan.x) / scale
-      // y = (clientY - pan.y) / scale
-      
       const rawX = (e.clientX - pan.x) / scale;
       const rawY = (e.clientY - pan.y) / scale;
 
@@ -712,25 +159,6 @@ export default function Sheet() {
       addWidget(type, x, y);
     }
   };
-
-  // Global event listeners for mouse up and move to handle panning outside window
-  useEffect(() => {
-    const handleGlobalMouseUp = () => setIsPanning(false);
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (isPanning) {
-        const dx = e.clientX - lastMousePos.current.x;
-        const dy = e.clientY - lastMousePos.current.y;
-        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-      }
-    };
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-    };
-  }, [isPanning]);
 
   // Vertical mode drag handlers
   const handleVerticalDragStart = (index: number) => {
@@ -1533,13 +961,13 @@ export default function Sheet() {
         {/* Zoom controls */}
         <div className="flex gap-1 justify-end">
           <button
-            onClick={() => setScale(s => Math.min(5, s * 1.3))}
+            onClick={zoomIn}
             className="w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
           >
             +
           </button>
           <button
-            onClick={() => setScale(s => Math.max(0.1, s / 1.3))}
+            onClick={zoomOut}
             className="w-10 h-10 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-xl shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none flex items-center justify-center rounded-theme text-theme-ink"
           >
             −
