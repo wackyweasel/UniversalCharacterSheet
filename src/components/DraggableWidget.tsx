@@ -1,9 +1,11 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+
+const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import ListWidget from './widgets/ListWidget';
@@ -281,6 +283,118 @@ export default function DraggableWidget({ widget, scale }: Props) {
   // Calculate height - use manual height if set, otherwise use snapped auto height
   const widgetHeight = widget.h && widget.h > 0 ? widget.h : snappedHeight;
 
+  // Get all widgets to calculate corner rounding for attached widgets
+  const allWidgets = activeCharacter ? 
+    (activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.widgets || []) : [];
+
+  // Calculate which corners should have rounding removed based on attachments
+  const cornerRounding = useMemo(() => {
+    // Default: all corners rounded
+    const corners = { topLeft: true, topRight: true, bottomLeft: true, bottomRight: true };
+    
+    // Only process if this widget is attached to others
+    if (!widget.attachedTo || widget.attachedTo.length === 0) {
+      return corners;
+    }
+    
+    const currentWidth = widget.w || 200;
+    const currentHeight = widgetHeight || 120;
+    const currentBounds = {
+      left: widget.x,
+      right: widget.x + currentWidth,
+      top: widget.y,
+      bottom: widget.y + currentHeight,
+    };
+    
+    // Check each attached widget
+    for (const attachedId of widget.attachedTo) {
+      const attachedWidget = allWidgets.find(w => w.id === attachedId);
+      if (!attachedWidget) continue;
+      
+      // Get attached widget dimensions from DOM if available, otherwise estimate
+      const attachedEl = document.querySelector(`[data-widget-id="${attachedId}"]`) as HTMLElement;
+      const attachedWidth = attachedWidget.w || (attachedEl ? attachedEl.offsetWidth : 200);
+      const attachedHeight = attachedWidget.h || (attachedEl ? attachedEl.offsetHeight : 120);
+      
+      const attachedBounds = {
+        left: attachedWidget.x,
+        right: attachedWidget.x + attachedWidth,
+        top: attachedWidget.y,
+        bottom: attachedWidget.y + attachedHeight,
+      };
+      
+      // Check if attached widget is on the left side
+      if (Math.abs(attachedBounds.right - currentBounds.left) <= EDGE_TOLERANCE) {
+        // Check if top-left corner is covered
+        if (attachedBounds.top <= currentBounds.top + EDGE_TOLERANCE && 
+            attachedBounds.bottom >= currentBounds.top - EDGE_TOLERANCE) {
+          corners.topLeft = false;
+        }
+        // Check if bottom-left corner is covered
+        if (attachedBounds.top <= currentBounds.bottom + EDGE_TOLERANCE && 
+            attachedBounds.bottom >= currentBounds.bottom - EDGE_TOLERANCE) {
+          corners.bottomLeft = false;
+        }
+      }
+      
+      // Check if attached widget is on the right side
+      if (Math.abs(attachedBounds.left - currentBounds.right) <= EDGE_TOLERANCE) {
+        // Check if top-right corner is covered
+        if (attachedBounds.top <= currentBounds.top + EDGE_TOLERANCE && 
+            attachedBounds.bottom >= currentBounds.top - EDGE_TOLERANCE) {
+          corners.topRight = false;
+        }
+        // Check if bottom-right corner is covered
+        if (attachedBounds.top <= currentBounds.bottom + EDGE_TOLERANCE && 
+            attachedBounds.bottom >= currentBounds.bottom - EDGE_TOLERANCE) {
+          corners.bottomRight = false;
+        }
+      }
+      
+      // Check if attached widget is on the top side
+      if (Math.abs(attachedBounds.bottom - currentBounds.top) <= EDGE_TOLERANCE) {
+        // Check if top-left corner is covered
+        if (attachedBounds.left <= currentBounds.left + EDGE_TOLERANCE && 
+            attachedBounds.right >= currentBounds.left - EDGE_TOLERANCE) {
+          corners.topLeft = false;
+        }
+        // Check if top-right corner is covered
+        if (attachedBounds.left <= currentBounds.right + EDGE_TOLERANCE && 
+            attachedBounds.right >= currentBounds.right - EDGE_TOLERANCE) {
+          corners.topRight = false;
+        }
+      }
+      
+      // Check if attached widget is on the bottom side
+      if (Math.abs(attachedBounds.top - currentBounds.bottom) <= EDGE_TOLERANCE) {
+        // Check if bottom-left corner is covered
+        if (attachedBounds.left <= currentBounds.left + EDGE_TOLERANCE && 
+            attachedBounds.right >= currentBounds.left - EDGE_TOLERANCE) {
+          corners.bottomLeft = false;
+        }
+        // Check if bottom-right corner is covered
+        if (attachedBounds.left <= currentBounds.right + EDGE_TOLERANCE && 
+            attachedBounds.right >= currentBounds.right - EDGE_TOLERANCE) {
+          corners.bottomRight = false;
+        }
+      }
+    }
+    
+    return corners;
+  }, [widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, allWidgets]);
+
+  // Generate border-radius style based on corner rounding
+  const borderRadiusStyle = useMemo(() => {
+    const r = 'var(--border-radius)';
+    const zero = '0px';
+    return {
+      borderTopLeftRadius: cornerRounding.topLeft ? r : zero,
+      borderTopRightRadius: cornerRounding.topRight ? r : zero,
+      borderBottomLeftRadius: cornerRounding.bottomLeft ? r : zero,
+      borderBottomRightRadius: cornerRounding.bottomRight ? r : zero,
+    };
+  }, [cornerRounding]);
+
   const renderContent = () => {
     // Always render in play mode style - the modal handles editing
     const props = { widget, mode: 'play' as const, width: widgetWidth, height: widgetHeight || 120 };
@@ -323,13 +437,14 @@ export default function DraggableWidget({ widget, scale }: Props) {
           ref={nodeRef}
           data-widget-id={widget.id}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group rounded-theme ${isResizing ? 'select-none' : ''}`}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
             zIndex: showControls && mode === 'edit' ? 100 : undefined,
+            ...borderRadiusStyle,
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -339,8 +454,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Image texture overlay - grayscale texture tinted with card color */}
           {hasImageTexture && (
             <div
-              className="absolute inset-0 pointer-events-none rounded-theme z-0 overflow-hidden"
-              style={{ backgroundColor: 'var(--color-paper)' }}
+              className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
+              style={{ backgroundColor: 'var(--color-paper)', ...borderRadiusStyle }}
             >
               <div
                 className="absolute inset-0"
@@ -395,7 +510,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
           {mode === 'edit' && isSelected && (
             <div 
-              className="absolute inset-0 z-40 bg-theme-accent/10 rounded-theme"
+              className="absolute inset-0 z-40 bg-theme-accent/10"
+              style={borderRadiusStyle}
               onTouchStart={(e) => e.stopPropagation()}
             />
           )}
