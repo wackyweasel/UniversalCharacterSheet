@@ -15,7 +15,8 @@ export type WidgetType =
   | 'TIME_TRACKER'
   | 'FORM'
   | 'REST_BUTTON'
-  | 'PROGRESS_BAR';
+  | 'PROGRESS_BAR'
+  | 'MAP_SKETCHER';
 
 export interface ToggleItem {
   name: string;
@@ -138,6 +139,13 @@ export interface WidgetData {
   passTime?: boolean;
   passTimeAmount?: number;
   passTimeUnit?: string;
+  // Map Sketcher
+  mapShapes?: unknown[];
+  strokeColor?: string;
+  strokeWidth?: number;
+  gridEnabled?: boolean;
+  gridSize?: number;
+  corridorWidth?: number;
 }
 
 export interface TimedEffect {

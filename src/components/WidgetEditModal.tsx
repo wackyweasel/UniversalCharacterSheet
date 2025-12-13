@@ -22,6 +22,7 @@ import {
   TimeTrackerEditor,
   TableEditor,
   RestButtonEditor,
+  MapSketcherEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -42,6 +43,7 @@ import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import MapSketcherWidget from './widgets/MapSketcherWidget';
 
 interface Props {
   widget: Widget;
@@ -67,6 +69,7 @@ function getWidgetTitle(type: WidgetType): string {
     'FORM': 'Form',
     'REST_BUTTON': 'Rest Button',
     'PROGRESS_BAR': 'Progress Bar',
+    'MAP_SKETCHER': 'Map Sketcher',
   };
   return titles[type] || 'Widget';
 }
@@ -112,6 +115,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'FORM': return <FormEditor {...editorProps} />;
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
+      case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -150,6 +154,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       default: return null;
     }
   };

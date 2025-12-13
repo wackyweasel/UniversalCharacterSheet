@@ -20,6 +20,7 @@ import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import MapSketcherWidget from './widgets/MapSketcherWidget';
 
 interface Props {
   widget: Widget;
@@ -99,6 +100,7 @@ export default function VerticalWidget({
     'HEALTH_BAR': 'Health Bar',
     'IMAGE': 'Image',
     'LIST': 'List',
+    'MAP_SKETCHER': 'Map Sketcher',
     'NUMBER_DISPLAY': 'Number Display',
     'NUMBER': 'Number Tracker',
     'POOL': 'Resource Pool',
@@ -207,6 +209,7 @@ export default function VerticalWidget({
       case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       default: return null;
     }
   };

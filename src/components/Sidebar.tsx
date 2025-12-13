@@ -12,6 +12,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'HEALTH_BAR', label: 'Health Bar' },
   { type: 'IMAGE', label: 'Image' },
   { type: 'LIST', label: 'List' },
+  { type: 'MAP_SKETCHER', label: 'Map Sketcher' },
   { type: 'NUMBER_DISPLAY', label: 'Number Display' },
   { type: 'NUMBER', label: 'Number Tracker' },
   { type: 'POOL', label: 'Resource Pool' },

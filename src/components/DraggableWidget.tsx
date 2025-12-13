@@ -23,6 +23,7 @@ import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import MapSketcherWidget from './widgets/MapSketcherWidget';
 import WidgetEditModal from './WidgetEditModal';
 
 interface Props {
@@ -51,6 +52,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'FORM': { width: 160, height: 60 },
   'REST_BUTTON': { width: 120, height: 80 },
   'PROGRESS_BAR': { width: 160, height: 80 },
+  'MAP_SKETCHER': { width: 250, height: 250 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -416,6 +418,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       default: return null;
     }
   };
