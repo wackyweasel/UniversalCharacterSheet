@@ -27,31 +27,11 @@ interface Props {
   totalWidgets: number;
   isDragging: boolean;
   draggedIndex: number | null;
+  dropTargetIndex: number | null;
   onDragStart: (index: number) => void;
   onDragOver: (index: number) => void;
   onDragEnd: () => void;
 }
-
-// Minimum heights per widget type for vertical mode
-const MIN_HEIGHTS: Record<WidgetType, number> = {
-  'NUMBER': 60,
-  'NUMBER_DISPLAY': 80,
-  'LIST': 80,
-  'TEXT': 60,
-  'CHECKBOX': 60,
-  'HEALTH_BAR': 80,
-  'DICE_ROLLER': 120,
-  'DICE_TRAY': 180,
-  'SPELL_SLOT': 80,
-  'IMAGE': 100,
-  'POOL': 80,
-  'TOGGLE_GROUP': 60,
-  'TABLE': 80,
-  'TIME_TRACKER': 140,
-  'FORM': 60,
-  'REST_BUTTON': 80,
-  'PROGRESS_BAR': 80,
-};
 
 export default function VerticalWidget({
   widget,
@@ -59,6 +39,7 @@ export default function VerticalWidget({
   totalWidgets,
   isDragging,
   draggedIndex,
+  dropTargetIndex,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -135,13 +116,16 @@ export default function VerticalWidget({
   };
   
   // Calculate if this widget should show a drop indicator
-  const showDropBefore = isDragging && draggedIndex !== null && 
-    draggedIndex !== index && 
-    draggedIndex !== index - 1 &&
-    index === 0;
-  const showDropAfter = isDragging && draggedIndex !== null && 
-    draggedIndex !== index && 
-    draggedIndex !== index + 1;
+  // Show indicator above this widget if dropTargetIndex equals this index and we're dragging from below
+  const showDropBefore = isDragging && 
+    draggedIndex !== null && 
+    dropTargetIndex === index && 
+    draggedIndex > index;
+  // Show indicator below this widget if dropTargetIndex equals this index and we're dragging from above
+  const showDropAfter = isDragging && 
+    draggedIndex !== null && 
+    dropTargetIndex === index && 
+    draggedIndex < index;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     // Check if the touch is on the drag handle
@@ -195,12 +179,10 @@ export default function VerticalWidget({
     onDragEnd();
   };
 
-  // Width is full container width minus padding
-  const minHeight = MIN_HEIGHTS[widget.type] || 80;
-
   const renderContent = () => {
     // Use a fixed width for internal widget calculations
-    const props = { widget, mode: 'play' as const, width: 320, height: widget.h || minHeight };
+    // Pass a very large height to disable maxHeight constraints so content shows fully
+    const props = { widget, mode: 'play' as const, width: 320, height: 10000 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
@@ -240,15 +222,12 @@ export default function VerticalWidget({
     >
       {/* Drop indicator before */}
       {showDropBefore && (
-        <div className="absolute -top-1 left-0 right-0 h-1 bg-theme-accent rounded-full" />
+        <div className="absolute -top-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
       )}
       
       {/* Widget Card */}
       <div 
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme overflow-hidden relative"
-        style={{ 
-          minHeight: isCollapsed ? 'auto' : `${minHeight}px`,
-        }}
+        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme overflow-visible relative"
       >
         {/* Image texture overlay */}
         {hasImageTexture && (
@@ -295,7 +274,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className="relative z-10 px-3 pb-2">
+          <div className="relative px-3 pb-2">
             {renderContent()}
           </div>
         )}
@@ -303,11 +282,11 @@ export default function VerticalWidget({
       
       {/* Drop indicator after */}
       {showDropAfter && (
-        <div className="absolute -bottom-1 left-0 right-0 h-1 bg-theme-accent rounded-full" />
+        <div className="absolute -bottom-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
       )}
       
-      {/* Separator between widgets (except last) */}
-      {index < totalWidgets - 1 && !isDragging && (
+      {/* Separator between widgets (except last) - always show to prevent layout shift */}
+      {index < totalWidgets - 1 && (
         <div className="h-px bg-theme-border/30 my-1" />
       )}
     </div>

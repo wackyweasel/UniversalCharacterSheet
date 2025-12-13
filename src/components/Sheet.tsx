@@ -772,6 +772,7 @@ export default function Sheet() {
                 totalWidgets={activeSheetWidgets.length}
                 isDragging={verticalDragIndex !== null}
                 draggedIndex={verticalDragIndex}
+                dropTargetIndex={verticalDropIndex}
                 onDragStart={handleVerticalDragStart}
                 onDragOver={handleVerticalDragOver}
                 onDragEnd={handleVerticalDragEnd}
