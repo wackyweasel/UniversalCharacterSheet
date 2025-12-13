@@ -855,33 +855,33 @@ export default function Sheet() {
               className="sm:hidden fixed inset-0 z-40" 
               onClick={() => setVerticalMenuOpen(false)}
             />
-            <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50">
+            <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
               <button
                 onClick={() => {
                   setMode('play');
                   setVerticalMenuOpen(false);
                 }}
-                className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
-                <span>⊞</span> Grid View
+                Grid View
               </button>
               <button
                 onClick={() => {
                   setMode('edit');
                   setVerticalMenuOpen(false);
                 }}
-                className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
-                <span>✎</span> Edit Mode
+                Edit Mode
               </button>
               <button
                 onClick={() => {
                   selectCharacter(null);
                   setVerticalMenuOpen(false);
                 }}
-                className="w-full px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
+                className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
               >
-                <span>✕</span> Exit to Menu
+                Exit to Menu
               </button>
             </div>
           </>
@@ -999,7 +999,7 @@ export default function Sheet() {
             onClick={() => selectCharacter(null)}
             className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            ✕ Exit to Menu
+            Exit to Menu
           </button>
 
           {/* Edit Mode Button */}
@@ -1007,7 +1007,7 @@ export default function Sheet() {
             onClick={() => setMode('edit')}
             className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            ✎ Edit Mode
+            Edit Mode
           </button>
 
           {/* Grid View Button - to go back to Play mode */}
@@ -1015,7 +1015,7 @@ export default function Sheet() {
             onClick={() => setMode('play')}
             className="px-4 py-2 bg-theme-accent text-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:opacity-90 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme"
           >
-            ⊞ Grid View
+            Grid View
           </button>
         </div>
       </div>
@@ -1167,20 +1167,16 @@ export default function Sheet() {
             className="sm:hidden fixed inset-0 z-40" 
             onClick={() => setGridMenuOpen(false)}
           />
-          <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[160px]">
+          <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
             {/* Mode toggle */}
             <button
               onClick={() => {
                 setMode(mode === 'play' ? 'edit' : 'play');
                 setGridMenuOpen(false);
               }}
-              className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
             >
-              {mode === 'play' ? (
-                <><span>✎</span> Edit Mode</>
-              ) : (
-                <><span>▶</span> Play Mode</>
-              )}
+              {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
             </button>
             
             {/* Vertical View - only in play mode */}
@@ -1190,9 +1186,9 @@ export default function Sheet() {
                   setMode('vertical');
                   setGridMenuOpen(false);
                 }}
-                className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
-                <span>☰</span> Vertical View
+                Vertical View
               </button>
             )}
             
@@ -1204,27 +1200,27 @@ export default function Sheet() {
                     setSidebarCollapsed(!sidebarCollapsed);
                     setGridMenuOpen(false);
                   }}
-                  className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
                 >
-                  <span>🧰</span> {sidebarCollapsed ? 'Show Toolbox' : 'Hide Toolbox'}
+                  {sidebarCollapsed ? 'Show Toolbox' : 'Hide Toolbox'}
                 </button>
                 <button
                   onClick={() => {
                     setThemeSidebarCollapsed(!themeSidebarCollapsed);
                     setGridMenuOpen(false);
                   }}
-                  className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
                 >
-                  <span>🎨</span> {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+                  {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
                 </button>
                 <button
                   onClick={() => {
                     handleAutoStack();
                     setGridMenuOpen(false);
                   }}
-                  className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
                 >
-                  <span>📐</span> Auto Stack
+                  Auto Stack
                 </button>
               </>
             )}
@@ -1235,9 +1231,9 @@ export default function Sheet() {
                 selectCharacter(null);
                 setGridMenuOpen(false);
               }}
-              className="w-full px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2 border-t border-theme-border/50"
+              className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
             >
-              <span>✕</span> Exit to Menu
+              Exit to Menu
             </button>
           </div>
         </>
@@ -1562,7 +1558,7 @@ export default function Sheet() {
           onClick={() => selectCharacter(null)}
           className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-red-500 hover:text-white hover:border-red-700 transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
         >
-          ✕ Exit to Menu
+          Exit to Menu
         </button>
 
         {/* Mode Toggle Button */}
@@ -1570,7 +1566,7 @@ export default function Sheet() {
           onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
           className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
         >
-          {mode === 'play' ? '✎ Edit Mode' : '▶ Play Mode'}
+          {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
         </button>
 
         {/* Vertical View Button - only in play mode */}
@@ -1579,7 +1575,7 @@ export default function Sheet() {
             onClick={() => setMode('vertical')}
             className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            ☰ Vertical View
+            Vertical View
           </button>
         )}
 
@@ -1589,7 +1585,7 @@ export default function Sheet() {
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            {sidebarCollapsed ? '🧰 Show Toolbox' : '✕ Hide Toolbox'}
+            {sidebarCollapsed ? 'Show Toolbox' : 'Hide Toolbox'}
           </button>
         )}
 
@@ -1599,7 +1595,7 @@ export default function Sheet() {
             onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
             className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            {themeSidebarCollapsed ? '🎨 Change Theme' : '✕ Hide Themes'}
+            {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
           </button>
         )}
 
@@ -1609,7 +1605,7 @@ export default function Sheet() {
             onClick={handleAutoStack}
             className="px-4 py-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border font-bold text-base shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme text-theme-ink"
           >
-            📐 Auto Stack
+            Auto Stack
           </button>
         )}
       </div>
