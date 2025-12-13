@@ -118,10 +118,16 @@ export default function DraggableWidget({ widget, scale }: Props) {
     }
     
     if (mode === 'edit') {
-      // If this widget is not selected, prevent default and select it
+      // Check if the touch started on an interactive element (table cells, inputs, buttons, etc.)
+      const target = e.target as HTMLElement;
+      const isInteractiveElement = target.closest('input, button, textarea, select, [data-interactive], td, th');
+      
+      // If this widget is not selected, select it but allow interactive elements to work
       if (!isSelected) {
-        e.preventDefault();
-        e.stopPropagation();
+        if (!isInteractiveElement) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         setSelectedWidgetId(widget.id);
       }
     }
