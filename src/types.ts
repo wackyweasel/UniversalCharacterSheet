@@ -16,11 +16,17 @@ export type WidgetType =
   | 'FORM'
   | 'REST_BUTTON'
   | 'PROGRESS_BAR'
-  | 'MAP_SKETCHER';
+  | 'MAP_SKETCHER'
+  | 'ROLL_TABLE';
 
 export interface ToggleItem {
   name: string;
   active: boolean;
+}
+
+export interface RollTableItem {
+  text: string;
+  weight: number;
 }
 
 export interface CellFormat {
@@ -146,6 +152,9 @@ export interface WidgetData {
   gridEnabled?: boolean;
   gridSize?: number;
   corridorWidth?: number;
+  // Roll Table
+  rollTableItems?: RollTableItem[];
+  showRollTableItems?: boolean;
 }
 
 export interface TimedEffect {

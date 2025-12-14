@@ -18,6 +18,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'POOL', label: 'Resource Pool' },
   { type: 'PROGRESS_BAR', label: 'Progress Bar' },
   { type: 'REST_BUTTON', label: 'Rest Button' },
+  { type: 'ROLL_TABLE', label: 'Roll Table' },
   { type: 'SPELL_SLOT', label: 'Spell Slots' },
   { type: 'TABLE', label: 'Table' },
   { type: 'TEXT', label: 'Text Area' },

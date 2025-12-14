@@ -17,3 +17,4 @@ export { TimeTrackerEditor } from './TimeTrackerEditor';
 export { TableEditor } from './TableEditor';
 export { RestButtonEditor } from './RestButtonEditor';
 export { MapSketcherEditor } from './MapSketcherEditor';
+export { RollTableEditor } from './RollTableEditor';

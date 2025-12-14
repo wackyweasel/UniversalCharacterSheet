@@ -21,6 +21,7 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import RollTableWidget from './widgets/RollTableWidget';
 
 interface Props {
   widget: Widget;
@@ -110,6 +111,7 @@ export default function VerticalWidget({
     'TABLE': 'Table',
     'TEXT': 'Text Area',
     'TIME_TRACKER': 'Time Tracker',
+    'ROLL_TABLE': 'Roll Table',
   };
   
   // Get widget label for collapsed header
@@ -210,6 +212,7 @@ export default function VerticalWidget({
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
+      case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       default: return null;
     }
   };

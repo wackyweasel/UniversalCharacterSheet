@@ -23,6 +23,7 @@ import {
   TableEditor,
   RestButtonEditor,
   MapSketcherEditor,
+  RollTableEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -44,6 +45,7 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import RollTableWidget from './widgets/RollTableWidget';
 
 interface Props {
   widget: Widget;
@@ -70,6 +72,7 @@ function getWidgetTitle(type: WidgetType): string {
     'REST_BUTTON': 'Rest Button',
     'PROGRESS_BAR': 'Progress Bar',
     'MAP_SKETCHER': 'Map Sketcher',
+    'ROLL_TABLE': 'Roll Table',
   };
   return titles[type] || 'Widget';
 }
@@ -116,6 +119,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
+      case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -155,6 +159,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
+      case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       default: return null;
     }
   };
