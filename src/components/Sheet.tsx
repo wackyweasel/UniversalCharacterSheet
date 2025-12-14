@@ -41,8 +41,8 @@ export default function Sheet() {
   // Get widgets from active sheet
   const activeSheetWidgets = activeCharacter ? getActiveSheetWidgets(activeCharacter) : [];
   
-  // Default sidebar collapsed on mobile (< 768px)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 768);
+  // Default sidebar collapsed (toolbox hidden until user clicks "Add Widget")
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
