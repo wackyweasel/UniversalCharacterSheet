@@ -25,7 +25,7 @@ function Modal({ title, onClose, children }: ModalProps) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div 
-        className="bg-theme-paper border border-theme-border rounded-theme shadow-xl p-4 min-w-[280px] max-w-[400px]"
+        className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
@@ -187,7 +187,7 @@ export default function RestButtonWidget({ widget }: Props) {
         onClick={handleRest}
         onMouseDown={(e) => e.stopPropagation()}
         disabled={!hasAnyAction}
-        className={`w-full h-full min-w-0 px-2 py-1 font-bold text-xs border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme transition-all font-body truncate ${
+        className={`w-full h-full min-w-0 px-2 py-1 font-bold text-xs border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme transition-all font-body truncate ${
           hasAnyAction
             ? 'bg-theme-accent text-theme-paper hover:opacity-90 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer'
             : 'bg-theme-muted text-theme-paper opacity-50 cursor-not-allowed'
@@ -212,7 +212,7 @@ export default function RestButtonWidget({ widget }: Props) {
               <input
                 type="number"
                 min="1"
-                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button text-center"
                 value={passedTime}
                 onChange={(e) => setPassedTime(e.target.value === '' ? ('' as unknown as number) : parseInt(e.target.value) || 1)}
                 onBlur={(e) => setPassedTime(Math.max(1, parseInt(e.target.value) || 1))}
@@ -223,7 +223,7 @@ export default function RestButtonWidget({ widget }: Props) {
                 }}
               />
               <select
-                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button"
                 value={passedUnit}
                 onChange={(e) => setPassedUnit(e.target.value)}
               >
@@ -238,13 +238,13 @@ export default function RestButtonWidget({ widget }: Props) {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={confirmPassTime}
-                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-theme hover:opacity-90 transition-colors font-bold"
+                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-colors font-bold"
               >
                 Confirm
               </button>
               <button
                 onClick={cancelPassTime}
-                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors"
+                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-button hover:bg-theme-border hover:text-theme-ink transition-colors"
               >
                 Cancel
               </button>
@@ -255,3 +255,9 @@ export default function RestButtonWidget({ widget }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

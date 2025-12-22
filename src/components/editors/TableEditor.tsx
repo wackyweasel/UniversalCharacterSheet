@@ -111,7 +111,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Inventory"
@@ -150,7 +150,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
                 ⠿
               </div>
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={col}
                 onChange={(e) => handleColumnChange(idx, e.target.value)}
                 placeholder="Column name"
@@ -170,7 +170,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
         </div>
         <button
           onClick={addColumn}
-          className="mt-2 px-3 py-1 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+          className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
         >
           + Add Column
         </button>
@@ -181,14 +181,14 @@ export function TableEditor({ widget, updateData }: EditorProps) {
         <div className="flex gap-2">
           <button
             onClick={addRow}
-            className="px-3 py-1 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+            className="px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
           >
             + Add Row
           </button>
           {rows.length > 1 && (
             <button
               onClick={() => removeRow(rows.length - 1)}
-              className="px-3 py-1 border border-theme-border rounded-theme text-sm text-red-500 hover:bg-red-500 hover:text-white"
+              className="px-3 py-1 border border-theme-border rounded-button text-sm text-red-500 hover:bg-red-500 hover:text-white"
             >
               - Remove Row
             </button>
@@ -199,3 +199,4 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

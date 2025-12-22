@@ -221,7 +221,7 @@ export default function Sheet() {
           {/* Mobile: Menu button */}
           <button
             onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink"
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink"
           >
             ☰
           </button>
@@ -230,19 +230,19 @@ export default function Sheet() {
           <div className="hidden sm:flex items-center gap-1">
             <button
               onClick={() => selectCharacter(null)}
-              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
+              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
             >
               Exit
             </button>
             <button
               onClick={() => setMode('edit')}
-              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               Edit Mode
             </button>
             <button
               onClick={() => setMode('play')}
-              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               Grid View
             </button>
@@ -250,7 +250,7 @@ export default function Sheet() {
             <button
               onClick={undo}
               disabled={!canUndo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
                 canUndo 
                   ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                   : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -265,7 +265,7 @@ export default function Sheet() {
             <button
               onClick={redo}
               disabled={!canRedo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
                 canRedo 
                   ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                   : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -332,7 +332,7 @@ export default function Sheet() {
               });
               window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
             }}
-            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs"
+            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
             title="Expand All"
           >
             ▼
@@ -344,7 +344,7 @@ export default function Sheet() {
               });
               window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
             }}
-            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs"
+            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
             title="Collapse All"
           >
             ▲
@@ -354,7 +354,7 @@ export default function Sheet() {
             <button
               onClick={undo}
               disabled={!canUndo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
                 canUndo 
                   ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                   : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -369,7 +369,7 @@ export default function Sheet() {
             <button
               onClick={redo}
               disabled={!canRedo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
                 canRedo 
                   ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                   : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -526,7 +526,7 @@ export default function Sheet() {
         {/* Menu button - only on narrow screens */}
         <button
           onClick={() => setGridMenuOpen(!gridMenuOpen)}
-          className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink shrink-0"
+          className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
         >
           ☰
         </button>
@@ -535,20 +535,20 @@ export default function Sheet() {
         <div className="hidden sm:flex items-center gap-1 shrink-0">
           <button
             onClick={() => selectCharacter(null)}
-            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
+            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
           >
             Exit
           </button>
           <button
             onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
-            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
             {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
           </button>
           {mode === 'play' && (
             <button
               onClick={() => setMode('vertical')}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               Vertical View
             </button>
@@ -557,19 +557,19 @@ export default function Sheet() {
             <>
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
                 {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
               </button>
               <button
                 onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
                 Change Theme
               </button>
               <button
                 onClick={() => setShowAutoStackConfirm(true)}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
                 Auto Stack
               </button>
@@ -579,7 +579,7 @@ export default function Sheet() {
           <button
             onClick={undo}
             disabled={!canUndo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
               canUndo 
                 ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                 : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -594,7 +594,7 @@ export default function Sheet() {
           <button
             onClick={redo}
             disabled={!canRedo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
               canRedo 
                 ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                 : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -665,7 +665,7 @@ export default function Sheet() {
         {/* Fit button only on mobile */}
         <button
           onClick={handleFitAllWidgets}
-          className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-theme text-theme-ink shrink-0"
+          className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0"
         >
           Fit
         </button>
@@ -675,7 +675,7 @@ export default function Sheet() {
           <button
             onClick={undo}
             disabled={!canUndo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
               canUndo 
                 ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                 : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -690,7 +690,7 @@ export default function Sheet() {
           <button
             onClick={redo}
             disabled={!canRedo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme text-xs font-body transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
               canRedo 
                 ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
                 : 'text-theme-muted opacity-50 cursor-not-allowed'
@@ -895,7 +895,7 @@ export default function Sheet() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setSheetToDelete(null)}
-                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors"
+                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors"
               >
                 Cancel
               </button>
@@ -905,7 +905,7 @@ export default function Sheet() {
                   setSheetToDelete(null);
                   setSheetDropdownOpen(false);
                 }}
-                className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-theme transition-colors"
+                className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-button transition-colors"
               >
                 Delete
               </button>
@@ -929,7 +929,7 @@ export default function Sheet() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowAutoStackConfirm(false)}
-                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors"
+                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors"
               >
                 Cancel
               </button>
@@ -938,7 +938,7 @@ export default function Sheet() {
                   handleAutoStack();
                   setShowAutoStackConfirm(false);
                 }}
-                className="px-3 py-1.5 text-sm font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-theme transition-colors"
+                className="px-3 py-1.5 text-sm font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors"
               >
                 Auto Stack
               </button>
@@ -949,3 +949,7 @@ export default function Sheet() {
     </div>
   );
 }
+
+
+
+

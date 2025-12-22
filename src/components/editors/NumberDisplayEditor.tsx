@@ -37,7 +37,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Stats"
@@ -78,14 +78,14 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
           {(displayNumbers as DisplayNumber[]).map((item, idx) => (
             <div key={idx} className="flex items-center gap-2">
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={item.label}
                 onChange={(e) => updateItemLabel(idx, e.target.value)}
                 placeholder="Label"
               />
               <input
                 type="number"
-                className="w-20 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                className="w-20 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                 value={item.value}
                 onChange={(e) => updateItemValue(idx, parseInt(e.target.value) || 0)}
               />
@@ -104,11 +104,11 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             value={newItemLabel}
             onChange={(e) => setNewItemLabel(e.target.value)}
             placeholder="Add new number..."
-            className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+            className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
           />
           <button
             type="submit"
-            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-theme text-sm hover:opacity-90"
+            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90"
           >
             Add
           </button>
@@ -117,3 +117,4 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

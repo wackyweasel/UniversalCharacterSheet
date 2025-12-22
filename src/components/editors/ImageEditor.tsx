@@ -25,7 +25,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Portrait"
@@ -35,7 +35,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Image</label>
         <div className="flex gap-2">
-          <label className="flex-1 px-3 py-2 bg-theme-accent text-theme-paper rounded-theme text-sm hover:opacity-90 cursor-pointer text-center">
+          <label className="flex-1 px-3 py-2 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90 cursor-pointer text-center">
             Upload Image
             <input
               type="file"
@@ -47,14 +47,14 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
           {imageUrl && (
             <button
               onClick={clearImage}
-              className="px-3 py-2 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500"
+              className="px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500"
             >
               Clear
             </button>
           )}
         </div>
         {imageUrl && (
-          <div className="mt-2 border border-theme-border rounded-theme overflow-hidden">
+          <div className="mt-2 border border-theme-border rounded-button overflow-hidden">
             <img src={imageUrl} alt="Preview" className="w-full h-32 object-cover" />
           </div>
         )}
@@ -62,3 +62,4 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

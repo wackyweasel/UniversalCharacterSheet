@@ -104,7 +104,7 @@ export default function RollTableWidget({ widget, height }: Props) {
       <button
         onClick={rollTable}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme flex-shrink-0 ${
+        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-shrink-0 ${
           isRolling 
             ? 'bg-theme-muted animate-pulse text-theme-paper' 
             : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
@@ -116,7 +116,7 @@ export default function RollTableWidget({ widget, height }: Props) {
 
       {/* Result Display */}
       {rolledResult && (
-        <div className="text-center bg-theme-accent/10 border border-theme-accent/30 rounded-theme py-1 px-2 flex-shrink-0">
+        <div className="text-center bg-theme-accent/10 border border-theme-accent/30 rounded-button py-1 px-2 flex-shrink-0">
           <span className="font-bold text-sm text-theme-ink font-heading">{rolledResult}</span>
         </div>
       )}
@@ -152,3 +152,9 @@ export default function RollTableWidget({ widget, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

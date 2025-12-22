@@ -25,7 +25,7 @@ function Modal({ title, onClose, children }: ModalProps) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div 
-        className="bg-theme-paper border border-theme-border rounded-theme shadow-xl p-4 min-w-[280px] max-w-[400px]"
+        className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
@@ -191,7 +191,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
         {(timedEffects as TimedEffect[]).map((effect, idx) => (
           <div 
             key={idx} 
-            className={`flex items-center group px-1.5 py-0.5 rounded-theme border ${
+            className={`flex items-center group px-1.5 py-0.5 rounded-button border ${
               effect.remainingSeconds <= 0 
                 ? 'bg-theme-accent/20 border-theme-accent animate-pulse' 
                 : 'border-theme-border/30 hover:border-theme-border'
@@ -221,7 +221,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
       <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0`}>
         <button
           onClick={() => setShowAddForm(true)}
-          className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
+          className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
           onMouseDown={(e) => e.stopPropagation()}
         >
           + Add Effect
@@ -230,7 +230,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
           roundMode ? (
             <button
               onClick={passRound}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
+              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
               onMouseDown={(e) => e.stopPropagation()}
             >
               ⏱ Pass Round
@@ -238,7 +238,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
           ) : (
             <button
               onClick={() => setShowPassTime(true)}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
+              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}
               onMouseDown={(e) => e.stopPropagation()}
             >
               ⏱ Pass Time
@@ -252,7 +252,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
         <Modal title="Add Effect" onClose={cancelAddEffect}>
           <div className="space-y-3">
             <input
-              className="w-full border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+              className="w-full border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button"
               value={newEffectName}
               onChange={(e) => setNewEffectName(e.target.value)}
               placeholder="Effect name..."
@@ -267,7 +267,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                 <input
                   type="number"
                   min="1"
-                  className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                  className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button text-center"
                   value={newEffectTime}
                   onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
                   onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
@@ -279,13 +279,13 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                 <input
                   type="number"
                   min="1"
-                  className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                  className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button text-center"
                   value={newEffectTime}
                   onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
                   onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
                 />
                 <select
-                  className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+                  className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button"
                   value={newEffectUnit}
                   onChange={(e) => setNewEffectUnit(e.target.value)}
                 >
@@ -301,13 +301,13 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={confirmAddEffect}
-                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-theme hover:opacity-90 transition-colors font-bold"
+                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-colors font-bold"
               >
                 Add Effect
               </button>
               <button
                 onClick={cancelAddEffect}
-                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors"
+                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-button hover:bg-theme-border hover:text-theme-ink transition-colors"
               >
                 Cancel
               </button>
@@ -325,7 +325,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
               <input
                 type="number"
                 min="1"
-                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme text-center"
+                className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button text-center"
                 value={passedTime}
                 onChange={(e) => setPassedTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
                 onBlur={(e) => setPassedTime(Math.max(1, parseInt(e.target.value) || 1))}
@@ -336,7 +336,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                 }}
               />
               <select
-                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-theme"
+                className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button"
                 value={passedUnit}
                 onChange={(e) => setPassedUnit(e.target.value)}
               >
@@ -351,13 +351,13 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={confirmPassTime}
-                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-theme hover:opacity-90 transition-colors font-bold"
+                className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-colors font-bold"
               >
                 Confirm
               </button>
               <button
                 onClick={cancelPassTime}
-                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-theme hover:bg-theme-border hover:text-theme-ink transition-colors"
+                className="flex-1 py-2 px-4 border border-theme-border text-theme-muted rounded-button hover:bg-theme-border hover:text-theme-ink transition-colors"
               >
                 Cancel
               </button>
@@ -368,3 +368,9 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

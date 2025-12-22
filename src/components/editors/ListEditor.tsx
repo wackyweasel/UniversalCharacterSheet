@@ -8,7 +8,7 @@ export function ListEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="List Title"
@@ -21,7 +21,7 @@ export function ListEditor({ widget, updateData }: EditorProps) {
           type="number"
           min="1"
           max="50"
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={itemCount}
           onChange={(e) => updateData({ itemCount: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
           onBlur={(e) => updateData({ itemCount: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)) })}
@@ -31,3 +31,4 @@ export function ListEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

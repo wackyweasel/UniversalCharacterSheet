@@ -42,14 +42,14 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Button Text</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={buttonText}
           onChange={(e) => updateData({ buttonText: e.target.value })}
           placeholder="Rest"
         />
       </div>
 
-      <div className="border border-theme-border rounded-theme p-3">
+      <div className="border border-theme-border rounded-button p-3">
         <h4 className="font-medium text-theme-ink mb-3">Healing Options</h4>
         
         <label className="flex items-center gap-2 cursor-pointer mb-3">
@@ -75,7 +75,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
                       value={group.count}
                       onChange={(e) => updateDiceGroup(index, 'count', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                       onBlur={(e) => updateDiceGroup(index, 'count', Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                     />
                     <span className="text-theme-ink">d</span>
                     <input
@@ -84,7 +84,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
                       value={group.faces}
                       onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                       onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                     />
                     <button
                       onClick={() => removeDiceGroup(index)}
@@ -97,7 +97,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
               </div>
               <button
                 onClick={addDiceGroup}
-                className="mt-2 px-3 py-1 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+                className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
               >
                 + Add Dice
               </button>
@@ -108,7 +108,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
               <input
                 type="number"
                 min="0"
-                className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
                 value={healFlatAmount ?? 0}
                 onChange={(e) => updateData({ healFlatAmount: parseInt(e.target.value) || 0 })}
               />
@@ -118,7 +118,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         )}
       </div>
 
-      <div className="border border-theme-border rounded-theme p-3">
+      <div className="border border-theme-border rounded-button p-3">
         <h4 className="font-medium text-theme-ink mb-3">Other Actions</h4>
         
         <label className="flex items-center gap-2 cursor-pointer mb-2">
@@ -161,12 +161,12 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
               <input
                 type="number"
                 min="0"
-                className="w-20 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                className="w-20 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                 value={passTimeAmount ?? 0}
                 onChange={(e) => updateData({ passTimeAmount: parseInt(e.target.value) || 0 })}
               />
               <select
-                className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={passTimeUnit}
                 onChange={(e) => updateData({ passTimeUnit: e.target.value })}
               >
@@ -184,3 +184,4 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

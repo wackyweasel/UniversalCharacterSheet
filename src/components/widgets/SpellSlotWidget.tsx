@@ -106,7 +106,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
         <button
           onClick={resetAll}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button`}
         >
           Reset All
         </button>
@@ -114,3 +114,9 @@ export default function SpellSlotWidget({ widget, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

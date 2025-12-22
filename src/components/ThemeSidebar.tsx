@@ -65,6 +65,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       colors: { ...theme.colors },
       fonts: { ...theme.fonts },
       borderRadius: theme.borderRadius,
+      buttonRadius: theme.buttonRadius || theme.borderRadius,
       borderWidth: theme.borderWidth,
       shadowStyle: theme.shadowStyle,
       cardTexture: theme.cardTexture,
@@ -164,7 +165,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         {/* Close button - top right corner */}
         <button
           onClick={onToggle}
-          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme z-20 shadow-theme"
+          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
         >
           ✕
         </button>
@@ -279,7 +280,8 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
           {/* Create New Custom Theme Button */}
           <button
             onClick={handleCreateCustom}
-            className="w-full p-2 border-[length:var(--border-width)] border-dashed border-theme-border transition-all text-left font-bold rounded-theme bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper hover:border-solid mb-2"
+            className="w-full p-2 border-[length:var(--border-width)] border-dashed border-theme-border transition-all text-left font-bold bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper hover:border-solid mb-2"
+            style={{ borderRadius: 'min(var(--button-radius), 16px)' }}
           >
             <div className="flex items-center gap-2">
               <span className="text-base">➕</span>
@@ -398,3 +400,4 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
     </>
   );
 }
+

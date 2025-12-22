@@ -38,13 +38,13 @@ function ValueModal({
         className="fixed inset-0 bg-black/50 z-50" 
         onClick={onCancel}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[200px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-50 min-w-[200px]">
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
         <input
           type="number"
           min="0"
           max={maxValue}
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
           value={amount}
           onChange={(e) => setAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
           onBlur={(e) => setAmount(Math.max(0, Math.min(maxValue, parseInt(e.target.value) || 0)))}
@@ -58,13 +58,13 @@ function ValueModal({
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors border border-theme-border"
+            className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors border border-theme-border"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 px-3 py-1.5 text-sm font-body rounded-theme transition-colors bg-theme-accent text-theme-paper hover:opacity-80"
+            className="flex-1 px-3 py-1.5 text-sm font-body rounded-button transition-colors bg-theme-accent text-theme-paper hover:opacity-80"
           >
             {buttonLabel}
           </button>
@@ -124,7 +124,7 @@ export default function ProgressBarWidget({ widget }: Props) {
       {/* Progress Bar */}
       <div className="flex-1 flex flex-col justify-center">
         <div 
-          className={`relative ${barHeight} bg-theme-muted/30 rounded-theme overflow-hidden border border-theme-border cursor-pointer`}
+          className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border cursor-pointer`}
           onClick={() => setShowValueModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
           title="Click to set value"
@@ -160,3 +160,9 @@ export default function ProgressBarWidget({ widget }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

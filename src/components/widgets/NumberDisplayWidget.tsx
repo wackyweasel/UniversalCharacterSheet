@@ -75,7 +75,7 @@ export default function NumberDisplayWidget({ widget, width, height }: Props) {
         {(displayNumbers as DisplayNumber[]).map((item, idx) => (
           <div 
             key={idx} 
-            className={`flex flex-col items-center justify-center border-2 border-theme-border rounded-theme bg-theme-paper/50 overflow-hidden ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
+            className={`flex flex-col items-center justify-center border-2 border-theme-border rounded-button bg-theme-paper/50 overflow-hidden ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
             style={{ 
               minWidth: isHorizontal ? '30px' : undefined,
               minHeight: !isHorizontal ? '30px' : undefined,
@@ -123,3 +123,9 @@ export default function NumberDisplayWidget({ widget, width, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

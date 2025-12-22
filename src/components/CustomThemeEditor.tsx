@@ -34,6 +34,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [headingFont, setHeadingFont] = useState(theme?.fonts.heading || defaultTheme.fonts.heading);
   const [bodyFont, setBodyFont] = useState(theme?.fonts.body || defaultTheme.fonts.body);
   const [borderRadius, setBorderRadius] = useState(theme?.borderRadius || defaultTheme.borderRadius);
+  const [buttonRadius, setButtonRadius] = useState(theme?.buttonRadius || defaultTheme.buttonRadius);
   const [borderWidth, setBorderWidth] = useState(theme?.borderWidth || defaultTheme.borderWidth);
   const [shadowStyle, setShadowStyle] = useState(theme?.shadowStyle || defaultTheme.shadowStyle);
   const [cardTexture, setCardTexture] = useState(theme?.cardTexture || defaultTheme.cardTexture);
@@ -58,6 +59,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
         body: bodyFont,
       },
       borderRadius,
+      buttonRadius,
       borderWidth,
       shadowStyle,
       cardTexture,
@@ -141,7 +143,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           style={{ 
             backgroundColor: colors.accent,
             color: colors.paper,
-            borderRadius: borderRadius,
+            borderRadius: buttonRadius,
             fontFamily: headingFont,
           }}
         >
@@ -298,7 +300,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
               <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Style</h3>
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Border Radius</label>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Card Border Radius</label>
                   <select
                     value={borderRadius}
                     onChange={(e) => setBorderRadius(e.target.value)}
@@ -310,6 +312,22 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     <option value="8px">Medium (8px)</option>
                     <option value="12px">Large (12px)</option>
                     <option value="16px">Extra Large (16px)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Button Border Radius</label>
+                  <select
+                    value={buttonRadius}
+                    onChange={(e) => setButtonRadius(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    <option value="0px">Sharp (0px)</option>
+                    <option value="2px">Subtle (2px)</option>
+                    <option value="4px">Small (4px)</option>
+                    <option value="8px">Medium (8px)</option>
+                    <option value="12px">Large (12px)</option>
+                    <option value="16px">Extra Large (16px)</option>
+                    <option value="9999px">Pill (Full)</option>
                   </select>
                 </div>
                 <div>
@@ -391,7 +409,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onDelete();
                   }
                 }}
-                className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-theme hover:bg-red-600 transition-colors font-heading"
+                className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-button hover:bg-red-600 transition-colors font-heading"
               >
                 🗑️ Delete
               </button>
@@ -400,13 +418,13 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="px-3 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-sm font-bold rounded-theme hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
+              className="px-3 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-sm font-bold rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-theme hover:bg-theme-accent-hover transition-colors font-heading"
+              className="px-3 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-button hover:bg-theme-accent-hover transition-colors font-heading"
             >
               {isEditing ? '💾 Save Changes' : '✨ Create Theme'}
             </button>
@@ -416,3 +434,4 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
     </div>
   );
 }
+

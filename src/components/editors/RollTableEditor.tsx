@@ -45,7 +45,7 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Roll Table Title"
@@ -73,10 +73,10 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {rollTableItems.map((item: RollTableItem, idx: number) => (
-            <div key={idx} className="flex items-center gap-2 p-2 bg-theme-background rounded-theme">
+            <div key={idx} className="flex items-center gap-2 p-2 bg-theme-background rounded-button">
               <span className="text-xs text-theme-muted w-6">{idx + 1}.</span>
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                 value={item.text}
                 onChange={(e) => updateItem(idx, 'text', e.target.value)}
                 placeholder="Item text..."
@@ -87,7 +87,7 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
                   type="number"
                   min="0"
                   step="1"
-                  className="w-16 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
+                  className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
                   value={item.weight}
                   onChange={(e) => updateItem(idx, 'weight', e.target.value)}
                 />
@@ -108,13 +108,13 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
 
         <button
           onClick={addItem}
-          className="mt-2 w-full px-3 py-2 text-sm border border-dashed border-theme-border rounded-theme text-theme-muted hover:text-theme-ink hover:border-theme-accent transition-colors"
+          className="mt-2 w-full px-3 py-2 text-sm border border-dashed border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-accent transition-colors"
         >
           + Add Item
         </button>
       </div>
 
-      <div className="text-xs text-theme-muted bg-theme-background p-2 rounded-theme">
+      <div className="text-xs text-theme-muted bg-theme-background p-2 rounded-button">
         <strong>How it works:</strong> When you roll, each item's probability is calculated as 
         (item weight / total weight). For example, if you have items with weights 1, 2, and 3, 
         they have ~17%, ~33%, and ~50% chance respectively.
@@ -122,3 +122,4 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

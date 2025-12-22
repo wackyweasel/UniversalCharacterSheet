@@ -102,7 +102,7 @@ export default function NumberWidget({ widget, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme flex-shrink-0`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0`}
               >
                 -
               </button>
@@ -116,11 +116,11 @@ export default function NumberWidget({ widget, height }: Props) {
                   onKeyDown={(e) => handleValueKeyDown(e, idx)}
                   onMouseDown={(e) => e.stopPropagation()}
                   autoFocus
-                  className={`${valueClass} text-center font-bold text-theme-ink bg-theme-paper border border-theme-border rounded-theme flex-shrink-0 outline-none focus:border-theme-accent`}
+                  className={`${valueClass} text-center font-bold text-theme-ink bg-theme-paper border border-theme-border rounded-button flex-shrink-0 outline-none focus:border-theme-accent`}
                 />
               ) : (
                 <span 
-                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-theme`}
+                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button`}
                   onClick={() => handleValueClick(idx, item.value)}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
@@ -130,7 +130,7 @@ export default function NumberWidget({ widget, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-theme flex-shrink-0`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0`}
               >
                 +
               </button>
@@ -144,3 +144,9 @@ export default function NumberWidget({ widget, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

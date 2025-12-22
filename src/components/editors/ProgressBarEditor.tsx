@@ -14,7 +14,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Progress"
@@ -26,7 +26,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
           <label className="block text-sm font-medium text-theme-ink mb-1">Current Value</label>
           <input
             type="number"
-            className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             value={currentValue}
             onChange={(e) => {
               const val = e.target.value === '' ? '' : parseInt(e.target.value) || 0;
@@ -43,7 +43,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
           <label className="block text-sm font-medium text-theme-ink mb-1">Maximum Value</label>
           <input
             type="number"
-            className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             value={maxValue}
             onChange={(e) => {
               updateData({ maxValue: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
@@ -57,7 +57,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <div className="border border-theme-border rounded-theme p-3">
+      <div className="border border-theme-border rounded-button p-3">
         <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
         
         <label className="flex items-center gap-2 cursor-pointer mb-2">
@@ -83,3 +83,4 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

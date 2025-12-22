@@ -8,7 +8,7 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Health"
@@ -19,7 +19,7 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
         <label className="block text-sm font-medium text-theme-ink mb-1">Maximum Value</label>
         <input
           type="number"
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={maxValue}
           onChange={(e) => {
             updateData({ maxValue: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
@@ -34,3 +34,4 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

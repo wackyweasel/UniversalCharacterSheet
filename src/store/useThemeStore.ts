@@ -206,6 +206,7 @@ export interface Theme {
     body: string;
   };
   borderRadius: string;
+  buttonRadius: string;
   borderWidth: string;
   shadowStyle: string;
   cardTexture: string;
@@ -235,6 +236,7 @@ export const THEMES: Theme[] = [
       body: '"Courier New", Courier, monospace',
     },
     borderRadius: '0px',
+    buttonRadius: '0px',
     borderWidth: '2px',
     shadowStyle: '4px 4px 0 0 var(--color-shadow)',
     cardTexture: TEXTURES.none,
@@ -261,6 +263,7 @@ export const THEMES: Theme[] = [
       body: '"Segoe Print", "Comic Sans MS", cursive',
     },
     borderRadius: '2px',
+    buttonRadius: '2px',
     borderWidth: '1px',
     shadowStyle: '2px 2px 0 0 var(--color-shadow)',
     cardTexture: 'graphPaper',
@@ -288,6 +291,7 @@ export const THEMES: Theme[] = [
       body: '"Palatino Linotype", "Book Antiqua", serif',
     },
     borderRadius: '0px',
+    buttonRadius: '0px',
     borderWidth: '3px',
     shadowStyle: '3px 3px 6px 0 var(--color-shadow)',
     cardTexture: 'paper',
@@ -315,6 +319,7 @@ export const THEMES: Theme[] = [
       body: '"Roboto Mono", "Consolas", monospace',
     },
     borderRadius: '4px',
+    buttonRadius: '4px',
     borderWidth: '1px',
     shadowStyle: '0 0 8px var(--color-glow), 0 0 16px var(--color-shadow)',
     cardTexture: 'circuitBoard',
@@ -342,6 +347,7 @@ export const THEMES: Theme[] = [
       body: '"Georgia", "Times New Roman", serif',
     },
     borderRadius: '4px',
+    buttonRadius: '4px',
     borderWidth: '1px',
     shadowStyle: '0 4px 12px var(--color-shadow)',
     cardTexture: TEXTURES.none,
@@ -368,6 +374,7 @@ export const THEMES: Theme[] = [
       body: '"Inter", "Segoe UI", sans-serif',
     },
     borderRadius: '8px',
+    buttonRadius: '8px',
     borderWidth: '1px',
     shadowStyle: '0 4px 20px var(--color-shadow)',
     cardTexture: TEXTURES.darkGrain,
@@ -394,6 +401,7 @@ export const THEMES: Theme[] = [
       body: '"Crimson Text", "Georgia", serif',
     },
     borderRadius: '8px',
+    buttonRadius: '8px',
     borderWidth: '2px',
     shadowStyle: '0 0 12px var(--color-glow), 0 0 24px var(--color-shadow)',
     cardTexture: 'arcs',
@@ -421,6 +429,7 @@ export const THEMES: Theme[] = [
       body: '"Courier New", monospace',
     },
     borderRadius: '0px',
+    buttonRadius: '0px',
     borderWidth: '1px',
     shadowStyle: '0 0 10px var(--color-shadow), inset 0 0 30px rgba(74, 170, 0, 0.05)',
     cardTexture: 'smoke',
@@ -448,6 +457,7 @@ export const THEMES: Theme[] = [
       body: '"Inter", "Segoe UI", sans-serif',
     },
     borderRadius: '8px',
+    buttonRadius: '8px',
     borderWidth: '1px',
     shadowStyle: '0 4px 16px var(--color-shadow)',
     cardTexture: TEXTURES.none,
@@ -474,6 +484,7 @@ export const THEMES: Theme[] = [
       body: '"Cutive Mono", "Courier New", monospace',
     },
     borderRadius: '2px',
+    buttonRadius: '2px',
     borderWidth: '2px',
     shadowStyle: '2px 2px 0 var(--color-border), 4px 4px 8px var(--color-shadow)',
     cardTexture: 'gears',
@@ -501,6 +512,7 @@ export const THEMES: Theme[] = [
       body: '"Consolas", "Lucida Console", "Monaco", monospace',
     },
     borderRadius: '0px',
+    buttonRadius: '0px',
     borderWidth: '2px',
     shadowStyle: '0 0 10px var(--color-glow), 0 0 20px var(--color-shadow), 4px 4px 0 var(--color-border)',
     cardTexture: 'tech',
@@ -528,6 +540,7 @@ export const THEMES: Theme[] = [
       body: '"Nunito", "Verdana", sans-serif',
     },
     borderRadius: '12px',
+    buttonRadius: '12px',
     borderWidth: '2px',
     shadowStyle: '0 4px 12px var(--color-shadow)',
     cardTexture: 'leaf',
@@ -579,6 +592,7 @@ export function applyTheme(themeId: ThemeId | string) {
   root.style.setProperty('--font-heading', theme.fonts.heading);
   root.style.setProperty('--font-body', theme.fonts.body);
   root.style.setProperty('--border-radius', theme.borderRadius);
+  root.style.setProperty('--button-radius', theme.buttonRadius || theme.borderRadius);
   root.style.setProperty('--border-width', theme.borderWidth);
   root.style.setProperty('--shadow-style', theme.shadowStyle);
   root.style.setProperty('--card-texture', theme.cardTexture);
@@ -608,6 +622,7 @@ export function applyCustomTheme(theme: {
     body: string;
   };
   borderRadius: string;
+  buttonRadius?: string;
   borderWidth: string;
   shadowStyle?: string;
   cardTexture?: string;
@@ -629,6 +644,7 @@ export function applyCustomTheme(theme: {
   root.style.setProperty('--font-heading', theme.fonts.heading);
   root.style.setProperty('--font-body', theme.fonts.body);
   root.style.setProperty('--border-radius', theme.borderRadius);
+  root.style.setProperty('--button-radius', theme.buttonRadius || theme.borderRadius);
   root.style.setProperty('--border-width', theme.borderWidth);
   
   // Convert shadow style preset to CSS

@@ -36,7 +36,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Dice Tray"
@@ -50,7 +50,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
             <button
               key={faces}
               onClick={() => toggleDice(faces)}
-              className={`px-3 py-2 border border-theme-border rounded-theme text-sm font-bold transition-all ${
+              className={`px-3 py-2 border border-theme-border rounded-button text-sm font-bold transition-all ${
                 (availableDice as number[]).includes(faces)
                   ? 'bg-theme-accent text-theme-paper'
                   : 'bg-theme-paper text-theme-ink hover:bg-theme-muted hover:text-theme-paper'
@@ -73,12 +73,12 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
               value={newDiceFaces}
               onChange={(e) => setNewDiceFaces(e.target.value)}
               placeholder="faces"
-              className="w-20 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+              className="w-20 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
             />
           </div>
           <button
             type="submit"
-            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-theme text-sm hover:opacity-90"
+            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90"
           >
             Add
           </button>
@@ -92,7 +92,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
             {(availableDice as number[]).map((faces) => (
               <div
                 key={faces}
-                className="flex items-center gap-1 px-2 py-1 bg-theme-accent text-theme-paper rounded-theme text-sm"
+                className="flex items-center gap-1 px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-sm"
               >
                 <span>d{faces}</span>
                 <button
@@ -111,3 +111,4 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

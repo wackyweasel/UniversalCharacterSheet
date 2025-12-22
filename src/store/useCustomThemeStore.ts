@@ -21,6 +21,7 @@ export interface CustomTheme {
     body: string;
   };
   borderRadius: string;
+  buttonRadius: string;
   borderWidth: string;
   shadowStyle: string;
   cardTexture: string;
@@ -149,6 +150,7 @@ export function createDefaultCustomTheme(): Omit<CustomTheme, 'id'> {
       body: '"Arial", "Helvetica Neue", sans-serif',
     },
     borderRadius: '4px',
+    buttonRadius: '4px',
     borderWidth: '2px',
     shadowStyle: 'hard',
     cardTexture: 'none',

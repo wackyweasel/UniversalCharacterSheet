@@ -238,7 +238,7 @@ export default function CharacterList() {
         </h1>
         <button
           onClick={() => setShowBackupModal(true)}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-body text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper rounded-theme transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="flex items-center gap-2 px-3 py-2 text-sm font-body text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
           title="Backup & Restore"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -252,11 +252,11 @@ export default function CharacterList() {
       <div className="mb-6 flex gap-2">
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="flex-1 bg-theme-accent text-theme-paper px-6 py-4 text-lg font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading"
+          className="flex-1 bg-theme-accent text-theme-paper px-6 py-4 text-lg font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading"
         >
           + CREATE NEW CHARACTER
         </button>
-        <label className="bg-theme-paper text-theme-ink px-4 py-4 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-theme font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center flex items-center justify-center">
+        <label className="bg-theme-paper text-theme-ink px-4 py-4 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center flex items-center justify-center">
           IMPORT
           <input
             ref={fileInputRef}
@@ -397,7 +397,7 @@ export default function CharacterList() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setCharacterToDelete(null)}
-                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors"
+                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors"
               >
                 Cancel
               </button>
@@ -406,7 +406,7 @@ export default function CharacterList() {
                   deleteCharacter(characterToDelete);
                   setCharacterToDelete(null);
                 }}
-                className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-theme transition-colors"
+                className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-button transition-colors"
               >
                 Delete
               </button>
@@ -476,13 +476,13 @@ export default function CharacterList() {
                   setSelectedPreset('');
                   setSelectedTheme('default');
                 }}
-                className="px-4 py-2 font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors border-[length:var(--border-width)] border-theme-border"
+                className="px-4 py-2 font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors border-[length:var(--border-width)] border-theme-border"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateCharacter}
-                className="px-6 py-2 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-theme transition-colors font-bold"
+                className="px-6 py-2 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors font-bold"
               >
                 Create
               </button>
@@ -536,7 +536,7 @@ export default function CharacterList() {
               </p>
               <button
                 onClick={handleBackup}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-theme transition-colors font-bold"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors font-bold"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -573,3 +573,6 @@ export default function CharacterList() {
     </div>
   );
 }
+
+
+

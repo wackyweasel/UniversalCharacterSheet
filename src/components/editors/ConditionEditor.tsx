@@ -40,7 +40,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Conditions"
@@ -51,7 +51,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
         <label className="block text-sm font-medium text-theme-ink mb-2">Conditions</label>
         <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
           {(toggleItems as ToggleItem[]).map((item, idx) => (
-            <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-theme-background rounded-theme text-sm">
+            <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-theme-background rounded-button text-sm">
               <span className="text-theme-ink">{item.name}</span>
               <button
                 onClick={() => removeItem(idx)}
@@ -68,11 +68,11 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             placeholder="Add condition..."
-            className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+            className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
           />
           <button
             type="submit"
-            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-theme text-sm hover:opacity-90"
+            className="px-3 py-1 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90"
           >
             Add
           </button>
@@ -85,7 +85,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
                 <button
                   key={suggestion}
                   onClick={() => addItem(suggestion)}
-                  className="px-2 py-0.5 text-xs border border-theme-border rounded-theme text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+                  className="px-2 py-0.5 text-xs border border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
                 >
                   {suggestion}
                 </button>
@@ -97,3 +97,4 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

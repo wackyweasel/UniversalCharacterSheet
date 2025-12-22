@@ -44,7 +44,7 @@ export default function ConditionWidget({ widget }: Props) {
             key={idx}
             onClick={() => toggleItem(idx)}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${toggleClass} border border-theme-border transition-all rounded-theme font-body ${
+            className={`${toggleClass} border border-theme-border transition-all rounded-button font-body ${
               item.active 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'bg-theme-paper text-theme-ink hover:opacity-80'
@@ -60,3 +60,9 @@ export default function ConditionWidget({ widget }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

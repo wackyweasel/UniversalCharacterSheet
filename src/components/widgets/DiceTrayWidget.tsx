@@ -93,7 +93,7 @@ export default function DiceTrayWidget({ widget }: Props) {
             key={faces}
             onClick={() => addDieToPool(faces)}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px]`}
+            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px]`}
             title={`Add d${faces}`}
           >
             d{faces}
@@ -107,7 +107,7 @@ export default function DiceTrayWidget({ widget }: Props) {
           <button
             onClick={rollDice}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme flex-1 ${
+            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-1 ${
               isRolling || dicePool.length === 0
                 ? 'bg-theme-muted text-theme-paper cursor-not-allowed' 
                 : 'bg-theme-accent text-theme-paper hover:opacity-90'
@@ -120,7 +120,7 @@ export default function DiceTrayWidget({ widget }: Props) {
             <button
               onClick={clearPool}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-theme bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500`}
+              className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button`}
             >
               Clear
             </button>
@@ -163,3 +163,9 @@ export default function DiceTrayWidget({ widget }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

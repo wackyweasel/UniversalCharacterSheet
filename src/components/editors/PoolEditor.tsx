@@ -93,7 +93,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Resource Pool"
@@ -107,7 +107,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             <label className="block text-sm font-medium text-theme-ink mb-1">Maximum Pool</label>
             <input
               type="number"
-              className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+              className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
               value={maxPool}
               onChange={(e) => {
                 updateData({ maxPool: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
@@ -126,7 +126,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             <select
               value={poolStyle}
               onChange={(e) => updateData({ poolStyle: e.target.value })}
-              className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+              className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             >
               {styleOptions}
             </select>
@@ -134,7 +134,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
 
           <button
             onClick={convertToMultiple}
-            className="w-full px-3 py-2 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            className="w-full px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
             + Add Multiple Resources
           </button>
@@ -144,10 +144,10 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         <>
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {poolResources.map((resource: { name: string; max: number; current: number; style: string }, idx: number) => (
-              <div key={idx} className="border border-theme-border rounded-theme p-3 space-y-2">
+              <div key={idx} className="border border-theme-border rounded-button p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <input
-                    className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                    className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                     value={resource.name}
                     onChange={(e) => updateResource(idx, 'name', e.target.value)}
                     placeholder="Resource name"
@@ -166,7 +166,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                       type="number"
                       min="1"
                       max="100"
-                      className="w-full px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                      className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                       value={resource.max}
                       onChange={(e) => updateResource(idx, 'max', parseInt(e.target.value) || 1)}
                       onBlur={(e) => updateResource(idx, 'max', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
@@ -177,7 +177,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     <select
                       value={resource.style}
                       onChange={(e) => updateResource(idx, 'style', e.target.value)}
-                      className="w-full px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                      className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                     >
                       {styleOptions}
                     </select>
@@ -190,13 +190,13 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
           <div className="flex gap-2">
             <button
               onClick={addResource}
-              className="flex-1 px-3 py-2 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="flex-1 px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               + Add Resource
             </button>
             <button
               onClick={convertToSingle}
-              className="px-3 py-2 border border-theme-border rounded-theme text-sm text-theme-muted hover:bg-theme-border hover:text-theme-ink transition-colors"
+              className="px-3 py-2 border border-theme-border rounded-button text-sm text-theme-muted hover:bg-theme-border hover:text-theme-ink transition-colors"
             >
               Single Mode
             </button>
@@ -216,3 +216,4 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

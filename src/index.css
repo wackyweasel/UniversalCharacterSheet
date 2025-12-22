@@ -15,6 +15,7 @@
   --font-heading: "Courier New", Courier, monospace;
   --font-body: "Courier New", Courier, monospace;
   --border-radius: 0px;
+  --button-radius: 0px;
   --border-width: 2px;
   --shadow-style: 4px 4px 0 0 var(--color-shadow);
   --card-texture: none;
@@ -79,6 +80,7 @@
   .font-body { font-family: var(--font-body); }
   
   .rounded-theme { border-radius: var(--border-radius); }
+  .rounded-button { border-radius: var(--button-radius); }
   
   .hover\:bg-theme-accent:hover { background-color: var(--color-accent); }
   .hover\:bg-theme-accent-hover:hover { background-color: var(--color-accent-hover); }

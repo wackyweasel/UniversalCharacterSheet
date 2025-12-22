@@ -717,21 +717,21 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
 
       {/* Clear Confirmation Dialog */}
       {showClearConfirm && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 rounded-theme">
-          <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-4 shadow-lg max-w-xs text-center">
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 rounded-button">
+          <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button p-4 shadow-lg max-w-xs text-center">
             <p className="text-theme-ink text-sm mb-3">Clear all shapes?</p>
             <div className="flex gap-2 justify-center">
               <button
                 onClick={confirmClearAll}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="px-3 py-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-red-500 text-white hover:bg-red-600"
+                className="px-3 py-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-red-500 text-white hover:bg-red-600"
               >
                 Clear
               </button>
               <button
                 onClick={cancelClearAll}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="px-3 py-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+                className="px-3 py-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
               >
                 Cancel
               </button>
@@ -747,7 +747,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
             key={tool}
             onClick={() => handleToolSelect(tool)}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme transition-all ${
+            className={`p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button transition-all ${
               currentTool === tool && tool !== 'clearAll'
                 ? 'bg-theme-accent text-theme-paper'
                 : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
@@ -761,7 +761,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
           <button
             onClick={undoLastShape}
             onMouseDown={(e) => e.stopPropagation()}
-            className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+            className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
             title="Undo"
           >
             ↩️
@@ -770,7 +770,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 border-[length:var(--border-width)] border-theme-border rounded-theme overflow-hidden bg-white mx-1 mb-1 relative">
+      <div className="flex-1 border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden bg-white mx-1 mb-1 relative">
         <canvas
           ref={canvasRef}
           onMouseDown={handlePointerDown}
@@ -789,22 +789,28 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
           {/* Arrow cross */}
           <div className="grid grid-cols-3 gap-0.5">
             <div />
-            <button onClick={panUp} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Up">▲</button>
+            <button onClick={panUp} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Up">▲</button>
             <div />
-            <button onClick={panLeft} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Left">◀</button>
-            <button onClick={resetView} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Reset View">⟲</button>
-            <button onClick={panRight} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Right">▶</button>
+            <button onClick={panLeft} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Left">◀</button>
+            <button onClick={resetView} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Reset View">⟲</button>
+            <button onClick={panRight} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Right">▶</button>
             <div />
-            <button onClick={panDown} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Down">▼</button>
+            <button onClick={panDown} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Down">▼</button>
             <div />
           </div>
           {/* Zoom vertical */}
           <div className="flex flex-col gap-0.5">
-            <button onClick={zoomIn} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Zoom In">+</button>
-            <button onClick={zoomOut} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Zoom Out">−</button>
+            <button onClick={zoomIn} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Zoom In">+</button>
+            <button onClick={zoomOut} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Zoom Out">−</button>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+
+
+
+
+

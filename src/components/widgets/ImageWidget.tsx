@@ -40,8 +40,8 @@ export default function ImageWidget({ widget, width, height }: Props) {
 
       {/* Image Display */}
       <div 
-        className={`border-[length:var(--border-width)] border-theme-border bg-theme-background flex items-center justify-center overflow-hidden rounded-theme ${isVerticalMode ? '' : 'flex-1'}`}
-        style={{ height: `${imageHeight}px` }}
+        className={`border-[length:var(--border-width)] border-theme-border bg-theme-background flex items-center justify-center overflow-hidden ${isVerticalMode ? '' : 'flex-1'}`}
+        style={{ height: `${imageHeight}px`, borderRadius: 'min(var(--button-radius), 16px)' }}
       >
         {imageUrl ? (
           <img 
@@ -62,3 +62,9 @@ export default function ImageWidget({ widget, width, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

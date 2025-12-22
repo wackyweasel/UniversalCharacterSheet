@@ -66,7 +66,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   return (
     <div
       ref={toolbarRef}
-      className="fixed z-[9999] bg-theme-paper border border-theme-border rounded-theme shadow-lg"
+      className="fixed z-[9999] bg-theme-paper border border-theme-border rounded-button shadow-lg"
       style={{
         left: isMobile ? '50%' : position.x,
         top: isMobile ? '16px' : position.y,
@@ -130,7 +130,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           </button>
           {showColorPicker && (
             <div 
-              className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-theme shadow-lg p-2 z-10"
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-button shadow-lg p-2 z-10"
               style={{ minWidth: '160px' }}
             >
               {/* No color option */}
@@ -714,3 +714,9 @@ export default function TableWidget({ widget, height }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

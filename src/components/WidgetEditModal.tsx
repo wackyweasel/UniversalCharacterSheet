@@ -198,7 +198,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-theme transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-button transition-colors"
           >
             ✕
           </button>
@@ -233,7 +233,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         <div className="px-4 py-3 border-t border-theme-border flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-theme-accent text-theme-paper rounded-theme hover:opacity-90 font-medium"
+            className="px-4 py-2 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 font-medium"
           >
             Done
           </button>

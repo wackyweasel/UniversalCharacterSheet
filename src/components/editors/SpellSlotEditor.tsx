@@ -50,7 +50,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
           value={label || ''}
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Spell Slots"
@@ -68,7 +68,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
                 value={levelData.level}
                 onChange={(e) => updateLevelNumber(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 onBlur={(e) => updateLevelNumber(levelIdx, Math.max(1, Math.min(9, parseInt(e.target.value) || 1)))}
-                className="w-12 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                className="w-12 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                 min={1}
                 max={9}
               />
@@ -78,7 +78,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
                 value={levelData.max}
                 onChange={(e) => updateLevelMax(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 onBlur={(e) => updateLevelMax(levelIdx, Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                className="w-12 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm text-center"
+                className="w-12 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                 min={1}
                 max={10}
               />
@@ -94,7 +94,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
         {(spellLevels as SpellLevel[]).length < 9 && (
           <button
             onClick={addLevel}
-            className="mt-2 px-3 py-1 border border-theme-border rounded-theme text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+            className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
           >
             + Add Level
           </button>
@@ -103,3 +103,4 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
+

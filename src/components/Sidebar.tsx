@@ -94,7 +94,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {/* Close button - top right corner */}
         <button
           onClick={onToggle}
-          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-theme z-20 shadow-theme"
+          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
         >
           ✕
         </button>
@@ -115,7 +115,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               draggable
               onDragStart={(e) => handleDragStart(e, type)}
               onClick={() => handleAdd(type)}
-              className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-theme"
+              className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-button"
             >
               <span className="text-xs font-body">+ {label}</span>
             </div>
@@ -193,3 +193,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     </>
   );
 }
+
+
+

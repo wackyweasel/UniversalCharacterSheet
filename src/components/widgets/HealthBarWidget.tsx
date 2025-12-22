@@ -36,12 +36,12 @@ function HealthModal({
         className="fixed inset-0 bg-black/50 z-50" 
         onClick={onCancel}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[200px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-50 min-w-[200px]">
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
         <input
           type="number"
           min="1"
-          className="w-full px-3 py-2 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
           value={amount}
           onChange={(e) => setAmount(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
           onBlur={(e) => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
@@ -54,13 +54,13 @@ function HealthModal({
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-theme transition-colors border border-theme-border"
+            className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors border border-theme-border"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className={`flex-1 px-3 py-1.5 text-sm font-body rounded-theme transition-colors ${
+            className={`flex-1 px-3 py-1.5 text-sm font-body rounded-button transition-colors ${
               isDamage 
                 ? 'bg-theme-accent text-theme-paper hover:opacity-80' 
                 : 'bg-theme-accent text-theme-paper hover:opacity-80'
@@ -118,7 +118,7 @@ export default function HealthBarWidget({ widget }: Props) {
       
       {/* Health Bar */}
       <div className="flex-1 flex flex-col justify-center">
-        <div className={`relative ${barHeight} bg-theme-muted/30 rounded-theme overflow-hidden border border-theme-border`}>
+        <div className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}>
           {/* Filled portion - uses theme accent color */}
           <div 
             className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
@@ -141,21 +141,21 @@ export default function HealthBarWidget({ widget }: Props) {
         <button
           onClick={() => setShowDamageModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme font-bold`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold`}
         >
           Damage
         </button>
         <button
           onClick={() => setShowHealModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-theme font-bold`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold`}
         >
           Heal
         </button>
         <button
           onClick={fullHeal}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} bg-theme-accent text-theme-paper hover:opacity-80 transition-colors rounded-theme font-bold`}
+          className={`${buttonClass} bg-theme-accent text-theme-paper hover:opacity-80 transition-colors rounded-button font-bold`}
         >
           Full
         </button>
@@ -185,3 +185,9 @@ export default function HealthBarWidget({ widget }: Props) {
     </div>
   );
 }
+
+
+
+
+
+
