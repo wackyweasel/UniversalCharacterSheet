@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
+import { useTemplateStore, WidgetTemplate } from '../store/useTemplateStore';
 import { Character } from '../types';
 import { getPresetNames, getPreset } from '../presets';
 
@@ -11,6 +12,7 @@ interface BackupData {
   timestamp: string;
   characters: Character[];
   customThemes: Record<string, any>;
+  templates?: WidgetTemplate[];
 }
 
 // Helper to get theme colors for a character
@@ -66,6 +68,8 @@ function getThemeStyles(themeId?: string) {
 export default function CharacterList() {
   // Subscribe to custom theme changes so cards update when themes are edited
   const customThemes = useCustomThemeStore((state) => state.customThemes);
+  // Subscribe to template changes for backup
+  const templates = useTemplateStore((state) => state.templates);
   
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
@@ -184,7 +188,8 @@ export default function CharacterList() {
       version: 1,
       timestamp: new Date().toISOString(),
       characters: characters,
-      customThemes: customThemes
+      customThemes: customThemes,
+      templates: templates
     };
     
     const dataStr = JSON.stringify(backupData, null, 2);
@@ -215,9 +220,11 @@ export default function CharacterList() {
         }
         
         // Confirm restore
+        const templateCount = backupData.templates?.length || 0;
         const confirmRestore = window.confirm(
           `This will replace all your current data with the backup from ${backupData.timestamp ? new Date(backupData.timestamp).toLocaleString() : 'unknown date'}.\n\n` +
-          `Backup contains ${backupData.characters.length} character(s).\n\n` +
+          `Backup contains ${backupData.characters.length} character(s)` +
+          (templateCount > 0 ? ` and ${templateCount} template(s)` : '') + `.\n\n` +
           `Are you sure you want to continue?`
         );
         
@@ -232,6 +239,11 @@ export default function CharacterList() {
         // Restore custom themes if present
         if (backupData.customThemes) {
           localStorage.setItem('ucs:customThemes', JSON.stringify(backupData.customThemes));
+        }
+        
+        // Restore templates if present
+        if (backupData.templates && Array.isArray(backupData.templates)) {
+          localStorage.setItem('ucs:templates', JSON.stringify({ templates: backupData.templates }));
         }
         
         // Reload the page to apply changes
