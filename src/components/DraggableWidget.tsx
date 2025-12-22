@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
+import { useTemplateStore } from '../store/useTemplateStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 
@@ -62,11 +63,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
   const removeWidget = useStore((state) => state.removeWidget);
+  const cloneWidget = useStore((state) => state.cloneWidget);
   const detachWidgets = useStore((state) => state.detachWidgets);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
   const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
+  const addTemplate = useTemplateStore((state) => state.addTemplate);
   
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -79,7 +82,12 @@ export default function DraggableWidget({ widget, scale }: Props) {
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
+  const [templateName, setTemplateName] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -92,6 +100,27 @@ export default function DraggableWidget({ widget, scale }: Props) {
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+        setShowDeleteConfirm(false);
+        setShowTemplateNameInput(false);
+        setTemplateName('');
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [showDropdown]);
 
   // Measure widget and snap height to grid (only when not manually resized)
   useEffect(() => {
@@ -449,7 +478,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: showControls && mode === 'edit' ? 100 : undefined,
+            zIndex: showDropdown ? 200 : (showControls && mode === 'edit' ? 100 : undefined),
             ...borderRadiusStyle,
           }}
           onMouseEnter={() => setIsHovered(true)}
@@ -488,29 +517,150 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
           
-          {/* Edit Button - visible on hover/touch in edit mode */}
+          {/* Menu Button - visible on hover/touch in edit mode */}
           {mode === 'edit' && showControls && (
-            <button
-              className="absolute -top-3 -left-3 w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-blue-600 text-sm"
-              onClick={openEditModal}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              title="Edit widget"
-            >
-              ✏️
-            </button>
-          )}
-          
-          {/* Delete Button - visible on hover/touch in edit mode */}
-          {mode === 'edit' && showControls && (
-            <button
-              className="absolute -top-3 -right-3 w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity z-50 hover:bg-red-600 text-lg"
-              onClick={() => removeWidget(widget.id)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-            >
-              ×
-            </button>
+            <div className="absolute -top-3 -right-3 z-[200]" ref={dropdownRef}>
+              <button
+                className="w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDropdown(!showDropdown);
+                  if (showDropdown) {
+                    setShowDeleteConfirm(false);
+                    setShowTemplateNameInput(false);
+                    setTemplateName('');
+                  }
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                title="Widget options"
+              >
+                ⋮
+              </button>
+              
+              {/* Dropdown Menu */}
+              {showDropdown && (
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[140px] overflow-hidden z-[200]">
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDropdown(false);
+                      openEditModal();
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDropdown(false);
+                      cloneWidget(widget.id);
+                    }}
+                  >
+                    Clone
+                  </button>
+                  {!showTemplateNameInput ? (
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTemplateName(widget.data.label || '');
+                        setShowTemplateNameInput(true);
+                      }}
+                    >
+                      Create Template
+                    </button>
+                  ) : (
+                    <div className="px-2 py-2">
+                      <input
+                        type="text"
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        placeholder="Template name..."
+                        className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink mb-2"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter' && templateName.trim()) {
+                            addTemplate(widget, templateName.trim());
+                            setShowDropdown(false);
+                            setShowTemplateNameInput(false);
+                            setTemplateName('');
+                          } else if (e.key === 'Escape') {
+                            setShowTemplateNameInput(false);
+                            setTemplateName('');
+                          }
+                        }}
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (templateName.trim()) {
+                              addTemplate(widget, templateName.trim());
+                              setShowDropdown(false);
+                              setShowTemplateNameInput(false);
+                              setTemplateName('');
+                            }
+                          }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowTemplateNameInput(false);
+                            setTemplateName('');
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="border-t border-theme-border" />
+                  {!showDeleteConfirm ? (
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeleteConfirm(true);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  ) : (
+                    <div className="flex">
+                      <button
+                        className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDropdown(false);
+                          setShowDeleteConfirm(false);
+                          removeWidget(widget.id);
+                        }}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDeleteConfirm(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}

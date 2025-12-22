@@ -112,6 +112,8 @@ interface StoreState {
   
   // Widget Actions (for active character's active sheet)
   addWidget: (type: WidgetType, x: number, y: number) => void;
+  cloneWidget: (widgetId: string) => void;
+  addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
@@ -393,6 +395,103 @@ export const useStore = create<StoreState>((set, get) => {
             items: [],
             text: ''
           }
+        };
+
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets => [...widgets, newWidget]);
+            }
+            return c;
+          })
+        };
+      });
+    },
+
+    cloneWidget: (widgetId) => {
+      // Take snapshot before the change
+      get()._takeSnapshot('Clone widget');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!activeChar) return state;
+        
+        const currentWidgets = getActiveSheetWidgets(activeChar);
+        const sourceWidget = currentWidgets.find(w => w.id === widgetId);
+        if (!sourceWidget) return state;
+        
+        const GRID_SIZE = 10;
+        const OFFSET = 30; // Offset the clone slightly from original
+        
+        const newWidget: Widget = {
+          id: uuidv4(),
+          type: sourceWidget.type,
+          x: sourceWidget.x + OFFSET,
+          y: sourceWidget.y + OFFSET,
+          w: sourceWidget.w,
+          h: sourceWidget.h,
+          data: JSON.parse(JSON.stringify(sourceWidget.data)), // Deep clone the data
+        };
+
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets => [...widgets, newWidget]);
+            }
+            return c;
+          })
+        };
+      });
+    },
+
+    addWidgetFromTemplate: (template) => {
+      // Take snapshot before the change
+      get()._takeSnapshot('Add widget from template');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!activeChar) return state;
+        
+        const currentWidgets = getActiveSheetWidgets(activeChar);
+        
+        // Calculate smart position (same logic as addWidget)
+        let finalX = 100;
+        let finalY = 100;
+        const GRID_SIZE = 10;
+        const DEFAULT_WIDTH = template.w || 200;
+        const DEFAULT_HEIGHT = template.h || 120;
+        const GAP = 20;
+        
+        if (currentWidgets.length === 0) {
+          finalX = Math.round(400 / GRID_SIZE) * GRID_SIZE;
+          finalY = Math.round(300 / GRID_SIZE) * GRID_SIZE;
+        } else {
+          const minX = Math.min(...currentWidgets.map(w => w.x));
+          const maxX = Math.max(...currentWidgets.map(w => w.x + (w.w || 200)));
+          const minY = Math.min(...currentWidgets.map(w => w.y));
+          const maxY = Math.max(...currentWidgets.map(w => w.y + (w.h || 120)));
+          
+          finalX = Math.round((maxX + GAP) / GRID_SIZE) * GRID_SIZE;
+          finalY = Math.round(minY / GRID_SIZE) * GRID_SIZE;
+          
+          if (finalX > 1500) {
+            finalX = Math.round(minX / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((maxY + GAP) / GRID_SIZE) * GRID_SIZE;
+          }
+        }
+        
+        const newWidget: Widget = {
+          id: uuidv4(),
+          type: template.type,
+          x: finalX,
+          y: finalY,
+          w: template.w || 200,
+          h: template.h || 120,
+          data: JSON.parse(JSON.stringify(template.data)), // Deep clone the data
         };
 
         return {

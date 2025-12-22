@@ -310,7 +310,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
           style={{
             left: `${edge.x}px`,
             top: `${edge.y}px`,
-            zIndex: 150,
+            zIndex: 100,
           }}
           onClick={() => handleClick(edge)}
           onMouseDown={(e) => e.stopPropagation()}
