@@ -422,7 +422,6 @@ export const useStore = create<StoreState>((set, get) => {
         const sourceWidget = currentWidgets.find(w => w.id === widgetId);
         if (!sourceWidget) return state;
         
-        const GRID_SIZE = 10;
         const OFFSET = 30; // Offset the clone slightly from original
         
         const newWidget: Widget = {
@@ -462,8 +461,6 @@ export const useStore = create<StoreState>((set, get) => {
         let finalX = 100;
         let finalY = 100;
         const GRID_SIZE = 10;
-        const DEFAULT_WIDTH = template.w || 200;
-        const DEFAULT_HEIGHT = template.h || 120;
         const GAP = 20;
         
         if (currentWidgets.length === 0) {
