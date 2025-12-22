@@ -573,16 +573,20 @@ export default function TableWidget({ widget, height }: Props) {
         }}
         onDragOver={(e) => e.preventDefault()}
       >
-        <table className={`w-full border-collapse ${cellClass}`}>
-          <thead className="sticky top-0">
+        <table className={`w-full ${cellClass}`} style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead className="sticky top-0 z-10" style={{ boxShadow: '0 -2px 0 0 var(--color-paper)' }}>
             <tr>
-              <th className="w-4"></th>
+              <th className="w-4 bg-theme-paper"></th>
               {columns.map((col: string, idx: number) => (
-                <th key={idx} className={`border border-theme-border bg-theme-background ${cellClass} text-theme-ink font-heading`}>
+                <th 
+                  key={idx} 
+                  className={`border border-theme-border bg-theme-background ${cellClass} text-theme-ink font-heading`}
+                  style={{ borderLeftWidth: idx === 0 ? 1 : 0 }}
+                >
                   {col}
                 </th>
               ))}
-              <th className={'w-4'}></th>
+              <th className="w-4 bg-theme-paper"></th>
             </tr>
           </thead>
           <tbody>
@@ -622,8 +626,12 @@ export default function TableWidget({ widget, height }: Props) {
                   return (
                     <td 
                       key={colIdx} 
-                      className={`border ${isSelected ? 'border-theme-accent border-2' : 'border-theme-border'} ${cellClass} text-theme-ink`}
-                      style={getCellStyle(cellFormat)}
+                      className={`${isSelected ? 'border-theme-accent border-2' : 'border border-theme-border'} ${cellClass} text-theme-ink`}
+                      style={{ 
+                        ...getCellStyle(cellFormat),
+                        borderTopWidth: 0,
+                        borderLeftWidth: colIdx === 0 ? 1 : 0,
+                      }}
                     >
                       {isEditing ? (
                         <input
