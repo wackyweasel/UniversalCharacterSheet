@@ -337,6 +337,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onChange={(e) => setBorderWidth(e.target.value)}
                     className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
                   >
+                    <option value="0px">None (0px)</option>
                     <option value="1px">Thin (1px)</option>
                     <option value="2px">Medium (2px)</option>
                     <option value="3px">Thick (3px)</option>
