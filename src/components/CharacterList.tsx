@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
@@ -81,10 +81,29 @@ export default function CharacterList() {
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>('default');
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
   const presetNames = getPresetNames();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
 
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
@@ -324,52 +343,96 @@ export default function CharacterList() {
                   style={{ color: 'var(--card-muted)' }}
                 >{char.sheets.reduce((sum, s) => sum + s.widgets.length, 0)} Widgets • {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}</p>
                 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleExport(char);
-                  }}
-                  className="absolute top-0 right-0 px-2 py-1 font-bold flex items-center justify-center z-10 text-sm rounded transition-colors"
-                  style={{ 
-                    color: 'var(--card-accent)',
-                    border: '1px solid var(--card-border)',
-                    backgroundColor: 'var(--card-background)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                    e.currentTarget.style.color = 'var(--card-background)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                    e.currentTarget.style.color = 'var(--card-accent)';
-                  }}
-                  title="Export character"
-                >
-                  Export
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCharacterToDelete(char.id);
-                  }}
-                  className="absolute bottom-0 right-0 px-2 py-1 font-bold flex items-center justify-center z-10 text-sm rounded transition-colors"
-                  style={{ 
-                    color: 'var(--card-accent)',
-                    border: '1px solid var(--card-border)',
-                    backgroundColor: 'var(--card-background)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                    e.currentTarget.style.color = 'var(--card-background)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                    e.currentTarget.style.color = 'var(--card-accent)';
-                  }}
-                  title="Delete character"
-                >
-                  Delete
-                </button>
+                {/* Dropdown Menu */}
+                <div className="absolute top-0 right-0 z-10" ref={openDropdown === char.id ? dropdownRef : undefined}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenDropdown(openDropdown === char.id ? null : char.id);
+                    }}
+                    className="p-1.5 rounded transition-colors"
+                    style={{ 
+                      color: 'var(--card-muted)',
+                      backgroundColor: 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                      e.currentTarget.style.color = 'var(--card-background)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = 'var(--card-muted)';
+                    }}
+                    title="Options"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </button>
+                  
+                  {openDropdown === char.id && (
+                    <div 
+                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden"
+                      style={{ 
+                        backgroundColor: 'var(--card-background)',
+                        border: '1px solid var(--card-border)'
+                      }}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExport(char);
+                          setOpenDropdown(null);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                        style={{ 
+                          color: 'var(--card-ink)',
+                          backgroundColor: 'var(--card-background)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                          e.currentTarget.style.color = 'var(--card-background)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                          e.currentTarget.style.color = 'var(--card-ink)';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCharacterToDelete(char.id);
+                          setOpenDropdown(null);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                        style={{ 
+                          color: 'var(--card-ink)',
+                          backgroundColor: 'var(--card-background)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ef4444';
+                          e.currentTarget.style.color = '#ffffff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                          e.currentTarget.style.color = 'var(--card-ink)';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
