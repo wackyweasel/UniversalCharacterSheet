@@ -78,6 +78,8 @@ export interface FormItem {
 export interface DiceGroup {
   count: number;
   faces: number;
+  customFaces?: string[]; // Custom faces for the dice (numbers, emojis, strings, etc.)
+  customDiceName?: string; // Optional name for custom dice
 }
 
 export interface PoolResource {
