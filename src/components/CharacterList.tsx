@@ -6,6 +6,18 @@ import { useTemplateStore, WidgetTemplate } from '../store/useTemplateStore';
 import { Character } from '../types';
 import { getPresetNames, getPreset } from '../presets';
 
+const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
+
+// Get initial dark mode preference from localStorage or OS
+function getInitialDarkMode(): boolean {
+  const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
+  if (stored !== null) {
+    return stored === 'true';
+  }
+  // Fall back to OS preference
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 // Backup data structure
 interface BackupData {
   version: 1;
@@ -79,6 +91,7 @@ export default function CharacterList() {
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   
+  const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
@@ -91,6 +104,15 @@ export default function CharacterList() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const presetNames = getPresetNames();
+
+  // Toggle dark mode and persist to localStorage
+  const toggleDarkMode = () => {
+    setDarkMode((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
+      return newValue;
+    });
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -262,32 +284,67 @@ export default function CharacterList() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 h-full overflow-auto">
-      <div className="flex justify-between items-center mb-4 border-b-[length:var(--border-width)] border-theme-border pb-2">
-        <h1 className="text-2xl font-bold uppercase tracking-wider text-theme-ink font-heading">
+    <div className={`min-h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+      <div className="max-w-4xl mx-auto">
+      <div className={`flex justify-between items-center mb-4 border-b-[length:var(--border-width)] pb-2 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
+        <h1 className={`text-2xl font-bold uppercase tracking-wider font-heading ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
           Character Select
         </h1>
-        <button
-          onClick={() => setShowBackupModal(true)}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-body text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          title="Backup & Restore"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          <span>Backup</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            className={`flex items-center justify-center w-10 px-2 py-2 rounded-button transition-colors ${
+              darkMode 
+                ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
+                : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-300'
+            }`}
+            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {darkMode ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={() => setShowBackupModal(true)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+              darkMode 
+                ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+            title="Backup & Restore"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            <span>Backup</span>
+          </button>
+        </div>
       </div>
 
       {/* Create and Import buttons */}
       <div className="mb-6 flex gap-2">
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="flex-1 bg-theme-accent text-theme-paper px-6 py-4 text-lg font-bold hover:bg-theme-accent-hover transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading"
+          className={`flex-1 px-6 py-4 text-lg font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading ${
+            darkMode 
+              ? 'bg-white text-black hover:bg-white/80' 
+              : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+          }`}
         >
           + CREATE NEW CHARACTER
         </button>
-        <label className="bg-theme-paper text-theme-ink px-4 py-4 font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer border-[length:var(--border-width)] border-theme-border text-center flex items-center justify-center">
+        <label className={`px-4 py-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
+          darkMode 
+            ? 'bg-black text-white border border-white/30 hover:bg-white/10' 
+            : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper'
+        }`}>
           IMPORT
           <input
             ref={fileInputRef}
@@ -451,7 +508,11 @@ export default function CharacterList() {
         })}
         
         {characters.length === 0 && (
-          <div className="col-span-full text-center py-8 text-theme-muted border-[length:var(--border-width)] border-dashed border-theme-border/50 text-sm rounded-theme font-body">
+          <div className={`col-span-full text-center py-8 border-[length:var(--border-width)] border-dashed text-sm rounded-theme font-body ${
+            darkMode 
+              ? 'text-white/50 border-white/30' 
+              : 'text-theme-muted border-theme-border/50'
+          }`}>
             No characters found. Create one to begin.
           </div>
         )}
@@ -464,15 +525,23 @@ export default function CharacterList() {
             className="fixed inset-0 bg-black/50 z-50" 
             onClick={() => setCharacterToDelete(null)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
-            <h3 className="font-heading text-theme-ink font-bold mb-2">Delete Character?</h3>
-            <p className="text-sm text-theme-muted font-body mb-4">
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[250px] ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Delete Character?</h3>
+            <p className={`text-sm font-body mb-4 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
               Are you sure you want to delete "{characters.find(c => c.id === characterToDelete)?.name}"? This will delete all sheets and widgets.
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setCharacterToDelete(null)}
-                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors"
+                className={`px-3 py-1.5 text-sm font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-theme-ink hover:bg-theme-accent/20'
+                }`}
               >
                 Cancel
               </button>
@@ -497,29 +566,41 @@ export default function CharacterList() {
             className="fixed inset-0 bg-black/50 z-50" 
             onClick={() => setShowCreateModal(false)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px]">
-            <h3 className="font-heading text-theme-ink font-bold text-xl mb-4">Create New Character</h3>
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create New Character</h3>
             
             {/* Character Name */}
             <div className="mb-4">
-              <label className="block text-sm font-body text-theme-muted mb-1">Character Name</label>
+              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Character Name</label>
               <input
                 type="text"
                 value={newCharName}
                 onChange={(e) => setNewCharName(e.target.value)}
                 placeholder="Enter character name..."
-                className="w-full p-3 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body"
+                className={`w-full p-3 text-base shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all rounded-theme font-body ${
+                  darkMode 
+                    ? 'bg-black text-white border border-white/30 placeholder-white/40' 
+                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
+                }`}
                 autoFocus
               />
             </div>
             
             {/* Preset Selection */}
             <div className="mb-4">
-              <label className="block text-sm font-body text-theme-muted mb-1">Preset</label>
+              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Preset</label>
               <select
                 value={selectedPreset}
                 onChange={(e) => setSelectedPreset(e.target.value)}
-                className="w-full p-3 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body cursor-pointer"
+                className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer ${
+                  darkMode 
+                    ? 'bg-black text-white border border-white/30' 
+                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
+                }`}
               >
                 <option value="">No Preset</option>
                 {presetNames.map((name) => (
@@ -530,11 +611,15 @@ export default function CharacterList() {
             
             {/* Theme Selection */}
             <div className="mb-6">
-              <label className="block text-sm font-body text-theme-muted mb-1">Theme</label>
+              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Theme</label>
               <select
                 value={selectedTheme}
                 onChange={(e) => setSelectedTheme(e.target.value)}
-                className="w-full p-3 text-base border-[length:var(--border-width)] border-theme-border shadow-theme focus:outline-none transition-all bg-theme-paper text-theme-ink rounded-theme font-body cursor-pointer"
+                className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer ${
+                  darkMode 
+                    ? 'bg-black text-white border border-white/30' 
+                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
+                }`}
               >
                 {THEMES.map((theme) => (
                   <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
@@ -551,13 +636,21 @@ export default function CharacterList() {
                   setSelectedPreset('');
                   setSelectedTheme('default');
                 }}
-                className="px-4 py-2 font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors border-[length:var(--border-width)] border-theme-border"
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white border border-white/30 hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateCharacter}
-                className="px-6 py-2 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors font-bold"
+                className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
+                  darkMode 
+                    ? 'bg-white text-black hover:bg-white/80' 
+                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
               >
                 Create
               </button>
@@ -573,12 +666,16 @@ export default function CharacterList() {
             className="fixed inset-0 bg-black/50 z-50" 
             onClick={() => setShowBackupModal(false)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px]">
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-heading text-theme-ink font-bold text-xl">Backup & Restore</h3>
+              <h3 className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Backup & Restore</h3>
               <button
                 onClick={() => setShowBackupModal(false)}
-                className="text-theme-muted hover:text-theme-ink transition-colors"
+                className={`transition-colors ${darkMode ? 'text-white/60 hover:text-white' : 'text-theme-muted hover:text-theme-ink'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -587,16 +684,20 @@ export default function CharacterList() {
             </div>
             
             {/* Warning Message */}
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-theme p-4 mb-6">
+            <div className={`rounded-theme p-4 mb-6 ${
+              darkMode 
+                ? 'bg-yellow-900/30 border border-yellow-500/30' 
+                : 'bg-yellow-500/10 border border-yellow-500/30'
+            }`}>
               <div className="flex gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 flex-shrink-0 mt-0.5 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div>
-                  <p className="font-body text-theme-ink text-sm font-semibold mb-1">
+                  <p className={`font-body text-sm font-semibold mb-1 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
                     Your data is stored locally
                   </p>
-                  <p className="font-body text-theme-muted text-sm">
+                  <p className={`font-body text-sm ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
                     All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers.
                   </p>
                 </div>
@@ -605,13 +706,17 @@ export default function CharacterList() {
             
             {/* Backup Section */}
             <div className="mb-4">
-              <h4 className="font-body text-theme-ink font-semibold mb-2">Create Backup</h4>
-              <p className="font-body text-theme-muted text-sm mb-3">
+              <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create Backup</h4>
+              <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
                 Download a backup file containing all your characters and custom themes.
               </p>
               <button
                 onClick={handleBackup}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors font-bold"
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-body rounded-button transition-colors font-bold ${
+                  darkMode 
+                    ? 'bg-white text-black hover:bg-white/80' 
+                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -620,15 +725,19 @@ export default function CharacterList() {
               </button>
             </div>
             
-            <div className="border-t border-theme-border my-4"></div>
+            <div className={`border-t my-4 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}></div>
             
             {/* Restore Section */}
             <div>
-              <h4 className="font-body text-theme-ink font-semibold mb-2">Restore from Backup</h4>
-              <p className="font-body text-theme-muted text-sm mb-3">
+              <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Restore from Backup</h4>
+              <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
                 Upload a backup file to restore your characters and themes. <span className="text-red-500 font-semibold">This will replace all current data.</span>
               </p>
-              <label className="w-full flex items-center justify-center gap-2 px-4 py-3 font-body border-[length:var(--border-width)] border-theme-border text-theme-ink hover:bg-theme-accent hover:text-theme-paper rounded-theme transition-colors font-bold cursor-pointer">
+              <label className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-body rounded-theme transition-colors font-bold cursor-pointer ${
+                darkMode 
+                  ? 'border border-white/30 text-white hover:bg-white/10' 
+                  : 'border-[length:var(--border-width)] border-theme-border text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+              }`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
@@ -645,6 +754,7 @@ export default function CharacterList() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
