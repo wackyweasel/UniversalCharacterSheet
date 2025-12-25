@@ -3,6 +3,7 @@ import DnD5ePreset from './DnD5e_preset.json';
 import DCCLvl0Preset from './DCC_lvl0_preset.json';
 import MothershipPreset from './Mothership_preset.json';
 import ForbiddenLandsPreset from './Forbidden_Lands_preset.json';
+import TutorialPreset from './Tutorial.json';
 
 /**
  * Character Presets
@@ -52,3 +53,6 @@ export function getPresetNames(): string[] {
 export function getPreset(name: string): CharacterPreset | undefined {
   return CHARACTER_PRESETS[name];
 }
+
+// Tutorial preset (used internally by tutorial system, not shown in preset list)
+export const TUTORIAL_PRESET = TutorialPreset as CharacterPreset;

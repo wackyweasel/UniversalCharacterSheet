@@ -3,6 +3,8 @@ import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
 import { useTemplateStore, WidgetTemplate } from '../store/useTemplateStore';
+import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import { Character } from '../types';
 import { getPresetNames, getPreset } from '../presets';
 
@@ -90,6 +92,12 @@ export default function CharacterList() {
   const importCharacter = useStore((state) => state.importCharacter);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
+  
+  // Tutorial state from store
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const startTutorial = useTutorialStore((state) => state.startTutorial);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
   
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
@@ -311,6 +319,21 @@ export default function CharacterList() {
               </svg>
             )}
           </button>
+          {/* Tutorial Button */}
+          <button
+            onClick={startTutorial}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+              darkMode 
+                ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+            title="Start Tutorial"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            <span>Tutorial</span>
+          </button>
           <button
             onClick={() => setShowBackupModal(true)}
             className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
@@ -331,12 +354,21 @@ export default function CharacterList() {
       {/* Create and Import buttons */}
       <div className="mb-6 flex gap-2">
         <button 
-          onClick={() => setShowCreateModal(true)}
+          data-tutorial="create-character"
+          onClick={() => {
+            // Set default theme based on dark mode
+            setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+            setShowCreateModal(true);
+            // If tutorial is on step 0 (create character), advance to next step
+            if (tutorialStep === 0 && TUTORIAL_STEPS[0]?.id === 'create-character') {
+              advanceTutorial();
+            }
+          }}
           className={`flex-1 px-6 py-4 text-lg font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading ${
             darkMode 
               ? 'bg-white text-black hover:bg-white/80' 
               : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-          }`}
+          } ${tutorialStep === 0 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
         >
           + CREATE NEW CHARACTER
         </button>
@@ -574,18 +606,24 @@ export default function CharacterList() {
             <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create New Character</h3>
             
             {/* Character Name */}
-            <div className="mb-4">
+            <div className="mb-4" data-tutorial="character-name-input">
               <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Character Name</label>
               <input
                 type="text"
                 value={newCharName}
-                onChange={(e) => setNewCharName(e.target.value)}
+                onChange={(e) => {
+                  setNewCharName(e.target.value);
+                  // If tutorial is on step 1 (name character) and user typed something, advance
+                  if (tutorialStep === 1 && TUTORIAL_STEPS[1]?.id === 'name-character' && e.target.value.trim().length > 0) {
+                    advanceTutorial();
+                  }
+                }}
                 placeholder="Enter character name..."
                 className={`w-full p-3 text-base shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all rounded-theme font-body ${
                   darkMode 
                     ? 'bg-black text-white border border-white/30 placeholder-white/40' 
                     : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                }`}
+                } ${tutorialStep === 1 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 autoFocus
               />
             </div>
@@ -645,12 +683,19 @@ export default function CharacterList() {
                 Cancel
               </button>
               <button
-                onClick={handleCreateCharacter}
+                data-tutorial="create-button"
+                onClick={() => {
+                  handleCreateCharacter();
+                  // If tutorial is on step 2 (click create), advance
+                  if (tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create') {
+                    advanceTutorial();
+                  }
+                }}
                 className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
                   darkMode 
                     ? 'bg-white text-black hover:bg-white/80' 
                     : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-                }`}
+                } ${tutorialStep === 2 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
               >
                 Create
               </button>
@@ -754,6 +799,9 @@ export default function CharacterList() {
           </div>
         </>
       )}
+
+      {/* Tutorial Bubble */}
+      {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
       </div>
     </div>
   );

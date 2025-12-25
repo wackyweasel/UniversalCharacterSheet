@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
+import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 
 // Import all editors
 import {
@@ -80,6 +81,8 @@ function getWidgetTitle(type: WidgetType): string {
 export default function WidgetEditModal({ widget, onClose }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
 
@@ -232,8 +235,20 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         {/* Footer */}
         <div className="px-4 py-3 border-t border-theme-border flex justify-end">
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 font-medium"
+            data-tutorial="edit-done-button"
+            disabled={tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21}
+            onClick={() => {
+              // Advance tutorial if on step 21 (form-click-done)
+              if (tutorialStep === 21 && TUTORIAL_STEPS[21]?.id === 'form-click-done') {
+                advanceTutorial();
+              }
+              onClose();
+            }}
+            className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium ${
+              tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:opacity-90'
+            } ${tutorialStep === 21 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             Done
           </button>

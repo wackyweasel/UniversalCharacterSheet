@@ -3,6 +3,7 @@ import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTemplateStore } from '../store/useTemplateStore';
+import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 
@@ -70,6 +71,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
   const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
   const addTemplate = useTemplateStore((state) => state.addTemplate);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -101,9 +104,20 @@ export default function DraggableWidget({ widget, scale }: Props) {
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
 
+  // Auto-open dropdown for Form widget during tutorial step 17
+  useEffect(() => {
+    if (tutorialStep === 17 && widget.type === 'FORM') {
+      setShowDropdown(true);
+    }
+  }, [tutorialStep, widget.type]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      // Don't close dropdown during tutorial step 17 for Form widget
+      if (tutorialStep === 17 && widget.type === 'FORM') {
+        return;
+      }
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
         setShowDeleteConfirm(false);
@@ -120,7 +134,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
         document.removeEventListener('touchstart', handleClickOutside);
       };
     }
-  }, [showDropdown]);
+  }, [showDropdown, tutorialStep, widget.type]);
 
   // Measure widget and snap height to grid (only when not manually resized)
   useEffect(() => {
@@ -517,13 +531,19 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
           
-          {/* Menu Button - visible on hover/touch in edit mode */}
-          {mode === 'edit' && showControls && (
+          {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
+          {/* For Form widget during tutorial step 16, always show the button */}
+          {mode === 'edit' && (showControls || (tutorialStep === 16 && widget.type === 'FORM')) && (tutorialStep === null || tutorialStep >= 16) && (
             <div className="absolute -top-3 -right-3 z-[200]" ref={dropdownRef}>
               <button
-                className="w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg"
+                data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
+                className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${tutorialStep === 16 && widget.type === 'FORM' ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
+                  // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
+                  if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
+                    advanceTutorial();
+                  }
                   setShowDropdown(!showDropdown);
                   if (showDropdown) {
                     setShowDeleteConfirm(false);
@@ -542,9 +562,14 @@ export default function DraggableWidget({ widget, scale }: Props) {
               {showDropdown && (
                 <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[140px] overflow-hidden z-[200]">
                   <button
-                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    data-tutorial={widget.type === 'FORM' ? 'edit-button-FORM' : undefined}
+                    className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 17 && widget.type === 'FORM' ? 'bg-blue-500 text-white' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      // Advance tutorial if on step 17 (edit-widget) and this is a Form widget
+                      if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
+                        advanceTutorial();
+                      }
                       setShowDropdown(false);
                       openEditModal();
                     }}

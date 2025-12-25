@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useTemplateStore } from '../store/useTemplateStore';
+import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { WidgetType } from '../types';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
@@ -30,9 +31,10 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number };
 }
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps) {
   const addWidget = useStore((state) => state.addWidget);
   const addWidgetFromTemplate = useStore((state) => state.addWidgetFromTemplate);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -47,9 +49,26 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const removeTemplate = useTemplateStore((state) => state.removeTemplate);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
+  // Tutorial state
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+
+  // Map tutorial steps to widget types
+  const tutorialWidgetSteps: Record<number, WidgetType> = {
+    5: 'IMAGE',
+    6: 'HEALTH_BAR',
+    7: 'FORM',
+    8: 'NUMBER_DISPLAY',
+  };
+
   const handleAdd = (type: WidgetType) => {
-    // Add to center of screen roughly (fixed for now, could be dynamic based on viewport)
-    addWidget(type, 100, 100);
+    // Add to visible area of screen using viewport info
+    addWidget(type, 100, 100, viewport);
+    
+    // Check if this is the widget the tutorial is waiting for
+    if (tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type) {
+      advanceTutorial();
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, type: WidgetType) => {
@@ -63,7 +82,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {!collapsed && (
         <div 
           className="fixed inset-0 bg-black/30 z-40"
-          onClick={onToggle}
+          onClick={() => {
+            onToggle();
+            // If tutorial is on step 9 (close-toolbox), advance
+            if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
+              advanceTutorial();
+            }
+          }}
         />
       )}
       
@@ -93,14 +118,21 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         
         {/* Close button - top right corner */}
         <button
-          onClick={onToggle}
-          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
+          data-tutorial="close-toolbox"
+          onClick={() => {
+            onToggle();
+            // If tutorial is on step 9 (close-toolbox), advance
+            if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
+              advanceTutorial();
+            }
+          }}
+          className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
         >
           ✕
         </button>
         
         {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12">
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 px-1">
 
         <div className="mb-4">
           <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
@@ -108,18 +140,24 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </h2>
         </div>
 
-        <div className="flex flex-col gap-2">
-          {WIDGET_OPTIONS.map(({ type, label }) => (
-            <div
-              key={type}
-              draggable
-              onDragStart={(e) => handleDragStart(e, type)}
-              onClick={() => handleAdd(type)}
-              className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-button"
-            >
-              <span className="text-xs font-body">+ {label}</span>
-            </div>
-          ))}
+        <div className="flex flex-col gap-3 py-1">
+          {WIDGET_OPTIONS.map(({ type, label }) => {
+            // Check if this widget should be highlighted for the tutorial
+            const isHighlighted = tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type;
+            
+            return (
+              <div
+                key={type}
+                data-tutorial={`widget-${type}`}
+                draggable
+                onDragStart={(e) => handleDragStart(e, type)}
+                onClick={() => handleAdd(type)}
+                className={`p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-button relative ${isHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+              >
+                <span className="text-xs font-body">+ {label}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Templates Section */}
@@ -138,7 +176,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 >
                   <span 
                     className="text-xs font-body flex-1 truncate"
-                    onClick={() => addWidgetFromTemplate(template)}
+                    onClick={() => addWidgetFromTemplate(template, viewport)}
                   >
                     + {template.name}
                   </span>

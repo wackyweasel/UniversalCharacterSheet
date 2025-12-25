@@ -1,15 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
+import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { applyTheme, applyCustomTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
+
+const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
 import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import VerticalWidget from './VerticalWidget';
 import AttachmentButtons from './AttachmentButtons';
 import WidgetShadows from './WidgetShadows';
+import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import { WidgetType, Widget } from '../types';
 
 // Helper to get active sheet widgets
@@ -32,11 +37,40 @@ export default function Sheet() {
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
   const renameSheet = useStore((state) => state.renameSheet);
+  const deleteCharacter = useStore((state) => state.deleteCharacter);
+  const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const undo = useStore((state) => state.undo);
   const redo = useStore((state) => state.redo);
   const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  
+  // Tutorial state
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
+  
+  // Dark mode state (read from localStorage to match CharacterList)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
+    if (stored !== null) {
+      return stored === 'true';
+    }
+    // Fall back to OS preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  
+  // Listen for dark mode changes from CharacterList
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === DARK_MODE_STORAGE_KEY) {
+        setDarkMode(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   
   // Get widgets from active sheet
   const activeSheetWidgets = activeCharacter ? getActiveSheetWidgets(activeCharacter) : [];
@@ -133,6 +167,46 @@ export default function Sheet() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
+
+  // Handle tutorial step 22 -> 23: load tutorial preset
+  useEffect(() => {
+    if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
+      // We just advanced to step 23, load the tutorial preset
+      const oldCharId = activeCharacterId;
+      createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+      // Delete the old tutorial character
+      if (oldCharId) {
+        deleteCharacter(oldCharId);
+      }
+      // If in dark mode, set theme to classic-dark
+      // We need to get the new character ID after creation
+      setTimeout(() => {
+        const newCharId = useStore.getState().activeCharacterId;
+        if (newCharId && darkMode) {
+          updateCharacterTheme(newCharId, 'classic-dark');
+        }
+      }, 0);
+      // Switch to edit mode first so they can see the sheet
+      setMode('edit');
+      // Fit widgets after a short delay
+      setTimeout(() => {
+        handleFitAllWidgets();
+      }, 200);
+    }
+  }, [tutorialStep]);
+
+  // Auto-open mobile menu when tutorial step requires the Edit/Play Mode button or Add Widget (hidden on mobile)
+  useEffect(() => {
+    const isNarrowScreen = window.innerWidth < 640; // sm breakpoint
+    const needsEditModeButton = 
+      (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') ||
+      (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play');
+    const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
+    
+    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton)) {
+      setGridMenuOpen(true);
+    }
+  }, [tutorialStep]);
 
   // Fit all widgets when character sheet is opened
   useEffect(() => {
@@ -460,7 +534,8 @@ export default function Sheet() {
       {mode === 'edit' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          viewport={containerRef.current ? { pan, scale, width: containerRef.current.clientWidth, height: containerRef.current.clientHeight } : undefined}
         />
       )}
       
@@ -540,8 +615,20 @@ export default function Sheet() {
             Exit
           </button>
           <button
-            onClick={() => setMode(mode === 'play' ? 'edit' : 'play')}
-            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            data-tutorial="edit-mode-button"
+            onClick={() => {
+              const newMode = mode === 'play' ? 'edit' : 'play';
+              setMode(newMode);
+              // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
+              if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
+                advanceTutorial();
+              }
+              // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
+              if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
+                advanceTutorial();
+              }
+            }}
+            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
           </button>
@@ -556,8 +643,16 @@ export default function Sheet() {
           {mode === 'edit' && (
             <>
               <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                data-tutorial="add-widget-button"
+                onClick={() => {
+                  const wasCollapsed = sidebarCollapsed;
+                  setSidebarCollapsed(!sidebarCollapsed);
+                  // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
+                  if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
+                    advanceTutorial();
+                  }
+                }}
+                className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 4 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
               >
                 {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
               </button>
@@ -662,10 +757,17 @@ export default function Sheet() {
           </button>
         </div>
         
-        {/* Fit button only on mobile */}
+        {/* Fit button */}
         <button
-          onClick={handleFitAllWidgets}
-          className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0"
+          data-tutorial="fit-button"
+          onClick={() => {
+            handleFitAllWidgets();
+            // If tutorial is on step 12 (fit-button), advance
+            if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
+              advanceTutorial();
+            }
+          }}
+          className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
         >
           Fit
         </button>
@@ -715,11 +817,21 @@ export default function Sheet() {
           <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
             {/* Mode toggle */}
             <button
+              data-tutorial="edit-mode-button-mobile"
               onClick={() => {
-                setMode(mode === 'play' ? 'edit' : 'play');
+                const newMode = mode === 'play' ? 'edit' : 'play';
+                setMode(newMode);
                 setGridMenuOpen(false);
+                // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
+                if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
+                  advanceTutorial();
+                }
+                // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
+                if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
+                  advanceTutorial();
+                }
               }}
-              className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+              className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
             >
               {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
             </button>
@@ -741,11 +853,17 @@ export default function Sheet() {
             {mode === 'edit' && (
               <>
                 <button
+                  data-tutorial="add-widget-button-mobile"
                   onClick={() => {
+                    const wasCollapsed = sidebarCollapsed;
                     setSidebarCollapsed(!sidebarCollapsed);
                     setGridMenuOpen(false);
+                    // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
+                    if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
+                      advanceTutorial();
+                    }
                   }}
-                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${tutorialStep === 4 ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
                 >
                   {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
                 </button>
@@ -946,6 +1064,9 @@ export default function Sheet() {
           </div>
         </>
       )}
+
+      {/* Tutorial Bubble */}
+      {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
     </div>
   );
 }

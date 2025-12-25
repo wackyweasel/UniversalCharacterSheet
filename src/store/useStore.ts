@@ -111,9 +111,9 @@ interface StoreState {
   renameSheet: (sheetId: string, name: string) => void;
   
   // Widget Actions (for active character's active sheet)
-  addWidget: (type: WidgetType, x: number, y: number) => void;
+  addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   cloneWidget: (widgetId: string) => void;
-  addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }) => void;
+  addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
@@ -338,7 +338,7 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    addWidget: (type, x, y) => {
+    addWidget: (type, x, y, viewport) => {
       // Take snapshot before the change
       get()._takeSnapshot('Add widget');
       
@@ -359,13 +359,61 @@ export const useStore = create<StoreState>((set, get) => {
         const DEFAULT_HEIGHT = 120;
         const GAP = 20;
         
-        if (currentWidgets.length === 0) {
-          // No widgets - place in center of viewport (roughly)
-          // Use a reasonable center position
+        // Helper to check if a rectangle overlaps with any existing widget
+        const overlapsWidget = (testX: number, testY: number, testW: number, testH: number): boolean => {
+          return currentWidgets.some(w => {
+            const wRight = w.x + (w.w || DEFAULT_WIDTH);
+            const wBottom = w.y + (w.h || DEFAULT_HEIGHT);
+            const testRight = testX + testW;
+            const testBottom = testY + testH;
+            return !(testX >= wRight || testRight <= w.x || testY >= wBottom || testBottom <= w.y);
+          });
+        };
+        
+        if (viewport) {
+          // Calculate visible area in canvas coordinates
+          const visibleLeft = -viewport.pan.x / viewport.scale;
+          const visibleTop = -viewport.pan.y / viewport.scale;
+          const visibleWidth = viewport.width / viewport.scale;
+          const visibleHeight = viewport.height / viewport.scale;
+          const visibleRight = visibleLeft + visibleWidth;
+          const visibleBottom = visibleTop + visibleHeight;
+          
+          // Add some padding from edges
+          const PADDING = 40;
+          const searchLeft = Math.max(0, visibleLeft + PADDING);
+          const searchTop = Math.max(0, visibleTop + PADDING);
+          const searchRight = visibleRight - PADDING - DEFAULT_WIDTH;
+          const searchBottom = visibleBottom - PADDING - DEFAULT_HEIGHT;
+          
+          // Search for first available position in visible area (left to right, top to bottom)
+          let found = false;
+          const SEARCH_STEP = GRID_SIZE * 2; // Search in steps of 20px for efficiency
+          
+          for (let testY = searchTop; testY <= searchBottom && !found; testY += SEARCH_STEP) {
+            for (let testX = searchLeft; testX <= searchRight && !found; testX += SEARCH_STEP) {
+              const snappedX = Math.round(testX / GRID_SIZE) * GRID_SIZE;
+              const snappedY = Math.round(testY / GRID_SIZE) * GRID_SIZE;
+              
+              if (!overlapsWidget(snappedX, snappedY, DEFAULT_WIDTH, DEFAULT_HEIGHT)) {
+                finalX = snappedX;
+                finalY = snappedY;
+                found = true;
+              }
+            }
+          }
+          
+          // If no space found in visible area, place at center of visible area
+          if (!found) {
+            finalX = Math.round((visibleLeft + visibleWidth / 2 - DEFAULT_WIDTH / 2) / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((visibleTop + visibleHeight / 2 - DEFAULT_HEIGHT / 2) / GRID_SIZE) * GRID_SIZE;
+          }
+        } else if (currentWidgets.length === 0) {
+          // No widgets and no viewport - place in center of viewport (roughly)
           finalX = Math.round(400 / GRID_SIZE) * GRID_SIZE;
           finalY = Math.round(300 / GRID_SIZE) * GRID_SIZE;
         } else {
-          // Find the bounding box of all existing widgets
+          // Fallback: Find the bounding box of all existing widgets
           const minX = Math.min(...currentWidgets.map(w => w.x));
           const maxX = Math.max(...currentWidgets.map(w => w.x + (w.w || DEFAULT_WIDTH)));
           const minY = Math.min(...currentWidgets.map(w => w.y));
@@ -382,6 +430,31 @@ export const useStore = create<StoreState>((set, get) => {
           }
         }
         
+        const getDefaultLabel = (widgetType: WidgetType): string => {
+          const defaultLabels: Record<WidgetType, string> = {
+            'NUMBER': 'Trackers',
+            'NUMBER_DISPLAY': 'Stats',
+            'LIST': 'Inventory',
+            'TEXT': 'Notes',
+            'CHECKBOX': 'Checklist',
+            'HEALTH_BAR': 'Health',
+            'DICE_ROLLER': 'Roll',
+            'DICE_TRAY': 'Dice Tray',
+            'SPELL_SLOT': 'Spell Slots',
+            'IMAGE': '',
+            'POOL': 'Resources',
+            'TOGGLE_GROUP': 'Conditions',
+            'TABLE': 'Table',
+            'TIME_TRACKER': 'Time Tracker',
+            'FORM': 'Character Info',
+            'REST_BUTTON': 'Rest',
+            'PROGRESS_BAR': 'Progress',
+            'MAP_SKETCHER': 'Map',
+            'ROLL_TABLE': 'Random Table',
+          };
+          return defaultLabels[widgetType] || '';
+        };
+
         const newWidget: Widget = {
           id: uuidv4(),
           type,
@@ -390,7 +463,7 @@ export const useStore = create<StoreState>((set, get) => {
           w: DEFAULT_WIDTH,
           h: DEFAULT_HEIGHT,
           data: {
-            label: 'New Widget',
+            label: getDefaultLabel(type),
             value: 0,
             items: [],
             text: ''
@@ -445,7 +518,7 @@ export const useStore = create<StoreState>((set, get) => {
       });
     },
 
-    addWidgetFromTemplate: (template) => {
+    addWidgetFromTemplate: (template, viewport) => {
       // Take snapshot before the change
       get()._takeSnapshot('Add widget from template');
       
@@ -462,8 +535,59 @@ export const useStore = create<StoreState>((set, get) => {
         let finalY = 100;
         const GRID_SIZE = 10;
         const GAP = 20;
+        const DEFAULT_WIDTH = template.w || 200;
+        const DEFAULT_HEIGHT = template.h || 120;
         
-        if (currentWidgets.length === 0) {
+        // Helper to check if a rectangle overlaps with any existing widget
+        const overlapsWidget = (testX: number, testY: number, testW: number, testH: number): boolean => {
+          return currentWidgets.some(w => {
+            const wRight = w.x + (w.w || 200);
+            const wBottom = w.y + (w.h || 120);
+            const testRight = testX + testW;
+            const testBottom = testY + testH;
+            return !(testX >= wRight || testRight <= w.x || testY >= wBottom || testBottom <= w.y);
+          });
+        };
+        
+        if (viewport) {
+          // Calculate visible area in canvas coordinates
+          const visibleLeft = -viewport.pan.x / viewport.scale;
+          const visibleTop = -viewport.pan.y / viewport.scale;
+          const visibleWidth = viewport.width / viewport.scale;
+          const visibleHeight = viewport.height / viewport.scale;
+          const visibleRight = visibleLeft + visibleWidth;
+          const visibleBottom = visibleTop + visibleHeight;
+          
+          // Add some padding from edges
+          const PADDING = 40;
+          const searchLeft = Math.max(0, visibleLeft + PADDING);
+          const searchTop = Math.max(0, visibleTop + PADDING);
+          const searchRight = visibleRight - PADDING - DEFAULT_WIDTH;
+          const searchBottom = visibleBottom - PADDING - DEFAULT_HEIGHT;
+          
+          // Search for first available position in visible area (left to right, top to bottom)
+          let found = false;
+          const SEARCH_STEP = GRID_SIZE * 2;
+          
+          for (let testY = searchTop; testY <= searchBottom && !found; testY += SEARCH_STEP) {
+            for (let testX = searchLeft; testX <= searchRight && !found; testX += SEARCH_STEP) {
+              const snappedX = Math.round(testX / GRID_SIZE) * GRID_SIZE;
+              const snappedY = Math.round(testY / GRID_SIZE) * GRID_SIZE;
+              
+              if (!overlapsWidget(snappedX, snappedY, DEFAULT_WIDTH, DEFAULT_HEIGHT)) {
+                finalX = snappedX;
+                finalY = snappedY;
+                found = true;
+              }
+            }
+          }
+          
+          // If no space found in visible area, place at center of visible area
+          if (!found) {
+            finalX = Math.round((visibleLeft + visibleWidth / 2 - DEFAULT_WIDTH / 2) / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((visibleTop + visibleHeight / 2 - DEFAULT_HEIGHT / 2) / GRID_SIZE) * GRID_SIZE;
+          }
+        } else if (currentWidgets.length === 0) {
           finalX = Math.round(400 / GRID_SIZE) * GRID_SIZE;
           finalY = Math.round(300 / GRID_SIZE) * GRID_SIZE;
         } else {

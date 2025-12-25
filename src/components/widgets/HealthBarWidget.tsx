@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -33,10 +34,10 @@ function HealthModal({
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/50 z-50" 
+        className="fixed inset-0 bg-black/50 z-[9999]" 
         onClick={onCancel}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-50 min-w-[200px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-[9999] min-w-[200px]">
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
         <input
           type="number"
@@ -92,7 +93,7 @@ export default function HealthBarWidget({ widget }: Props) {
   const barHeight = 'h-4';
 
   const applyDamage = (amount: number) => {
-    const newVal = Math.max(0, currentValue - amount);
+    const newVal = currentValue - amount;
     updateWidgetData(widget.id, { currentValue: newVal });
     setShowDamageModal(false);
   };
@@ -162,25 +163,27 @@ export default function HealthBarWidget({ widget }: Props) {
       </div>
 
       {/* Damage Modal */}
-      {showDamageModal && (
+      {showDamageModal && createPortal(
         <HealthModal
           title="Take Damage"
           onConfirm={applyDamage}
           onCancel={() => setShowDamageModal(false)}
           buttonLabel="Damage"
           isDamage={true}
-        />
+        />,
+        document.body
       )}
 
       {/* Heal Modal */}
-      {showHealModal && (
+      {showHealModal && createPortal(
         <HealthModal
           title="Heal"
           onConfirm={applyHeal}
           onCancel={() => setShowHealModal(false)}
           buttonLabel="Heal"
           isDamage={false}
-        />
+        />,
+        document.body
       )}
     </div>
   );
