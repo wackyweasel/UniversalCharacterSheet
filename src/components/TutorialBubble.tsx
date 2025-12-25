@@ -28,12 +28,15 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
 
   if (!step) return null;
 
-  // For narrow windows, always show at bottom center - simple and reliable
+  // Steps that should show at top on narrow screens (e.g., when Done button is at bottom)
+  const showAtTopOnNarrow = step.id === 'form-click-done';
+
+  // For narrow windows, show at bottom or top depending on step
   if (isNarrow) {
     return (
       <div
         className="fixed z-[100] left-0 right-0 px-4"
-        style={{ bottom: BUBBLE_PADDING }}
+        style={showAtTopOnNarrow ? { top: BUBBLE_PADDING + 50 } : { bottom: BUBBLE_PADDING }}
       >
         <div
           className={`mx-auto p-4 rounded-lg shadow-lg max-w-[400px] ${
@@ -73,12 +76,14 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
             <button
               onClick={exitTutorial}
               className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                darkMode
-                  ? 'bg-white/10 hover:bg-white/20 text-white/70'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                step.id === 'try-widgets'
+                  ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
+                  : darkMode
+                    ? 'bg-white/10 hover:bg-white/20 text-white/70'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
               }`}
             >
-              Exit Tutorial
+              {step.id === 'try-widgets' ? '🎉 End of Tutorial' : 'Exit Tutorial'}
             </button>
           </div>
         </div>
@@ -305,12 +310,14 @@ function PositionedBubble({
           <button
             onClick={exitTutorial}
             className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-              darkMode
-                ? 'bg-white/10 hover:bg-white/20 text-white/70'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+              step.id === 'try-widgets'
+                ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
+                : darkMode
+                  ? 'bg-white/10 hover:bg-white/20 text-white/70'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
             }`}
           >
-            Exit Tutorial
+            {step.id === 'try-widgets' ? '🎉 End of Tutorial' : 'Exit Tutorial'}
           </button>
         </div>
       </div>
