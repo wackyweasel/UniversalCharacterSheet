@@ -7,7 +7,7 @@ import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThe
 import { getCustomTheme } from '../store/useCustomThemeStore';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
-  { type: 'CHECKBOX', label: 'Checkbox' },
+  { type: 'CHECKBOX', label: 'Checklist' },
   { type: 'TOGGLE_GROUP', label: 'Conditions' },
   { type: 'DICE_ROLLER', label: 'Dice Roller' },
   { type: 'DICE_TRAY', label: 'Dice Tray' },
@@ -25,7 +25,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'SPELL_SLOT', label: 'Spell Slots' },
   { type: 'TABLE', label: 'Table' },
   { type: 'TEXT', label: 'Text Area' },
-  { type: 'TIME_TRACKER', label: 'Time Tracker' },
+  { type: 'TIME_TRACKER', label: 'Temporary Effects' },
 ];
 
 interface SidebarProps {

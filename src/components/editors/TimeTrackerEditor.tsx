@@ -12,7 +12,7 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
             className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             value={label || ''}
             onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Time Tracker"
+            placeholder="Temporary Effects"
           />
           {label && (
             <button

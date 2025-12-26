@@ -152,7 +152,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Pass Time</span>
         </label>
-        <p className="text-xs text-theme-muted ml-6 mb-2">Advances time for all Time Tracker widgets</p>
+        <p className="text-xs text-theme-muted ml-6 mb-2">Advances time for all Temporary Effects widgets</p>
         
         {passTime && (
           <div className="ml-6 mt-2">

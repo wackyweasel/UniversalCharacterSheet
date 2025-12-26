@@ -93,7 +93,7 @@ export default function VerticalWidget({
   
   // Widget type to display name mapping (same as toolbox)
   const WIDGET_NAMES: Record<WidgetType, string> = {
-    'CHECKBOX': 'Checkbox',
+    'CHECKBOX': 'Checklist',
     'TOGGLE_GROUP': 'Conditions',
     'DICE_ROLLER': 'Dice Roller',
     'DICE_TRAY': 'Dice Tray',
@@ -110,7 +110,7 @@ export default function VerticalWidget({
     'SPELL_SLOT': 'Spell Slots',
     'TABLE': 'Table',
     'TEXT': 'Text Area',
-    'TIME_TRACKER': 'Time Tracker',
+    'TIME_TRACKER': 'Temporary Effects',
     'ROLL_TABLE': 'Roll Table',
   };
   

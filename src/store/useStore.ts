@@ -465,7 +465,7 @@ export const useStore = create<StoreState>((set, get) => {
             'POOL': 'Resources',
             'TOGGLE_GROUP': 'Conditions',
             'TABLE': 'Table',
-            'TIME_TRACKER': 'Time Tracker',
+            'TIME_TRACKER': 'Temporary Effects',
             'FORM': 'Character Info',
             'REST_BUTTON': 'Rest',
             'PROGRESS_BAR': 'Progress',
