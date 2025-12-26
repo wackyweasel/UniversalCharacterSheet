@@ -106,6 +106,7 @@ export interface WidgetData {
   // Health Bar & Progress Bar
   currentValue?: number;
   maxValue?: number;
+  increment?: number;
   // Progress Bar
   showPercentage?: boolean;
   showValues?: boolean;

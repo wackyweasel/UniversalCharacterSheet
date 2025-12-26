@@ -43,6 +43,24 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
           min={1}
         />
       </div>
+
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Button Increment</label>
+        <input
+          type="number"
+          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+          value={widget.data.increment ?? 1}
+          onChange={(e) => {
+            updateData({ increment: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
+          }}
+          onBlur={(e) => {
+            const val = parseInt(e.target.value) || 1;
+            updateData({ increment: Math.max(1, val) });
+          }}
+          min={1}
+        />
+        <p className="text-xs text-theme-muted mt-1">Amount changed by +/− buttons</p>
+      </div>
     </div>
   );
 }

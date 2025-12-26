@@ -24,12 +24,18 @@ function HealthModal({
   buttonLabel: string;
   isDamage: boolean;
 }) {
-  const [amount, setAmount] = useState<number | string>(1);
+  const [amount, setAmount] = useState<number | ''>('');
 
   const handleConfirm = () => {
-    const val = typeof amount === 'string' ? parseInt(amount) || 1 : amount;
-    onConfirm(Math.max(1, val));
+    if (amount === '' || amount <= 0) {
+      onCancel();
+      return;
+    }
+    onConfirm(amount);
   };
+
+  const increment = () => setAmount(prev => (prev === '' ? 1 : prev + 1));
+  const decrement = () => setAmount(prev => (prev === '' || prev <= 1 ? '' : prev - 1));
 
   return (
     <>
@@ -37,21 +43,40 @@ function HealthModal({
         className="fixed inset-0 bg-black/50 z-[9999]" 
         onClick={onCancel}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-[9999] min-w-[200px]">
+      <div 
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-[9999] min-w-[200px]"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleConfirm();
+          if (e.key === 'Escape') onCancel();
+        }}
+      >
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
-        <input
-          type="number"
-          min="1"
-          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-          onBlur={(e) => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleConfirm();
-            if (e.key === 'Escape') onCancel();
-          }}
-        />
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <button
+            onClick={decrement}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl"
+          >
+            −
+          </button>
+          <input
+            type="number"
+            min="1"
+            className="w-16 h-10 text-center font-bold text-2xl text-theme-ink bg-theme-paper border border-theme-border rounded-button focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
+            onClick={(e) => (e.target as HTMLInputElement).focus()}
+            onMouseDown={(e) => e.stopPropagation()}
+            autoFocus
+          />
+          <button
+            onClick={increment}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl"
+          >
+            +
+          </button>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={onCancel}
@@ -77,7 +102,7 @@ function HealthModal({
 
 export default function HealthBarWidget({ widget }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, currentValue = 10, maxValue = 10 } = widget.data;
+  const { label, currentValue = 10, maxValue = 10, increment = 1 } = widget.data;
   
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [showHealModal, setShowHealModal] = useState(false);
@@ -121,7 +146,7 @@ export default function HealthBarWidget({ widget }: Props) {
       <div className="flex-1 flex items-center gap-1">
         {/* Decrement button */}
         <button
-          onClick={() => updateWidgetData(widget.id, { currentValue: currentValue - 1 })}
+          onClick={() => updateWidgetData(widget.id, { currentValue: currentValue - increment })}
           onMouseDown={(e) => e.stopPropagation()}
           className="w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0"
         >
@@ -148,7 +173,7 @@ export default function HealthBarWidget({ widget }: Props) {
         
         {/* Increment button */}
         <button
-          onClick={() => updateWidgetData(widget.id, { currentValue: Math.min(maxValue, currentValue + 1) })}
+          onClick={() => updateWidgetData(widget.id, { currentValue: Math.min(maxValue, currentValue + increment) })}
           onMouseDown={(e) => e.stopPropagation()}
           className="w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0"
         >
