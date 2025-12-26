@@ -1,7 +1,22 @@
+import { useState } from 'react';
 import { EditorProps } from './types';
 
 export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
-  const { label, roundMode = false } = widget.data;
+  const { label, roundMode = false, effectSuggestions = [] } = widget.data;
+  const [newSuggestion, setNewSuggestion] = useState('');
+
+  const addSuggestion = () => {
+    if (newSuggestion.trim() && !effectSuggestions.includes(newSuggestion.trim())) {
+      updateData({ effectSuggestions: [...effectSuggestions, newSuggestion.trim()] });
+      setNewSuggestion('');
+    }
+  };
+
+  const removeSuggestion = (index: number) => {
+    const updated = [...effectSuggestions];
+    updated.splice(index, 1);
+    updateData({ effectSuggestions: updated });
+  };
 
   return (
     <div className="space-y-4">
@@ -40,6 +55,53 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
         <p className="text-xs text-theme-muted mt-1 ml-6">
           In round mode, time is tracked in rounds instead of real-world time units.
         </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Effect Suggestions</label>
+        <p className="text-xs text-theme-muted mb-2">
+          Add common effects that will appear as suggestions when adding new effects.
+        </p>
+        <div className="flex gap-2 mb-2">
+          <input
+            className="flex-1 px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            value={newSuggestion}
+            onChange={(e) => setNewSuggestion(e.target.value)}
+            placeholder="e.g., Bless, Haste, Shield..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addSuggestion();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={addSuggestion}
+            className="px-3 py-2 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-colors font-bold"
+          >
+            Add
+          </button>
+        </div>
+        {effectSuggestions.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {effectSuggestions.map((suggestion, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-theme-border/30 text-theme-ink rounded-button text-sm"
+              >
+                {suggestion}
+                <button
+                  type="button"
+                  onClick={() => removeSuggestion(index)}
+                  className="text-theme-muted hover:text-red-500 transition-colors ml-1"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       
       <div className="text-sm text-theme-muted">

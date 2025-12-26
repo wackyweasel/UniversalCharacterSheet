@@ -87,7 +87,7 @@ function formatRounds(rounds: number): string {
 
 export default function TimeTrackerWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, timedEffects = [], roundMode = false } = widget.data;
+  const { label, timedEffects = [], roundMode = false, effectSuggestions = [] } = widget.data;
   
   // UI state for expandable sections
   const [showAddForm, setShowAddForm] = useState(false);
@@ -251,6 +251,21 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
       {showAddForm && (
         <Modal title="Add Effect" onClose={cancelAddEffect}>
           <div className="space-y-3">
+            {/* Suggestions as clickable chips */}
+            {effectSuggestions.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {effectSuggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="px-2 py-1 text-xs bg-theme-border/30 text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    onClick={() => setNewEffectName(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
             <input
               className="w-full border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button"
               value={newEffectName}

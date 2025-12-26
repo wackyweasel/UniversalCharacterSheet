@@ -142,6 +142,7 @@ export interface WidgetData {
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;
+  effectSuggestions?: string[];
   // Rest Button
   buttonText?: string;
   healToFull?: boolean;
