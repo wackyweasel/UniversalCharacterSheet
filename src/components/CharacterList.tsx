@@ -89,6 +89,7 @@ export default function CharacterList() {
   const createCharacter = useStore((state) => state.createCharacter);
   const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
+  const updateCharacterName = useStore((state) => state.updateCharacterName);
   const importCharacter = useStore((state) => state.importCharacter);
   const duplicateCharacter = useStore((state) => state.duplicateCharacter);
   const selectCharacter = useStore((state) => state.selectCharacter);
@@ -109,6 +110,8 @@ export default function CharacterList() {
   const [selectedTheme, setSelectedTheme] = useState<string>('default');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [renamingCharacterId, setRenamingCharacterId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -537,7 +540,7 @@ export default function CharacterList() {
                 >{char.sheets.reduce((sum, s) => sum + s.widgets.length, 0)} Widgets • {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}</p>
                 
                 {/* Dropdown Menu */}
-                <div className="absolute top-0 right-0 z-10" ref={openDropdown === char.id ? dropdownRef : undefined}>
+                <div className={`absolute top-0 right-0 ${openDropdown === char.id ? 'z-50' : 'z-10'}`} ref={openDropdown === char.id ? dropdownRef : undefined}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -567,12 +570,38 @@ export default function CharacterList() {
                   
                   {openDropdown === char.id && (
                     <div 
-                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden"
+                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden z-50"
                       style={{ 
                         backgroundColor: 'var(--card-background)',
                         border: '1px solid var(--card-border)'
                       }}
                     >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenameValue(char.name);
+                          setRenamingCharacterId(char.id);
+                          setOpenDropdown(null);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                        style={{ 
+                          color: 'var(--card-ink)',
+                          backgroundColor: 'var(--card-background)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                          e.currentTarget.style.color = 'var(--card-background)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                          e.currentTarget.style.color = 'var(--card-ink)';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Rename
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -702,6 +731,70 @@ export default function CharacterList() {
                 className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-button transition-colors"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Rename Character Modal */}
+      {renamingCharacterId && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => setRenamingCharacterId(null)}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[300px] ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Rename Character</h3>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && renameValue.trim()) {
+                  updateCharacterName(renamingCharacterId, renameValue.trim());
+                  setRenamingCharacterId(null);
+                } else if (e.key === 'Escape') {
+                  setRenamingCharacterId(null);
+                }
+              }}
+              autoFocus
+              className={`w-full px-3 py-2 text-sm font-body rounded-button border mb-4 ${
+                darkMode 
+                  ? 'bg-white/10 border-white/30 text-white' 
+                  : 'bg-theme-background border-theme-border text-theme-ink'
+              }`}
+              placeholder="Character name"
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setRenamingCharacterId(null)}
+                className={`px-3 py-1.5 text-sm font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-theme-ink hover:bg-theme-accent/20'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (renameValue.trim()) {
+                    updateCharacterName(renamingCharacterId, renameValue.trim());
+                    setRenamingCharacterId(null);
+                  }
+                }}
+                className={`px-3 py-1.5 text-sm font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'bg-white text-black hover:bg-white/90' 
+                    : 'bg-theme-accent text-theme-paper hover:opacity-90'
+                }`}
+              >
+                Rename
               </button>
             </div>
           </div>

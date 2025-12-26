@@ -597,7 +597,7 @@ export default function Sheet() {
       </div>
 
       {/* Compact header bar for grid/edit mode */}
-      <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
+      <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 relative">
         {/* Menu button - only on narrow screens */}
         <button
           onClick={() => setGridMenuOpen(!gridMenuOpen)}
@@ -703,8 +703,8 @@ export default function Sheet() {
           </button>
         </div>
         
-        {/* Character name - truncated, editable in edit mode */}
-        <div className="flex-1 min-w-0">
+        {/* Character name - left on mobile, absolutely centered on desktop */}
+        <div className="flex-1 min-w-0 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-[40%] sm:flex-none pointer-events-auto">
           {isEditingName ? (
             <input
               type="text"
@@ -727,11 +727,11 @@ export default function Sheet() {
                 }
               }}
               autoFocus
-              className="font-bold text-sm bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading"
+              className="font-bold text-sm bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading sm:text-center"
             />
           ) : (
             <h1 
-              className={`font-bold text-sm text-theme-ink font-heading truncate ${mode === 'edit' ? 'cursor-pointer' : ''}`}
+              className={`font-bold text-sm text-theme-ink font-heading truncate sm:text-center ${mode === 'edit' ? 'cursor-pointer' : ''}`}
               onClick={() => {
                 if (mode === 'edit') {
                   setEditedName(activeCharacter.name);
@@ -743,6 +743,9 @@ export default function Sheet() {
             </h1>
           )}
         </div>
+        
+        {/* Spacer to push right-side elements - only needed on desktop */}
+        <div className="hidden sm:block sm:flex-1 sm:min-w-0"></div>
         
         {/* Sheet selector */}
         <div className="relative shrink-0">
