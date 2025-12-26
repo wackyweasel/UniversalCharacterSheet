@@ -478,7 +478,6 @@ export default function DraggableWidget({ widget, scale }: Props) {
         onDrag={handleDrag}
         onStop={handleStop}
         scale={scale}
-        grid={[GRID_SIZE, GRID_SIZE]}
         handle=".drag-handle"
         disabled={mode === 'play'}
       >
