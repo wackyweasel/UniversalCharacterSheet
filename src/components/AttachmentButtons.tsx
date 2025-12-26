@@ -13,6 +13,7 @@ interface TouchingEdge {
   x: number;
   y: number;
   orientation: 'horizontal' | 'vertical';
+  direction: 'left' | 'right' | 'up' | 'down'; // direction from widget1 to widget2
   isAttached: boolean;
 }
 
@@ -166,6 +167,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
               x: w1.right,
               y: (overlapTop + overlapBottom) / 2,
               orientation: 'vertical',
+              direction: 'right', // w2 is to the right of w1
               isAttached,
             });
           }
@@ -182,6 +184,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
               x: w1.left,
               y: (overlapTop + overlapBottom) / 2,
               orientation: 'vertical',
+              direction: 'left', // w2 is to the left of w1
               isAttached,
             });
           }
@@ -198,6 +201,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
               x: (overlapLeft + overlapRight) / 2,
               y: w1.bottom,
               orientation: 'horizontal',
+              direction: 'down', // w2 is below w1
               isAttached,
             });
           }
@@ -214,6 +218,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
               x: (overlapLeft + overlapRight) / 2,
               y: w1.top,
               orientation: 'horizontal',
+              direction: 'up', // w2 is above w1
               isAttached,
             });
           }
@@ -298,28 +303,55 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
 
   return (
     <>
-      {visibleEdges.map((edge, index) => (
-        <button
-          key={`${edge.widget1Id}-${edge.widget2Id}-${index}`}
-          data-attach-widget-ids={`${edge.widget1Id},${edge.widget2Id}`}
-          className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all transform -translate-x-1/2 -translate-y-1/2 hover:scale-125 ${
-            edge.isAttached 
-              ? 'bg-green-500 hover:bg-red-500 text-white' 
-              : 'bg-blue-500 hover:bg-green-500 text-white'
-          }`}
-          style={{
-            left: `${edge.x}px`,
-            top: `${edge.y}px`,
-            zIndex: 100,
-          }}
-          onClick={() => handleClick(edge)}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-          title={edge.isAttached ? 'Click to detach widgets' : 'Click to attach widgets'}
-        >
-          {edge.isAttached ? '🔗' : '⊕'}
-        </button>
-      ))}
+      {visibleEdges.map((edge, index) => {
+        // Determine arrow direction based on which widget is active
+        // Arrow points toward the other widget (the one being attached to)
+        const getArrow = () => {
+          if (edge.isAttached) return '✕';
+          const isWidget1Active = activeWidgetId === edge.widget1Id;
+          // direction is from widget1 to widget2
+          // If widget1 is active, arrow points toward widget2 (same as direction)
+          // If widget2 is active, arrow points toward widget1 (opposite direction)
+          if (isWidget1Active) {
+            switch (edge.direction) {
+              case 'right': return '⇥';
+              case 'left': return '⇤';
+              case 'down': return '⤓';
+              case 'up': return '⤒';
+            }
+          } else {
+            switch (edge.direction) {
+              case 'right': return '⇤';
+              case 'left': return '⇥';
+              case 'down': return '⤒';
+              case 'up': return '⤓';
+            }
+          }
+        };
+        
+        return (
+          <button
+            key={`${edge.widget1Id}-${edge.widget2Id}-${index}`}
+            data-attach-widget-ids={`${edge.widget1Id},${edge.widget2Id}`}
+            className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all transform -translate-x-1/2 -translate-y-1/2 hover:scale-125 ${
+              edge.isAttached 
+                ? 'bg-green-500 hover:bg-red-500 text-white' 
+                : 'bg-blue-500 hover:bg-green-500 text-white'
+            }`}
+            style={{
+              left: `${edge.x}px`,
+              top: `${edge.y}px`,
+              zIndex: 100,
+            }}
+            onClick={() => handleClick(edge)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            title={edge.isAttached ? 'Click to detach widgets' : 'Click to attach widgets'}
+          >
+            {getArrow()}
+          </button>
+        );
+      })}
     </>
   );
 }
