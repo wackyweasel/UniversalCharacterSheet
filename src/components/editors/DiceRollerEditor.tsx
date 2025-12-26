@@ -1,14 +1,19 @@
 import { useState, useMemo } from 'react';
-import { DiceGroup } from '../../types';
+import { DiceGroup, CustomDie } from '../../types';
 import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
+
+// Type guard to check if a die is a custom die
+const isCustomDie = (die: number | CustomDie): die is CustomDie => {
+  return typeof die === 'object' && 'faces' in die && Array.isArray(die.faces);
+};
 
 export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0 } = widget.data;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
 
-  // Get all custom dice from the current character
+  // Get all custom dice from the current character (from both DICE_ROLLER and DICE_TRAY widgets)
   const characters = useStore(state => state.characters);
   const activeCharacterId = useStore(state => state.activeCharacterId);
   
@@ -18,9 +23,10 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     
     const customDice: { name: string; faces: string[] }[] = [];
     
-    // Search all sheets for dice roller widgets with custom dice
+    // Search all sheets for dice roller and dice tray widgets with custom dice
     for (const sheet of activeChar.sheets) {
       for (const w of sheet.widgets) {
+        // Check DICE_ROLLER widgets
         if (w.type === 'DICE_ROLLER' && w.data.diceGroups) {
           for (const group of w.data.diceGroups as DiceGroup[]) {
             if (group.customFaces && group.customFaces.length > 0 && group.customDiceName) {
@@ -29,6 +35,20 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                 customDice.push({
                   name: group.customDiceName,
                   faces: group.customFaces
+                });
+              }
+            }
+          }
+        }
+        // Check DICE_TRAY widgets
+        if (w.type === 'DICE_TRAY' && w.data.availableDice) {
+          for (const die of w.data.availableDice as (number | CustomDie)[]) {
+            if (isCustomDie(die) && die.name) {
+              // Avoid duplicates by name
+              if (!customDice.some(d => d.name === die.name)) {
+                customDice.push({
+                  name: die.name,
+                  faces: die.faces
                 });
               }
             }

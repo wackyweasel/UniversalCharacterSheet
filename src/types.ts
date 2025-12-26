@@ -82,6 +82,11 @@ export interface DiceGroup {
   customDiceName?: string; // Optional name for custom dice
 }
 
+export interface CustomDie {
+  name: string;
+  faces: string[]; // Custom faces (numbers, emojis, strings, etc.)
+}
+
 export interface PoolResource {
   name: string;
   max: number;
@@ -110,7 +115,7 @@ export interface WidgetData {
   modifier?: number;
   diceGroups?: DiceGroup[];
   // Dice Tray
-  availableDice?: number[];
+  availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
   spellLevels?: SpellLevel[];
   // Number

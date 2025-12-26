@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Widget } from '../../types';
+import { Widget, CustomDie } from '../../types';
 
 interface Props {
   widget: Widget;
@@ -9,14 +9,34 @@ interface Props {
 }
 
 interface DiceInPool {
-  faces: number;
-  id: number; // unique id for each die in pool
+  faces: number | string[]; // number for standard dice, string[] for custom dice
+  id: number;
+  customDieName?: string; // Name of the custom die if applicable
+}
+
+interface RollResultItem {
+  faces: number | string[];
+  roll: number | string;
+  customDieName?: string;
 }
 
 interface RollResult {
-  dice: { faces: number; roll: number }[];
-  total: number;
+  dice: RollResultItem[];
+  total: number | null; // null if no numeric results
+  aggregatedResults: AggregatedResult[];
 }
+
+interface AggregatedResult {
+  value: string;
+  count: number;
+  isNumeric: boolean;
+  numericTotal?: number;
+}
+
+// Type guard to check if a die is a custom die
+const isCustomDie = (die: number | CustomDie): die is CustomDie => {
+  return typeof die === 'object' && 'faces' in die && Array.isArray(die.faces);
+};
 
 export default function DiceTrayWidget({ widget }: Props) {
   const { label, availableDice = [4, 6, 8, 10, 12, 20] } = widget.data;
@@ -32,10 +52,99 @@ export default function DiceTrayWidget({ widget }: Props) {
   const smallTextClass = 'text-[10px]';
   const gapClass = 'gap-1';
 
-  const addDieToPool = (faces: number) => {
-    setDicePool(prev => [...prev, { faces, id: nextId }]);
+  // Check if a string is purely numeric
+  const isNumericString = (val: string | number): boolean => {
+    if (typeof val === 'number') return true;
+    return !isNaN(Number(val)) && val.trim() !== '';
+  };
+
+  // Split a string into individual graphemes (handles emojis properly)
+  const splitIntoGraphemes = (str: string): string[] => {
+    if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+      const SegmenterClass = (Intl as any).Segmenter;
+      const segmenter = new SegmenterClass('en', { granularity: 'grapheme' });
+      return Array.from(segmenter.segment(str), (s: any) => s.segment);
+    }
+    return [...str];
+  };
+
+  // Check if a string is made up of repeated identical graphemes
+  const expandRepeatedGraphemes = (str: string): string[] => {
+    const graphemes = splitIntoGraphemes(str);
+    if (graphemes.length <= 1) return [str];
+    const first = graphemes[0];
+    const allSame = graphemes.every(g => g === first);
+    if (allSame) return graphemes;
+    return [str];
+  };
+
+  // Parse a face value that may contain multiple values separated by ,
+  const parseFaceValues = (face: string | number): (string | number)[] => {
+    if (typeof face === 'number') return [face];
+    const results: (string | number)[] = [];
+    const parts = face.split(',').map(v => v.trim()).filter(v => v.length > 0);
+    for (const part of parts) {
+      if (isNumericString(part)) {
+        results.push(part);
+      } else {
+        const expanded = expandRepeatedGraphemes(part);
+        results.push(...expanded);
+      }
+    }
+    return results;
+  };
+
+  // Aggregate roll results
+  const aggregateResults = (allRolls: (number | string)[]): AggregatedResult[] => {
+    const numericSum: number[] = [];
+    const nonNumericCounts = new Map<string, number>();
+
+    for (const roll of allRolls) {
+      const values = parseFaceValues(roll);
+      for (const val of values) {
+        if (isNumericString(val)) {
+          numericSum.push(typeof val === 'number' ? val : Number(val));
+        } else {
+          const key = String(val);
+          nonNumericCounts.set(key, (nonNumericCounts.get(key) || 0) + 1);
+        }
+      }
+    }
+
+    const results: AggregatedResult[] = [];
+
+    if (numericSum.length > 0) {
+      const total = numericSum.reduce((a, b) => a + b, 0);
+      results.push({
+        value: String(total),
+        count: numericSum.length,
+        isNumeric: true,
+        numericTotal: total
+      });
+    }
+
+    const sortedNonNumeric = Array.from(nonNumericCounts.entries())
+      .sort((a, b) => b[1] - a[1]);
+    
+    for (const [value, count] of sortedNonNumeric) {
+      results.push({
+        value,
+        count,
+        isNumeric: false
+      });
+    }
+
+    return results;
+  };
+
+  const addDieToPool = (die: number | CustomDie) => {
+    if (isCustomDie(die)) {
+      setDicePool(prev => [...prev, { faces: die.faces, id: nextId, customDieName: die.name }]);
+    } else {
+      setDicePool(prev => [...prev, { faces: die, id: nextId }]);
+    }
     setNextId(prev => prev + 1);
-    setResult(null); // Clear previous result when adding dice
+    setResult(null);
   };
 
   const clearPool = () => {
@@ -49,34 +158,85 @@ export default function DiceTrayWidget({ widget }: Props) {
     setIsRolling(true);
     
     setTimeout(() => {
-      const rolls: { faces: number; roll: number }[] = [];
-      let sum = 0;
+      const rolls: RollResultItem[] = [];
+      const allRolls: (number | string)[] = [];
       
       for (const die of dicePool) {
-        const roll = Math.floor(Math.random() * die.faces) + 1;
-        rolls.push({ faces: die.faces, roll });
-        sum += roll;
+        if (Array.isArray(die.faces)) {
+          // Custom die - roll from faces array
+          const faceIndex = Math.floor(Math.random() * die.faces.length);
+          const roll = die.faces[faceIndex];
+          rolls.push({ faces: die.faces, roll, customDieName: die.customDieName });
+          allRolls.push(roll);
+        } else {
+          // Standard die - roll 1 to faces
+          const roll = Math.floor(Math.random() * die.faces) + 1;
+          rolls.push({ faces: die.faces, roll });
+          allRolls.push(roll);
+        }
       }
       
-      setResult({ dice: rolls, total: sum });
+      const aggregated = aggregateResults(allRolls);
+      const numericResult = aggregated.find(r => r.isNumeric);
+      const total = numericResult ? numericResult.numericTotal || 0 : null;
+      
+      setResult({ dice: rolls, total, aggregatedResults: aggregated });
       setIsRolling(false);
-      setDicePool([]); // Clear pool after rolling
+      setDicePool([]);
       setNextId(1);
     }, 300);
   };
 
-  // Group dice in pool by faces for display
-  const groupedPool = dicePool.reduce((acc, die) => {
-    acc[die.faces] = (acc[die.faces] || 0) + 1;
-    return acc;
-  }, {} as Record<number, number>);
-
+  // Group dice in pool by type for display
   const buildPoolNotation = () => {
-    const parts = Object.entries(groupedPool)
-      .sort(([a], [b]) => Number(b) - Number(a)) // Sort by faces descending
-      .map(([faces, count]) => `${count}d${faces}`);
+    const standardDice: Record<number, number> = {};
+    const customDice: Record<string, number> = {};
+    
+    for (const die of dicePool) {
+      if (Array.isArray(die.faces)) {
+        const name = die.customDieName || 'custom';
+        customDice[name] = (customDice[name] || 0) + 1;
+      } else {
+        standardDice[die.faces] = (standardDice[die.faces] || 0) + 1;
+      }
+    }
+    
+    const parts: string[] = [];
+    
+    // Add standard dice (sorted by faces descending)
+    Object.entries(standardDice)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .forEach(([faces, count]) => {
+        parts.push(`${count}d${faces}`);
+      });
+    
+    // Add custom dice
+    Object.entries(customDice).forEach(([name, count]) => {
+      parts.push(count > 1 ? `${count}× ${name}` : name);
+    });
+    
     return parts.length > 0 ? parts.join(' + ') : 'Empty';
   };
+
+  // Format the aggregated result for display
+  const formatAggregatedResult = () => {
+    if (!result) return '';
+    
+    const parts: string[] = [];
+    
+    for (const agg of result.aggregatedResults) {
+      if (agg.isNumeric) {
+        parts.push(String(agg.numericTotal || 0));
+      } else {
+        parts.push(`${agg.count}${agg.value}`);
+      }
+    }
+    
+    return parts.join(' | ');
+  };
+
+  // Check if result has any non-numeric values
+  const hasNonNumericResults = result?.aggregatedResults.some(r => !r.isNumeric);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -88,17 +248,33 @@ export default function DiceTrayWidget({ widget }: Props) {
 
       {/* Available Dice Buttons */}
       <div className="flex flex-wrap gap-1 justify-center flex-shrink-0">
-        {(availableDice as number[]).map((faces) => (
-          <button
-            key={faces}
-            onClick={() => addDieToPool(faces)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px]`}
-            title={`Add d${faces}`}
-          >
-            d{faces}
-          </button>
-        ))}
+        {(availableDice as (number | CustomDie)[]).map((die, index) => {
+          if (isCustomDie(die)) {
+            return (
+              <button
+                key={`custom-${die.name}-${index}`}
+                onClick={() => addDieToPool(die)}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px]`}
+                title={`Add ${die.name} (${die.faces.length} faces: ${die.faces.slice(0, 3).join(', ')}${die.faces.length > 3 ? '...' : ''})`}
+              >
+                {die.name}
+              </button>
+            );
+          } else {
+            return (
+              <button
+                key={`standard-${die}`}
+                onClick={() => addDieToPool(die)}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px]`}
+                title={`Add d${die}`}
+              >
+                d{die}
+              </button>
+            );
+          }
+        })}
       </div>
 
       {/* Roll and Clear Buttons */}
@@ -132,17 +308,24 @@ export default function DiceTrayWidget({ widget }: Props) {
       <div className={`text-center border-t border-theme-border/50 pt-1 flex-shrink-0`}>
         {result && !isRolling ? (
           <>
-            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>{result.total}</div>
+            {/* Show aggregated result for mixed/custom dice, or just total for standard */}
+            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
+              {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+            </div>
             <div className={`${smallTextClass} text-theme-muted font-body`}>
               {result.dice.map((d, i) => (
                 <span key={i}>
                   {i > 0 && ' + '}
-                  <span title={`d${d.faces}`}>{d.roll}</span>
+                  <span title={Array.isArray(d.faces) ? (d.customDieName || 'custom') : `d${d.faces}`}>
+                    {d.roll}
+                  </span>
                 </span>
               ))}
             </div>
-            {/* Critical roll detection for single d20 */}
-            {result.dice.length === 1 && result.dice[0].faces === 20 && (
+            {/* Critical roll detection for single d20 (only for standard dice) */}
+            {result.dice.length === 1 && 
+             typeof result.dice[0].faces === 'number' && 
+             result.dice[0].faces === 20 && (
               <>
                 {result.dice[0].roll === 20 && (
                   <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT 20!</div>
