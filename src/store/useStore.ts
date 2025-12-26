@@ -96,6 +96,7 @@ interface StoreState {
   createCharacter: (name: string) => void;
   createCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
   importCharacter: (character: Character) => void;
+  duplicateCharacter: (id: string) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
   updateCharacterName: (id: string, name: string) => void;
@@ -222,6 +223,25 @@ export const useStore = create<StoreState>((set, get) => {
         ...character,
         id: uuidv4(),
         name: character.name,
+        sheets: newSheets,
+        activeSheetId
+      };
+
+      return {
+        characters: [...state.characters, newChar]
+      };
+    }),
+
+    duplicateCharacter: (id) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (!character) return state;
+
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
+
+      const newChar: Character = {
+        ...character,
+        id: uuidv4(),
+        name: `${character.name} (copy)`,
         sheets: newSheets,
         activeSheetId
       };
