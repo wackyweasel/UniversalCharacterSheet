@@ -359,6 +359,22 @@ export default function CharacterList() {
               </svg>
               <span>Backup</span>
             </button>
+            <a
+              href="https://buymeacoffee.com/wackyweasel"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                darkMode 
+                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+              }`}
+              title="Support the developer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              <span>Donate</span>
+            </a>
           </div>
           
           {/* Mobile menu button - visible on small screens */}
@@ -440,6 +456,22 @@ export default function CharacterList() {
                   </svg>
                   <span>Backup</span>
                 </button>
+                <a
+                  href="https://buymeacoffee.com/wackyweasel"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowHeaderMenu(false)}
+                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                    darkMode 
+                      ? 'text-white hover:bg-white/10' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  <span>Donate</span>
+                </a>
               </div>
             )}
           </div>
