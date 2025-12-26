@@ -533,7 +533,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
           
           {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
-          {mode === 'edit' && (showControls || (tutorialStep === 16 && widget.type === 'FORM')) && (tutorialStep === null || tutorialStep >= 16) && (
+          {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
+          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM')) && (tutorialStep === null || tutorialStep >= 16) && (
             <div className="absolute -top-3 -right-3 z-[200]" ref={dropdownRef}>
               <button
                 data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
