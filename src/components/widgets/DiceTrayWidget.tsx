@@ -41,6 +41,7 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 export default function DiceTrayWidget({ widget }: Props) {
   const { label, availableDice = [4, 6, 8, 10, 12, 20] } = widget.data;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
+  const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [nextId, setNextId] = useState(1);
@@ -145,6 +146,7 @@ export default function DiceTrayWidget({ widget }: Props) {
     }
     setNextId(prev => prev + 1);
     setResult(null);
+    setLastRolledPool([]);
   };
 
   const clearPool = () => {
@@ -182,9 +184,44 @@ export default function DiceTrayWidget({ widget }: Props) {
       
       setResult({ dice: rolls, total, aggregatedResults: aggregated });
       setIsRolling(false);
+      setLastRolledPool([...dicePool]);
       setDicePool([]);
       setNextId(1);
     }, 300);
+  };
+
+  const rerollDice = () => {
+    if (lastRolledPool.length === 0 || isRolling) return;
+    setDicePool([...lastRolledPool]);
+    // Use setTimeout to ensure state is updated before rolling
+    setTimeout(() => {
+      setIsRolling(true);
+      setTimeout(() => {
+        const rolls: RollResultItem[] = [];
+        const allRolls: (number | string)[] = [];
+        
+        for (const die of lastRolledPool) {
+          if (Array.isArray(die.faces)) {
+            const faceIndex = Math.floor(Math.random() * die.faces.length);
+            const roll = die.faces[faceIndex];
+            rolls.push({ faces: die.faces, roll, customDieName: die.customDieName });
+            allRolls.push(roll);
+          } else {
+            const roll = Math.floor(Math.random() * die.faces) + 1;
+            rolls.push({ faces: die.faces, roll });
+            allRolls.push(roll);
+          }
+        }
+        
+        const aggregated = aggregateResults(allRolls);
+        const numericResult = aggregated.find(r => r.isNumeric);
+        const total = numericResult ? numericResult.numericTotal || 0 : null;
+        
+        setResult({ dice: rolls, total, aggregatedResults: aggregated });
+        setIsRolling(false);
+        setDicePool([]);
+      }, 300);
+    }, 0);
   };
 
   // Group dice in pool by type for display
@@ -299,6 +336,19 @@ export default function DiceTrayWidget({ widget }: Props) {
               className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button`}
             >
               Clear
+            </button>
+          )}
+          {dicePool.length === 0 && lastRolledPool.length > 0 && (
+            <button
+              onClick={rerollDice}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper`}
+              title="Reroll last dice"
+              disabled={isRolling}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             </button>
           )}
         </div>
