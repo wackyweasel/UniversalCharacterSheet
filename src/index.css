@@ -149,6 +149,10 @@
   .safe-area-top {
     padding-top: env(safe-area-inset-top);
   }
+  
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }
 
 /* Subtle pulse animation for tutorial bubbles */
