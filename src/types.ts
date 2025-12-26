@@ -170,6 +170,7 @@ export interface WidgetData {
 export interface TimedEffect {
   name: string;
   remainingSeconds: number;
+  initialSeconds?: number;
 }
 
 export interface Widget {

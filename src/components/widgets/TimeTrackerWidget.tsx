@@ -113,7 +113,8 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
       const duration = roundMode ? newEffectTime : parseTimeToSeconds(newEffectTime, newEffectUnit);
       const newEffect: TimedEffect = {
         name: newEffectName.trim(),
-        remainingSeconds: duration
+        remainingSeconds: duration,
+        initialSeconds: duration
       };
       updateWidgetData(widget.id, { 
         timedEffects: [...timedEffects, newEffect] 
@@ -191,22 +192,35 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
         {(timedEffects as TimedEffect[]).map((effect, idx) => (
           <div 
             key={idx} 
-            className={`flex items-center group px-1.5 py-0.5 rounded-button border ${
+            className={`flex items-center gap-2 px-2 py-1 rounded-button border ${
               effect.remainingSeconds <= 0 
                 ? 'bg-theme-accent/20 border-theme-accent animate-pulse' 
-                : 'border-theme-border/30 hover:border-theme-border'
+                : 'bg-theme-paper/50 border-theme-border'
             }`}
           >
-            <span className={`flex-1 min-w-0 truncate font-medium ${effect.remainingSeconds <= 0 ? 'text-theme-accent' : 'text-theme-ink'}`}>
+            <span className={`flex-1 min-w-0 truncate font-medium text-xs ${effect.remainingSeconds <= 0 ? 'text-theme-accent' : 'text-theme-ink'}`}>
               {effect.name}
             </span>
-            <span className={`flex-shrink-0 ml-2 ${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
+            <span className={`flex-shrink-0 text-xs ${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
               {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
             </span>
             <button 
-              onClick={() => removeEffect(idx)}
-              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 px-1 flex-shrink-0"
+              onClick={() => {
+                const updated = [...timedEffects];
+                updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
+                updateWidgetData(widget.id, { timedEffects: updated });
+              }}
+              className="flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
               onMouseDown={(e) => e.stopPropagation()}
+              title="Reset to initial duration"
+            >
+              ↺
+            </button>
+            <button 
+              onClick={() => removeEffect(idx)}
+              className="flex-shrink-0 px-2 py-0.5 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+              onMouseDown={(e) => e.stopPropagation()}
+              title="Remove effect"
             >
               ×
             </button>
