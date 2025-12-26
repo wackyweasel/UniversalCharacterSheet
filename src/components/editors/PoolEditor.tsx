@@ -6,7 +6,8 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     maxPool = 5, 
     poolStyle = 'dots', 
     showPoolCount = true,
-    poolResources = []
+    poolResources = [],
+    inlineLabels = false
   } = widget.data;
 
   const hasMultipleResources = poolResources.length > 0;
@@ -225,6 +226,18 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         />
         <span className="text-sm text-theme-ink">Show Counter (e.g., 3 / 5)</span>
       </label>
+
+      {hasMultipleResources && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={inlineLabels}
+            onChange={(e) => updateData({ inlineLabels: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Inline labels with icons</span>
+        </label>
+      )}
     </div>
   );
 }

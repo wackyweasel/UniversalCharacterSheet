@@ -65,7 +65,8 @@ export default function PoolWidget({ widget, height }: Props) {
     currentPool = 5, 
     poolStyle = 'dots',
     showPoolCount = true,
-    poolResources = []
+    poolResources = [],
+    inlineLabels = false
   } = widget.data;
 
   // Fixed small sizing
@@ -124,12 +125,18 @@ export default function PoolWidget({ widget, height }: Props) {
         >
           {poolResources.map((resource: PoolResource, idx: number) => (
             <div key={idx} className={`flex flex-col ${gapClass}`}>
-              {resource.name && (
+              {resource.name && !inlineLabels && (
                 <div className={`font-medium ${counterClass} text-theme-ink font-body`}>
                   {resource.name}
                 </div>
               )}
-              <div className="flex flex-wrap gap-0.5 content-start">
+              <div className={`flex ${inlineLabels ? 'justify-between items-center' : 'flex-wrap gap-0.5 content-start items-center'}`}>
+                {resource.name && inlineLabels && (
+                  <span className={`font-medium ${counterClass} text-theme-ink font-body`}>
+                    {resource.name}
+                  </span>
+                )}
+                <div className={`flex ${inlineLabels ? 'gap-0.5' : 'flex-wrap gap-0.5'}`}>
                 {Array.from({ length: resource.max }).map((_, pointIdx) => (
                   <button
                     key={pointIdx}
@@ -141,6 +148,7 @@ export default function PoolWidget({ widget, height }: Props) {
                     {getSymbolForStyle(pointIdx < resource.current, resource.style)}
                   </button>
                 ))}
+                </div>
               </div>
               {showPoolCount && (
                 <div className={`${counterClass} text-theme-muted font-body`}>

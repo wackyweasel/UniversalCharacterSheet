@@ -135,6 +135,7 @@ export interface WidgetData {
   poolStyle?: string;
   showPoolCount?: boolean;
   poolResources?: PoolResource[];
+  inlineLabels?: boolean;
   // Toggle Group
   toggleItems?: ToggleItem[];
   // Table
