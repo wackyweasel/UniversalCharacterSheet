@@ -117,9 +117,19 @@ export default function HealthBarWidget({ widget }: Props) {
         </div>
       )}
       
-      {/* Health Bar */}
-      <div className="flex-1 flex flex-col justify-center">
-        <div className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}>
+      {/* Health Bar with +/- buttons */}
+      <div className="flex-1 flex items-center gap-1">
+        {/* Decrement button */}
+        <button
+          onClick={() => updateWidgetData(widget.id, { currentValue: currentValue - 1 })}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0"
+        >
+          −
+        </button>
+        
+        {/* Health Bar */}
+        <div className={`relative ${barHeight} flex-1 bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}>
           {/* Filled portion - uses theme accent color */}
           <div 
             className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
@@ -135,6 +145,15 @@ export default function HealthBarWidget({ widget }: Props) {
             {currentValue} / {maxValue}
           </div>
         </div>
+        
+        {/* Increment button */}
+        <button
+          onClick={() => updateWidgetData(widget.id, { currentValue: Math.min(maxValue, currentValue + 1) })}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0"
+        >
+          +
+        </button>
       </div>
 
       {/* Controls */}
