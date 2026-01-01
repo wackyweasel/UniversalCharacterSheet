@@ -725,7 +725,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
           {/* Print Settings Button - visible on hover in print mode for widgets with print settings */}
           {mode === 'print' && hasPrintSettings && (showControls || showPrintSettings) && (
-            <div className="absolute -top-3 -right-3 z-[9999]" ref={printSettingsRef}>
+            <div className="absolute -top-3 -right-3 z-[9999]" ref={printSettingsRef} data-print-hide="true">
               <button
                 className="w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-sm"
                 onClick={(e) => {
