@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 
 interface UseTouchCameraOptions {
-  mode: 'play' | 'edit' | 'vertical';
+  mode: 'play' | 'edit' | 'vertical' | 'print';
   onPanChange: (updater: (prev: { x: number; y: number }) => { x: number; y: number }) => void;
   onScaleChange: (scale: number) => void;
   onPinchingChange: (isPinching: boolean) => void;

@@ -4,13 +4,15 @@ import { useRef, useEffect } from 'react';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
 
 export default function TextWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const mode = useStore((state) => state.mode);
+  const isPrintMode = mode === 'print';
   const { label, text = '' } = widget.data;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,7 +60,7 @@ export default function TextWidget({ widget, height }: Props) {
         style={isAutoHeight ? { minHeight: '60px', overflow: 'hidden', height: 'auto' } : { height: `${textareaHeight}px` }}
         value={text}
         onChange={handleTextChange}
-        placeholder="Enter text here..."
+        placeholder={isPrintMode ? '' : 'Enter text here...'}
         onMouseDown={(e) => e.stopPropagation()}
       />
     </div>

@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -87,6 +87,8 @@ function formatRounds(rounds: number): string {
 
 export default function TimeTrackerWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const mode = useStore((state) => state.mode);
+  const isPrintMode = mode === 'print';
   const { label, timedEffects = [], roundMode = false, effectSuggestions = [] } = widget.data;
   
   // UI state for expandable sections
@@ -210,7 +212,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                 updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
                 updateWidgetData(widget.id, { timedEffects: updated });
               }}
-              className="flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className={`flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors ${isPrintMode ? 'opacity-0' : ''}`}
               onMouseDown={(e) => e.stopPropagation()}
               title="Reset to initial duration"
             >
@@ -218,7 +220,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             </button>
             <button 
               onClick={() => removeEffect(idx)}
-              className="flex-shrink-0 px-2 py-0.5 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+              className={`flex-shrink-0 px-2 py-0.5 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors ${isPrintMode ? 'opacity-0' : ''}`}
               onMouseDown={(e) => e.stopPropagation()}
               title="Remove effect"
             >
@@ -227,12 +229,12 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
           </div>
         ))}
         {timedEffects.length === 0 && !showAddForm && (
-          <div className="text-theme-muted italic text-center py-2">No active effects</div>
+          <div className={`text-theme-muted italic text-center py-2 ${isPrintMode ? 'opacity-0' : ''}`}>No active effects</div>
         )}
       </div>
 
       {/* Action Buttons Row - Always visible */}
-      <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0`}>
+      <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
         <button
           onClick={() => setShowAddForm(true)}
           className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold`}

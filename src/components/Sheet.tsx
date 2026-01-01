@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
-import { applyTheme, applyCustomTheme } from '../store/useThemeStore';
+import { applyTheme, applyCustomTheme, THEMES } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { usePrintStore } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
 
@@ -14,6 +15,7 @@ import DraggableWidget from './DraggableWidget';
 import VerticalWidget from './VerticalWidget';
 import AttachmentButtons from './AttachmentButtons';
 import WidgetShadows from './WidgetShadows';
+import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import { WidgetType, Widget } from '../types';
 
@@ -51,6 +53,20 @@ export default function Sheet() {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
   
+  // Print mode state
+  const printerFriendly = usePrintStore((state) => state.printerFriendly);
+  const bordersDisabled = usePrintStore((state) => state.bordersDisabled);
+  const shadowsDisabled = usePrintStore((state) => state.shadowsDisabled);
+  const printArea = usePrintStore((state) => state.printArea);
+  const previousMode = usePrintStore((state) => state.previousMode);
+  const setPrinterFriendly = usePrintStore((state) => state.setPrinterFriendly);
+  const setBordersDisabled = usePrintStore((state) => state.setBordersDisabled);
+  const setShadowsDisabled = usePrintStore((state) => state.setShadowsDisabled);
+  const setPrintArea = usePrintStore((state) => state.setPrintArea);
+  const setPreviousMode = usePrintStore((state) => state.setPreviousMode);
+  const calculatePrintAreaFromWidgets = usePrintStore((state) => state.calculatePrintAreaFromWidgets);
+  const resetPrintSettings = usePrintStore((state) => state.resetPrintSettings);
+  
   // Dark mode state (read from localStorage to match CharacterList)
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
@@ -87,6 +103,7 @@ export default function Sheet() {
   
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
+  const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
   
   // Vertical mode drag state
@@ -96,6 +113,7 @@ export default function Sheet() {
   // Pan/Zoom camera hook
   const [isPinching, setIsPinching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const printAreaRef = useRef<HTMLDivElement>(null);
   
   const {
     pan,
@@ -167,6 +185,139 @@ export default function Sheet() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
+
+  // Print mode handlers
+  const enterPrintMode = useCallback(() => {
+    setPreviousMode(mode as 'play' | 'edit' | 'vertical');
+    setMode('print');
+    // Calculate initial print area from widgets
+    const area = calculatePrintAreaFromWidgets(activeSheetWidgets);
+    if (area) {
+      setPrintArea(area);
+    }
+  }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea]);
+
+  const exitPrintMode = useCallback((targetMode?: 'play' | 'edit') => {
+    const modeToSwitchTo = targetMode || previousMode || 'play';
+    setMode(modeToSwitchTo);
+    resetPrintSettings();
+  }, [previousMode, setMode, resetPrintSettings]);
+
+  // Recalculate print area on mount if already in print mode (e.g., after page refresh)
+  useEffect(() => {
+    if (mode === 'print' && !printArea && activeSheetWidgets.length > 0) {
+      const area = calculatePrintAreaFromWidgets(activeSheetWidgets);
+      if (area) {
+        setPrintArea(area);
+      }
+    }
+  }, [mode, printArea, activeSheetWidgets, calculatePrintAreaFromWidgets, setPrintArea]);
+
+  // Apply print mode theme overrides
+  useEffect(() => {
+    if (mode === 'print' && activeCharacter) {
+      const root = document.documentElement;
+      
+      // First, restore the base theme so toggling OFF works correctly
+      const themeId = activeCharacter.theme || 'default';
+      const customTheme = getCustomTheme(themeId);
+      if (customTheme) {
+        applyCustomTheme(customTheme);
+      } else {
+        applyTheme(themeId);
+      }
+      
+      // Then apply any active print overrides on top
+      if (printerFriendly) {
+        // Apply classic theme colors for printer-friendly mode
+        const classicTheme = THEMES.find(t => t.id === 'default');
+        if (classicTheme) {
+          root.style.setProperty('--color-background', classicTheme.colors.background);
+          root.style.setProperty('--color-paper', classicTheme.colors.paper);
+          root.style.setProperty('--color-ink', classicTheme.colors.ink);
+          root.style.setProperty('--color-accent', classicTheme.colors.accent);
+          root.style.setProperty('--color-accent-hover', classicTheme.colors.accentHover);
+          root.style.setProperty('--color-border', classicTheme.colors.border);
+          root.style.setProperty('--color-shadow', classicTheme.colors.shadow);
+          root.style.setProperty('--color-muted', classicTheme.colors.muted);
+          root.style.setProperty('--color-glow', classicTheme.colors.glow);
+        }
+      }
+      
+      // Always disable texture in print mode
+      root.style.setProperty('--card-texture-key', 'none');
+      root.style.setProperty('--card-texture', 'none');
+      
+      // Note: bordersDisabled is now handled inline in DraggableWidget
+      // so buttons keep their borders while widget borders are removed
+      
+      if (shadowsDisabled) {
+        root.style.setProperty('--shadow-style', 'none');
+      }
+    }
+  }, [mode, activeCharacter, printerFriendly, bordersDisabled, shadowsDisabled]);
+
+  // Restore theme when exiting print mode
+  useEffect(() => {
+    if (mode !== 'print' && activeCharacter) {
+      const themeId = activeCharacter.theme || 'default';
+      const customTheme = getCustomTheme(themeId);
+      if (customTheme) {
+        applyCustomTheme(customTheme);
+      } else {
+        applyTheme(themeId);
+      }
+    }
+  }, [mode, activeCharacter?.theme]);
+
+  // Print function - uses native browser print with a temporary wrapper element
+  const handlePrint = useCallback(() => {
+    if (!printArea) return;
+    
+    // Get the canvas content
+    const canvas = document.querySelector('.print-canvas-content');
+    if (!canvas) return;
+    
+    // Clone the canvas content
+    const clone = canvas.cloneNode(true) as HTMLElement;
+    
+    // Remove the print area overlay from the clone
+    const overlays = clone.querySelectorAll('.print-area-overlay');
+    overlays.forEach(el => el.remove());
+    
+    // Apply visibility hidden to elements marked with data-print-hide
+    const hiddenElements = clone.querySelectorAll('[data-print-hide="true"]');
+    hiddenElements.forEach(el => {
+      (el as HTMLElement).style.visibility = 'hidden';
+    });
+    
+    // Position the clone to show only the print area
+    clone.style.transform = `translate(${-printArea.x}px, ${-printArea.y}px)`;
+    clone.style.position = 'absolute';
+    clone.style.left = '0';
+    clone.style.top = '0';
+    
+    // Create a wrapper element for printing
+    const printWrapper = document.createElement('div');
+    printWrapper.className = 'print-content-wrapper';
+    printWrapper.style.width = `${printArea.width}px`;
+    printWrapper.style.height = `${printArea.height}px`;
+    printWrapper.style.overflow = 'hidden';
+    printWrapper.style.position = 'relative';
+    printWrapper.style.background = 'var(--color-paper)';
+    printWrapper.appendChild(clone);
+    
+    // Add the wrapper to the body
+    document.body.appendChild(printWrapper);
+    
+    // Trigger native print
+    window.print();
+    
+    // Remove the wrapper after printing
+    setTimeout(() => {
+      document.body.removeChild(printWrapper);
+    }, 100);
+  }, [printArea]);
 
   // Handle tutorial step 22 -> 23: load tutorial preset
   useEffect(() => {
@@ -528,7 +679,7 @@ export default function Sheet() {
     );
   }
 
-  // Render Grid Mode (Edit or Play)
+  // Render Grid Mode (Edit, Play, or Print)
   return (
     <div ref={containerRef} className="w-full h-screen overflow-hidden relative bg-theme-background">
       {mode === 'edit' && (
@@ -554,28 +705,31 @@ export default function Sheet() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
+        onDragOver={mode !== 'print' ? handleDragOver : undefined}
+        onDrop={mode !== 'print' ? handleDrop : undefined}
       >
         {/* Transformed Content */}
         <div 
-          className="absolute top-0 left-0 w-full h-full origin-top-left"
+          ref={printAreaRef}
+          className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
           }}
         >
-          {/* Infinite Grid Background - hidden in play mode */}
-          {mode !== 'play' && (
+          {/* Infinite Grid Background - hidden in play and print mode */}
+          {mode !== 'play' && mode !== 'print' && (
             <div 
               className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] pattern-grid opacity-20 pointer-events-none" 
             />
           )}
 
-          {/* Shadow Layer - rendered below all widgets */}
-          <WidgetShadows 
-            widgets={activeSheetWidgets} 
-            scale={scale}
-          />
+          {/* Shadow Layer - rendered below all widgets (respect shadowsDisabled in print mode) */}
+          {!(mode === 'print' && shadowsDisabled) && (
+            <WidgetShadows 
+              widgets={activeSheetWidgets} 
+              scale={scale}
+            />
+          )}
 
           {/* Widgets */}
           {activeSheetWidgets.map(widget => (
@@ -593,10 +747,167 @@ export default function Sheet() {
               scale={scale}
             />
           )}
+          
+          {/* Print Area Overlay - only in print mode */}
+          {mode === 'print' && (
+            <PrintAreaOverlay 
+              scale={scale}
+              pan={pan}
+            />
+          )}
         </div>
       </div>
 
-      {/* Compact header bar for grid/edit mode */}
+      {/* Print Mode Header */}
+      {mode === 'print' && (
+        <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
+          {/* Menu button - only on narrow screens */}
+          <button
+            onClick={() => setPrintMenuOpen(!printMenuOpen)}
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
+          >
+            ☰
+          </button>
+
+          {/* Wide screen: inline buttons */}
+          <div className="hidden sm:flex items-center gap-1 shrink-0">
+            {/* Mode switch buttons */}
+            <button
+              onClick={() => exitPrintMode('play')}
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              Play Mode
+            </button>
+            <button
+              onClick={() => exitPrintMode('edit')}
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              Edit Mode
+            </button>
+            
+            {/* Separator */}
+            <div className="w-px h-6 bg-theme-border" />
+            
+            {/* Print options */}
+            <button
+              onClick={() => setPrinterFriendly(!printerFriendly)}
+              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                printerFriendly 
+                  ? 'bg-theme-accent text-theme-paper' 
+                  : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+              }`}
+              title="Use printer-friendly colors (black & white)"
+            >
+              Printer Friendly Theme
+            </button>
+            <button
+              onClick={() => setBordersDisabled(!bordersDisabled)}
+              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                bordersDisabled 
+                  ? 'bg-theme-accent text-theme-paper' 
+                  : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+              }`}
+              title="Hide widget borders"
+            >
+              No Borders
+            </button>
+            <button
+              onClick={() => setShadowsDisabled(!shadowsDisabled)}
+              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                shadowsDisabled 
+                  ? 'bg-theme-accent text-theme-paper' 
+                  : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+              }`}
+              title="Hide widget shadows"
+            >
+              No Shadows
+            </button>
+          </div>
+          
+          {/* Spacer */}
+          <div className="flex-1" />
+          
+          {/* Print button */}
+          <button
+            onClick={handlePrint}
+            className="px-4 h-8 bg-blue-500 text-white border-[length:var(--border-width)] border-blue-600 rounded-button text-xs font-body hover:bg-blue-600 transition-colors flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print
+          </button>
+        </div>
+      )}
+
+      {/* Print Mode Mobile Menu Dropdown */}
+      {printMenuOpen && mode === 'print' && (
+        <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme z-40 overflow-hidden">
+          <button
+            onClick={() => {
+              exitPrintMode('play');
+              setPrintMenuOpen(false);
+            }}
+            className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+          >
+            Play Mode
+          </button>
+          <button
+            onClick={() => {
+              exitPrintMode('edit');
+              setPrintMenuOpen(false);
+            }}
+            className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+          >
+            Edit Mode
+          </button>
+          <div className="border-t border-theme-border" />
+          <button
+            onClick={() => {
+              setPrinterFriendly(!printerFriendly);
+              setPrintMenuOpen(false);
+            }}
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+              printerFriendly 
+                ? 'bg-theme-accent text-theme-paper' 
+                : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            Printer Friendly Theme {printerFriendly ? '✓' : ''}
+          </button>
+          <button
+            onClick={() => {
+              setBordersDisabled(!bordersDisabled);
+              setPrintMenuOpen(false);
+            }}
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+              bordersDisabled 
+                ? 'bg-theme-accent text-theme-paper' 
+                : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            No Borders {bordersDisabled ? '✓' : ''}
+          </button>
+          <button
+            onClick={() => {
+              setShadowsDisabled(!shadowsDisabled);
+              setPrintMenuOpen(false);
+            }}
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+              shadowsDisabled 
+                ? 'bg-theme-accent text-theme-paper' 
+                : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            No Shadows {shadowsDisabled ? '✓' : ''}
+          </button>
+        </div>
+      )}
+
+      {/* Compact header bar for grid/edit mode (hidden in print mode) */}
+      {mode !== 'print' && (
       <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 relative">
         {/* Menu button - only on narrow screens */}
         <button
@@ -631,6 +942,13 @@ export default function Sheet() {
             className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
+          </button>
+          <button
+            onClick={enterPrintMode}
+            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            title="Enter print mode to print your character sheet"
+          >
+            Print Mode
           </button>
           {mode === 'play' && (
             <button
@@ -809,9 +1127,10 @@ export default function Sheet() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Grid menu dropdown - only on narrow screens */}
-      {gridMenuOpen && (
+      {gridMenuOpen && mode !== 'print' && (
         <>
           <div 
             className="sm:hidden fixed inset-0 z-40" 
@@ -837,6 +1156,17 @@ export default function Sheet() {
               className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
             >
               {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
+            </button>
+            
+            {/* Print Mode */}
+            <button
+              onClick={() => {
+                enterPrintMode();
+                setGridMenuOpen(false);
+              }}
+              className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+            >
+              Print Mode
             </button>
             
             {/* Vertical View - only in play mode */}

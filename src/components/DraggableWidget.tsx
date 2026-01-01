@@ -4,6 +4,7 @@ import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTemplateStore } from '../store/useTemplateStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 
@@ -74,6 +75,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   
+  // Print mode state
+  const textureDisabled = usePrintStore((state) => state.textureDisabled);
+  const bordersDisabled = usePrintStore((state) => state.bordersDisabled);
+  
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -81,19 +86,28 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
-  const hasImageTexture = isImageTexture(textureKey);
+  // Always disable texture in print mode
+  const hasImageTexture = isImageTexture(textureKey) && !textureDisabled && mode !== 'print';
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showPrintSettings, setShowPrintSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  
+  // Widget types that have print settings customization
+  const WIDGETS_WITH_PRINT_SETTINGS: WidgetType[] = ['NUMBER', 'NUMBER_DISPLAY'];
+  const hasPrintSettings = WIDGETS_WITH_PRINT_SETTINGS.includes(widget.type);
+  
+  const updateWidgetData = useStore((state) => state.updateWidgetData);
   
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
@@ -135,6 +149,24 @@ export default function DraggableWidget({ widget, scale }: Props) {
       };
     }
   }, [showDropdown, tutorialStep, widget.type]);
+
+  // Close print settings dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (printSettingsRef.current && !printSettingsRef.current.contains(e.target as Node)) {
+        setShowPrintSettings(false);
+      }
+    };
+
+    if (showPrintSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [showPrintSettings]);
 
   // Measure widget and snap height to grid (only when not manually resized)
   useEffect(() => {
@@ -444,7 +476,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
   const renderContent = () => {
     // Always render in play mode style - the modal handles editing
-    const props = { widget, mode: 'play' as const, width: widgetWidth, height: widgetHeight || 120 };
+    // But pass 'print' mode when in print mode for special rendering
+    const widgetMode = mode === 'print' ? 'print' : 'play';
+    const props = { widget, mode: widgetMode as 'play' | 'print', width: widgetWidth, height: widgetHeight || 120 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
@@ -479,20 +513,21 @@ export default function DraggableWidget({ widget, scale }: Props) {
         onStop={handleStop}
         scale={scale}
         handle=".drag-handle"
-        disabled={mode === 'play'}
+        disabled={mode === 'play' || mode === 'print'}
       >
         <div 
           ref={nodeRef}
           data-widget-id={widget.id}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''}`}
+          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: showDropdown ? 200 : (showControls && mode === 'edit' ? 100 : undefined),
+            zIndex: showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
             ...borderRadiusStyle,
+            ...(bordersDisabled ? { borderWidth: '0px' } : {}),
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -682,6 +717,49 @@ export default function DraggableWidget({ widget, scale }: Props) {
                         Cancel
                       </button>
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Print Settings Button - visible on hover in print mode for widgets with print settings */}
+          {mode === 'print' && hasPrintSettings && (showControls || showPrintSettings) && (
+            <div className="absolute -top-3 -right-3 z-[9999]" ref={printSettingsRef}>
+              <button
+                className="w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPrintSettings(!showPrintSettings);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                title="Print settings"
+              >
+                ⚙️
+              </button>
+              
+              {/* Print Settings Dropdown */}
+              {showPrintSettings && (
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[9999] p-2">
+                  {/* Number Tracker specific settings */}
+                  {(widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY') && (
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-theme-ink hover:bg-theme-accent/10 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={widget.data.printSettings?.hideValues ?? false}
+                        onChange={(e) => {
+                          updateWidgetData(widget.id, {
+                            printSettings: {
+                              ...widget.data.printSettings,
+                              hideValues: e.target.checked,
+                            },
+                          });
+                        }}
+                        className="w-4 h-4 accent-theme-accent"
+                      />
+                      Hide values
+                    </label>
                   )}
                 </div>
               )}

@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -272,6 +272,8 @@ export default function TableWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
+  const mode = useStore((state) => state.mode);
+  const isPrintMode = mode === 'print';
   
   const { 
     label, 
@@ -613,7 +615,7 @@ export default function TableWidget({ widget, height }: Props) {
                   onDragEnd={handleRowDragEnd}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <div className="text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none">
+                  <div className={`text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none ${isPrintMode ? 'opacity-0' : ''}`}>
                     ⠿
                   </div>
                 </td>
@@ -683,7 +685,7 @@ export default function TableWidget({ widget, height }: Props) {
                             justifyContent: cellFormat.hAlign === 'center' ? 'center' : cellFormat.hAlign === 'right' ? 'flex-end' : 'flex-start',
                           }}
                         >
-                          {cellValue || <span className="text-theme-muted">-</span>}
+                          {cellValue || <span className={`text-theme-muted ${isPrintMode ? 'opacity-0' : ''}`}>-</span>}
                         </div>
                       )}
                     </td>
@@ -693,7 +695,7 @@ export default function TableWidget({ widget, height }: Props) {
                   <button
                     onClick={() => clearRow(rowIdx)}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="w-full h-full text-theme-muted hover:text-theme-ink opacity-0 group-hover:opacity-100"
+                    className={`w-full h-full text-theme-muted hover:text-theme-ink opacity-0 group-hover:opacity-100 ${isPrintMode ? '!opacity-0' : ''}`}
                   >
                     ×
                   </button>

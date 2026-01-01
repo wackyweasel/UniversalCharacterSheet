@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -16,6 +16,8 @@ interface SpellLevel {
 
 export default function SpellSlotWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const mode = useStore((state) => state.mode);
+  const isPrintMode = mode === 'print';
   const { label, spellLevels = [{ level: 1, max: 4, used: 0 }] } = widget.data;
 
   // Fixed small sizing
@@ -102,7 +104,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-end ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0`}>
+      <div className={`flex items-center justify-end ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
         <button
           onClick={resetAll}
           onMouseDown={(e) => e.stopPropagation()}
