@@ -771,6 +771,17 @@ export default function Sheet() {
 
           {/* Wide screen: inline buttons */}
           <div className="hidden sm:flex items-center gap-1 shrink-0">
+            {/* Exit button */}
+            <button
+              onClick={() => {
+                resetPrintSettings();
+                selectCharacter(null);
+              }}
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-600 text-xs font-body hover:bg-red-600 hover:text-white transition-colors"
+            >
+              Exit
+            </button>
+            
             {/* Mode switch buttons */}
             <button
               onClick={() => exitPrintMode('play')}
@@ -845,6 +856,17 @@ export default function Sheet() {
       {/* Print Mode Mobile Menu Dropdown */}
       {printMenuOpen && mode === 'print' && (
         <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme z-40 overflow-hidden">
+          <button
+            onClick={() => {
+              resetPrintSettings();
+              selectCharacter(null);
+              setPrintMenuOpen(false);
+            }}
+            className="w-full px-4 py-2.5 text-sm text-left font-body text-red-600 hover:bg-red-600 hover:text-white transition-colors whitespace-nowrap"
+          >
+            Exit
+          </button>
+          <div className="border-t border-theme-border" />
           <button
             onClick={() => {
               exitPrintMode('play');
