@@ -934,13 +934,13 @@ export default function Sheet() {
         {/* Menu button - only on narrow screens */}
         <button
           onClick={() => setGridMenuOpen(!gridMenuOpen)}
-          className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
+          className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
         >
           ☰
         </button>
 
         {/* Wide screen: inline buttons */}
-        <div className="hidden sm:flex items-center gap-1 shrink-0">
+        <div className="hidden lg:flex items-center gap-1 shrink-0">
           <button
             onClick={() => selectCharacter(null)}
             className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
@@ -1043,8 +1043,8 @@ export default function Sheet() {
           </button>
         </div>
         
-        {/* Character name - left on mobile, absolutely centered on desktop */}
-        <div className="flex-1 min-w-0 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-[40%] sm:flex-none pointer-events-auto">
+        {/* Character name - stays in flow until 2xl breakpoint when there's room to center */}
+        <div className="flex-1 min-w-0 2xl:absolute 2xl:left-1/2 2xl:top-1/2 2xl:-translate-x-1/2 2xl:-translate-y-1/2 2xl:max-w-[30%] 2xl:flex-none pointer-events-auto">
           {isEditingName ? (
             <input
               type="text"
@@ -1067,11 +1067,11 @@ export default function Sheet() {
                 }
               }}
               autoFocus
-              className="font-bold text-sm bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading sm:text-center"
+              className="font-bold text-sm bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading 2xl:text-center"
             />
           ) : (
             <h1 
-              className={`font-bold text-sm text-theme-ink font-heading truncate sm:text-center ${mode === 'edit' ? 'cursor-pointer' : ''}`}
+              className={`font-bold text-sm text-theme-ink font-heading truncate 2xl:text-center ${mode === 'edit' ? 'cursor-pointer' : ''}`}
               onClick={() => {
                 if (mode === 'edit') {
                   setEditedName(activeCharacter.name);
@@ -1084,8 +1084,8 @@ export default function Sheet() {
           )}
         </div>
         
-        {/* Spacer to push right-side elements - only needed on desktop */}
-        <div className="hidden sm:block sm:flex-1 sm:min-w-0"></div>
+        {/* Spacer to push right-side elements - only needed when character name is centered */}
+        <div className="hidden 2xl:block 2xl:flex-1 2xl:min-w-0"></div>
         
         {/* Sheet selector */}
         <div className="relative shrink-0">
@@ -1116,7 +1116,7 @@ export default function Sheet() {
         </button>
         
         {/* Undo/Redo buttons - visible on mobile and desktop */}
-        <div className="flex items-center gap-1 shrink-0 sm:hidden">
+        <div className="flex items-center gap-1 shrink-0 lg:hidden">
           <button
             onClick={undo}
             disabled={!canUndo}
@@ -1155,10 +1155,10 @@ export default function Sheet() {
       {gridMenuOpen && mode !== 'print' && (
         <>
           <div 
-            className="sm:hidden fixed inset-0 z-40" 
+            className="lg:hidden fixed inset-0 z-40" 
             onClick={() => setGridMenuOpen(false)}
           />
-          <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
+          <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
             {/* Mode toggle */}
             <button
               data-tutorial="edit-mode-button-mobile"

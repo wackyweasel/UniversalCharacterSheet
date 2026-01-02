@@ -111,7 +111,7 @@ export default function RollTableWidget({ widget, height }: Props) {
         }`}
         disabled={isRolling}
       >
-        🎲 Roll Table
+        Roll Table
       </button>
 
       {/* Result Display */}
