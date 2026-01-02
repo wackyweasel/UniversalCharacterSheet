@@ -240,7 +240,7 @@ export default function DiceRollerWidget({ widget }: Props) {
         }`}
         disabled={isRolling}
       >
-        🎲 Roll {diceNotation}
+        Roll {diceNotation}
       </button>
 
       {/* Result Display - Always visible to maintain consistent height */}

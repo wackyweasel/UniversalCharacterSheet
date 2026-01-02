@@ -596,10 +596,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
               
               {/* Dropdown Menu */}
               {showDropdown && (
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[140px] overflow-hidden z-[200]">
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[140px] overflow-hidden z-[200] font-body">
                   <button
                     data-tutorial={widget.type === 'FORM' ? 'edit-button-FORM' : undefined}
-                    className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 17 && widget.type === 'FORM' ? 'bg-blue-500 text-white' : ''}`}
+                    className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${tutorialStep === 17 && widget.type === 'FORM' ? 'bg-blue-500 text-white' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       // Advance tutorial if on step 17 (edit-widget) and this is a Form widget
@@ -610,37 +610,45 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       openEditModal();
                     }}
                   >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                     Edit
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowDropdown(false);
                       cloneWidget(widget.id);
                     }}
                   >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                     Clone
                   </button>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowDropdown(false);
                       toggleWidgetLock(widget.id);
                     }}
                   >
+                    {widget.locked ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    )}
                     {widget.locked ? 'Unlock' : 'Lock'}
                   </button>
                   {!showTemplateNameInput ? (
                     <button
-                      className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                      className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                       onClick={(e) => {
                         e.stopPropagation();
                         setTemplateName(widget.data.label || '');
                         setShowTemplateNameInput(true);
                       }}
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
                       Create Template
                     </button>
                   ) : (
@@ -697,12 +705,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
                   <div className="border-t border-theme-border" />
                   {!showDeleteConfirm ? (
                     <button
-                      className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                      className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowDeleteConfirm(true);
                       }}
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
                       Delete
                     </button>
                   ) : (
@@ -794,8 +803,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
               title="This widget is locked"
             >
               {/* Small lock indicator in corner */}
-              <div className="absolute top-1 right-1 text-theme-muted/50 text-xs">
-                🔒
+              <div className="absolute top-1 right-1 text-theme-muted/50">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
               </div>
             </div>
           )}
