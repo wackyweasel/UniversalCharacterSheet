@@ -29,7 +29,7 @@ interface AggregatedResult {
 }
 
 export default function DiceRollerWidget({ widget }: Props) {
-  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0 } = widget.data;
+  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showIndividualResults = false } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -206,6 +206,21 @@ export default function DiceRollerWidget({ widget }: Props) {
   const formatAggregatedResult = () => {
     if (!result) return '';
     
+    // If showing individual results, display all dice separately
+    if (showIndividualResults) {
+      const allRolls: string[] = [];
+      for (const g of result.groups) {
+        for (const roll of g.rolls) {
+          allRolls.push(String(roll));
+        }
+      }
+      // Add modifier at the end if non-zero
+      if (result.modifier !== 0) {
+        allRolls.push(result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier));
+      }
+      return allRolls.join(', ');
+    }
+    
     const parts: string[] = [];
     
     for (const agg of result.aggregatedResults) {
@@ -251,19 +266,22 @@ export default function DiceRollerWidget({ widget }: Props) {
             <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
               {formatAggregatedResult() || '—'}
             </div>
-            <div className={`${smallTextClass} text-theme-muted font-body`}>
-              {result.groups.map((g, i) => (
-                <span key={i}>
-                  {i > 0 && ' + '}
-                  <span title={g.customFaces ? `d[${g.customFaces.join(',')}]` : `d${g.faces}`}>
-                    [{g.rolls.join(', ')}]
+            {/* Only show individual rolls breakdown when not in showIndividualResults mode */}
+            {!showIndividualResults && (
+              <div className={`${smallTextClass} text-theme-muted font-body`}>
+                {result.groups.map((g, i) => (
+                  <span key={i}>
+                    {i > 0 && ' + '}
+                    <span title={g.customFaces ? `d[${g.customFaces.join(',')}]` : `d${g.faces}`}>
+                      [{g.rolls.join(', ')}]
+                    </span>
                   </span>
-                </span>
-              ))}
-              {result.modifier !== 0 && (
-                <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
-              )}
-            </div>
+                ))}
+                {result.modifier !== 0 && (
+                  <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+                )}
+              </div>
+            )}
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.groups.length === 1 && 
              result.groups[0].rolls.length === 1 && 

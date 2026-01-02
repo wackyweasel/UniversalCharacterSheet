@@ -39,7 +39,7 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export default function DiceTrayWidget({ widget }: Props) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20] } = widget.data;
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], showIndividualResults = false } = widget.data;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -259,6 +259,11 @@ export default function DiceTrayWidget({ widget }: Props) {
   const formatAggregatedResult = () => {
     if (!result) return '';
     
+    // If showing individual results, display all dice separately
+    if (showIndividualResults) {
+      return result.dice.map(d => String(d.roll)).join(', ');
+    }
+    
     const parts: string[] = [];
     
     for (const agg of result.aggregatedResults) {
@@ -360,18 +365,21 @@ export default function DiceTrayWidget({ widget }: Props) {
           <>
             {/* Show aggregated result for mixed/custom dice, or just total for standard */}
             <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-              {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+              {showIndividualResults || hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
             </div>
-            <div className={`${smallTextClass} text-theme-muted font-body`}>
-              {result.dice.map((d, i) => (
-                <span key={i}>
-                  {i > 0 && ' + '}
-                  <span title={Array.isArray(d.faces) ? (d.customDieName || 'custom') : `d${d.faces}`}>
-                    {d.roll}
+            {/* Only show individual rolls breakdown when not in showIndividualResults mode */}
+            {!showIndividualResults && (
+              <div className={`${smallTextClass} text-theme-muted font-body`}>
+                {result.dice.map((d, i) => (
+                  <span key={i}>
+                    {i > 0 && ' + '}
+                    <span title={Array.isArray(d.faces) ? (d.customDieName || 'custom') : `d${d.faces}`}>
+                      {d.roll}
+                    </span>
                   </span>
-                </span>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.dice.length === 1 && 
              typeof result.dice[0].faces === 'number' && 

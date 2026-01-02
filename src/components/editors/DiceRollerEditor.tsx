@@ -244,6 +244,19 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
         />
       </div>
 
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="showIndividualResults"
+          checked={widget.data.showIndividualResults || false}
+          onChange={(e) => updateData({ showIndividualResults: e.target.checked })}
+          className="w-4 h-4 border border-theme-border rounded bg-theme-paper text-theme-accent focus:ring-theme-accent"
+        />
+        <label htmlFor="showIndividualResults" className="text-sm font-medium text-theme-ink">
+          Show individual dice results (don't sum)
+        </label>
+      </div>
+
       {/* Custom Faces Modal */}
       {customFacesModal.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeCustomFacesModal}>
