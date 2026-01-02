@@ -120,6 +120,7 @@ interface StoreState {
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
   removeWidget: (id: string) => void;
+  toggleWidgetLock: (id: string) => void;
   reorderWidget: (widgetId: string, newIndex: number) => void;
   
   // Widget Group Actions (for snap+attach)
@@ -712,6 +713,19 @@ export const useStore = create<StoreState>((set, get) => {
           if (c.id === state.activeCharacterId) {
             return updateActiveSheetWidgets(c, widgets => 
               widgets.filter(w => w.id !== id)
+            );
+          }
+          return c;
+        })
+      }));
+    },
+
+    toggleWidgetLock: (id) => {
+      set((state) => ({
+        characters: state.characters.map(c => {
+          if (c.id === state.activeCharacterId) {
+            return updateActiveSheetWidgets(c, widgets =>
+              widgets.map(w => w.id === id ? { ...w, locked: !w.locked } : w)
             );
           }
           return c;

@@ -67,6 +67,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const removeWidget = useStore((state) => state.removeWidget);
   const cloneWidget = useStore((state) => state.cloneWidget);
   const detachWidgets = useStore((state) => state.detachWidgets);
+  const toggleWidgetLock = useStore((state) => state.toggleWidgetLock);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
@@ -621,6 +622,16 @@ export default function DraggableWidget({ widget, scale }: Props) {
                   >
                     Clone
                   </button>
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDropdown(false);
+                      toggleWidgetLock(widget.id);
+                    }}
+                  >
+                    {widget.locked ? 'Unlock' : 'Lock'}
+                  </button>
                   {!showTemplateNameInput ? (
                     <button
                       className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
@@ -773,6 +784,20 @@ export default function DraggableWidget({ widget, scale }: Props) {
               style={borderRadiusStyle}
               onTouchStart={(e) => e.stopPropagation()}
             />
+          )}
+
+          {/* Locked overlay - blocks interactions with widget content in play mode when locked */}
+          {mode === 'play' && widget.locked && (
+            <div 
+              className="absolute inset-0 z-40 cursor-not-allowed"
+              style={borderRadiusStyle}
+              title="This widget is locked"
+            >
+              {/* Small lock indicator in corner */}
+              <div className="absolute top-1 right-1 text-theme-muted/50 text-xs">
+                🔒
+              </div>
+            </div>
           )}
 
           {/* Resize Handle - only visible in edit mode when hovered/selected */}

@@ -186,6 +186,7 @@ export interface Widget {
   h?: number; // height
   groupId?: string; // ID of the group this widget belongs to (for snap+attach)
   attachedTo?: string[]; // IDs of widgets this widget is directly attached to (graph edges)
+  locked?: boolean; // If true, widget cannot be interacted with in play mode
   data: WidgetData;
 }
 
