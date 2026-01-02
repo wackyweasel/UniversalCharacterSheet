@@ -4,7 +4,7 @@ import { Character, Widget, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 
-type Mode = 'play' | 'edit' | 'vertical';
+type Mode = 'play' | 'edit' | 'vertical' | 'print';
 
 // Helper to get the active sheet's widgets from a character
 function getActiveSheetWidgets(character: Character): Widget[] {

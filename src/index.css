@@ -164,3 +164,53 @@
     opacity: 0.8;
   }
 }
+
+/* Print mode styles */
+@media print {
+  /* Hide everything by default */
+  body > *:not(.print-content-wrapper) {
+    display: none !important;
+  }
+  
+  /* Show only the print content */
+  .print-content-wrapper,
+  .print-content-wrapper *:not([data-print-hide="true"]) {
+    visibility: visible !important;
+  }
+  
+  /* Keep elements with data-print-hide hidden */
+  .print-content-wrapper [data-print-hide="true"],
+  .print-content-wrapper [data-print-hide="true"] * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Position the print content - respect inline width/height */
+  .print-content-wrapper {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 99999 !important;
+    background: white !important;
+    overflow: hidden !important;
+  }
+  
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Ensure widgets print with correct colors */
+  .react-draggable {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+}

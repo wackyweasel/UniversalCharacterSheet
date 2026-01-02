@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 
+// Check if we're in print mode to hide interactive elements
+
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -100,8 +102,9 @@ function HealthModal({
   );
 }
 
-export default function HealthBarWidget({ widget }: Props) {
+export default function HealthBarWidget({ widget, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const isPrintMode = mode === 'print';
   const { label, currentValue = 10, maxValue = 10, increment = 1 } = widget.data;
   
   const [showDamageModal, setShowDamageModal] = useState(false);
@@ -148,26 +151,33 @@ export default function HealthBarWidget({ widget }: Props) {
         <button
           onClick={() => updateWidgetData(widget.id, { currentValue: currentValue - increment })}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0"
+          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
         >
           −
         </button>
         
         {/* Health Bar */}
         <div className={`relative ${barHeight} flex-1 bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}>
-          {/* Filled portion - uses theme accent color */}
+          {/* Filled portion - uses theme accent color, empty in print mode */}
           <div 
             className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
             style={{ 
-              width: `${healthPercent}%`,
+              width: isPrintMode ? '0%' : `${healthPercent}%`,
             }}
           />
-          {/* Health text overlay */}
+          {/* Health text overlay - hide current value and shadow in print mode */}
           <div 
             className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink`}
-            style={{ textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
+            style={isPrintMode ? {} : { textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
           >
-            {currentValue} / {maxValue}
+            {isPrintMode ? (
+              <>
+                <span style={{ visibility: 'hidden' }} data-print-hide="true">{maxValue}</span>
+                {` / ${maxValue}`}
+              </>
+            ) : (
+              `${currentValue} / ${maxValue}`
+            )}
           </div>
         </div>
         
@@ -175,14 +185,14 @@ export default function HealthBarWidget({ widget }: Props) {
         <button
           onClick={() => updateWidgetData(widget.id, { currentValue: Math.min(maxValue, currentValue + increment) })}
           onMouseDown={(e) => e.stopPropagation()}
-          className="w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0"
+          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
         >
           +
         </button>
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between gap-1 flex-shrink-0">
+      <div className={`flex items-center justify-between gap-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
         <button
           onClick={() => setShowDamageModal(true)}
           onMouseDown={(e) => e.stopPropagation()}

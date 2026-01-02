@@ -165,6 +165,10 @@ export interface WidgetData {
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
+  // Print Settings (per-widget print customization)
+  printSettings?: {
+    hideValues?: boolean; // For Number Tracker: hide the number values
+  };
 }
 
 export interface TimedEffect {

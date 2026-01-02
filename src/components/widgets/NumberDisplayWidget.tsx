@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -14,9 +14,11 @@ interface DisplayNumber {
   value: number;
 }
 
-export default function NumberDisplayWidget({ widget, width, height }: Props) {
+export default function NumberDisplayWidget({ widget, mode, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, displayNumbers = [], displayLayout = 'horizontal' } = widget.data;
+  const isPrintMode = mode === 'print';
+  const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings } = widget.data;
+  const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -98,7 +100,8 @@ export default function NumberDisplayWidget({ widget, width, height }: Props) {
             ) : (
               <span 
                 className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors leading-none"
-                style={{ fontSize: `${numberFontSize}px` }}
+                style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
+                data-print-hide={hideValues ? 'true' : undefined}
                 onClick={() => handleValueClick(idx, item.value)}
                 onMouseDown={(e) => e.stopPropagation()}
               >

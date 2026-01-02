@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 
 interface UseTouchCameraOptions {
-  mode: 'play' | 'edit' | 'vertical';
+  mode: 'play' | 'edit' | 'vertical' | 'print';
   onPanChange: (updater: (prev: { x: number; y: number }) => { x: number; y: number }) => void;
   onScaleChange: (scale: number) => void;
   onPinchingChange: (isPinching: boolean) => void;
@@ -76,6 +76,15 @@ export function useTouchCamera({
       return false;
     };
 
+    // Check if the target is on a print area resize handle
+    const isOnPrintAreaOverlay = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        if (el.classList.contains('print-area-overlay')) return true;
+        el = el.parentElement;
+      }
+      return false;
+    };
+
     let touchStartTarget: Element | null = null;
 
     const handleTouchStart = (e: TouchEvent) => {
@@ -117,9 +126,10 @@ export function useTouchCamera({
         const onWidget = touchStartTarget && isOnWidget(touchStartTarget);
         const onScrollable = touchStartedOnScrollable.current;
         const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
+        const onPrintArea = touchStartTarget && isOnPrintAreaOverlay(touchStartTarget);
         
-        // Don't pan if on a canvas (map sketcher) - let it handle drawing
-        const shouldPan = !onScrollable && !onCanvas && (modeRef.current === 'play' ? true : !onWidget);
+        // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
+        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && (modeRef.current === 'play' ? true : !onWidget);
         
         if (shouldPan) {
           const touch = activeTouches.current.values().next().value;

@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -15,6 +15,8 @@ interface FormItem {
 
 export default function FormWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const mode = useStore((state) => state.mode);
+  const isPrintMode = mode === 'print';
   const { label, formItems = [], labelWidth = 33 } = widget.data;
 
   // Fixed small sizing
@@ -70,7 +72,7 @@ export default function FormWidget({ widget, height }: Props) {
               onChange={(e) => handleValueChange(idx, e.target.value)}
               onMouseDown={(e) => e.stopPropagation()}
               className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border/50 focus:border-theme-border focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
-              placeholder="..."
+              placeholder={isPrintMode ? '' : '...'}
             />
           </div>
         ))}

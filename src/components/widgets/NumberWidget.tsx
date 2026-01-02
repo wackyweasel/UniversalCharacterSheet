@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
@@ -14,9 +14,11 @@ interface NumberItem {
   value: number;
 }
 
-export default function NumberWidget({ widget, height }: Props) {
+export default function NumberWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, numberItems = [] } = widget.data;
+  const isPrintMode = mode === 'print';
+  const { label, numberItems = [], printSettings } = widget.data;
+  const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -102,7 +104,7 @@ export default function NumberWidget({ widget, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
               >
                 -
               </button>
@@ -121,6 +123,8 @@ export default function NumberWidget({ widget, height }: Props) {
               ) : (
                 <span 
                   className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button`}
+                  style={hideValues ? { visibility: 'hidden' } : undefined}
+                  data-print-hide={hideValues ? 'true' : undefined}
                   onClick={() => handleValueClick(idx, item.value)}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
@@ -130,7 +134,7 @@ export default function NumberWidget({ widget, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
               >
                 +
               </button>

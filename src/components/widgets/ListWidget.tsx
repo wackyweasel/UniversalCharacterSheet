@@ -3,12 +3,12 @@ import { useStore } from '../../store/useStore';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit';
+  mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
 }
 
-export default function ListWidget({ widget, height }: Props) {
+export default function ListWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, items = [], itemCount = 5 } = widget.data;
 
@@ -62,7 +62,7 @@ export default function ListWidget({ widget, height }: Props) {
               className={`flex-1 border-b border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
               value={item}
               onChange={(e) => updateItem(idx, e.target.value)}
-              placeholder="..."
+              placeholder={mode === 'print' ? '' : '...'}
               onMouseDown={(e) => e.stopPropagation()}
             />
             <button 

@@ -4,7 +4,7 @@ interface UsePanZoomOptions {
   minScale?: number;
   maxScale?: number;
   editingWidgetId: string | null;
-  mode: 'play' | 'edit' | 'vertical';
+  mode: 'play' | 'edit' | 'vertical' | 'print';
 }
 
 export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode }: UsePanZoomOptions) {
@@ -39,9 +39,9 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     // Ignore if clicking on a widget
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
 
-    // In play mode: Left Click (0) to pan
+    // In play/print mode: Left Click (0) to pan
     // In edit mode: Left Click (0) and Middle Click (1) to pan
-    if (mode === 'play') {
+    if (mode === 'play' || mode === 'print') {
       if (e.button === 0) {
         e.preventDefault();
         setIsPanning(true);
@@ -91,7 +91,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     
     setScale(newScale);
     setPan({ x: newPanX, y: newPanY });
-  }, [editingWidgetId, scale, pan, minScale, maxScale]);
+  }, [editingWidgetId, mode, scale, pan, minScale, maxScale]);
 
   const zoomIn = useCallback(() => {
     setScale(s => Math.min(maxScale, s * 1.3));
