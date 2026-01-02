@@ -285,10 +285,10 @@ export default function Sheet() {
     const overlays = clone.querySelectorAll('.print-area-overlay');
     overlays.forEach(el => el.remove());
     
-    // Apply visibility hidden to elements marked with data-print-hide
+    // Remove elements marked with data-print-hide from the clone
     const hiddenElements = clone.querySelectorAll('[data-print-hide="true"]');
     hiddenElements.forEach(el => {
-      (el as HTMLElement).style.visibility = 'hidden';
+      el.remove();
     });
     
     // Position the clone to show only the print area

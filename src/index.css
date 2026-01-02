@@ -179,7 +179,9 @@
   }
   
   /* Keep elements with data-print-hide hidden */
-  .print-content-wrapper [data-print-hide="true"] {
+  .print-content-wrapper [data-print-hide="true"],
+  .print-content-wrapper [data-print-hide="true"] * {
+    display: none !important;
     visibility: hidden !important;
   }
   
