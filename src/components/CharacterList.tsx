@@ -458,7 +458,7 @@ export default function CharacterList() {
                   <span>Tutorial</span>
                 </button>
                 <a
-                  href="https://forms.gle/YOUR_FORM_ID"
+                  href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setShowHeaderMenu(false)}
