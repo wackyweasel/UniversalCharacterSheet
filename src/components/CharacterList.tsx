@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
 import { useTemplateStore, WidgetTemplate } from '../store/useTemplateStore';
+import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import { Character } from '../types';
@@ -27,6 +28,7 @@ interface BackupData {
   characters: Character[];
   customThemes: Record<string, any>;
   templates?: WidgetTemplate[];
+  userPresets?: UserPreset[];
 }
 
 // Helper to get theme colors for a character
@@ -84,6 +86,9 @@ export default function CharacterList() {
   const customThemes = useCustomThemeStore((state) => state.customThemes);
   // Subscribe to template changes for backup
   const templates = useTemplateStore((state) => state.templates);
+  // Subscribe to user presets for backup and preset selection
+  const userPresets = useUserPresetStore((state) => state.userPresets);
+  const addUserPreset = useUserPresetStore((state) => state.addPreset);
   
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
@@ -152,16 +157,30 @@ export default function CharacterList() {
     const name = newCharName.trim() || 'New Character';
     
     if (selectedPreset && selectedPreset !== '') {
-      // Create from preset
-      const preset = getPreset(selectedPreset);
-      if (preset) {
-        createCharacterFromPreset(preset, name);
-        // Get the newly created character and update its theme
-        // Since the preset might have its own theme, we override it with the selected one
-        const state = useStore.getState();
-        const newChar = state.characters[state.characters.length - 1];
-        if (newChar && selectedTheme !== 'default') {
-          updateCharacterTheme(newChar.id, selectedTheme);
+      // Check if it's a user preset
+      if (selectedPreset.startsWith('user:')) {
+        const userPresetId = selectedPreset.replace('user:', '');
+        const userPreset = userPresets.find(p => p.id === userPresetId);
+        if (userPreset) {
+          createCharacterFromPreset(userPreset.preset, name);
+          const state = useStore.getState();
+          const newChar = state.characters[state.characters.length - 1];
+          if (newChar && selectedTheme !== 'default') {
+            updateCharacterTheme(newChar.id, selectedTheme);
+          }
+        }
+      } else {
+        // Create from built-in preset
+        const preset = getPreset(selectedPreset);
+        if (preset) {
+          createCharacterFromPreset(preset, name);
+          // Get the newly created character and update its theme
+          // Since the preset might have its own theme, we override it with the selected one
+          const state = useStore.getState();
+          const newChar = state.characters[state.characters.length - 1];
+          if (newChar && selectedTheme !== 'default') {
+            updateCharacterTheme(newChar.id, selectedTheme);
+          }
         }
       }
     } else {
@@ -228,7 +247,8 @@ export default function CharacterList() {
       timestamp: new Date().toISOString(),
       characters: characters,
       customThemes: customThemes,
-      templates: templates
+      templates: templates,
+      userPresets: userPresets
     };
     
     const dataStr = JSON.stringify(backupData, null, 2);
@@ -260,10 +280,12 @@ export default function CharacterList() {
         
         // Confirm restore
         const templateCount = backupData.templates?.length || 0;
+        const userPresetCount = backupData.userPresets?.length || 0;
         const confirmRestore = window.confirm(
           `This will replace all your current data with the backup from ${backupData.timestamp ? new Date(backupData.timestamp).toLocaleString() : 'unknown date'}.\n\n` +
           `Backup contains ${backupData.characters.length} character(s)` +
-          (templateCount > 0 ? ` and ${templateCount} template(s)` : '') + `.\n\n` +
+          (templateCount > 0 ? `, ${templateCount} template(s)` : '') +
+          (userPresetCount > 0 ? `, ${userPresetCount} user preset(s)` : '') + `.\n\n` +
           `Are you sure you want to continue?`
         );
         
@@ -283,6 +305,11 @@ export default function CharacterList() {
         // Restore templates if present
         if (backupData.templates && Array.isArray(backupData.templates)) {
           localStorage.setItem('ucs:templates', JSON.stringify({ templates: backupData.templates }));
+        }
+        
+        // Restore user presets if present
+        if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
+          localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
         }
         
         // Reload the page to apply changes
@@ -720,6 +747,34 @@ export default function CharacterList() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          const presetName = prompt('Enter a name for the preset:', `${char.name} Preset`);
+                          if (presetName !== null) {
+                            addUserPreset(char, presetName || `${char.name} Preset`);
+                          }
+                          setOpenDropdown(null);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                        style={{ 
+                          color: 'var(--card-ink)',
+                          backgroundColor: 'var(--card-background)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                          e.currentTarget.style.color = 'var(--card-background)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                          e.currentTarget.style.color = 'var(--card-ink)';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Create Preset
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setCharacterToDelete(char.id);
                           setOpenDropdown(null);
                         }}
@@ -916,9 +971,20 @@ export default function CharacterList() {
                 }`}
               >
                 <option value="">No Preset</option>
-                {presetNames.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
+                {presetNames.length > 0 && (
+                  <optgroup label="Built-in Presets">
+                    {presetNames.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {userPresets.length > 0 && (
+                  <optgroup label="My Presets">
+                    {userPresets.map((preset) => (
+                      <option key={`user:${preset.id}`} value={`user:${preset.id}`}>{preset.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             
