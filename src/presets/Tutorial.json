@@ -1,13 +1,13 @@
 {
-  "id": "617c3530-f817-4156-a67c-cf8910d26db3",
+  "id": "7f42f0cf-d16e-4631-a56d-d441b3493fa8",
   "name": "Tutorial",
   "sheets": [
     {
-      "id": "8d25f9a3-e35c-4bdc-9b41-de3f663389a8",
+      "id": "a866014b-d057-48a9-893a-5a82bd3180eb",
       "name": "Main",
       "widgets": [
         {
-          "id": "cfc03e0b-34dc-49d0-a771-5c474aeaf304",
+          "id": "7415fc54-5de0-4a84-8272-88a3a6c258d6",
           "type": "CHECKBOX",
           "x": -210,
           "y": -40,
@@ -21,23 +21,26 @@
             "checkboxItems": [
               {
                 "name": "Inspiration",
-                "checked": false
+                "checked": true
               },
               {
                 "name": "Heroic Point",
                 "checked": false
               }
-            ]
+            ],
+            "checklistSettings": {
+              "strikethrough": false
+            }
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "d5ca70b2-da97-4817-91c6-1a3e5d7efb9c",
-            "305ca693-1d28-4377-b470-c41a1d1fb989",
-            "53d9f9a4-8afe-46ce-acf5-841db9a32087"
+            "a2e365a1-adfe-4c38-b8f5-5ffd0117bf37",
+            "0dd60888-f950-4248-a1a5-c7633abd16a8",
+            "65fd3107-6586-4dd8-ba07-ab853fe66dc1"
           ]
         },
         {
-          "id": "305ca693-1d28-4377-b470-c41a1d1fb989",
+          "id": "0dd60888-f950-4248-a1a5-c7633abd16a8",
           "type": "TOGGLE_GROUP",
           "x": -210,
           "y": 50,
@@ -55,7 +58,7 @@
               },
               {
                 "name": "Frightened",
-                "active": false
+                "active": true
               },
               {
                 "name": "Stunned",
@@ -83,17 +86,17 @@
               }
             ]
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "cfc03e0b-34dc-49d0-a771-5c474aeaf304",
-            "d5ca70b2-da97-4817-91c6-1a3e5d7efb9c",
-            "53d9f9a4-8afe-46ce-acf5-841db9a32087",
-            "cf136b40-b740-47ad-a61e-be13a76e23af",
-            "915607a4-3bf2-4f24-acef-1db0e6c91dca"
+            "7415fc54-5de0-4a84-8272-88a3a6c258d6",
+            "a2e365a1-adfe-4c38-b8f5-5ffd0117bf37",
+            "65fd3107-6586-4dd8-ba07-ab853fe66dc1",
+            "02f0fcf2-db4b-46c0-b88f-307889424773",
+            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30"
           ]
         },
         {
-          "id": "a69e9d47-a151-4fb0-b529-fe447a5f84bc",
+          "id": "df3023f3-f290-4203-94a7-f07010b846ce",
           "type": "DICE_ROLLER",
           "x": 150,
           "y": -40,
@@ -106,14 +109,14 @@
             "text": "",
             "modifier": 2
           },
-          "groupId": "4a4a952d-3fbd-4d79-b894-4bd7ba3c0d9d",
+          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
           "attachedTo": [
-            "100e0b2b-5d2f-4a61-9801-c7d15d8fef98",
-            "80e93ac8-42d8-4dce-8f40-8d106fc237a6"
+            "077d8c6d-5761-49a6-a297-f775aaf1b1fa",
+            "c962b15e-b231-46ad-be67-84d36450ec3b"
           ]
         },
         {
-          "id": "80e93ac8-42d8-4dce-8f40-8d106fc237a6",
+          "id": "c962b15e-b231-46ad-be67-84d36450ec3b",
           "type": "DICE_TRAY",
           "x": 150,
           "y": 80,
@@ -125,14 +128,15 @@
             "items": [],
             "text": ""
           },
-          "groupId": "4a4a952d-3fbd-4d79-b894-4bd7ba3c0d9d",
+          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
           "attachedTo": [
-            "a69e9d47-a151-4fb0-b529-fe447a5f84bc",
-            "100e0b2b-5d2f-4a61-9801-c7d15d8fef98"
+            "4fd59eff-4962-4a98-ad11-253fe0ea04b7",
+            "077d8c6d-5761-49a6-a297-f775aaf1b1fa",
+            "df3023f3-f290-4203-94a7-f07010b846ce"
           ]
         },
         {
-          "id": "d5ca70b2-da97-4817-91c6-1a3e5d7efb9c",
+          "id": "a2e365a1-adfe-4c38-b8f5-5ffd0117bf37",
           "type": "FORM",
           "x": -70,
           "y": -40,
@@ -146,27 +150,27 @@
             "formItems": [
               {
                 "name": "Class",
-                "value": ""
+                "value": "Druid"
               },
               {
                 "name": "Background",
-                "value": ""
+                "value": "Criminal"
               },
               {
                 "name": "Alignment",
-                "value": ""
+                "value": "Neutral"
               }
             ],
             "labelWidth": 42
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "cfc03e0b-34dc-49d0-a771-5c474aeaf304",
-            "305ca693-1d28-4377-b470-c41a1d1fb989"
+            "7415fc54-5de0-4a84-8272-88a3a6c258d6",
+            "0dd60888-f950-4248-a1a5-c7633abd16a8"
           ]
         },
         {
-          "id": "cf136b40-b740-47ad-a61e-be13a76e23af",
+          "id": "02f0fcf2-db4b-46c0-b88f-307889424773",
           "type": "HEALTH_BAR",
           "x": -350,
           "y": 140,
@@ -176,18 +180,19 @@
             "label": "Health",
             "value": 0,
             "items": [],
-            "text": ""
+            "text": "",
+            "currentValue": 9
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "305ca693-1d28-4377-b470-c41a1d1fb989",
-            "53d9f9a4-8afe-46ce-acf5-841db9a32087",
-            "731d0487-4aed-4f56-b260-018cb5b79dbb",
-            "915607a4-3bf2-4f24-acef-1db0e6c91dca"
+            "0dd60888-f950-4248-a1a5-c7633abd16a8",
+            "65fd3107-6586-4dd8-ba07-ab853fe66dc1",
+            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
+            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30"
           ]
         },
         {
-          "id": "53d9f9a4-8afe-46ce-acf5-841db9a32087",
+          "id": "65fd3107-6586-4dd8-ba07-ab853fe66dc1",
           "type": "IMAGE",
           "x": -350,
           "y": -40,
@@ -199,15 +204,15 @@
             "items": [],
             "text": ""
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "cfc03e0b-34dc-49d0-a771-5c474aeaf304",
-            "305ca693-1d28-4377-b470-c41a1d1fb989",
-            "cf136b40-b740-47ad-a61e-be13a76e23af"
+            "7415fc54-5de0-4a84-8272-88a3a6c258d6",
+            "0dd60888-f950-4248-a1a5-c7633abd16a8",
+            "02f0fcf2-db4b-46c0-b88f-307889424773"
           ]
         },
         {
-          "id": "731d0487-4aed-4f56-b260-018cb5b79dbb",
+          "id": "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
           "type": "LIST",
           "x": -350,
           "y": 230,
@@ -216,38 +221,132 @@
           "data": {
             "label": "Backpack",
             "value": 0,
-            "items": [],
+            "items": [
+              "Sword",
+              "Stick",
+              "Rope",
+              "",
+              ""
+            ],
             "text": ""
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "cf136b40-b740-47ad-a61e-be13a76e23af",
-            "7516acac-6eaf-4c1c-a20c-f0f8322a849a",
-            "ea29e4fe-3fc2-4f52-a425-432581723b18",
-            "700fd25a-91a1-4a9a-9aff-efc9ea9ab9b5"
+            "02f0fcf2-db4b-46c0-b88f-307889424773",
+            "1584d21d-387b-48c0-a464-29bc5885fb3d",
+            "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
+            "175a9d7a-a586-4dc7-a228-17a1be934438"
           ]
         },
         {
-          "id": "ebcf7e30-a533-4357-8f77-2361081d164c",
+          "id": "e4b3ae6f-63fa-4b15-bee0-0dd9c4e38829",
           "type": "MAP_SKETCHER",
-          "x": 560,
+          "x": 570,
           "y": 220,
-          "w": 430,
+          "w": 380,
           "h": 380,
           "data": {
             "label": "Map Sketcher",
             "value": 0,
             "items": [],
             "text": "",
-            "mapShapes": []
+            "mapShapes": [
+              {
+                "id": "shape-1767479670024",
+                "type": "rectangle",
+                "points": [],
+                "bounds": {
+                  "x": 48.682619009653685,
+                  "y": 34.85831718890739,
+                  "width": 91.70324066856884,
+                  "height": 90.66285466997438
+                },
+                "color": "#333333",
+                "strokeWidth": 2
+              },
+              {
+                "id": "shape-1767479679702",
+                "type": "corridor",
+                "points": [],
+                "corridorStart": {
+                  "x": 141.42794195854717,
+                  "y": 80.71079541280248
+                },
+                "corridorEnd": {
+                  "x": 240.42575858938852,
+                  "y": 79.66869363498668
+                },
+                "corridorWidth": 10,
+                "color": "#333333",
+                "strokeWidth": 2
+              },
+              {
+                "id": "shape-1767479684695",
+                "type": "ellipse",
+                "points": [],
+                "bounds": {
+                  "x": 238.34159402873922,
+                  "y": 32.774113633275796,
+                  "width": 95.87156978986741,
+                  "height": 94.83126178123757
+                },
+                "color": "#333333",
+                "strokeWidth": 2
+              },
+              {
+                "id": "shape-1767479688491",
+                "type": "corridor",
+                "points": [],
+                "corridorStart": {
+                  "x": 195.61622053542877,
+                  "y": 88.00550785751307
+                },
+                "corridorEnd": {
+                  "x": 195.61622053542877,
+                  "y": 207.84721230632977
+                },
+                "corridorWidth": 10,
+                "color": "#333333",
+                "strokeWidth": 2
+              },
+              {
+                "id": "shape-1767479692112",
+                "type": "corridor",
+                "points": [],
+                "corridorStart": {
+                  "x": 195.61622053542877,
+                  "y": 207.84721230632977
+                },
+                "corridorEnd": {
+                  "x": 150.80668248146898,
+                  "y": 240.1523674186195
+                },
+                "corridorWidth": 10,
+                "color": "#333333",
+                "strokeWidth": 2
+              },
+              {
+                "id": "shape-1767479697197",
+                "type": "ellipse",
+                "points": [],
+                "bounds": {
+                  "x": 107.03922670783385,
+                  "y": 221.39453541793515,
+                  "width": 44.809538053959784,
+                  "height": 59.399801335500484
+                },
+                "color": "#333333",
+                "strokeWidth": 2
+              }
+            ]
           },
-          "groupId": "da27a7dd-d44e-4574-8a2c-1ef231a0fe8a",
+          "groupId": "b9f7ead8-39fd-4d9a-b05d-8b08671a4f49",
           "attachedTo": [
-            "783c6216-1a57-424b-81ad-9653fc058cda"
+            "d782741a-8c8a-4ae9-bb7a-d0b1d6290542"
           ]
         },
         {
-          "id": "915607a4-3bf2-4f24-acef-1db0e6c91dca",
+          "id": "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30",
           "type": "NUMBER_DISPLAY",
           "x": -190,
           "y": 140,
@@ -277,16 +376,16 @@
               }
             ]
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "305ca693-1d28-4377-b470-c41a1d1fb989",
-            "cf136b40-b740-47ad-a61e-be13a76e23af",
-            "7516acac-6eaf-4c1c-a20c-f0f8322a849a",
-            "bf70b77c-fd07-432e-becc-d92917452068"
+            "0dd60888-f950-4248-a1a5-c7633abd16a8",
+            "02f0fcf2-db4b-46c0-b88f-307889424773",
+            "1584d21d-387b-48c0-a464-29bc5885fb3d",
+            "73f67671-0671-494b-aa70-b567edeb5cb9"
           ]
         },
         {
-          "id": "ea29e4fe-3fc2-4f52-a425-432581723b18",
+          "id": "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
           "type": "NUMBER",
           "x": -350,
           "y": 420,
@@ -300,11 +399,11 @@
             "numberItems": [
               {
                 "name": "Stealth",
-                "value": 0
+                "value": 2
               },
               {
                 "name": "Lockpick",
-                "value": 0
+                "value": 1
               },
               {
                 "name": "Intimidate",
@@ -316,23 +415,23 @@
               },
               {
                 "name": "Insight",
-                "value": 0
+                "value": 1
               },
               {
                 "name": "Acrobatics",
-                "value": 0
+                "value": 3
               }
             ]
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "731d0487-4aed-4f56-b260-018cb5b79dbb",
-            "700fd25a-91a1-4a9a-9aff-efc9ea9ab9b5",
-            "d6e01146-3692-4c5e-a2cb-88f74868ffb3"
+            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
+            "175a9d7a-a586-4dc7-a228-17a1be934438",
+            "6690184f-ad0d-4f26-a62c-6460e4ee1062"
           ]
         },
         {
-          "id": "bf70b77c-fd07-432e-becc-d92917452068",
+          "id": "73f67671-0671-494b-aa70-b567edeb5cb9",
           "type": "POOL",
           "x": -30,
           "y": 230,
@@ -347,34 +446,34 @@
               {
                 "name": "Resource 1",
                 "max": 5,
-                "current": 5,
+                "current": 4,
                 "style": "dots"
               },
               {
                 "name": "Resource 2",
                 "max": 5,
-                "current": 5,
+                "current": 3,
                 "style": "flames"
               },
               {
                 "name": "Resource 3",
                 "max": 5,
-                "current": 5,
+                "current": 2,
                 "style": "skulls"
               }
             ],
             "showPoolCount": false
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "915607a4-3bf2-4f24-acef-1db0e6c91dca",
-            "7516acac-6eaf-4c1c-a20c-f0f8322a849a",
-            "700fd25a-91a1-4a9a-9aff-efc9ea9ab9b5",
-            "d6e01146-3692-4c5e-a2cb-88f74868ffb3"
+            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30",
+            "1584d21d-387b-48c0-a464-29bc5885fb3d",
+            "175a9d7a-a586-4dc7-a228-17a1be934438",
+            "6690184f-ad0d-4f26-a62c-6460e4ee1062"
           ]
         },
         {
-          "id": "7516acac-6eaf-4c1c-a20c-f0f8322a849a",
+          "id": "1584d21d-387b-48c0-a464-29bc5885fb3d",
           "type": "PROGRESS_BAR",
           "x": -190,
           "y": 230,
@@ -385,18 +484,19 @@
             "value": 0,
             "items": [],
             "text": "",
-            "showPercentage": false
+            "showPercentage": false,
+            "currentValue": 20
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "731d0487-4aed-4f56-b260-018cb5b79dbb",
-            "915607a4-3bf2-4f24-acef-1db0e6c91dca",
-            "700fd25a-91a1-4a9a-9aff-efc9ea9ab9b5",
-            "bf70b77c-fd07-432e-becc-d92917452068"
+            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
+            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30",
+            "175a9d7a-a586-4dc7-a228-17a1be934438",
+            "73f67671-0671-494b-aa70-b567edeb5cb9"
           ]
         },
         {
-          "id": "700fd25a-91a1-4a9a-9aff-efc9ea9ab9b5",
+          "id": "175a9d7a-a586-4dc7-a228-17a1be934438",
           "type": "REST_BUTTON",
           "x": -190,
           "y": 320,
@@ -417,19 +517,19 @@
             "passTimeAmount": 8,
             "passTimeUnit": "hours"
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "731d0487-4aed-4f56-b260-018cb5b79dbb",
-            "ea29e4fe-3fc2-4f52-a425-432581723b18",
-            "7516acac-6eaf-4c1c-a20c-f0f8322a849a",
-            "d6e01146-3692-4c5e-a2cb-88f74868ffb3",
-            "bf70b77c-fd07-432e-becc-d92917452068"
+            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
+            "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
+            "1584d21d-387b-48c0-a464-29bc5885fb3d",
+            "6690184f-ad0d-4f26-a62c-6460e4ee1062",
+            "73f67671-0671-494b-aa70-b567edeb5cb9"
           ]
         },
         {
-          "id": "595d28c6-c3a1-4282-ab1e-24ebce1c2d72",
+          "id": "fc4618b6-8fdc-4e61-8484-1c448a1b123c",
           "type": "ROLL_TABLE",
-          "x": 560,
+          "x": 570,
           "y": -40,
           "w": 220,
           "h": 120,
@@ -449,7 +549,7 @@
                 "weight": 1
               },
               {
-                "text": "Hearth Attack",
+                "text": "Heart Attack",
                 "weight": 1
               },
               {
@@ -464,12 +564,12 @@
           }
         },
         {
-          "id": "3fa73cf0-98d2-4cbc-be52-f4ab01284543",
+          "id": "7dcf8954-dfaa-41b0-be09-e90fa057b745",
           "type": "SPELL_SLOT",
           "x": 150,
-          "y": 430,
+          "y": 410,
           "w": 190,
-          "h": 170,
+          "h": 190,
           "data": {
             "label": "Spell Slots",
             "value": 0,
@@ -479,31 +579,32 @@
               {
                 "level": 1,
                 "max": 4,
-                "used": 0
+                "used": 3
               },
               {
                 "level": 2,
                 "max": 3,
-                "used": 0
+                "used": 1
               },
               {
                 "level": 3,
                 "max": 2,
-                "used": 0
+                "used": 2
               }
             ]
           },
-          "groupId": "e41e6152-717a-4795-b50b-6d716d1a8ae6",
+          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
           "attachedTo": [
-            "51783560-4c4c-43ed-812f-8e7427d38738"
+            "fde849d1-4f04-4fb6-9297-c4482fbfcca7",
+            "4fd59eff-4962-4a98-ad11-253fe0ea04b7"
           ]
         },
         {
-          "id": "51783560-4c4c-43ed-812f-8e7427d38738",
+          "id": "4fd59eff-4962-4a98-ad11-253fe0ea04b7",
           "type": "TABLE",
           "x": 150,
-          "y": 280,
-          "w": 380,
+          "y": 260,
+          "w": 400,
           "h": 150,
           "data": {
             "label": "Spells",
@@ -638,17 +739,19 @@
               }
             ]
           },
-          "groupId": "e41e6152-717a-4795-b50b-6d716d1a8ae6",
+          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
           "attachedTo": [
-            "3fa73cf0-98d2-4cbc-be52-f4ab01284543"
+            "7dcf8954-dfaa-41b0-be09-e90fa057b745",
+            "fde849d1-4f04-4fb6-9297-c4482fbfcca7",
+            "c962b15e-b231-46ad-be67-84d36450ec3b"
           ]
         },
         {
-          "id": "783c6216-1a57-424b-81ad-9653fc058cda",
+          "id": "d782741a-8c8a-4ae9-bb7a-d0b1d6290542",
           "type": "TEXT",
-          "x": 560,
+          "x": 570,
           "y": 100,
-          "w": 430,
+          "w": 380,
           "h": 120,
           "data": {
             "label": "Notes",
@@ -656,13 +759,13 @@
             "items": [],
             "text": "The King wants us to save his son. \n\n(his son is an idiot)"
           },
-          "groupId": "da27a7dd-d44e-4574-8a2c-1ef231a0fe8a",
+          "groupId": "b9f7ead8-39fd-4d9a-b05d-8b08671a4f49",
           "attachedTo": [
-            "ebcf7e30-a533-4357-8f77-2361081d164c"
+            "e4b3ae6f-63fa-4b15-bee0-0dd9c4e38829"
           ]
         },
         {
-          "id": "d6e01146-3692-4c5e-a2cb-88f74868ffb3",
+          "id": "6690184f-ad0d-4f26-a62c-6460e4ee1062",
           "type": "TIME_TRACKER",
           "x": -130,
           "y": 420,
@@ -677,23 +780,23 @@
             "timedEffects": [
               {
                 "name": "Dizzy",
-                "remainingSeconds": 3600
+                "remainingSeconds": 3588
               },
               {
                 "name": "Poisoned",
-                "remainingSeconds": 120
+                "remainingSeconds": 108
               }
             ]
           },
-          "groupId": "40a45d96-bb6c-4d0d-aed6-d9b9ecd31e62",
+          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
           "attachedTo": [
-            "ea29e4fe-3fc2-4f52-a425-432581723b18",
-            "700fd25a-91a1-4a9a-9aff-efc9ea9ab9b5",
-            "bf70b77c-fd07-432e-becc-d92917452068"
+            "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
+            "175a9d7a-a586-4dc7-a228-17a1be934438",
+            "73f67671-0671-494b-aa70-b567edeb5cb9"
           ]
         },
         {
-          "id": "100e0b2b-5d2f-4a61-9801-c7d15d8fef98",
+          "id": "077d8c6d-5761-49a6-a297-f775aaf1b1fa",
           "type": "DICE_ROLLER",
           "x": 350,
           "y": -40,
@@ -712,14 +815,74 @@
             ],
             "modifier": 1
           },
-          "groupId": "4a4a952d-3fbd-4d79-b894-4bd7ba3c0d9d",
+          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
           "attachedTo": [
-            "a69e9d47-a151-4fb0-b529-fe447a5f84bc",
-            "80e93ac8-42d8-4dce-8f40-8d106fc237a6"
+            "df3023f3-f290-4203-94a7-f07010b846ce"
+          ]
+        },
+        {
+          "id": "fde849d1-4f04-4fb6-9297-c4482fbfcca7",
+          "type": "INITIATIVE_TRACKER",
+          "x": 340,
+          "y": 410,
+          "w": 210,
+          "h": 190,
+          "data": {
+            "label": "Initiative Tracker",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "initiativeAdvanceTimeTrackers": true,
+            "initiativePool": [
+              {
+                "name": "Alice",
+                "diceFaces": 20,
+                "flatBonus": 0
+              },
+              {
+                "name": "Bob",
+                "diceFaces": 20,
+                "flatBonus": 0
+              },
+              {
+                "name": "Gaston",
+                "diceFaces": 20,
+                "flatBonus": 0
+              }
+            ],
+            "initiativeEncounter": [
+              {
+                "id": "h8x9l1sdt",
+                "name": "Alice",
+                "diceFaces": 20,
+                "flatBonus": 0,
+                "isTemporary": false
+              },
+              {
+                "id": "39epkhaxt",
+                "name": "Bob",
+                "diceFaces": 20,
+                "flatBonus": 0,
+                "isTemporary": false
+              },
+              {
+                "id": "esqakqzv1",
+                "name": "Gaston",
+                "diceFaces": 20,
+                "flatBonus": 0,
+                "isTemporary": false
+              }
+            ],
+            "initiativeCurrentIndex": 2
+          },
+          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "attachedTo": [
+            "7dcf8954-dfaa-41b0-be09-e90fa057b745",
+            "4fd59eff-4962-4a98-ad11-253fe0ea04b7"
           ]
         }
       ]
     }
   ],
-  "activeSheetId": "8d25f9a3-e35c-4bdc-9b41-de3f663389a8"
+  "activeSheetId": "a866014b-d057-48a9-893a-5a82bd3180eb"
 }

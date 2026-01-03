@@ -473,6 +473,7 @@ export const useStore = create<StoreState>((set, get) => {
             'PROGRESS_BAR': 'Progress',
             'MAP_SKETCHER': 'Map',
             'ROLL_TABLE': 'Random Table',
+            'INITIATIVE_TRACKER': 'Initiative Tracker',
           };
           return defaultLabels[widgetType] || '';
         };

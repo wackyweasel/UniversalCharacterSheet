@@ -14,6 +14,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'FORM', label: 'Form' },
   { type: 'HEALTH_BAR', label: 'Health Bar' },
   { type: 'IMAGE', label: 'Image' },
+  { type: 'INITIATIVE_TRACKER', label: 'Initiative Tracker' },
   { type: 'LIST', label: 'List' },
   { type: 'MAP_SKETCHER', label: 'Map Sketcher' },
   { type: 'NUMBER_DISPLAY', label: 'Number Display' },

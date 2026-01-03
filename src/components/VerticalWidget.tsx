@@ -22,6 +22,7 @@ import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
+import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 
 interface Props {
   widget: Widget;
@@ -100,6 +101,7 @@ export default function VerticalWidget({
     'FORM': 'Form',
     'HEALTH_BAR': 'Health Bar',
     'IMAGE': 'Image',
+    'INITIATIVE_TRACKER': 'Initiative Tracker',
     'LIST': 'List',
     'MAP_SKETCHER': 'Map Sketcher',
     'NUMBER_DISPLAY': 'Number Display',
@@ -213,6 +215,7 @@ export default function VerticalWidget({
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
+      case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       default: return null;
     }
   };

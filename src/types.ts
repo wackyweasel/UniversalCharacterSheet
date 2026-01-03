@@ -17,7 +17,8 @@ export type WidgetType =
   | 'REST_BUTTON'
   | 'PROGRESS_BAR'
   | 'MAP_SKETCHER'
-  | 'ROLL_TABLE';
+  | 'ROLL_TABLE'
+  | 'INITIATIVE_TRACKER';
 
 export interface ToggleItem {
   name: string;
@@ -98,6 +99,21 @@ export interface PoolResource {
   style: string;
 }
 
+export interface InitiativeParticipant {
+  name: string;
+  diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
+  flatBonus: number;   // Flat bonus to add to the roll
+}
+
+export interface InitiativeEncounterEntry {
+  id: string;          // Unique ID for drag/drop ordering
+  name: string;
+  diceFaces: number;
+  flatBonus: number;
+  rollResult?: number; // The result of the initiative roll (including bonus)
+  isTemporary?: boolean; // True if added on-the-fly (not from pool)
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -171,6 +187,15 @@ export interface WidgetData {
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
+  // Initiative Tracker
+  initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
+  initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants
+  initiativeShowRollButton?: boolean;               // Whether to show the Roll Initiative button
+  initiativeCurrentIndex?: number;                  // Index of the currently highlighted participant
+  initiativeAdvanceTimeTrackers?: boolean;          // Whether to advance Time Tracker widgets on new round
+  initiativeAdvanceByRound?: boolean;               // Advance by 1 round (for round-mode Time Trackers)
+  initiativeAdvanceTimeAmount?: number;             // Amount of time to advance
+  initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
