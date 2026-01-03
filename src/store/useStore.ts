@@ -122,6 +122,7 @@ interface StoreState {
   removeWidget: (id: string) => void;
   toggleWidgetLock: (id: string) => void;
   reorderWidget: (widgetId: string, newIndex: number) => void;
+  moveWidgetToSheet: (widgetId: string, targetSheetId: string) => void;
   
   // Widget Group Actions (for snap+attach)
   attachWidgets: (widgetId1: string, widgetId2: string) => void;
@@ -731,6 +732,71 @@ export const useStore = create<StoreState>((set, get) => {
           return c;
         })
       }));
+    },
+
+    moveWidgetToSheet: (widgetId, targetSheetId) => {
+      // Take snapshot before moving widget
+      get()._takeSnapshot('Move widget to sheet');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!character) return state;
+        
+        // Find the widget in the active sheet
+        const activeSheet = character.sheets.find(s => s.id === character.activeSheetId);
+        if (!activeSheet) return state;
+        
+        const widget = activeSheet.widgets.find(w => w.id === widgetId);
+        if (!widget) return state;
+        
+        // Can't move to the same sheet
+        if (targetSheetId === character.activeSheetId) return state;
+        
+        // Check target sheet exists
+        const targetSheet = character.sheets.find(s => s.id === targetSheetId);
+        if (!targetSheet) return state;
+        
+        // Remove widget from attachments and groups when moving
+        const widgetToMove = {
+          ...widget,
+          groupId: undefined,
+          attachedTo: undefined,
+        };
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id !== state.activeCharacterId) return c;
+            
+            return {
+              ...c,
+              sheets: c.sheets.map(s => {
+                if (s.id === character.activeSheetId) {
+                  // Remove from source sheet, also clean up references from other widgets
+                  return {
+                    ...s,
+                    widgets: s.widgets
+                      .filter(w => w.id !== widgetId)
+                      .map(w => ({
+                        ...w,
+                        attachedTo: w.attachedTo?.filter(id => id !== widgetId),
+                      })),
+                  };
+                }
+                if (s.id === targetSheetId) {
+                  // Add to target sheet
+                  return {
+                    ...s,
+                    widgets: [...s.widgets, widgetToMove],
+                  };
+                }
+                return s;
+              }),
+            };
+          }),
+        };
+      });
     },
 
     reorderWidget: (widgetId, newIndex) => {

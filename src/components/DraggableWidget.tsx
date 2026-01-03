@@ -68,6 +68,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const cloneWidget = useStore((state) => state.cloneWidget);
   const detachWidgets = useStore((state) => state.detachWidgets);
   const toggleWidgetLock = useStore((state) => state.toggleWidgetLock);
+  const moveWidgetToSheet = useStore((state) => state.moveWidgetToSheet);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
@@ -90,6 +91,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
   // Always disable texture in print mode
   const hasImageTexture = isImageTexture(textureKey) && !textureDisabled && mode !== 'print';
   
+  // Get sheets for "Move to Another Sheet" feature
+  const sheets = activeCharacter?.sheets || [];
+  const hasMultipleSheets = sheets.length > 1;
+  
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -100,6 +105,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [showMoveToSheet, setShowMoveToSheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -138,6 +144,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
         setShowDeleteConfirm(false);
         setShowTemplateNameInput(false);
         setTemplateName('');
+        setShowMoveToSheet(false);
       }
     };
 
@@ -585,6 +592,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                     setShowDeleteConfirm(false);
                     setShowTemplateNameInput(false);
                     setTemplateName('');
+                    setShowMoveToSheet(false);
                   }
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -701,6 +709,52 @@ export default function DraggableWidget({ widget, scale }: Props) {
                         </button>
                       </div>
                     </div>
+                  )}
+                  {/* Move to Another Sheet - only show if there are multiple sheets */}
+                  {hasMultipleSheets && (
+                    <>
+                      {!showMoveToSheet ? (
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMoveToSheet(true);
+                          }}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
+                          Move to Another Sheet
+                        </button>
+                      ) : (
+                        <div className="px-2 py-2">
+                          <div className="text-xs text-theme-muted mb-2">Select target sheet:</div>
+                          {sheets
+                            .filter(s => s.id !== activeCharacter?.activeSheetId)
+                            .map(sheet => (
+                              <button
+                                key={sheet.id}
+                                className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveWidgetToSheet(widget.id, sheet.id);
+                                  setShowDropdown(false);
+                                  setShowMoveToSheet(false);
+                                }}
+                              >
+                                {sheet.name}
+                              </button>
+                            ))}
+                          <button
+                            className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowMoveToSheet(false);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div className="border-t border-theme-border" />
                   {!showDeleteConfirm ? (
