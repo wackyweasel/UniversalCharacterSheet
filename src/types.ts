@@ -54,6 +54,10 @@ export interface CheckboxItem {
   checked: boolean;
 }
 
+export interface ChecklistSettings {
+  strikethrough?: boolean;
+}
+
 export interface SpellLevel {
   level: number;
   max: number;
@@ -103,6 +107,7 @@ export interface WidgetData {
   // Checkbox
   checked?: boolean;
   checkboxItems?: CheckboxItem[];
+  checklistSettings?: ChecklistSettings;
   // Health Bar & Progress Bar
   currentValue?: number;
   maxValue?: number;

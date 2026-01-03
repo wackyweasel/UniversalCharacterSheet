@@ -1,10 +1,5 @@
-import { Widget } from '../../types';
+import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
-
-interface CheckboxItem {
-  name: string;
-  checked: boolean;
-}
 
 interface Props {
   widget: Widget;
@@ -15,7 +10,8 @@ interface Props {
 
 export default function CheckboxWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, checkboxItems = [] } = widget.data;
+  const { label, checkboxItems = [], checklistSettings } = widget.data;
+  const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -56,17 +52,20 @@ export default function CheckboxWidget({ widget, height }: Props) {
         }}
       >
         {(checkboxItems as CheckboxItem[]).map((item, idx) => (
-          <div key={idx} className={`flex items-center ${gapClass}`}>
-            <button
-              onClick={() => toggleItem(idx)}
-              onMouseDown={(e) => e.stopPropagation()}
+          <div 
+            key={idx} 
+            className={`flex items-center ${gapClass} cursor-pointer`}
+            onClick={() => toggleItem(idx)}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div
               className={`${checkboxClass} border-[length:var(--border-width)] border-theme-border flex items-center justify-center transition-colors flex-shrink-0 rounded-button ${
                 item.checked ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper hover:opacity-80'
               }`}
             >
               {item.checked && <span className={checkClass}>✓</span>}
-            </button>
-            <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked ? 'line-through text-theme-muted' : ''}`}>
+            </div>
+            <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked && strikethrough ? 'line-through text-theme-muted' : ''}`}>
               {item.name}
             </span>
           </div>
