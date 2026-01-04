@@ -429,8 +429,7 @@ export default function TableWidget({ widget, height }: Props) {
     if (fromIndex !== null && fromIndex !== toIndex) {
       const newRows = [...rows];
       const [movedRow] = newRows.splice(fromIndex, 1);
-      const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
-      newRows.splice(insertIndex, 0, movedRow);
+      newRows.splice(toIndex, 0, movedRow);
       updateWidgetData(widget.id, { rows: newRows });
     }
     dragRowItem.current = null;
@@ -439,6 +438,114 @@ export default function TableWidget({ widget, height }: Props) {
   };
 
   const handleRowDragEnd = () => {
+    dragRowItem.current = null;
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+  };
+
+  // Touch drag handlers for row reordering
+  const touchDragState = useRef<{
+    startY: number;
+    currentY: number;
+    rowIndex: number;
+    rowElements: HTMLTableRowElement[];
+    rowHeights: number[];
+    scrollContainer: HTMLElement | null;
+  } | null>(null);
+
+  const handleRowTouchStart = (e: React.TouchEvent, index: number) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const tableBody = tableRef.current?.querySelector('tbody');
+    const scrollContainer = tableRef.current?.querySelector('.overflow-auto') as HTMLElement | null;
+    
+    if (tableBody) {
+      const rowElements = Array.from(tableBody.querySelectorAll('tr')) as HTMLTableRowElement[];
+      const rowHeights = rowElements.map(row => row.getBoundingClientRect().height);
+      
+      touchDragState.current = {
+        startY: touch.clientY,
+        currentY: touch.clientY,
+        rowIndex: index,
+        rowElements,
+        rowHeights,
+        scrollContainer,
+      };
+      
+      dragRowItem.current = index;
+      setDraggedRowIndex(index);
+    }
+  };
+
+  const handleRowTouchMove = (e: React.TouchEvent) => {
+    if (!touchDragState.current || dragRowItem.current === null) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const touch = e.touches[0];
+    touchDragState.current.currentY = touch.clientY;
+    
+    const { rowHeights, scrollContainer } = touchDragState.current;
+    const fromIndex = dragRowItem.current;
+    
+    // Calculate which row we're hovering over based on touch position
+    let accumulatedHeight = 0;
+    let targetIndex = -1;
+    
+    const tableBody = tableRef.current?.querySelector('tbody');
+    if (tableBody) {
+      const tableRect = tableBody.getBoundingClientRect();
+      const relativeY = touch.clientY - tableRect.top + (scrollContainer?.scrollTop || 0);
+      
+      for (let i = 0; i < rowHeights.length; i++) {
+        accumulatedHeight += rowHeights[i];
+        if (relativeY < accumulatedHeight) {
+          targetIndex = i;
+          break;
+        }
+      }
+      
+      // If we're past all rows, target the last row
+      if (targetIndex === -1 && rowHeights.length > 0) {
+        targetIndex = rowHeights.length - 1;
+      }
+    }
+    
+    if (targetIndex !== -1 && targetIndex !== fromIndex) {
+      setDragOverRowIndex(targetIndex);
+    } else {
+      setDragOverRowIndex(null);
+    }
+    
+    // Auto-scroll when near edges
+    if (scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const scrollThreshold = 40;
+      const scrollSpeed = 5;
+      
+      if (touch.clientY < containerRect.top + scrollThreshold) {
+        scrollContainer.scrollTop -= scrollSpeed;
+      } else if (touch.clientY > containerRect.bottom - scrollThreshold) {
+        scrollContainer.scrollTop += scrollSpeed;
+      }
+    }
+  };
+
+  const handleRowTouchEnd = () => {
+    if (!touchDragState.current || dragRowItem.current === null) return;
+    
+    const fromIndex = dragRowItem.current;
+    const toIndex = dragOverRowIndex;
+    
+    if (toIndex !== null && fromIndex !== toIndex) {
+      const newRows = [...rows];
+      const [movedRow] = newRows.splice(fromIndex, 1);
+      newRows.splice(toIndex, 0, movedRow);
+      updateWidgetData(widget.id, { rows: newRows });
+    }
+    
+    touchDragState.current = null;
     dragRowItem.current = null;
     setDraggedRowIndex(null);
     setDragOverRowIndex(null);
@@ -576,9 +683,9 @@ export default function TableWidget({ widget, height }: Props) {
         onDragOver={(e) => e.preventDefault()}
       >
         <table className={`w-full ${cellClass}`} style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-          <thead className="sticky top-0 z-10" style={{ boxShadow: '0 -2px 0 0 var(--color-paper)' }}>
+          <thead className="sticky top-0 z-10">
             <tr>
-              <th className="w-4 bg-theme-paper"></th>
+              <th className="w-4 bg-transparent"></th>
               {columns.map((col: string, idx: number) => (
                 <th 
                   key={idx} 
@@ -588,7 +695,7 @@ export default function TableWidget({ widget, height }: Props) {
                   {col}
                 </th>
               ))}
-              <th className="w-4 bg-theme-paper"></th>
+              <th className="w-4 bg-transparent"></th>
             </tr>
           </thead>
           <tbody>
@@ -614,6 +721,9 @@ export default function TableWidget({ widget, height }: Props) {
                   onDragStart={(e) => handleRowDragStart(e, rowIdx)}
                   onDragEnd={handleRowDragEnd}
                   onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => handleRowTouchStart(e, rowIdx)}
+                  onTouchMove={handleRowTouchMove}
+                  onTouchEnd={handleRowTouchEnd}
                 >
                   <div className={`text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none ${isPrintMode ? 'opacity-0' : ''}`}>
                     ⠿
