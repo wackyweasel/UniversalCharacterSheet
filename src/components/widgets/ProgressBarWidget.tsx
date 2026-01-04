@@ -122,7 +122,7 @@ export default function ProgressBarWidget({ widget }: Props) {
       )}
       
       {/* Progress Bar */}
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex-1 flex flex-col justify-start">
         <div 
           className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border cursor-pointer`}
           onClick={() => setShowValueModal(true)}
@@ -137,7 +137,7 @@ export default function ProgressBarWidget({ widget }: Props) {
           {/* Progress text overlay */}
           {(showValues || showPercentage) && (
             <div 
-              className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink`}
+              className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink font-body`}
               style={{ textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
             >
               {getBarText()}

@@ -99,7 +99,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
               />
             ) : (
               <span 
-                className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors leading-none"
+                className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors leading-none font-body"
                 style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                 data-print-hide={hideValues ? 'true' : undefined}
                 onClick={() => handleValueClick(idx, item.value)}

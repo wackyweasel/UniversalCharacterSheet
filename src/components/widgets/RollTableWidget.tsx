@@ -104,7 +104,7 @@ export default function RollTableWidget({ widget, height }: Props) {
       <button
         onClick={rollTable}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-shrink-0 ${
+        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
           isRolling 
             ? 'bg-theme-muted animate-pulse text-theme-paper' 
             : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'

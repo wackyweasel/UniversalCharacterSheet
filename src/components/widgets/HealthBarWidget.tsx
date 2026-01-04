@@ -57,7 +57,7 @@ function HealthModal({
           <button
             onClick={decrement}
             onMouseDown={(e) => e.stopPropagation()}
-            className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl"
+            className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl font-body"
           >
             −
           </button>
@@ -74,7 +74,7 @@ function HealthModal({
           <button
             onClick={increment}
             onMouseDown={(e) => e.stopPropagation()}
-            className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl"
+            className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl font-body"
           >
             +
           </button>
@@ -151,7 +151,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         <button
           onClick={() => updateWidgetData(widget.id, { currentValue: currentValue - increment })}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
+          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
         >
           −
         </button>
@@ -167,7 +167,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
           />
           {/* Health text overlay - hide current value and shadow in print mode */}
           <div 
-            className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink`}
+            className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink font-body`}
             style={isPrintMode ? {} : { textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
           >
             {isPrintMode ? (
@@ -185,7 +185,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         <button
           onClick={() => updateWidgetData(widget.id, { currentValue: Math.min(maxValue, currentValue + increment) })}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
+          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
         >
           +
         </button>
@@ -196,21 +196,21 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         <button
           onClick={() => setShowDamageModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body`}
         >
           Damage
         </button>
         <button
           onClick={() => setShowHealModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body`}
         >
           Heal
         </button>
         <button
           onClick={fullHeal}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} bg-theme-accent text-theme-paper hover:opacity-80 transition-colors rounded-button font-bold`}
+          className={`${buttonClass} bg-theme-accent text-theme-paper hover:opacity-80 transition-colors rounded-button font-bold font-body`}
         >
           Full
         </button>

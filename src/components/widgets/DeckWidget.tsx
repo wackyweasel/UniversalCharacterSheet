@@ -202,7 +202,7 @@ export default function DeckWidget({ widget, mode }: Props) {
         <button
           onClick={drawCard}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`flex-1 ${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button ${
+          className={`flex-1 ${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button font-body ${
             isDrawing 
               ? 'bg-theme-muted animate-pulse text-theme-paper' 
               : getTotalRemaining() === 0
@@ -217,7 +217,7 @@ export default function DeckWidget({ widget, mode }: Props) {
           <button
             onClick={resetDeck}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper`}
+            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
             title="Reset deck"
           >
             ↺
@@ -237,14 +237,14 @@ export default function DeckWidget({ widget, mode }: Props) {
         <button
           onClick={() => setShowDrawPile(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border/50 rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50"
+          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border/50 rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
         >
           Draw Pile ({getTotalRemaining()})
         </button>
         <button
           onClick={() => setShowDiscardPile(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border/50 rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50"
+          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border/50 rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
         >
           Discard ({currentState.discarded.length})
         </button>

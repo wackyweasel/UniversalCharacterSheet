@@ -10,19 +10,19 @@
           "id": "f012632f-b66d-4713-9118-26630e6778a5",
           "type": "IMAGE",
           "x": -350,
-          "y": -40,
+          "y": -50,
           "w": 140,
-          "h": 180,
+          "h": 190,
           "data": {
             "label": "New Widget",
             "value": 0,
             "items": [],
             "text": ""
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
-            "d10ea217-73b5-46ef-a412-973f8383737e",
             "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
+            "d10ea217-73b5-46ef-a412-973f8383737e",
             "21436321-04b9-4b67-9728-01a2ea324bad"
           ]
         },
@@ -30,9 +30,9 @@
           "id": "d10ea217-73b5-46ef-a412-973f8383737e",
           "type": "CHECKBOX",
           "x": -210,
-          "y": -40,
+          "y": -50,
           "w": 140,
-          "h": 90,
+          "h": 100,
           "data": {
             "label": "Checkbox",
             "value": 0,
@@ -52,11 +52,11 @@
               "strikethrough": false
             }
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
-            "a05ee0b0-20f5-4057-9548-54d9fc8e7661",
+            "f012632f-b66d-4713-9118-26630e6778a5",
             "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
-            "f012632f-b66d-4713-9118-26630e6778a5"
+            "a05ee0b0-20f5-4057-9548-54d9fc8e7661"
           ]
         },
         {
@@ -78,7 +78,7 @@
               },
               {
                 "name": "Frightened",
-                "active": true
+                "active": false
               },
               {
                 "name": "Stunned",
@@ -94,7 +94,7 @@
               },
               {
                 "name": "Prone",
-                "active": false
+                "active": true
               },
               {
                 "name": "Poisoned",
@@ -106,12 +106,11 @@
               }
             ]
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
+            "f012632f-b66d-4713-9118-26630e6778a5",
             "d10ea217-73b5-46ef-a412-973f8383737e",
             "a05ee0b0-20f5-4057-9548-54d9fc8e7661",
-            "f012632f-b66d-4713-9118-26630e6778a5",
-            "21436321-04b9-4b67-9728-01a2ea324bad",
             "c7db7b4d-e310-4ac8-8e0f-25e8937939ed"
           ]
         },
@@ -119,7 +118,7 @@
           "id": "0716278d-79c7-4e25-980a-255de5535fb3",
           "type": "DICE_ROLLER",
           "x": 150,
-          "y": -40,
+          "y": -50,
           "w": 200,
           "h": 120,
           "data": {
@@ -129,7 +128,7 @@
             "text": "",
             "modifier": 2
           },
-          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
+          "groupId": "6873aad0-47a8-45cf-bfdf-7624806a5fc4",
           "attachedTo": [
             "ffd5c666-6abc-45fc-8499-bd7e39005758",
             "6ef2cac0-d99b-4f72-829e-b4488c51cb15"
@@ -139,29 +138,29 @@
           "id": "6ef2cac0-d99b-4f72-829e-b4488c51cb15",
           "type": "DICE_TRAY",
           "x": 150,
-          "y": 80,
+          "y": 70,
           "w": 400,
-          "h": 180,
+          "h": 140,
           "data": {
             "label": "New Widget",
             "value": 0,
             "items": [],
             "text": ""
           },
-          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
+          "groupId": "6873aad0-47a8-45cf-bfdf-7624806a5fc4",
           "attachedTo": [
-            "e324fea3-9ca6-4b5c-b75f-499eff70c57d",
+            "0716278d-79c7-4e25-980a-255de5535fb3",
             "ffd5c666-6abc-45fc-8499-bd7e39005758",
-            "0716278d-79c7-4e25-980a-255de5535fb3"
+            "e324fea3-9ca6-4b5c-b75f-499eff70c57d"
           ]
         },
         {
           "id": "a05ee0b0-20f5-4057-9548-54d9fc8e7661",
           "type": "FORM",
           "x": -70,
-          "y": -40,
+          "y": -50,
           "w": 200,
-          "h": 90,
+          "h": 100,
           "data": {
             "label": "",
             "value": 0,
@@ -183,7 +182,7 @@
             ],
             "labelWidth": 42
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
             "d10ea217-73b5-46ef-a412-973f8383737e",
             "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f"
@@ -203,21 +202,20 @@
             "text": "",
             "currentValue": 9
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
-            "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
             "f012632f-b66d-4713-9118-26630e6778a5",
-            "f99c867a-81d5-423c-9840-dd274f94bdfc",
-            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed"
+            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
+            "a3020607-50e1-4578-baf0-9c9d1f8bba88"
           ]
         },
         {
           "id": "f99c867a-81d5-423c-9840-dd274f94bdfc",
           "type": "LIST",
-          "x": -350,
+          "x": -190,
           "y": 230,
           "w": 160,
-          "h": 190,
+          "h": 150,
           "data": {
             "label": "Backpack",
             "value": 0,
@@ -230,21 +228,23 @@
             ],
             "text": ""
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
-            "21436321-04b9-4b67-9728-01a2ea324bad",
+            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f",
             "a3020607-50e1-4578-baf0-9c9d1f8bba88",
-            "937f0c77-364a-4998-9d5c-00f7002988a3",
-            "2cf21c88-3f78-4b1b-8859-4353eabd684f"
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
+            "4b97cbce-a02a-4078-9b96-b7115c447575",
+            "937f0c77-364a-4998-9d5c-00f7002988a3"
           ]
         },
         {
           "id": "3517a65f-70eb-431a-9279-9fe28d2250ac",
           "type": "MAP_SKETCHER",
           "x": 570,
-          "y": 220,
+          "y": 200,
           "w": 380,
-          "h": 380,
+          "h": 350,
           "data": {
             "label": "Map Sketcher",
             "value": 0,
@@ -340,7 +340,7 @@
               }
             ]
           },
-          "groupId": "0f947fa2-75b1-4b27-b858-bb100d833377",
+          "groupId": "64a82c6e-a70e-4517-8dfa-8de8b4a89f00",
           "attachedTo": [
             "f1b2a166-316f-4fef-a380-e7bb49f2385d"
           ]
@@ -376,21 +376,21 @@
               }
             ]
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
             "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
             "21436321-04b9-4b67-9728-01a2ea324bad",
-            "a3020607-50e1-4578-baf0-9c9d1f8bba88",
-            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f",
+            "f99c867a-81d5-423c-9840-dd274f94bdfc"
           ]
         },
         {
           "id": "937f0c77-364a-4998-9d5c-00f7002988a3",
           "type": "NUMBER",
           "x": -350,
-          "y": 420,
+          "y": 380,
           "w": 220,
-          "h": 180,
+          "h": 170,
           "data": {
             "label": "Skills",
             "value": 0,
@@ -423,11 +423,11 @@
               }
             ]
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
             "f99c867a-81d5-423c-9840-dd274f94bdfc",
             "2cf21c88-3f78-4b1b-8859-4353eabd684f",
-            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20"
+            "4b97cbce-a02a-4078-9b96-b7115c447575"
           ]
         },
         {
@@ -436,7 +436,7 @@
           "x": -30,
           "y": 230,
           "w": 160,
-          "h": 190,
+          "h": 150,
           "data": {
             "label": "",
             "value": 0,
@@ -464,21 +464,20 @@
             ],
             "showPoolCount": false
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
             "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
-            "a3020607-50e1-4578-baf0-9c9d1f8bba88",
-            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
-            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20"
+            "f99c867a-81d5-423c-9840-dd274f94bdfc",
+            "4b97cbce-a02a-4078-9b96-b7115c447575"
           ]
         },
         {
           "id": "a3020607-50e1-4578-baf0-9c9d1f8bba88",
           "type": "PROGRESS_BAR",
-          "x": -190,
+          "x": -350,
           "y": 230,
           "w": 160,
-          "h": 90,
+          "h": 60,
           "data": {
             "label": "XP",
             "value": 0,
@@ -487,21 +486,20 @@
             "showPercentage": false,
             "currentValue": 20
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
+            "21436321-04b9-4b67-9728-01a2ea324bad",
             "f99c867a-81d5-423c-9840-dd274f94bdfc",
-            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
-            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
-            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f"
           ]
         },
         {
           "id": "2cf21c88-3f78-4b1b-8859-4353eabd684f",
           "type": "REST_BUTTON",
-          "x": -190,
-          "y": 320,
+          "x": -350,
+          "y": 290,
           "w": 160,
-          "h": 100,
+          "h": 90,
           "data": {
             "label": "New Widget",
             "value": 0,
@@ -517,21 +515,19 @@
             "passTimeAmount": 8,
             "passTimeUnit": "hours"
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
             "f99c867a-81d5-423c-9840-dd274f94bdfc",
-            "937f0c77-364a-4998-9d5c-00f7002988a3",
             "a3020607-50e1-4578-baf0-9c9d1f8bba88",
-            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20",
-            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
+            "937f0c77-364a-4998-9d5c-00f7002988a3"
           ]
         },
         {
           "id": "84df2d79-e721-42c8-957f-0177229929e1",
           "type": "ROLL_TABLE",
           "x": 570,
-          "y": -40,
-          "w": 170,
+          "y": -50,
+          "w": 190,
           "h": 130,
           "data": {
             "label": "Random Injury",
@@ -562,18 +558,19 @@
               }
             ]
           },
-          "groupId": "8c839688-a77d-4747-a7b6-ce169d635c30",
+          "groupId": "64a82c6e-a70e-4517-8dfa-8de8b4a89f00",
           "attachedTo": [
+            "f1b2a166-316f-4fef-a380-e7bb49f2385d",
             "77b9f223-e66d-485d-8607-6174808f566e"
           ]
         },
         {
           "id": "4b97cbce-a02a-4078-9b96-b7115c447575",
           "type": "SPELL_SLOT",
-          "x": 150,
-          "y": 410,
-          "w": 190,
-          "h": 190,
+          "x": -130,
+          "y": 380,
+          "w": 260,
+          "h": 170,
           "data": {
             "label": "Spell Slots",
             "value": 0,
@@ -593,21 +590,22 @@
               {
                 "level": 3,
                 "max": 2,
-                "used": 2
+                "used": 0
               }
             ]
           },
-          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
+          "groupId": "02bd777b-cefd-4102-9187-a6217326d3aa",
           "attachedTo": [
-            "2ed7a912-c84e-4f8e-8efe-cf5eec488213",
-            "e324fea3-9ca6-4b5c-b75f-499eff70c57d"
+            "f99c867a-81d5-423c-9840-dd274f94bdfc",
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f",
+            "937f0c77-364a-4998-9d5c-00f7002988a3"
           ]
         },
         {
           "id": "e324fea3-9ca6-4b5c-b75f-499eff70c57d",
           "type": "TABLE",
           "x": 150,
-          "y": 260,
+          "y": 210,
           "w": 400,
           "h": 150,
           "data": {
@@ -622,41 +620,6 @@
               "Description"
             ],
             "rows": [
-              {
-                "cells": [
-                  {
-                    "value": "Fireball",
-                    "format": {
-                      "hAlign": "left",
-                      "bgColor": "#ffc59d",
-                      "bgOpacity": 1
-                    }
-                  },
-                  {
-                    "value": "3",
-                    "format": {
-                      "bgColor": "#ffc59d",
-                      "bgOpacity": 1,
-                      "hAlign": "center"
-                    }
-                  },
-                  {
-                    "value": "50ft",
-                    "format": {
-                      "bgColor": "#ffc59d",
-                      "bgOpacity": 1,
-                      "hAlign": "center"
-                    }
-                  },
-                  {
-                    "value": "Radius 15ft, 3d8 damage",
-                    "format": {
-                      "bgColor": "#ffc59d",
-                      "bgOpacity": 1
-                    }
-                  }
-                ]
-              },
               {
                 "cells": [
                   {
@@ -725,6 +688,41 @@
               },
               {
                 "cells": [
+                  {
+                    "value": "Fireball",
+                    "format": {
+                      "hAlign": "left",
+                      "bgColor": "#ffc59d",
+                      "bgOpacity": 1
+                    }
+                  },
+                  {
+                    "value": "3",
+                    "format": {
+                      "bgColor": "#ffc59d",
+                      "bgOpacity": 1,
+                      "hAlign": "center"
+                    }
+                  },
+                  {
+                    "value": "50ft",
+                    "format": {
+                      "bgColor": "#ffc59d",
+                      "bgOpacity": 1,
+                      "hAlign": "center"
+                    }
+                  },
+                  {
+                    "value": "Radius 15ft, 3d8 damage",
+                    "format": {
+                      "bgColor": "#ffc59d",
+                      "bgOpacity": 1
+                    }
+                  }
+                ]
+              },
+              {
+                "cells": [
                   "",
                   {
                     "value": "",
@@ -738,23 +736,26 @@
                       "hAlign": "center"
                     }
                   },
-                  ""
+                  {
+                    "value": "asdfadsf",
+                    "format": {}
+                  }
                 ]
               }
             ]
           },
-          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
+          "groupId": "6873aad0-47a8-45cf-bfdf-7624806a5fc4",
           "attachedTo": [
-            "4b97cbce-a02a-4078-9b96-b7115c447575",
-            "2ed7a912-c84e-4f8e-8efe-cf5eec488213",
-            "6ef2cac0-d99b-4f72-829e-b4488c51cb15"
+            "6ef2cac0-d99b-4f72-829e-b4488c51cb15",
+            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20",
+            "2ed7a912-c84e-4f8e-8efe-cf5eec488213"
           ]
         },
         {
           "id": "f1b2a166-316f-4fef-a380-e7bb49f2385d",
           "type": "TEXT",
           "x": 570,
-          "y": 100,
+          "y": 80,
           "w": 380,
           "h": 120,
           "data": {
@@ -763,18 +764,20 @@
             "items": [],
             "text": "The King wants us to save his son. \n\n(his son is an idiot)"
           },
-          "groupId": "0f947fa2-75b1-4b27-b858-bb100d833377",
+          "groupId": "64a82c6e-a70e-4517-8dfa-8de8b4a89f00",
           "attachedTo": [
-            "3517a65f-70eb-431a-9279-9fe28d2250ac"
+            "3517a65f-70eb-431a-9279-9fe28d2250ac",
+            "77b9f223-e66d-485d-8607-6174808f566e",
+            "84df2d79-e721-42c8-957f-0177229929e1"
           ]
         },
         {
           "id": "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20",
           "type": "TIME_TRACKER",
-          "x": -130,
-          "y": 420,
-          "w": 260,
-          "h": 180,
+          "x": 330,
+          "y": 360,
+          "w": 220,
+          "h": 190,
           "data": {
             "label": "",
             "value": 0,
@@ -784,26 +787,27 @@
             "timedEffects": [
               {
                 "name": "Dizzy",
-                "remainingSeconds": 3588
+                "remainingSeconds": 600,
+                "initialSeconds": 600
               },
               {
                 "name": "Poisoned",
-                "remainingSeconds": 108
+                "remainingSeconds": 3600,
+                "initialSeconds": 3600
               }
             ]
           },
-          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "groupId": "6873aad0-47a8-45cf-bfdf-7624806a5fc4",
           "attachedTo": [
-            "937f0c77-364a-4998-9d5c-00f7002988a3",
-            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
-            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
+            "e324fea3-9ca6-4b5c-b75f-499eff70c57d",
+            "2ed7a912-c84e-4f8e-8efe-cf5eec488213"
           ]
         },
         {
           "id": "ffd5c666-6abc-45fc-8499-bd7e39005758",
           "type": "DICE_ROLLER",
           "x": 350,
-          "y": -40,
+          "y": -50,
           "w": 200,
           "h": 120,
           "data": {
@@ -819,17 +823,18 @@
             ],
             "modifier": 1
           },
-          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
+          "groupId": "6873aad0-47a8-45cf-bfdf-7624806a5fc4",
           "attachedTo": [
-            "0716278d-79c7-4e25-980a-255de5535fb3"
+            "0716278d-79c7-4e25-980a-255de5535fb3",
+            "6ef2cac0-d99b-4f72-829e-b4488c51cb15"
           ]
         },
         {
           "id": "2ed7a912-c84e-4f8e-8efe-cf5eec488213",
           "type": "INITIATIVE_TRACKER",
-          "x": 340,
-          "y": 410,
-          "w": 210,
+          "x": 150,
+          "y": 360,
+          "w": 180,
           "h": 190,
           "data": {
             "label": "Initiative Tracker",
@@ -856,41 +861,41 @@
             ],
             "initiativeEncounter": [
               {
-                "id": "h8x9l1sdt",
+                "id": "9vfqopvmt",
                 "name": "Alice",
                 "diceFaces": 20,
                 "flatBonus": 0,
                 "isTemporary": false
               },
               {
-                "id": "39epkhaxt",
+                "id": "t5c1p4ijq",
                 "name": "Bob",
                 "diceFaces": 20,
                 "flatBonus": 0,
                 "isTemporary": false
               },
               {
-                "id": "esqakqzv1",
+                "id": "7fddhqlld",
                 "name": "Gaston",
                 "diceFaces": 20,
                 "flatBonus": 0,
                 "isTemporary": false
               }
             ],
-            "initiativeCurrentIndex": 2
+            "initiativeCurrentIndex": 0
           },
-          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
+          "groupId": "6873aad0-47a8-45cf-bfdf-7624806a5fc4",
           "attachedTo": [
-            "4b97cbce-a02a-4078-9b96-b7115c447575",
-            "e324fea3-9ca6-4b5c-b75f-499eff70c57d"
+            "e324fea3-9ca6-4b5c-b75f-499eff70c57d",
+            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20"
           ]
         },
         {
           "id": "77b9f223-e66d-485d-8607-6174808f566e",
           "type": "DECK",
-          "x": 740,
-          "y": -40,
-          "w": 210,
+          "x": 760,
+          "y": -50,
+          "w": 190,
           "h": 130,
           "data": {
             "label": "Deck",
@@ -917,29 +922,31 @@
                 "Ace of Potatoes",
                 "Ace of Potatoes",
                 "Ace of Potatoes",
+                "Ace of Potatoes",
                 "Ace of Cats",
                 "Ace of Cats",
                 "Ace of Cats",
                 "Ace of Cats",
                 "Ace of Cats",
+                "Ace of Fireball",
                 "Ace of Fireball",
                 "Ace of Fireball",
                 "Ace of Fireball"
               ],
               "discarded": [
-                "Ace of Fireball",
-                "Ace of Potatoes",
                 "Ace of Fireball"
               ]
             }
           },
-          "groupId": "8c839688-a77d-4747-a7b6-ce169d635c30",
+          "groupId": "64a82c6e-a70e-4517-8dfa-8de8b4a89f00",
           "attachedTo": [
+            "f1b2a166-316f-4fef-a380-e7bb49f2385d",
             "84df2d79-e721-42c8-957f-0177229929e1"
           ]
         }
       ]
     }
   ],
-  "activeSheetId": "56e4547a-33ec-4971-b31b-ceb5cadb52c7"
+  "activeSheetId": "56e4547a-33ec-4971-b31b-ceb5cadb52c7",
+  "theme": "default"
 }

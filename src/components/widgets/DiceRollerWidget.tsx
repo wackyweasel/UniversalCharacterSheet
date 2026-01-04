@@ -248,7 +248,7 @@ export default function DiceRollerWidget({ widget }: Props) {
       <button
         onClick={rollDice}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-shrink-0 ${
+        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
           isRolling 
             ? 'bg-theme-muted animate-pulse text-theme-paper' 
             : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
@@ -259,7 +259,7 @@ export default function DiceRollerWidget({ widget }: Props) {
       </button>
 
       {/* Result Display - Always visible to maintain consistent height */}
-      <div className={`text-center border-t border-theme-border/50 pt-1 flex-1 flex flex-col justify-center`}>
+      <div className={`text-center flex-1 flex flex-col justify-center`}>
         {result && !isRolling ? (
           <>
             {/* Show aggregated result (e.g., "17 | 2💀 | 3 poison") */}

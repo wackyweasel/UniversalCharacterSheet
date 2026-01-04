@@ -92,13 +92,13 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink hover:bg-theme-background"
+              className="px-3 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink hover:bg-theme-background font-body"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-3 py-1 text-sm bg-theme-accent text-theme-paper rounded hover:opacity-90"
+              className="px-3 py-1 text-sm bg-theme-accent text-theme-paper rounded hover:opacity-90 font-body"
             >
               Add
             </button>
@@ -374,10 +374,10 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                     index === initiativeCurrentIndex ? 'bg-theme-accent/20 font-bold' : ''
                   }`}
                 >
-                  <span className={`${itemClass} text-theme-muted w-4`}>{index + 1}.</span>
-                  <span className={`${itemClass} text-theme-ink flex-1 truncate`}>{entry.name}</span>
+                  <span className={`${itemClass} text-theme-muted w-4 font-body`}>{index + 1}.</span>
+                  <span className={`${itemClass} text-theme-ink flex-1 truncate font-body`}>{entry.name}</span>
                   {entry.rollResult !== undefined && (
-                    <span className={`${itemClass} text-theme-accent font-mono`}>{entry.rollResult}</span>
+                    <span className={`${itemClass} text-theme-accent font-mono font-body`}>{entry.rollResult}</span>
                   )}
                 </div>
               ))}
@@ -400,7 +400,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         {/* New Encounter - resets to all pool participants */}
         <button
           onClick={newEncounter}
-          className={`${buttonClass} bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity`}
+          className={`${buttonClass} bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity font-body`}
         >
           Reset
         </button>
@@ -408,7 +408,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         {/* Add Temporary */}
         <button
           onClick={() => setShowAddTempModal(true)}
-          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-background transition-colors`}
+          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-background transition-colors font-body`}
         >
           Add 
         </button>
@@ -418,7 +418,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
           <button
             onClick={rollInitiative}
             disabled={isRolling}
-            className={`${buttonClass} bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity ${
+            className={`${buttonClass} bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity font-body ${
               isRolling ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -462,13 +462,13 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                 >⠿</span>
                 
                 {/* Name */}
-                <span className={`${itemClass} flex-1 truncate ${entry.isTemporary ? 'italic' : ''}`}>
+                <span className={`${itemClass} flex-1 truncate font-body ${entry.isTemporary ? 'italic' : ''}`}>
                   {entry.name}
                 </span>
 
                 {/* Roll Result */}
                 {entry.rollResult !== undefined && (
-                  <span className={`${itemClass} font-mono font-bold min-w-[24px] text-center`}>
+                  <span className={`${itemClass} font-mono font-bold min-w-[24px] text-center font-body`}>
                     {entry.rollResult}
                   </span>
                 )}
@@ -479,7 +479,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                     e.stopPropagation();
                     removeFromEncounter(entry.id);
                   }}
-                  className={`${itemClass} hover:text-red-500 transition-colors px-1`}
+                  className={`${itemClass} hover:text-red-500 transition-colors px-1 font-body`}
                 >
                   ×
                 </button>
@@ -494,13 +494,13 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         <div className="flex gap-1 mt-2 pt-2 border-t border-theme-border">
           <button
             onClick={goBack}
-            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-background transition-colors`}
+            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-background transition-colors font-body`}
           >
             ◀ Back
           </button>
           <button
             onClick={goNext}
-            className={`${buttonClass} flex-1 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity`}
+            className={`${buttonClass} flex-1 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity font-body`}
           >
             Next ▶
           </button>

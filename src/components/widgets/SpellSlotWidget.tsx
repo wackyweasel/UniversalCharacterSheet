@@ -78,7 +78,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
         {(spellLevels as SpellLevel[]).map((levelData, levelIdx) => (
           <div key={levelIdx} className={`flex items-center ${gapClass}`}>
             {/* Level Label */}
-            <span className={`${levelLabelClass} font-bold text-center text-theme-ink`}>{ordinalSuffix(levelData.level)}</span>
+            <span className={`${levelLabelClass} font-bold text-center text-theme-ink font-body`}>{ordinalSuffix(levelData.level)}</span>
 
             {/* Slot Circles */}
             <div className="flex gap-1 flex-1 flex-wrap">
@@ -108,7 +108,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
         <button
           onClick={resetAll}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-body`}
         >
           Reset All
         </button>

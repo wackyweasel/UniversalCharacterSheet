@@ -104,7 +104,7 @@ export default function NumberWidget({ widget, mode, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
               >
                 -
               </button>
@@ -122,7 +122,7 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                 />
               ) : (
                 <span 
-                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button`}
+                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button font-body`}
                   style={hideValues ? { visibility: 'hidden' } : undefined}
                   data-print-hide={hideValues ? 'true' : undefined}
                   onClick={() => handleValueClick(idx, item.value)}
@@ -134,7 +134,7 @@ export default function NumberWidget({ widget, mode, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
               >
                 +
               </button>
