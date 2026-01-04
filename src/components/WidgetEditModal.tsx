@@ -26,6 +26,7 @@ import {
   MapSketcherEditor,
   RollTableEditor,
   InitiativeTrackerEditor,
+  DeckEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -49,6 +50,7 @@ import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import DeckWidget from './widgets/DeckWidget';
 
 interface Props {
   widget: Widget;
@@ -77,6 +79,7 @@ function getWidgetTitle(type: WidgetType): string {
     'MAP_SKETCHER': 'Map Sketcher',
     'ROLL_TABLE': 'Roll Table',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
+    'DECK': 'Deck of Cards',
   };
   return titles[type] || 'Widget';
 }
@@ -127,6 +130,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
       case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
+      case 'DECK': return <DeckEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -168,6 +172,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'DECK': return <DeckWidget {...props} />;
       default: return null;
     }
   };

@@ -18,7 +18,8 @@ export type WidgetType =
   | 'PROGRESS_BAR'
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
-  | 'INITIATIVE_TRACKER';
+  | 'INITIATIVE_TRACKER'
+  | 'DECK';
 
 export interface ToggleItem {
   name: string;
@@ -28,6 +29,16 @@ export interface ToggleItem {
 export interface RollTableItem {
   text: string;
   weight: number;
+}
+
+export interface DeckCard {
+  name: string;
+  amount: number;
+}
+
+export interface DeckState {
+  remaining: string[];
+  discarded: string[];
 }
 
 export interface CellFormat {
@@ -187,6 +198,10 @@ export interface WidgetData {
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
+  // Deck of Cards
+  deckCards?: DeckCard[];
+  deckState?: DeckState | null;
+  showDeckCards?: boolean;
   // Initiative Tracker
   initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
   initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants

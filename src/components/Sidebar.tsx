@@ -9,6 +9,7 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'CHECKBOX', label: 'Checklist' },
   { type: 'TOGGLE_GROUP', label: 'Conditions' },
+  { type: 'DECK', label: 'Deck of Cards' },
   { type: 'DICE_ROLLER', label: 'Dice Roller' },
   { type: 'DICE_TRAY', label: 'Dice Tray' },
   { type: 'FORM', label: 'Form' },

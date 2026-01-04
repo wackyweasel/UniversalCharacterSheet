@@ -29,6 +29,7 @@ import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import DeckWidget from './widgets/DeckWidget';
 import WidgetEditModal from './WidgetEditModal';
 
 interface Props {
@@ -60,6 +61,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'MAP_SKETCHER': { width: 250, height: 250 },
   'ROLL_TABLE': { width: 140, height: 60 },
   'INITIATIVE_TRACKER': { width: 180, height: 120 },
+  'DECK': { width: 140, height: 80 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -510,6 +512,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'DECK': return <DeckWidget {...props} />;
       default: return null;
     }
   };

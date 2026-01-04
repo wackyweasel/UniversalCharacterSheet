@@ -474,6 +474,7 @@ export const useStore = create<StoreState>((set, get) => {
             'MAP_SKETCHER': 'Map',
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
+            'DECK': 'Deck',
           };
           return defaultLabels[widgetType] || '';
         };

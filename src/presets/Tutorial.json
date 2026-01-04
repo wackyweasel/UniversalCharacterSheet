@@ -1,13 +1,33 @@
 {
-  "id": "7f42f0cf-d16e-4631-a56d-d441b3493fa8",
-  "name": "Tutorial",
+  "id": "05afe328-8942-47ac-8f1a-c6c416d4944a",
+  "name": "Tutorial Character",
   "sheets": [
     {
-      "id": "a866014b-d057-48a9-893a-5a82bd3180eb",
+      "id": "56e4547a-33ec-4971-b31b-ceb5cadb52c7",
       "name": "Main",
       "widgets": [
         {
-          "id": "7415fc54-5de0-4a84-8272-88a3a6c258d6",
+          "id": "f012632f-b66d-4713-9118-26630e6778a5",
+          "type": "IMAGE",
+          "x": -350,
+          "y": -40,
+          "w": 140,
+          "h": 180,
+          "data": {
+            "label": "New Widget",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
+          "attachedTo": [
+            "d10ea217-73b5-46ef-a412-973f8383737e",
+            "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
+            "21436321-04b9-4b67-9728-01a2ea324bad"
+          ]
+        },
+        {
+          "id": "d10ea217-73b5-46ef-a412-973f8383737e",
           "type": "CHECKBOX",
           "x": -210,
           "y": -40,
@@ -32,15 +52,15 @@
               "strikethrough": false
             }
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "a2e365a1-adfe-4c38-b8f5-5ffd0117bf37",
-            "0dd60888-f950-4248-a1a5-c7633abd16a8",
-            "65fd3107-6586-4dd8-ba07-ab853fe66dc1"
+            "a05ee0b0-20f5-4057-9548-54d9fc8e7661",
+            "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
+            "f012632f-b66d-4713-9118-26630e6778a5"
           ]
         },
         {
-          "id": "0dd60888-f950-4248-a1a5-c7633abd16a8",
+          "id": "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
           "type": "TOGGLE_GROUP",
           "x": -210,
           "y": 50,
@@ -86,17 +106,17 @@
               }
             ]
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "7415fc54-5de0-4a84-8272-88a3a6c258d6",
-            "a2e365a1-adfe-4c38-b8f5-5ffd0117bf37",
-            "65fd3107-6586-4dd8-ba07-ab853fe66dc1",
-            "02f0fcf2-db4b-46c0-b88f-307889424773",
-            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30"
+            "d10ea217-73b5-46ef-a412-973f8383737e",
+            "a05ee0b0-20f5-4057-9548-54d9fc8e7661",
+            "f012632f-b66d-4713-9118-26630e6778a5",
+            "21436321-04b9-4b67-9728-01a2ea324bad",
+            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed"
           ]
         },
         {
-          "id": "df3023f3-f290-4203-94a7-f07010b846ce",
+          "id": "0716278d-79c7-4e25-980a-255de5535fb3",
           "type": "DICE_ROLLER",
           "x": 150,
           "y": -40,
@@ -109,14 +129,14 @@
             "text": "",
             "modifier": 2
           },
-          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
           "attachedTo": [
-            "077d8c6d-5761-49a6-a297-f775aaf1b1fa",
-            "c962b15e-b231-46ad-be67-84d36450ec3b"
+            "ffd5c666-6abc-45fc-8499-bd7e39005758",
+            "6ef2cac0-d99b-4f72-829e-b4488c51cb15"
           ]
         },
         {
-          "id": "c962b15e-b231-46ad-be67-84d36450ec3b",
+          "id": "6ef2cac0-d99b-4f72-829e-b4488c51cb15",
           "type": "DICE_TRAY",
           "x": 150,
           "y": 80,
@@ -128,15 +148,15 @@
             "items": [],
             "text": ""
           },
-          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
           "attachedTo": [
-            "4fd59eff-4962-4a98-ad11-253fe0ea04b7",
-            "077d8c6d-5761-49a6-a297-f775aaf1b1fa",
-            "df3023f3-f290-4203-94a7-f07010b846ce"
+            "e324fea3-9ca6-4b5c-b75f-499eff70c57d",
+            "ffd5c666-6abc-45fc-8499-bd7e39005758",
+            "0716278d-79c7-4e25-980a-255de5535fb3"
           ]
         },
         {
-          "id": "a2e365a1-adfe-4c38-b8f5-5ffd0117bf37",
+          "id": "a05ee0b0-20f5-4057-9548-54d9fc8e7661",
           "type": "FORM",
           "x": -70,
           "y": -40,
@@ -163,14 +183,14 @@
             ],
             "labelWidth": 42
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "7415fc54-5de0-4a84-8272-88a3a6c258d6",
-            "0dd60888-f950-4248-a1a5-c7633abd16a8"
+            "d10ea217-73b5-46ef-a412-973f8383737e",
+            "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f"
           ]
         },
         {
-          "id": "02f0fcf2-db4b-46c0-b88f-307889424773",
+          "id": "21436321-04b9-4b67-9728-01a2ea324bad",
           "type": "HEALTH_BAR",
           "x": -350,
           "y": 140,
@@ -183,36 +203,16 @@
             "text": "",
             "currentValue": 9
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "0dd60888-f950-4248-a1a5-c7633abd16a8",
-            "65fd3107-6586-4dd8-ba07-ab853fe66dc1",
-            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
-            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30"
+            "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
+            "f012632f-b66d-4713-9118-26630e6778a5",
+            "f99c867a-81d5-423c-9840-dd274f94bdfc",
+            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed"
           ]
         },
         {
-          "id": "65fd3107-6586-4dd8-ba07-ab853fe66dc1",
-          "type": "IMAGE",
-          "x": -350,
-          "y": -40,
-          "w": 140,
-          "h": 180,
-          "data": {
-            "label": "New Widget",
-            "value": 0,
-            "items": [],
-            "text": ""
-          },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
-          "attachedTo": [
-            "7415fc54-5de0-4a84-8272-88a3a6c258d6",
-            "0dd60888-f950-4248-a1a5-c7633abd16a8",
-            "02f0fcf2-db4b-46c0-b88f-307889424773"
-          ]
-        },
-        {
-          "id": "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
+          "id": "f99c867a-81d5-423c-9840-dd274f94bdfc",
           "type": "LIST",
           "x": -350,
           "y": 230,
@@ -230,16 +230,16 @@
             ],
             "text": ""
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "02f0fcf2-db4b-46c0-b88f-307889424773",
-            "1584d21d-387b-48c0-a464-29bc5885fb3d",
-            "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
-            "175a9d7a-a586-4dc7-a228-17a1be934438"
+            "21436321-04b9-4b67-9728-01a2ea324bad",
+            "a3020607-50e1-4578-baf0-9c9d1f8bba88",
+            "937f0c77-364a-4998-9d5c-00f7002988a3",
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f"
           ]
         },
         {
-          "id": "e4b3ae6f-63fa-4b15-bee0-0dd9c4e38829",
+          "id": "3517a65f-70eb-431a-9279-9fe28d2250ac",
           "type": "MAP_SKETCHER",
           "x": 570,
           "y": 220,
@@ -340,13 +340,13 @@
               }
             ]
           },
-          "groupId": "b9f7ead8-39fd-4d9a-b05d-8b08671a4f49",
+          "groupId": "0f947fa2-75b1-4b27-b858-bb100d833377",
           "attachedTo": [
-            "d782741a-8c8a-4ae9-bb7a-d0b1d6290542"
+            "f1b2a166-316f-4fef-a380-e7bb49f2385d"
           ]
         },
         {
-          "id": "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30",
+          "id": "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
           "type": "NUMBER_DISPLAY",
           "x": -190,
           "y": 140,
@@ -376,16 +376,16 @@
               }
             ]
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "0dd60888-f950-4248-a1a5-c7633abd16a8",
-            "02f0fcf2-db4b-46c0-b88f-307889424773",
-            "1584d21d-387b-48c0-a464-29bc5885fb3d",
-            "73f67671-0671-494b-aa70-b567edeb5cb9"
+            "2bf5b92e-a89b-4c6a-8cbf-555b7e87cb4f",
+            "21436321-04b9-4b67-9728-01a2ea324bad",
+            "a3020607-50e1-4578-baf0-9c9d1f8bba88",
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
           ]
         },
         {
-          "id": "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
+          "id": "937f0c77-364a-4998-9d5c-00f7002988a3",
           "type": "NUMBER",
           "x": -350,
           "y": 420,
@@ -423,15 +423,15 @@
               }
             ]
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
-            "175a9d7a-a586-4dc7-a228-17a1be934438",
-            "6690184f-ad0d-4f26-a62c-6460e4ee1062"
+            "f99c867a-81d5-423c-9840-dd274f94bdfc",
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
+            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20"
           ]
         },
         {
-          "id": "73f67671-0671-494b-aa70-b567edeb5cb9",
+          "id": "7d363690-0963-4fbd-ab34-c88d4997ff8f",
           "type": "POOL",
           "x": -30,
           "y": 230,
@@ -464,16 +464,16 @@
             ],
             "showPoolCount": false
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30",
-            "1584d21d-387b-48c0-a464-29bc5885fb3d",
-            "175a9d7a-a586-4dc7-a228-17a1be934438",
-            "6690184f-ad0d-4f26-a62c-6460e4ee1062"
+            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
+            "a3020607-50e1-4578-baf0-9c9d1f8bba88",
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
+            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20"
           ]
         },
         {
-          "id": "1584d21d-387b-48c0-a464-29bc5885fb3d",
+          "id": "a3020607-50e1-4578-baf0-9c9d1f8bba88",
           "type": "PROGRESS_BAR",
           "x": -190,
           "y": 230,
@@ -487,16 +487,16 @@
             "showPercentage": false,
             "currentValue": 20
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
-            "f0bd66ca-580f-4dd5-b89d-f09b1c3f6b30",
-            "175a9d7a-a586-4dc7-a228-17a1be934438",
-            "73f67671-0671-494b-aa70-b567edeb5cb9"
+            "f99c867a-81d5-423c-9840-dd274f94bdfc",
+            "c7db7b4d-e310-4ac8-8e0f-25e8937939ed",
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
           ]
         },
         {
-          "id": "175a9d7a-a586-4dc7-a228-17a1be934438",
+          "id": "2cf21c88-3f78-4b1b-8859-4353eabd684f",
           "type": "REST_BUTTON",
           "x": -190,
           "y": 320,
@@ -517,22 +517,22 @@
             "passTimeAmount": 8,
             "passTimeUnit": "hours"
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "7d56ff76-db2b-45e6-bb71-a1ce21ef0a07",
-            "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
-            "1584d21d-387b-48c0-a464-29bc5885fb3d",
-            "6690184f-ad0d-4f26-a62c-6460e4ee1062",
-            "73f67671-0671-494b-aa70-b567edeb5cb9"
+            "f99c867a-81d5-423c-9840-dd274f94bdfc",
+            "937f0c77-364a-4998-9d5c-00f7002988a3",
+            "a3020607-50e1-4578-baf0-9c9d1f8bba88",
+            "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20",
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
           ]
         },
         {
-          "id": "fc4618b6-8fdc-4e61-8484-1c448a1b123c",
+          "id": "84df2d79-e721-42c8-957f-0177229929e1",
           "type": "ROLL_TABLE",
           "x": 570,
           "y": -40,
-          "w": 220,
-          "h": 120,
+          "w": 170,
+          "h": 130,
           "data": {
             "label": "Random Injury",
             "value": 0,
@@ -561,10 +561,14 @@
                 "weight": 1
               }
             ]
-          }
+          },
+          "groupId": "8c839688-a77d-4747-a7b6-ce169d635c30",
+          "attachedTo": [
+            "77b9f223-e66d-485d-8607-6174808f566e"
+          ]
         },
         {
-          "id": "7dcf8954-dfaa-41b0-be09-e90fa057b745",
+          "id": "4b97cbce-a02a-4078-9b96-b7115c447575",
           "type": "SPELL_SLOT",
           "x": 150,
           "y": 410,
@@ -593,14 +597,14 @@
               }
             ]
           },
-          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
           "attachedTo": [
-            "fde849d1-4f04-4fb6-9297-c4482fbfcca7",
-            "4fd59eff-4962-4a98-ad11-253fe0ea04b7"
+            "2ed7a912-c84e-4f8e-8efe-cf5eec488213",
+            "e324fea3-9ca6-4b5c-b75f-499eff70c57d"
           ]
         },
         {
-          "id": "4fd59eff-4962-4a98-ad11-253fe0ea04b7",
+          "id": "e324fea3-9ca6-4b5c-b75f-499eff70c57d",
           "type": "TABLE",
           "x": 150,
           "y": 260,
@@ -739,15 +743,15 @@
               }
             ]
           },
-          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
           "attachedTo": [
-            "7dcf8954-dfaa-41b0-be09-e90fa057b745",
-            "fde849d1-4f04-4fb6-9297-c4482fbfcca7",
-            "c962b15e-b231-46ad-be67-84d36450ec3b"
+            "4b97cbce-a02a-4078-9b96-b7115c447575",
+            "2ed7a912-c84e-4f8e-8efe-cf5eec488213",
+            "6ef2cac0-d99b-4f72-829e-b4488c51cb15"
           ]
         },
         {
-          "id": "d782741a-8c8a-4ae9-bb7a-d0b1d6290542",
+          "id": "f1b2a166-316f-4fef-a380-e7bb49f2385d",
           "type": "TEXT",
           "x": 570,
           "y": 100,
@@ -759,13 +763,13 @@
             "items": [],
             "text": "The King wants us to save his son. \n\n(his son is an idiot)"
           },
-          "groupId": "b9f7ead8-39fd-4d9a-b05d-8b08671a4f49",
+          "groupId": "0f947fa2-75b1-4b27-b858-bb100d833377",
           "attachedTo": [
-            "e4b3ae6f-63fa-4b15-bee0-0dd9c4e38829"
+            "3517a65f-70eb-431a-9279-9fe28d2250ac"
           ]
         },
         {
-          "id": "6690184f-ad0d-4f26-a62c-6460e4ee1062",
+          "id": "40c5c949-7aa5-4ca7-8e87-8ef494cc0d20",
           "type": "TIME_TRACKER",
           "x": -130,
           "y": 420,
@@ -788,15 +792,15 @@
               }
             ]
           },
-          "groupId": "912df9a7-1872-4e1e-8a78-283cc05e0aea",
+          "groupId": "a1debf98-9e23-40a9-9a2d-af7d57f0eb85",
           "attachedTo": [
-            "97ef6153-6ad6-4017-80ad-3b8b8e824f37",
-            "175a9d7a-a586-4dc7-a228-17a1be934438",
-            "73f67671-0671-494b-aa70-b567edeb5cb9"
+            "937f0c77-364a-4998-9d5c-00f7002988a3",
+            "2cf21c88-3f78-4b1b-8859-4353eabd684f",
+            "7d363690-0963-4fbd-ab34-c88d4997ff8f"
           ]
         },
         {
-          "id": "077d8c6d-5761-49a6-a297-f775aaf1b1fa",
+          "id": "ffd5c666-6abc-45fc-8499-bd7e39005758",
           "type": "DICE_ROLLER",
           "x": 350,
           "y": -40,
@@ -815,13 +819,13 @@
             ],
             "modifier": 1
           },
-          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
           "attachedTo": [
-            "df3023f3-f290-4203-94a7-f07010b846ce"
+            "0716278d-79c7-4e25-980a-255de5535fb3"
           ]
         },
         {
-          "id": "fde849d1-4f04-4fb6-9297-c4482fbfcca7",
+          "id": "2ed7a912-c84e-4f8e-8efe-cf5eec488213",
           "type": "INITIATIVE_TRACKER",
           "x": 340,
           "y": 410,
@@ -875,14 +879,67 @@
             ],
             "initiativeCurrentIndex": 2
           },
-          "groupId": "9940373e-43e6-4898-88ab-d6ecfdf11b0d",
+          "groupId": "84c5a688-4548-4301-8913-58fcbb75e4dc",
           "attachedTo": [
-            "7dcf8954-dfaa-41b0-be09-e90fa057b745",
-            "4fd59eff-4962-4a98-ad11-253fe0ea04b7"
+            "4b97cbce-a02a-4078-9b96-b7115c447575",
+            "e324fea3-9ca6-4b5c-b75f-499eff70c57d"
+          ]
+        },
+        {
+          "id": "77b9f223-e66d-485d-8607-6174808f566e",
+          "type": "DECK",
+          "x": 740,
+          "y": -40,
+          "w": 210,
+          "h": 130,
+          "data": {
+            "label": "Deck",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "deckCards": [
+              {
+                "name": "Ace of Potatoes",
+                "amount": 5
+              },
+              {
+                "name": "Ace of Cats",
+                "amount": 5
+              },
+              {
+                "name": "Ace of Fireball",
+                "amount": 5
+              }
+            ],
+            "deckState": {
+              "remaining": [
+                "Ace of Potatoes",
+                "Ace of Potatoes",
+                "Ace of Potatoes",
+                "Ace of Potatoes",
+                "Ace of Cats",
+                "Ace of Cats",
+                "Ace of Cats",
+                "Ace of Cats",
+                "Ace of Cats",
+                "Ace of Fireball",
+                "Ace of Fireball",
+                "Ace of Fireball"
+              ],
+              "discarded": [
+                "Ace of Fireball",
+                "Ace of Potatoes",
+                "Ace of Fireball"
+              ]
+            }
+          },
+          "groupId": "8c839688-a77d-4747-a7b6-ce169d635c30",
+          "attachedTo": [
+            "84df2d79-e721-42c8-957f-0177229929e1"
           ]
         }
       ]
     }
   ],
-  "activeSheetId": "a866014b-d057-48a9-893a-5a82bd3180eb"
+  "activeSheetId": "56e4547a-33ec-4971-b31b-ceb5cadb52c7"
 }

@@ -23,6 +23,7 @@ import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import DeckWidget from './widgets/DeckWidget';
 
 interface Props {
   widget: Widget;
@@ -114,6 +115,7 @@ export default function VerticalWidget({
     'TEXT': 'Text Area',
     'TIME_TRACKER': 'Temporary Effects',
     'ROLL_TABLE': 'Roll Table',
+    'DECK': 'Deck of Cards',
   };
   
   // Get widget label for collapsed header
@@ -216,6 +218,7 @@ export default function VerticalWidget({
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'DECK': return <DeckWidget {...props} />;
       default: return null;
     }
   };

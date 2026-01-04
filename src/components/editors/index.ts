@@ -19,3 +19,4 @@ export { RestButtonEditor } from './RestButtonEditor';
 export { MapSketcherEditor } from './MapSketcherEditor';
 export { RollTableEditor } from './RollTableEditor';
 export { InitiativeTrackerEditor } from './InitiativeTrackerEditor';
+export { DeckEditor } from './DeckEditor';
