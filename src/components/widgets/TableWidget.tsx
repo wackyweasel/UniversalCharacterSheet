@@ -29,6 +29,31 @@ interface ColorWithOpacity {
   opacity: number;
 }
 
+// Helper to calculate relative luminance and determine if text should be dark
+function isLightColor(hexColor: string, opacity: number = 1): boolean {
+  // Don't apply to CSS variables or undefined
+  if (!hexColor || hexColor.startsWith('var(')) return false;
+  
+  // Parse hex color
+  const hex = hexColor.replace('#', '');
+  if (hex.length !== 6) return false;
+  
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  
+  // Calculate relative luminance using sRGB formula
+  const luminance = (channel: number) => {
+    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  };
+  
+  const L = 0.2126 * luminance(r) + 0.7152 * luminance(g) + 0.0722 * luminance(b);
+  
+  // If opacity is low, the background shows through, so don't switch text color
+  // Only apply dark text if opacity is high enough and luminance is above threshold
+  return opacity >= 0.5 && L > 0.5;
+}
+
 // Formatting toolbar component
 interface FormatToolbarProps {
   format: CellFormat;
@@ -734,13 +759,17 @@ export default function TableWidget({ widget, height }: Props) {
                   const cellFormat = getCellFormat(cell);
                   const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
                   const isEditing = editingCell?.row === rowIdx && editingCell?.col === colIdx;
+                  const needsDarkText = cellFormat.bgColor ? isLightColor(cellFormat.bgColor, cellFormat.bgOpacity ?? 1) : false;
+                  // Use inline style with dark color (#1a1a1a) for light backgrounds to ensure readability
+                  const textColorStyle = needsDarkText ? { color: '#1a1a1a' } : {};
                   
                   return (
                     <td 
                       key={colIdx} 
-                      className={`${isSelected ? 'border-theme-accent border-2' : 'border border-theme-border'} ${cellClass} text-theme-ink`}
+                      className={`${isSelected ? 'border-theme-accent border-2' : 'border border-theme-border'} ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'}`}
                       style={{ 
                         ...getCellStyle(cellFormat),
+                        ...textColorStyle,
                         borderTopWidth: 0,
                         borderLeftWidth: colIdx === 0 ? 1 : 0,
                       }}
@@ -777,8 +806,8 @@ export default function TableWidget({ widget, height }: Props) {
                               setEditingCell(null);
                             }
                           }}
-                          className={`w-full bg-transparent focus:outline-none text-[10px] text-theme-ink font-body ${getCellTextClass(cellFormat)}`}
-                          style={{ textAlign: cellFormat.hAlign || 'left' }}
+                          className={`w-full bg-transparent focus:outline-none text-[10px] ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
+                          style={{ textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
                           onMouseDown={(e) => e.stopPropagation()}
                         />
                       ) : (
@@ -792,6 +821,7 @@ export default function TableWidget({ widget, height }: Props) {
                           className={`min-h-[1.5em] cursor-pointer hover:opacity-70 font-body flex ${getCellTextClass(cellFormat)}`}
                           style={{
                             ...getCellContentStyle(cellFormat),
+                            ...textColorStyle,
                             justifyContent: cellFormat.hAlign === 'center' ? 'center' : cellFormat.hAlign === 'right' ? 'flex-end' : 'flex-start',
                           }}
                         >
