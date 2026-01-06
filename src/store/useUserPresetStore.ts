@@ -7,6 +7,7 @@ export interface UserPreset {
   id: string;
   name: string;
   preset: CharacterPreset;
+  theme?: string; // Optional theme ID to apply when creating from this preset
   createdAt: number;
 }
 
@@ -14,7 +15,7 @@ interface UserPresetStoreState {
   userPresets: UserPreset[];
   
   // Actions
-  addPreset: (character: Character, name?: string) => void;
+  addPreset: (character: Character, name?: string, includeTheme?: boolean) => void;
   removePreset: (id: string) => void;
   renamePreset: (id: string, name: string) => void;
 }
@@ -46,7 +47,7 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
   return {
     userPresets: initialUserPresets,
 
-    addPreset: (character, name) => {
+    addPreset: (character, name, includeTheme = false) => {
       // Create a preset from the character (without the id)
       const { id: _, ...presetData } = character;
       
@@ -54,6 +55,7 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
         id: uuidv4(),
         name: name || `${character.name} Preset`,
         preset: presetData as CharacterPreset,
+        theme: includeTheme ? character.theme : undefined,
         createdAt: Date.now(),
       };
 

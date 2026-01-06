@@ -117,6 +117,10 @@ export default function CharacterList() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [renamingCharacterId, setRenamingCharacterId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [showCreatePresetModal, setShowCreatePresetModal] = useState(false);
+  const [createPresetCharacter, setCreatePresetCharacter] = useState<Character | null>(null);
+  const [presetName, setPresetName] = useState('');
+  const [includeThemeInPreset, setIncludeThemeInPreset] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -165,8 +169,10 @@ export default function CharacterList() {
           createCharacterFromPreset(userPreset.preset, name);
           const state = useStore.getState();
           const newChar = state.characters[state.characters.length - 1];
-          if (newChar && selectedTheme !== 'default') {
-            updateCharacterTheme(newChar.id, selectedTheme);
+          // Use the preset's stored theme if available, otherwise use the selected theme
+          const themeToApply = userPreset.theme || selectedTheme;
+          if (newChar && themeToApply !== 'default') {
+            updateCharacterTheme(newChar.id, themeToApply);
           }
         }
       } else {
@@ -585,7 +591,7 @@ export default function CharacterList() {
             <div 
               key={char.id}
               style={cardStyles}
-              className="p-4 active:translate-x-[2px] active:translate-y-[2px] transition-transform cursor-pointer relative group"
+              className={`p-4 active:translate-x-[2px] active:translate-y-[2px] transition-transform cursor-pointer relative group ${openDropdown === char.id ? 'z-40' : ''}`}
               onClick={() => selectCharacter(char.id)}
             >
               <div 
@@ -747,10 +753,10 @@ export default function CharacterList() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const presetName = prompt('Enter a name for the preset:', `${char.name} Preset`);
-                          if (presetName !== null) {
-                            addUserPreset(char, presetName || `${char.name} Preset`);
-                          }
+                          setCreatePresetCharacter(char);
+                          setPresetName(`${char.name} Preset`);
+                          setIncludeThemeInPreset(true);
+                          setShowCreatePresetModal(true);
                           setOpenDropdown(null);
                         }}
                         className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
@@ -921,6 +927,103 @@ export default function CharacterList() {
         </>
       )}
       
+      {/* Create Preset Modal */}
+      {showCreatePresetModal && createPresetCharacter && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => {
+              setShowCreatePresetModal(false);
+              setCreatePresetCharacter(null);
+            }}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create Preset</h3>
+            
+            {/* Preset Name */}
+            <div className="mb-4">
+              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Preset Name</label>
+              <input
+                type="text"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="Enter preset name..."
+                className={`w-full p-3 text-base shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all rounded-theme font-body ${
+                  darkMode 
+                    ? 'bg-black text-white border border-white/30 placeholder-white/40' 
+                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
+                }`}
+                autoFocus
+              />
+            </div>
+            
+            {/* Include Theme Checkbox */}
+            <div className="mb-6">
+              <label className={`flex items-center gap-3 cursor-pointer ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={includeThemeInPreset}
+                    onChange={(e) => setIncludeThemeInPreset(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div className={`w-5 h-5 rounded transition-colors flex items-center justify-center ${
+                    darkMode 
+                      ? `border border-white/30 ${includeThemeInPreset ? 'bg-white' : 'bg-black'}`
+                      : `border-[length:var(--border-width)] border-theme-border ${includeThemeInPreset ? 'bg-theme-accent' : 'bg-theme-paper'}`
+                  }`}>
+                    {includeThemeInPreset && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-black' : 'text-theme-paper'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm font-body">Include theme in preset</span>
+              </label>
+              <p className={`text-xs font-body mt-1 ml-8 ${darkMode ? 'text-white/50' : 'text-theme-muted'}`}>
+                When enabled, the character's theme will be automatically applied when creating a new character from this preset.
+              </p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowCreatePresetModal(false);
+                  setCreatePresetCharacter(null);
+                }}
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white border border-white/30 hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  addUserPreset(createPresetCharacter, presetName || `${createPresetCharacter.name} Preset`, includeThemeInPreset);
+                  setShowCreatePresetModal(false);
+                  setCreatePresetCharacter(null);
+                }}
+                className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
+                  darkMode 
+                    ? 'bg-white text-black hover:bg-white/80' 
+                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      
       {/* Create Character Modal */}
       {showCreateModal && (
         <>
@@ -963,7 +1066,18 @@ export default function CharacterList() {
               <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Preset</label>
               <select
                 value={selectedPreset}
-                onChange={(e) => setSelectedPreset(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedPreset(value);
+                  // If selecting a user preset with a stored theme, auto-select that theme
+                  if (value.startsWith('user:')) {
+                    const userPresetId = value.replace('user:', '');
+                    const userPreset = userPresets.find(p => p.id === userPresetId);
+                    if (userPreset?.theme) {
+                      setSelectedTheme(userPreset.theme);
+                    }
+                  }
+                }}
                 className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer ${
                   darkMode 
                     ? 'bg-black text-white border border-white/30' 
@@ -1000,9 +1114,18 @@ export default function CharacterList() {
                     : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
                 }`}
               >
-                {THEMES.map((theme) => (
-                  <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
-                ))}
+                <optgroup label="Built-in Themes">
+                  {THEMES.map((theme) => (
+                    <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
+                  ))}
+                </optgroup>
+                {Object.keys(customThemes).length > 0 && (
+                  <optgroup label="Custom Themes">
+                    {Object.values(customThemes).map((theme) => (
+                      <option key={theme.id} value={theme.id}>🎨 {theme.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             
