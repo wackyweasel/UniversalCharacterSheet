@@ -1,6 +1,6 @@
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 
 interface Props {
   widget: Widget;
@@ -15,6 +15,17 @@ export default function TextWidget({ widget, height }: Props) {
   const isPrintMode = mode === 'print';
   const { label, text = '' } = widget.data;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Prevent wheel events from bubbling up when textarea is scrollable
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    const isScrollable = textarea.scrollHeight > textarea.clientHeight;
+    
+    // Always stop propagation if the textarea is scrollable to prevent camera zoom
+    if (isScrollable) {
+      e.stopPropagation();
+    }
+  }, []);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -62,6 +73,7 @@ export default function TextWidget({ widget, height }: Props) {
         onChange={handleTextChange}
         placeholder={isPrintMode ? '' : 'Enter text here...'}
         onMouseDown={(e) => e.stopPropagation()}
+        onWheel={handleWheel}
       />
     </div>
   );
