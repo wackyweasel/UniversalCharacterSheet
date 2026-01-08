@@ -1,0 +1,626 @@
+{
+  "id": "170d6275-d826-4b39-bd5d-fc498555aa16",
+  "name": "World of Darkness",
+  "sheets": [
+    {
+      "id": "28d2a97f-0e19-4fc9-8d7c-ea2fd7b1cd67",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "fd4fdfbd-42f0-4c87-9192-a2e7be228f23",
+          "type": "FORM",
+          "x": 140,
+          "y": -170,
+          "w": 490,
+          "h": 180,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Age",
+                "value": ""
+              },
+              {
+                "name": "Concept",
+                "value": ""
+              },
+              {
+                "name": "Virtue",
+                "value": ""
+              },
+              {
+                "name": "Vice",
+                "value": ""
+              },
+              {
+                "name": "Chronicle",
+                "value": ""
+              },
+              {
+                "name": "Faction",
+                "value": ""
+              },
+              {
+                "name": "Group Name",
+                "value": ""
+              }
+            ],
+            "labelWidth": 31
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "c30c7820-35f7-45a6-8864-327abca83410",
+            "99978f9e-ee5b-4faf-84b6-74512a7be9bc",
+            "1bce4057-4aaf-4731-a8b6-f0f42019e8df",
+            "32210222-f09f-471f-8a7b-61704e65cb6a"
+          ]
+        },
+        {
+          "id": "32210222-f09f-471f-8a7b-61704e65cb6a",
+          "type": "IMAGE",
+          "x": 0,
+          "y": -170,
+          "w": 140,
+          "h": 180,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "fd4fdfbd-42f0-4c87-9192-a2e7be228f23",
+            "c30c7820-35f7-45a6-8864-327abca83410"
+          ]
+        },
+        {
+          "id": "c30c7820-35f7-45a6-8864-327abca83410",
+          "type": "POOL",
+          "x": 0,
+          "y": 10,
+          "w": 200,
+          "h": 280,
+          "data": {
+            "label": "Attributes",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Intelligence",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Wits",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Resolve",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Strength",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Dexterity",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Stamina",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Presence",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Manipulation",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              },
+              {
+                "name": "Composure",
+                "max": 5,
+                "current": 1,
+                "style": "dots"
+              }
+            ],
+            "inlineLabels": true,
+            "showPoolCount": false
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "3961f572-4adc-4882-8055-7bcc9d33cdec",
+            "86514d12-8d6d-4b9c-a706-eac0e3bc271e",
+            "f1412ddb-041a-4049-95e6-5d1054f69604",
+            "99978f9e-ee5b-4faf-84b6-74512a7be9bc",
+            "fd4fdfbd-42f0-4c87-9192-a2e7be228f23",
+            "32210222-f09f-471f-8a7b-61704e65cb6a"
+          ]
+        },
+        {
+          "id": "3961f572-4adc-4882-8055-7bcc9d33cdec",
+          "type": "POOL",
+          "x": 0,
+          "y": 290,
+          "w": 210,
+          "h": 250,
+          "data": {
+            "label": "Mental Skills",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Academics",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Computer",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Crafts",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Investigation",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Medicine",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Occult",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Politics",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Science",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              }
+            ],
+            "showPoolCount": false,
+            "inlineLabels": true
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "2cbe24e7-ca8b-43ee-bb6f-012a2b8c0f3c",
+            "2a30e2da-0912-4317-a198-4f55f19879b5",
+            "c30c7820-35f7-45a6-8864-327abca83410"
+          ]
+        },
+        {
+          "id": "2cbe24e7-ca8b-43ee-bb6f-012a2b8c0f3c",
+          "type": "POOL",
+          "x": 210,
+          "y": 290,
+          "w": 210,
+          "h": 250,
+          "data": {
+            "label": "Physical Skills",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Athletics",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Brawl",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Drive",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Firearms",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Larceny",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Stealth",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Survival",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Weaponery",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              }
+            ],
+            "showPoolCount": false,
+            "inlineLabels": true
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "97bb54a7-bd3b-4b55-85ce-48f68f55c95c",
+            "3961f572-4adc-4882-8055-7bcc9d33cdec",
+            "2a30e2da-0912-4317-a198-4f55f19879b5",
+            "e04f91be-2a29-48cb-9b85-03ecce805d29",
+            "86514d12-8d6d-4b9c-a706-eac0e3bc271e"
+          ]
+        },
+        {
+          "id": "97bb54a7-bd3b-4b55-85ce-48f68f55c95c",
+          "type": "POOL",
+          "x": 420,
+          "y": 290,
+          "w": 210,
+          "h": 250,
+          "data": {
+            "label": "Social Skills",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Animal Ken",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Empathy",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Expression",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Intimidation",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Persuation",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Socialize",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Streetwise",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              },
+              {
+                "name": "Subterfuge",
+                "max": 5,
+                "current": 0,
+                "style": "dots"
+              }
+            ],
+            "showPoolCount": false,
+            "inlineLabels": true
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "2cbe24e7-ca8b-43ee-bb6f-012a2b8c0f3c",
+            "e04f91be-2a29-48cb-9b85-03ecce805d29",
+            "86514d12-8d6d-4b9c-a706-eac0e3bc271e",
+            "ce2f4fa8-6afc-4296-aae5-2e7cd53fb00b"
+          ]
+        },
+        {
+          "id": "99978f9e-ee5b-4faf-84b6-74512a7be9bc",
+          "type": "POOL",
+          "x": 200,
+          "y": 10,
+          "w": 290,
+          "h": 100,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "maxPool": 12,
+            "poolResources": [
+              {
+                "name": "Health",
+                "max": 12,
+                "current": 12,
+                "style": "dots"
+              },
+              {
+                "name": "",
+                "max": 12,
+                "current": 12,
+                "style": "boxes"
+              }
+            ],
+            "showPoolCount": false
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "c30c7820-35f7-45a6-8864-327abca83410",
+            "f1412ddb-041a-4049-95e6-5d1054f69604",
+            "ce2f4fa8-6afc-4296-aae5-2e7cd53fb00b",
+            "1bce4057-4aaf-4731-a8b6-f0f42019e8df",
+            "fd4fdfbd-42f0-4c87-9192-a2e7be228f23"
+          ]
+        },
+        {
+          "id": "f1412ddb-041a-4049-95e6-5d1054f69604",
+          "type": "POOL",
+          "x": 200,
+          "y": 110,
+          "w": 240,
+          "h": 100,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "maxPool": 12,
+            "poolResources": [
+              {
+                "name": "Willpower",
+                "max": 10,
+                "current": 10,
+                "style": "dots"
+              },
+              {
+                "name": "",
+                "max": 10,
+                "current": 10,
+                "style": "boxes"
+              }
+            ],
+            "showPoolCount": false
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "c30c7820-35f7-45a6-8864-327abca83410",
+            "ce2f4fa8-6afc-4296-aae5-2e7cd53fb00b",
+            "86514d12-8d6d-4b9c-a706-eac0e3bc271e",
+            "99978f9e-ee5b-4faf-84b6-74512a7be9bc"
+          ]
+        },
+        {
+          "id": "ce2f4fa8-6afc-4296-aae5-2e7cd53fb00b",
+          "type": "POOL",
+          "x": 440,
+          "y": 110,
+          "w": 190,
+          "h": 180,
+          "data": {
+            "label": "Merits",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "[...]",
+                "max": 5,
+                "current": 5,
+                "style": "dots"
+              },
+              {
+                "name": "[...]",
+                "max": 5,
+                "current": 5,
+                "style": "dots"
+              },
+              {
+                "name": "[...]",
+                "max": 5,
+                "current": 5,
+                "style": "dots"
+              },
+              {
+                "name": "[...]",
+                "max": 5,
+                "current": 5,
+                "style": "dots"
+              },
+              {
+                "name": "[...]",
+                "max": 5,
+                "current": 5,
+                "style": "dots"
+              },
+              {
+                "name": "[...]",
+                "max": 5,
+                "current": 5,
+                "style": "dots"
+              }
+            ],
+            "showPoolCount": false,
+            "inlineLabels": true
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "97bb54a7-bd3b-4b55-85ce-48f68f55c95c",
+            "86514d12-8d6d-4b9c-a706-eac0e3bc271e",
+            "f1412ddb-041a-4049-95e6-5d1054f69604",
+            "1bce4057-4aaf-4731-a8b6-f0f42019e8df",
+            "99978f9e-ee5b-4faf-84b6-74512a7be9bc"
+          ]
+        },
+        {
+          "id": "86514d12-8d6d-4b9c-a706-eac0e3bc271e",
+          "type": "NUMBER_DISPLAY",
+          "x": 200,
+          "y": 210,
+          "w": 240,
+          "h": 80,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "Size",
+                "value": 0
+              },
+              {
+                "label": "Speed",
+                "value": 0
+              },
+              {
+                "label": "Initiative",
+                "value": 0
+              },
+              {
+                "label": "Defense",
+                "value": 0
+              },
+              {
+                "label": "Armor",
+                "value": 0
+              }
+            ]
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "2cbe24e7-ca8b-43ee-bb6f-012a2b8c0f3c",
+            "97bb54a7-bd3b-4b55-85ce-48f68f55c95c",
+            "c30c7820-35f7-45a6-8864-327abca83410",
+            "ce2f4fa8-6afc-4296-aae5-2e7cd53fb00b",
+            "f1412ddb-041a-4049-95e6-5d1054f69604"
+          ]
+        },
+        {
+          "id": "2a30e2da-0912-4317-a198-4f55f19879b5",
+          "type": "TEXT",
+          "x": 0,
+          "y": 540,
+          "w": 310,
+          "h": 120,
+          "data": {
+            "label": "Weapons",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "e04f91be-2a29-48cb-9b85-03ecce805d29",
+            "3961f572-4adc-4882-8055-7bcc9d33cdec"
+          ]
+        },
+        {
+          "id": "e04f91be-2a29-48cb-9b85-03ecce805d29",
+          "type": "TEXT",
+          "x": 310,
+          "y": 540,
+          "w": 320,
+          "h": 120,
+          "data": {
+            "label": "Equipment",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "2a30e2da-0912-4317-a198-4f55f19879b5",
+            "97bb54a7-bd3b-4b55-85ce-48f68f55c95c",
+            "2cbe24e7-ca8b-43ee-bb6f-012a2b8c0f3c"
+          ]
+        },
+        {
+          "id": "1bce4057-4aaf-4731-a8b6-f0f42019e8df",
+          "type": "POOL",
+          "x": 490,
+          "y": 10,
+          "w": 140,
+          "h": 100,
+          "data": {
+            "label": "Morality",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "maxPool": 10
+          },
+          "groupId": "4ff25f8d-396d-4128-a70f-4579b6fb3775",
+          "attachedTo": [
+            "ce2f4fa8-6afc-4296-aae5-2e7cd53fb00b",
+            "99978f9e-ee5b-4faf-84b6-74512a7be9bc",
+            "fd4fdfbd-42f0-4c87-9192-a2e7be228f23"
+          ]
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "28d2a97f-0e19-4fc9-8d7c-ea2fd7b1cd67",
+  "theme": "classic-dark"
+}

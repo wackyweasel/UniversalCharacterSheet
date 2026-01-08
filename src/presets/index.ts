@@ -3,6 +3,7 @@ import DnD5ePreset from './DnD5e_preset.json';
 import DCCLvl0Preset from './DCC_lvl0_preset.json';
 import MothershipPreset from './Mothership_preset.json';
 import ForbiddenLandsPreset from './Forbidden_Lands_preset.json';
+import WorldOfDarknessPreset from './World_of_Darkness.json';
 import TutorialPreset from './Tutorial.json';
 
 /**
@@ -42,6 +43,7 @@ export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
   'Dungeon Crawl Classics - Level 0': DCCLvl0Preset as CharacterPreset,
   'Mothership': MothershipPreset as CharacterPreset,
   'Forbidden Lands': ForbiddenLandsPreset as CharacterPreset,
+  'World of Darkness': WorldOfDarknessPreset as CharacterPreset,
 };
 
 // Get list of available preset names
