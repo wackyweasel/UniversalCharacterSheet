@@ -89,6 +89,7 @@ export default function CharacterList() {
   // Subscribe to user presets for backup and preset selection
   const userPresets = useUserPresetStore((state) => state.userPresets);
   const addUserPreset = useUserPresetStore((state) => state.addPreset);
+  const removeUserPreset = useUserPresetStore((state) => state.removePreset);
   
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
@@ -121,6 +122,9 @@ export default function CharacterList() {
   const [createPresetCharacter, setCreatePresetCharacter] = useState<Character | null>(null);
   const [presetName, setPresetName] = useState('');
   const [includeThemeInPreset, setIncludeThemeInPreset] = useState(true);
+  const [presetToDelete, setPresetToDelete] = useState<UserPreset | null>(null);
+  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+  const presetDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -146,9 +150,12 @@ export default function CharacterList() {
       if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
         setShowHeaderMenu(false);
       }
+      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target as Node)) {
+        setShowPresetDropdown(false);
+      }
     };
     
-    if (openDropdown || showHeaderMenu) {
+    if (openDropdown || showHeaderMenu || showPresetDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
@@ -1023,6 +1030,51 @@ export default function CharacterList() {
           </div>
         </>
       )}
+
+      {/* Delete Preset Confirmation Modal */}
+      {presetToDelete && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-[60]" 
+            onClick={() => setPresetToDelete(null)}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Delete Preset?</h3>
+            <p className={`text-sm font-body mb-4 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
+              Are you sure you want to delete "{presetToDelete.name}"? This action cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPresetToDelete(null)}
+                className={`px-3 py-1.5 text-sm font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-theme-ink hover:bg-theme-accent/20'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  removeUserPreset(presetToDelete.id);
+                  // If the deleted preset was selected, clear the selection
+                  if (selectedPreset === `user:${presetToDelete.id}`) {
+                    setSelectedPreset('');
+                  }
+                  setPresetToDelete(null);
+                }}
+                className="px-3 py-1.5 text-sm font-body bg-red-500 text-white hover:bg-red-600 rounded-button transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       
       {/* Create Character Modal */}
       {showCreateModal && (
@@ -1064,42 +1116,136 @@ export default function CharacterList() {
             {/* Preset Selection */}
             <div className="mb-4">
               <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Preset</label>
-              <select
-                value={selectedPreset}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedPreset(value);
-                  // If selecting a user preset with a stored theme, auto-select that theme
-                  if (value.startsWith('user:')) {
-                    const userPresetId = value.replace('user:', '');
-                    const userPreset = userPresets.find(p => p.id === userPresetId);
-                    if (userPreset?.theme) {
-                      setSelectedTheme(userPreset.theme);
+              <div className="relative" ref={presetDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                  className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer text-left flex items-center justify-between ${
+                    darkMode 
+                      ? 'bg-black text-white border border-white/30' 
+                      : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
+                  }`}
+                >
+                  <span>
+                    {selectedPreset === '' 
+                      ? 'No Preset' 
+                      : selectedPreset.startsWith('user:') 
+                        ? userPresets.find(p => p.id === selectedPreset.replace('user:', ''))?.name || 'No Preset'
+                        : selectedPreset
                     }
-                  }
-                }}
-                className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer ${
-                  darkMode 
-                    ? 'bg-black text-white border border-white/30' 
-                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                }`}
-              >
-                <option value="">No Preset</option>
-                {presetNames.length > 0 && (
-                  <optgroup label="Built-in Presets">
-                    {presetNames.map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </optgroup>
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showPresetDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showPresetDropdown && (
+                  <div className={`absolute z-50 w-full mt-1 rounded-theme shadow-theme max-h-60 overflow-y-auto ${
+                    darkMode 
+                      ? 'bg-black border border-white/30' 
+                      : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+                  }`}>
+                    {/* No Preset option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPreset('');
+                        setShowPresetDropdown(false);
+                      }}
+                      className={`w-full px-3 py-3 text-left text-base font-body transition-colors ${
+                        selectedPreset === '' 
+                          ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
+                          : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
+                      } ${darkMode ? 'text-white' : 'text-theme-ink'}`}
+                    >
+                      No Preset
+                    </button>
+                    
+                    {/* Built-in Presets */}
+                    {presetNames.length > 0 && (
+                      <>
+                        <div className={`px-3 py-1.5 text-xs font-body font-semibold uppercase tracking-wider ${
+                          darkMode ? 'text-white/40 bg-white/5' : 'text-theme-muted bg-theme-accent/5'
+                        }`}>
+                          Built-in Presets
+                        </div>
+                        {presetNames.map((name) => (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPreset(name);
+                              setShowPresetDropdown(false);
+                            }}
+                            className={`w-full px-3 py-3 text-left text-base font-body transition-colors ${
+                              selectedPreset === name 
+                                ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
+                                : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
+                            } ${darkMode ? 'text-white' : 'text-theme-ink'}`}
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    
+                    {/* My Presets */}
+                    {userPresets.length > 0 && (
+                      <>
+                        <div className={`px-3 py-1.5 text-xs font-body font-semibold uppercase tracking-wider ${
+                          darkMode ? 'text-white/40 bg-white/5' : 'text-theme-muted bg-theme-accent/5'
+                        }`}>
+                          My Presets
+                        </div>
+                        {userPresets.map((preset) => (
+                          <div
+                            key={`user:${preset.id}`}
+                            className={`flex items-center group ${
+                              selectedPreset === `user:${preset.id}` 
+                                ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
+                                : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPreset(`user:${preset.id}`);
+                                if (preset.theme) {
+                                  setSelectedTheme(preset.theme);
+                                }
+                                setShowPresetDropdown(false);
+                              }}
+                              className={`flex-1 px-3 py-3 text-left text-base font-body transition-colors ${
+                                darkMode ? 'text-white' : 'text-theme-ink'
+                              }`}
+                            >
+                              {preset.name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPresetToDelete(preset);
+                                setShowPresetDropdown(false);
+                              }}
+                              className={`px-3 py-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors active:bg-red-500/20 ${
+                                darkMode 
+                                  ? 'text-white/40 hover:text-red-400' 
+                                  : 'text-theme-muted hover:text-red-500'
+                              }`}
+                              title="Delete preset"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
                 )}
-                {userPresets.length > 0 && (
-                  <optgroup label="My Presets">
-                    {userPresets.map((preset) => (
-                      <option key={`user:${preset.id}`} value={`user:${preset.id}`}>{preset.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+              </div>
             </div>
             
             {/* Theme Selection */}
