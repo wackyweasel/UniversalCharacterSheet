@@ -1413,6 +1413,13 @@ export default function CharacterList() {
       {/* Tutorial Bubble */}
       {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
       </div>
+      
+      {/* Privacy Notice Footer - Fixed at bottom */}
+      <div className={`fixed bottom-0 left-0 right-0 py-2 text-center ${darkMode ? 'bg-black/80 border-t border-white/10' : 'bg-gray-100/80 border-t border-gray-200'} backdrop-blur-sm`}>
+        <p className={`text-xs ${darkMode ? 'text-white/40' : 'text-gray-400'}`}>
+          Character designs are shared anonymously to help improve UCS. No images or personal data are stored.
+        </p>
+      </div>
     </div>
   );
 }

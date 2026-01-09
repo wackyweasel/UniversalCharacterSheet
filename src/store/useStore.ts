@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Character, Widget, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
+import { useTelemetryStore } from './useTelemetryStore';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 
@@ -1213,6 +1214,14 @@ export const useStore = create<StoreState>((set, get) => {
         const state = (useStore as any).getState();
         const data = { characters: state.characters, activeCharacterId: state.activeCharacterId, mode: state.mode };
         localStorage.setItem('ucs:store', JSON.stringify(data));
+        
+        // Send telemetry for active character (rate-limited to once per 24h)
+        if (state.activeCharacterId) {
+          const activeCharacter = state.characters.find((c: Character) => c.id === state.activeCharacterId);
+          if (activeCharacter) {
+            useTelemetryStore.getState().sendTelemetry(activeCharacter);
+          }
+        }
       } catch (e) {
         console.error('Failed to persist store', e);
       }
