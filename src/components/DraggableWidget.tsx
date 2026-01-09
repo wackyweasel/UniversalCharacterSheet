@@ -486,6 +486,56 @@ export default function DraggableWidget({ widget, scale }: Props) {
     };
   }, [cornerRounding]);
 
+  // Calculate texture positioning for grouped widgets
+  // When widgets are attached together, the texture should stretch to cover the whole group
+  const groupTextureStyle = useMemo(() => {
+    // If not part of a group, use default cover behavior
+    if (!widget.groupId) {
+      return {
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      };
+    }
+    
+    // Get all widgets in the same group
+    const groupWidgets = allWidgets.filter(w => w.groupId === widget.groupId);
+    
+    if (groupWidgets.length <= 1) {
+      return {
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      };
+    }
+    
+    // Calculate the bounding box of the entire group
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    for (const gw of groupWidgets) {
+      const gwEl = document.querySelector(`[data-widget-id="${gw.id}"]`) as HTMLElement;
+      const gwWidth = gw.w || (gwEl ? gwEl.offsetWidth : 200);
+      const gwHeight = gw.h || (gwEl ? gwEl.offsetHeight : 120);
+      
+      minX = Math.min(minX, gw.x);
+      minY = Math.min(minY, gw.y);
+      maxX = Math.max(maxX, gw.x + gwWidth);
+      maxY = Math.max(maxY, gw.y + gwHeight);
+    }
+    
+    const groupWidth = maxX - minX;
+    const groupHeight = maxY - minY;
+    
+    // Calculate this widget's offset within the group
+    const offsetX = widget.x - minX;
+    const offsetY = widget.y - minY;
+    
+    // The background size should be the group size
+    // The background position should offset to show the correct portion
+    return {
+      backgroundSize: `${groupWidth}px ${groupHeight}px`,
+      backgroundPosition: `-${offsetX}px -${offsetY}px`,
+    };
+  }, [widget.groupId, widget.x, widget.y, widget.w, widgetHeight, allWidgets]);
+
   const renderContent = () => {
     // Always render in play mode style - the modal handles editing
     // But pass 'print' mode when in print mode for special rendering
@@ -549,6 +599,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           onClick={handleWidgetClick}
         >
           {/* Image texture overlay - grayscale texture tinted with card color */}
+          {/* When widgets are attached together, the texture stretches to cover the whole group */}
           {hasImageTexture && (
             <div
               className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
@@ -558,7 +609,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                 className="absolute inset-0"
                 style={{
                   backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
-                  backgroundSize: 'cover',
+                  ...groupTextureStyle,
                   filter: 'grayscale(100%)',
                   opacity: 'var(--card-texture-opacity)',
                   mixBlendMode: 'overlay',
