@@ -5,9 +5,10 @@ interface UsePanZoomOptions {
   maxScale?: number;
   editingWidgetId: string | null;
   mode: 'play' | 'edit' | 'vertical' | 'print';
+  onBackgroundClick?: () => void;
 }
 
-export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode }: UsePanZoomOptions) {
+export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, onBackgroundClick }: UsePanZoomOptions) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
@@ -39,6 +40,9 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     // Ignore if clicking on a widget
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
 
+    // Clear selected widget when clicking on the background
+    onBackgroundClick?.();
+
     // In play/print mode: Left Click (0) to pan
     // In edit mode: Left Click (0) and Middle Click (1) to pan
     if (mode === 'play' || mode === 'print') {
@@ -54,7 +58,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
         lastMousePos.current = { x: e.clientX, y: e.clientY };
       }
     }
-  }, [editingWidgetId, mode]);
+  }, [editingWidgetId, mode, onBackgroundClick]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {

@@ -34,6 +34,7 @@ export default function Sheet() {
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
+  const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
   const reorderWidget = useStore((state) => state.reorderWidget);
   const createSheet = useStore((state) => state.createSheet);
   const selectSheet = useStore((state) => state.selectSheet);
@@ -115,6 +116,15 @@ export default function Sheet() {
   const containerRef = useRef<HTMLDivElement>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
   
+  // Callback to clear selection and blur active element when clicking/touching background
+  const handleBackgroundInteraction = useCallback(() => {
+    setSelectedWidgetId(null);
+    // Blur any focused input/textarea element
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, [setSelectedWidgetId]);
+  
   const {
     pan,
     scale,
@@ -128,6 +138,7 @@ export default function Sheet() {
   } = usePanZoom({
     editingWidgetId,
     mode,
+    onBackgroundClick: handleBackgroundInteraction,
   });
 
   // Touch camera controls hook
@@ -146,6 +157,7 @@ export default function Sheet() {
     onPinchingChange: setIsPinching,
     getScale,
     getPan,
+    onBackgroundTouch: handleBackgroundInteraction,
   });
 
   // Auto-stack hook

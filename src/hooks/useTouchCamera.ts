@@ -9,6 +9,7 @@ interface UseTouchCameraOptions {
   getPan: () => { x: number; y: number };
   minScale?: number;
   maxScale?: number;
+  onBackgroundTouch?: () => void;
 }
 
 export function useTouchCamera({
@@ -20,6 +21,7 @@ export function useTouchCamera({
   getPan,
   minScale = 0.1,
   maxScale = 5,
+  onBackgroundTouch,
 }: UseTouchCameraOptions) {
   // Touch state - all managed via refs to work in global handlers
   const lastTouchDistance = useRef<number | null>(null);
@@ -31,6 +33,9 @@ export function useTouchCamera({
   // Refs to avoid stale closures in global touch handlers
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+  
+  const onBackgroundTouchRef = useRef(onBackgroundTouch);
+  useEffect(() => { onBackgroundTouchRef.current = onBackgroundTouch; }, [onBackgroundTouch]);
 
   useEffect(() => {
     // Check if an element or its ancestors have scrollable overflow
@@ -127,6 +132,11 @@ export function useTouchCamera({
         const onScrollable = touchStartedOnScrollable.current;
         const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
         const onPrintArea = touchStartTarget && isOnPrintAreaOverlay(touchStartTarget);
+        
+        // Clear selected widget when touching the background (not on widget, sidebar, canvas, etc.)
+        if (!onWidget && !onScrollable && !onCanvas && !onPrintArea) {
+          onBackgroundTouchRef.current?.();
+        }
         
         // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
         const shouldPan = !onScrollable && !onCanvas && !onPrintArea && (modeRef.current === 'play' ? true : !onWidget);
