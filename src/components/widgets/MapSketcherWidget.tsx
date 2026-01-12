@@ -243,14 +243,14 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
   const [isErasing, setIsErasing] = useState(false);
   const [erasedInStroke, setErasedInStroke] = useState<Shape[]>([]);
 
-  const tools: { tool: Tool; icon: string; label: string }[] = [
-    { tool: 'auto', icon: '✨', label: 'Auto Detect' },
-    { tool: 'free', icon: '✏️', label: 'Free Draw' },
-    { tool: 'rectangle', icon: '⬜', label: 'Rectangle' },
-    { tool: 'ellipse', icon: '⭕', label: 'Ellipse' },
-    { tool: 'corridor', icon: '▬', label: 'Corridor' },
-    { tool: 'eraser', icon: '✕', label: 'Eraser' },
-    { tool: 'clearAll', icon: '🗑️', label: 'Clear All' },
+  const tools: { tool: Tool; icon: React.ReactNode; label: string }[] = [
+    { tool: 'auto', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>, label: 'Auto Detect' },
+    { tool: 'free', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>, label: 'Free Draw' },
+    { tool: 'rectangle', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>, label: 'Rectangle' },
+    { tool: 'ellipse', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="12" rx="10" ry="8"/></svg>, label: 'Ellipse' },
+    { tool: 'corridor', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h16v6H4z"/></svg>, label: 'Corridor' },
+    { tool: 'eraser', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>, label: 'Eraser' },
+    { tool: 'clearAll', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>, label: 'Clear All' },
   ];
   
   // Navigation functions
@@ -766,7 +766,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
               className="p-1 text-xs border-[length:var(--border-width)] border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
               title="Undo"
             >
-              ↩️
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
             </button>
           )}
         </div>
