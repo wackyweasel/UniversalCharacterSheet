@@ -6,6 +6,7 @@ import { useTemplateStore, WidgetTemplate } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
+import GallerySidebar from './GallerySidebar';
 import { Character } from '../types';
 import { getPresetNames, getPreset } from '../presets';
 
@@ -124,6 +125,7 @@ export default function CharacterList() {
   const [includeThemeInPreset, setIncludeThemeInPreset] = useState(true);
   const [presetToDelete, setPresetToDelete] = useState<UserPreset | null>(null);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
   const presetDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
@@ -348,27 +350,22 @@ export default function CharacterList() {
           Character Select
         </h1>
         <div className="flex items-center gap-2">
-          {/* Desktop buttons - hidden on small screens */}
+          {/* Desktop buttons - visible on larger screens */}
           <div className="hidden sm:flex items-center gap-2">
-            {/* Dark Mode Toggle */}
+            {/* Gallery Button */}
             <button
-              onClick={toggleDarkMode}
-              className={`flex items-center justify-center w-10 px-2 py-2 rounded-button transition-colors ${
+              onClick={() => setShowGallery(true)}
+              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 darkMode 
-                  ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
-                  : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-300'
+                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
               }`}
-              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              title="Community Gallery"
             >
-              {darkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              <span>Gallery</span>
             </button>
             {/* Tutorial Button */}
             <button
@@ -385,23 +382,7 @@ export default function CharacterList() {
               </svg>
               <span>Tutorial</span>
             </button>
-            {/* Feedback Button */}
-            <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                darkMode 
-                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Send Feedback"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              <span>Feedback</span>
-            </a>
+            {/* Backup Button */}
             <button
               onClick={() => setShowBackupModal(true)}
               className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
@@ -416,32 +397,16 @@ export default function CharacterList() {
               </svg>
               <span>Backup</span>
             </button>
-            <a
-              href="https://buymeacoffee.com/wackyweasel"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                darkMode 
-                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Support the developer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-              <span>Donate</span>
-            </a>
           </div>
           
-          {/* Mobile menu button - visible on small screens */}
-          <div className="sm:hidden relative" ref={headerMenuRef}>
+          {/* Menu button - always visible */}
+          <div className="relative" ref={headerMenuRef}>
             <button
               onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-              className={`flex items-center justify-center w-10 h-10 rounded-button transition-colors ${
+              className={`flex items-center justify-center px-2 py-2 rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 darkMode 
                   ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
-                  : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-300'
+                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper border-[length:var(--border-width)] border-theme-border'
               }`}
               title="Menu"
             >
@@ -450,7 +415,7 @@ export default function CharacterList() {
               </svg>
             </button>
             
-            {/* Mobile dropdown menu */}
+            {/* Dropdown menu */}
             {showHeaderMenu && (
               <div 
                 className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 ${
@@ -481,12 +446,30 @@ export default function CharacterList() {
                   )}
                   <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
                 </button>
+                {/* Gallery - only in mobile menu */}
+                <button
+                  onClick={() => {
+                    setShowGallery(true);
+                    setShowHeaderMenu(false);
+                  }}
+                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                    darkMode 
+                      ? 'text-white hover:bg-white/10' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span>Gallery</span>
+                </button>
+                {/* Tutorial - only in mobile menu */}
                 <button
                   onClick={() => {
                     startTutorial();
                     setShowHeaderMenu(false);
                   }}
-                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -518,7 +501,7 @@ export default function CharacterList() {
                     setShowBackupModal(true);
                     setShowHeaderMenu(false);
                   }}
-                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -1420,6 +1403,13 @@ export default function CharacterList() {
           Character designs are shared anonymously to help improve UCS. No images or personal data are stored.
         </p>
       </div>
+      
+      {/* Gallery Sidebar */}
+      <GallerySidebar 
+        collapsed={!showGallery} 
+        onToggle={() => setShowGallery(false)} 
+        darkMode={darkMode}
+      />
     </div>
   );
 }
