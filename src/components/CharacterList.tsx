@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
-import { useTemplateStore, WidgetTemplate } from '../store/useTemplateStore';
+import { useTemplateStore, AnyTemplate } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
@@ -28,7 +28,7 @@ interface BackupData {
   timestamp: string;
   characters: Character[];
   customThemes: Record<string, any>;
-  templates?: WidgetTemplate[];
+  templates?: AnyTemplate[];
   userPresets?: UserPreset[];
 }
 

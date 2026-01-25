@@ -116,6 +116,7 @@ interface StoreState {
   addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   cloneWidget: (widgetId: string) => void;
   addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
+  addGroupFromTemplate: (template: { widgets: { type: WidgetType; relativeX: number; relativeY: number; w?: number; h?: number; data: any }[]; attachments: [number, number][] }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
@@ -130,6 +131,13 @@ interface StoreState {
   detachWidgets: (widgetId1: string, widgetId2: string) => void;
   getWidgetsInGroup: (groupId: string) => Widget[];
   moveWidgetGroup: (widgetId: string, deltaX: number, deltaY: number) => void;
+  
+  // Bulk Group Actions (for group-level operations)
+  cloneGroup: (groupId: string) => void;
+  removeGroup: (groupId: string) => void;
+  toggleGroupLock: (groupId: string) => void;
+  moveGroupToSheet: (groupId: string, targetSheetId: string) => void;
+  detachAllInGroup: (groupId: string) => void;
   
   // Rest Action (for Rest Button widget)
   performRest: (options: {
@@ -651,6 +659,144 @@ export const useStore = create<StoreState>((set, get) => {
       });
     },
 
+    addGroupFromTemplate: (template, viewport) => {
+      // Take snapshot before the change
+      get()._takeSnapshot('Add group from template');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!activeChar) return state;
+        
+        const currentWidgets = getActiveSheetWidgets(activeChar);
+        
+        // Calculate the bounding box of the group template
+        let groupWidth = 0;
+        let groupHeight = 0;
+        template.widgets.forEach(w => {
+          const right = w.relativeX + (w.w || 200);
+          const bottom = w.relativeY + (w.h || 120);
+          groupWidth = Math.max(groupWidth, right);
+          groupHeight = Math.max(groupHeight, bottom);
+        });
+        
+        // Calculate smart position (same logic as addWidget)
+        let finalX = 100;
+        let finalY = 100;
+        const GRID_SIZE = 10;
+        const GAP = 20;
+        
+        // Helper to check if a rectangle overlaps with any existing widget
+        const overlapsWidget = (testX: number, testY: number, testW: number, testH: number): boolean => {
+          return currentWidgets.some(w => {
+            const wRight = w.x + (w.w || 200);
+            const wBottom = w.y + (w.h || 120);
+            const testRight = testX + testW;
+            const testBottom = testY + testH;
+            return !(testX >= wRight || testRight <= w.x || testY >= wBottom || testBottom <= w.y);
+          });
+        };
+        
+        if (viewport) {
+          // Calculate visible area in canvas coordinates
+          const visibleLeft = -viewport.pan.x / viewport.scale;
+          const visibleTop = -viewport.pan.y / viewport.scale;
+          const visibleWidth = viewport.width / viewport.scale;
+          const visibleHeight = viewport.height / viewport.scale;
+          const visibleRight = visibleLeft + visibleWidth;
+          const visibleBottom = visibleTop + visibleHeight;
+          
+          // Add some padding from edges
+          const PADDING = 40;
+          const searchLeft = Math.max(0, visibleLeft + PADDING);
+          const searchTop = Math.max(0, visibleTop + PADDING);
+          const searchRight = visibleRight - PADDING - groupWidth;
+          const searchBottom = visibleBottom - PADDING - groupHeight;
+          
+          // Search for first available position in visible area
+          let found = false;
+          const SEARCH_STEP = GRID_SIZE * 2;
+          
+          for (let testY = searchTop; testY <= searchBottom && !found; testY += SEARCH_STEP) {
+            for (let testX = searchLeft; testX <= searchRight && !found; testX += SEARCH_STEP) {
+              const snappedX = Math.round(testX / GRID_SIZE) * GRID_SIZE;
+              const snappedY = Math.round(testY / GRID_SIZE) * GRID_SIZE;
+              
+              if (!overlapsWidget(snappedX, snappedY, groupWidth, groupHeight)) {
+                finalX = snappedX;
+                finalY = snappedY;
+                found = true;
+              }
+            }
+          }
+          
+          // If no space found in visible area, place at center
+          if (!found) {
+            finalX = Math.round((visibleLeft + visibleWidth / 2 - groupWidth / 2) / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((visibleTop + visibleHeight / 2 - groupHeight / 2) / GRID_SIZE) * GRID_SIZE;
+          }
+        } else if (currentWidgets.length === 0) {
+          finalX = Math.round(400 / GRID_SIZE) * GRID_SIZE;
+          finalY = Math.round(300 / GRID_SIZE) * GRID_SIZE;
+        } else {
+          const minX = Math.min(...currentWidgets.map(w => w.x));
+          const maxX = Math.max(...currentWidgets.map(w => w.x + (w.w || 200)));
+          const minY = Math.min(...currentWidgets.map(w => w.y));
+          const maxY = Math.max(...currentWidgets.map(w => w.y + (w.h || 120)));
+          
+          finalX = Math.round((maxX + GAP) / GRID_SIZE) * GRID_SIZE;
+          finalY = Math.round(minY / GRID_SIZE) * GRID_SIZE;
+          
+          if (finalX > 1500) {
+            finalX = Math.round(minX / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((maxY + GAP) / GRID_SIZE) * GRID_SIZE;
+          }
+        }
+        
+        // Generate new IDs for each widget
+        const newGroupId = uuidv4();
+        const widgetIds = template.widgets.map(() => uuidv4());
+        
+        // Create the new widgets
+        const newWidgets: Widget[] = template.widgets.map((wt, idx) => ({
+          id: widgetIds[idx],
+          type: wt.type,
+          x: finalX + wt.relativeX,
+          y: finalY + wt.relativeY,
+          w: wt.w || 200,
+          h: wt.h || 120,
+          groupId: newGroupId,
+          data: JSON.parse(JSON.stringify(wt.data)),
+        }));
+        
+        // Set up attachedTo based on the attachments array
+        template.attachments.forEach(([idx1, idx2]) => {
+          const w1 = newWidgets[idx1];
+          const w2 = newWidgets[idx2];
+          if (w1 && w2) {
+            w1.attachedTo = w1.attachedTo || [];
+            w2.attachedTo = w2.attachedTo || [];
+            if (!w1.attachedTo.includes(w2.id)) {
+              w1.attachedTo.push(w2.id);
+            }
+            if (!w2.attachedTo.includes(w1.id)) {
+              w2.attachedTo.push(w1.id);
+            }
+          }
+        });
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets => [...widgets, ...newWidgets]);
+            }
+            return c;
+          })
+        };
+      });
+    },
+
     updateWidgetPosition: (id, x, y) => {
       // Take snapshot before the change (for moving widgets)
       get()._takeSnapshot('Move widget');
@@ -1062,6 +1208,188 @@ export const useStore = create<StoreState>((set, get) => {
                 widgets.map(w => 
                   w.groupId === groupId ? { ...w, x: w.x + deltaX, y: w.y + deltaY } : w
                 )
+              );
+            }
+            return c;
+          })
+        };
+      });
+    },
+
+    // Clone all widgets in a group
+    cloneGroup: (groupId) => {
+      get()._takeSnapshot('Clone group');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!character) return state;
+        
+        const widgets = getActiveSheetWidgets(character);
+        const groupWidgets = widgets.filter(w => w.groupId === groupId);
+        
+        if (groupWidgets.length === 0) return state;
+        
+        const OFFSET = 30;
+        const newGroupId = uuidv4();
+        
+        // Create a mapping from old IDs to new IDs
+        const idMapping = new Map<string, string>();
+        groupWidgets.forEach(w => {
+          idMapping.set(w.id, uuidv4());
+        });
+        
+        // Clone all widgets with new IDs and updated attachedTo references
+        const clonedWidgets: Widget[] = groupWidgets.map(w => ({
+          id: idMapping.get(w.id)!,
+          type: w.type,
+          x: w.x + OFFSET,
+          y: w.y + OFFSET,
+          w: w.w,
+          h: w.h,
+          groupId: newGroupId,
+          attachedTo: w.attachedTo?.map(id => idMapping.get(id)).filter((id): id is string => id !== undefined),
+          locked: w.locked,
+          data: JSON.parse(JSON.stringify(w.data)),
+        }));
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets => [...widgets, ...clonedWidgets]);
+            }
+            return c;
+          })
+        };
+      });
+    },
+
+    // Remove all widgets in a group
+    removeGroup: (groupId) => {
+      get()._takeSnapshot('Delete group');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets => 
+                widgets.filter(w => w.groupId !== groupId)
+              );
+            }
+            return c;
+          })
+        };
+      });
+    },
+
+    // Toggle lock for all widgets in a group
+    toggleGroupLock: (groupId) => {
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!character) return state;
+        
+        const widgets = getActiveSheetWidgets(character);
+        const groupWidgets = widgets.filter(w => w.groupId === groupId);
+        
+        // Check if any widget in the group is unlocked - if so, lock all; otherwise unlock all
+        const anyUnlocked = groupWidgets.some(w => !w.locked);
+        const newLockState = anyUnlocked;
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets =>
+                widgets.map(w => w.groupId === groupId ? { ...w, locked: newLockState } : w)
+              );
+            }
+            return c;
+          })
+        };
+      });
+    },
+
+    // Move all widgets in a group to another sheet
+    moveGroupToSheet: (groupId, targetSheetId) => {
+      get()._takeSnapshot('Move group to sheet');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        if (!character) return state;
+        
+        const activeSheet = character.sheets.find(s => s.id === character.activeSheetId);
+        if (!activeSheet) return state;
+        
+        // Can't move to the same sheet
+        if (targetSheetId === character.activeSheetId) return state;
+        
+        // Check target sheet exists
+        const targetSheet = character.sheets.find(s => s.id === targetSheetId);
+        if (!targetSheet) return state;
+        
+        // Get all widgets in the group
+        const widgetsToMove = activeSheet.widgets.filter(w => w.groupId === groupId);
+        if (widgetsToMove.length === 0) return state;
+        
+        const widgetIdsToMove = new Set(widgetsToMove.map(w => w.id));
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id !== state.activeCharacterId) return c;
+            
+            return {
+              ...c,
+              sheets: c.sheets.map(s => {
+                if (s.id === character.activeSheetId) {
+                  // Remove from source sheet, also clean up references from other widgets
+                  return {
+                    ...s,
+                    widgets: s.widgets
+                      .filter(w => !widgetIdsToMove.has(w.id))
+                      .map(w => ({
+                        ...w,
+                        attachedTo: w.attachedTo?.filter(id => !widgetIdsToMove.has(id)),
+                      })),
+                  };
+                }
+                if (s.id === targetSheetId) {
+                  // Add to target sheet (keeping group structure intact)
+                  return {
+                    ...s,
+                    widgets: [...s.widgets, ...widgetsToMove],
+                  };
+                }
+                return s;
+              }),
+            };
+          }),
+        };
+      });
+    },
+
+    // Detach all widgets in a group (dissolve the group)
+    detachAllInGroup: (groupId) => {
+      get()._takeSnapshot('Detach all in group');
+      
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+        
+        return {
+          characters: state.characters.map(c => {
+            if (c.id === state.activeCharacterId) {
+              return updateActiveSheetWidgets(c, widgets =>
+                widgets.map(w => {
+                  if (w.groupId === groupId) {
+                    return { ...w, groupId: undefined, attachedTo: undefined };
+                  }
+                  return w;
+                })
               );
             }
             return c;

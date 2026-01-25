@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { useTemplateStore } from '../store/useTemplateStore';
+import { useTemplateStore, isGroupTemplate } from '../store/useTemplateStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { WidgetType } from '../types';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
@@ -39,6 +39,7 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps) {
   const addWidget = useStore((state) => state.addWidget);
   const addWidgetFromTemplate = useStore((state) => state.addWidgetFromTemplate);
+  const addGroupFromTemplate = useStore((state) => state.addGroupFromTemplate);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
@@ -171,53 +172,73 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
               </h2>
             </div>
             <div className="flex flex-col gap-2">
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center justify-between bg-theme-paper text-theme-ink rounded-theme group"
-                >
-                  <span 
-                    className="text-xs font-body flex-1 truncate"
-                    onClick={() => addWidgetFromTemplate(template, viewport)}
+              {templates.map((template) => {
+                const isGroup = isGroupTemplate(template);
+                return (
+                  <div
+                    key={template.id}
+                    className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center justify-between bg-theme-paper text-theme-ink rounded-theme group"
                   >
-                    + {template.name}
-                  </span>
-                  {confirmingDeleteId === template.id ? (
-                    <div className="flex gap-1 ml-2">
-                      <button
-                        className="px-2 py-0.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeTemplate(template.id);
-                          setConfirmingDeleteId(null);
-                        }}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        className="px-2 py-0.5 text-xs bg-theme-border text-theme-ink rounded hover:bg-theme-muted transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmingDeleteId(null);
-                        }}
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="ml-2 w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmingDeleteId(template.id);
+                    <span 
+                      className="text-xs font-body flex-1 truncate flex items-center gap-1.5"
+                      onClick={() => {
+                        if (isGroup) {
+                          addGroupFromTemplate(template, viewport);
+                        } else {
+                          addWidgetFromTemplate(template, viewport);
+                        }
                       }}
-                      title="Delete template"
                     >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+                      {isGroup && (
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <rect x="3" y="3" width="7" height="7" rx="1" />
+                          <rect x="14" y="3" width="7" height="7" rx="1" />
+                          <rect x="3" y="14" width="7" height="7" rx="1" />
+                          <rect x="14" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                      )}
+                      + {template.name}
+                      {isGroup && (
+                        <span className="text-[10px] opacity-70">({template.widgets.length})</span>
+                      )}
+                    </span>
+                    {confirmingDeleteId === template.id ? (
+                      <div className="flex gap-1 ml-2">
+                        <button
+                          className="px-2 py-0.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTemplate(template.id);
+                            setConfirmingDeleteId(null);
+                          }}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          className="px-2 py-0.5 text-xs bg-theme-border text-theme-ink rounded hover:bg-theme-muted transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmingDeleteId(null);
+                          }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="ml-2 w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmingDeleteId(template.id);
+                        }}
+                        title="Delete template"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
