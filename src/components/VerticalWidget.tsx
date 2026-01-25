@@ -266,7 +266,7 @@ export default function VerticalWidget({
 
         {/* Header with drag handle and collapse toggle */}
         <div className="flex items-center justify-between px-3 py-1.5 relative z-20">
-          {/* Drag Handle - positioned at left, only this area is draggable */}
+          {/* Drag Handle - positioned at left, only this area is draggable (disabled when locked) */}
           <div 
             className="vertical-drag-handle cursor-grab active:cursor-grabbing flex items-center gap-2 touch-none select-none"
             draggable
@@ -289,6 +289,14 @@ export default function VerticalWidget({
             </svg>
           </div>
           
+          {/* Lock indicator */}
+          {widget.locked && (
+            <svg className="w-3.5 h-3.5 text-theme-ink ml-1" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          )}
+          
           {/* Label when collapsed */}
           {isCollapsed && (
             <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1 ml-2">{getWidgetLabel()}</span>
@@ -310,7 +318,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className="relative px-3 pb-2">
+          <div className={`relative px-3 pb-2 ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
