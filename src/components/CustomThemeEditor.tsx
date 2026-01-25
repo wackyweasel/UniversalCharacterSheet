@@ -23,6 +23,9 @@ interface CustomThemeEditorProps {
   onDelete?: () => void; // Only for editing existing themes
 }
 
+// Color key type for highlighting
+type ColorKey = 'background' | 'paper' | 'ink' | 'accent' | 'accentHover' | 'border' | 'shadow' | 'muted' | 'glow';
+
 export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }: CustomThemeEditorProps) {
   const isEditing = !!(theme?.id && theme.id.length > 0);
   const defaultTheme = createDefaultCustomTheme();
@@ -42,6 +45,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [textureOpacity, setTextureOpacity] = useState(theme?.textureOpacity ?? defaultTheme.textureOpacity);
   const [borderStyle, setBorderStyle] = useState(theme?.borderStyle || defaultTheme.borderStyle);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [hoveredColor, setHoveredColor] = useState<ColorKey | null>(null);
 
   const handleColorChange = (key: keyof typeof colors, value: string) => {
     setColors(prev => ({ ...prev, [key]: value }));
@@ -82,17 +86,29 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
     { key: 'glow', label: 'Glow' },
   ];
 
+  // Helper to get highlight style for elements based on hovered color
+  const getHighlightStyle = (elementColorKeys: ColorKey[]): React.CSSProperties => {
+    if (!hoveredColor || !elementColorKeys.includes(hoveredColor)) return {};
+    return {
+      outline: '3px dashed #ff6b6b',
+      outlineOffset: '2px',
+      animation: 'pulse-highlight 1s ease-in-out infinite',
+    };
+  };
+
   // Preview component - reused for both mobile and desktop
   const PreviewCard = () => (
     <div 
-      className="p-3"
+      className="p-6"
       style={{ 
         backgroundColor: colors.background,
         borderRadius: borderRadius,
+        minHeight: '200px',
+        ...getHighlightStyle(['background']),
       }}
     >
       <div 
-        className="p-3 relative overflow-hidden"
+        className="p-4 relative overflow-hidden"
         style={{ 
           backgroundColor: colors.paper,
           backgroundImage: isImageTexture(cardTexture) ? 'none' : getTextureCSS(cardTexture, textureColor, textureOpacity),
@@ -102,6 +118,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
             .replace(/var\(--color-shadow\)/g, colors.shadow)
             .replace(/var\(--color-border\)/g, colors.border)
             .replace(/var\(--color-glow\)/g, colors.glow),
+          ...getHighlightStyle(['paper', 'border', 'shadow', 'glow']),
         }}
       >
         {/* Image texture overlay for preview */}
@@ -127,28 +144,51 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           </div>
         )}
         <h4 
-          className="text-base font-bold mb-2 relative"
-          style={{ color: colors.ink, fontFamily: headingFont }}
+          className="text-lg font-bold mb-2 relative"
+          style={{ 
+            color: colors.ink, 
+            fontFamily: headingFont,
+            ...getHighlightStyle(['ink']),
+          }}
         >
           {icon} {name}
         </h4>
         <p 
-          className="text-xs mb-3 relative"
-          style={{ color: colors.muted, fontFamily: bodyFont }}
+          className="text-sm mb-4 relative"
+          style={{ 
+            color: colors.muted, 
+            fontFamily: bodyFont,
+            ...getHighlightStyle(['muted']),
+          }}
         >
           {description}
         </p>
-        <button
-          className="px-3 py-1.5 text-sm font-bold transition-colors relative"
-          style={{ 
-            backgroundColor: colors.accent,
-            color: colors.paper,
-            borderRadius: buttonRadius,
-            fontFamily: headingFont,
-          }}
-        >
-          Sample Button
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            className="px-4 py-2 text-sm font-bold transition-colors relative"
+            style={{ 
+              backgroundColor: colors.accent,
+              color: colors.paper,
+              borderRadius: buttonRadius,
+              fontFamily: headingFont,
+              ...getHighlightStyle(['accent']),
+            }}
+          >
+            Primary Button
+          </button>
+          <button
+            className="px-4 py-2 text-sm font-bold transition-colors relative"
+            style={{ 
+              backgroundColor: colors.accentHover,
+              color: colors.paper,
+              borderRadius: buttonRadius,
+              fontFamily: headingFont,
+              ...getHighlightStyle(['accentHover']),
+            }}
+          >
+            Hover State
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -169,8 +209,14 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
         {/* Content - Column layout */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Preview - at top */}
-          <div className="w-full flex-shrink-0 border-b-[length:var(--border-width)] border-theme-border p-3 bg-theme-background/50 max-h-[40vh] overflow-auto">
-            <h3 className="text-sm font-bold text-theme-ink mb-2 uppercase tracking-wider font-heading">Preview</h3>
+          <div className="w-full flex-shrink-0 border-b-[length:var(--border-width)] border-theme-border p-4 bg-theme-background/50">
+            <style>{`
+              @keyframes pulse-highlight {
+                0%, 100% { outline-color: #ff6b6b; }
+                50% { outline-color: #ffb347; }
+              }
+            `}</style>
+            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Preview</h3>
             <div>
               <PreviewCard />
             </div>
@@ -241,13 +287,22 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
               <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Colors</h3>
               <div className="grid grid-cols-3 gap-2">
                 {colorFields.map(({ key, label }) => (
-                  <div key={key} className="flex flex-col items-center">
+                  <div 
+                    key={key} 
+                    className="flex flex-col items-center"
+                    onMouseEnter={() => setHoveredColor(key)}
+                    onMouseLeave={() => setHoveredColor(null)}
+                  >
                     <label className="block text-[10px] font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
                     <input
                       type="color"
                       value={colors[key]}
                       onChange={(e) => handleColorChange(key, e.target.value)}
                       className="w-10 h-10 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                      style={{
+                        outline: hoveredColor === key ? '2px solid var(--color-accent)' : undefined,
+                        outlineOffset: hoveredColor === key ? '2px' : undefined,
+                      }}
                     />
                   </div>
                 ))}
