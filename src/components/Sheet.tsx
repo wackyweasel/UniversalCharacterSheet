@@ -371,7 +371,7 @@ export default function Sheet() {
     }
   }, [tutorialStep]);
 
-  // Fit all widgets when character sheet is opened
+  // Fit all widgets when character sheet is opened or sheet is changed
   useEffect(() => {
     if (activeCharacterId && activeSheetWidgets.length > 0) {
       // Small delay to ensure DOM elements are rendered
@@ -381,7 +381,7 @@ export default function Sheet() {
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCharacterId]);
+  }, [activeCharacterId, activeCharacter?.activeSheetId]);
 
   // Apply character's theme when entering sheet, revert to default when leaving
   useEffect(() => {
