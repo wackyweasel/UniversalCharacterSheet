@@ -18,6 +18,7 @@ interface RollResultItem {
   faces: number | string[];
   roll: number | string;
   customDieName?: string;
+  id: number; // Unique ID for tracking individual dice
 }
 
 interface RollResult {
@@ -44,6 +45,7 @@ export default function DiceTrayWidget({ widget }: Props) {
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [rerollingDieId, setRerollingDieId] = useState<number | null>(null);
   const [nextId, setNextId] = useState(1);
 
   // Fixed small sizing
@@ -168,12 +170,12 @@ export default function DiceTrayWidget({ widget }: Props) {
           // Custom die - roll from faces array
           const faceIndex = Math.floor(Math.random() * die.faces.length);
           const roll = die.faces[faceIndex];
-          rolls.push({ faces: die.faces, roll, customDieName: die.customDieName });
+          rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
           allRolls.push(roll);
         } else {
           // Standard die - roll 1 to faces
           const roll = Math.floor(Math.random() * die.faces) + 1;
-          rolls.push({ faces: die.faces, roll });
+          rolls.push({ faces: die.faces, roll, id: die.id });
           allRolls.push(roll);
         }
       }
@@ -204,11 +206,11 @@ export default function DiceTrayWidget({ widget }: Props) {
           if (Array.isArray(die.faces)) {
             const faceIndex = Math.floor(Math.random() * die.faces.length);
             const roll = die.faces[faceIndex];
-            rolls.push({ faces: die.faces, roll, customDieName: die.customDieName });
+            rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
             allRolls.push(roll);
           } else {
             const roll = Math.floor(Math.random() * die.faces) + 1;
-            rolls.push({ faces: die.faces, roll });
+            rolls.push({ faces: die.faces, roll, id: die.id });
             allRolls.push(roll);
           }
         }
@@ -222,6 +224,46 @@ export default function DiceTrayWidget({ widget }: Props) {
         setDicePool([]);
       }, 300);
     }, 0);
+  };
+
+  // Re-roll a single die by its index in the result
+  const rerollSingleDie = (dieIndex: number) => {
+    if (!result || isRolling || rerollingDieId !== null) return;
+    
+    const dieToReroll = result.dice[dieIndex];
+    setRerollingDieId(dieToReroll.id);
+    
+    setTimeout(() => {
+      let newRoll: number | string;
+      
+      if (Array.isArray(dieToReroll.faces)) {
+        // Custom die
+        const faceIndex = Math.floor(Math.random() * dieToReroll.faces.length);
+        newRoll = dieToReroll.faces[faceIndex];
+      } else {
+        // Standard die
+        newRoll = Math.floor(Math.random() * dieToReroll.faces) + 1;
+      }
+      
+      // Update the result with the new roll
+      const newDice = result.dice.map((d, i) => 
+        i === dieIndex ? { ...d, roll: newRoll } : d
+      );
+      
+      const allRolls = newDice.map(d => d.roll);
+      const aggregated = aggregateResults(allRolls);
+      const numericResult = aggregated.find(r => r.isNumeric);
+      const total = numericResult ? numericResult.numericTotal || 0 : null;
+      
+      setResult({ dice: newDice, total, aggregatedResults: aggregated });
+      
+      // Also update lastRolledPool to reflect the new die configuration
+      setLastRolledPool(prev => prev.map((d, i) => 
+        i === dieIndex ? { ...d } : d
+      ));
+      
+      setRerollingDieId(null);
+    }, 200);
   };
 
   // Group dice in pool by type for display
@@ -365,16 +407,53 @@ export default function DiceTrayWidget({ widget }: Props) {
             <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
               {showIndividualResults || hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
             </div>
-            {/* Only show individual rolls breakdown when not in showIndividualResults mode */}
+            {/* Individual dice - clickable to re-roll */}
             {!showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body`}>
+              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5`}>
                 {result.dice.map((d, i) => (
-                  <span key={i}>
-                    {i > 0 && ' + '}
-                    <span title={Array.isArray(d.faces) ? (d.customDieName || 'custom') : `d${d.faces}`}>
+                  <span key={d.id} className="inline-flex items-center">
+                    {i > 0 && <span className="mx-0.5">+</span>}
+                    <button
+                      onClick={() => rerollSingleDie(i)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      disabled={rerollingDieId !== null}
+                      className={`
+                        px-1 py-0.5 rounded transition-all
+                        hover:bg-theme-accent hover:text-theme-paper
+                        focus:outline-none focus:ring-1 focus:ring-theme-accent
+                        ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
+                        cursor-pointer
+                      `}
+                      title={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}
+                    >
                       {d.roll}
-                    </span>
+                    </button>
                   </span>
+                ))}
+              </div>
+            )}
+            {/* Individual dice for showIndividualResults mode - also clickable */}
+            {showIndividualResults && (
+              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5 mt-1`}>
+                {result.dice.map((d, i) => (
+                  <button
+                    key={d.id}
+                    onClick={() => rerollSingleDie(i)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={rerollingDieId !== null}
+                    className={`
+                      px-1 py-0.5 rounded transition-all
+                      hover:bg-theme-accent hover:text-theme-paper
+                      focus:outline-none focus:ring-1 focus:ring-theme-accent
+                      ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
+                      cursor-pointer
+                    `}
+                    title={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
                 ))}
               </div>
             )}
