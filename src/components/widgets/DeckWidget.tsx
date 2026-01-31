@@ -237,14 +237,14 @@ export default function DeckWidget({ widget, mode }: Props) {
         <button
           onClick={() => setShowDrawPile(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border/50 rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
+          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
         >
           Draw Pile ({getTotalRemaining()})
         </button>
         <button
           onClick={() => setShowDiscardPile(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border/50 rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
+          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
         >
           Discard ({currentState.discarded.length})
         </button>

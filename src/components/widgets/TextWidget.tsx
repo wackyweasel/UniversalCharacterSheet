@@ -67,7 +67,7 @@ export default function TextWidget({ widget, height }: Props) {
       )}
       <textarea
         ref={textareaRef}
-        className={`w-full ${isAutoHeight ? '' : 'flex-1'} ${textClass} border border-theme-border/50 focus:border-theme-border focus:outline-none resize-none bg-transparent text-theme-ink font-body rounded-button`}
+        className={`w-full ${isAutoHeight ? '' : 'flex-1'} ${textClass} border border-theme-border focus:border-theme-border focus:outline-none resize-none bg-transparent text-theme-ink font-body rounded-theme`}
         style={isAutoHeight ? { minHeight: '60px', overflow: 'hidden', height: 'auto' } : { height: `${textareaHeight}px` }}
         value={text}
         onChange={handleTextChange}

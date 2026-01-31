@@ -73,7 +73,7 @@
   .shadow-theme { box-shadow: var(--shadow-style); }
   
   .glow-theme {
-    box-shadow: var(--shadow-style), 0 0 20px var(--color-glow), 0 0 40px var(--color-glow);
+    box-shadow: 0 0 10px var(--color-glow), 0 0 20px var(--color-glow), var(--shadow-style);
   }
   
   .font-heading { font-family: var(--font-heading); }
@@ -89,7 +89,7 @@
   .hover\:border-theme-accent:hover { border-color: var(--color-accent); }
   
   .hover\:glow-theme:hover {
-    box-shadow: var(--shadow-style), 0 0 15px var(--color-glow);
+    box-shadow: 0 0 8px var(--color-glow), var(--shadow-style);
   }
 }
 

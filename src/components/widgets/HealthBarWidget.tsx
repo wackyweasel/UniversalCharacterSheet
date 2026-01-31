@@ -210,7 +210,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         <button
           onClick={fullHeal}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} bg-theme-accent text-theme-paper hover:opacity-80 transition-colors rounded-button font-bold font-body`}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body`}
         >
           Full
         </button>

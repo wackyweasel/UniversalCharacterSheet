@@ -367,7 +367,7 @@ export const THEMES: Theme[] = [
       border: '#334155',
       shadow: '#00000060',
       muted: '#94a3b8',
-      glow: '#3b82f6',
+      glow: 'transparent',
     },
     fonts: {
       heading: '"Inter", "Segoe UI", sans-serif',

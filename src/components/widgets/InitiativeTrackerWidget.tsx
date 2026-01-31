@@ -92,7 +92,7 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink hover:bg-theme-background font-body"
+              className="px-3 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body"
             >
               Cancel
             </button>
@@ -400,7 +400,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         {/* New Encounter - resets to all pool participants */}
         <button
           onClick={newEncounter}
-          className={`${buttonClass} bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity font-body`}
+          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
         >
           Reset
         </button>
@@ -408,7 +408,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         {/* Add Temporary */}
         <button
           onClick={() => setShowAddTempModal(true)}
-          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-background transition-colors font-body`}
+          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
         >
           Add 
         </button>
@@ -418,7 +418,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
           <button
             onClick={rollInitiative}
             disabled={isRolling}
-            className={`${buttonClass} bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity font-body ${
+            className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${
               isRolling ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -494,13 +494,13 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         <div className="flex gap-1 mt-2 pt-2 border-t border-theme-border">
           <button
             onClick={goBack}
-            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-background transition-colors font-body`}
+            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
           >
             ◀ Back
           </button>
           <button
             onClick={goNext}
-            className={`${buttonClass} flex-1 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity font-body`}
+            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
           >
             Next ▶
           </button>

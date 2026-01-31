@@ -773,7 +773,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
       )}
 
       {/* Canvas */}
-      <div className="flex-1 border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden bg-white mx-1 mb-1 relative">
+      <div className="flex-1 border-[length:var(--border-width)] border-theme-border rounded-theme overflow-hidden bg-white mx-1 mb-1 relative">
         <canvas
           ref={canvasRef}
           onMouseDown={handlePointerDown}

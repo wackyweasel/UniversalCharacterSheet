@@ -189,7 +189,7 @@ export default function RestButtonWidget({ widget }: Props) {
         disabled={!hasAnyAction}
         className={`w-full h-full min-w-0 px-2 py-1 font-bold text-xs border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme transition-all font-body truncate ${
           hasAnyAction
-            ? 'bg-theme-accent text-theme-paper hover:opacity-90 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer'
+            ? 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer'
             : 'bg-theme-muted text-theme-paper opacity-50 cursor-not-allowed'
         } ${isAnimating ? 'scale-95' : ''}`}
       >
