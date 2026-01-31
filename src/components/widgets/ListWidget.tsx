@@ -59,7 +59,7 @@ export default function ListWidget({ widget, mode, height }: Props) {
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>
             <input
-              className={`flex-1 border-b border-theme-border/50 focus:border-theme-border focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
+              className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
               value={item}
               onChange={(e) => updateItem(idx, e.target.value)}
               placeholder={mode === 'print' ? '' : '...'}

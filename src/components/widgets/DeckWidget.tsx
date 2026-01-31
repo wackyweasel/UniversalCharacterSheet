@@ -202,7 +202,7 @@ export default function DeckWidget({ widget, mode }: Props) {
         <button
           onClick={drawCard}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`flex-1 ${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button font-body ${
+          className={`flex-1 ${buttonClass} border border-theme-border font-bold transition-all rounded-button font-body ${
             isDrawing 
               ? 'bg-theme-muted animate-pulse text-theme-paper' 
               : getTotalRemaining() === 0
@@ -217,7 +217,7 @@ export default function DeckWidget({ widget, mode }: Props) {
           <button
             onClick={resetDeck}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
+            className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
             title="Reset deck"
           >
             ↺

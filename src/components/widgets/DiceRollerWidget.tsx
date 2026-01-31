@@ -248,7 +248,7 @@ export default function DiceRollerWidget({ widget }: Props) {
       <button
         onClick={rollDice}
         onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
+        className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
           isRolling 
             ? 'bg-theme-muted animate-pulse text-theme-paper' 
             : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'

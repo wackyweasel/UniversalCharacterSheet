@@ -339,7 +339,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                 key={`custom-${die.name}-${index}`}
                 onClick={() => addDieToPool(die)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
+                className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
                 title={`Add ${die.name} (${die.faces.length} faces: ${die.faces.slice(0, 3).join(', ')}${die.faces.length > 3 ? '...' : ''})`}
               >
                 {die.name}
@@ -351,7 +351,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                 key={`standard-${die}`}
                 onClick={() => addDieToPool(die)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
+                className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
                 title={`Add d${die}`}
               >
                 d{die}
@@ -366,7 +366,7 @@ export default function DiceTrayWidget({ widget }: Props) {
           <button
             onClick={rollDice}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button flex-1 font-body ${
+            className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-1 font-body ${
               isRolling || dicePool.length === 0
                 ? 'bg-theme-muted text-theme-paper cursor-not-allowed' 
                 : 'bg-theme-accent text-theme-paper hover:opacity-90'
@@ -379,7 +379,7 @@ export default function DiceTrayWidget({ widget }: Props) {
             <button
               onClick={clearPool}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button font-body`}
+              className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button font-body`}
             >
               Clear
             </button>
@@ -388,7 +388,7 @@ export default function DiceTrayWidget({ widget }: Props) {
             <button
               onClick={rerollDice}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${buttonClass} border-[length:var(--border-width)] border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
+              className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
               title="Reroll last dice"
               disabled={isRolling}
             >

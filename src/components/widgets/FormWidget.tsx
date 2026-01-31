@@ -71,7 +71,7 @@ export default function FormWidget({ widget, height }: Props) {
               value={item.value}
               onChange={(e) => handleValueChange(idx, e.target.value)}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border/50 focus:border-theme-border focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
+              className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border focus:border-theme-accent focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
               placeholder={isPrintMode ? '' : '...'}
             />
           </div>

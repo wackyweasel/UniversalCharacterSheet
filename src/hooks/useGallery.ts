@@ -161,7 +161,7 @@ export function useGallery() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchThemeData]);
 
   useEffect(() => {
     fetchManifest();

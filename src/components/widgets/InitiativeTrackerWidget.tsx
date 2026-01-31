@@ -491,7 +491,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
 
       {/* Navigation Controls */}
       {initiativeEncounter.length > 0 && (
-        <div className="flex gap-1 mt-2 pt-2 border-t border-theme-border">
+        <div className="flex gap-1 mt-1">
           <button
             onClick={goBack}
             className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}

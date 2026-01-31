@@ -26,7 +26,7 @@ export default function NumberWidget({ widget, mode, height }: Props) {
   const labelClass = 'text-xs';
   const itemClass = 'text-xs';
   const buttonSize = 'w-5 h-5 text-xs';
-  const valueClass = 'text-sm w-8';
+  const valueClass = 'text-sm min-w-8 px-1';
   const gapClass = 'gap-1';
   
   // Calculate items area height
@@ -70,8 +70,8 @@ export default function NumberWidget({ widget, mode, height }: Props) {
     }
   };
 
-  // Fixed width for the value controls section to ensure alignment across all rows
-  const controlsSectionWidth = 'w-[62px]';
+  // Flexible width for the value controls section
+  const controlsSectionWidth = '';
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -122,7 +122,7 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                 />
               ) : (
                 <span 
-                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button font-body`}
+                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button font-body whitespace-nowrap`}
                   style={hideValues ? { visibility: 'hidden' } : undefined}
                   data-print-hide={hideValues ? 'true' : undefined}
                   onClick={() => handleValueClick(idx, item.value)}

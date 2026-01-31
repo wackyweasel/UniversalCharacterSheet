@@ -59,7 +59,7 @@ export default function CheckboxWidget({ widget, height }: Props) {
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div
-              className={`${checkboxClass} border-[length:var(--border-width)] border-theme-border flex items-center justify-center transition-colors flex-shrink-0 rounded-button ${
+              className={`${checkboxClass} border border-theme-border flex items-center justify-center transition-colors flex-shrink-0 rounded-button ${
                 item.checked ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper hover:opacity-80'
               }`}
             >

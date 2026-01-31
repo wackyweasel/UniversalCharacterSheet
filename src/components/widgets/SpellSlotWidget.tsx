@@ -87,7 +87,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
                   key={slotIdx}
                   onClick={() => toggleSlot(levelIdx, slotIdx)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className={`${slotSize} rounded-full border-[length:var(--border-width)] border-theme-border transition-all ${
+                  className={`${slotSize} rounded-full border border-theme-border transition-all ${
                     slotIdx < levelData.used 
                       ? 'bg-theme-accent' 
                       : 'bg-theme-paper hover:opacity-80'
@@ -104,7 +104,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-end ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
+      <div className={`flex items-center justify-end ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
         <button
           onClick={resetAll}
           onMouseDown={(e) => e.stopPropagation()}

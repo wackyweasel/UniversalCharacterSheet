@@ -234,7 +234,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
       </div>
 
       {/* Action Buttons Row - Always visible */}
-      <div className={`flex ${gapClass} border-t border-theme-border/50 pt-2 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
+      <div className={`flex ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
         <button
           onClick={() => setShowAddForm(true)}
           className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
