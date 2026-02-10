@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -30,10 +32,25 @@ export default function FormWidget({ widget, height }: Props) {
   const padding = 0;
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
+  // Track previous values for timeline on blur
+  const prevFormValues = useRef<Record<number, string>>({});
+
   const handleValueChange = (index: number, value: string) => {
     const updated = [...formItems] as FormItem[];
+    if (!(index in prevFormValues.current)) {
+      prevFormValues.current[index] = updated[index].value;
+    }
     updated[index] = { ...updated[index], value };
     updateWidgetData(widget.id, { formItems: updated });
+  };
+
+  const handleValueBlur = (index: number) => {
+    const item = (formItems as FormItem[])[index];
+    const prevVal = prevFormValues.current[index];
+    if (prevVal !== undefined && prevVal !== item.value) {
+      addTimelineEvent(label || 'Form', 'FORM', `${item.name} changed`, '📝');
+    }
+    delete prevFormValues.current[index];
   };
 
   return (
@@ -70,6 +87,7 @@ export default function FormWidget({ widget, height }: Props) {
               type="text"
               value={item.value}
               onChange={(e) => handleValueChange(idx, e.target.value)}
+              onBlur={() => handleValueBlur(idx)}
               onMouseDown={(e) => e.stopPropagation()}
               className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border focus:border-theme-accent focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
               placeholder={isPrintMode ? '' : '...'}

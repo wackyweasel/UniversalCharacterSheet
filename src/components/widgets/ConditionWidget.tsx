@@ -1,5 +1,6 @@
 import { Widget, ToggleItem } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -19,8 +20,10 @@ export default function ConditionWidget({ widget }: Props) {
 
   const toggleItem = (index: number) => {
     const updated = [...toggleItems];
-    updated[index] = { ...updated[index], active: !updated[index].active };
+    const newActive = !updated[index].active;
+    updated[index] = { ...updated[index], active: newActive };
     updateWidgetData(widget.id, { toggleItems: updated });
+    addTimelineEvent(label || 'Conditions', 'TOGGLE_GROUP', `${updated[index].name}: ${newActive ? 'activated' : 'removed'}`, newActive ? '⚠️' : '✅');
   };
 
   return (

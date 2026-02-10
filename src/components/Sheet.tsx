@@ -17,6 +17,8 @@ import AttachmentButtons from './AttachmentButtons';
 import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
+import TimelineSidebar from './TimelineSidebar';
+import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 
 // Helper to get active sheet widgets
@@ -48,6 +50,10 @@ export default function Sheet() {
   const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  
+  // Timeline state
+  const timelineIsOpen = useTimelineStore((state) => state.isOpen);
+  const toggleTimeline = useTimelineStore((state) => state.toggleOpen);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -483,6 +489,12 @@ export default function Sheet() {
             >
               Grid View
             </button>
+            <button
+              onClick={toggleTimeline}
+              className={`h-8 px-3 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+            >
+              Timeline
+            </button>
             {/* Undo/Redo buttons */}
             <button
               onClick={undo}
@@ -589,6 +601,13 @@ export default function Sheet() {
           {/* Undo/Redo buttons for mobile */}
           <div className="sm:hidden flex items-center gap-1">
             <button
+              onClick={toggleTimeline}
+              className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+              title="Timeline"
+            >
+              ⧖
+            </button>
+            <button
               onClick={undo}
               disabled={!canUndo}
               className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
@@ -649,6 +668,15 @@ export default function Sheet() {
               </button>
               <button
                 onClick={() => {
+                  toggleTimeline();
+                  setVerticalMenuOpen(false);
+                }}
+                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+              >
+                Timeline
+              </button>
+              <button
+                onClick={() => {
                   selectCharacter(null);
                   setVerticalMenuOpen(false);
                 }}
@@ -687,6 +715,9 @@ export default function Sheet() {
             )}
           </div>
         </div>
+
+        {/* Timeline Sidebar */}
+        <TimelineSidebar />
       </div>
     );
   }
@@ -992,6 +1023,14 @@ export default function Sheet() {
               Vertical View
             </button>
           )}
+          {mode === 'play' && (
+            <button
+              onClick={toggleTimeline}
+              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+            >
+              Timeline
+            </button>
+          )}
           {mode === 'edit' && (
             <>
               <button
@@ -1216,6 +1255,19 @@ export default function Sheet() {
               </button>
             )}
             
+            {/* Timeline - only in play mode */}
+            {mode === 'play' && (
+              <button
+                onClick={() => {
+                  toggleTimeline();
+                  setGridMenuOpen(false);
+                }}
+                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+              >
+                Timeline
+              </button>
+            )}
+            
             {/* Edit mode specific options */}
             {mode === 'edit' && (
               <>
@@ -1431,6 +1483,9 @@ export default function Sheet() {
           </div>
         </>
       )}
+
+      {/* Timeline Sidebar */}
+      {mode === 'play' && <TimelineSidebar />}
 
       {/* Tutorial Bubble */}
       {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}

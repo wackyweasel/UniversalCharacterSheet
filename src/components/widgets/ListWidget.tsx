@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -26,6 +28,26 @@ export default function ListWidget({ widget, mode, height }: Props) {
   // Ensure items array matches itemCount
   const normalizedItems = Array.from({ length: itemCount }, (_, i) => items[i] || '');
 
+  // Track previous values for timeline on blur
+  const prevListValues = useRef<Record<number, string>>({});
+
+  const handleFocus = (index: number) => {
+    prevListValues.current[index] = normalizedItems[index];
+  };
+
+  const handleBlur = (index: number) => {
+    const prev = prevListValues.current[index];
+    const current = normalizedItems[index];
+    if (prev !== undefined && prev !== current) {
+      if (!prev && current) {
+        addTimelineEvent(label || 'List', 'LIST', `Added: "${current}"`, '\u270f\ufe0f');
+      } else if (prev && current) {
+        addTimelineEvent(label || 'List', 'LIST', `Changed: "${prev}" \u2192 "${current}"`, '\ud83d\udcdd');
+      }
+    }
+    delete prevListValues.current[index];
+  };
+
   const updateItem = (index: number, value: string) => {
     const newItems = [...normalizedItems];
     newItems[index] = value;
@@ -33,9 +55,13 @@ export default function ListWidget({ widget, mode, height }: Props) {
   };
 
   const clearItem = (index: number) => {
+    const oldValue = normalizedItems[index];
     const newItems = [...normalizedItems];
     newItems[index] = '';
     updateWidgetData(widget.id, { items: newItems });
+    if (oldValue) {
+      addTimelineEvent(label || 'List', 'LIST', `Cleared: "${oldValue}"`, '📝');
+    }
   };
 
   return (
@@ -62,6 +88,8 @@ export default function ListWidget({ widget, mode, height }: Props) {
               className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
               value={item}
               onChange={(e) => updateItem(idx, e.target.value)}
+              onFocus={() => handleFocus(idx)}
+              onBlur={() => handleBlur(idx)}
               placeholder={mode === 'print' ? '' : '...'}
               onMouseDown={(e) => e.stopPropagation()}
             />

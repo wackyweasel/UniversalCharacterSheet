@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, DiceGroup } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -140,6 +141,9 @@ export default function RestButtonWidget({ widget }: Props) {
       resetSpellSlots,
       passTimeSeconds
     });
+
+    // Timeline event
+    addTimelineEvent(buttonText || 'Rest', 'REST_BUTTON', actions.join(' \u2022 ') || 'Rest activated', '\ud83d\udca4');
     
     // Clear animation after a short delay
     setTimeout(() => {

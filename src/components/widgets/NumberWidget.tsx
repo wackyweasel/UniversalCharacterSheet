@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -37,8 +38,10 @@ export default function NumberWidget({ widget, mode, height }: Props) {
 
   const adjustItemValue = (index: number, delta: number) => {
     const updated = [...numberItems] as NumberItem[];
-    updated[index] = { ...updated[index], value: updated[index].value + delta };
+    const oldVal = updated[index].value;
+    updated[index] = { ...updated[index], value: oldVal + delta };
     updateWidgetData(widget.id, { numberItems: updated });
+    addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${oldVal + delta}`, '🔢');
   };
 
   const handleValueClick = (index: number, currentValue: number) => {
@@ -54,8 +57,12 @@ export default function NumberWidget({ widget, mode, height }: Props) {
     const newValue = parseInt(editValue, 10);
     if (!isNaN(newValue)) {
       const updated = [...numberItems] as NumberItem[];
+      const oldVal = updated[index].value;
       updated[index] = { ...updated[index], value: newValue };
       updateWidgetData(widget.id, { numberItems: updated });
+      if (oldVal !== newValue) {
+        addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${newValue}`, '🔢');
+      }
     }
     setEditingIndex(null);
     setEditValue('');

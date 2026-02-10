@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, TimedEffect } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -121,6 +122,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
       updateWidgetData(widget.id, { 
         timedEffects: [...timedEffects, newEffect] 
       });
+      addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Added: ${newEffect.name} (${roundMode ? formatRounds(duration) : formatTime(duration)})`, '⏳');
       setNewEffectName('');
       setNewEffectTime(1);
       setShowAddForm(false);
@@ -134,30 +136,49 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
   };
 
   const removeEffect = (index: number) => {
+    const removed = timedEffects[index];
     const updated = [...timedEffects];
     updated.splice(index, 1);
     updateWidgetData(widget.id, { timedEffects: updated });
+    if (removed) {
+      addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Removed: ${(removed as TimedEffect).name}`, '❌');
+    }
   };
 
   const confirmPassTime = () => {
     // In round mode, pass exactly 1 round
     // In normal mode, use the selected time
     const amountToPass = roundMode ? 1 : parseTimeToSeconds(passedTime, passedUnit);
-    const updated = (timedEffects as TimedEffect[]).map(effect => ({
-      ...effect,
-      remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
-    }));
+    const expiredEffects: string[] = [];
+    const updated = (timedEffects as TimedEffect[]).map(effect => {
+      const newRemaining = Math.max(0, effect.remainingSeconds - amountToPass);
+      if (newRemaining <= 0 && effect.remainingSeconds > 0) {
+        expiredEffects.push(effect.name);
+      }
+      return { ...effect, remainingSeconds: newRemaining };
+    });
     updateWidgetData(widget.id, { timedEffects: updated });
+    const desc = roundMode
+      ? `Passed 1 round`
+      : `Passed ${passedTime} ${passedUnit}`;
+    const expiredNote = expiredEffects.length > 0 ? ` — expired: ${expiredEffects.join(', ')}` : '';
+    addTimelineEvent(label || 'Effects', 'TIME_TRACKER', desc + expiredNote, '⏱️');
     setShowPassTime(false);
   };
 
   // In round mode, pass a round directly without modal
   const passRound = () => {
-    const updated = (timedEffects as TimedEffect[]).map(effect => ({
-      ...effect,
-      remainingSeconds: Math.max(0, effect.remainingSeconds - 1)
-    }));
+    const expiredEffects: string[] = [];
+    const updated = (timedEffects as TimedEffect[]).map(effect => {
+      const newRemaining = Math.max(0, effect.remainingSeconds - 1);
+      if (newRemaining <= 0 && effect.remainingSeconds > 0) {
+        expiredEffects.push(effect.name);
+      }
+      return { ...effect, remainingSeconds: newRemaining };
+    });
     updateWidgetData(widget.id, { timedEffects: updated });
+    const expiredNote = expiredEffects.length > 0 ? ` — expired: ${expiredEffects.join(', ')}` : '';
+    addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Passed 1 round${expiredNote}`, '⏱️');
   };
 
   const cancelPassTime = () => {
@@ -211,6 +232,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                 const updated = [...timedEffects];
                 updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
                 updateWidgetData(widget.id, { timedEffects: updated });
+                addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Reset: ${effect.name}`, '\ud83d\udd04');
               }}
               className={`flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
               onMouseDown={(e) => e.stopPropagation()}

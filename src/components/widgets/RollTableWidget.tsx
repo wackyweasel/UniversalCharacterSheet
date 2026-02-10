@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -78,6 +79,7 @@ export default function RollTableWidget({ widget, height }: Props) {
       
       setRolledResult(selectedItem.text);
       setIsRolling(false);
+      addTimelineEvent(label || 'Roll Table', 'ROLL_TABLE', `Rolled: "${selectedItem.text}"`, '🎰');
     }, 300);
   };
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -96,8 +97,10 @@ export default function ProgressBarWidget({ widget }: Props) {
   const barHeight = 'h-4';
 
   const setValue = (newValue: number) => {
-    updateWidgetData(widget.id, { currentValue: Math.max(0, Math.min(maxValue, newValue)) });
+    const clamped = Math.max(0, Math.min(maxValue, newValue));
+    updateWidgetData(widget.id, { currentValue: clamped });
     setShowValueModal(false);
+    addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue} → ${clamped} / ${maxValue}`, '📊');
   };
 
   // Determine what text to show on the bar

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Widget, CustomDie } from '../../types';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -189,6 +190,10 @@ export default function DiceTrayWidget({ widget }: Props) {
       setLastRolledPool([...dicePool]);
       setDicePool([]);
       setNextId(1);
+
+      // Timeline event
+      const desc = total !== null ? `Rolled ${buildPoolNotation()} = ${total}` : `Rolled ${buildPoolNotation()}`;
+      addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
     }, 300);
   };
 
@@ -222,6 +227,17 @@ export default function DiceTrayWidget({ widget }: Props) {
         setResult({ dice: rolls, total, aggregatedResults: aggregated });
         setIsRolling(false);
         setDicePool([]);
+
+        // Timeline event
+        const notationParts: string[] = [];
+        const stdDice: Record<number, number> = {};
+        for (const die of lastRolledPool) {
+          if (!Array.isArray(die.faces)) stdDice[die.faces] = (stdDice[die.faces] || 0) + 1;
+        }
+        Object.entries(stdDice).forEach(([f, c]) => notationParts.push(`${c}d${f}`));
+        const rerollNotation = notationParts.join(' + ') || 'dice';
+        const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
+        addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
       }, 300);
     }, 0);
   };
@@ -257,6 +273,15 @@ export default function DiceTrayWidget({ widget }: Props) {
       
       setResult({ dice: newDice, total, aggregatedResults: aggregated });
       
+      // Timeline event for single die reroll
+      const dieFacesLabel = Array.isArray(dieToReroll.faces)
+        ? (dieToReroll.customDieName || 'custom')
+        : `d${dieToReroll.faces}`;
+      const desc = total !== null
+        ? `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll} (total: ${total})`
+        : `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll}`;
+      addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '\ud83c\udfb2');
+
       // Also update lastRolledPool to reflect the new die configuration
       setLastRolledPool(prev => prev.map((d, i) => 
         i === dieIndex ? { ...d } : d

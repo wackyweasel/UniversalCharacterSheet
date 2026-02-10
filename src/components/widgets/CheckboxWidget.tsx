@@ -1,5 +1,6 @@
 import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -28,8 +29,10 @@ export default function CheckboxWidget({ widget, height }: Props) {
 
   const toggleItem = (index: number) => {
     const updated = [...checkboxItems] as CheckboxItem[];
-    updated[index] = { ...updated[index], checked: !updated[index].checked };
+    const newChecked = !updated[index].checked;
+    updated[index] = { ...updated[index], checked: newChecked };
     updateWidgetData(widget.id, { checkboxItems: updated });
+    addTimelineEvent(label || 'Checklist', 'CHECKBOX', `${updated[index].name}: ${newChecked ? 'checked' : 'unchecked'}`, newChecked ? '☑️' : '⬜');
   };
 
   return (

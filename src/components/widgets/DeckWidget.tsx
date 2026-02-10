@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -157,12 +158,14 @@ export default function DeckWidget({ widget, mode }: Props) {
       
       setDrawnCard(card);
       setIsDrawing(false);
+      addTimelineEvent(label || 'Deck', 'DECK', `Drew: "${card}" (${newRemaining.length} remaining)`, '🃏');
     }, 300);
   };
 
   const resetDeck = () => {
     updateWidgetData(widget.id, { deckState: null });
     setDrawnCard(null);
+    addTimelineEvent(label || 'Deck', 'DECK', `Deck reshuffled (${getTotalCards()} cards)`, '🔄');
   };
 
   const returnCardToDrawPile = (discardIndex: number) => {
@@ -177,6 +180,7 @@ export default function DeckWidget({ widget, mode }: Props) {
     updateWidgetData(widget.id, { 
       deckState: { remaining: newRemaining, discarded: newDiscarded }
     });
+    addTimelineEvent(label || 'Deck', 'DECK', `Returned "${card}" to draw pile`, '↩️');
   };
 
   const getTotalRemaining = () => {

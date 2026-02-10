@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Widget, DiceGroup } from '../../types';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -182,6 +183,11 @@ export default function DiceRollerWidget({ widget }: Props) {
       
       setResult({ groups, modifier, total, aggregatedResults: aggregated });
       setIsRolling(false);
+
+      // Timeline event
+      const notation = buildDiceNotation();
+      const desc = total !== null ? `Rolled ${notation} = ${total}` : `Rolled ${notation}`;
+      addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', desc, '🎲');
     }, 300);
   };
 

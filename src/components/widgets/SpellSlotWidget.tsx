@@ -1,5 +1,6 @@
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -39,8 +40,10 @@ export default function SpellSlotWidget({ widget, height }: Props) {
     const levelData = updated[levelIdx];
     if (slotIdx < levelData.used) {
       updated[levelIdx] = { ...levelData, used: slotIdx };
+      addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', `${ordinalSuffix(levelData.level)} level: restored slot (${slotIdx} / ${levelData.max} used)`, '✨');
     } else {
       updated[levelIdx] = { ...levelData, used: slotIdx + 1 };
+      addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', `${ordinalSuffix(levelData.level)} level: used slot (${slotIdx + 1} / ${levelData.max} used)`, '🔮');
     }
     updateWidgetData(widget.id, { spellLevels: updated });
   };
@@ -48,6 +51,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
   const resetAll = () => {
     const updated = (spellLevels as SpellLevel[]).map(l => ({ ...l, used: 0 }));
     updateWidgetData(widget.id, { spellLevels: updated });
+    addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', 'All spell slots reset', '✨');
   };
 
   const ordinalSuffix = (n: number) => {

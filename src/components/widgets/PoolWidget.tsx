@@ -1,5 +1,6 @@
 import { Widget, PoolResource } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -80,10 +81,15 @@ export default function PoolWidget({ widget, height }: Props) {
 
   // Toggle point for legacy single pool
   const togglePoint = (index: number) => {
+    let newVal: number;
     if (index < currentPool) {
-      updateWidgetData(widget.id, { currentPool: index });
+      newVal = index;
+      updateWidgetData(widget.id, { currentPool: newVal });
+      addTimelineEvent(label || 'Resource Pool', 'POOL', `Used (${currentPool} → ${newVal} / ${maxPool})`, '🟠');
     } else {
-      updateWidgetData(widget.id, { currentPool: index + 1 });
+      newVal = index + 1;
+      updateWidgetData(widget.id, { currentPool: newVal });
+      addTimelineEvent(label || 'Resource Pool', 'POOL', `Restored (${currentPool} → ${newVal} / ${maxPool})`, '🟢');
     }
   };
 
@@ -92,11 +98,16 @@ export default function PoolWidget({ widget, height }: Props) {
     const resource = poolResources[resourceIndex];
     const newResources = [...poolResources];
     if (pointIndex < resource.current) {
-      newResources[resourceIndex] = { ...resource, current: pointIndex };
+      const newVal = pointIndex;
+      newResources[resourceIndex] = { ...resource, current: newVal };
+      updateWidgetData(widget.id, { poolResources: newResources });
+      addTimelineEvent(label || 'Resource Pool', 'POOL', `${resource.name}: used (${resource.current} → ${newVal} / ${resource.max})`, '🟠');
     } else {
-      newResources[resourceIndex] = { ...resource, current: pointIndex + 1 };
+      const newVal = pointIndex + 1;
+      newResources[resourceIndex] = { ...resource, current: newVal };
+      updateWidgetData(widget.id, { poolResources: newResources });
+      addTimelineEvent(label || 'Resource Pool', 'POOL', `${resource.name}: restored (${resource.current} → ${newVal} / ${resource.max})`, '🟢');
     }
-    updateWidgetData(widget.id, { poolResources: newResources });
   };
 
   // Calculate available height for scrollable area

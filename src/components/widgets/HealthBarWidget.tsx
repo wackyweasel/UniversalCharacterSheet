@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 // Check if we're in print mode to hide interactive elements
 
@@ -124,16 +125,19 @@ export default function HealthBarWidget({ widget, mode }: Props) {
     const newVal = currentValue - amount;
     updateWidgetData(widget.id, { currentValue: newVal });
     setShowDamageModal(false);
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Took ${amount} damage (${currentValue} → ${newVal})`, '💥');
   };
 
   const applyHeal = (amount: number) => {
     const newVal = Math.min(maxValue, currentValue + amount);
     updateWidgetData(widget.id, { currentValue: newVal });
     setShowHealModal(false);
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Healed ${amount} (${currentValue} → ${newVal})`, '💚');
   };
 
   const fullHeal = () => {
     updateWidgetData(widget.id, { currentValue: maxValue });
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Full heal (${currentValue} → ${maxValue})`, '💚');
   };
 
   return (
@@ -149,7 +153,11 @@ export default function HealthBarWidget({ widget, mode }: Props) {
       <div className="flex-1 flex items-center gap-1">
         {/* Decrement button */}
         <button
-          onClick={() => updateWidgetData(widget.id, { currentValue: currentValue - increment })}
+          onClick={() => {
+            const newVal = currentValue - increment;
+            updateWidgetData(widget.id, { currentValue: newVal });
+            addTimelineEvent(label || 'Health', 'HEALTH_BAR', `−${increment} (${currentValue} → ${newVal})`, '💥');
+          }}
           onMouseDown={(e) => e.stopPropagation()}
           className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
         >
@@ -183,7 +191,11 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         
         {/* Increment button */}
         <button
-          onClick={() => updateWidgetData(widget.id, { currentValue: Math.min(maxValue, currentValue + increment) })}
+          onClick={() => {
+            const newVal = Math.min(maxValue, currentValue + increment);
+            updateWidgetData(widget.id, { currentValue: newVal });
+            addTimelineEvent(label || 'Health', 'HEALTH_BAR', `+${increment} (${currentValue} → ${newVal})`, '💚');
+          }}
           onMouseDown={(e) => e.stopPropagation()}
           className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
         >

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 
 interface Props {
   widget: Widget;
@@ -35,8 +36,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
     const newValue = parseInt(editValue, 10);
     if (!isNaN(newValue)) {
       const updated = [...displayNumbers] as DisplayNumber[];
+      const oldVal = updated[index].value;
       updated[index] = { ...updated[index], value: newValue };
       updateWidgetData(widget.id, { displayNumbers: updated });
+      if (oldVal !== newValue) {
+        addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${updated[index].label}: ${oldVal} → ${newValue}`, '🔢');
+      }
     }
     setEditingIndex(null);
     setEditValue('');
