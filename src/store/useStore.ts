@@ -1543,6 +1543,9 @@ export const useStore = create<StoreState>((set, get) => {
         const data = { characters: state.characters, activeCharacterId: state.activeCharacterId, mode: state.mode };
         localStorage.setItem('ucs:store', JSON.stringify(data));
         
+        // Refresh storage warning after successful save
+        import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().refresh()).catch(() => {});
+        
         // Send telemetry for active character (rate-limited to once per 24h)
         if (state.activeCharacterId) {
           const activeCharacter = state.characters.find((c: Character) => c.id === state.activeCharacterId);
@@ -1552,6 +1555,9 @@ export const useStore = create<StoreState>((set, get) => {
         }
       } catch (e) {
         console.error('Failed to persist store', e);
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+          import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
+        }
       }
     }, 150);
   });

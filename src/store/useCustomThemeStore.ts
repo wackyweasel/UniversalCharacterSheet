@@ -98,7 +98,14 @@ function loadCustomThemes(): CustomTheme[] {
 }
 
 function saveCustomThemes(themes: CustomTheme[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(themes));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(themes));
+  } catch (e) {
+    console.error('Failed to persist custom themes', e);
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
+    }
+  }
 }
 
 export const useCustomThemeStore = create<CustomThemeState>((set, get) => ({

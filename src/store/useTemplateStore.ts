@@ -73,6 +73,9 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
       localStorage.setItem('ucs:templates', JSON.stringify({ templates }));
     } catch (e) {
       console.error('Failed to persist templates', e);
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
+      }
     }
   };
 

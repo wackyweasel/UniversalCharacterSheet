@@ -570,7 +570,14 @@ export const useThemeStore = create<ThemeState>((set) => {
     currentTheme: persisted,
     setTheme: (themeId) => {
       set({ currentTheme: themeId });
-      localStorage.setItem('ucs:theme', JSON.stringify(themeId));
+      try {
+        localStorage.setItem('ucs:theme', JSON.stringify(themeId));
+      } catch (e) {
+        console.error('Failed to persist theme', e);
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+          import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
+        }
+      }
       applyTheme(themeId);
     },
   };

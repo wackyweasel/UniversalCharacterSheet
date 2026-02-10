@@ -41,6 +41,9 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
       localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets }));
     } catch (e) {
       console.error('Failed to persist user presets', e);
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
+      }
     }
   };
 

@@ -104,8 +104,11 @@ export const useTimelineStore = create<TimelineState>((set) => ({
           eventsByCharacter: state.eventsByCharacter,
           orderNewestFirst: state.orderNewestFirst,
         }));
-      } catch {
-        // Ignore storage errors
+      } catch (e) {
+        console.error('Failed to persist timeline', e);
+        if (e instanceof DOMException && (e as DOMException).name === 'QuotaExceededError') {
+          import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
+        }
       }
     }, 300);
   });

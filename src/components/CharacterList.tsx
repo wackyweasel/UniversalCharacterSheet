@@ -9,6 +9,7 @@ import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
 import { Character } from '../types';
 import { getPresetNames, getPreset } from '../presets';
+import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -1338,6 +1339,14 @@ export default function CharacterList() {
                   <p className={`font-body text-sm ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
                     All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers.
                   </p>
+                  {(() => {
+                    const s = getStorageStatus();
+                    return (
+                      <p className={`font-body text-xs mt-2 ${darkMode ? 'text-white/40' : 'text-theme-muted/70'}`}>
+                        Storage used: {formatBytes(s.usedBytes)} / ~{formatBytes(s.quotaBytes)} ({s.percentUsed}%)
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
