@@ -23,6 +23,7 @@ interface TimelineState {
   orderNewestFirst: boolean;
   
   addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>) => void;
+  removeEvent: (characterId: string, eventId: string) => void;
   clearEvents: (characterId: string) => void;
   toggleOpen: () => void;
   setOpen: (open: boolean) => void;
@@ -74,6 +75,21 @@ export const useTimelineStore = create<TimelineState>((set) => ({
         [characterId]: {
           events: [...charTimeline.events, newEvent].slice(-200),
           nextId: charTimeline.nextId + 1,
+        },
+      },
+    };
+  }),
+
+  removeEvent: (characterId, eventId) => set((state) => {
+    const charTimeline = state.eventsByCharacter[characterId];
+    if (!charTimeline) return state;
+
+    return {
+      eventsByCharacter: {
+        ...state.eventsByCharacter,
+        [characterId]: {
+          ...charTimeline,
+          events: charTimeline.events.filter((event) => event.id !== eventId),
         },
       },
     };
