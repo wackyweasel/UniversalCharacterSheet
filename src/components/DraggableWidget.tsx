@@ -231,10 +231,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
     }
     
     if (mode === 'edit') {
-      // If this widget is not selected, prevent default and select it
+      // If this widget is not selected, select it without canceling the native touch sequence
       if (!isSelected) {
-        e.preventDefault();
-        e.stopPropagation();
         setSelectedWidgetId(widget.id);
       }
     }

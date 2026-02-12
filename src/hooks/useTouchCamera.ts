@@ -27,6 +27,7 @@ export function useTouchCamera({
   const lastTouchDistance = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
   const activeTouches = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const touchStartTargets = useRef<Map<number, Element | null>>(new Map());
   const isTouchPanning = useRef(false);
   const touchStartedOnScrollable = useRef(false);
   
@@ -90,11 +91,36 @@ export function useTouchCamera({
       return false;
     };
 
-    let touchStartTarget: Element | null = null;
+    const getActiveTouchStartTarget = (): Element | null => {
+      const firstActiveTouch = activeTouches.current.keys().next().value as number | undefined;
+      if (firstActiveTouch === undefined) return null;
+      return touchStartTargets.current.get(firstActiveTouch) || null;
+    };
+
+    const hasTouchOnSidebar = (): boolean => {
+      for (const [touchId, target] of touchStartTargets.current.entries()) {
+        if (!activeTouches.current.has(touchId)) continue;
+        if (target && isOnSidebar(target)) return true;
+      }
+      return false;
+    };
+
+    const isOnTouchCameraIgnoredControl = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        if ((el as HTMLElement).dataset?.touchCameraIgnore === 'true') {
+          return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    };
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        touchStartTarget = e.target as Element;
+      const eventTarget = e.target as Element | null;
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const changedTouch = e.changedTouches[i];
+        touchStartTargets.current.set(changedTouch.identifier, changedTouch.target as Element || eventTarget);
       }
       
       for (let i = 0; i < e.touches.length; i++) {
@@ -102,12 +128,14 @@ export function useTouchCamera({
         activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
       }
       
-      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
+      const touchStartTarget = getActiveTouchStartTarget();
+
+      if (hasTouchOnSidebar()) {
         return;
       }
       
       if (e.touches.length === 1) {
-        touchStartedOnScrollable.current = isScrollableElement(e.target as Element);
+        touchStartedOnScrollable.current = isScrollableElement(touchStartTarget);
       }
       
       // Two or more fingers - always take over for camera control (pinch zoom)
@@ -132,14 +160,15 @@ export function useTouchCamera({
         const onScrollable = touchStartedOnScrollable.current;
         const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
         const onPrintArea = touchStartTarget && isOnPrintAreaOverlay(touchStartTarget);
+        const onIgnoredControl = touchStartTarget && isOnTouchCameraIgnoredControl(touchStartTarget);
         
         // Clear selected widget when touching the background (not on widget, sidebar, canvas, etc.)
-        if (!onWidget && !onScrollable && !onCanvas && !onPrintArea) {
+        if (!onWidget && !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl) {
           onBackgroundTouchRef.current?.();
         }
         
         // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
-        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && (modeRef.current === 'play' ? true : !onWidget);
+        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && (modeRef.current === 'play' ? true : !onWidget);
         
         if (shouldPan) {
           const touch = activeTouches.current.values().next().value;
@@ -152,7 +181,7 @@ export function useTouchCamera({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (touchStartTarget && isOnSidebar(touchStartTarget)) {
+      if (hasTouchOnSidebar()) {
         return;
       }
       
@@ -237,12 +266,17 @@ export function useTouchCamera({
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
-        touchStartTarget = null;
+        touchStartTargets.current.clear();
         onPinchingChange(false);
       }
       else if (activeTouches.current.size === 1) {
         lastTouchDistance.current = null;
+        lastTouchCenter.current = null;
         isTouchPanning.current = false;
+      }
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        touchStartTargets.current.delete(e.changedTouches[i].identifier);
       }
     };
 

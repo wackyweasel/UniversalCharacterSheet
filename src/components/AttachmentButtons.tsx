@@ -238,53 +238,36 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
         : edge.widget1Id; // fallback
       detachWidgets(widgetToDetach, edge.widget2Id);
     } else {
-      // When attaching, find the widget being added and the group it's joining
-      const w1 = widgetBounds.find(w => w.id === edge.widget1Id);
-      const w2 = widgetBounds.find(w => w.id === edge.widget2Id);
-      
-      if (!w1 || !w2) {
-        attachWidgets(edge.widget1Id, edge.widget2Id);
-        return;
-      }
-      
-      // Determine which widget is joining which group
-      // The widget without a group (or with a different group) is the "joining" widget
-      let joiningWidgetId: string;
-      let targetGroupId: string | undefined;
-      
-      if (w2.groupId && !w1.groupId) {
-        joiningWidgetId = w1.id;
-        targetGroupId = w2.groupId;
-      } else if (w1.groupId && !w2.groupId) {
-        joiningWidgetId = w2.id;
-        targetGroupId = w1.groupId;
-      } else if (w1.groupId && w2.groupId && w1.groupId !== w2.groupId) {
-        // Both have groups - we'll merge, but for simplicity just attach this edge
-        attachWidgets(edge.widget1Id, edge.widget2Id);
-        return;
-      } else {
-        // Neither has a group - just attach normally
-        attachWidgets(edge.widget1Id, edge.widget2Id);
-        return;
-      }
-      
-      // Find all unattached edges between the joining widget and any widget in the target group
+      const getClusterIds = (widgetId: string): string[] => {
+        const widget = widgetBounds.find(w => w.id === widgetId);
+        if (!widget?.groupId) {
+          return [widgetId];
+        }
+        return widgetBounds.filter(w => w.groupId === widget.groupId).map(w => w.id);
+      };
+
+      const sourceWidgetId = activeWidgetId === edge.widget1Id
+        ? edge.widget1Id
+        : activeWidgetId === edge.widget2Id
+          ? edge.widget2Id
+          : edge.widget1Id;
+      const targetWidgetId = sourceWidgetId === edge.widget1Id ? edge.widget2Id : edge.widget1Id;
+
+      const sourceIds = new Set(getClusterIds(sourceWidgetId));
+      const targetIds = new Set(getClusterIds(targetWidgetId));
+
       const edgesToAttach = touchingEdges.filter(e => {
         if (e.isAttached) return false;
-        
-        const eW1 = widgetBounds.find(w => w.id === e.widget1Id);
-        const eW2 = widgetBounds.find(w => w.id === e.widget2Id);
-        
-        if (!eW1 || !eW2) return false;
-        
-        // Check if this edge connects the joining widget to the target group
-        if (e.widget1Id === joiningWidgetId && eW2.groupId === targetGroupId) return true;
-        if (e.widget2Id === joiningWidgetId && eW1.groupId === targetGroupId) return true;
-        
-        return false;
+        const sourceToTarget = sourceIds.has(e.widget1Id) && targetIds.has(e.widget2Id);
+        const targetToSource = sourceIds.has(e.widget2Id) && targetIds.has(e.widget1Id);
+        return sourceToTarget || targetToSource;
       });
-      
-      // Attach all found edges
+
+      if (edgesToAttach.length === 0) {
+        attachWidgets(edge.widget1Id, edge.widget2Id);
+        return;
+      }
+
       for (const e of edgesToAttach) {
         attachWidgets(e.widget1Id, e.widget2Id);
       }
@@ -333,6 +316,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
           <button
             key={`${edge.widget1Id}-${edge.widget2Id}-${index}`}
             data-attach-widget-ids={`${edge.widget1Id},${edge.widget2Id}`}
+            data-touch-camera-ignore="true"
             className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all transform -translate-x-1/2 -translate-y-1/2 hover:scale-125 ${
               edge.isAttached 
                 ? 'bg-green-500 hover:bg-red-500 text-white' 
@@ -345,7 +329,15 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
             }}
             onClick={() => handleClick(edge)}
             onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleClick(edge);
+            }}
             title={edge.isAttached ? 'Click to detach widgets' : 'Click to attach widgets'}
           >
             {getArrow()}
