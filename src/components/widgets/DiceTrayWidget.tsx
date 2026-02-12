@@ -392,9 +392,11 @@ export default function DiceTrayWidget({ widget }: Props) {
             onClick={rollDice}
             onMouseDown={(e) => e.stopPropagation()}
             className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-1 font-body ${
-              isRolling || dicePool.length === 0
-                ? 'bg-theme-muted text-theme-paper cursor-not-allowed' 
-                : 'bg-theme-accent text-theme-paper hover:opacity-90'
+              isRolling
+                ? 'bg-theme-muted animate-pulse text-theme-paper cursor-not-allowed'
+                : dicePool.length === 0
+                  ? 'bg-theme-paper text-theme-ink cursor-not-allowed'
+                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
             disabled={isRolling || dicePool.length === 0}
           >
