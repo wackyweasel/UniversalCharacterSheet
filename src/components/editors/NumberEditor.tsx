@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { NumberItem } from '../../types';
 import { EditorProps } from './types';
+import { LabeledNumberField } from './LabeledNumberField';
 
 export function NumberEditor({ widget, updateData }: EditorProps) {
   const { label, numberItems = [] } = widget.data;
@@ -193,45 +194,60 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
             <div 
               key={idx} 
               ref={(el) => { itemRefs.current[idx] = el; }}
-              className={`flex items-center gap-2 rounded px-1 transition-colors ${
+              className={`rounded px-1 transition-colors ${
                 dragOverIndex === idx ? 'border-t-2 border-theme-accent' : ''
               } ${draggedIndex === idx ? 'opacity-50 bg-theme-accent/10' : ''}`}
               onDragOver={(e) => handleNativeDragOver(e, idx)}
               onDragLeave={handleNativeDragLeave}
               onDrop={(e) => handleNativeDrop(e, idx)}
             >
-              {/* Drag Handle - works with both touch and mouse */}
-              <div 
-                className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
-                title="Drag to reorder"
-                draggable
-                onDragStart={(e) => handleNativeDragStart(e, idx)}
-                onDragEnd={handleNativeDragEnd}
-                onPointerDown={(e) => handlePointerDown(e, idx)}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                ⋮⋮
+              <div className="flex items-center gap-2">
+                {/* Drag Handle - works with both touch and mouse */}
+                <div 
+                  className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
+                  title="Drag to reorder"
+                  draggable
+                  onDragStart={(e) => handleNativeDragStart(e, idx)}
+                  onDragEnd={handleNativeDragEnd}
+                  onPointerDown={(e) => handlePointerDown(e, idx)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                >
+                  ⋮⋮
+                </div>
+                <input
+                  className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                  value={item.name}
+                  onChange={(e) => updateItemName(idx, e.target.value)}
+                  placeholder="Name"
+                />
+                <button
+                  onClick={() => removeItem(idx)}
+                  className="text-red-500 hover:text-red-700 px-2"
+                >
+                  ×
+                </button>
               </div>
-              <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
-                value={item.name}
-                onChange={(e) => updateItemName(idx, e.target.value)}
-                placeholder="Name"
-              />
-              <input
-                type="number"
-                className="w-20 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
-                value={item.value}
-                onChange={(e) => updateItemValue(idx, parseInt(e.target.value) || 0)}
-              />
-              <button
-                onClick={() => removeItem(idx)}
-                className="text-red-500 hover:text-red-700 px-2"
-              >
-                ×
-              </button>
+              <div className="ml-6 mr-6 mt-1">
+                <LabeledNumberField
+                  value={item.value}
+                  onChange={(v) => updateItemValue(idx, v)}
+                  fieldLabel={item.valueLabel}
+                  onFieldLabelChange={(l) => {
+                    const updated = [...numberItems] as NumberItem[];
+                    updated[idx] = { ...updated[idx], valueLabel: l };
+                    updateData({ numberItems: updated });
+                  }}
+                  formula={item.valueFormula}
+                  onFormulaChange={(f) => {
+                    const updated = [...numberItems] as NumberItem[];
+                    updated[idx] = { ...updated[idx], valueFormula: f };
+                    updateData({ numberItems: updated });
+                  }}
+                  compact
+                />
+              </div>
             </div>
           ))}
         </div>

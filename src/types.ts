@@ -79,11 +79,15 @@ export interface SpellLevel {
 export interface NumberItem {
   name: string;
   value: number;
+  valueLabel?: string;
+  valueFormula?: string;
 }
 
 export interface DisplayNumber {
   label: string;
   value: number;
+  valueLabel?: string;
+  valueFormula?: string;
 }
 
 export interface FormItem {
@@ -96,6 +100,8 @@ export interface DiceGroup {
   faces: number;
   customFaces?: string[]; // Custom faces for the dice (numbers, emojis, strings, etc.)
   customDiceName?: string; // Optional name for custom dice
+  countLabel?: string;
+  countFormula?: string;
 }
 
 export interface CustomDie {
@@ -108,12 +114,18 @@ export interface PoolResource {
   max: number;
   current: number;
   style: string;
+  maxLabel?: string;
+  maxFormula?: string;
+  currentLabel?: string;
+  currentFormula?: string;
 }
 
 export interface InitiativeParticipant {
   name: string;
   diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
   flatBonus: number;   // Flat bonus to add to the roll
+  flatBonusLabel?: string;
+  flatBonusFormula?: string;
 }
 
 export interface InitiativeEncounterEntry {
@@ -215,6 +227,9 @@ export interface WidgetData {
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
   };
+  // Labels & Formulas (for linking values across widgets)
+  fieldLabels?: Record<string, string>;    // Maps field name to variable label name
+  fieldFormulas?: Record<string, string>;  // Maps field name to formula string
 }
 
 export interface TimedEffect {

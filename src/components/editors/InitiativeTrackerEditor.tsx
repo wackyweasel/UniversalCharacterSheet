@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { InitiativeParticipant } from '../../types';
 import { EditorProps } from './types';
+import { LabeledNumberField } from './LabeledNumberField';
 
 export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -16,6 +17,8 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const [newName, setNewName] = useState('');
   const [newDiceFaces, setNewDiceFaces] = useState(20);
   const [newFlatBonus, setNewFlatBonus] = useState(0);
+  const [newFlatBonusLabel, setNewFlatBonusLabel] = useState<string | undefined>(undefined);
+  const [newFlatBonusFormula, setNewFlatBonusFormula] = useState<string | undefined>(undefined);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const [editingDiceFaces, setEditingDiceFaces] = useState(20);
@@ -30,7 +33,9 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
       const newParticipant: InitiativeParticipant = {
         name: newName.trim(),
         diceFaces: newDiceFaces,
-        flatBonus: newFlatBonus
+        flatBonus: newFlatBonus,
+        flatBonusLabel: newFlatBonusLabel,
+        flatBonusFormula: newFlatBonusFormula
       };
       updateData({ 
         initiativePool: [...initiativePool, newParticipant] 
@@ -38,6 +43,8 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
       setNewName('');
       setNewDiceFaces(20);
       setNewFlatBonus(0);
+      setNewFlatBonusLabel(undefined);
+      setNewFlatBonusFormula(undefined);
     }
   };
 
@@ -62,7 +69,9 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const saveEdit = () => {
     if (editingIndex !== null && editingName.trim()) {
       const updated = [...initiativePool] as InitiativeParticipant[];
+      const existing = updated[editingIndex];
       updated[editingIndex] = {
+        ...existing,
         name: editingName.trim(),
         diceFaces: editingDiceFaces,
         flatBonus: editingFlatBonus
@@ -242,7 +251,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             />
             
             {initiativeShowRollButton && (
-              <div className="flex gap-2">
+              <div className="flex gap-10">
                 <div className="flex-1">
                   <label className="text-xs text-theme-muted">Die</label>
                   <div className="flex items-center gap-1">
@@ -257,16 +266,16 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-theme-muted">Bonus</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-theme-ink">+</span>
-                    <input
-                      type="number"
-                      value={newFlatBonus}
-                      onChange={(e) => setNewFlatBonus(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-                    />
-                  </div>
+                  <label className="text-xs text-theme-muted">Initiative Bonus</label>
+                  <LabeledNumberField
+                    value={newFlatBonus}
+                    onChange={(v) => setNewFlatBonus(v)}
+                    fieldLabel={newFlatBonusLabel}
+                    onFieldLabelChange={(l) => setNewFlatBonusLabel(l)}
+                    formula={newFlatBonusFormula}
+                    onFormulaChange={(f) => setNewFlatBonusFormula(f)}
+                    compact
+                  />
                 </div>
               </div>
             )}
@@ -312,26 +321,43 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                       className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
                     />
                     {initiativeShowRollButton && (
-                      <div className="flex gap-2">
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-theme-muted">d</span>
-                          <input
-                            type="number"
-                            min={1}
-                            value={editingDiceFaces}
-                            onChange={(e) => setEditingDiceFaces(Math.max(1, parseInt(e.target.value) || 1))}
-                            onKeyDown={handleEditKeyDown}
-                            className="w-14 px-1 py-0.5 text-xs border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-                          />
+                      <div className="flex items-end gap-10">
+                        <div>
+                          <span className="text-xs text-theme-muted">Die</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-theme-muted">d</span>
+                            <input
+                              type="number"
+                              min={1}
+                              value={editingDiceFaces}
+                              onChange={(e) => setEditingDiceFaces(Math.max(1, parseInt(e.target.value) || 1))}
+                              onKeyDown={handleEditKeyDown}
+                              className="w-14 px-1 h-7 text-xs border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-theme-muted">+</span>
-                          <input
-                            type="number"
+                        <div className="flex-1">
+                          <span className="text-xs text-theme-muted">Initiative Bonus</span>
+                          <LabeledNumberField
                             value={editingFlatBonus}
-                            onChange={(e) => setEditingFlatBonus(parseInt(e.target.value) || 0)}
-                            onKeyDown={handleEditKeyDown}
-                            className="w-14 px-1 py-0.5 text-xs border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                            onChange={(v) => setEditingFlatBonus(v)}
+                            fieldLabel={editingIndex !== null ? (initiativePool[editingIndex] as InitiativeParticipant)?.flatBonusLabel : undefined}
+                            onFieldLabelChange={(l) => {
+                              if (editingIndex !== null) {
+                                const updated = [...initiativePool] as InitiativeParticipant[];
+                                updated[editingIndex] = { ...updated[editingIndex], flatBonusLabel: l };
+                                updateData({ initiativePool: updated });
+                              }
+                            }}
+                            formula={editingIndex !== null ? (initiativePool[editingIndex] as InitiativeParticipant)?.flatBonusFormula : undefined}
+                            onFormulaChange={(f) => {
+                              if (editingIndex !== null) {
+                                const updated = [...initiativePool] as InitiativeParticipant[];
+                                updated[editingIndex] = { ...updated[editingIndex], flatBonusFormula: f };
+                                updateData({ initiativePool: updated });
+                              }
+                            }}
+                            compact
                           />
                         </div>
                       </div>
@@ -361,8 +387,14 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                       {participant.name}
                     </span>
                     {initiativeShowRollButton && (
-                      <span className="text-xs text-theme-muted">
+                      <span className="text-xs text-theme-muted flex items-center gap-0.5">
                         d{participant.diceFaces}+{participant.flatBonus}
+                        {(participant as InitiativeParticipant).flatBonusLabel && (
+                          <span className="text-[9px] bg-theme-accent/15 text-theme-accent px-1 rounded">@{(participant as InitiativeParticipant).flatBonusLabel}</span>
+                        )}
+                        {(participant as InitiativeParticipant).flatBonusFormula && (
+                          <span className="text-[9px] bg-theme-accent/15 text-theme-accent px-1 rounded italic">fx</span>
+                        )}
                       </span>
                     )}
                     <button

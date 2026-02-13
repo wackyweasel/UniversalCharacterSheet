@@ -1,4 +1,5 @@
 import { EditorProps } from './types';
+import { LabeledNumberField } from './LabeledNumberField';
 
 export function RestButtonEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -10,8 +11,24 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
     resetSpellSlots = false,
     passTime = false,
     passTimeAmount = 0,
-    passTimeUnit = 'hours'
+    passTimeUnit = 'hours',
+    fieldLabels = {},
+    fieldFormulas = {}
   } = widget.data;
+
+  const setFieldLabel = (field: string, labelName: string | undefined) => {
+    const updated = { ...fieldLabels };
+    if (labelName) updated[field] = labelName;
+    else delete updated[field];
+    updateData({ fieldLabels: updated });
+  };
+
+  const setFieldFormula = (field: string, formula: string | undefined) => {
+    const updated = { ...fieldFormulas };
+    if (formula) updated[field] = formula;
+    else delete updated[field];
+    updateData({ fieldFormulas: updated });
+  };
 
   const updateDiceGroup = (index: number, field: 'count' | 'faces', value: number | string) => {
     const newGroups = [...healRandomDice];
@@ -104,13 +121,15 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-theme-ink mb-1">Flat Heal Amount</label>
-              <input
-                type="number"
-                min="0"
-                className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+              <LabeledNumberField
+                displayLabel="Flat Heal Amount"
                 value={healFlatAmount ?? 0}
-                onChange={(e) => updateData({ healFlatAmount: parseInt(e.target.value) || 0 })}
+                onChange={(v) => updateData({ healFlatAmount: v })}
+                fieldLabel={fieldLabels['healFlatAmount']}
+                onFieldLabelChange={(l) => setFieldLabel('healFlatAmount', l)}
+                formula={fieldFormulas['healFlatAmount']}
+                onFormulaChange={(f) => setFieldFormula('healFlatAmount', f)}
+                min={0}
               />
               <p className="text-xs text-theme-muted mt-1">Added to dice result if dice are configured</p>
             </div>

@@ -4,6 +4,8 @@ import { Character, Widget, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
+import { resolveCharacterFormulas, FormulaChange } from '../utils/formulaEngine';
+import { useTimelineStore } from './useTimelineStore';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 
@@ -842,16 +844,49 @@ export const useStore = create<StoreState>((set, get) => {
       // Take snapshot for widget data changes (interactions and editing)
       get()._takeSnapshot('Update widget');
       
-      set((state) => ({
-        characters: state.characters.map(c => {
+      set((state) => {
+        // First, apply primary update to the target widget
+        let updatedCharacters = state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
             return updateActiveSheetWidgets(c, widgets => 
               widgets.map(w => w.id === id ? { ...w, data: { ...w.data, ...data } } : w)
             );
           }
           return c;
-        })
-      }));
+        });
+
+        // Then, resolve formulas across the entire character
+        updatedCharacters = updatedCharacters.map(c => {
+          if (c.id === state.activeCharacterId) {
+            const resolved = resolveCharacterFormulas(c);
+            if (resolved) {
+              // Log formula changes to timeline
+              const changes = (resolved as any)._formulaChanges as FormulaChange[] | undefined;
+              if (changes && changes.length > 0 && state.activeCharacterId) {
+                const charId = state.activeCharacterId;
+                // Defer timeline logging to avoid state conflicts
+                setTimeout(() => {
+                  for (const change of changes) {
+                    useTimelineStore.getState().addEvent(charId, {
+                      widgetLabel: change.widgetLabel,
+                      widgetType: 'FORMULA',
+                      description: `${change.fieldName}: ${change.oldValue} → ${change.newValue} (${change.formula})`,
+                      icon: 'fx',
+                    });
+                  }
+                }, 0);
+              }
+              // Clean up the temporary _formulaChanges property
+              const { _formulaChanges, ...cleanResolved } = resolved as any;
+              return cleanResolved;
+            }
+            return c;
+          }
+          return c;
+        });
+
+        return { characters: updatedCharacters };
+      });
     },
 
     removeWidget: (id) => {
