@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, ToggleItem, TimedEffect } from '../types';
 
 /**
  * Collects all labels and their current values from a character.
@@ -71,6 +71,24 @@ export function collectLabels(character: Character): Record<string, number> {
               const num = parseFloat(cell.value);
               if (!isNaN(num)) labels[cell.label] = num;
             }
+          }
+        }
+      }
+
+      // Collect from Condition (TOGGLE_GROUP) widgets: each toggle item name is a label (1 = active, 0 = inactive)
+      if (data.toggleItems) {
+        for (const item of data.toggleItems as ToggleItem[]) {
+          if (item.name) {
+            labels[item.name] = item.active ? 1 : 0;
+          }
+        }
+      }
+
+      // Collect from Time Tracker widgets: non-expired effects are 1, expired are 0
+      if (data.timedEffects) {
+        for (const effect of data.timedEffects as TimedEffect[]) {
+          if (effect.name) {
+            labels[effect.name] = effect.remainingSeconds > 0 ? 1 : 0;
           }
         }
       }
@@ -186,8 +204,8 @@ export function evaluateFormula(formula: string, labels: Record<string, number>)
     expr = expr.replace(new RegExp(`@${escapeRegex(label)}\\b`, 'g'), String(value));
   }
 
-  // Check for remaining unresolved @refs
-  if (/@[\w]+/.test(expr)) return null;
+  // Replace any remaining unresolved @refs with 0 (treat missing labels as false/0)
+  expr = expr.replace(/@[\w]+/g, '0');
 
   // Process IF() statements → JS ternary (before Math replacements, since args may contain functions)
   expr = processIFStatements(expr);
@@ -588,6 +606,24 @@ export function getAvailableLabels(character: Character): { label: string; value
               const num = parseFloat(cell.value);
               result.push({ label: cell.label, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
             }
+          }
+        }
+      }
+
+      // Condition (TOGGLE_GROUP) items
+      if (data.toggleItems) {
+        for (const item of data.toggleItems as ToggleItem[]) {
+          if (item.name) {
+            result.push({ label: item.name, value: item.active ? 1 : 0, widgetLabel, sheetName: sheet.name });
+          }
+        }
+      }
+
+      // Time Tracker effects (non-expired = 1, expired = 0)
+      if (data.timedEffects) {
+        for (const effect of data.timedEffects as TimedEffect[]) {
+          if (effect.name) {
+            result.push({ label: effect.name, value: effect.remainingSeconds > 0 ? 1 : 0, widgetLabel, sheetName: sheet.name });
           }
         }
       }
