@@ -98,8 +98,80 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * Finds the rightmost (innermost) IF( in the expression for processing.
+ */
+function findInnermostIF(expr: string): { index: number; argsStart: number } | null {
+  const regex = /\bIF\s*\(/gi;
+  let lastMatch: { index: number; argsStart: number } | null = null;
+  let match;
+  while ((match = regex.exec(expr)) !== null) {
+    lastMatch = { index: match.index, argsStart: match.index + match[0].length };
+  }
+  return lastMatch;
+}
+
+/**
+ * Parses the comma-separated arguments of a function call starting right after
+ * the opening parenthesis, respecting nested parentheses.
+ */
+function parseIFArguments(expr: string, startAfterParen: number): { args: string[]; endIndex: number } | null {
+  let depth = 1;
+  let argStart = startAfterParen;
+  const args: string[] = [];
+  for (let i = startAfterParen; i < expr.length; i++) {
+    const ch = expr[i];
+    if (ch === '(') {
+      depth++;
+    } else if (ch === ')') {
+      depth--;
+      if (depth === 0) {
+        args.push(expr.substring(argStart, i));
+        return { args, endIndex: i };
+      }
+    } else if (ch === ',' && depth === 1) {
+      args.push(expr.substring(argStart, i));
+      argStart = i + 1;
+    }
+  }
+  return null;
+}
+
+/**
+ * Converts Excel-style comparison operators in a condition string to JS equivalents.
+ * <> → !=, standalone = → ==, <=/>=/</> kept as-is.
+ */
+function convertComparison(condition: string): string {
+  condition = condition.replace(/<>/g, '!=');
+  condition = condition.replace(/(?<![<>!=])=(?!=)/g, '==');
+  return condition;
+}
+
+/**
+ * Processes all IF(condition, value_if_true, value_if_false) calls in an expression,
+ * converting them to JavaScript ternary expressions.
+ * Handles nested IF() calls by processing the innermost first.
+ */
+function processIFStatements(expr: string): string {
+  let result = expr;
+  const MAX_ITERATIONS = 20;
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    const ifMatch = findInnermostIF(result);
+    if (ifMatch === null) break;
+    const parsed = parseIFArguments(result, ifMatch.argsStart);
+    if (!parsed) break;
+    if (parsed.args.length !== 3) break;
+    const condition = convertComparison(parsed.args[0].trim());
+    const trueVal = parsed.args[1].trim();
+    const falseVal = parsed.args[2].trim();
+    result = result.substring(0, ifMatch.index) + `(${condition} ? ${trueVal} : ${falseVal})` + result.substring(parsed.endIndex + 1);
+  }
+  return result;
+}
+
+/**
  * Evaluates a formula string, replacing @label references with values.
- * Supports basic arithmetic: +, -, *, /, parentheses, and floor/ceil/round.
+ * Supports basic arithmetic: +, -, *, /, parentheses, floor/ceil/round/min/max/abs,
+ * and IF(condition, value_if_true, value_if_false) with =, <>, <, >, <=, >= comparisons.
  * Returns the computed number, or null if evaluation fails.
  */
 export function evaluateFormula(formula: string, labels: Record<string, number>): number | null {
@@ -117,6 +189,9 @@ export function evaluateFormula(formula: string, labels: Record<string, number>)
   // Check for remaining unresolved @refs
   if (/@[\w]+/.test(expr)) return null;
 
+  // Process IF() statements → JS ternary (before Math replacements, since args may contain functions)
+  expr = processIFStatements(expr);
+
   // Replace floor/ceil/round with Math equivalents
   expr = expr.replace(/\bfloor\s*\(/g, 'Math.floor(');
   expr = expr.replace(/\bceil\s*\(/g, 'Math.ceil(');
@@ -125,10 +200,10 @@ export function evaluateFormula(formula: string, labels: Record<string, number>)
   expr = expr.replace(/\bmax\s*\(/g, 'Math.max(');
   expr = expr.replace(/\babs\s*\(/g, 'Math.abs(');
 
-  // Validate: only allow safe characters (digits, operators, parens, spaces, dots, commas, and Math methods)
+  // Validate: only allow safe characters (digits, operators, parens, spaces, dots, commas, Math methods, and ternary/comparison operators)
   const safeExpr = expr
     .replace(/Math\.(floor|ceil|round|min|max|abs)/g, '') // Remove known Math methods
-    .replace(/[\d\s+\-*/().,]/g, ''); // Remove safe characters
+    .replace(/[\d\s+\-*/().,?:!=<>]/g, ''); // Remove safe characters
   if (safeExpr.length > 0) return null;
 
   try {
