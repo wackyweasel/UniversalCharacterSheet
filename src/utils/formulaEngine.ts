@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow } from '../types';
 
 /**
  * Collects all labels and their current values from a character.
@@ -60,6 +60,18 @@ export function collectLabels(character: Character): Record<string, number> {
       if (data.diceGroups) {
         for (const g of data.diceGroups as DiceGroup[]) {
           if (g.countLabel) labels[g.countLabel] = g.count ?? 0;
+        }
+      }
+
+      // Collect from Table cell labels
+      if (data.rows) {
+        for (const row of data.rows as TableRow[]) {
+          for (const cell of row.cells) {
+            if (typeof cell !== 'string' && cell.label) {
+              const num = parseFloat(cell.value);
+              if (!isNaN(num)) labels[cell.label] = num;
+            }
+          }
         }
       }
     }
@@ -252,6 +264,25 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
     }
   }
 
+  // Table cell formula changes
+  if (oldWidget.data.rows && newWidget.data.rows) {
+    const oldRows = oldWidget.data.rows as TableRow[];
+    const newRows = newWidget.data.rows as TableRow[];
+    for (let r = 0; r < Math.min(oldRows.length, newRows.length); r++) {
+      for (let c = 0; c < Math.min(oldRows[r].cells.length, newRows[r].cells.length); c++) {
+        const oldCell = oldRows[r].cells[c];
+        const newCell = newRows[r].cells[c];
+        if (typeof newCell !== 'string' && newCell.formula) {
+          const oldVal = typeof oldCell === 'string' ? parseFloat(oldCell) : parseFloat(oldCell.value);
+          const newVal = parseFloat(newCell.value);
+          if (!isNaN(oldVal) && !isNaN(newVal) && oldVal !== newVal) {
+            changes.push({ widgetLabel, fieldName: `cell[${r},${c}]`, oldValue: oldVal, newValue: newVal, formula: newCell.formula, sheetName });
+          }
+        }
+      }
+    }
+  }
+
   return changes;
 }
 
@@ -385,6 +416,36 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
     }
   }
 
+  // Resolve Table cell formulas
+  if (widget.data.rows) {
+    let rowsChanged = false;
+    const updatedRows = (widget.data.rows as TableRow[]).map(row => {
+      let rowChanged = false;
+      const updatedCells = row.cells.map(cell => {
+        if (typeof cell === 'string') return cell;
+        if (!cell.formula) return cell;
+        const computed = evaluateFormula(cell.formula, labels);
+        if (computed !== null) {
+          const newValue = String(computed);
+          if (newValue !== cell.value) {
+            rowChanged = true;
+            return { ...cell, value: newValue };
+          }
+        }
+        return cell;
+      });
+      if (rowChanged) {
+        rowsChanged = true;
+        return { ...row, cells: updatedCells };
+      }
+      return row;
+    });
+    if (rowsChanged) {
+      changed = true;
+      updates.rows = updatedRows;
+    }
+  }
+
   if (!changed) return null;
   return { ...widget, data: { ...widget.data, ...updates } };
 }
@@ -441,6 +502,18 @@ export function getAvailableLabels(character: Character): { label: string; value
       if (data.diceGroups) {
         for (const g of data.diceGroups as DiceGroup[]) {
           if (g.countLabel) result.push({ label: g.countLabel, value: g.count, widgetLabel, sheetName: sheet.name });
+        }
+      }
+
+      // Table cell labels
+      if (data.rows) {
+        for (const row of data.rows as TableRow[]) {
+          for (const cell of row.cells) {
+            if (typeof cell !== 'string' && cell.label) {
+              const num = parseFloat(cell.value);
+              result.push({ label: cell.label, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
+            }
+          }
         }
       }
     }
@@ -517,6 +590,17 @@ export function buildDependencyGraph(character: Character): Record<string, strin
         for (const g of data.diceGroups as DiceGroup[]) {
           if (g.countLabel && g.countFormula) {
             graph[g.countLabel] = extractFormulaRefs(g.countFormula);
+          }
+        }
+      }
+
+      // Table cell formulas
+      if (data.rows) {
+        for (const row of data.rows as TableRow[]) {
+          for (const cell of row.cells) {
+            if (typeof cell !== 'string' && cell.label && cell.formula) {
+              graph[cell.label] = extractFormulaRefs(cell.formula);
+            }
           }
         }
       }

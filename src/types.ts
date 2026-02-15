@@ -55,6 +55,8 @@ export interface CellFormat {
 export interface TableCell {
   value: string;
   format?: CellFormat;
+  label?: string;
+  formula?: string;
 }
 
 export interface TableRow {

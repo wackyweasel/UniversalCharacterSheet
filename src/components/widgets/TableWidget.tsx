@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat } from '../../types';
 import { useStore } from '../../store/useStore';
+import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -19,8 +20,16 @@ function getCellFormat(cell: string | TableCell): CellFormat {
   return typeof cell === 'string' ? {} : (cell.format || {});
 }
 
-function createCell(value: string, format?: CellFormat): TableCell {
-  return { value, format };
+function getCellLabel(cell: string | TableCell): string | undefined {
+  return typeof cell === 'string' ? undefined : cell.label;
+}
+
+function getCellFormula(cell: string | TableCell): string | undefined {
+  return typeof cell === 'string' ? undefined : cell.formula;
+}
+
+function createCell(value: string, format?: CellFormat, label?: string, formula?: string): TableCell {
+  return { value, format, label, formula };
 }
 
 // Color with opacity pair for recently used colors
@@ -62,12 +71,52 @@ interface FormatToolbarProps {
   position: { x: number; y: number };
   isMobile: boolean;
   usedColors: ColorWithOpacity[];
+  cellValue: string;
+  cellLabel?: string;
+  cellFormula?: string;
+  onLabelChange: (label: string | undefined) => void;
+  onFormulaChange: (formula: string | undefined) => void;
+  character: any;
 }
 
-function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors }: FormatToolbarProps) {
+function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character }: FormatToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const [showLabelInput, setShowLabelInput] = useState(false);
+  const [showFormulaInput, setShowFormulaInput] = useState(false);
+  const [labelDraft, setLabelDraft] = useState(cellLabel || '');
+  const [formulaDraft, setFormulaDraft] = useState(cellFormula || '');
+
+  const isNumeric = cellValue === '' || !isNaN(Number(cellValue));
+  const canAssignLabel = isNumeric;
+
+  const availableLabels = useMemo(
+    () => character ? getAvailableLabels(character) : [],
+    [character]
+  );
+
+  const formulaPreview = useMemo(() => {
+    if (!formulaDraft || !character) return null;
+    const labels = collectLabels(character);
+    return evaluateFormula(formulaDraft, labels);
+  }, [formulaDraft, character]);
+
+  // Self-reference check
+  const isSelfReferencing = useMemo(() => {
+    if (!formulaDraft || !cellLabel) return false;
+    const refs = formulaDraft.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g);
+    if (!refs) return false;
+    return refs.some(r => r.slice(1) === cellLabel);
+  }, [formulaDraft, cellLabel]);
+
+  // Circular reference check
+  const circularPath = useMemo(() => {
+    if (!formulaDraft || !cellLabel || !character || isSelfReferencing) return null;
+    return detectCircularReference(cellLabel, formulaDraft, character);
+  }, [formulaDraft, cellLabel, character, isSelfReferencing]);
+
+  const isCircular = isSelfReferencing || circularPath !== null;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
@@ -288,7 +337,205 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
             <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm5 10.5a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
           </svg>
         </button>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-theme-border mx-1" />
+
+        {/* Label button */}
+        <button
+          className={`${buttonClass} ${iconSize} ${cellLabel ? 'bg-theme-accent text-theme-paper' : canAssignLabel ? 'text-theme-ink' : 'text-theme-muted opacity-40 cursor-not-allowed'}`}
+          onClick={() => {
+            if (!canAssignLabel && !cellLabel) return;
+            setShowLabelInput(!showLabelInput);
+            setShowFormulaInput(false);
+            setShowColorPicker(false);
+            setLabelDraft(cellLabel || '');
+          }}
+          title={cellLabel ? `Label: @${cellLabel}` : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label'}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        </button>
+
+        {/* Formula button */}
+        <button
+          className={`${buttonClass} ${iconSize} font-bold ${cellFormula ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink'}`}
+          onClick={() => {
+            setShowFormulaInput(!showFormulaInput);
+            setShowLabelInput(false);
+            setShowColorPicker(false);
+            setFormulaDraft(cellFormula || '');
+          }}
+          title={cellFormula ? `Formula: ${cellFormula}` : 'Set formula'}
+        >
+          <span className="italic" style={{ fontSize: '11px' }}>fx</span>
+        </button>
       </div>
+
+      {/* Label input panel */}
+      {showLabelInput && (
+        <div className="px-2 pb-2 border-t border-theme-border/50">
+          <div className="flex items-center gap-1 mt-1.5 mb-1">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-theme-accent shrink-0">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+            <span className="text-[10px] font-medium text-theme-ink">Variable Label</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-theme-muted">@</span>
+            <input
+              type="text"
+              value={labelDraft}
+              onChange={(e) => setLabelDraft(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const trimmed = labelDraft.trim().replace(/\s+/g, '_');
+                  onLabelChange(trimmed || undefined);
+                  setShowLabelInput(false);
+                }
+                if (e.key === 'Escape') setShowLabelInput(false);
+              }}
+              placeholder="e.g. str, max_hp"
+              className="flex-1 px-1.5 py-0.5 border border-theme-border rounded bg-theme-paper text-theme-ink text-[10px] focus:outline-none focus:border-theme-accent"
+              autoFocus
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => {
+                const trimmed = labelDraft.trim().replace(/\s+/g, '_');
+                onLabelChange(trimmed || undefined);
+                setShowLabelInput(false);
+              }}
+              className="px-1.5 py-0.5 bg-theme-accent text-theme-paper rounded text-[10px] hover:opacity-90"
+            >
+              Set
+            </button>
+            {cellLabel && (
+              <button
+                onClick={() => {
+                  setLabelDraft('');
+                  onLabelChange(undefined);
+                  setShowLabelInput(false);
+                }}
+                className="px-1.5 py-0.5 border border-red-300 text-red-500 rounded text-[10px] hover:bg-red-50"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {!canAssignLabel && !cellLabel && (
+            <p className="text-[9px] text-red-500 mt-0.5">Cell must contain a number to assign a label</p>
+          )}
+          <p className="text-[9px] text-theme-muted mt-0.5">
+            Others can reference this as <span className="font-mono">@{labelDraft || 'name'}</span> in formulas
+          </p>
+        </div>
+      )}
+
+      {/* Formula input panel */}
+      {showFormulaInput && (
+        <div className="px-2 pb-2 border-t border-theme-border/50">
+          <div className="flex items-center gap-1 mt-1.5 mb-1">
+            <span className="italic font-bold text-theme-accent text-[10px]">fx</span>
+            <span className="text-[10px] font-medium text-theme-ink">Formula</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              value={formulaDraft}
+              onChange={(e) => setFormulaDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isCircular) {
+                  const trimmed = formulaDraft.trim();
+                  onFormulaChange(trimmed || undefined);
+                  setShowFormulaInput(false);
+                }
+                if (e.key === 'Escape') setShowFormulaInput(false);
+              }}
+              placeholder="e.g. @str * 2 + 5"
+              className="flex-1 px-1.5 py-0.5 border border-theme-border rounded bg-theme-paper text-theme-ink text-[10px] font-mono focus:outline-none focus:border-theme-accent"
+              autoFocus
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => {
+                if (isCircular) return;
+                const trimmed = formulaDraft.trim();
+                onFormulaChange(trimmed || undefined);
+                setShowFormulaInput(false);
+              }}
+              disabled={isCircular}
+              className={`px-1.5 py-0.5 bg-theme-accent text-theme-paper rounded text-[10px] hover:opacity-90 ${isCircular ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              Set
+            </button>
+            {cellFormula && (
+              <button
+                onClick={() => {
+                  setFormulaDraft('');
+                  onFormulaChange(undefined);
+                  setShowFormulaInput(false);
+                }}
+                className="px-1.5 py-0.5 border border-red-300 text-red-500 rounded text-[10px] hover:bg-red-50"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Self-reference warning */}
+          {isSelfReferencing && (
+            <p className="text-[9px] text-red-500 mt-0.5">
+              A formula cannot reference its own label (@{cellLabel})
+            </p>
+          )}
+
+          {/* Circular reference warning */}
+          {!isSelfReferencing && circularPath && (
+            <p className="text-[9px] text-red-500 mt-0.5">
+              Circular reference: {circularPath.map(l => `@${l}`).join(' → ')}
+            </p>
+          )}
+
+          {/* Formula preview */}
+          {formulaDraft && !isCircular && (
+            <div className="mt-0.5 flex items-center gap-1">
+              <span className="text-[9px] text-theme-muted">Result:</span>
+              <span className={`text-[10px] font-bold ${formulaPreview !== null ? 'text-theme-accent' : 'text-red-500'}`}>
+                {formulaPreview !== null ? formulaPreview : 'Invalid'}
+              </span>
+            </div>
+          )}
+
+          {/* Available labels */}
+          {availableLabels.length > 0 && (
+            <div className="mt-1">
+              <p className="text-[9px] text-theme-muted mb-0.5">Available labels (click to insert):</p>
+              <div className="flex flex-wrap gap-0.5 max-h-16 overflow-y-auto">
+                {availableLabels.filter(l => l.label !== cellLabel).map((l, i) => (
+                  <button
+                    key={`${l.label}-${i}`}
+                    type="button"
+                    onClick={() => setFormulaDraft(prev => prev + `@${l.label}`)}
+                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] bg-theme-accent/10 text-theme-accent border border-theme-accent/20 hover:bg-theme-accent/25 transition-colors cursor-pointer"
+                    title={`${l.widgetLabel} (${l.sheetName}) = ${l.value}`}
+                  >
+                    @{l.label}
+                    <span className="text-theme-muted ml-0.5">={l.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[9px] text-theme-muted mt-0.5">
+            Use @label to reference values. Supports +, −, *, /, parentheses, floor(), ceil(), round()
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -345,6 +592,35 @@ export default function TableWidget({ widget, height }: Props) {
     return Array.from(colorMap.values());
   }, [characters, activeCharacterId]);
 
+  const activeChar = useMemo(
+    () => characters.find(c => c.id === activeCharacterId),
+    [characters, activeCharacterId]
+  );
+
+  const handleCellLabelChange = (rowIdx: number, colIdx: number, label: string | undefined) => {
+    const newRows = [...rows];
+    const currentCell = newRows[rowIdx].cells[colIdx];
+    const currentValue = getCellValue(currentCell);
+    const currentFormat = getCellFormat(currentCell);
+    const currentFormula = getCellFormula(currentCell);
+    
+    newRows[rowIdx] = { ...newRows[rowIdx], cells: [...newRows[rowIdx].cells] };
+    newRows[rowIdx].cells[colIdx] = createCell(currentValue, currentFormat, label, currentFormula);
+    updateWidgetData(widget.id, { rows: newRows });
+  };
+
+  const handleCellFormulaChange = (rowIdx: number, colIdx: number, formula: string | undefined) => {
+    const newRows = [...rows];
+    const currentCell = newRows[rowIdx].cells[colIdx];
+    const currentValue = getCellValue(currentCell);
+    const currentFormat = getCellFormat(currentCell);
+    const currentLabel = getCellLabel(currentCell);
+    
+    newRows[rowIdx] = { ...newRows[rowIdx], cells: [...newRows[rowIdx].cells] };
+    newRows[rowIdx].cells[colIdx] = createCell(currentValue, currentFormat, currentLabel, formula);
+    updateWidgetData(widget.id, { rows: newRows });
+  };
+
   // Detect mobile
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -369,12 +645,19 @@ export default function TableWidget({ widget, height }: Props) {
     const newRows = [...rows];
     const currentCell = newRows[rowIdx].cells[colIdx];
     const currentFormat = getCellFormat(currentCell);
+    const currentLabel = getCellLabel(currentCell);
+    const currentFormula = getCellFormula(currentCell);
+    
+    // If cell has a label, only allow numeric input
+    if (currentLabel && value !== '' && isNaN(Number(value))) return;
+    // If cell has a formula, don't allow manual editing
+    if (currentFormula) return;
     
     newRows[rowIdx] = { 
       ...newRows[rowIdx], 
       cells: [...newRows[rowIdx].cells]
     };
-    newRows[rowIdx].cells[colIdx] = createCell(value, currentFormat);
+    newRows[rowIdx].cells[colIdx] = createCell(value, currentFormat, currentLabel, currentFormula);
     updateWidgetData(widget.id, { rows: newRows });
   };
 
@@ -383,6 +666,8 @@ export default function TableWidget({ widget, height }: Props) {
     const currentCell = newRows[rowIdx].cells[colIdx];
     const currentValue = getCellValue(currentCell);
     const currentFormat = getCellFormat(currentCell);
+    const currentLabel = getCellLabel(currentCell);
+    const currentFormula = getCellFormula(currentCell);
     
     newRows[rowIdx] = { 
       ...newRows[rowIdx], 
@@ -397,7 +682,7 @@ export default function TableWidget({ widget, height }: Props) {
       }
     });
     
-    newRows[rowIdx].cells[colIdx] = createCell(currentValue, Object.keys(newFormat).length > 0 ? newFormat : undefined);
+    newRows[rowIdx].cells[colIdx] = createCell(currentValue, Object.keys(newFormat).length > 0 ? newFormat : undefined, currentLabel, currentFormula);
     updateWidgetData(widget.id, { rows: newRows });
   };
 
@@ -757,6 +1042,7 @@ export default function TableWidget({ widget, height }: Props) {
                 {row.cells.map((cell, colIdx: number) => {
                   const cellValue = getCellValue(cell);
                   const cellFormat = getCellFormat(cell);
+                  const cellFml = getCellFormula(cell);
                   const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
                   const isEditing = editingCell?.row === rowIdx && editingCell?.col === colIdx;
                   const needsDarkText = cellFormat.bgColor ? isLightColor(cellFormat.bgColor, cellFormat.bgOpacity ?? 1) : false;
@@ -779,6 +1065,7 @@ export default function TableWidget({ widget, height }: Props) {
                           autoFocus
                           value={cellValue}
                           onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
+                          readOnly={!!cellFml}
                           onBlur={() => setEditingCell(null)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -858,6 +1145,12 @@ export default function TableWidget({ widget, height }: Props) {
           position={toolbarPos}
           isMobile={isMobile}
           usedColors={usedColors}
+          cellValue={getCellValue(rows[selectedCell.row]?.cells[selectedCell.col])}
+          cellLabel={getCellLabel(rows[selectedCell.row]?.cells[selectedCell.col])}
+          cellFormula={getCellFormula(rows[selectedCell.row]?.cells[selectedCell.col])}
+          onLabelChange={(l) => handleCellLabelChange(selectedCell.row, selectedCell.col, l)}
+          onFormulaChange={(f) => handleCellFormulaChange(selectedCell.row, selectedCell.col, f)}
+          character={activeChar}
         />,
         document.body
       )}
