@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, ToggleItem, TimedEffect } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, ToggleItem, TimedEffect, CheckboxItem } from '../types';
 
 /**
  * Collects all labels and their current values from a character.
@@ -80,6 +80,15 @@ export function collectLabels(character: Character): Record<string, number> {
         for (const item of data.toggleItems as ToggleItem[]) {
           if (item.name) {
             labels[item.name] = item.active ? 1 : 0;
+          }
+        }
+      }
+
+      // Collect from Checklist widgets: each item name is a label (1 = checked, 0 = unchecked)
+      if (data.checkboxItems) {
+        for (const item of data.checkboxItems as CheckboxItem[]) {
+          if (item.name) {
+            labels[item.name] = item.checked ? 1 : 0;
           }
         }
       }
@@ -615,6 +624,15 @@ export function getAvailableLabels(character: Character): { label: string; value
         for (const item of data.toggleItems as ToggleItem[]) {
           if (item.name) {
             result.push({ label: item.name, value: item.active ? 1 : 0, widgetLabel, sheetName: sheet.name });
+          }
+        }
+      }
+
+      // Checklist items (1 = checked, 0 = unchecked)
+      if (data.checkboxItems) {
+        for (const item of data.checkboxItems as CheckboxItem[]) {
+          if (item.name) {
+            result.push({ label: item.name, value: item.checked ? 1 : 0, widgetLabel, sheetName: sheet.name });
           }
         }
       }

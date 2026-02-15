@@ -131,7 +131,6 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
                 onFormulaChange={(f) => setFieldFormula('healFlatAmount', f)}
                 min={0}
               />
-              <p className="text-xs text-theme-muted mt-1">Added to dice result if dice are configured</p>
             </div>
           </>
         )}
