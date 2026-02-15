@@ -110,6 +110,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
   
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [showHealModal, setShowHealModal] = useState(false);
+  const hasCurrentFormula = !!(widget.data.fieldFormulas as Record<string, string> | undefined)?.currentValue;
 
   // Calculate health percentage
   const healthPercent = Math.max(0, Math.min(100, (currentValue / maxValue) * 100));
@@ -154,12 +155,14 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         {/* Decrement button */}
         <button
           onClick={() => {
+            if (hasCurrentFormula) return;
             const newVal = currentValue - increment;
             updateWidgetData(widget.id, { currentValue: newVal });
             addTimelineEvent(label || 'Health', 'HEALTH_BAR', `−${increment} (${currentValue} → ${newVal})`, '💥');
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
+          disabled={hasCurrentFormula}
+          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
           −
         </button>
@@ -192,12 +195,14 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         {/* Increment button */}
         <button
           onClick={() => {
+            if (hasCurrentFormula) return;
             const newVal = Math.min(maxValue, currentValue + increment);
             updateWidgetData(widget.id, { currentValue: newVal });
             addTimelineEvent(label || 'Health', 'HEALTH_BAR', `+${increment} (${currentValue} → ${newVal})`, '💚');
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
+          disabled={hasCurrentFormula}
+          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
           +
         </button>
@@ -206,23 +211,26 @@ export default function HealthBarWidget({ widget, mode }: Props) {
       {/* Controls */}
       <div className={`flex items-center justify-between gap-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
         <button
-          onClick={() => setShowDamageModal(true)}
+          onClick={() => !hasCurrentFormula && setShowDamageModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body`}
+          disabled={hasCurrentFormula}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
           Damage
         </button>
         <button
-          onClick={() => setShowHealModal(true)}
+          onClick={() => !hasCurrentFormula && setShowHealModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body`}
+          disabled={hasCurrentFormula}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
           Heal
         </button>
         <button
-          onClick={fullHeal}
+          onClick={() => !hasCurrentFormula && fullHeal()}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body`}
+          disabled={hasCurrentFormula}
+          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
           Full
         </button>

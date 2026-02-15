@@ -13,6 +13,7 @@ interface Props {
 interface DisplayNumber {
   label: string;
   value: number;
+  valueFormula?: string;
 }
 
 export default function NumberDisplayWidget({ widget, mode, width, height }: Props) {
@@ -24,6 +25,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
   const [editValue, setEditValue] = useState('');
 
   const handleValueClick = (index: number, currentValue: number) => {
+    const item = (displayNumbers as DisplayNumber[])[index];
+    if (item.valueFormula) return;
     setEditingIndex(index);
     setEditValue(String(currentValue));
   };
@@ -104,7 +107,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
               />
             ) : (
               <span 
-                className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors leading-none font-body"
+                className={`font-bold text-theme-ink transition-colors leading-none font-body ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
                 style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                 data-print-hide={hideValues ? 'true' : undefined}
                 onClick={() => handleValueClick(idx, item.value)}

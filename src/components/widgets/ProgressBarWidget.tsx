@@ -86,6 +86,7 @@ export default function ProgressBarWidget({ widget }: Props) {
   } = widget.data;
   
   const [showValueModal, setShowValueModal] = useState(false);
+  const hasCurrentFormula = !!(widget.data.fieldFormulas as Record<string, string> | undefined)?.currentValue;
 
   // Calculate progress percentage
   const progressPercent = maxValue > 0 ? Math.max(0, Math.min(100, (currentValue / maxValue) * 100)) : 0;
@@ -127,10 +128,10 @@ export default function ProgressBarWidget({ widget }: Props) {
       {/* Progress Bar */}
       <div className="flex-1 flex flex-col justify-start">
         <div 
-          className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border cursor-pointer`}
-          onClick={() => setShowValueModal(true)}
+          className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border ${hasCurrentFormula ? 'cursor-default' : 'cursor-pointer'}`}
+          onClick={() => !hasCurrentFormula && setShowValueModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          title="Click to set value"
+          title={hasCurrentFormula ? 'Value set by formula' : 'Click to set value'}
         >
           {/* Filled portion */}
           <div 

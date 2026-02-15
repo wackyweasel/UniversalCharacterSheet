@@ -79,8 +79,11 @@ export default function PoolWidget({ widget, height }: Props) {
   // If poolResources has items, use multi-resource mode
   const hasMultipleResources = poolResources.length > 0;
 
+  const hasCurrentPoolFormula = !!(widget.data.fieldFormulas as Record<string, string> | undefined)?.currentPool;
+
   // Toggle point for legacy single pool
   const togglePoint = (index: number) => {
+    if (hasCurrentPoolFormula) return;
     let newVal: number;
     if (index < currentPool) {
       newVal = index;
@@ -96,6 +99,7 @@ export default function PoolWidget({ widget, height }: Props) {
   // Toggle point for a specific resource
   const toggleResourcePoint = (resourceIndex: number, pointIndex: number) => {
     const resource = poolResources[resourceIndex];
+    if (resource.currentFormula) return;
     const newResources = [...poolResources];
     if (pointIndex < resource.current) {
       const newVal = pointIndex;
@@ -153,8 +157,8 @@ export default function PoolWidget({ widget, height }: Props) {
                     key={pointIdx}
                     onClick={() => toggleResourcePoint(idx, pointIdx)}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className={getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)}
-                    title={pointIdx < resource.current ? 'Click to use' : 'Click to restore'}
+                    className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                    title={resource.currentFormula ? 'Value set by formula' : (pointIdx < resource.current ? 'Click to use' : 'Click to restore')}
                   >
                     {getSymbolForStyle(pointIdx < resource.current, resource.style)}
                   </button>
@@ -186,8 +190,8 @@ export default function PoolWidget({ widget, height }: Props) {
                 key={idx}
                 onClick={() => togglePoint(idx)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={getClassNameForStyle(idx < currentPool, poolStyle, symbolSize)}
-                title={idx < currentPool ? 'Click to use' : 'Click to restore'}
+                className={`${getClassNameForStyle(idx < currentPool, poolStyle, symbolSize)} ${hasCurrentPoolFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                title={hasCurrentPoolFormula ? 'Value set by formula' : (idx < currentPool ? 'Click to use' : 'Click to restore')}
               >
                 {getSymbolForStyle(idx < currentPool, poolStyle)}
               </button>
