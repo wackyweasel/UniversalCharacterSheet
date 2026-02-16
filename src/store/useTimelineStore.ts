@@ -21,6 +21,7 @@ interface TimelineState {
   eventsByCharacter: Record<string, CharacterTimeline>;
   isOpen: boolean;
   orderNewestFirst: boolean;
+  showFormulas: boolean;
   
   addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>) => void;
   removeEvent: (characterId: string, eventId: string) => void;
@@ -28,20 +29,21 @@ interface TimelineState {
   toggleOpen: () => void;
   setOpen: (open: boolean) => void;
   toggleOrder: () => void;
+  toggleShowFormulas: () => void;
 }
 
 const STORAGE_KEY = 'ucs:timeline';
 
 // Load persisted state from localStorage
-function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTimeline>; orderNewestFirst: boolean } {
+function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTimeline>; orderNewestFirst: boolean; showFormulas: boolean } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { eventsByCharacter: {}, orderNewestFirst: false };
+    if (!raw) return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true };
     const data = JSON.parse(raw);
 
     // Migrate from old single-list format
     if (Array.isArray(data.events)) {
-      return { eventsByCharacter: {}, orderNewestFirst: data.orderNewestFirst ?? false };
+      return { eventsByCharacter: {}, orderNewestFirst: data.orderNewestFirst ?? false, showFormulas: data.showFormulas ?? true };
     }
 
     return {
@@ -49,9 +51,10 @@ function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTime
         ? data.eventsByCharacter
         : {},
       orderNewestFirst: data.orderNewestFirst ?? false,
+      showFormulas: data.showFormulas ?? true,
     };
   } catch {
-    return { eventsByCharacter: {}, orderNewestFirst: false };
+    return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true };
   }
 }
 
@@ -61,6 +64,7 @@ export const useTimelineStore = create<TimelineState>((set) => ({
   eventsByCharacter: persisted.eventsByCharacter,
   isOpen: false,
   orderNewestFirst: persisted.orderNewestFirst,
+  showFormulas: persisted.showFormulas,
   
   addEvent: (characterId, event) => set((state) => {
     const charTimeline = state.eventsByCharacter[characterId] ?? { events: [], nextId: 1 };
@@ -107,6 +111,7 @@ export const useTimelineStore = create<TimelineState>((set) => ({
   setOpen: (open) => set({ isOpen: open }),
   
   toggleOrder: () => set((state) => ({ orderNewestFirst: !state.orderNewestFirst })),
+  toggleShowFormulas: () => set((state) => ({ showFormulas: !state.showFormulas })),
 }));
 
 // Persist timeline to localStorage on changes (debounced)
@@ -119,6 +124,7 @@ export const useTimelineStore = create<TimelineState>((set) => ({
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           eventsByCharacter: state.eventsByCharacter,
           orderNewestFirst: state.orderNewestFirst,
+          showFormulas: state.showFormulas,
         }));
       } catch (e) {
         console.error('Failed to persist timeline', e);

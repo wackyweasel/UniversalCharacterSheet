@@ -13,7 +13,11 @@ function formatTime(timestamp: number): string {
 function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (eventId: string) => void }) {
   return (
     <div className="group flex gap-2 px-3 py-1.5 border-b border-theme-border/30 last:border-b-0">
-      <span className="text-base leading-5 flex-shrink-0 self-center">{event.icon}</span>
+      <span className="text-base leading-5 flex-shrink-0 self-center">
+        {event.icon === 'fx'
+          ? <span className="italic font-semibold text-xs text-theme-ink">fx</span>
+          : event.icon}
+      </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5">
           <span className="font-bold text-sm text-theme-ink font-heading truncate">
@@ -45,6 +49,8 @@ export default function TimelineSidebar() {
   const events = useCurrentCharacterEvents();
   const orderNewestFirst = useTimelineStore((s) => s.orderNewestFirst);
   const toggleOrder = useTimelineStore((s) => s.toggleOrder);
+  const showFormulas = useTimelineStore((s) => s.showFormulas);
+  const toggleShowFormulas = useTimelineStore((s) => s.toggleShowFormulas);
   const clearEvents = useTimelineStore((s) => s.clearEvents);
   const removeEvent = useTimelineStore((s) => s.removeEvent);
   const setOpen = useTimelineStore((s) => s.setOpen);
@@ -53,11 +59,12 @@ export default function TimelineSidebar() {
 
   if (!isOpen) return null;
 
-  const displayed = orderNewestFirst ? [...events].reverse() : events;
+  const filtered = showFormulas ? events : events.filter(e => e.widgetType !== 'FORMULA');
+  const displayed = orderNewestFirst ? [...filtered].reverse() : filtered;
 
   return (
     <div
-      className="fixed right-0 top-0 bottom-0 w-[260px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-40 flex flex-col shadow-theme"
+      className="fixed right-0 top-0 bottom-0 w-[320px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-40 flex flex-col shadow-theme"
       style={{ top: '0' }}
     >
       {/* Header */}
@@ -74,6 +81,7 @@ export default function TimelineSidebar() {
 
       {/* Controls */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-border/50 flex-shrink-0 gap-1">
+        <div className="flex items-center gap-1">
         {/* Order toggle */}
         <button
           onClick={toggleOrder}
@@ -82,6 +90,19 @@ export default function TimelineSidebar() {
         >
           {orderNewestFirst ? '↑ Newest first' : '↓ Oldest first'}
         </button>
+        {/* Show formulas toggle */}
+        <button
+          onClick={toggleShowFormulas}
+          className={`flex items-center gap-1 text-xs font-body px-1.5 py-0.5 rounded-button border transition-colors ${
+            showFormulas
+              ? 'text-theme-ink border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper'
+              : 'text-theme-muted border-theme-border/30 opacity-50 hover:opacity-100'
+          }`}
+          title={showFormulas ? 'Hide formula events' : 'Show formula events'}
+        >
+          <span className="italic font-semibold" style={{ fontSize: '0.65rem' }}>fx</span>
+        </button>
+        </div>
         {/* Clear */}
         {confirmingClear ? (
           <div className="flex items-center gap-1">

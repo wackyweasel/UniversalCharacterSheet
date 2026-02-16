@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -77,6 +78,8 @@ function ValueModal({
 
 export default function ProgressBarWidget({ widget }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const characters = useStore((state) => state.characters);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const { 
     label, 
     currentValue = 0, 
@@ -84,8 +87,19 @@ export default function ProgressBarWidget({ widget }: Props) {
     showPercentage = true,
     showValues = true
   } = widget.data;
+  const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
   
   const [showValueModal, setShowValueModal] = useState(false);
+  const hasCurrentFormula = !!fieldFormulas?.currentValue;
+  const hasMaxFormula = !!fieldFormulas?.maxValue;
+
+  const labels = useMemo(() => {
+    const char = characters.find(c => c.id === activeCharacterId);
+    return char ? collectLabels(char) : {};
+  }, [characters, activeCharacterId]);
+
+  const currentBroken = hasCurrentFormula && isFormulaBroken(fieldFormulas!.currentValue, labels);
+  const maxBroken = hasMaxFormula && isFormulaBroken(fieldFormulas!.maxValue, labels);
 
   // Calculate progress percentage
   const progressPercent = maxValue > 0 ? Math.max(0, Math.min(100, (currentValue / maxValue) * 100)) : 0;
@@ -127,10 +141,10 @@ export default function ProgressBarWidget({ widget }: Props) {
       {/* Progress Bar */}
       <div className="flex-1 flex flex-col justify-start">
         <div 
-          className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border cursor-pointer`}
-          onClick={() => setShowValueModal(true)}
+          className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border ${hasCurrentFormula ? 'cursor-default' : 'cursor-pointer'}`}
+          onClick={() => !hasCurrentFormula && setShowValueModal(true)}
           onMouseDown={(e) => e.stopPropagation()}
-          title="Click to set value"
+          title={hasCurrentFormula ? 'Value set by formula' : 'Click to set value'}
         >
           {/* Filled portion */}
           <div 
@@ -143,7 +157,9 @@ export default function ProgressBarWidget({ widget }: Props) {
               className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink font-body`}
               style={{ textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
             >
+              {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
               {getBarText()}
+              {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
             </div>
           )}
         </div>

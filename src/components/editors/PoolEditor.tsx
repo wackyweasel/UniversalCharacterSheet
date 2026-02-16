@@ -1,16 +1,35 @@
+import { PoolResource } from '../../types';
 import { EditorProps } from './types';
+import { LabeledNumberField } from './LabeledNumberField';
 
 export function PoolEditor({ widget, updateData }: EditorProps) {
   const { 
     label, 
     maxPool = 5, 
+    currentPool = 5,
     poolStyle = 'dots', 
     showPoolCount = true,
     poolResources = [],
-    inlineLabels = false
+    inlineLabels = false,
+    fieldLabels = {},
+    fieldFormulas = {}
   } = widget.data;
 
   const hasMultipleResources = poolResources.length > 0;
+
+  const setFieldLabel = (field: string, labelName: string | undefined) => {
+    const updated = { ...fieldLabels };
+    if (labelName) updated[field] = labelName;
+    else delete updated[field];
+    updateData({ fieldLabels: updated });
+  };
+
+  const setFieldFormula = (field: string, formula: string | undefined) => {
+    const updated = { ...fieldFormulas };
+    if (formula) updated[field] = formula;
+    else delete updated[field];
+    updateData({ fieldFormulas: updated });
+  };
 
   const addResource = () => {
     const newResource = {
@@ -117,20 +136,30 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         // Single resource mode
         <>
           <div>
-            <label className="block text-sm font-medium text-theme-ink mb-1">Maximum Pool</label>
-            <input
-              type="number"
-              className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            <LabeledNumberField
+              displayLabel="Maximum Pool"
               value={maxPool}
-              onChange={(e) => {
-                updateData({ maxPool: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
-              }}
-              onBlur={(e) => {
-                const val = Math.max(1, Math.min(1000, parseInt(e.target.value) || 1));
-                updateData({ maxPool: val });
-              }}
+              onChange={(v) => updateData({ maxPool: Math.max(1, Math.min(1000, v)) })}
+              fieldLabel={fieldLabels['maxPool']}
+              onFieldLabelChange={(l) => setFieldLabel('maxPool', l)}
+              formula={fieldFormulas['maxPool']}
+              onFormulaChange={(f) => setFieldFormula('maxPool', f)}
               min={1}
               max={1000}
+            />
+          </div>
+
+          <div>
+            <LabeledNumberField
+              displayLabel="Current Pool"
+              value={typeof currentPool === 'number' ? currentPool : maxPool}
+              onChange={(v) => updateData({ currentPool: Math.max(0, Math.min(maxPool, v)) })}
+              fieldLabel={fieldLabels['currentPool']}
+              onFieldLabelChange={(l) => setFieldLabel('currentPool', l)}
+              formula={fieldFormulas['currentPool']}
+              onFormulaChange={(f) => setFieldFormula('currentPool', f)}
+              min={0}
+              max={maxPool}
             />
           </div>
           
@@ -156,7 +185,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         // Multiple resources mode
         <>
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {poolResources.map((resource: { name: string; max: number; current: number; style: string }, idx: number) => (
+            {poolResources.map((resource: PoolResource, idx: number) => (
               <div key={idx} className="border border-theme-border rounded-button p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <input
@@ -172,29 +201,61 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     ×
                   </button>
                 </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
+                <div className="space-y-2">
+                  <div>
                     <label className="block text-xs text-theme-muted mb-1">Max</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                    <LabeledNumberField
                       value={resource.max}
-                      onChange={(e) => updateResource(idx, 'max', parseInt(e.target.value) || 1)}
-                      onBlur={(e) => updateResource(idx, 'max', Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                      onChange={(v) => updateResource(idx, 'max', Math.max(1, Math.min(100, v)))}
+                      fieldLabel={resource.maxLabel}
+                      onFieldLabelChange={(l) => {
+                        const updated = [...poolResources];
+                        updated[idx] = { ...updated[idx], maxLabel: l };
+                        updateData({ poolResources: updated });
+                      }}
+                      formula={resource.maxFormula}
+                      onFormulaChange={(f) => {
+                        const updated = [...poolResources];
+                        updated[idx] = { ...updated[idx], maxFormula: f };
+                        updateData({ poolResources: updated });
+                      }}
+                      min={1}
+                      max={100}
+                      compact
                     />
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-xs text-theme-muted mb-1">Style</label>
-                    <select
-                      value={resource.style}
-                      onChange={(e) => updateResource(idx, 'style', e.target.value)}
-                      className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
-                    >
-                      {styleOptions}
-                    </select>
+                  <div>
+                    <label className="block text-xs text-theme-muted mb-1">Current</label>
+                    <LabeledNumberField
+                      value={resource.current}
+                      onChange={(v) => updateResource(idx, 'current', Math.max(0, Math.min(resource.max, v)))}
+                      fieldLabel={resource.currentLabel}
+                      onFieldLabelChange={(l) => {
+                        const updated = [...poolResources];
+                        updated[idx] = { ...updated[idx], currentLabel: l };
+                        updateData({ poolResources: updated });
+                      }}
+                      formula={resource.currentFormula}
+                      onFormulaChange={(f) => {
+                        const updated = [...poolResources];
+                        updated[idx] = { ...updated[idx], currentFormula: f };
+                        updateData({ poolResources: updated });
+                      }}
+                      min={0}
+                      max={resource.max}
+                      compact
+                    />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-theme-muted mb-1">Style</label>
+                  <select
+                    value={resource.style}
+                    onChange={(e) => updateResource(idx, 'style', e.target.value)}
+                    className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                  >
+                    {styleOptions}
+                  </select>
                 </div>
               </div>
             ))}
