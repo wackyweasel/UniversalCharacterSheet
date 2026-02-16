@@ -1,4 +1,5 @@
 import { EditorProps } from './types';
+import { LabeledNumberField } from './LabeledNumberField';
 
 export function ProgressBarEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -6,8 +7,24 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     maxValue = 100, 
     currentValue = 0,
     showPercentage = true,
-    showValues = true
+    showValues = true,
+    fieldLabels = {},
+    fieldFormulas = {}
   } = widget.data;
+
+  const setFieldLabel = (field: string, labelName: string | undefined) => {
+    const updated = { ...fieldLabels };
+    if (labelName) updated[field] = labelName;
+    else delete updated[field];
+    updateData({ fieldLabels: updated });
+  };
+
+  const setFieldFormula = (field: string, formula: string | undefined) => {
+    const updated = { ...fieldFormulas };
+    if (formula) updated[field] = formula;
+    else delete updated[field];
+    updateData({ fieldFormulas: updated });
+  };
 
   return (
     <div className="space-y-4">
@@ -33,37 +50,28 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-theme-ink mb-1">Current Value</label>
-          <input
-            type="number"
-            className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={currentValue}
-            onChange={(e) => {
-              const val = e.target.value === '' ? '' : parseInt(e.target.value) || 0;
-              updateData({ currentValue: val });
-            }}
-            onBlur={(e) => {
-              const val = parseInt(e.target.value) || 0;
-              updateData({ currentValue: Math.max(0, Math.min(maxValue, val)) });
-            }}
+      <div className="space-y-2">
+        <div>
+          <LabeledNumberField
+            displayLabel="Current Value"
+            value={typeof currentValue === 'number' ? currentValue : 0}
+            onChange={(v) => updateData({ currentValue: Math.max(0, Math.min(maxValue, v)) })}
+            fieldLabel={fieldLabels['currentValue']}
+            onFieldLabelChange={(l) => setFieldLabel('currentValue', l)}
+            formula={fieldFormulas['currentValue']}
+            onFormulaChange={(f) => setFieldFormula('currentValue', f)}
             min={0}
           />
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-theme-ink mb-1">Maximum Value</label>
-          <input
-            type="number"
-            className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={maxValue}
-            onChange={(e) => {
-              updateData({ maxValue: e.target.value === '' ? '' : parseInt(e.target.value) || '' });
-            }}
-            onBlur={(e) => {
-              const val = parseInt(e.target.value) || 1;
-              updateData({ maxValue: Math.max(1, val) });
-            }}
+        <div>
+          <LabeledNumberField
+            displayLabel="Maximum Value"
+            value={typeof maxValue === 'number' ? maxValue : 100}
+            onChange={(v) => updateData({ maxValue: Math.max(1, v) })}
+            fieldLabel={fieldLabels['maxValue']}
+            onFieldLabelChange={(l) => setFieldLabel('maxValue', l)}
+            formula={fieldFormulas['maxValue']}
+            onFormulaChange={(f) => setFieldFormula('maxValue', f)}
             min={1}
           />
         </div>

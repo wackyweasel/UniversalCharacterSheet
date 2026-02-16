@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -13,17 +14,27 @@ interface Props {
 interface DisplayNumber {
   label: string;
   value: number;
+  valueFormula?: string;
 }
 
 export default function NumberDisplayWidget({ widget, mode, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const characters = useStore((state) => state.characters);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
 
+  const labels = useMemo(() => {
+    const char = characters.find(c => c.id === activeCharacterId);
+    return char ? collectLabels(char) : {};
+  }, [characters, activeCharacterId]);
+
   const handleValueClick = (index: number, currentValue: number) => {
+    const item = (displayNumbers as DisplayNumber[])[index];
+    if (item.valueFormula) return;
     setEditingIndex(index);
     setEditValue(String(currentValue));
   };
@@ -104,13 +115,16 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
               />
             ) : (
               <span 
-                className="font-bold text-theme-ink cursor-pointer hover:text-theme-accent transition-colors leading-none font-body"
+                className={`font-bold text-theme-ink transition-colors leading-none font-body ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
                 style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                 data-print-hide={hideValues ? 'true' : undefined}
                 onClick={() => handleValueClick(idx, item.value)}
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 {item.value}
+                {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
+                  <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
+                )}
               </span>
             )}
             

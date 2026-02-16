@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -13,15 +14,23 @@ interface Props {
 interface NumberItem {
   name: string;
   value: number;
+  valueFormula?: string;
 }
 
 export default function NumberWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const characters = useStore((state) => state.characters);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   const { label, numberItems = [], printSettings } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  const labels = useMemo(() => {
+    const char = characters.find(c => c.id === activeCharacterId);
+    return char ? collectLabels(char) : {};
+  }, [characters, activeCharacterId]);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -37,6 +46,8 @@ export default function NumberWidget({ widget, mode, height }: Props) {
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
   const adjustItemValue = (index: number, delta: number) => {
+    const item = (numberItems as NumberItem[])[index];
+    if (item.valueFormula) return;
     const updated = [...numberItems] as NumberItem[];
     const oldVal = updated[index].value;
     updated[index] = { ...updated[index], value: oldVal + delta };
@@ -45,6 +56,8 @@ export default function NumberWidget({ widget, mode, height }: Props) {
   };
 
   const handleValueClick = (index: number, currentValue: number) => {
+    const item = (numberItems as NumberItem[])[index];
+    if (item.valueFormula) return;
     setEditingIndex(index);
     setEditValue(String(currentValue));
   };
@@ -111,7 +124,8 @@ export default function NumberWidget({ widget, mode, height }: Props) {
               <button
                 onClick={() => adjustItemValue(idx, -1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
+                disabled={!!item.valueFormula}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
               >
                 -
               </button>
@@ -129,19 +143,23 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                 />
               ) : (
                 <span 
-                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 cursor-pointer hover:bg-theme-accent/20 rounded-button font-body whitespace-nowrap`}
+                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 rounded-button font-body whitespace-nowrap ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:bg-theme-accent/20'}`}
                   style={hideValues ? { visibility: 'hidden' } : undefined}
                   data-print-hide={hideValues ? 'true' : undefined}
                   onClick={() => handleValueClick(idx, item.value)}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   {item.value}
+                  {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
+                    <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
+                  )}
                 </span>
               )}
               <button
                 onClick={() => adjustItemValue(idx, 1)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''}`}
+                disabled={!!item.valueFormula}
+                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
               >
                 +
               </button>

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { DiceGroup, CustomDie } from '../../types';
 import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
+import { LabeledNumberField } from './LabeledNumberField';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -9,9 +10,23 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export function DiceRollerEditor({ widget, updateData }: EditorProps) {
-  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0 } = widget.data;
+  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
+
+  const setFieldLabel = (field: string, labelName: string | undefined) => {
+    const updated = { ...fieldLabels };
+    if (labelName) updated[field] = labelName;
+    else delete updated[field];
+    updateData({ fieldLabels: updated });
+  };
+
+  const setFieldFormula = (field: string, formula: string | undefined) => {
+    const updated = { ...fieldFormulas };
+    if (formula) updated[field] = formula;
+    else delete updated[field];
+    updateData({ fieldFormulas: updated });
+  };
 
   // Get all custom dice from the current character (from both DICE_ROLLER and DICE_TRAY widgets)
   const characters = useStore(state => state.characters);
@@ -172,8 +187,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                   type="number"
                   min="1"
                   value={group.count}
-                  onChange={(e) => updateDiceGroup(index, 'count', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                  onBlur={(e) => updateDiceGroup(index, 'count', Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => updateDiceGroup(index, 'count', Math.max(1, parseInt(e.target.value) || 1))}
                   className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                 />
                 <span className="text-theme-ink">d</span>
@@ -235,12 +249,14 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Modifier</label>
-        <input
-          type="number"
-          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+        <LabeledNumberField
+          displayLabel="Modifier"
           value={modifier}
-          onChange={(e) => updateData({ modifier: parseInt(e.target.value) || 0 })}
+          onChange={(v) => updateData({ modifier: v })}
+          fieldLabel={fieldLabels['modifier']}
+          onFieldLabelChange={(l) => setFieldLabel('modifier', l)}
+          formula={fieldFormulas['modifier']}
+          onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
       </div>
 
