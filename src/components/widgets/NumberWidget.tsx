@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -18,11 +19,18 @@ interface NumberItem {
 
 export default function NumberWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const characters = useStore((state) => state.characters);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   const { label, numberItems = [], printSettings } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  const labels = useMemo(() => {
+    const char = characters.find(c => c.id === activeCharacterId);
+    return char ? collectLabels(char) : {};
+  }, [characters, activeCharacterId]);
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -142,6 +150,9 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   {item.value}
+                  {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
+                    <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
+                  )}
                 </span>
               )}
               <button

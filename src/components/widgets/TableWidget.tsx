@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat } from '../../types';
 import { useStore } from '../../store/useStore';
-import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
+import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -597,6 +597,10 @@ export default function TableWidget({ widget, height }: Props) {
     [characters, activeCharacterId]
   );
 
+  const formulaLabels = useMemo(() => {
+    return activeChar ? collectLabels(activeChar) : {};
+  }, [activeChar]);
+
   const handleCellLabelChange = (rowIdx: number, colIdx: number, label: string | undefined) => {
     const newRows = [...rows];
     const currentCell = newRows[rowIdx].cells[colIdx];
@@ -1113,6 +1117,9 @@ export default function TableWidget({ widget, height }: Props) {
                           }}
                         >
                           {cellValue || <span className={`text-theme-muted ${isPrintMode ? 'opacity-0' : ''}`}>-</span>}
+                          {cellFml && isFormulaBroken(cellFml, formulaLabels) && (
+                            <span className="text-red-500 ml-0.5 text-[9px] flex-shrink-0" title={`Broken formula: ${cellFml}`}>⚠</span>
+                          )}
                         </div>
                       )}
                     </td>

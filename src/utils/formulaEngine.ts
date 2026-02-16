@@ -243,6 +243,31 @@ export function evaluateFormula(formula: string, labels: Record<string, number>)
 }
 
 /**
+ * Checks whether a formula contains @label references that don't exist in the provided labels.
+ * Returns true if the formula has at least one unresolved reference.
+ */
+export function hasUnresolvedRefs(formula: string, labels: Record<string, number>): boolean {
+  if (!formula || !formula.trim()) return false;
+  const refs = formula.match(/@([a-zA-Z_][a-zA-Z0-9_ ]*)\b/g);
+  if (!refs) return false;
+  for (const ref of refs) {
+    const name = ref.slice(1); // remove leading @
+    if (!(name in labels)) return true;
+  }
+  return false;
+}
+
+/**
+ * Checks whether a formula is broken: either has unresolved @label references
+ * or is syntactically invalid (evaluateFormula returns null).
+ */
+export function isFormulaBroken(formula: string, labels: Record<string, number>): boolean {
+  if (!formula || !formula.trim()) return false;
+  if (hasUnresolvedRefs(formula, labels)) return true;
+  return evaluateFormula(formula, labels) === null;
+}
+
+/**
  * Resolves all formulas in a character and returns updated character data.
  * Returns null if no changes were needed.
  * Runs up to 2 passes to handle chains of formula dependencies.

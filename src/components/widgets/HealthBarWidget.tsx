@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 
 // Check if we're in print mode to hide interactive elements
 
@@ -105,12 +106,24 @@ function HealthModal({
 
 export default function HealthBarWidget({ widget, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const characters = useStore((state) => state.characters);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   const { label, currentValue = 10, maxValue = 10, increment = 1 } = widget.data;
+  const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
   
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [showHealModal, setShowHealModal] = useState(false);
-  const hasCurrentFormula = !!(widget.data.fieldFormulas as Record<string, string> | undefined)?.currentValue;
+  const hasCurrentFormula = !!fieldFormulas?.currentValue;
+  const hasMaxFormula = !!fieldFormulas?.maxValue;
+
+  const labels = useMemo(() => {
+    const char = characters.find(c => c.id === activeCharacterId);
+    return char ? collectLabels(char) : {};
+  }, [characters, activeCharacterId]);
+
+  const currentBroken = hasCurrentFormula && isFormulaBroken(fieldFormulas!.currentValue, labels);
+  const maxBroken = hasMaxFormula && isFormulaBroken(fieldFormulas!.maxValue, labels);
 
   // Calculate health percentage
   const healthPercent = Math.max(0, Math.min(100, (currentValue / maxValue) * 100));
@@ -187,7 +200,11 @@ export default function HealthBarWidget({ widget, mode }: Props) {
                 {` / ${maxValue}`}
               </>
             ) : (
-              `${currentValue} / ${maxValue}`
+              <>
+                {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
+                {`${currentValue} / ${maxValue}`}
+                {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
+              </>
             )}
           </div>
         </div>

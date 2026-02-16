@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Widget, PoolResource } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 
 interface Props {
   widget: Widget;
@@ -60,6 +62,8 @@ const getClassNameForStyle = (filled: boolean, style: string, symbolSize: string
 
 export default function PoolWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const characters = useStore((state) => state.characters);
+  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const { 
     label, 
     maxPool = 5, 
@@ -80,6 +84,12 @@ export default function PoolWidget({ widget, height }: Props) {
   const hasMultipleResources = poolResources.length > 0;
 
   const hasCurrentPoolFormula = !!(widget.data.fieldFormulas as Record<string, string> | undefined)?.currentPool;
+  const hasMaxPoolFormula = !!(widget.data.fieldFormulas as Record<string, string> | undefined)?.maxPool;
+
+  const labels = useMemo(() => {
+    const char = characters.find(c => c.id === activeCharacterId);
+    return char ? collectLabels(char) : {};
+  }, [characters, activeCharacterId]);
 
   // Toggle point for legacy single pool
   const togglePoint = (index: number) => {
@@ -167,7 +177,13 @@ export default function PoolWidget({ widget, height }: Props) {
               </div>
               {showPoolCount && (
                 <div className={`${counterClass} text-theme-muted font-body`}>
+                  {resource.currentFormula && isFormulaBroken(resource.currentFormula, labels) && (
+                    <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${resource.currentFormula}`}>⚠</span>
+                  )}
                   {resource.current} / {resource.max}
+                  {resource.maxFormula && isFormulaBroken(resource.maxFormula, labels) && (
+                    <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${resource.maxFormula}`}>⚠</span>
+                  )}
                 </div>
               )}
             </div>
@@ -200,7 +216,13 @@ export default function PoolWidget({ widget, height }: Props) {
 
           {showPoolCount && (
             <div className={`${counterClass} text-center text-theme-muted font-body flex-shrink-0`}>
+              {hasCurrentPoolFormula && isFormulaBroken((widget.data.fieldFormulas as Record<string, string>).currentPool, labels) && (
+                <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${(widget.data.fieldFormulas as Record<string, string>).currentPool}`}>⚠</span>
+              )}
               {currentPool} / {maxPool}
+              {hasMaxPoolFormula && isFormulaBroken((widget.data.fieldFormulas as Record<string, string>).maxPool, labels) && (
+                <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${(widget.data.fieldFormulas as Record<string, string>).maxPool}`}>⚠</span>
+              )}
             </div>
           )}
         </>
