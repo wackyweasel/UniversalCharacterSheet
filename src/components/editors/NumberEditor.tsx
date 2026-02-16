@@ -217,36 +217,36 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                   ⋮⋮
                 </div>
                 <input
-                  className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                  className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                   value={item.name}
                   onChange={(e) => updateItemName(idx, e.target.value)}
                   placeholder="Name"
                 />
+                <div className="flex-shrink-0">
+                  <LabeledNumberField
+                    value={item.value}
+                    onChange={(v) => updateItemValue(idx, v)}
+                    fieldLabel={item.valueLabel}
+                    onFieldLabelChange={(l) => {
+                      const updated = [...numberItems] as NumberItem[];
+                      updated[idx] = { ...updated[idx], valueLabel: l };
+                      updateData({ numberItems: updated });
+                    }}
+                    formula={item.valueFormula}
+                    onFormulaChange={(f) => {
+                      const updated = [...numberItems] as NumberItem[];
+                      updated[idx] = { ...updated[idx], valueFormula: f };
+                      updateData({ numberItems: updated });
+                    }}
+                    compact
+                  />
+                </div>
                 <button
                   onClick={() => removeItem(idx)}
-                  className="text-red-500 hover:text-red-700 px-2"
+                  className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"
                 >
                   ×
                 </button>
-              </div>
-              <div className="ml-6 mr-6 mt-1">
-                <LabeledNumberField
-                  value={item.value}
-                  onChange={(v) => updateItemValue(idx, v)}
-                  fieldLabel={item.valueLabel}
-                  onFieldLabelChange={(l) => {
-                    const updated = [...numberItems] as NumberItem[];
-                    updated[idx] = { ...updated[idx], valueLabel: l };
-                    updateData({ numberItems: updated });
-                  }}
-                  formula={item.valueFormula}
-                  onFormulaChange={(f) => {
-                    const updated = [...numberItems] as NumberItem[];
-                    updated[idx] = { ...updated[idx], valueFormula: f };
-                    updateData({ numberItems: updated });
-                  }}
-                  compact
-                />
               </div>
             </div>
           ))}

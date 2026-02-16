@@ -184,7 +184,9 @@ export function LabeledNumberField({
           min={min}
           max={max}
           placeholder={placeholder}
-          className={`flex-1 min-w-[60px] px-2 py-1 border border-theme-border rounded-button text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+          className={`px-2 py-1 border border-theme-border rounded-button text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+            compact ? 'w-[6rem]' : 'flex-1 min-w-[60px]'
+          } ${
             hasFormula
               ? 'bg-theme-accent/10 cursor-default'
               : 'bg-theme-paper'
@@ -236,8 +238,8 @@ export function LabeledNumberField({
         </button>
       </div>
 
-      {/* Active label/formula tags (compact inline display) */}
-      {(fieldLabel || formula) && !showLabelInput && !showFormulaInput && (
+      {/* Active label/formula tags (compact inline display) — hidden in compact mode */}
+      {!compact && (fieldLabel || formula) && !showLabelInput && !showFormulaInput && (
         <div className="flex flex-wrap items-center gap-1 mt-1">
           {fieldLabel && (
             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-theme-accent/15 text-theme-accent border border-theme-accent/30">
