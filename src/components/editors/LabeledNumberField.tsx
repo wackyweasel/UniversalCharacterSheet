@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
 
@@ -29,6 +29,10 @@ interface LabeledNumberFieldProps {
   className?: string;
   /** Whether to show compact (inline) style */
   compact?: boolean;
+  /** When provided, the controls are passed to this render function so the parent
+   *  can place drag-handle, name input, delete button etc. on the SAME row.
+   *  Popovers are rendered below that row automatically. */
+  renderRow?: (props: { controls: React.ReactNode }) => React.ReactNode;
 }
 
 export function LabeledNumberField({
@@ -45,6 +49,7 @@ export function LabeledNumberField({
   placeholder,
   className = '',
   compact = false,
+  renderRow,
 }: LabeledNumberFieldProps) {
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
@@ -154,14 +159,9 @@ export function LabeledNumberField({
     setShowLabelInput(false);
   };
 
-  return (
-    <div className={`${className}`}>
-      {displayLabel && (
-        <label className="block text-sm font-medium text-theme-ink mb-1">{displayLabel}</label>
-      )}
-
-      {/* Main row: [-] [value] [+] [label] [fx] */}
-      <div className="flex items-center gap-1">
+  /* ---- build the inline controls (buttons + number input) ---- */
+  const controls = (
+    <div className="flex items-center gap-1 flex-shrink-0">
         <button
           type="button"
           onClick={handleDecrement}
@@ -212,9 +212,11 @@ export function LabeledNumberField({
           onClick={openLabelInput}
           title={fieldLabel ? `Label: @${fieldLabel}` : 'Set variable label'}
           className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs transition-colors ${
-            fieldLabel
-              ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
-              : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
+            showLabelInput
+              ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
+              : fieldLabel
+                ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
+                : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
           }`}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -229,14 +231,21 @@ export function LabeledNumberField({
           onClick={openFormulaInput}
           title={formula ? `Formula: ${formula}` : 'Set formula'}
           className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
-            formula
-              ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
-              : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
+            showFormulaInput
+              ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
+              : formula
+                ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
+                : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
           }`}
         >
           <span className="italic" style={{ fontSize: '11px' }}>fx</span>
         </button>
-      </div>
+    </div>
+  );
+
+  /* ---- build the popover / tag content ---- */
+  const popovers = (
+    <>
 
       {/* Active label/formula tags (compact inline display) — hidden in compact mode */}
       {!compact && (fieldLabel || formula) && !showLabelInput && !showFormulaInput && (
@@ -398,6 +407,28 @@ export function LabeledNumberField({
           </p>
         </div>
       )}
+    </>
+  );
+
+  /* ---- render ---- */
+  if (renderRow) {
+    // Editor mode: parent supplies the full row layout; popovers go below.
+    return (
+      <div className={className}>
+        {renderRow({ controls })}
+        {popovers}
+      </div>
+    );
+  }
+
+  // Default (standalone) rendering
+  return (
+    <div className={className}>
+      {displayLabel && (
+        <label className="block text-sm font-medium text-theme-ink mb-1">{displayLabel}</label>
+      )}
+      {controls}
+      {popovers}
     </div>
   );
 }

@@ -229,53 +229,54 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
               onDragLeave={handleNativeDragLeave}
               onDrop={(e) => handleNativeDrop(e, idx)}
             >
-              <div className="flex items-center gap-2">
-                {/* Drag Handle - works with both touch and mouse */}
-                <div 
-                  className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
-                  title="Drag to reorder"
-                  draggable
-                  onDragStart={(e) => handleNativeDragStart(e, idx)}
-                  onDragEnd={handleNativeDragEnd}
-                  onPointerDown={(e) => handlePointerDown(e, idx)}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
-                >
-                  ⋮⋮
-                </div>
-                <input
-                  className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
-                  value={item.label}
-                  onChange={(e) => updateItemLabel(idx, e.target.value)}
-                  placeholder="Label"
-                />
-                <div className="flex-shrink-0">
-                  <LabeledNumberField
-                    value={item.value}
-                    onChange={(v) => updateItemValue(idx, v)}
-                    fieldLabel={item.valueLabel}
-                    onFieldLabelChange={(l) => {
-                      const updated = [...displayNumbers] as DisplayNumber[];
-                      updated[idx] = { ...updated[idx], valueLabel: l };
-                      updateData({ displayNumbers: updated });
-                    }}
-                    formula={item.valueFormula}
-                    onFormulaChange={(f) => {
-                      const updated = [...displayNumbers] as DisplayNumber[];
-                      updated[idx] = { ...updated[idx], valueFormula: f };
-                      updateData({ displayNumbers: updated });
-                    }}
-                    compact
-                  />
-                </div>
-                <button
-                  onClick={() => removeItem(idx)}
-                  className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"
-                >
-                  ×
-                </button>
-              </div>
+              <LabeledNumberField
+                value={item.value}
+                onChange={(v) => updateItemValue(idx, v)}
+                fieldLabel={item.valueLabel}
+                onFieldLabelChange={(l) => {
+                  const updated = [...displayNumbers] as DisplayNumber[];
+                  updated[idx] = { ...updated[idx], valueLabel: l };
+                  updateData({ displayNumbers: updated });
+                }}
+                formula={item.valueFormula}
+                onFormulaChange={(f) => {
+                  const updated = [...displayNumbers] as DisplayNumber[];
+                  updated[idx] = { ...updated[idx], valueFormula: f };
+                  updateData({ displayNumbers: updated });
+                }}
+                compact
+                renderRow={({ controls }) => (
+                  <div className="flex items-center gap-2">
+                    {/* Drag Handle - works with both touch and mouse */}
+                    <div 
+                      className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
+                      title="Drag to reorder"
+                      draggable
+                      onDragStart={(e) => handleNativeDragStart(e, idx)}
+                      onDragEnd={handleNativeDragEnd}
+                      onPointerDown={(e) => handlePointerDown(e, idx)}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerUp}
+                    >
+                      ⋮⋮
+                    </div>
+                    <input
+                      className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                      value={item.label}
+                      onChange={(e) => updateItemLabel(idx, e.target.value)}
+                      placeholder="Label"
+                    />
+                    {controls}
+                    <button
+                      onClick={() => removeItem(idx)}
+                      className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              />
             </div>
           ))}
         </div>
