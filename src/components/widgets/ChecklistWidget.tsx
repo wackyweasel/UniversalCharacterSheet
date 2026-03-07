@@ -8,7 +8,7 @@ interface Props {
   height: number;
 }
 
-export default function CheckboxWidget({ widget, height }: Props) {
+export default function CheckboxWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, checkboxItems = [], checklistSettings } = widget.data;
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
