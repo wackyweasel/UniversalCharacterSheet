@@ -9,14 +9,18 @@ interface TooltipProps {
 
 const OFFSET = 12;
 
-// Suppress tooltip after any touch interaction (touch fires synthetic mouseenter too)
+// Track whether the user has interacted via touch recently.
+// A single global window listener catches all touches, including ones
+// that are stopped by child handlers, so nothing slips through.
 let recentTouch = false;
 let recentTouchTimer: ReturnType<typeof setTimeout> | null = null;
 function markRecentTouch() {
   recentTouch = true;
   if (recentTouchTimer) clearTimeout(recentTouchTimer);
-  recentTouchTimer = setTimeout(() => { recentTouch = false; }, 600);
+  // 1 s is enough for the browser to fire its synthetic mouse events after touchend
+  recentTouchTimer = setTimeout(() => { recentTouch = false; }, 1000);
 }
+window.addEventListener('touchstart', markRecentTouch, { passive: true, capture: true });
 
 export function Tooltip({ content, children, placement = 'above' }: TooltipProps) {
   const [visible, setVisible] = useState(false);
@@ -70,11 +74,6 @@ export function Tooltip({ content, children, placement = 'above' }: TooltipProps
 
   const child = React.cloneElement(children, {
     ref: triggerRef,
-    onTouchStart: (e: React.TouchEvent) => {
-      markRecentTouch();
-      hide();
-      children.props.onTouchStart?.(e);
-    },
     onMouseEnter: content ? (e: React.MouseEvent) => {
       show(e);
       children.props.onMouseEnter?.(e);
