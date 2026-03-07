@@ -1,4 +1,5 @@
 import { EditorProps } from './types';
+import { Tooltip } from '../Tooltip';
 
 export function MapSketcherEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -22,14 +23,15 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
             placeholder="Dungeon Map"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ToggleItem } from '../../types';
 import { EditorProps } from './types';
+import { TooltipEditButton } from './TooltipEditButton';
+import { Tooltip } from '../Tooltip';
 
 export function ConditionEditor({ widget, updateData }: EditorProps) {
   const { label, toggleItems = [] } = widget.data;
@@ -47,14 +49,15 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
             placeholder="Conditions"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -64,7 +67,16 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
         <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
           {(toggleItems as ToggleItem[]).map((item, idx) => (
             <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-theme-background rounded-button text-sm">
-              <span className="text-theme-ink">{item.name}</span>
+              <span className="text-theme-ink flex-1">{item.name}</span>
+              <TooltipEditButton
+                tooltip={item.tooltip}
+                itemName={item.name}
+                onSave={(t) => {
+                  const updated = [...toggleItems] as ToggleItem[];
+                  updated[idx] = { ...updated[idx], tooltip: t };
+                  updateData({ toggleItems: updated });
+                }}
+              />
               <button
                 onClick={() => removeItem(idx)}
                 className="text-red-500 hover:text-red-700"

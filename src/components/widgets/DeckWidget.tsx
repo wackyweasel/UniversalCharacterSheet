@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -66,13 +67,14 @@ function PileModal({ title, cards, onClose, showCounts = false, onReturnCard }: 
                 <div key={idx} className="flex justify-between items-center text-sm text-theme-ink py-0.5 border-b border-theme-border/30">
                   <span>{idx + 1}. {card}</span>
                   {onReturnCard && (
-                    <button
-                      onClick={() => onReturnCard(idx)}
-                      className="text-xs px-1.5 py-0.5 text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 rounded transition-colors"
-                      title="Return to draw pile"
-                    >
-                      ↩
-                    </button>
+                    <Tooltip content="Return to draw pile">
+                      <button
+                        onClick={() => onReturnCard(idx)}
+                        className="text-xs px-1.5 py-0.5 text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 rounded transition-colors"
+                      >
+                        ↩
+                      </button>
+                    </Tooltip>
                   )}
                 </div>
               ))
@@ -203,29 +205,32 @@ export default function DeckWidget({ widget, mode }: Props) {
       
       {/* Draw Button and Reset */}
       <div className="flex gap-1 flex-shrink-0">
-        <button
-          onClick={drawCard}
-          onMouseDown={(e) => e.stopPropagation()}
-          className={`flex-1 ${buttonClass} border border-theme-border font-bold transition-all rounded-button font-body ${
-            isDrawing 
-              ? 'bg-theme-muted animate-pulse text-theme-paper' 
-              : getTotalRemaining() === 0
-                ? 'bg-theme-muted/50 text-theme-muted cursor-not-allowed'
-                : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-          }`}
-          disabled={isDrawing || getTotalRemaining() === 0}
-        >
-          Draw ({getTotalRemaining()}/{getTotalCards()})
-        </button>
-        {mode === 'play' && currentState.discarded.length > 0 && (
+        <Tooltip content={getTotalRemaining() === 0 ? 'Deck is empty' : 'Draw a random card from the deck'}>
           <button
-            onClick={resetDeck}
+            onClick={drawCard}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
-            title="Reset deck"
+            className={`flex-1 ${buttonClass} border border-theme-border font-bold transition-all rounded-button font-body ${
+              isDrawing 
+                ? 'bg-theme-muted animate-pulse text-theme-paper' 
+                : getTotalRemaining() === 0
+                  ? 'bg-theme-muted/50 text-theme-muted cursor-not-allowed'
+                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+            disabled={isDrawing || getTotalRemaining() === 0}
           >
-            ↺
+            Draw ({getTotalRemaining()}/{getTotalCards()})
           </button>
+        </Tooltip>
+        {mode === 'play' && currentState.discarded.length > 0 && (
+          <Tooltip content="Reset deck">
+            <button
+              onClick={resetDeck}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
+            >
+              ↺
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -238,20 +243,24 @@ export default function DeckWidget({ widget, mode }: Props) {
 
       {/* Draw Pile and Discard Pile Buttons */}
       <div className="flex gap-1 flex-shrink-0 mt-auto">
-        <button
-          onClick={() => setShowDrawPile(true)}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
-        >
-          Draw Pile ({getTotalRemaining()})
-        </button>
-        <button
-          onClick={() => setShowDiscardPile(true)}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
-        >
-          Discard ({currentState.discarded.length})
-        </button>
+        <Tooltip content="View remaining cards in the draw pile">
+          <button
+            onClick={() => setShowDrawPile(true)}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
+          >
+            Draw Pile ({getTotalRemaining()})
+          </button>
+        </Tooltip>
+        <Tooltip content="View cards in the discard pile">
+          <button
+            onClick={() => setShowDiscardPile(true)}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="flex-1 py-0.5 px-1 text-[10px] border border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-border transition-colors bg-theme-paper/50 font-body"
+          >
+            Discard ({currentState.discarded.length})
+          </button>
+        </Tooltip>
       </div>
 
       {/* Draw Pile Modal */}

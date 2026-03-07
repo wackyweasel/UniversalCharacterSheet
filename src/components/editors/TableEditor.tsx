@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { EditorProps } from './types';
 import { TableRow } from '../../types';
+import { Tooltip } from '../Tooltip';
 
 export function TableEditor({ widget, updateData }: EditorProps) {
   const { label, columns = ['Item', 'Qty', 'Weight'], rows = [] } = widget.data;
@@ -118,14 +119,15 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             placeholder="Inventory"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -155,12 +157,13 @@ export function TableEditor({ widget, updateData }: EditorProps) {
               }}
               onDragEnd={handleDragEnd}
             >
-              <div 
-                className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 touch-none"
-                title="Drag to reorder"
-              >
-                ⠿
-              </div>
+              <Tooltip content="Drag to reorder">
+                <div 
+                  className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 touch-none"
+                >
+                  ⠇
+                </div>
+              </Tooltip>
               <input
                 className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={col}

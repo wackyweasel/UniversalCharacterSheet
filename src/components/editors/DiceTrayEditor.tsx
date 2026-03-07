@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
 import { DiceGroup, CustomDie } from '../../types';
+import { Tooltip } from '../Tooltip';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -187,14 +188,15 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
             placeholder="Dice Tray"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>

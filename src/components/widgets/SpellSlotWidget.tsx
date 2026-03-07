@@ -1,6 +1,7 @@
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -87,17 +88,17 @@ export default function SpellSlotWidget({ widget, height }: Props) {
             {/* Slot Circles */}
             <div className="flex gap-1 flex-1 flex-wrap">
               {Array.from({ length: levelData.max }).map((_, slotIdx) => (
-                <button
-                  key={slotIdx}
-                  onClick={() => toggleSlot(levelIdx, slotIdx)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className={`${slotSize} rounded-full border border-theme-border transition-all ${
-                    slotIdx < levelData.used 
-                      ? 'bg-theme-accent' 
-                      : 'bg-theme-paper hover:opacity-80'
-                  }`}
-                  title={slotIdx < levelData.used ? 'Click to restore' : 'Click to use'}
-                />
+                <Tooltip key={slotIdx} content={slotIdx < levelData.used ? 'Click to restore' : 'Click to use'}>
+                  <button
+                    onClick={() => toggleSlot(levelIdx, slotIdx)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className={`${slotSize} rounded-full border border-theme-border transition-all ${
+                      slotIdx < levelData.used 
+                        ? 'bg-theme-accent' 
+                        : 'bg-theme-paper hover:opacity-80'
+                    }`}
+                  />
+                </Tooltip>
               ))}
             </div>
           </div>
@@ -109,13 +110,15 @@ export default function SpellSlotWidget({ widget, height }: Props) {
 
       {/* Controls */}
       <div className={`flex items-center justify-end ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
-        <button
-          onClick={resetAll}
-          onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-body`}
-        >
-          Reset All
-        </button>
+        <Tooltip content="Reset all spell slots to unused">
+          <button
+            onClick={resetAll}
+            onMouseDown={(e) => e.stopPropagation()}
+            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-body`}
+          >
+            Reset All
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -9,7 +10,7 @@ interface Props {
   height: number;
 }
 
-export default function CheckboxWidget({ widget, height }: Props) {
+export default function CheckboxWidget({ widget, height, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, checkboxItems = [], checklistSettings } = widget.data;
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
@@ -69,7 +70,11 @@ export default function CheckboxWidget({ widget, height }: Props) {
               {item.checked && <span className={checkClass}>✓</span>}
             </div>
             <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked && strikethrough ? 'line-through text-theme-muted' : ''}`}>
-              {item.name}
+              {mode === 'play' && item.tooltip ? (
+                <Tooltip content={item.tooltip}>
+                  <span>{item.name}</span>
+                </Tooltip>
+              ) : item.name}
             </span>
           </div>
         ))}

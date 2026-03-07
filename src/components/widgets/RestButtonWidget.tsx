@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, DiceGroup } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -185,20 +186,42 @@ export default function RestButtonWidget({ widget }: Props) {
     setShowPassTimeModal(false);
   };
 
+  // Build descriptive tooltip from all configured actions
+  const restTooltip = (() => {
+    if (!hasAnyAction) return 'No actions configured — edit this widget to set up rest effects';
+    const parts: string[] = [];
+    if (healToFull) {
+      parts.push('Heal to full HP');
+    } else if (healRandomDice.length > 0) {
+      const diceStr = formatDiceGroups(healRandomDice);
+      parts.push(`Heal ${diceStr}${healFlatAmount ? ` + ${healFlatAmount}` : ''} HP`);
+    } else if ((healFlatAmount ?? 0) > 0) {
+      parts.push(`Heal ${healFlatAmount} HP`);
+    }
+    if (clearConditions) parts.push('Clear conditions');
+    if (resetSpellSlots) parts.push('Reset spell slots');
+    if (passTime) {
+      parts.push(passTimeAmount > 0 ? `Pass ${passTimeAmount} ${passTimeUnit}` : 'Pass time (you will be prompted)');
+    }
+    return parts.join(' • ');
+  })();
+
   return (
     <div className="flex flex-col gap-1 w-full h-full items-center justify-center p-1">
-      <button
-        onClick={handleRest}
-        onMouseDown={(e) => e.stopPropagation()}
-        disabled={!hasAnyAction}
-        className={`w-full h-full min-w-0 px-2 py-1 font-bold text-xs border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme transition-all font-body truncate ${
-          hasAnyAction
-            ? 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer'
-            : 'bg-theme-muted text-theme-paper opacity-50 cursor-not-allowed'
-        } ${isAnimating ? 'scale-95' : ''}`}
-      >
-        {buttonText}
-      </button>
+      <Tooltip content={restTooltip}>
+        <button
+          onClick={handleRest}
+          onMouseDown={(e) => e.stopPropagation()}
+          disabled={!hasAnyAction}
+          className={`w-full h-full min-w-0 px-2 py-1 font-bold text-xs border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme transition-all font-body truncate ${
+            hasAnyAction
+              ? 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer'
+              : 'bg-theme-muted text-theme-paper opacity-50 cursor-not-allowed'
+          } ${isAnimating ? 'scale-95' : ''}`}
+        >
+          {buttonText}
+        </button>
+      </Tooltip>
       
       {/* Result message */}
       {lastResult && (

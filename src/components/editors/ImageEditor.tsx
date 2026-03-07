@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EditorProps } from './types';
+import { Tooltip } from '../Tooltip';
 
 const SIZE_LIMIT = 500 * 1024; // 1MB
 const TARGET_SIZE = 500 * 1024; // 500KB
@@ -181,14 +182,15 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
             placeholder="Portrait"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>

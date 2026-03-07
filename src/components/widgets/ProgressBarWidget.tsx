@@ -3,6 +3,7 @@ import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -140,12 +141,12 @@ export default function ProgressBarWidget({ widget }: Props) {
       
       {/* Progress Bar */}
       <div className="flex-1 flex flex-col justify-start">
-        <div 
-          className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border ${hasCurrentFormula ? 'cursor-default' : 'cursor-pointer'}`}
-          onClick={() => !hasCurrentFormula && setShowValueModal(true)}
-          onMouseDown={(e) => e.stopPropagation()}
-          title={hasCurrentFormula ? 'Value set by formula' : 'Click to set value'}
-        >
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Click to set value'}>
+          <div 
+            className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border ${hasCurrentFormula ? 'cursor-default' : 'cursor-pointer'}`}
+            onClick={() => !hasCurrentFormula && setShowValueModal(true)}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
           {/* Filled portion */}
           <div 
             className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
@@ -163,6 +164,7 @@ export default function ProgressBarWidget({ widget }: Props) {
             </div>
           )}
         </div>
+        </Tooltip>
       </div>
 
       {/* Value Modal */}

@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { CheckboxItem } from '../../types';
 import { EditorProps } from './types';
+import { TooltipEditButton } from './TooltipEditButton';
+import { Tooltip } from '../Tooltip';
 
 export function CheckboxEditor({ widget, updateData }: EditorProps) {
   const { label, checkboxItems = [], checklistSettings } = widget.data;
@@ -117,14 +119,15 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
             placeholder="Checklist Title"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -154,15 +157,16 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
               onDragLeave={(e) => handleDragLeave(e)}
               onDrop={(e) => handleDrop(e, idx)}
             >
-              <div 
-                className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none"
-                title="Drag to reorder"
-                draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
-                onDragEnd={handleDragEnd}
-              >
-                ⋮⋮
-              </div>
+              <Tooltip content="Drag to reorder">
+                <div 
+                  className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragEnd={handleDragEnd}
+                >
+                  ⋮⋮
+                </div>
+              </Tooltip>
               {editingIndex === idx ? (
                 <input
                   ref={editInputRef}
@@ -174,14 +178,24 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
                   className="flex-1 px-2 py-0.5 border border-theme-accent rounded bg-theme-paper text-theme-ink text-sm"
                 />
               ) : (
-                <span 
-                  className="flex-1 text-theme-ink cursor-pointer hover:text-theme-accent"
-                  onClick={() => startEditing(idx)}
-                  title="Click to edit"
-                >
-                  {item.name}
-                </span>
+                <Tooltip content="Click to edit">
+                  <span 
+                    className="flex-1 text-theme-ink cursor-pointer hover:text-theme-accent"
+                    onClick={() => startEditing(idx)}
+                  >
+                    {item.name}
+                  </span>
+                </Tooltip>
               )}
+              <TooltipEditButton
+                tooltip={item.tooltip}
+                itemName={item.name}
+                onSave={(t) => {
+                  const updated = [...checkboxItems] as CheckboxItem[];
+                  updated[idx] = { ...updated[idx], tooltip: t };
+                  updateData({ checkboxItems: updated });
+                }}
+              />
               <button
                 onClick={() => removeItem(idx)}
                 className="text-red-500 hover:text-red-700 px-2"

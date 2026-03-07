@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -93,13 +94,15 @@ export default function ListWidget({ widget, mode, height }: Props) {
               placeholder={mode === 'print' ? '' : '...'}
               onMouseDown={(e) => e.stopPropagation()}
             />
-            <button 
-              onClick={() => clearItem(idx)}
-              className="opacity-0 group-hover:opacity-100 text-theme-muted hover:text-theme-ink px-1 flex-shrink-0"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ×
-            </button>
+            <Tooltip content="Clear this item">
+              <button 
+                onClick={() => clearItem(idx)}
+                className="opacity-0 group-hover:opacity-100 text-theme-muted hover:text-theme-ink px-1 flex-shrink-0"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                ×
+              </button>
+            </Tooltip>
           </div>
         ))}
       </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTimelineStore, useCurrentCharacterEvents, TimelineEvent } from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
+import { Tooltip } from './Tooltip';
 
 function formatTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -31,15 +32,16 @@ function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (event
           {event.description}
         </p>
       </div>
-      <button
-        onClick={() => onDelete(event.id)}
-        onMouseDown={(e) => e.stopPropagation()}
-        className="self-center w-5 h-5 flex items-center justify-center rounded-button text-theme-muted hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-        title="Delete event"
-        aria-label="Delete event"
-      >
-        ×
-      </button>
+      <Tooltip content="Delete event">
+        <button
+          onClick={() => onDelete(event.id)}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="self-center w-5 h-5 flex items-center justify-center rounded-button text-theme-muted hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+          aria-label="Delete event"
+        >
+          ×
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -70,38 +72,41 @@ export default function TimelineSidebar() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b-[length:var(--border-width)] border-theme-border bg-theme-background/50 flex-shrink-0">
         <span className="font-bold text-xs text-theme-ink font-heading">Timeline</span>
-        <button
-          onClick={() => setOpen(false)}
-          className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors text-sm"
-          title="Close"
-        >
-          ✕
-        </button>
+        <Tooltip content="Close">
+          <button
+            onClick={() => setOpen(false)}
+            className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors text-sm"
+          >
+            ✕
+          </button>
+        </Tooltip>
       </div>
 
       {/* Controls */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-theme-border/50 flex-shrink-0 gap-1">
         <div className="flex items-center gap-1">
         {/* Order toggle */}
-        <button
-          onClick={toggleOrder}
-          className="flex items-center gap-1 text-xs text-theme-ink font-body px-1.5 py-0.5 rounded-button border border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper transition-colors"
-          title={orderNewestFirst ? 'Newest first' : 'Oldest first'}
-        >
-          {orderNewestFirst ? '↑ Newest first' : '↓ Oldest first'}
-        </button>
+        <Tooltip content={orderNewestFirst ? 'Newest first' : 'Oldest first'}>
+          <button
+            onClick={toggleOrder}
+            className="flex items-center gap-1 text-xs text-theme-ink font-body px-1.5 py-0.5 rounded-button border border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper transition-colors"
+          >
+            {orderNewestFirst ? '↑ Newest first' : '↓ Oldest first'}
+          </button>
+        </Tooltip>
         {/* Show formulas toggle */}
-        <button
-          onClick={toggleShowFormulas}
-          className={`flex items-center gap-1 text-xs font-body px-1.5 py-0.5 rounded-button border transition-colors ${
-            showFormulas
-              ? 'text-theme-ink border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper'
-              : 'text-theme-muted border-theme-border/30 opacity-50 hover:opacity-100'
-          }`}
-          title={showFormulas ? 'Hide formula events' : 'Show formula events'}
-        >
-          <span className="italic font-semibold" style={{ fontSize: '0.65rem' }}>fx</span>
-        </button>
+        <Tooltip content={showFormulas ? 'Hide formula events' : 'Show formula events'}>
+          <button
+            onClick={toggleShowFormulas}
+            className={`flex items-center gap-1 text-xs font-body px-1.5 py-0.5 rounded-button border transition-colors ${
+              showFormulas
+                ? 'text-theme-ink border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper'
+                : 'text-theme-muted border-theme-border/30 opacity-50 hover:opacity-100'
+            }`}
+          >
+            <span className="italic font-semibold" style={{ fontSize: '0.65rem' }}>fx</span>
+          </button>
+        </Tooltip>
         </div>
         {/* Clear */}
         {confirmingClear ? (
@@ -123,13 +128,14 @@ export default function TimelineSidebar() {
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirmingClear(true)}
-            className="text-xs text-theme-muted font-body px-1.5 py-0.5 rounded-button border border-theme-border/50 hover:bg-red-500 hover:text-white hover:border-red-600 transition-colors"
-            title="Clear timeline"
-          >
-            Clear
-          </button>
+          <Tooltip content="Clear timeline">
+            <button
+              onClick={() => setConfirmingClear(true)}
+              className="text-xs text-theme-muted font-body px-1.5 py-0.5 rounded-button border border-theme-border/50 hover:bg-red-500 hover:text-white hover:border-red-600 transition-colors"
+            >
+              Clear
+            </button>
+          </Tooltip>
         )}
       </div>
 

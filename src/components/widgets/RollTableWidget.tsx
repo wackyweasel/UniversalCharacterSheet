@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -103,18 +104,20 @@ export default function RollTableWidget({ widget, height }: Props) {
       )}
       
       {/* Roll Button */}
-      <button
-        onClick={rollTable}
-        onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
-          isRolling 
-            ? 'bg-theme-muted animate-pulse text-theme-paper' 
-            : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-        }`}
-        disabled={isRolling}
-      >
-        Roll Table
-      </button>
+      <Tooltip content="Roll a random result from the table">
+        <button
+          onClick={rollTable}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
+            isRolling 
+              ? 'bg-theme-muted animate-pulse text-theme-paper' 
+              : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+          }`}
+          disabled={isRolling}
+        >
+          Roll Table
+        </button>
+      </Tooltip>
 
       {/* Result Display */}
       {rolledResult && (

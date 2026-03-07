@@ -5,6 +5,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { WidgetType } from '../types';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { Tooltip } from './Tooltip';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'CHECKBOX', label: 'Checklist' },
@@ -120,19 +121,21 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
         )}
         
         {/* Close button - top right corner */}
-        <button
-          data-tutorial="close-toolbox"
-          onClick={() => {
-            onToggle();
-            // If tutorial is on step 9 (close-toolbox), advance
-            if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
-              advanceTutorial();
-            }
-          }}
-          className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-        >
-          ✕
-        </button>
+        <Tooltip content="Close toolbox">
+          <button
+            data-tutorial="close-toolbox"
+            onClick={() => {
+              onToggle();
+              // If tutorial is on step 9 (close-toolbox), advance
+              if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
+                advanceTutorial();
+              }
+            }}
+            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+          >
+            ✕
+          </button>
+        </Tooltip>
         
         {/* Sidebar content */}
         <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 px-1">
@@ -225,16 +228,17 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                         </button>
                       </div>
                     ) : (
-                      <button
-                        className="ml-2 w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmingDeleteId(template.id);
-                        }}
-                        title="Delete template"
-                      >
-                        ×
-                      </button>
+                      <Tooltip content="Delete template">
+                        <button
+                          className="ml-2 w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmingDeleteId(template.id);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
                 );

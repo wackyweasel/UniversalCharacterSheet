@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { DisplayNumber } from '../../types';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
+import { TooltipEditButton } from './TooltipEditButton';
+import { Tooltip } from '../Tooltip';
 
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   const { label, displayNumbers = [], displayLayout = 'horizontal' } = widget.data;
@@ -175,14 +177,15 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             placeholder="Stats"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -248,19 +251,20 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                 renderRow={({ controls }) => (
                   <div className="flex items-center gap-2">
                     {/* Drag Handle - works with both touch and mouse */}
-                    <div 
-                      className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
-                      title="Drag to reorder"
-                      draggable
-                      onDragStart={(e) => handleNativeDragStart(e, idx)}
-                      onDragEnd={handleNativeDragEnd}
-                      onPointerDown={(e) => handlePointerDown(e, idx)}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerUp}
-                    >
-                      ⋮⋮
-                    </div>
+                    <Tooltip content="Drag to reorder">
+                      <div 
+                        className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
+                        draggable
+                        onDragStart={(e) => handleNativeDragStart(e, idx)}
+                        onDragEnd={handleNativeDragEnd}
+                        onPointerDown={(e) => handlePointerDown(e, idx)}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                      >
+                        ⋮⋮
+                      </div>
+                    </Tooltip>
                     <input
                       className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                       value={item.label}
@@ -268,6 +272,15 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       placeholder="Label"
                     />
                     {controls}
+                    <TooltipEditButton
+                      tooltip={item.tooltip}
+                      itemName={item.label}
+                      onSave={(t) => {
+                        const updated = [...displayNumbers] as DisplayNumber[];
+                        updated[idx] = { ...updated[idx], tooltip: t };
+                        updateData({ displayNumbers: updated });
+                      }}
+                    />
                     <button
                       onClick={() => removeItem(idx)}
                       className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"

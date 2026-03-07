@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, TimedEffect } from '../../types';
+import { Tooltip } from '../Tooltip';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 
@@ -227,27 +228,29 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <span className={`flex-shrink-0 text-xs font-body ${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
               {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
             </span>
-            <button 
-              onClick={() => {
-                const updated = [...timedEffects];
-                updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
-                updateWidgetData(widget.id, { timedEffects: updated });
-                addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Reset: ${effect.name}`, '\ud83d\udd04');
-              }}
-              className={`flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
-              onMouseDown={(e) => e.stopPropagation()}
-              title="Reset to initial duration"
-            >
-              ↺
-            </button>
-            <button 
-              onClick={() => removeEffect(idx)}
-              className={`flex-shrink-0 px-2 py-0.5 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
-              onMouseDown={(e) => e.stopPropagation()}
-              title="Remove effect"
-            >
-              ×
-            </button>
+            <Tooltip content="Reset to initial duration">
+              <button 
+                onClick={() => {
+                  const updated = [...timedEffects];
+                  updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
+                  updateWidgetData(widget.id, { timedEffects: updated });
+                  addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Reset: ${effect.name}`, '\ud83d\udd04');
+                }}
+                className={`flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                ↺
+              </button>
+            </Tooltip>
+            <Tooltip content="Remove effect">
+              <button 
+                onClick={() => removeEffect(idx)}
+                className={`flex-shrink-0 px-2 py-0.5 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                ×
+              </button>
+            </Tooltip>
           </div>
         ))}
         {timedEffects.length === 0 && !showAddForm && (
@@ -257,30 +260,36 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
 
       {/* Action Buttons Row - Always visible */}
       <div className={`flex ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          + Add Effect
-        </button>
+        <Tooltip content="Track a new timed effect">
+          <button
+            onClick={() => setShowAddForm(true)}
+            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            + Add Effect
+          </button>
+        </Tooltip>
         {timedEffects.length > 0 && (
           roundMode ? (
-            <button
-              onClick={passRound}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ⏱ Pass Round
-            </button>
+            <Tooltip content="Advance all active effects by one round">
+              <button
+                onClick={passRound}
+                className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                ⏱ Pass Round
+              </button>
+            </Tooltip>
           ) : (
-            <button
-              onClick={() => setShowPassTime(true)}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              ⏱ Pass Time
-            </button>
+            <Tooltip content="Advance all active effects by a chosen time amount">
+              <button
+                onClick={() => setShowPassTime(true)}
+                className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                ⏱ Pass Time
+              </button>
+            </Tooltip>
           )
         )}
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { InitiativeParticipant } from '../../types';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
+import { Tooltip } from '../Tooltip';
 
 export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -397,20 +398,22 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                         )}
                       </span>
                     )}
-                    <button
-                      onClick={() => startEditing(index)}
-                      className="text-theme-muted hover:text-theme-ink text-sm"
-                      title="Edit"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={() => removeParticipant(index)}
-                      className="text-theme-muted hover:text-red-500 text-sm"
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
+                    <Tooltip content="Edit">
+                      <button
+                        onClick={() => startEditing(index)}
+                        className="text-theme-muted hover:text-theme-ink text-sm"
+                      >
+                        ✎
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Remove">
+                      <button
+                        onClick={() => removeParticipant(index)}
+                        className="text-theme-muted hover:text-red-500 text-sm"
+                      >
+                        ✕
+                      </button>
+                    </Tooltip>
                   </>
                 )}
               </div>

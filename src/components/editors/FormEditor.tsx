@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { FormItem } from '../../types';
 import { EditorProps } from './types';
 import { useTutorialStore, TUTORIAL_STEPS } from '../../store/useTutorialStore';
+import { TooltipEditButton } from './TooltipEditButton';
+import { Tooltip } from '../Tooltip';
 
 export function FormEditor({ widget, updateData }: EditorProps) {
   const { label, formItems = [] } = widget.data;
@@ -184,14 +186,15 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             placeholder="Form Fields"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -225,19 +228,20 @@ export function FormEditor({ widget, updateData }: EditorProps) {
               onDrop={(e) => handleNativeDrop(e, idx)}
             >
               {/* Drag Handle - works with both touch and mouse */}
-              <div 
-                className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
-                title="Drag to reorder"
-                draggable
-                onDragStart={(e) => handleNativeDragStart(e, idx)}
-                onDragEnd={handleNativeDragEnd}
-                onPointerDown={(e) => handlePointerDown(e, idx)}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                ⋮⋮
-              </div>
+              <Tooltip content="Drag to reorder">
+                <div 
+                  className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
+                  draggable
+                  onDragStart={(e) => handleNativeDragStart(e, idx)}
+                  onDragEnd={handleNativeDragEnd}
+                  onPointerDown={(e) => handlePointerDown(e, idx)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                >
+                  ⋮⋮
+                </div>
+              </Tooltip>
               <input
                 className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={item.name}
@@ -250,6 +254,15 @@ export function FormEditor({ widget, updateData }: EditorProps) {
                 value={item.value}
                 onChange={(e) => updateItemValue(idx, e.target.value)}
                 placeholder="Value"
+              />
+              <TooltipEditButton
+                tooltip={item.tooltip}
+                itemName={item.name}
+                onSave={(t) => {
+                  const updated = [...formItems] as FormItem[];
+                  updated[idx] = { ...updated[idx], tooltip: t };
+                  updateData({ formItems: updated });
+                }}
               />
               <button
                 onClick={() => removeItem(idx)}

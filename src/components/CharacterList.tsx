@@ -8,6 +8,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
 import { Character } from '../types';
+import { Tooltip } from './Tooltip';
 import { getPresetNames, getPreset } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 
@@ -354,67 +355,71 @@ export default function CharacterList() {
           {/* Desktop buttons - visible on larger screens */}
           <div className="hidden sm:flex items-center gap-2">
             {/* Gallery Button */}
-            <button
-              onClick={() => setShowGallery(true)}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                darkMode 
-                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Community Gallery"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              <span>Gallery</span>
-            </button>
+            <Tooltip content="Community Gallery">
+              <button
+                onClick={() => setShowGallery(true)}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  darkMode 
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                <span>Gallery</span>
+              </button>
+            </Tooltip>
             {/* Tutorial Button */}
-            <button
-              onClick={startTutorial}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                darkMode 
-                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Start Tutorial"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <span>Tutorial</span>
-            </button>
+            <Tooltip content="Start Tutorial">
+              <button
+                onClick={startTutorial}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  darkMode 
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span>Tutorial</span>
+              </button>
+            </Tooltip>
             {/* Backup Button */}
-            <button
-              onClick={() => setShowBackupModal(true)}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                darkMode 
-                  ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Backup & Restore"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              <span>Backup</span>
-            </button>
+            <Tooltip content="Backup &amp; Restore">
+              <button
+                onClick={() => setShowBackupModal(true)}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  darkMode 
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                <span>Backup</span>
+              </button>
+            </Tooltip>
           </div>
           
           {/* Menu button - always visible */}
           <div className="relative" ref={headerMenuRef}>
-            <button
-              onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-              className={`flex items-center justify-center px-2 py-2 rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                darkMode 
-                  ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
-                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper border-[length:var(--border-width)] border-theme-border'
-              }`}
-              title="Menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            <Tooltip content="Menu">
+              <button
+                onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+                className={`flex items-center justify-center px-2 py-2 rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  darkMode 
+                    ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
+                    : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper border-[length:var(--border-width)] border-theme-border'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </Tooltip>
             
             {/* Dropdown menu */}
             {showHeaderMenu && (
@@ -630,32 +635,33 @@ export default function CharacterList() {
                 
                 {/* Dropdown Menu */}
                 <div className={`absolute top-0 right-0 ${openDropdown === char.id ? 'z-50' : 'z-10'}`} ref={openDropdown === char.id ? dropdownRef : undefined}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenDropdown(openDropdown === char.id ? null : char.id);
-                    }}
-                    className="p-1.5 rounded transition-colors"
-                    style={{ 
-                      color: 'var(--card-muted)',
-                      backgroundColor: 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                      e.currentTarget.style.color = 'var(--card-background)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--card-muted)';
-                    }}
-                    title="Options"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
+                  <Tooltip content="Options">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDropdown(openDropdown === char.id ? null : char.id);
+                      }}
+                      className="p-1.5 rounded transition-colors"
+                      style={{ 
+                        color: 'var(--card-muted)',
+                        backgroundColor: 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                        e.currentTarget.style.color = 'var(--card-background)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--card-muted)';
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <circle cx="12" cy="19" r="2" />
+                      </svg>
+                    </button>
+                  </Tooltip>
                   
                   {openDropdown === char.id && (
                     <div 
@@ -1205,24 +1211,25 @@ export default function CharacterList() {
                             >
                               {preset.name}
                             </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPresetToDelete(preset);
-                                setShowPresetDropdown(false);
-                              }}
-                              className={`px-3 py-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors active:bg-red-500/20 ${
-                                darkMode 
-                                  ? 'text-white/40 hover:text-red-400' 
-                                  : 'text-theme-muted hover:text-red-500'
-                              }`}
-                              title="Delete preset"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            <Tooltip content="Delete preset">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPresetToDelete(preset);
+                                  setShowPresetDropdown(false);
+                                }}
+                                className={`px-3 py-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors active:bg-red-500/20 ${
+                                  darkMode 
+                                    ? 'text-white/40 hover:text-red-400' 
+                                    : 'text-theme-muted hover:text-red-500'
+                                }`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </Tooltip>
                           </div>
                         ))}
                       </>
