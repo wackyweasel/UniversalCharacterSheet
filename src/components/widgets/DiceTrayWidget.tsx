@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Widget, CustomDie } from '../../types';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -360,27 +361,27 @@ export default function DiceTrayWidget({ widget }: Props) {
         {(availableDice as (number | CustomDie)[]).map((die, index) => {
           if (isCustomDie(die)) {
             return (
-              <button
-                key={`custom-${die.name}-${index}`}
-                onClick={() => addDieToPool(die)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
-                title={`Add ${die.name} (${die.faces.length} faces: ${die.faces.slice(0, 3).join(', ')}${die.faces.length > 3 ? '...' : ''})`}
-              >
-                {die.name}
-              </button>
+              <Tooltip key={`custom-${die.name}-${index}`} content={`Add ${die.name} (${die.faces.length} faces: ${die.faces.slice(0, 3).join(', ')}${die.faces.length > 3 ? '...' : ''})` as string}>
+                <button
+                  onClick={() => addDieToPool(die)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
+                >
+                  {die.name}
+                </button>
+              </Tooltip>
             );
           } else {
             return (
-              <button
-                key={`standard-${die}`}
-                onClick={() => addDieToPool(die)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
-                title={`Add d${die}`}
-              >
-                d{die}
-              </button>
+              <Tooltip key={`standard-${die}`} content={`Add d${die}`}>
+                <button
+                  onClick={() => addDieToPool(die)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
+                >
+                  d{die}
+                </button>
+              </Tooltip>
             );
           }
         })}
@@ -388,41 +389,46 @@ export default function DiceTrayWidget({ widget }: Props) {
 
       {/* Roll and Clear Buttons */}
       <div className="flex gap-1 justify-center flex-shrink-0 mt-2">
-          <button
-            onClick={rollDice}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-1 font-body ${
-              isRolling
-                ? 'bg-theme-muted animate-pulse text-theme-paper cursor-not-allowed'
-                : dicePool.length === 0
-                  ? 'bg-theme-paper text-theme-ink cursor-not-allowed'
-                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-            }`}
-            disabled={isRolling || dicePool.length === 0}
-          >
-            {dicePool.length > 0 ? `Roll ${buildPoolNotation()}` : 'Roll'}
-          </button>
-          {dicePool.length > 0 && (
+          <Tooltip content={dicePool.length === 0 ? 'Add dice to the tray first' : `Roll ${buildPoolNotation()}`}>
             <button
-              onClick={clearPool}
+              onClick={rollDice}
               onMouseDown={(e) => e.stopPropagation()}
-              className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button font-body`}
+              className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-1 font-body ${
+                isRolling
+                  ? 'bg-theme-muted animate-pulse text-theme-paper cursor-not-allowed'
+                  : dicePool.length === 0
+                    ? 'bg-theme-paper text-theme-ink cursor-not-allowed'
+                    : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+              }`}
+              disabled={isRolling || dicePool.length === 0}
             >
-              Clear
+              {dicePool.length > 0 ? `Roll ${buildPoolNotation()}` : 'Roll'}
             </button>
+          </Tooltip>
+          {dicePool.length > 0 && (
+            <Tooltip content="Remove all dice from the tray">
+              <button
+                onClick={clearPool}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button font-body`}
+              >
+                Clear
+              </button>
+            </Tooltip>
           )}
           {dicePool.length === 0 && lastRolledPool.length > 0 && (
-            <button
-              onClick={rerollDice}
-              onMouseDown={(e) => e.stopPropagation()}
-              className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
-              title="Reroll last dice"
-              disabled={isRolling}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
+            <Tooltip content="Reroll last dice">
+              <button
+                onClick={rerollDice}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
+                disabled={isRolling}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </Tooltip>
           )}
       </div>
 
@@ -440,6 +446,31 @@ export default function DiceTrayWidget({ widget }: Props) {
                 {result.dice.map((d, i) => (
                   <span key={d.id} className="inline-flex items-center">
                     {i > 0 && <span className="mx-0.5">+</span>}
+                    <Tooltip content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
+                      <button
+                        onClick={() => rerollSingleDie(i)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        disabled={rerollingDieId !== null}
+                        className={`
+                          px-1 py-0.5 rounded transition-all
+                          hover:bg-theme-accent hover:text-theme-paper
+                          focus:outline-none focus:ring-1 focus:ring-theme-accent
+                          ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
+                          cursor-pointer
+                        `}
+                      >
+                        {d.roll}
+                      </button>
+                    </Tooltip>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Individual dice for showIndividualResults mode - also clickable */}
+            {showIndividualResults && (
+              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5 mt-1`}>
+                {result.dice.map((d, i) => (
+                  <Tooltip key={d.id} content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
                     <button
                       onClick={() => rerollSingleDie(i)}
                       onMouseDown={(e) => e.stopPropagation()}
@@ -451,36 +482,12 @@ export default function DiceTrayWidget({ widget }: Props) {
                         ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
                         cursor-pointer
                       `}
-                      title={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}
                     >
-                      {d.roll}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
                     </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {/* Individual dice for showIndividualResults mode - also clickable */}
-            {showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5 mt-1`}>
-                {result.dice.map((d, i) => (
-                  <button
-                    key={d.id}
-                    onClick={() => rerollSingleDie(i)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    disabled={rerollingDieId !== null}
-                    className={`
-                      px-1 py-0.5 rounded transition-all
-                      hover:bg-theme-accent hover:text-theme-paper
-                      focus:outline-none focus:ring-1 focus:ring-theme-accent
-                      ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
-                      cursor-pointer
-                    `}
-                    title={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </button>
+                  </Tooltip>
                 ))}
               </div>
             )}

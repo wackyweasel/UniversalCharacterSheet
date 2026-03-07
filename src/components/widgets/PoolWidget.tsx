@@ -3,6 +3,7 @@ import { Widget, PoolResource } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -60,7 +61,7 @@ const getClassNameForStyle = (filled: boolean, style: string, symbolSize: string
   return `${base} ${filled ? 'text-theme-ink' : 'text-theme-muted'}`;
 };
 
-export default function PoolWidget({ widget, height }: Props) {
+export default function PoolWidget({ widget, height, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -71,7 +72,8 @@ export default function PoolWidget({ widget, height }: Props) {
     poolStyle = 'dots',
     showPoolCount = true,
     poolResources = [],
-    inlineLabels = false
+    inlineLabels = false,
+    poolTooltip,
   } = widget.data;
 
   // Fixed small sizing
@@ -132,7 +134,9 @@ export default function PoolWidget({ widget, height }: Props) {
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
         <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+          {!hasMultipleResources && mode === 'play' && poolTooltip ? (
+            <Tooltip content={poolTooltip}><span>{label}</span></Tooltip>
+          ) : label}
         </div>
       )}
 
@@ -152,26 +156,30 @@ export default function PoolWidget({ widget, height }: Props) {
             <div key={idx} className={`flex flex-col ${gapClass}`}>
               {resource.name && !inlineLabels && (
                 <div className={`font-medium ${counterClass} text-theme-ink font-body`}>
-                  {resource.name}
+                  {mode === 'play' && resource.tooltip ? (
+                    <Tooltip content={resource.tooltip}><span>{resource.name}</span></Tooltip>
+                  ) : resource.name}
                 </div>
               )}
               <div className={`flex ${inlineLabels ? 'justify-between items-center' : 'flex-wrap gap-0.5 content-start items-center'}`}>
                 {resource.name && inlineLabels && (
                   <span className={`font-medium ${counterClass} text-theme-ink font-body`}>
-                    {resource.name}
+                    {mode === 'play' && resource.tooltip ? (
+                      <Tooltip content={resource.tooltip}><span>{resource.name}</span></Tooltip>
+                    ) : resource.name}
                   </span>
                 )}
                 <div className={`flex ${inlineLabels ? 'gap-0.5' : 'flex-wrap gap-0.5'}`}>
                 {Array.from({ length: resource.max }).map((_, pointIdx) => (
-                  <button
-                    key={pointIdx}
-                    onClick={() => toggleResourcePoint(idx, pointIdx)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
-                    title={resource.currentFormula ? 'Value set by formula' : (pointIdx < resource.current ? 'Click to use' : 'Click to restore')}
-                  >
-                    {getSymbolForStyle(pointIdx < resource.current, resource.style)}
-                  </button>
+                  <Tooltip key={pointIdx} content={resource.currentFormula ? 'Value set by formula' : (pointIdx < resource.current ? 'Click to use' : 'Click to restore')}>
+                    <button
+                      onClick={() => toggleResourcePoint(idx, pointIdx)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                    >
+                      {getSymbolForStyle(pointIdx < resource.current, resource.style)}
+                    </button>
+                  </Tooltip>
                 ))}
                 </div>
               </div>
@@ -202,15 +210,15 @@ export default function PoolWidget({ widget, height }: Props) {
             }}
           >
             {Array.from({ length: maxPool }).map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => togglePoint(idx)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className={`${getClassNameForStyle(idx < currentPool, poolStyle, symbolSize)} ${hasCurrentPoolFormula ? '!cursor-default hover:!scale-100' : ''}`}
-                title={hasCurrentPoolFormula ? 'Value set by formula' : (idx < currentPool ? 'Click to use' : 'Click to restore')}
-              >
-                {getSymbolForStyle(idx < currentPool, poolStyle)}
-              </button>
+              <Tooltip key={idx} content={hasCurrentPoolFormula ? 'Value set by formula' : (idx < currentPool ? 'Click to use' : 'Click to restore')}>
+                <button
+                  onClick={() => togglePoint(idx)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${getClassNameForStyle(idx < currentPool, poolStyle, symbolSize)} ${hasCurrentPoolFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                >
+                  {getSymbolForStyle(idx < currentPool, poolStyle)}
+                </button>
+              </Tooltip>
             ))}
           </div>
 

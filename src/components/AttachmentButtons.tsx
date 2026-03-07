@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
+import { Tooltip } from './Tooltip';
 
 interface Props {
   widgets: Widget[];
@@ -313,35 +314,35 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
         };
         
         return (
-          <button
-            key={`${edge.widget1Id}-${edge.widget2Id}-${index}`}
-            data-attach-widget-ids={`${edge.widget1Id},${edge.widget2Id}`}
-            data-touch-camera-ignore="true"
-            className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all transform -translate-x-1/2 -translate-y-1/2 hover:scale-125 ${
-              edge.isAttached 
-                ? 'bg-green-500 hover:bg-red-500 text-white' 
-                : 'bg-blue-500 hover:bg-green-500 text-white'
-            }`}
-            style={{
-              left: `${edge.x}px`,
-              top: `${edge.y}px`,
-              zIndex: 100,
-            }}
-            onClick={() => handleClick(edge)}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleClick(edge);
-            }}
-            title={edge.isAttached ? 'Click to detach widgets' : 'Click to attach widgets'}
-          >
-            {getArrow()}
-          </button>
+          <Tooltip key={`${edge.widget1Id}-${edge.widget2Id}-${index}`} content={edge.isAttached ? 'Click to detach widgets' : 'Click to attach widgets'}>
+            <button
+              data-attach-widget-ids={`${edge.widget1Id},${edge.widget2Id}`}
+              data-touch-camera-ignore="true"
+              className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all transform -translate-x-1/2 -translate-y-1/2 hover:scale-125 ${
+                edge.isAttached 
+                  ? 'bg-green-500 hover:bg-red-500 text-white' 
+                  : 'bg-blue-500 hover:bg-green-500 text-white'
+              }`}
+              style={{
+                left: `${edge.x}px`,
+                top: `${edge.y}px`,
+                zIndex: 100,
+              }}
+              onClick={() => handleClick(edge)}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClick(edge);
+              }}
+            >
+              {getArrow()}
+            </button>
+          </Tooltip>
         );
       })}
     </>

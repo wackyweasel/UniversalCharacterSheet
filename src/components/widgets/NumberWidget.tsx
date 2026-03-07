@@ -1,20 +1,15 @@
 import { useState, useMemo } from 'react';
-import { Widget } from '../../types';
+import { Widget, NumberItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
-}
-
-interface NumberItem {
-  name: string;
-  value: number;
-  valueFormula?: string;
 }
 
 export default function NumberWidget({ widget, mode, height }: Props) {
@@ -116,19 +111,23 @@ export default function NumberWidget({ widget, mode, height }: Props) {
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
             <span className={`flex-1 ${itemClass} text-theme-ink font-body truncate`}>
-              {item.name}
+              {mode === 'play' && item.tooltip ? (
+                <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
+              ) : item.name}
             </span>
 
             {/* Value Controls - fixed width container for alignment */}
             <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${controlsSectionWidth}`}>
-              <button
-                onClick={() => adjustItemValue(idx, -1)}
-                onMouseDown={(e) => e.stopPropagation()}
-                disabled={!!item.valueFormula}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-              >
-                -
-              </button>
+              <Tooltip content="Decrease value">
+                <button
+                  onClick={() => adjustItemValue(idx, -1)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  disabled={!!item.valueFormula}
+                  className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+                >
+                  -
+                </button>
+              </Tooltip>
               {editingIndex === idx ? (
                 <input
                   type="text"
@@ -155,14 +154,16 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                   )}
                 </span>
               )}
-              <button
-                onClick={() => adjustItemValue(idx, 1)}
-                onMouseDown={(e) => e.stopPropagation()}
-                disabled={!!item.valueFormula}
-                className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-              >
-                +
-              </button>
+              <Tooltip content="Increase value">
+                <button
+                  onClick={() => adjustItemValue(idx, 1)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  disabled={!!item.valueFormula}
+                  className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+                >
+                  +
+                </button>
+              </Tooltip>
             </div>
           </div>
         ))}

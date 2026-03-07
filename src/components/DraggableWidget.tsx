@@ -31,6 +31,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import WidgetEditModal from './WidgetEditModal';
+import { Tooltip } from './Tooltip';
 
 interface Props {
   widget: Widget;
@@ -653,35 +654,36 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
           {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM')) && (tutorialStep === null || tutorialStep >= 16) && (
             <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
-              <button
-                data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
-                className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${tutorialStep === 16 && widget.type === 'FORM' ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
-                  if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
-                    advanceTutorial();
-                  }
-                  setShowDropdown(!showDropdown);
-                  if (showDropdown) {
-                    setShowDeleteConfirm(false);
-                    setShowTemplateNameInput(false);
-                    setTemplateName('');
-                    setShowMoveToSheet(false);
-                    // Reset group action states
-                    setShowGroupDeleteConfirm(false);
-                    setShowGroupTemplateNameInput(false);
-                    setGroupTemplateName('');
-                    setShowGroupMoveToSheet(false);
-                    setDropdownTab('widget');
-                  }
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                title="Widget options"
-              >
-                ⋮
-              </button>
+              <Tooltip content="Widget options">
+                <button
+                  data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
+                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${tutorialStep === 16 && widget.type === 'FORM' ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
+                    if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
+                      advanceTutorial();
+                    }
+                    setShowDropdown(!showDropdown);
+                    if (showDropdown) {
+                      setShowDeleteConfirm(false);
+                      setShowTemplateNameInput(false);
+                      setTemplateName('');
+                      setShowMoveToSheet(false);
+                      // Reset group action states
+                      setShowGroupDeleteConfirm(false);
+                      setShowGroupTemplateNameInput(false);
+                      setGroupTemplateName('');
+                      setShowGroupMoveToSheet(false);
+                      setDropdownTab('widget');
+                    }
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
+                  ⋮
+                </button>
+              </Tooltip>
               
               {/* Dropdown Menu with Tabs */}
               {showDropdown && (
@@ -1135,18 +1137,19 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Print Settings Button - visible on hover in print mode for widgets with print settings */}
           {mode === 'print' && hasPrintSettings && (showControls || showPrintSettings) && (
             <div className="absolute -top-3 -right-3 z-[9999]" ref={printSettingsRef} data-print-hide="true">
-              <button
-                className="w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPrintSettings(!showPrintSettings);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                title="Print settings"
-              >
-                ⚙️
-              </button>
+              <Tooltip content="Print settings">
+                <button
+                  className="w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPrintSettings(!showPrintSettings);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
+                  ⚙️
+                </button>
+              </Tooltip>
               
               {/* Print Settings Dropdown */}
               {showPrintSettings && (
@@ -1186,40 +1189,42 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
           {/* Locked overlay - blocks interactions with widget content in play mode when locked */}
           {mode === 'play' && widget.locked && (
-            <div 
-              className="absolute inset-0 z-40 cursor-not-allowed"
-              style={borderRadiusStyle}
-              title="This widget is locked"
-            >
-              {/* Small lock indicator in corner */}
-              <div className="absolute top-1 right-1 text-theme-ink">
-                <svg className="w-2 h-2" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+            <Tooltip content="This widget is locked">
+              <div 
+                className="absolute inset-0 z-40 cursor-not-allowed"
+                style={borderRadiusStyle}
+              >
+                {/* Small lock indicator in corner */}
+                <div className="absolute top-1 right-1 text-theme-ink">
+                  <svg className="w-2 h-2" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                </div>
               </div>
-            </div>
+            </Tooltip>
           )}
 
           {/* Resize Handle - only visible in edit mode when hovered/selected */}
           {mode === 'edit' && showControls && (
-            <div
-              className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
-              onMouseDown={handleResizeStart}
-              onTouchStart={handleResizeStart}
-              title="Drag to resize"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                className="text-theme-muted hover:text-theme-ink transition-colors"
+            <Tooltip content="Drag to resize">
+              <div
+                className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+                onMouseDown={handleResizeStart}
+                onTouchStart={handleResizeStart}
               >
-                <path
-                  d="M10 2L2 10M10 6L6 10M10 10L10 10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  className="text-theme-muted hover:text-theme-ink transition-colors"
+                >
+                  <path
+                    d="M10 2L2 10M10 6L6 10M10 10L10 10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            </Tooltip>
           )}
 
           <div ref={contentRef} className="h-full overflow-hidden relative z-10 pt-1 pl-1">

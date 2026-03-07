@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -745,29 +746,30 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
       {mode !== 'print' && (
         <div className="flex gap-1 justify-center flex-wrap flex-shrink-0 px-1">
           {tools.map(({ tool, icon, label: toolLabel }) => (
-            <button
-              key={tool}
-              onClick={() => handleToolSelect(tool)}
-              onMouseDown={(e) => e.stopPropagation()}
-              className={`p-1 text-xs border border-theme-border rounded-button transition-all ${
-                currentTool === tool && tool !== 'clearAll'
-                  ? 'bg-theme-accent text-theme-paper'
-                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title={toolLabel}
-            >
-              {icon}
-            </button>
+            <Tooltip key={tool} content={toolLabel}>
+              <button
+                onClick={() => handleToolSelect(tool)}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`p-1 text-xs border border-theme-border rounded-button transition-all ${
+                  currentTool === tool && tool !== 'clearAll'
+                    ? 'bg-theme-accent text-theme-paper'
+                    : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                {icon}
+              </button>
+            </Tooltip>
           ))}
           {undoHistory.length > 0 && (
-            <button
-              onClick={undoLastShape}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-              title="Undo"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-            </button>
+            <Tooltip content="Undo">
+              <button
+                onClick={undoLastShape}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+              </button>
+            </Tooltip>
           )}
         </div>
       )}
@@ -793,19 +795,19 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
             {/* Arrow cross */}
             <div className="grid grid-cols-3 gap-0.5">
               <div />
-              <button onClick={panUp} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Up">▲</button>
+              <Tooltip content="Pan Up"><button onClick={panUp} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">▲</button></Tooltip>
               <div />
-              <button onClick={panLeft} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Left">◀</button>
-              <button onClick={resetView} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Reset View">⟲</button>
-              <button onClick={panRight} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Right">▶</button>
+              <Tooltip content="Pan Left"><button onClick={panLeft} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">◀</button></Tooltip>
+              <Tooltip content="Reset View"><button onClick={resetView} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">⟲</button></Tooltip>
+              <Tooltip content="Pan Right"><button onClick={panRight} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">▶</button></Tooltip>
               <div />
-              <button onClick={panDown} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Pan Down">▼</button>
+              <Tooltip content="Pan Down"><button onClick={panDown} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">▼</button></Tooltip>
               <div />
             </div>
             {/* Zoom vertical */}
             <div className="flex flex-col gap-0.5">
-              <button onClick={zoomIn} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Zoom In">+</button>
-              <button onClick={zoomOut} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper" title="Zoom Out">−</button>
+              <Tooltip content="Zoom In"><button onClick={zoomIn} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">+</button></Tooltip>
+              <Tooltip content="Zoom Out"><button onClick={zoomOut} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">−</button></Tooltip>
             </div>
           </div>
         )}

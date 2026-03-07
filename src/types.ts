@@ -24,6 +24,7 @@ export type WidgetType =
 export interface ToggleItem {
   name: string;
   active: boolean;
+  tooltip?: string;
 }
 
 export interface RollTableItem {
@@ -66,6 +67,7 @@ export interface TableRow {
 export interface CheckboxItem {
   name: string;
   checked: boolean;
+  tooltip?: string;
 }
 
 export interface ChecklistSettings {
@@ -83,6 +85,7 @@ export interface NumberItem {
   value: number;
   valueLabel?: string;
   valueFormula?: string;
+  tooltip?: string;
 }
 
 export interface DisplayNumber {
@@ -90,11 +93,13 @@ export interface DisplayNumber {
   value: number;
   valueLabel?: string;
   valueFormula?: string;
+  tooltip?: string;
 }
 
 export interface FormItem {
   name: string;
   value: string;
+  tooltip?: string;
 }
 
 export interface DiceGroup {
@@ -120,6 +125,7 @@ export interface PoolResource {
   maxFormula?: string;
   currentLabel?: string;
   currentFormula?: string;
+  tooltip?: string;
 }
 
 export interface InitiativeParticipant {
@@ -183,6 +189,7 @@ export interface WidgetData {
   showPoolCount?: boolean;
   poolResources?: PoolResource[];
   inlineLabels?: boolean;
+  poolTooltip?: string;
   // Toggle Group
   toggleItems?: ToggleItem[];
   // Table

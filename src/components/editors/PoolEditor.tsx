@@ -1,6 +1,8 @@
 import { PoolResource } from '../../types';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
+import { TooltipEditButton } from './TooltipEditButton';
+import { Tooltip } from '../Tooltip';
 
 export function PoolEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -11,6 +13,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     showPoolCount = true,
     poolResources = [],
     inlineLabels = false,
+    poolTooltip,
     fieldLabels = {},
     fieldFormulas = {}
   } = widget.data;
@@ -120,14 +123,15 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             placeholder="Resource Pool"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -174,6 +178,15 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             </select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <TooltipEditButton
+              tooltip={poolTooltip}
+              itemName={label || 'pool'}
+              onSave={(t) => updateData({ poolTooltip: t })}
+            />
+            <span className="text-sm text-theme-ink">Tooltip (shown on hover in play mode)</span>
+          </div>
+
           <button
             onClick={convertToMultiple}
             className="w-full px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
@@ -193,6 +206,15 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     value={resource.name}
                     onChange={(e) => updateResource(idx, 'name', e.target.value)}
                     placeholder="Resource name"
+                  />
+                  <TooltipEditButton
+                    tooltip={resource.tooltip}
+                    itemName={resource.name}
+                    onSave={(t) => {
+                      const updated = [...poolResources];
+                      updated[idx] = { ...updated[idx], tooltip: t };
+                      updateData({ poolResources: updated });
+                    }}
                   />
                   <button
                     onClick={() => removeResource(idx)}

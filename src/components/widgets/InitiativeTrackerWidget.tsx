@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, InitiativeParticipant, InitiativeEncounterEntry } from '../../types';
 import { useStore } from '../../store/useStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -398,32 +399,38 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       {/* Controls - Add from pool, Add temporary, Roll Initiative */}
       <div className="flex flex-wrap gap-1 mb-2">
         {/* New Encounter - resets to all pool participants */}
-        <button
-          onClick={newEncounter}
-          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
-        >
-          Reset
-        </button>
+        <Tooltip content="Reset to all pool participants with no roll values">
+          <button
+            onClick={newEncounter}
+            className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+          >
+            Reset
+          </button>
+        </Tooltip>
 
         {/* Add Temporary */}
-        <button
-          onClick={() => setShowAddTempModal(true)}
-          className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
-        >
-          Add 
-        </button>
+        <Tooltip content="Add a one-off temporary participant">
+          <button
+            onClick={() => setShowAddTempModal(true)}
+            className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+          >
+            Add
+          </button>
+        </Tooltip>
 
         {/* Roll Initiative */}
         {initiativeShowRollButton && initiativeEncounter.length > 0 && (
-          <button
-            onClick={rollInitiative}
-            disabled={isRolling}
-            className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${
-              isRolling ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isRolling ? '...' : 'Roll'}
-          </button>
+          <Tooltip content="Roll initiative for all participants">
+            <button
+              onClick={rollInitiative}
+              disabled={isRolling}
+              className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${
+                isRolling ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isRolling ? '...' : 'Roll'}
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -474,15 +481,17 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                 )}
 
                 {/* Remove Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFromEncounter(entry.id);
-                  }}
-                  className={`${itemClass} hover:text-red-500 transition-colors px-1 font-body`}
-                >
-                  ×
-                </button>
+                <Tooltip content="Remove from encounter">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromEncounter(entry.id);
+                    }}
+                    className={`${itemClass} hover:text-red-500 transition-colors px-1 font-body`}
+                  >
+                    ×
+                  </button>
+                </Tooltip>
               </div>
             ))}
           </div>
@@ -492,18 +501,22 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       {/* Navigation Controls */}
       {initiativeEncounter.length > 0 && (
         <div className="flex gap-1 mt-1">
-          <button
-            onClick={goBack}
-            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
-          >
-            ◀ Back
-          </button>
-          <button
-            onClick={goNext}
-            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
-          >
-            Next ▶
-          </button>
+          <Tooltip content="Go to the previous participant">
+            <button
+              onClick={goBack}
+              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+            >
+              ◀ Back
+            </button>
+          </Tooltip>
+          <Tooltip content="Advance to the next participant">
+            <button
+              onClick={goNext}
+              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+            >
+              Next ▶
+            </button>
+          </Tooltip>
         </div>
       )}
 

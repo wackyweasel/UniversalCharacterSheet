@@ -1,20 +1,15 @@
 import { useState, useMemo } from 'react';
-import { Widget } from '../../types';
+import { Widget, DisplayNumber } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
-}
-
-interface DisplayNumber {
-  label: string;
-  value: number;
-  valueFormula?: string;
 }
 
 export default function NumberDisplayWidget({ widget, mode, width, height }: Props) {
@@ -133,7 +128,9 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
               className="text-theme-muted font-body truncate w-full text-center px-1 leading-tight"
               style={{ fontSize: `${labelFontSize}px` }}
             >
-              {item.label}
+              {mode === 'play' && item.tooltip ? (
+                <Tooltip content={item.tooltip}><span>{item.label}</span></Tooltip>
+              ) : item.label}
             </span>
           </div>
         ))}

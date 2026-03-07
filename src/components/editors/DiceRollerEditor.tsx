@@ -3,6 +3,7 @@ import { DiceGroup, CustomDie } from '../../types';
 import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
 import { LabeledNumberField } from './LabeledNumberField';
+import { Tooltip } from '../Tooltip';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -165,14 +166,15 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             placeholder="Roll Name"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -201,23 +203,25 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                   disabled={!!group.customFaces?.length}
                   title={group.customFaces?.length ? 'Faces set by custom faces' : ''}
                 />
-                <button
-                  onClick={() => openCustomFacesModal(index)}
-                  className={`px-2 py-1 border border-theme-border rounded-button text-xs hover:bg-theme-accent hover:text-theme-paper ${
-                    group.customFaces?.length ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper text-theme-ink'
-                  }`}
-                  title="Set custom faces"
-                >
-                  Custom Faces
-                </button>
-                {group.customFaces?.length ? (
+                <Tooltip content="Set custom faces">
                   <button
-                    onClick={() => clearCustomFaces(index)}
-                    className="text-orange-500 hover:text-orange-700 px-1 text-xs"
-                    title="Clear custom faces"
+                    onClick={() => openCustomFacesModal(index)}
+                    className={`px-2 py-1 border border-theme-border rounded-button text-xs hover:bg-theme-accent hover:text-theme-paper ${
+                      group.customFaces?.length ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper text-theme-ink'
+                    }`}
                   >
-                    ✕
+                    Custom Faces
                   </button>
+                </Tooltip>
+                {group.customFaces?.length ? (
+                  <Tooltip content="Clear custom faces">
+                    <button
+                      onClick={() => clearCustomFaces(index)}
+                      className="text-orange-500 hover:text-orange-700 px-1 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </Tooltip>
                 ) : null}
                 {diceGroups.length > 1 && (
                   <button

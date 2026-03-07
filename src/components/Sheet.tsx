@@ -18,6 +18,7 @@ import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
+import { Tooltip } from './Tooltip';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 
@@ -471,61 +472,71 @@ export default function Sheet() {
           
           {/* Desktop: Inline menu buttons */}
           <div className="hidden sm:flex items-center gap-1">
-            <button
-              onClick={() => selectCharacter(null)}
-              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
-            >
-              Exit
-            </button>
-            <button
-              onClick={() => setMode('edit')}
-              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              Edit Mode
-            </button>
-            <button
-              onClick={() => setMode('play')}
-              className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              Grid View
-            </button>
-            <button
-              onClick={toggleTimeline}
-              className={`h-8 px-3 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-            >
-              Timeline
-            </button>
+            <Tooltip content="Exit to character select" placement="below">
+              <button
+                onClick={() => selectCharacter(null)}
+                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
+              >
+                Exit
+              </button>
+            </Tooltip>
+            <Tooltip content="Switch to Edit Mode" placement="below">
+              <button
+                onClick={() => setMode('edit')}
+                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                Edit Mode
+              </button>
+            </Tooltip>
+            <Tooltip content="Switch to Grid View" placement="below">
+              <button
+                onClick={() => setMode('play')}
+                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                Grid View
+              </button>
+            </Tooltip>
+            <Tooltip content="Open event timeline" placement="below">
+              <button
+                onClick={toggleTimeline}
+                className={`h-8 px-3 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+              >
+                Timeline
+              </button>
+            </Tooltip>
             {/* Undo/Redo buttons */}
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canUndo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-              title="Undo (Ctrl+Z)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M3 7v6h6"/>
-                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-              </svg>
-            </button>
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canRedo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-              title="Redo (Ctrl+Y)"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M21 7v6h-6"/>
-                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-              </svg>
-            </button>
+            <Tooltip content="Undo (Ctrl+Z)" placement="below">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  canUndo 
+                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                    : 'text-theme-muted opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <path d="M3 7v6h6"/>
+                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                </svg>
+              </button>
+            </Tooltip>
+            <Tooltip content="Redo (Ctrl+Y)" placement="below">
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  canRedo 
+                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                    : 'text-theme-muted opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <path d="M21 7v6h-6"/>
+                  <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+                </svg>
+              </button>
+            </Tooltip>
           </div>
           
           {/* Character name - truncated */}
@@ -535,15 +546,17 @@ export default function Sheet() {
           
           {/* Sheet selector */}
           <div className="relative">
-            <button
-              onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-              className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
-            >
-              <span className="text-theme-ink truncate max-w-[60px]">
-                {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
-              </span>
-              <span className="text-theme-muted">▼</span>
-            </button>
+            <Tooltip content="Switch sheet" placement="left">
+              <button
+                onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
+              >
+                <span className="text-theme-ink truncate max-w-[60px]">
+                  {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+                </span>
+                <span className="text-theme-muted">▼</span>
+              </button>
+            </Tooltip>
             
             {sheetDropdownOpen && (
               <>
@@ -574,69 +587,74 @@ export default function Sheet() {
           </div>
           
           {/* Expand/Collapse buttons */}
-          <button
-            onClick={() => {
-              activeSheetWidgets.forEach(w => {
-                localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'false');
-              });
-              window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
-            }}
-            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
-            title="Expand All"
-          >
-            ▼
-          </button>
-          <button
-            onClick={() => {
-              activeSheetWidgets.forEach(w => {
-                localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'true');
-              });
-              window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
-            }}
-            className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
-            title="Collapse All"
-          >
-            ▲
-          </button>
+          <Tooltip content="Expand All" placement="below">
+            <button
+              onClick={() => {
+                activeSheetWidgets.forEach(w => {
+                  localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'false');
+                });
+                window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
+              }}
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
+            >
+              ▼
+            </button>
+          </Tooltip>
+          <Tooltip content="Collapse All" placement="below">
+            <button
+              onClick={() => {
+                activeSheetWidgets.forEach(w => {
+                  localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'true');
+                });
+                window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
+              }}
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
+            >
+              ▲
+            </button>
+          </Tooltip>
           {/* Undo/Redo buttons for mobile */}
           <div className="sm:hidden flex items-center gap-1">
-            <button
-              onClick={toggleTimeline}
-              className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              title="Timeline"
-            >
-              ⧖
-            </button>
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canUndo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-              title="Undo"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M3 7v6h6"/>
-                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-              </svg>
-            </button>
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canRedo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-              title="Redo"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M21 7v6h-6"/>
-                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-              </svg>
-            </button>
+            <Tooltip content="Timeline" placement="below">
+              <button
+                onClick={toggleTimeline}
+                className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+              >
+                ⧖
+              </button>
+            </Tooltip>
+            <Tooltip content="Undo" placement="below">
+              <button
+                onClick={undo}
+                disabled={!canUndo}
+                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  canUndo 
+                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                    : 'text-theme-muted opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <path d="M3 7v6h6"/>
+                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                </svg>
+              </button>
+            </Tooltip>
+            <Tooltip content="Redo" placement="below">
+              <button
+                onClick={redo}
+                disabled={!canRedo}
+                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  canRedo 
+                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                    : 'text-theme-muted opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                  <path d="M21 7v6h-6"/>
+                  <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+                </svg>
+              </button>
+            </Tooltip>
           </div>
         </div>
 
@@ -815,67 +833,76 @@ export default function Sheet() {
           {/* Wide screen: inline buttons */}
           <div className="hidden sm:flex items-center gap-1 shrink-0">
             {/* Exit button */}
-            <button
-              onClick={() => {
-                resetPrintSettings();
-                selectCharacter(null);
-              }}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-600 text-xs font-body hover:bg-red-600 hover:text-white transition-colors"
-            >
-              Exit
-            </button>
+            <Tooltip content="Exit to character select" placement="below">
+              <button
+                onClick={() => {
+                  resetPrintSettings();
+                  selectCharacter(null);
+                }}
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-600 text-xs font-body hover:bg-red-600 hover:text-white transition-colors"
+              >
+                Exit
+              </button>
+            </Tooltip>
             
             {/* Mode switch buttons */}
-            <button
-              onClick={() => exitPrintMode('play')}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              Play Mode
-            </button>
-            <button
-              onClick={() => exitPrintMode('edit')}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              Edit Mode
-            </button>
+            <Tooltip content="Exit print mode, go to Play Mode" placement="below">
+              <button
+                onClick={() => exitPrintMode('play')}
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                Play Mode
+              </button>
+            </Tooltip>
+            <Tooltip content="Exit print mode, go to Edit Mode" placement="below">
+              <button
+                onClick={() => exitPrintMode('edit')}
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                Edit Mode
+              </button>
+            </Tooltip>
             
             {/* Separator */}
             <div className="w-px h-6 bg-theme-border" />
             
             {/* Print options */}
-            <button
-              onClick={() => setPrinterFriendly(!printerFriendly)}
-              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                printerFriendly 
-                  ? 'bg-theme-accent text-theme-paper' 
-                  : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Use printer-friendly colors (black & white)"
-            >
-              Printer Friendly Theme
-            </button>
-            <button
-              onClick={() => setBordersDisabled(!bordersDisabled)}
-              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                bordersDisabled 
-                  ? 'bg-theme-accent text-theme-paper' 
-                  : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Hide widget borders"
-            >
-              No Borders
-            </button>
-            <button
-              onClick={() => setShadowsDisabled(!shadowsDisabled)}
-              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                shadowsDisabled 
-                  ? 'bg-theme-accent text-theme-paper' 
-                  : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-              }`}
-              title="Hide widget shadows"
-            >
-              No Shadows
-            </button>
+            <Tooltip content="Use printer-friendly colors (black &amp; white)" placement="below">
+              <button
+                onClick={() => setPrinterFriendly(!printerFriendly)}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  printerFriendly 
+                    ? 'bg-theme-accent text-theme-paper' 
+                    : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                Printer Friendly Theme
+              </button>
+            </Tooltip>
+            <Tooltip content="Hide widget borders" placement="below">
+              <button
+                onClick={() => setBordersDisabled(!bordersDisabled)}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  bordersDisabled 
+                    ? 'bg-theme-accent text-theme-paper' 
+                    : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                No Borders
+              </button>
+            </Tooltip>
+            <Tooltip content="Hide widget shadows" placement="below">
+              <button
+                onClick={() => setShadowsDisabled(!shadowsDisabled)}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  shadowsDisabled 
+                    ? 'bg-theme-accent text-theme-paper' 
+                    : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                No Shadows
+              </button>
+            </Tooltip>
           </div>
           
           {/* Spacer */}
@@ -984,114 +1011,131 @@ export default function Sheet() {
 
         {/* Wide screen: inline buttons */}
         <div className="hidden lg:flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => selectCharacter(null)}
-            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
-          >
-            Exit
-          </button>
-          <button
-            data-tutorial="edit-mode-button"
-            onClick={() => {
-              const newMode = mode === 'play' ? 'edit' : 'play';
-              setMode(newMode);
-              // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
-              if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
-                advanceTutorial();
-              }
-              // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
-              if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
-                advanceTutorial();
-              }
-            }}
-            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-          >
-            {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
-          </button>
-          <button
-            onClick={enterPrintMode}
-            className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            title="Enter print mode to print your character sheet"
-          >
-            Print Mode
-          </button>
-          {mode === 'play' && (
+          <Tooltip content="Exit to character select" placement="below">
             <button
-              onClick={() => setMode('vertical')}
+              onClick={() => selectCharacter(null)}
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
+            >
+              Exit
+            </button>
+          </Tooltip>
+          <Tooltip content={mode === 'play' ? 'Switch to Edit Mode' : 'Switch to Play Mode'} placement="below">
+            <button
+              data-tutorial="edit-mode-button"
+              onClick={() => {
+                const newMode = mode === 'play' ? 'edit' : 'play';
+                setMode(newMode);
+                // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
+                if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
+                  advanceTutorial();
+                }
+                // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
+                if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
+                  advanceTutorial();
+                }
+              }}
+              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            >
+              {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
+            </button>
+          </Tooltip>
+          <Tooltip content="Enter print mode to print your character sheet" placement="below">
+            <button
+              onClick={enterPrintMode}
               className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              Vertical View
+              Print Mode
             </button>
+          </Tooltip>
+          {mode === 'play' && (
+            <Tooltip content="Switch to single-column Vertical View" placement="below">
+              <button
+                onClick={() => setMode('vertical')}
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                Vertical View
+              </button>
+            </Tooltip>
           )}
           {mode === 'play' && (
-            <button
-              onClick={toggleTimeline}
-              className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-            >
-              Timeline
-            </button>
+            <Tooltip content="Open event timeline" placement="below">
+              <button
+                onClick={toggleTimeline}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+              >
+                Timeline
+              </button>
+            </Tooltip>
           )}
           {mode === 'edit' && (
             <>
-              <button
-                data-tutorial="add-widget-button"
-                onClick={() => {
-                  const wasCollapsed = sidebarCollapsed;
-                  setSidebarCollapsed(!sidebarCollapsed);
-                  // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
-                  if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
-                    advanceTutorial();
-                  }
-                }}
-                className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 4 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-              >
-                {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
-              </button>
-              <button
-                onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-              >
-                Change Theme
-              </button>
-              <button
-                onClick={() => setShowAutoStackConfirm(true)}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-              >
-                Auto Stack
-              </button>
+              <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+                <button
+                  data-tutorial="add-widget-button"
+                  onClick={() => {
+                    const wasCollapsed = sidebarCollapsed;
+                    setSidebarCollapsed(!sidebarCollapsed);
+                    // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
+                    if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
+                      advanceTutorial();
+                    }
+                  }}
+                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 4 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                >
+                  {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
+                </button>
+              </Tooltip>
+              <Tooltip content="Open theme editor" placement="below">
+                <button
+                  onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
+                  className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                >
+                  Change Theme
+                </button>
+              </Tooltip>
+              <Tooltip content="Auto-arrange all widgets into a neat stack" placement="below">
+                <button
+                  onClick={() => setShowAutoStackConfirm(true)}
+                  className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                >
+                  Auto Stack
+                </button>
+              </Tooltip>
             </>
           )}
           {/* Undo/Redo buttons */}
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-              canUndo 
-                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                : 'text-theme-muted opacity-50 cursor-not-allowed'
-            }`}
-            title="Undo (Ctrl+Z)"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-              <path d="M3 7v6h6"/>
-              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-            </svg>
-          </button>
-          <button
-            onClick={redo}
-            disabled={!canRedo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-              canRedo 
-                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                : 'text-theme-muted opacity-50 cursor-not-allowed'
-            }`}
-            title="Redo (Ctrl+Y)"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-              <path d="M21 7v6h-6"/>
-              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-            </svg>
-          </button>
+          <Tooltip content="Undo (Ctrl+Z)" placement="below">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                canUndo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M3 7v6h6"/>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip content="Redo (Ctrl+Y)" placement="below">
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                canRedo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M21 7v6h-6"/>
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+              </svg>
+            </button>
+          </Tooltip>
         </div>
         
         {/* Character name - stays in flow until 2xl breakpoint when there's room to center */}
@@ -1140,64 +1184,70 @@ export default function Sheet() {
         
         {/* Sheet selector */}
         <div className="relative shrink-0">
-          <button
-            onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-            className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body"
-          >
-            <span className="text-theme-ink truncate max-w-[60px]">
-              {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
-            </span>
-            <span className="text-theme-muted">▼</span>
-          </button>
+          <Tooltip content="Switch sheet" placement="left">
+            <button
+              onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+              className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body"
+            >
+              <span className="text-theme-ink truncate max-w-[60px]">
+                {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+              </span>
+              <span className="text-theme-muted">▼</span>
+            </button>
+          </Tooltip>
         </div>
         
         {/* Fit button */}
-        <button
-          data-tutorial="fit-button"
-          onClick={() => {
-            handleFitAllWidgets();
-            // If tutorial is on step 12 (fit-button), advance
-            if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
-              advanceTutorial();
-            }
-          }}
-          className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-        >
-          Fit
-        </button>
+        <Tooltip content="Fit all widgets on screen" placement="left">
+          <button
+            data-tutorial="fit-button"
+            onClick={() => {
+              handleFitAllWidgets();
+              // If tutorial is on step 12 (fit-button), advance
+              if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
+                advanceTutorial();
+              }
+            }}
+            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+          >
+            Fit
+          </button>
+        </Tooltip>
         
         {/* Undo/Redo buttons - visible on mobile and desktop */}
         <div className="flex items-center gap-1 shrink-0 lg:hidden">
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-              canUndo 
-                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                : 'text-theme-muted opacity-50 cursor-not-allowed'
-            }`}
-            title="Undo"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-              <path d="M3 7v6h6"/>
-              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-            </svg>
-          </button>
-          <button
-            onClick={redo}
-            disabled={!canRedo}
-            className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-              canRedo 
-                ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                : 'text-theme-muted opacity-50 cursor-not-allowed'
-            }`}
-            title="Redo"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-              <path d="M21 7v6h-6"/>
-              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-            </svg>
-          </button>
+          <Tooltip content="Undo" placement="below">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                canUndo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M3 7v6h6"/>
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip content="Redo" placement="below">
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                canRedo 
+                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
+                  : 'text-theme-muted opacity-50 cursor-not-allowed'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M21 7v6h-6"/>
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+              </svg>
+            </button>
+          </Tooltip>
         </div>
       </div>
       )}

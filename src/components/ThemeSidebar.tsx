@@ -3,6 +3,7 @@ import { THEMES, applyTheme, applyCustomTheme, isImageTexture, IMAGE_TEXTURES, g
 import { useStore } from '../store/useStore';
 import { useCustomThemeStore, CustomTheme, getCustomTheme } from '../store/useCustomThemeStore';
 import CustomThemeEditor from './CustomThemeEditor';
+import { Tooltip } from './Tooltip';
 
 interface ThemeSidebarProps {
   collapsed: boolean;
@@ -163,12 +164,14 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         )}
         
         {/* Close button - top right corner */}
-        <button
-          onClick={onToggle}
-          className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
-        >
-          ✕
-        </button>
+        <Tooltip content="Close theme panel">
+          <button
+            onClick={onToggle}
+            className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
+          >
+            ✕
+          </button>
+        </Tooltip>
         
         {/* Sidebar content */}
         <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12">
@@ -232,40 +235,45 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                   </p>
                   {/* Color preview dots */}
                   <div className="flex gap-1 mt-2">
-                    <div 
-                      className="w-3 h-3 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.paper }}
-                      title="Paper"
-                    />
-                    <div 
-                      className="w-3 h-3 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.ink }}
-                      title="Ink"
-                    />
-                    <div 
-                      className="w-3 h-3 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.accent }}
-                      title="Accent"
-                    />
-                    <div 
-                      className="w-3 h-3 rounded-full border border-black/20"
-                      style={{ backgroundColor: theme.colors.background }}
-                      title="Background"
-                    />
+                    <Tooltip content="Paper">
+                      <div 
+                        className="w-3 h-3 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.paper }}
+                      />
+                    </Tooltip>
+                    <Tooltip content="Ink">
+                      <div 
+                        className="w-3 h-3 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.ink }}
+                      />
+                    </Tooltip>
+                    <Tooltip content="Accent">
+                      <div 
+                        className="w-3 h-3 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.accent }}
+                      />
+                    </Tooltip>
+                    <Tooltip content="Background">
+                      <div 
+                        className="w-3 h-3 rounded-full border border-black/20"
+                        style={{ backgroundColor: theme.colors.background }}
+                      />
+                    </Tooltip>
                   </div>
                 </button>
                 {/* Edit button */}
-                <button
-                  onClick={(e) => handleEditPreset(theme, e)}
-                  style={{
-                    backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
-                    color: isSelected ? theme.colors.paper : theme.colors.accent,
-                  }}
-                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
-                  title="Copy to custom theme"
-                >
-                  ✏️
-                </button>
+                <Tooltip content="Copy to custom theme">
+                  <button
+                    onClick={(e) => handleEditPreset(theme, e)}
+                    style={{
+                      backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
+                      color: isSelected ? theme.colors.paper : theme.colors.accent,
+                    }}
+                    className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                  >
+                    ✏️
+                  </button>
+                </Tooltip>
               </div>
             );
           })}
@@ -345,40 +353,45 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                     </p>
                     {/* Color preview dots */}
                     <div className="flex gap-1 mt-2">
-                      <div 
-                        className="w-3 h-3 rounded-full border border-black/20"
-                        style={{ backgroundColor: theme.colors.paper }}
-                        title="Paper"
-                      />
-                      <div 
-                        className="w-3 h-3 rounded-full border border-black/20"
-                        style={{ backgroundColor: theme.colors.ink }}
-                        title="Ink"
-                      />
-                      <div 
-                        className="w-3 h-3 rounded-full border border-black/20"
-                        style={{ backgroundColor: theme.colors.accent }}
-                        title="Accent"
-                      />
-                      <div 
-                        className="w-3 h-3 rounded-full border border-black/20"
-                        style={{ backgroundColor: theme.colors.background }}
-                        title="Background"
-                      />
+                      <Tooltip content="Paper">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-black/20"
+                          style={{ backgroundColor: theme.colors.paper }}
+                        />
+                      </Tooltip>
+                      <Tooltip content="Ink">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-black/20"
+                          style={{ backgroundColor: theme.colors.ink }}
+                        />
+                      </Tooltip>
+                      <Tooltip content="Accent">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-black/20"
+                          style={{ backgroundColor: theme.colors.accent }}
+                        />
+                      </Tooltip>
+                      <Tooltip content="Background">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-black/20"
+                          style={{ backgroundColor: theme.colors.background }}
+                        />
+                      </Tooltip>
                     </div>
                   </button>
                   {/* Edit button */}
-                  <button
-                    onClick={(e) => handleEditCustom(theme, e)}
-                    style={{
-                      backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
-                      color: isSelected ? theme.colors.paper : theme.colors.accent,
-                    }}
-                    className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
-                  title="Edit theme"
-                >
-                  ✏️
-                </button>
+                  <Tooltip content="Edit theme">
+                    <button
+                      onClick={(e) => handleEditCustom(theme, e)}
+                      style={{
+                        backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
+                        color: isSelected ? theme.colors.paper : theme.colors.accent,
+                      }}
+                      className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                    >
+                    ✏️
+                  </button>
+                  </Tooltip>
               </div>
               );
             })}

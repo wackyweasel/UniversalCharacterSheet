@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Widget, DiceGroup } from '../../types';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -251,18 +252,20 @@ export default function DiceRollerWidget({ widget }: Props) {
       )}
 
       {/* Roll Button */}
-      <button
-        onClick={rollDice}
-        onMouseDown={(e) => e.stopPropagation()}
-        className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
-          isRolling 
-            ? 'bg-theme-muted animate-pulse text-theme-paper' 
-            : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-        }`}
-        disabled={isRolling}
-      >
-        Roll {diceNotation}
-      </button>
+      <Tooltip content={`Roll ${diceNotation}`}>
+        <button
+          onClick={rollDice}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
+            isRolling 
+              ? 'bg-theme-muted animate-pulse text-theme-paper' 
+              : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+          }`}
+          disabled={isRolling}
+        >
+          Roll {diceNotation}
+        </button>
+      </Tooltip>
 
       {/* Result Display - Always visible to maintain consistent height */}
       <div className={`text-center flex-1 flex flex-col justify-center`}>

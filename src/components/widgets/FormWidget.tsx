@@ -1,18 +1,14 @@
 import { useRef } from 'react';
-import { Widget } from '../../types';
+import { Widget, FormItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
-}
-
-interface FormItem {
-  name: string;
-  value: string;
 }
 
 export default function FormWidget({ widget, height }: Props) {
@@ -79,7 +75,9 @@ export default function FormWidget({ widget, height }: Props) {
               className={`${itemClass} text-theme-ink font-body truncate flex-shrink-0`}
               style={{ width: `${labelWidth}%` }}
             >
-              {item.name}
+              {mode === 'play' && item.tooltip ? (
+                <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
+              ) : item.name}
             </span>
 
             {/* Value Input */}

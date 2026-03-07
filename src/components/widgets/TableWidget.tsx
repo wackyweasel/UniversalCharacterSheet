@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat } from '../../types';
 import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -151,85 +152,92 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
     >
       <div className={`flex items-center gap-0.5 p-1 ${isMobile ? 'flex-wrap justify-center max-w-[280px]' : ''}`}>
         {/* Text Style Buttons */}
-        <button
-          className={`${buttonClass} ${iconSize} font-bold ${format.bold ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ bold: !format.bold })}
-          title="Bold"
-        >
-          B
-        </button>
-        <button
-          className={`${buttonClass} ${iconSize} italic ${format.italic ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ italic: !format.italic })}
-          title="Italic"
-        >
-          I
-        </button>
-        <button
-          className={`${buttonClass} ${iconSize} underline ${format.underline ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ underline: !format.underline })}
-          title="Underline"
-        >
-          U
-        </button>
-        <button
-          className={`${buttonClass} ${iconSize} line-through ${format.strikethrough ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ strikethrough: !format.strikethrough })}
-          title="Strikethrough"
-        >
-          S
-        </button>
+        <Tooltip content="Bold">
+          <button
+            className={`${buttonClass} ${iconSize} font-bold ${format.bold ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ bold: !format.bold })}
+          >
+            B
+          </button>
+        </Tooltip>
+        <Tooltip content="Italic">
+          <button
+            className={`${buttonClass} ${iconSize} italic ${format.italic ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ italic: !format.italic })}
+          >
+            I
+          </button>
+        </Tooltip>
+        <Tooltip content="Underline">
+          <button
+            className={`${buttonClass} ${iconSize} underline ${format.underline ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ underline: !format.underline })}
+          >
+            U
+          </button>
+        </Tooltip>
+        <Tooltip content="Strikethrough">
+          <button
+            className={`${buttonClass} ${iconSize} line-through ${format.strikethrough ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ strikethrough: !format.strikethrough })}
+          >
+            S
+          </button>
+        </Tooltip>
 
         {/* Divider */}
         <div className="w-px h-5 bg-theme-border mx-1" />
 
         {/* Background Color */}
         <div className="relative">
-          <button
-            className={`${buttonClass} ${iconSize} text-theme-ink`}
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            title="Background Color"
-          >
-            <span className="relative">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
-              </svg>
-              {format.bgColor && (
-                <span 
-                  className="absolute -bottom-0.5 left-0 right-0 h-1 rounded-sm"
-                  style={{ backgroundColor: format.bgColor, opacity: format.bgOpacity ?? 1 }}
-                />
-              )}
-            </span>
-          </button>
+          <Tooltip content="Background Color">
+            <button
+              className={`${buttonClass} ${iconSize} text-theme-ink`}
+              onClick={() => setShowColorPicker(!showColorPicker)}
+            >
+              <span className="relative">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
+                </svg>
+                {format.bgColor && (
+                  <span 
+                    className="absolute -bottom-0.5 left-0 right-0 h-1 rounded-sm"
+                    style={{ backgroundColor: format.bgColor, opacity: format.bgOpacity ?? 1 }}
+                  />
+                )}
+              </span>
+            </button>
+          </Tooltip>
           {showColorPicker && (
             <div 
               className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-button shadow-lg p-2 z-10"
               style={{ minWidth: '160px' }}
             >
               {/* No color option */}
-              <button
-                className={`w-full h-7 rounded border mb-1 ${!format.bgColor ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
-                onClick={() => {
-                  onFormatChange({ bgColor: undefined, bgOpacity: undefined });
-                  setShowColorPicker(false);
-                }}
-                title="No color"
-              >
-                <span className="text-theme-muted text-xs">No color</span>
-              </button>
+              <Tooltip content="No color">
+                <button
+                  className={`w-full h-7 rounded border mb-1 ${!format.bgColor ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
+                  onClick={() => {
+                    onFormatChange({ bgColor: undefined, bgOpacity: undefined });
+                    setShowColorPicker(false);
+                  }}
+                >
+                  <span className="text-theme-muted text-xs">No color</span>
+                </button>
+              </Tooltip>
 
               {/* Header color option */}
-              <button
-                className={`w-full h-7 rounded border mb-2 ${format.bgColor === 'var(--color-background)' ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-background relative`}
-                onClick={() => {
-                  onFormatChange({ bgColor: 'var(--color-background)' });
-                  setShowColorPicker(false);
-                }}
-                title="Header color"
-              >
-                <span className="text-theme-ink text-xs">Header color</span>
-              </button>
+              <Tooltip content="Header color">
+                <button
+                  className={`w-full h-7 rounded border mb-2 ${format.bgColor === 'var(--color-background)' ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-background relative`}
+                  onClick={() => {
+                    onFormatChange({ bgColor: 'var(--color-background)' });
+                    setShowColorPicker(false);
+                  }}
+                >
+                  <span className="text-theme-ink text-xs">Header color</span>
+                </button>
+              </Tooltip>
               
               {/* Used colors from character */}
               {usedColors.length > 0 && (
@@ -310,68 +318,73 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         <div className="w-px h-5 bg-theme-border mx-1" />
 
         {/* Horizontal Alignment */}
-        <button
-          className={`${buttonClass} ${iconSize} ${format.hAlign === 'left' || !format.hAlign ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ hAlign: 'left' })}
-          title="Align Left"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <button
-          className={`${buttonClass} ${iconSize} ${format.hAlign === 'center' ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ hAlign: 'center' })}
-          title="Align Center"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm4 5.25a.75.75 0 01.75-.75h6.5a.75.75 0 010 1.5h-6.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <button
-          className={`${buttonClass} ${iconSize} ${format.hAlign === 'right' ? activeClass : 'text-theme-ink'}`}
-          onClick={() => onFormatChange({ hAlign: 'right' })}
-          title="Align Right"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm5 10.5a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
-          </svg>
-        </button>
+        <Tooltip content="Align Left">
+          <button
+            className={`${buttonClass} ${iconSize} ${format.hAlign === 'left' || !format.hAlign ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ hAlign: 'left' })}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </Tooltip>
+        <Tooltip content="Align Center">
+          <button
+            className={`${buttonClass} ${iconSize} ${format.hAlign === 'center' ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ hAlign: 'center' })}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm4 5.25a.75.75 0 01.75-.75h6.5a.75.75 0 010 1.5h-6.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </Tooltip>
+        <Tooltip content="Align Right">
+          <button
+            className={`${buttonClass} ${iconSize} ${format.hAlign === 'right' ? activeClass : 'text-theme-ink'}`}
+            onClick={() => onFormatChange({ hAlign: 'right' })}
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm5 10.5a.75.75 0 01.75-.75h9.5a.75.75 0 010 1.5h-9.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </Tooltip>
 
         {/* Divider */}
         <div className="w-px h-5 bg-theme-border mx-1" />
 
         {/* Label button */}
-        <button
-          className={`${buttonClass} ${iconSize} ${cellLabel ? 'bg-theme-accent text-theme-paper' : canAssignLabel ? 'text-theme-ink' : 'text-theme-muted opacity-40 cursor-not-allowed'}`}
-          onClick={() => {
-            if (!canAssignLabel && !cellLabel) return;
-            setShowLabelInput(!showLabelInput);
-            setShowFormulaInput(false);
-            setShowColorPicker(false);
-            setLabelDraft(cellLabel || '');
-          }}
-          title={cellLabel ? `Label: @${cellLabel}` : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label'}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>
-        </button>
+        <Tooltip content={cellLabel ? `Label: @${cellLabel}` : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label'}>
+          <button
+            className={`${buttonClass} ${iconSize} ${cellLabel ? 'bg-theme-accent text-theme-paper' : canAssignLabel ? 'text-theme-ink' : 'text-theme-muted opacity-40 cursor-not-allowed'}`}
+            onClick={() => {
+              if (!canAssignLabel && !cellLabel) return;
+              setShowLabelInput(!showLabelInput);
+              setShowFormulaInput(false);
+              setShowColorPicker(false);
+              setLabelDraft(cellLabel || '');
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+          </button>
+        </Tooltip>
 
         {/* Formula button */}
-        <button
-          className={`${buttonClass} ${iconSize} font-bold ${cellFormula ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink'}`}
-          onClick={() => {
-            setShowFormulaInput(!showFormulaInput);
-            setShowLabelInput(false);
-            setShowColorPicker(false);
-            setFormulaDraft(cellFormula || '');
-          }}
-          title={cellFormula ? `Formula: ${cellFormula}` : 'Set formula'}
-        >
-          <span className="italic" style={{ fontSize: '11px' }}>fx</span>
-        </button>
+        <Tooltip content={cellFormula ? `Formula: ${cellFormula}` : 'Set formula'}>
+          <button
+            className={`${buttonClass} ${iconSize} font-bold ${cellFormula ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink'}`}
+            onClick={() => {
+              setShowFormulaInput(!showFormulaInput);
+              setShowLabelInput(false);
+              setShowColorPicker(false);
+              setFormulaDraft(cellFormula || '');
+            }}
+          >
+            <span className="italic" style={{ fontSize: '11px' }}>fx</span>
+          </button>
+        </Tooltip>
       </div>
 
       {/* Label input panel */}

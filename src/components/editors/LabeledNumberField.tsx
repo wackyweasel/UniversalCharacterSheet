@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
+import { Tooltip } from '../Tooltip';
 
 interface LabeledNumberFieldProps {
   /** Current numeric value */
@@ -207,39 +208,41 @@ export function LabeledNumberField({
         </button>
 
         {/* Label button */}
-        <button
-          type="button"
-          onClick={openLabelInput}
-          title={fieldLabel ? `Label: @${fieldLabel}` : 'Set variable label'}
-          className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs transition-colors ${
-            showLabelInput
-              ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
-              : fieldLabel
-                ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
-                : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
-          }`}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>
-        </button>
+        <Tooltip content={fieldLabel ? `Label: @${fieldLabel}` : 'Set variable label'}>
+          <button
+            type="button"
+            onClick={openLabelInput}
+            className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs transition-colors ${
+              showLabelInput
+                ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
+                : fieldLabel
+                  ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
+                  : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
+            }`}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+          </button>
+        </Tooltip>
 
         {/* Formula button */}
-        <button
-          type="button"
-          onClick={openFormulaInput}
-          title={formula ? `Formula: ${formula}` : 'Set formula'}
-          className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
-            showFormulaInput
-              ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
-              : formula
-                ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
-                : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
-          }`}
-        >
-          <span className="italic" style={{ fontSize: '11px' }}>fx</span>
-        </button>
+        <Tooltip content={formula ? `Formula: ${formula}` : 'Set formula'}>
+          <button
+            type="button"
+            onClick={openFormulaInput}
+            className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
+              showFormulaInput
+                ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
+                : formula
+                  ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
+                  : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
+            }`}
+          >
+            <span className="italic" style={{ fontSize: '11px' }}>fx</span>
+          </button>
+        </Tooltip>
     </div>
   );
 

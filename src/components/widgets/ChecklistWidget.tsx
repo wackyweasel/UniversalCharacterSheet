@@ -8,7 +8,7 @@ interface Props {
   height: number;
 }
 
-export default function CheckboxWidget({ widget, height }: Props) {
+export default function CheckboxWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, checkboxItems = [], checklistSettings } = widget.data;
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
@@ -54,7 +54,7 @@ export default function CheckboxWidget({ widget, height }: Props) {
         {(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <div 
             key={idx} 
-            className={`flex items-center ${gapClass} cursor-pointer`}
+            className={`flex items-center ${gapClass} cursor-pointer group/item relative`}
             onClick={() => toggleItem(idx)}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -68,6 +68,17 @@ export default function CheckboxWidget({ widget, height }: Props) {
             <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked && strikethrough ? 'line-through text-theme-muted' : ''}`}>
               {item.name}
             </span>
+            {mode === 'play' && item.tooltip && (
+              <span
+                className="relative flex-shrink-0 ml-0.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-theme-muted hover:text-theme-accent cursor-default select-none text-xs" title="">ⓘ</span>
+                <span className="absolute bottom-full right-0 mb-1 z-50 hidden group-hover/item:block w-40 max-w-xs bg-theme-ink text-theme-paper text-xs rounded px-2 py-1 leading-snug pointer-events-none whitespace-pre-wrap shadow-lg">
+                  {item.tooltip}
+                </span>
+              </span>
+            )}
           </div>
         ))}
         {checkboxItems.length === 0 && (

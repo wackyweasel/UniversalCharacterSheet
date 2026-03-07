@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
+import { Tooltip } from '../Tooltip';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
@@ -166,19 +167,21 @@ export default function HealthBarWidget({ widget, mode }: Props) {
       {/* Health Bar with +/- buttons */}
       <div className="flex-1 flex items-center gap-1">
         {/* Decrement button */}
-        <button
-          onClick={() => {
-            if (hasCurrentFormula) return;
-            const newVal = currentValue - increment;
-            updateWidgetData(widget.id, { currentValue: newVal });
-            addTimelineEvent(label || 'Health', 'HEALTH_BAR', `−${increment} (${currentValue} → ${newVal})`, '💥');
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={hasCurrentFormula}
-          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-        >
-          −
-        </button>
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Decrease by ${increment}`}>
+          <button
+            onClick={() => {
+              if (hasCurrentFormula) return;
+              const newVal = currentValue - increment;
+              updateWidgetData(widget.id, { currentValue: newVal });
+              addTimelineEvent(label || 'Health', 'HEALTH_BAR', `−${increment} (${currentValue} → ${newVal})`, '💥');
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            disabled={hasCurrentFormula}
+            className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            −
+          </button>
+        </Tooltip>
         
         {/* Health Bar */}
         <div className={`relative ${barHeight} flex-1 bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}>
@@ -210,47 +213,55 @@ export default function HealthBarWidget({ widget, mode }: Props) {
         </div>
         
         {/* Increment button */}
-        <button
-          onClick={() => {
-            if (hasCurrentFormula) return;
-            const newVal = Math.min(maxValue, currentValue + increment);
-            updateWidgetData(widget.id, { currentValue: newVal });
-            addTimelineEvent(label || 'Health', 'HEALTH_BAR', `+${increment} (${currentValue} → ${newVal})`, '💚');
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={hasCurrentFormula}
-          className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-        >
-          +
-        </button>
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Increase by ${increment}`}>
+          <button
+            onClick={() => {
+              if (hasCurrentFormula) return;
+              const newVal = Math.min(maxValue, currentValue + increment);
+              updateWidgetData(widget.id, { currentValue: newVal });
+              addTimelineEvent(label || 'Health', 'HEALTH_BAR', `+${increment} (${currentValue} → ${newVal})`, '💚');
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            disabled={hasCurrentFormula}
+            className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            +
+          </button>
+        </Tooltip>
       </div>
 
       {/* Controls */}
       <div className={`flex items-center justify-between gap-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
-        <button
-          onClick={() => !hasCurrentFormula && setShowDamageModal(true)}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={hasCurrentFormula}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-        >
-          Damage
-        </button>
-        <button
-          onClick={() => !hasCurrentFormula && setShowHealModal(true)}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={hasCurrentFormula}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-        >
-          Heal
-        </button>
-        <button
-          onClick={() => !hasCurrentFormula && fullHeal()}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={hasCurrentFormula}
-          className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
-        >
-          Full
-        </button>
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Apply a custom damage amount'}>
+          <button
+            onClick={() => !hasCurrentFormula && setShowDamageModal(true)}
+            onMouseDown={(e) => e.stopPropagation()}
+            disabled={hasCurrentFormula}
+            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            Damage
+          </button>
+        </Tooltip>
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Heal a custom amount'}>
+          <button
+            onClick={() => !hasCurrentFormula && setShowHealModal(true)}
+            onMouseDown={(e) => e.stopPropagation()}
+            disabled={hasCurrentFormula}
+            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            Heal
+          </button>
+        </Tooltip>
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Restore to full health'}>
+          <button
+            onClick={() => !hasCurrentFormula && fullHeal()}
+            onMouseDown={(e) => e.stopPropagation()}
+            disabled={hasCurrentFormula}
+            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            Full
+          </button>
+        </Tooltip>
       </div>
 
       {/* Damage Modal */}

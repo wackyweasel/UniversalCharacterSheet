@@ -1,6 +1,7 @@
 import { Widget, ToggleItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -9,7 +10,7 @@ interface Props {
   height: number;
 }
 
-export default function ConditionWidget({ widget }: Props) {
+export default function ConditionWidget({ widget, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, toggleItems = [] } = widget.data;
 
@@ -42,20 +43,25 @@ export default function ConditionWidget({ widget }: Props) {
           e.stopPropagation();
         }
       }}>
-        {toggleItems.map((item: ToggleItem, idx: number) => (
-          <button
-            key={idx}
-            onClick={() => toggleItem(idx)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={`${toggleClass} border border-theme-border transition-all rounded-button font-body ${
-              item.active 
-                ? 'bg-theme-accent text-theme-paper' 
-                : 'bg-theme-paper text-theme-ink hover:opacity-80'
-            }`}
-          >
-            {item.name}
-          </button>
-        ))}
+        {toggleItems.map((item: ToggleItem, idx: number) => {
+          const btn = (
+            <button
+              key={idx}
+              onClick={() => toggleItem(idx)}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`${toggleClass} border border-theme-border transition-all rounded-button font-body ${
+                item.active 
+                  ? 'bg-theme-accent text-theme-paper' 
+                  : 'bg-theme-paper text-theme-ink hover:opacity-80'
+              }`}
+            >
+              {item.name}
+            </button>
+          );
+          return mode === 'play' && item.tooltip ? (
+            <Tooltip key={idx} content={item.tooltip}>{btn}</Tooltip>
+          ) : btn;
+        })}
         {toggleItems.length === 0 && (
           <div className={`${toggleClass} text-theme-muted italic`}>No conditions configured</div>
         )}

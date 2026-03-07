@@ -1,5 +1,6 @@
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
+import { Tooltip } from '../Tooltip';
 
 export function HealthBarEditor({ widget, updateData }: EditorProps) {
   const { label, maxValue = 10, currentValue = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
@@ -30,14 +31,15 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             placeholder="Health"
           />
           {label && (
-            <button
-              type="button"
-              onClick={() => updateData({ label: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              title="Clear label"
-            >
-              ×
-            </button>
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
+              >
+                ×
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
