@@ -29,6 +29,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'TABLE', label: 'Table' },
   { type: 'TEXT', label: 'Text Area' },
   { type: 'TIME_TRACKER', label: 'Temporary Effects' },
+  { type: 'TIMER', label: 'Timer' },
 ];
 
 interface SidebarProps {

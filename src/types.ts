@@ -19,7 +19,8 @@ export type WidgetType =
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
   | 'INITIATIVE_TRACKER'
-  | 'DECK';
+  | 'DECK'
+  | 'TIMER';
 
 export interface ToggleItem {
   name: string;
@@ -232,6 +233,12 @@ export interface WidgetData {
   initiativeAdvanceByRound?: boolean;               // Advance by 1 round (for round-mode Time Trackers)
   initiativeAdvanceTimeAmount?: number;             // Amount of time to advance
   initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
+  // Timer
+  timerElapsed?: number;       // Elapsed time in milliseconds
+  timerRunning?: boolean;      // Whether the timer is currently running
+  timerStartedAt?: number;     // Timestamp when timer was last started (for calculating elapsed while running)
+  timerCountDown?: boolean;    // If true, count down from timerDuration
+  timerDuration?: number;      // Duration in milliseconds (for countdown mode)
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values

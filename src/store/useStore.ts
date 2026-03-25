@@ -486,6 +486,7 @@ export const useStore = create<StoreState>((set, get) => {
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'DECK': 'Deck',
+            'TIMER': 'Timer',
           };
           return defaultLabels[widgetType] || '';
         };

@@ -20,3 +20,4 @@ export { MapSketcherEditor } from './MapSketcherEditor';
 export { RollTableEditor } from './RollTableEditor';
 export { InitiativeTrackerEditor } from './InitiativeTrackerEditor';
 export { DeckEditor } from './DeckEditor';
+export { TimerEditor } from './TimerEditor';

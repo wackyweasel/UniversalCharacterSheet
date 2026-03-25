@@ -24,6 +24,7 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
+import TimerWidget from './widgets/TimerWidget';
 
 interface Props {
   widget: Widget;
@@ -116,6 +117,7 @@ export default function VerticalWidget({
     'TIME_TRACKER': 'Temporary Effects',
     'ROLL_TABLE': 'Roll Table',
     'DECK': 'Deck of Cards',
+    'TIMER': 'Timer',
   };
   
   // Get widget label for collapsed header
@@ -219,6 +221,7 @@ export default function VerticalWidget({
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'TIMER': return <TimerWidget {...props} />;
       default: return null;
     }
   };

@@ -30,6 +30,7 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
+import TimerWidget from './widgets/TimerWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 
@@ -63,6 +64,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'ROLL_TABLE': { width: 70, height: 30 },
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'DECK': { width: 70, height: 40 },
+  'TIMER': { width: 80, height: 60 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -582,6 +584,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'TIMER': return <TimerWidget {...props} />;
       default: return null;
     }
   };
