@@ -487,6 +487,7 @@ export const useStore = create<StoreState>((set, get) => {
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'DECK': 'Deck',
             'TIMER': 'Timer',
+            'STEP_DICE': 'Step Dice',
           };
           return defaultLabels[widgetType] || '';
         };

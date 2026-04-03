@@ -31,6 +31,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
+import StepDiceWidget from './widgets/StepDiceWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 
@@ -65,6 +66,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'DECK': { width: 70, height: 40 },
   'TIMER': { width: 80, height: 60 },
+  'STEP_DICE': { width: 70, height: 40 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -585,6 +587,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };

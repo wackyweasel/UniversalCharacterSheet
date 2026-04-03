@@ -20,7 +20,8 @@ export type WidgetType =
   | 'ROLL_TABLE'
   | 'INITIATIVE_TRACKER'
   | 'DECK'
-  | 'TIMER';
+  | 'TIMER'
+  | 'STEP_DICE';
 
 export interface ToggleItem {
   name: string;
@@ -239,6 +240,9 @@ export interface WidgetData {
   timerStartedAt?: number;     // Timestamp when timer was last started (for calculating elapsed while running)
   timerCountDown?: boolean;    // If true, count down from timerDuration
   timerDuration?: number;      // Duration in milliseconds (for countdown mode)
+  // Step Dice
+  stepDiceItems?: StepDiceItem[];  // Array of step dice traits
+  stepDiceChain?: number[];        // Custom dice chain (default: [4,6,8,10,12,20])
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
@@ -252,6 +256,12 @@ export interface TimedEffect {
   name: string;
   remainingSeconds: number;
   initialSeconds?: number;
+}
+
+export interface StepDiceItem {
+  name: string;
+  currentStep: number;  // Index into the dice chain (0 = d4, 1 = d6, ...)
+  tooltip?: string;
 }
 
 export interface Widget {

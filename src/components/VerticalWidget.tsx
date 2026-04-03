@@ -25,6 +25,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
+import StepDiceWidget from './widgets/StepDiceWidget';
 
 interface Props {
   widget: Widget;
@@ -118,6 +119,7 @@ export default function VerticalWidget({
     'ROLL_TABLE': 'Roll Table',
     'DECK': 'Deck of Cards',
     'TIMER': 'Timer',
+    'STEP_DICE': 'Step Dice',
   };
   
   // Get widget label for collapsed header
@@ -222,6 +224,7 @@ export default function VerticalWidget({
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };

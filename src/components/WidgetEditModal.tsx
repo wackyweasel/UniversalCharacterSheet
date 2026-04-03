@@ -28,6 +28,7 @@ import {
   InitiativeTrackerEditor,
   DeckEditor,
   TimerEditor,
+  StepDiceEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -53,6 +54,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
+import StepDiceWidget from './widgets/StepDiceWidget';
 
 interface Props {
   widget: Widget;
@@ -83,6 +85,7 @@ function getWidgetTitle(type: WidgetType): string {
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'DECK': 'Deck of Cards',
     'TIMER': 'Timer',
+    'STEP_DICE': 'Step Dice',
   };
   return titles[type] || 'Widget';
 }
@@ -135,6 +138,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
       case 'DECK': return <DeckEditor {...editorProps} />;
       case 'TIMER': return <TimerEditor {...editorProps} />;
+      case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -178,6 +182,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };

@@ -26,6 +26,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'REST_BUTTON', label: 'Rest Button' },
   { type: 'ROLL_TABLE', label: 'Roll Table' },
   { type: 'SPELL_SLOT', label: 'Spell Slots' },
+  { type: 'STEP_DICE', label: 'Step Dice' },
   { type: 'TABLE', label: 'Table' },
   { type: 'TEXT', label: 'Text Area' },
   { type: 'TIME_TRACKER', label: 'Temporary Effects' },
