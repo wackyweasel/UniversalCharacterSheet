@@ -7,12 +7,36 @@ export interface PrintArea {
   height: number;
 }
 
+export type PaperFormat = 'none' | 'a4' | 'letter';
+
+// Aspect ratios (width / height) for paper formats in portrait orientation
+export const PAPER_ASPECT_RATIOS: Record<PaperFormat, number | null> = {
+  none: null,
+  a4: 210 / 297,       // ~0.7071
+  letter: 8.5 / 11,    // ~0.7727
+};
+
+export function getEffectiveAspectRatio(format: PaperFormat, landscape: boolean): number | null {
+  const ratio = PAPER_ASPECT_RATIOS[format];
+  if (ratio == null) return null;
+  return landscape ? 1 / ratio : ratio;
+}
+
 interface PrintState {
   // Print mode settings
   printerFriendly: boolean;
   textureDisabled: boolean;
   bordersDisabled: boolean;
   shadowsDisabled: boolean;
+  
+  // Paper format
+  paperFormat: PaperFormat;
+  
+  // Landscape orientation
+  isLandscape: boolean;
+  
+  // Show print area in edit mode
+  showInEditMode: boolean;
   
   // Print area (in canvas coordinates)
   printArea: PrintArea | null;
@@ -25,6 +49,9 @@ interface PrintState {
   setTextureDisabled: (disabled: boolean) => void;
   setBordersDisabled: (disabled: boolean) => void;
   setShadowsDisabled: (disabled: boolean) => void;
+  setPaperFormat: (format: PaperFormat) => void;
+  setIsLandscape: (landscape: boolean) => void;
+  setShowInEditMode: (show: boolean) => void;
   setPrintArea: (area: PrintArea | null) => void;
   setPreviousMode: (mode: 'play' | 'edit' | 'vertical' | null) => void;
   
@@ -40,6 +67,9 @@ export const usePrintStore = create<PrintState>((set) => ({
   textureDisabled: false,
   bordersDisabled: false,
   shadowsDisabled: false,
+  paperFormat: 'none' as PaperFormat,
+  isLandscape: false,
+  showInEditMode: false,
   printArea: null,
   previousMode: null,
   
@@ -47,6 +77,9 @@ export const usePrintStore = create<PrintState>((set) => ({
   setTextureDisabled: (disabled) => set({ textureDisabled: disabled }),
   setBordersDisabled: (disabled) => set({ bordersDisabled: disabled }),
   setShadowsDisabled: (disabled) => set({ shadowsDisabled: disabled }),
+  setPaperFormat: (format) => set({ paperFormat: format }),
+  setIsLandscape: (landscape) => set({ isLandscape: landscape }),
+  setShowInEditMode: (show) => set({ showInEditMode: show }),
   setPrintArea: (area) => set({ printArea: area }),
   setPreviousMode: (mode) => set({ previousMode: mode }),
   
@@ -84,6 +117,9 @@ export const usePrintStore = create<PrintState>((set) => ({
     textureDisabled: false,
     bordersDisabled: false,
     shadowsDisabled: false,
+    paperFormat: 'none' as PaperFormat,
+    isLandscape: false,
+    showInEditMode: false,
     printArea: null,
     previousMode: null,
   }),

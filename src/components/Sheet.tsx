@@ -4,7 +4,8 @@ import { useUndoStore } from '../store/useUndoStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { applyTheme, applyCustomTheme, THEMES } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { usePrintStore } from '../store/usePrintStore';
+import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
+import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
 
@@ -74,6 +75,12 @@ export default function Sheet() {
   const setPreviousMode = usePrintStore((state) => state.setPreviousMode);
   const calculatePrintAreaFromWidgets = usePrintStore((state) => state.calculatePrintAreaFromWidgets);
   const resetPrintSettings = usePrintStore((state) => state.resetPrintSettings);
+  const paperFormat = usePrintStore((state) => state.paperFormat);
+  const setPaperFormat = usePrintStore((state) => state.setPaperFormat);
+  const isLandscape = usePrintStore((state) => state.isLandscape);
+  const setIsLandscape = usePrintStore((state) => state.setIsLandscape);
+  const showInEditMode = usePrintStore((state) => state.showInEditMode);
+  const setShowInEditMode = usePrintStore((state) => state.setShowInEditMode);
   
   // Dark mode state (read from localStorage to match CharacterList)
   const [darkMode, setDarkMode] = useState(() => {
@@ -112,6 +119,8 @@ export default function Sheet() {
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
+  const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
+  const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
   
   // Vertical mode drag state
@@ -181,6 +190,18 @@ export default function Sheet() {
     setPan,
   });
 
+  // Close paper format dropdown on outside click
+  useEffect(() => {
+    if (!paperFormatDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (paperFormatDropdownRef.current && !paperFormatDropdownRef.current.contains(e.target as Node)) {
+        setPaperFormatDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [paperFormatDropdownOpen]);
+
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -209,18 +230,43 @@ export default function Sheet() {
   const enterPrintMode = useCallback(() => {
     setPreviousMode(mode as 'play' | 'edit' | 'vertical');
     setMode('print');
-    // Calculate initial print area from widgets
-    const area = calculatePrintAreaFromWidgets(activeSheetWidgets);
-    if (area) {
-      setPrintArea(area);
+    // Only calculate print area if there isn't one already (preserve previous)
+    if (!printArea) {
+      const area = calculatePrintAreaFromWidgets(activeSheetWidgets);
+      if (area) {
+        setPrintArea(area);
+      }
     }
-  }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea]);
+  }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea, printArea]);
 
   const exitPrintMode = useCallback((targetMode?: 'play' | 'edit') => {
     const modeToSwitchTo = targetMode || previousMode || 'play';
     setMode(modeToSwitchTo);
+    // If "Show in Edit Mode" is on, preserve the print area and that flag
+    const keepOverlay = showInEditMode && printArea;
+    const savedArea = printArea;
     resetPrintSettings();
-  }, [previousMode, setMode, resetPrintSettings]);
+    if (keepOverlay) {
+      setShowInEditMode(true);
+      setPrintArea(savedArea);
+    }
+  }, [previousMode, setMode, resetPrintSettings, showInEditMode, printArea, setShowInEditMode, setPrintArea]);
+
+  // Handle paper format change: enforce aspect ratio on the print area
+  const handlePaperFormatChange = useCallback((format: PaperFormat, landscape: boolean) => {
+    setPaperFormat(format);
+    setIsLandscape(landscape);
+    const ratio = getEffectiveAspectRatio(format, landscape);
+    if (ratio && printArea) {
+      const newHeight = printArea.width / ratio;
+      const deltaY = (newHeight - printArea.height) / 2;
+      setPrintArea({
+        ...printArea,
+        y: printArea.y - deltaY,
+        height: newHeight,
+      });
+    }
+  }, [setPaperFormat, setIsLandscape, printArea, setPrintArea]);
 
   // Recalculate print area on mount if already in print mode (e.g., after page refresh)
   useEffect(() => {
@@ -809,11 +855,12 @@ export default function Sheet() {
             />
           )}
           
-          {/* Print Area Overlay - only in print mode */}
-          {mode === 'print' && (
+          {/* Print Area Overlay - in print mode or edit mode when showInEditMode is on */}
+          {(mode === 'print' || (mode === 'edit' && showInEditMode && printArea)) && (
             <PrintAreaOverlay 
               scale={scale}
               pan={pan}
+              readOnly={mode === 'edit'}
             />
           )}
         </div>
@@ -901,6 +948,66 @@ export default function Sheet() {
                 }`}
               >
                 No Shadows
+              </button>
+            </Tooltip>
+            {/* Paper Format dropdown */}
+            <div className="relative" ref={paperFormatDropdownRef}>
+              <Tooltip content="Force print area to a paper aspect ratio" placement="below">
+                <button
+                  onClick={() => setPaperFormatDropdownOpen(!paperFormatDropdownOpen)}
+                  className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors flex items-center gap-1 ${
+                    paperFormat !== 'none'
+                      ? 'bg-theme-accent text-theme-paper'
+                      : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                  }`}
+                >
+                  Paper Format{paperFormat !== 'none' ? `: ${paperFormat === 'a4' ? 'A4' : 'Letter'} ${isLandscape ? 'Landscape' : 'Portrait'}` : ''}
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </Tooltip>
+              {paperFormatDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme z-50 overflow-hidden min-w-[140px]">
+                  {([
+                    ['none', false, 'None'],
+                    ['a4', false, 'A4 Portrait'],
+                    ['a4', true, 'A4 Landscape'],
+                    ['letter', false, 'Letter Portrait'],
+                    ['letter', true, 'Letter Landscape'],
+                  ] as [PaperFormat, boolean, string][]).map(([fmt, land, label]) => {
+                    const isActive = paperFormat === fmt && (fmt === 'none' || isLandscape === land);
+                    return (
+                      <button
+                        key={label}
+                        onClick={() => {
+                          handlePaperFormatChange(fmt, land);
+                          setPaperFormatDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 text-sm text-left font-body transition-colors whitespace-nowrap ${
+                          isActive
+                            ? 'bg-theme-accent text-theme-paper'
+                            : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {/* Show in Edit Mode toggle */}
+            <Tooltip content="Also show the print area rectangle in edit mode" placement="below">
+              <button
+                onClick={() => setShowInEditMode(!showInEditMode)}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  showInEditMode
+                    ? 'bg-theme-accent text-theme-paper'
+                    : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                Show in Edit Mode
               </button>
             </Tooltip>
           </div>
@@ -994,6 +1101,47 @@ export default function Sheet() {
             }`}
           >
             No Shadows {shadowsDisabled ? '✓' : ''}
+          </button>
+          <div className="border-t border-theme-border" />
+          <div className="px-4 py-1.5 text-xs font-body text-theme-ink opacity-60">Paper Format</div>
+          {([
+            ['none', false, 'None'],
+            ['a4', false, 'A4 Portrait'],
+            ['a4', true, 'A4 Landscape'],
+            ['letter', false, 'Letter Portrait'],
+            ['letter', true, 'Letter Landscape'],
+          ] as [PaperFormat, boolean, string][]).map(([fmt, land, label]) => {
+            const isActive = paperFormat === fmt && (fmt === 'none' || isLandscape === land);
+            return (
+              <button
+                key={label}
+                onClick={() => {
+                  handlePaperFormatChange(fmt, land);
+                  setPrintMenuOpen(false);
+                }}
+                className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'bg-theme-accent text-theme-paper'
+                    : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                {label} {isActive ? '✓' : ''}
+              </button>
+            );
+          })}
+          <div className="border-t border-theme-border" />
+          <button
+            onClick={() => {
+              setShowInEditMode(!showInEditMode);
+              setPrintMenuOpen(false);
+            }}
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+              showInEditMode
+                ? 'bg-theme-accent text-theme-paper'
+                : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            Show in Edit Mode {showInEditMode ? '✓' : ''}
           </button>
         </div>
       )}
