@@ -375,13 +375,39 @@ export default function Sheet() {
     // Add the wrapper to the body
     document.body.appendChild(printWrapper);
     
+    // Clean up after printing - iOS Safari fires window.print() asynchronously,
+    // so a fixed timeout would remove content before iOS renders the print preview.
+    // Use afterprint event with a matchMedia fallback and a long safety timeout.
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener('afterprint', cleanup);
+      mql?.removeListener(onMqlChange);
+      clearTimeout(fallbackTimer);
+      if (printWrapper.parentNode) {
+        document.body.removeChild(printWrapper);
+      }
+    };
+
+    // Primary: afterprint event
+    window.addEventListener('afterprint', cleanup);
+
+    // Fallback: matchMedia change (covers Safari versions without afterprint)
+    const mql = window.matchMedia?.('print');
+    const onMqlChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (!(e as MediaQueryListEvent).matches) cleanup();
+    };
+    if (mql) {
+      // addListener is deprecated but has wider iOS support than addEventListener
+      mql.addListener(onMqlChange);
+    }
+
+    // Safety net: long timeout so it never stays forever
+    const fallbackTimer = setTimeout(cleanup, 60000);
+
     // Trigger native print
     window.print();
-    
-    // Remove the wrapper after printing
-    setTimeout(() => {
-      document.body.removeChild(printWrapper);
-    }, 100);
   }, [printArea]);
 
   // Handle tutorial step 22 -> 23: load tutorial preset
