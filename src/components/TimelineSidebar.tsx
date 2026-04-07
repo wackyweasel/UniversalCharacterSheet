@@ -5,10 +5,21 @@ import { Tooltip } from './Tooltip';
 
 function formatTime(timestamp: number): string {
   const d = new Date(timestamp);
+  const now = new Date();
   const h = d.getHours().toString().padStart(2, '0');
   const m = d.getMinutes().toString().padStart(2, '0');
   const s = d.getSeconds().toString().padStart(2, '0');
-  return `${h}:${m}:${s}`;
+  const time = `${h}:${m}:${s}`;
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (eventDay.getTime() === today.getTime()) return time;
+  if (eventDay.getTime() === yesterday.getTime()) return `Yesterday ${time}`;
+  if (eventDay.getFullYear() === now.getFullYear())
+    return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${time}`;
+  return `${d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} ${time}`;
 }
 
 function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (eventId: string) => void }) {
