@@ -968,7 +968,7 @@ export default function Sheet() {
                 </button>
               </Tooltip>
               {paperFormatDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme z-50 overflow-hidden min-w-[140px]">
+                <div className="absolute top-full left-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-50 overflow-hidden min-w-[140px]">
                   {([
                     ['none', false, 'None'],
                     ['a4', false, 'A4 Portrait'],
