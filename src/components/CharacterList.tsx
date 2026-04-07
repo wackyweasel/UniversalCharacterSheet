@@ -128,7 +128,13 @@ export default function CharacterList() {
   const [presetToDelete, setPresetToDelete] = useState<UserPreset | null>(null);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [rawDataCharacter, setRawDataCharacter] = useState<Character | null>(null);
+  const [rawDataCopied, setRawDataCopied] = useState(false);
+  const [showImportDropdown, setShowImportDropdown] = useState(false);
+  const [showRawImportModal, setShowRawImportModal] = useState(false);
+  const [rawImportValue, setRawImportValue] = useState('');
   const presetDropdownRef = useRef<HTMLDivElement>(null);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -157,9 +163,12 @@ export default function CharacterList() {
       if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target as Node)) {
         setShowPresetDropdown(false);
       }
+      if (importDropdownRef.current && !importDropdownRef.current.contains(event.target as Node)) {
+        setShowImportDropdown(false);
+      }
     };
     
-    if (openDropdown || showHeaderMenu || showPresetDropdown) {
+    if (openDropdown || showHeaderMenu || showPresetDropdown || showImportDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
@@ -561,20 +570,65 @@ export default function CharacterList() {
         >
           + CREATE NEW CHARACTER
         </button>
-        <label className={`px-4 py-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
-          darkMode 
-            ? 'bg-black text-white border border-white/30 hover:bg-white/10' 
-            : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper'
-        }`}>
-          IMPORT
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-          />
-        </label>
+        <div className="relative" ref={importDropdownRef}>
+          <button
+            onClick={() => setShowImportDropdown(!showImportDropdown)}
+            className={`px-4 py-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
+              darkMode 
+                ? 'bg-black text-white border border-white/30 hover:bg-white/10' 
+                : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            IMPORT
+          </button>
+          {showImportDropdown && (
+            <div className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 ${
+              darkMode 
+                ? 'bg-black border border-white/30' 
+                : 'bg-white border border-gray-300'
+            }`}>
+              <label
+                className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors cursor-pointer ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                </svg>
+                <span>From File</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => {
+                    handleImport(e);
+                    setShowImportDropdown(false);
+                  }}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={() => {
+                  setRawImportValue('');
+                  setShowRawImportModal(true);
+                  setShowImportDropdown(false);
+                }}
+                className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                <span>From Raw Data</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
@@ -774,6 +828,32 @@ export default function CharacterList() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         Create Preset
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRawDataCharacter(char);
+                          setRawDataCopied(false);
+                          setOpenDropdown(null);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                        style={{ 
+                          color: 'var(--card-ink)',
+                          backgroundColor: 'var(--card-background)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                          e.currentTarget.style.color = 'var(--card-background)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                          e.currentTarget.style.color = 'var(--card-ink)';
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        Show Raw Data
                       </button>
                       <button
                         onClick={(e) => {
@@ -1404,6 +1484,144 @@ export default function CharacterList() {
                   className="hidden"
                 />
               </label>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Raw Data View Modal */}
+      {rawDataCharacter && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => setRawDataCharacter(null)}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              Raw Data — {rawDataCharacter.name}
+            </h3>
+            <textarea
+              readOnly
+              value={JSON.stringify(rawDataCharacter, null, 2)}
+              className={`flex-1 w-full min-h-[300px] p-3 text-xs font-mono rounded-theme resize-none ${
+                darkMode 
+                  ? 'bg-white/5 border border-white/30 text-white/80' 
+                  : 'bg-gray-50 border-[length:var(--border-width)] border-theme-border text-theme-ink'
+              }`}
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(JSON.stringify(rawDataCharacter, null, 2));
+                  setRawDataCopied(true);
+                  setTimeout(() => setRawDataCopied(false), 2000);
+                }}
+                className={`px-4 py-2 font-body rounded-button transition-colors font-bold flex items-center gap-2 ${
+                  rawDataCopied
+                    ? 'bg-green-500 text-white'
+                    : darkMode 
+                      ? 'bg-white text-black hover:bg-white/80' 
+                      : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
+              >
+                {rawDataCopied ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy to Clipboard
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setRawDataCharacter(null)}
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white border border-white/30 hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Raw Data Import Modal */}
+      {showRawImportModal && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50" 
+            onClick={() => setShowRawImportModal(false)}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              Import from Raw Data
+            </h3>
+            <p className={`text-sm font-body mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
+              Paste character JSON data below.
+            </p>
+            <textarea
+              value={rawImportValue}
+              onChange={(e) => setRawImportValue(e.target.value)}
+              placeholder='Paste JSON here...'
+              className={`flex-1 w-full min-h-[300px] p-3 text-xs font-mono rounded-theme resize-none ${
+                darkMode 
+                  ? 'bg-white/5 border border-white/30 text-white/80 placeholder-white/30' 
+                  : 'bg-gray-50 border-[length:var(--border-width)] border-theme-border text-theme-ink'
+              }`}
+              autoFocus
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <button
+                onClick={() => setShowRawImportModal(false)}
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white border border-white/30 hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    const character = JSON.parse(rawImportValue) as Character;
+                    if (!character.name || !character.sheets || !Array.isArray(character.sheets)) {
+                      alert('Invalid character data format');
+                      return;
+                    }
+                    importCharacter(character);
+                    setShowRawImportModal(false);
+                    setRawImportValue('');
+                  } catch {
+                    alert('Failed to parse JSON data');
+                  }
+                }}
+                className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
+                  darkMode 
+                    ? 'bg-white text-black hover:bg-white/80' 
+                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
+              >
+                Import
+              </button>
             </div>
           </div>
         </>
