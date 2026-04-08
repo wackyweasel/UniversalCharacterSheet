@@ -11,6 +11,7 @@ import { Character } from '../types';
 import { Tooltip } from './Tooltip';
 import { getPresetNames, getPreset } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
+import { stripImages } from '../utils/stripImages';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -130,6 +131,7 @@ export default function CharacterList() {
   const [showGallery, setShowGallery] = useState(false);
   const [rawDataCharacter, setRawDataCharacter] = useState<Character | null>(null);
   const [rawDataCopied, setRawDataCopied] = useState(false);
+  const [excludeImages, setExcludeImages] = useState(false);
   const [showImportDropdown, setShowImportDropdown] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
@@ -1506,17 +1508,43 @@ export default function CharacterList() {
             </h3>
             <textarea
               readOnly
-              value={JSON.stringify(rawDataCharacter, null, 2)}
+              value={JSON.stringify(excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter, null, 2)}
               className={`flex-1 w-full min-h-[300px] p-3 text-xs font-mono rounded-theme resize-none ${
                 darkMode 
                   ? 'bg-white/5 border border-white/30 text-white/80' 
                   : 'bg-gray-50 border-[length:var(--border-width)] border-theme-border text-theme-ink'
               }`}
             />
-            <div className="flex gap-3 justify-end mt-4">
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={() => setExcludeImages(!excludeImages)}
+                className={`px-3 py-2 text-sm font-body rounded-button transition-colors flex items-center gap-2 ${
+                  excludeImages
+                    ? darkMode
+                      ? 'bg-white text-black'
+                      : 'bg-theme-accent text-theme-paper'
+                    : darkMode
+                      ? 'text-white border border-white/30 hover:bg-white/10'
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {excludeImages ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  )}
+                  {!excludeImages && (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  )}
+                </svg>
+                Exclude Images
+              </button>
+              <div className="flex-1" />
               <button
                 onClick={async () => {
-                  await navigator.clipboard.writeText(JSON.stringify(rawDataCharacter, null, 2));
+                  const data = excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter;
+                  await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
                   setRawDataCopied(true);
                   setTimeout(() => setRawDataCopied(false), 2000);
                 }}
