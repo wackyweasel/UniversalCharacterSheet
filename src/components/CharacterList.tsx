@@ -572,10 +572,10 @@ export default function CharacterList() {
         >
           + CREATE NEW CHARACTER
         </button>
-        <div className="relative" ref={importDropdownRef}>
+        <div className="relative self-stretch" ref={importDropdownRef}>
           <button
             onClick={() => setShowImportDropdown(!showImportDropdown)}
-            className={`px-4 py-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
+            className={`h-full px-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
               darkMode 
                 ? 'bg-black text-white border border-white/30 hover:bg-white/10' 
                 : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper'
