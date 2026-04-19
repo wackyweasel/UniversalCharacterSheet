@@ -156,12 +156,36 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
                   onClick={togglePause}
                   title={paused ? 'Play' : 'Pause'}
                   aria-label={paused ? 'Play GIF' : 'Pause GIF'}
-                  className="absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  className="absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                  }}
                 >
                   {paused ? (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M2 1l7 4-7 4z"/></svg>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      xmlns="http://www.w3.org/2000/svg"
+                      style={{ display: 'block' }}
+                    >
+                      <polygon points="3,2 10,6 3,10" fill="#ffffff" />
+                    </svg>
                   ) : (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect x="2" y="1" width="2" height="8"/><rect x="6" y="1" width="2" height="8"/></svg>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      xmlns="http://www.w3.org/2000/svg"
+                      style={{ display: 'block' }}
+                    >
+                      <rect x="3" y="2" width="2.5" height="8" fill="#ffffff" />
+                      <rect x="6.5" y="2" width="2.5" height="8" fill="#ffffff" />
+                    </svg>
                   )}
                 </button>
               )}
