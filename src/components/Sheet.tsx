@@ -458,6 +458,7 @@ export default function Sheet() {
 
   // Fit all widgets when character sheet is opened or sheet is changed
   useEffect(() => {
+    if (viewLocked) return;
     if (activeCharacterId && activeSheetWidgets.length > 0) {
       // Small delay to ensure DOM elements are rendered
       const timer = setTimeout(() => {
