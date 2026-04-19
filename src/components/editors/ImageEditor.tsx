@@ -289,7 +289,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
         <label className="block text-sm font-medium text-theme-ink mb-2">Image</label>
         <div className="flex gap-2">
           <label className="flex-1 px-3 py-2 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90 cursor-pointer text-center">
-            Upload Image
+            Upload Image or GIF
             <input
               type="file"
               accept="image/*"
