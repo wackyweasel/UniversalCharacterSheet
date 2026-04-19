@@ -1,9 +1,51 @@
 import React, { useState } from 'react';
+import gifsicle from 'gifsicle-wasm-browser';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 
-const SIZE_LIMIT = 500 * 1024; // 1MB
-const TARGET_SIZE = 500 * 1024; // 500KB
+const SIZE_LIMIT = 500 * 1024; // Trigger warning above this size
+
+function fileToDataUrl(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressGif(file: File, targetSize: number): Promise<string> {
+  // Progressive passes: increase lossy and apply downscale until under target.
+  // gifsicle lossy range 1-200; 30-60 is balanced, higher = more noise.
+  const passes: { lossy: number; scale?: number; colors?: number }[] = [
+    { lossy: 30 },
+    { lossy: 60 },
+    { lossy: 80, colors: 128 },
+    { lossy: 100, colors: 128, scale: 0.75 },
+    { lossy: 140, colors: 64, scale: 0.6 },
+    { lossy: 200, colors: 32, scale: 0.5 },
+  ];
+
+  let bestBlob: File | null = null;
+  for (const pass of passes) {
+    const cmdParts = ['-O2', `--lossy=${pass.lossy}`];
+    if (pass.colors) cmdParts.push(`--colors=${pass.colors}`);
+    if (pass.scale) cmdParts.push(`--scale=${pass.scale}`);
+    cmdParts.push('input.gif', '-o', '/out/out.gif');
+
+    const out: File[] = await gifsicle.run({
+      input: [{ file, name: 'input.gif' }],
+      command: [cmdParts.join(' ')],
+    });
+    const result = out?.[0];
+    if (!result) continue;
+    bestBlob = result;
+    if (result.size <= targetSize) break;
+  }
+
+  if (!bestBlob) throw new Error('GIF compression failed');
+  return fileToDataUrl(bestBlob);
+}
 
 async function compressImage(file: File, targetSize: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -81,6 +123,8 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
   const [showSizeWarning, setShowSizeWarning] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+  // Target size in KB chosen by the user via slider
+  const [targetKB, setTargetKB] = useState(500);
 
   const processFile = (file: File) => {
     const reader = new FileReader();
@@ -95,6 +139,9 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > SIZE_LIMIT) {
+        // Default the slider to ~500 KB or the original size (rounded down to 50 KB), whichever is smaller
+        const originalKB = Math.floor(file.size / 1024);
+        setTargetKB(Math.min(500, Math.max(50, Math.floor(originalKB / 50) * 50)));
         setPendingFile(file);
         setShowSizeWarning(true);
       } else {
@@ -105,12 +152,24 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     e.target.value = '';
   };
 
+  const isGif = pendingFile?.type === 'image/gif';
+
+  const handleKeepOriginal = () => {
+    if (!pendingFile) return;
+    processFile(pendingFile);
+    setShowSizeWarning(false);
+    setPendingFile(null);
+  };
+
   const handleCompress = async () => {
     if (!pendingFile) return;
     
     setIsCompressing(true);
     try {
-      const compressedDataUrl = await compressImage(pendingFile, TARGET_SIZE);
+      const target = targetKB * 1024;
+      const compressedDataUrl = pendingFile.type === 'image/gif'
+        ? await compressGif(pendingFile, target)
+        : await compressImage(pendingFile, target);
       updateData({ imageUrl: compressedDataUrl });
     } catch (error) {
       console.error('Failed to compress image:', error);
@@ -150,10 +209,32 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
             <p className="text-theme-ink text-sm mb-3">
               This image is <strong>{formatFileSize(pendingFile.size)}</strong>, which may cause performance issues or exceed browser storage limits.
             </p>
-            <p className="text-theme-muted text-xs mb-4">
-              We recommend compressing it to approximately 500 KB for better performance.
+            <p className="text-theme-muted text-xs mb-3">
+              {isGif
+                ? 'Compressing will reduce quality but preserve the animation. You can also keep the original or cancel.'
+                : 'Choose a target size for the compressed image.'}
             </p>
-            <div className="flex gap-2">
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-theme-ink">Target size</label>
+                <span className="text-xs text-theme-muted tabular-nums">{targetKB} KB</span>
+              </div>
+              <input
+                type="range"
+                min={50}
+                max={Math.min(5000, Math.max(500, Math.floor(pendingFile.size / 1024)))}
+                step={50}
+                value={targetKB}
+                onChange={(e) => setTargetKB(Number(e.target.value))}
+                disabled={isCompressing}
+                className="w-full accent-theme-accent"
+              />
+              <div className="flex justify-between text-[10px] text-theme-muted mt-1">
+                <span>50 KB</span>
+                <span>{Math.min(5000, Math.max(500, Math.floor(pendingFile.size / 1024)))} KB</span>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
               <button
                 onClick={handleCompress}
                 disabled={isCompressing}
@@ -161,6 +242,15 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
               >
                 {isCompressing ? 'Compressing...' : 'Compress'}
               </button>
+              {isGif && (
+                <button
+                  onClick={handleKeepOriginal}
+                  disabled={isCompressing}
+                  className="flex-1 px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent/10 disabled:opacity-50"
+                >
+                  Keep Original
+                </button>
+              )}
               <button
                 onClick={handleCancelUpload}
                 disabled={isCompressing}
