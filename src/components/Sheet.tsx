@@ -151,6 +151,8 @@ export default function Sheet() {
     handleMouseMove,
     handleMouseUp,
     handleWheel,
+    viewLocked,
+    toggleViewLock,
   } = usePanZoom({
     editingWidgetId,
     mode,
@@ -165,6 +167,9 @@ export default function Sheet() {
   
   const getScale = useCallback(() => scaleRef.current, []);
   const getPan = useCallback(() => panRef.current, []);
+  const viewLockedRef = useRef(viewLocked);
+  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+  const getViewLocked = useCallback(() => viewLockedRef.current, []);
   
   const { isTouchPanning } = useTouchCamera({
     mode,
@@ -174,6 +179,7 @@ export default function Sheet() {
     getScale,
     getPan,
     onBackgroundTouch: handleBackgroundInteraction,
+    isViewLocked: getViewLocked,
   });
 
   // Auto-stack hook
@@ -1376,15 +1382,42 @@ export default function Sheet() {
           <button
             data-tutorial="fit-button"
             onClick={() => {
+              if (viewLocked) return;
               handleFitAllWidgets();
               // If tutorial is on step 12 (fit-button), advance
               if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
                 advanceTutorial();
               }
             }}
-            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            disabled={viewLocked}
+            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''} ${viewLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Fit
+          </button>
+        </Tooltip>
+
+        {/* Lock View button */}
+        <Tooltip content={viewLocked ? 'Unlock view (allow pan & zoom)' : 'Lock view (disable pan & zoom)'} placement="left">
+          <button
+            onClick={toggleViewLock}
+            aria-pressed={viewLocked}
+            className={`w-8 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button shrink-0 ${
+              viewLocked
+                ? 'bg-theme-accent text-theme-paper'
+                : 'text-theme-ink'
+            }`}
+          >
+            {viewLocked ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0" />
+              </svg>
+            )}
           </button>
         </Tooltip>
         

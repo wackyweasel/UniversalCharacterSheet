@@ -10,6 +10,7 @@ interface UseTouchCameraOptions {
   minScale?: number;
   maxScale?: number;
   onBackgroundTouch?: () => void;
+  isViewLocked?: () => boolean;
 }
 
 export function useTouchCamera({
@@ -22,6 +23,7 @@ export function useTouchCamera({
   minScale = 0.1,
   maxScale = 5,
   onBackgroundTouch,
+  isViewLocked,
 }: UseTouchCameraOptions) {
   // Touch state - all managed via refs to work in global handlers
   const lastTouchDistance = useRef<number | null>(null);
@@ -37,6 +39,9 @@ export function useTouchCamera({
   
   const onBackgroundTouchRef = useRef(onBackgroundTouch);
   useEffect(() => { onBackgroundTouchRef.current = onBackgroundTouch; }, [onBackgroundTouch]);
+
+  const isViewLockedRef = useRef(isViewLocked);
+  useEffect(() => { isViewLockedRef.current = isViewLocked; }, [isViewLocked]);
 
   useEffect(() => {
     // Check if an element or its ancestors have scrollable overflow
@@ -140,6 +145,13 @@ export function useTouchCamera({
       
       // Two or more fingers - always take over for camera control (pinch zoom)
       if (activeTouches.current.size >= 2) {
+        if (isViewLockedRef.current?.()) {
+          // Block pinch-zoom when view is locked
+          isTouchPanning.current = false;
+          lastTouchDistance.current = null;
+          lastTouchCenter.current = null;
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -168,7 +180,7 @@ export function useTouchCamera({
         }
         
         // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
-        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && (modeRef.current === 'play' ? true : !onWidget);
+        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && !isViewLockedRef.current?.() && (modeRef.current === 'play' ? true : !onWidget);
         
         if (shouldPan) {
           const touch = activeTouches.current.values().next().value;
@@ -194,6 +206,9 @@ export function useTouchCamera({
       
       // Two-finger gesture: pinch zoom + pan
       if (touchCount >= 2) {
+        if (isViewLockedRef.current?.()) {
+          return;
+        }
         const touches = Array.from(activeTouches.current.values());
         const dx = touches[0].x - touches[1].x;
         const dy = touches[0].y - touches[1].y;
