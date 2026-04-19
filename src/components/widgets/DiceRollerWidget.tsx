@@ -192,6 +192,38 @@ export default function DiceRollerWidget({ widget }: Props) {
     }, 300);
   };
 
+  const rerollDie = (groupIdx: number, rollIdx: number) => {
+    if (!result) return;
+    const group = result.groups[groupIdx];
+    let newRoll: number | string;
+    if (group.customFaces && group.customFaces.length > 0) {
+      const faceIndex = Math.floor(Math.random() * group.customFaces.length);
+      newRoll = group.customFaces[faceIndex];
+    } else {
+      newRoll = Math.floor(Math.random() * group.faces) + 1;
+    }
+
+    const newGroups = result.groups.map((g, gi) => {
+      if (gi !== groupIdx) return g;
+      const newRolls = [...g.rolls];
+      newRolls[rollIdx] = newRoll;
+      return { ...g, rolls: newRolls };
+    });
+
+    const allRolls: (number | string)[] = [];
+    for (const g of newGroups) for (const r of g.rolls) allRolls.push(r);
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const newTotal = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
+
+    setResult({ groups: newGroups, modifier: result.modifier, total: newTotal, aggregatedResults: aggregated });
+
+    const dieName = group.customFaces && group.customFaces.length > 0
+      ? (diceGroups as DiceGroup[])[groupIdx]?.customDiceName || 'custom'
+      : `d${group.faces}`;
+    addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Re-rolled ${dieName}: ${newRoll}`, '🎲');
+  };
+
   const buildDiceNotation = () => {
     const parts = (diceGroups as DiceGroup[]).map((g) => {
       if (g.customFaces && g.customFaces.length > 0) {
@@ -268,8 +300,54 @@ export default function DiceRollerWidget({ widget }: Props) {
       </Tooltip>
 
       {/* Result Display - Always visible to maintain consistent height */}
-      <div className={`text-center flex-1 flex flex-col justify-center`}>
+      <div
+        className={`text-center flex-1 flex flex-col justify-center min-h-0 overflow-y-auto`}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {result && !isRolling ? (
+          showIndividualResults ? (
+            <div className="flex flex-col gap-0.5">
+              {result.groups.flatMap((g, gi) =>
+                g.rolls.map((roll, ri) => {
+                  const dieLabel = g.customFaces && g.customFaces.length > 0
+                    ? (diceGroups as DiceGroup[])[gi]?.customDiceName || 'custom'
+                    : `d${g.faces}`;
+                  return (
+                    <div
+                      key={`${gi}-${ri}`}
+                      className="flex items-center justify-between gap-1 px-1 py-0.5 border-b border-theme-border/30 last:border-b-0"
+                    >
+                      <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>{dieLabel}</span>
+                      <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
+                        {String(roll)}
+                      </span>
+                      <Tooltip content={`Re-roll ${dieLabel}`}>
+                        <button
+                          onClick={() => rerollDie(gi, ri)}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className="p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0"
+                          aria-label={`Re-roll ${dieLabel}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      </Tooltip>
+                    </div>
+                  );
+                })
+              )}
+              {result.modifier !== 0 && (
+                <div className="flex items-center justify-between gap-1 px-1 py-0.5">
+                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>mod</span>
+                  <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center`}>
+                    {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
+                  </span>
+                  <span className="w-[18px] flex-shrink-0" />
+                </div>
+              )}
+            </div>
+          ) : (
           <>
             {/* Show aggregated result (e.g., "17 | 2💀 | 3 poison") */}
             <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
@@ -306,6 +384,7 @@ export default function DiceRollerWidget({ widget }: Props) {
               </>
             )}
           </>
+          )
         ) : (
           <>
             <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>

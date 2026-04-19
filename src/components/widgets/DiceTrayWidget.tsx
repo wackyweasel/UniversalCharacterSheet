@@ -433,44 +433,57 @@ export default function DiceTrayWidget({ widget }: Props) {
       </div>
 
       {/* Result Display */}
-      <div className={`text-center flex-shrink-0`}>
+      <div
+        className={`text-center flex-1 min-h-0 overflow-y-auto`}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {result && !isRolling ? (
-          <>
-            {/* Show aggregated result for mixed/custom dice, or just total for standard */}
-            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-              {showIndividualResults || hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
-            </div>
-            {/* Individual dice - clickable to re-roll */}
-            {!showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5`}>
-                {result.dice.map((d, i) => (
-                  <span key={d.id} className="inline-flex items-center">
-                    {i > 0 && <span className="mx-0.5">+</span>}
-                    <Tooltip content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
+          showIndividualResults ? (
+            <div className="flex flex-col gap-0.5">
+              {result.dice.map((d, i) => {
+                const dieLabel = Array.isArray(d.faces)
+                  ? (d.customDieName || 'custom')
+                  : `d${d.faces}`;
+                return (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between gap-1 px-1 py-0.5 border-b border-theme-border/30 last:border-b-0"
+                  >
+                    <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>{dieLabel}</span>
+                    <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
+                      {String(d.roll)}
+                    </span>
+                    <Tooltip content={`Re-roll ${dieLabel}`}>
                       <button
                         onClick={() => rerollSingleDie(i)}
                         onMouseDown={(e) => e.stopPropagation()}
                         disabled={rerollingDieId !== null}
-                        className={`
-                          px-1 py-0.5 rounded transition-all
-                          hover:bg-theme-accent hover:text-theme-paper
-                          focus:outline-none focus:ring-1 focus:ring-theme-accent
-                          ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
-                          cursor-pointer
-                        `}
+                        className={`p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0 ${
+                          rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''
+                        }`}
+                        aria-label={`Re-roll ${dieLabel}`}
                       >
-                        {d.roll}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
                       </button>
                     </Tooltip>
-                  </span>
-                ))}
-              </div>
-            )}
-            {/* Individual dice for showIndividualResults mode - also clickable */}
-            {showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5 mt-1`}>
-                {result.dice.map((d, i) => (
-                  <Tooltip key={d.id} content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+          <>
+            {/* Show aggregated result for mixed/custom dice, or just total for standard */}
+            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
+              {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+            </div>
+            {/* Individual dice - clickable to re-roll */}
+            <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5`}>
+              {result.dice.map((d, i) => (
+                <span key={d.id} className="inline-flex items-center">
+                  {i > 0 && <span className="mx-0.5">+</span>}
+                  <Tooltip content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
                     <button
                       onClick={() => rerollSingleDie(i)}
                       onMouseDown={(e) => e.stopPropagation()}
@@ -483,14 +496,12 @@ export default function DiceTrayWidget({ widget }: Props) {
                         cursor-pointer
                       `}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+                      {d.roll}
                     </button>
                   </Tooltip>
-                ))}
-              </div>
-            )}
+                </span>
+              ))}
+            </div>
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.dice.length === 1 && 
              typeof result.dice[0].faces === 'number' && 
@@ -505,6 +516,7 @@ export default function DiceTrayWidget({ widget }: Props) {
               </>
             )}
           </>
+          )
         ) : (
           <>
             <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>
