@@ -200,7 +200,10 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     <div className="space-y-4">
       {/* Size Warning Modal */}
       {showSizeWarning && pendingFile && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+          data-touch-camera-ignore="true"
+        >
           <div className="bg-theme-paper border border-theme-border rounded-button p-4 max-w-sm mx-4 shadow-lg">
             <div className="text-theme-ink font-bold mb-2 flex items-center gap-2">
               <span className="text-xl">⚠️</span>
