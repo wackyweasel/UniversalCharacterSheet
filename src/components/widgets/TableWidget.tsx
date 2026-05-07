@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -10,6 +10,21 @@ interface Props {
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+}
+
+interface RectBounds {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+interface ToolbarPosition {
+  x: number;
+  y: number;
+  avoidRect?: RectBounds;
 }
 
 // Helper to normalize cell data (supports both legacy string and new TableCell format)
@@ -69,7 +84,7 @@ interface FormatToolbarProps {
   format: CellFormat;
   onFormatChange: (format: Partial<CellFormat>) => void;
   onClose: () => void;
-  position: { x: number; y: number };
+  position: ToolbarPosition;
   isMobile: boolean;
   usedColors: ColorWithOpacity[];
   cellValue: string;
@@ -82,6 +97,7 @@ interface FormatToolbarProps {
 
 function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character }: FormatToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [adjustedPosition, setAdjustedPosition] = useState({ x: position.x, y: position.y });
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
   const [showLabelInput, setShowLabelInput] = useState(false);
@@ -119,6 +135,58 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
 
   const isCircular = isSelfReferencing || circularPath !== null;
 
+  useLayoutEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+
+    const margin = 8;
+    const toolbarWidth = toolbar.offsetWidth;
+    const toolbarHeight = toolbar.offsetHeight;
+    const maxX = Math.max(margin, window.innerWidth - toolbarWidth - margin);
+    const maxY = Math.max(margin, window.innerHeight - toolbarHeight - margin);
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+    const rectsOverlap = (x: number, y: number, rect: RectBounds) => {
+      return x < rect.right + margin &&
+        x + toolbarWidth > rect.left - margin &&
+        y < rect.bottom + margin &&
+        y + toolbarHeight > rect.top - margin;
+    };
+    const overlapArea = (x: number, y: number, rect: RectBounds) => {
+      const overlapWidth = Math.max(0, Math.min(x + toolbarWidth, rect.right + margin) - Math.max(x, rect.left - margin));
+      const overlapHeight = Math.max(0, Math.min(y + toolbarHeight, rect.bottom + margin) - Math.max(y, rect.top - margin));
+      return overlapWidth * overlapHeight;
+    };
+
+    let nextPosition = {
+      x: clamp(position.x, margin, maxX),
+      y: clamp(position.y, margin, maxY),
+    };
+
+    if (position.avoidRect) {
+      const rect = position.avoidRect;
+      const centeredX = rect.left + rect.width / 2 - toolbarWidth / 2;
+      const centeredY = rect.top + rect.height / 2 - toolbarHeight / 2;
+      const candidates = [
+        { x: centeredX, y: rect.top - toolbarHeight - margin },
+        { x: centeredX, y: rect.bottom + margin },
+        { x: rect.right + margin, y: centeredY },
+        { x: rect.left - toolbarWidth - margin, y: centeredY },
+      ].map(candidate => ({
+        x: clamp(candidate.x, margin, maxX),
+        y: clamp(candidate.y, margin, maxY),
+      }));
+
+      nextPosition = candidates.find(candidate => !rectsOverlap(candidate.x, candidate.y, rect)) ||
+        candidates.reduce((best, candidate) => {
+          return overlapArea(candidate.x, candidate.y, rect) < overlapArea(best.x, best.y, rect) ? candidate : best;
+        }, candidates[0]);
+    }
+
+    setAdjustedPosition(current => (
+      current.x === nextPosition.x && current.y === nextPosition.y ? current : nextPosition
+    ));
+  }, [position, isMobile, showColorPicker, showLabelInput, showFormulaInput]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
@@ -143,9 +211,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
       ref={toolbarRef}
       className="fixed z-[9999] bg-theme-paper border border-theme-border rounded-button shadow-lg"
       style={{
-        left: isMobile ? '50%' : position.x,
-        top: isMobile ? '16px' : position.y,
-        transform: isMobile ? 'translateX(-50%)' : 'none',
+        left: adjustedPosition.x,
+        top: adjustedPosition.y,
       }}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
@@ -569,7 +636,7 @@ export default function TableWidget({ widget, height }: Props) {
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
   const [selectedCell, setSelectedCell] = useState<{row: number, col: number} | null>(null);
   const [showToolbar, setShowToolbar] = useState(false);
-  const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+  const [toolbarPos, setToolbarPos] = useState<ToolbarPosition>({ x: 0, y: 0 });
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
   const dragRowItem = useRef<number | null>(null);
@@ -703,19 +770,29 @@ export default function TableWidget({ widget, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
-  const handleCellClick = (rowIdx: number, colIdx: number, event: React.MouseEvent) => {
+  const getToolbarPositionForElement = (element: HTMLElement): ToolbarPosition => {
+    const cellElement = element.closest('td') || element;
+    const rect = cellElement.getBoundingClientRect();
+    const toolbarWidth = isMobile ? 280 : 320;
+    return {
+      x: rect.left + rect.width / 2 - toolbarWidth / 2,
+      y: rect.top - 56,
+      avoidRect: {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+    };
+  };
+
+  const handleCellClick = (rowIdx: number, colIdx: number, event: React.MouseEvent<HTMLElement>) => {
     // Always enter edit mode on click, show toolbar alongside
     setEditingCell({ row: rowIdx, col: colIdx });
     setSelectedCell({ row: rowIdx, col: colIdx });
-    
-    // Calculate toolbar position
-    const clientX = event.clientX;
-    const clientY = event.clientY;
-    const toolbarWidth = 320;
-    setToolbarPos({
-      x: Math.max(8, Math.min(clientX - toolbarWidth / 2, window.innerWidth - toolbarWidth - 8)),
-      y: Math.max(8, clientY - 50)
-    });
+    setToolbarPos(getToolbarPositionForElement(event.currentTarget));
     setShowToolbar(true);
   };
 
@@ -953,17 +1030,19 @@ export default function TableWidget({ widget, height }: Props) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
 
-  const handleTouchStart = (rowIdx: number, colIdx: number) => {
+  const handleTouchStart = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
+    const targetElement = e.currentTarget;
     setTouchStart({ row: rowIdx, col: colIdx });
     longPressTimer.current = setTimeout(() => {
       // Long press - show toolbar
       setSelectedCell({ row: rowIdx, col: colIdx });
+      setToolbarPos(getToolbarPositionForElement(targetElement));
       setShowToolbar(true);
       longPressTimer.current = null;
     }, 500);
   };
 
-  const handleTouchEnd = (rowIdx: number, colIdx: number, e: React.TouchEvent) => {
+  const handleTouchEnd = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -972,8 +1051,8 @@ export default function TableWidget({ widget, height }: Props) {
       if (touchStart?.row === rowIdx && touchStart?.col === colIdx) {
         setEditingCell({ row: rowIdx, col: colIdx });
         setSelectedCell({ row: rowIdx, col: colIdx });
+        setToolbarPos(getToolbarPositionForElement(e.currentTarget));
         
-        // Position toolbar at bottom for mobile
         setShowToolbar(true);
         e.preventDefault();
       }
@@ -1069,7 +1148,7 @@ export default function TableWidget({ widget, height }: Props) {
                   return (
                     <td 
                       key={colIdx} 
-                      className={`${isSelected ? 'border-theme-accent border-2' : 'border border-theme-border'} ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'}`}
+                      className={`border border-theme-border ${isSelected ? 'ring-2 ring-theme-accent ring-inset' : ''} ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'}`}
                       style={{ 
                         ...getCellStyle(cellFormat),
                         ...textColorStyle,
@@ -1077,64 +1156,66 @@ export default function TableWidget({ widget, height }: Props) {
                         borderLeftWidth: colIdx === 0 ? 1 : 0,
                       }}
                     >
-                      {isEditing ? (
-                        <input
-                          autoFocus
-                          value={cellValue}
-                          onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
-                          readOnly={!!cellFml}
-                          onBlur={() => setEditingCell(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              setEditingCell(null);
-                            } else if (e.key === 'Tab') {
-                              e.preventDefault();
-                              if (e.shiftKey) {
-                                if (colIdx > 0) {
-                                  setEditingCell({ row: rowIdx, col: colIdx - 1 });
-                                  setSelectedCell({ row: rowIdx, col: colIdx - 1 });
-                                } else if (rowIdx > 0) {
-                                  setEditingCell({ row: rowIdx - 1, col: columns.length - 1 });
-                                  setSelectedCell({ row: rowIdx - 1, col: columns.length - 1 });
-                                }
-                              } else {
-                                if (colIdx < columns.length - 1) {
-                                  setEditingCell({ row: rowIdx, col: colIdx + 1 });
-                                  setSelectedCell({ row: rowIdx, col: colIdx + 1 });
-                                } else if (rowIdx < rows.length - 1) {
-                                  setEditingCell({ row: rowIdx + 1, col: 0 });
-                                  setSelectedCell({ row: rowIdx + 1, col: 0 });
-                                }
-                              }
-                            } else if (e.key === 'Escape') {
-                              setEditingCell(null);
-                            }
-                          }}
-                          className={`w-full bg-transparent focus:outline-none text-[10px] ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
-                          style={{ textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
-                          onMouseDown={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <div 
-                          onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
-                          onDoubleClick={() => handleCellDoubleClick(rowIdx, colIdx)}
-                          onTouchStart={() => handleTouchStart(rowIdx, colIdx)}
-                          onTouchEnd={(e) => handleTouchEnd(rowIdx, colIdx, e)}
-                          onTouchMove={handleTouchMove}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          className={`min-h-[1.5em] cursor-pointer hover:opacity-70 font-body flex ${getCellTextClass(cellFormat)}`}
-                          style={{
-                            ...getCellContentStyle(cellFormat),
-                            ...textColorStyle,
-                            justifyContent: cellFormat.hAlign === 'center' ? 'center' : cellFormat.hAlign === 'right' ? 'flex-end' : 'flex-start',
-                          }}
-                        >
+                      <div 
+                        onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
+                        onDoubleClick={() => handleCellDoubleClick(rowIdx, colIdx)}
+                        onTouchStart={(e) => handleTouchStart(rowIdx, colIdx, e)}
+                        onTouchEnd={(e) => handleTouchEnd(rowIdx, colIdx, e)}
+                        onTouchMove={handleTouchMove}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className={`relative min-h-[1.5em] cursor-pointer hover:opacity-70 font-body flex leading-[1.5] ${getCellTextClass(cellFormat)}`}
+                        style={{
+                          ...getCellContentStyle(cellFormat),
+                          ...textColorStyle,
+                          justifyContent: cellFormat.hAlign === 'center' ? 'center' : cellFormat.hAlign === 'right' ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        <span className={`block min-w-0 whitespace-pre-wrap break-words ${isEditing ? 'invisible' : ''}`}>
                           {cellValue || <span className={`text-theme-muted ${isPrintMode ? 'opacity-0' : ''}`}>-</span>}
-                          {cellFml && isFormulaBroken(cellFml, formulaLabels) && (
-                            <span className="text-red-500 ml-0.5 text-[9px] flex-shrink-0" title={`Broken formula: ${cellFml}`}>⚠</span>
-                          )}
-                        </div>
-                      )}
+                        </span>
+                        {cellFml && isFormulaBroken(cellFml, formulaLabels) && (
+                          <span className={`text-red-500 ml-0.5 text-[9px] flex-shrink-0 ${isEditing ? 'invisible' : ''}`} title={`Broken formula: ${cellFml}`}>⚠</span>
+                        )}
+                        {isEditing && (
+                          <textarea
+                            autoFocus
+                            rows={1}
+                            value={cellValue}
+                            onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
+                            readOnly={!!cellFml}
+                            onBlur={() => setEditingCell(null)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                setEditingCell(null);
+                              } else if (e.key === 'Tab') {
+                                e.preventDefault();
+                                if (e.shiftKey) {
+                                  if (colIdx > 0) {
+                                    setEditingCell({ row: rowIdx, col: colIdx - 1 });
+                                    setSelectedCell({ row: rowIdx, col: colIdx - 1 });
+                                  } else if (rowIdx > 0) {
+                                    setEditingCell({ row: rowIdx - 1, col: columns.length - 1 });
+                                    setSelectedCell({ row: rowIdx - 1, col: columns.length - 1 });
+                                  }
+                                } else {
+                                  if (colIdx < columns.length - 1) {
+                                    setEditingCell({ row: rowIdx, col: colIdx + 1 });
+                                    setSelectedCell({ row: rowIdx, col: colIdx + 1 });
+                                  } else if (rowIdx < rows.length - 1) {
+                                    setEditingCell({ row: rowIdx + 1, col: 0 });
+                                    setSelectedCell({ row: rowIdx + 1, col: 0 });
+                                  }
+                                }
+                              } else if (e.key === 'Escape') {
+                                setEditingCell(null);
+                              }
+                            }}
+                            className={`absolute inset-0 block w-full min-w-0 h-full bg-transparent border-0 p-0 resize-none overflow-hidden focus:outline-none text-[10px] leading-[1.5] whitespace-pre-wrap break-words ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
+                            style={{ textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </div>
                     </td>
                   );
                 })}
