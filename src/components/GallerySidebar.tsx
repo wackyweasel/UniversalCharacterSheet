@@ -13,6 +13,15 @@ interface GallerySidebarProps {
 }
 
 type TabType = 'presets' | 'themes' | 'templates';
+type UserDataType = 'preset' | 'theme' | 'template';
+
+function getUserDataTypeLabel(type: UserDataType): string {
+  return type === 'preset' ? 'preset' : type === 'theme' ? 'theme' : 'template';
+}
+
+function getUserDataTypePluralLabel(type: UserDataType): string {
+  return type === 'preset' ? 'presets' : type === 'theme' ? 'themes' : 'templates';
+}
 
 export default function GallerySidebar({ collapsed, onToggle, darkMode }: GallerySidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('presets');
@@ -21,13 +30,14 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareType, setShareType] = useState<'preset' | 'theme' | 'template'>('preset');
+  const [shareType, setShareType] = useState<UserDataType>('preset');
   const [shareItemId, setShareItemId] = useState<string>('');
   const [shareName, setShareName] = useState('');
   const [shareAuthor, setShareAuthor] = useState('');
   const [shareDescription, setShareDescription] = useState('');
   const [shareSubmitting, setShareSubmitting] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: UserDataType; id: string; name: string } | null>(null);
   
   // Download feedback
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -36,14 +46,17 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   // User data stores
   const userPresets = useUserPresetStore((state) => state.userPresets);
   const addUserPreset = useUserPresetStore((state) => state.addPreset);
+  const removeUserPreset = useUserPresetStore((state) => state.removePreset);
   const customThemes = useCustomThemeStore((state) => state.customThemes);
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
+  const deleteCustomTheme = useCustomThemeStore((state) => state.deleteCustomTheme);
   const templates = useTemplateStore((state) => state.templates);
+  const removeTemplate = useTemplateStore((state) => state.removeTemplate);
   
   // Gallery data
   const { manifest, themeData, loading, error, refresh, downloadPreset, downloadTheme, downloadTemplate } = useGallery();
   
-  const handleOpenShareModal = (type: 'preset' | 'theme' | 'template', id: string) => {
+  const handleOpenShareModal = (type: UserDataType, id: string) => {
     setShareType(type);
     setShareItemId(id);
     
@@ -65,6 +78,24 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     setShareDescription('');
     setShareSuccess(false);
     setShowShareModal(true);
+  };
+
+  const handleDeleteUserData = (type: UserDataType, id: string, name: string) => {
+    setDeleteTarget({ type, id, name });
+  };
+
+  const handleConfirmDeleteUserData = () => {
+    if (!deleteTarget) return;
+
+    if (deleteTarget.type === 'preset') {
+      removeUserPreset(deleteTarget.id);
+    } else if (deleteTarget.type === 'theme') {
+      deleteCustomTheme(deleteTarget.id);
+    } else {
+      removeTemplate(deleteTarget.id);
+    }
+
+    setDeleteTarget(null);
   };
   
   const handleSubmitShare = async () => {
@@ -255,6 +286,43 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
           </div>
         </>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-[60]" 
+            onClick={() => setDeleteTarget(null)}
+          />
+          <div 
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-data-title"
+            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-lg shadow-xl w-[90vw] max-w-[400px] ${darkMode ? 'bg-gray-900 text-white border border-white/20' : 'bg-white text-gray-900 border border-gray-200'}`}
+          >
+            <h3 id="delete-data-title" className="text-lg font-bold mb-2">
+              Delete {getUserDataTypeLabel(deleteTarget.type)}?
+            </h3>
+            <p className={`text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              This will permanently delete "{deleteTarget.name}" from your saved {getUserDataTypePluralLabel(deleteTarget.type)}. This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end mt-5">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className={`px-4 py-2 rounded ${baseButtonClass}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteUserData}
+                className="px-4 py-2 rounded font-medium bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       
       {/* Overlay backdrop */}
       {!collapsed && (
@@ -282,18 +350,39 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
         
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className={`p-3 rounded-lg ${cardClass}`}>
+            <p className={`text-sm mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              Manage your gallery data here, including presets, templates, and themes.
+            </p>
+            <ul className={`text-sm space-y-2 list-disc pl-5 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              <li>
+                <span className="font-semibold">Presets</span> are pre-made character sheets that can be selected as starting points when creating a new character.
+              </li>
+              <li>
+                <span className="font-semibold">Templates</span> are custom widgets that can be made from any widget and added to any character sheet from the Add Widget menu.
+              </li>
+              <li>
+                <span className="font-semibold">Themes</span> are custom themes used to personalize a character sheet.
+              </li>
+            </ul>
+          </div>
+
           {/* Share Section */}
           <div className={`rounded-lg overflow-hidden ${cardClass}`}>
             <button
               onClick={() => setShareExpanded(!shareExpanded)}
               className={`w-full flex items-center justify-between p-3 font-bold ${darkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
             >
-              <span>📤 Share with Community</span>
+              <span>📤 Manage My Data</span>
               <span className="text-lg">{shareExpanded ? '−' : '+'}</span>
             </button>
             
             {shareExpanded && (
               <div className={`p-3 pt-0 space-y-3 border-t ${darkMode ? 'border-white/10' : 'border-gray-100'}`}>
+                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  See, delete, or share your custom-made presets, templates, and themes with the community.
+                </p>
+
                 {/* My Presets */}
                 <div>
                   <h4 className="text-sm font-semibold mb-2 text-gray-500">My Presets</h4>
@@ -304,12 +393,20 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
                       {userPresets.map((preset) => (
                         <div key={preset.id} className={`flex items-center justify-between p-2 rounded ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
                           <span className="text-sm truncate flex-1">{preset.name}</span>
-                          <button
-                            onClick={() => handleOpenShareModal('preset', preset.id)}
-                            className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 whitespace-nowrap ml-2"
-                          >
-                            Share
-                          </button>
+                          <div className="flex items-center gap-2 ml-2">
+                            <button
+                              onClick={() => handleOpenShareModal('preset', preset.id)}
+                              className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 whitespace-nowrap"
+                            >
+                              Share
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUserData('preset', preset.id, preset.name)}
+                              className="text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 whitespace-nowrap"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -378,17 +475,30 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
                                   {theme.name}
                                 </span>
                               </div>
-                              <button
-                                onClick={() => handleOpenShareModal('theme', theme.id)}
-                                className="text-xs px-2 py-1 whitespace-nowrap ml-2"
-                                style={{
-                                  backgroundColor: theme.colors.accent,
-                                  color: theme.colors.paper,
-                                  borderRadius: theme.buttonRadius || '4px',
-                                }}
-                              >
-                                Share
-                              </button>
+                              <div className="flex items-center gap-2 ml-2">
+                                <button
+                                  onClick={() => handleOpenShareModal('theme', theme.id)}
+                                  className="text-xs px-2 py-1 whitespace-nowrap"
+                                  style={{
+                                    backgroundColor: theme.colors.accent,
+                                    color: theme.colors.paper,
+                                    borderRadius: theme.buttonRadius || '4px',
+                                  }}
+                                >
+                                  Share
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUserData('theme', theme.id, theme.name)}
+                                  className="text-xs px-2 py-1 whitespace-nowrap"
+                                  style={{
+                                    backgroundColor: '#dc2626',
+                                    color: '#ffffff',
+                                    borderRadius: theme.buttonRadius || '4px',
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -407,12 +517,20 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
                       {templates.map((template) => (
                         <div key={template.id} className={`flex items-center justify-between p-2 rounded ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
                           <span className="text-sm truncate flex-1">{template.name}</span>
-                          <button
-                            onClick={() => handleOpenShareModal('template', template.id)}
-                            className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 whitespace-nowrap ml-2"
-                          >
-                            Share
-                          </button>
+                          <div className="flex items-center gap-2 ml-2">
+                            <button
+                              onClick={() => handleOpenShareModal('template', template.id)}
+                              className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 whitespace-nowrap"
+                            >
+                              Share
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUserData('template', template.id, template.name)}
+                              className="text-xs px-2 py-1 rounded bg-red-600 text-white hover:bg-red-700 whitespace-nowrap"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
