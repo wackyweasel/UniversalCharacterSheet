@@ -5,7 +5,9 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { WidgetType } from '../types';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { submitToGallery } from '../hooks/useGallery';
 import { Tooltip } from './Tooltip';
+import GalleryShareModal from './GalleryShareModal';
 import WidgetTooltipPreview from './WidgetTooltipPreview';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
@@ -55,6 +57,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   const templates = useTemplateStore((state) => state.templates);
   const removeTemplate = useTemplateStore((state) => state.removeTemplate);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [sharingTemplateId, setSharingTemplateId] = useState<string | null>(null);
 
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -83,8 +86,25 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  const sharingTemplate = templates.find((template) => template.id === sharingTemplateId) || null;
+
+  const handleSubmitTemplateShare = async (name: string, author: string, description: string) => {
+    if (!sharingTemplate) {
+      return false;
+    }
+
+    return submitToGallery('Templates', name, author, description, sharingTemplate);
+  };
+
   return (
     <>
+      <GalleryShareModal
+        open={sharingTemplateId !== null}
+        initialName={sharingTemplate?.name || ''}
+        onClose={() => setSharingTemplateId(null)}
+        onSubmit={handleSubmitTemplateShare}
+      />
+
       {/* Overlay backdrop */}
       {!collapsed && (
         <div 
@@ -232,17 +252,30 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                         </button>
                       </div>
                     ) : (
-                      <Tooltip content="Delete template">
-                        <button
-                          className="ml-2 w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmingDeleteId(template.id);
-                          }}
-                        >
-                          ×
-                        </button>
-                      </Tooltip>
+                      <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip content="Submit this template for the community gallery">
+                          <button
+                            className="px-1.5 py-0.5 text-[10px] font-bold rounded-button text-theme-muted hover:text-white hover:bg-blue-600 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSharingTemplateId(template.id);
+                            }}
+                          >
+                            Share
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Delete template">
+                          <button
+                            className="w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmingDeleteId(template.id);
+                            }}
+                          >
+                            ×
+                          </button>
+                        </Tooltip>
+                      </div>
                     )}
                   </div>
                 );

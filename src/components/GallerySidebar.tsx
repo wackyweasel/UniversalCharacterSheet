@@ -5,6 +5,7 @@ import { useTemplateStore } from '../store/useTemplateStore';
 import { useGallery, submitToGallery, GalleryPreset, GalleryTheme, GalleryTemplate } from '../hooks/useGallery';
 import { IMAGE_TEXTURES, isImageTexture, getShadowStyleCSS } from '../store/useThemeStore';
 import { v4 as uuidv4 } from 'uuid';
+import GalleryShareModal from './GalleryShareModal';
 
 interface GallerySidebarProps {
   collapsed: boolean;
@@ -32,11 +33,6 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareType, setShareType] = useState<UserDataType>('preset');
   const [shareItemId, setShareItemId] = useState<string>('');
-  const [shareName, setShareName] = useState('');
-  const [shareAuthor, setShareAuthor] = useState('');
-  const [shareDescription, setShareDescription] = useState('');
-  const [shareSubmitting, setShareSubmitting] = useState(false);
-  const [shareSuccess, setShareSuccess] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: UserDataType; id: string; name: string } | null>(null);
   
   // Download feedback
@@ -55,28 +51,16 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   
   // Gallery data
   const { manifest, themeData, loading, error, refresh, downloadPreset, downloadTheme, downloadTemplate } = useGallery();
+
+  const currentShareItemName = shareType === 'preset'
+    ? userPresets.find(p => p.id === shareItemId)?.name || ''
+    : shareType === 'theme'
+      ? customThemes.find(t => t.id === shareItemId)?.name || ''
+      : templates.find(t => t.id === shareItemId)?.name || '';
   
   const handleOpenShareModal = (type: UserDataType, id: string) => {
     setShareType(type);
     setShareItemId(id);
-    
-    // Get the current name of the item
-    let currentName = '';
-    if (type === 'preset') {
-      const preset = userPresets.find(p => p.id === id);
-      currentName = preset?.name || '';
-    } else if (type === 'theme') {
-      const theme = customThemes.find(t => t.id === id);
-      currentName = theme?.name || '';
-    } else {
-      const template = templates.find(t => t.id === id);
-      currentName = template?.name || '';
-    }
-    
-    setShareName(currentName);
-    setShareAuthor('');
-    setShareDescription('');
-    setShareSuccess(false);
     setShowShareModal(true);
   };
 
@@ -98,11 +82,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     setDeleteTarget(null);
   };
   
-  const handleSubmitShare = async () => {
-    if (!shareAuthor.trim() || !shareName.trim()) return;
-    
-    setShareSubmitting(true);
-    
+  const handleSubmitShare = async (name: string, author: string, description: string) => {
     let data: any = null;
     let sheet: 'Presets' | 'Themes' | 'Templates' = 'Presets';
     
@@ -143,13 +123,10 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     }
     
     if (data) {
-      const success = await submitToGallery(sheet, shareName.trim(), shareAuthor.trim(), shareDescription.trim(), data);
-      if (success) {
-        setShareSuccess(true);
-      }
+      return submitToGallery(sheet, name, author, description, data);
     }
-    
-    setShareSubmitting(false);
+
+    return false;
   };
   
   const handleDownloadPreset = async (item: GalleryPreset) => {
@@ -204,88 +181,14 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
 
   return (
     <>
-      {/* Share Modal */}
-      {showShareModal && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-[60]" 
-            onClick={() => setShowShareModal(false)}
-          />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-lg shadow-xl w-[90vw] max-w-[400px] ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-            {shareSuccess ? (
-              <div className="text-center py-4">
-                <div className="text-4xl mb-2">✓</div>
-                <p className="text-lg font-bold">Submitted!</p>
-                <p className={`text-sm mt-2 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>Thank you for sharing with the community.</p>
-                <p className={`text-sm mt-1 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>Your submission will appear in the gallery once it has been reviewed and approved.</p>
-                <button
-                  onClick={() => {
-                    setShowShareModal(false);
-                    setShareSuccess(false);
-                  }}
-                  className="mt-4 px-6 py-2 rounded font-medium bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  Ok
-                </button>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-lg font-bold mb-4">Share to Gallery</h3>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={shareName}
-                    onChange={(e) => setShareName(e.target.value)}
-                    placeholder="Enter a name for your submission"
-                    className={`w-full px-3 py-2 rounded border ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
-                    autoFocus
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Your Name / Handle</label>
-                  <input
-                    type="text"
-                    value={shareAuthor}
-                    onChange={(e) => setShareAuthor(e.target.value)}
-                    placeholder="e.g. @username"
-                    className={`w-full px-3 py-2 rounded border ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea
-                    value={shareDescription}
-                    onChange={(e) => setShareDescription(e.target.value)}
-                    placeholder="Briefly describe what this is and what it's for..."
-                    rows={3}
-                    className={`w-full px-3 py-2 rounded border resize-none ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => setShowShareModal(false)}
-                    className={`px-4 py-2 rounded ${baseButtonClass}`}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmitShare}
-                    disabled={!shareName.trim() || !shareAuthor.trim() || !shareDescription.trim() || shareSubmitting}
-                    className={`px-4 py-2 rounded font-medium ${
-                      shareName.trim() && shareAuthor.trim() && shareDescription.trim() && !shareSubmitting
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                    }`}
-                  >
-                    {shareSubmitting ? 'Submitting...' : 'Submit'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </>
-      )}
+      <GalleryShareModal
+        open={showShareModal}
+        initialName={currentShareItemName}
+        onClose={() => setShowShareModal(false)}
+        onSubmit={handleSubmitShare}
+        variant="gallery"
+        darkMode={darkMode}
+      />
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (

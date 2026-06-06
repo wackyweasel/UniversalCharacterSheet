@@ -727,161 +727,173 @@ export default function CharacterList() {
                         border: '1px solid var(--card-border)'
                       }}
                     >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenameValue(char.name);
-                          setRenamingCharacterId(char.id);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Rename
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleExport(char);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Export
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          duplicateCharacter(char.id);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Duplicate
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCreatePresetCharacter(char);
-                          setPresetName(`${char.name} Preset`);
-                          setIncludeThemeInPreset(true);
-                          setShowCreatePresetModal(true);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Create Preset
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRawDataCharacter(char);
-                          setRawDataCopied(false);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                        </svg>
-                        Show Raw Data
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCharacterToDelete(char.id);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#ef4444';
-                          e.currentTarget.style.color = '#ffffff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
-                      </button>
+                      <Tooltip content="Rename this character" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenameValue(char.name);
+                            setRenamingCharacterId(char.id);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Rename
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Export this character as a JSON file" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExport(char);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Export
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Create a copy of this character" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            duplicateCharacter(char.id);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Duplicate
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Save this character as a reusable preset (Presets are selectable at character creation)" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCreatePresetCharacter(char);
+                            setPresetName(`${char.name} Preset`);
+                            setIncludeThemeInPreset(true);
+                            setShowCreatePresetModal(true);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Create Preset
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="View this character's raw JSON data (useful to copy and import from raw)" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRawDataCharacter(char);
+                            setRawDataCopied(false);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          Show Raw Data
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete this character" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCharacterToDelete(char.id);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#ef4444';
+                            e.currentTarget.style.color = '#ffffff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Delete
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
