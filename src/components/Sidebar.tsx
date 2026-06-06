@@ -6,6 +6,7 @@ import { WidgetType } from '../types';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { Tooltip } from './Tooltip';
+import WidgetTooltipPreview from './WidgetTooltipPreview';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'CHECKBOX', label: 'Checklist' },
@@ -154,16 +155,17 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
             const isHighlighted = tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type;
             
             return (
-              <div
-                key={type}
-                data-tutorial={`widget-${type}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, type)}
-                onClick={() => handleAdd(type)}
-                className={`p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-button relative ${isHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-              >
-                <span className="text-xs font-body">+ {label}</span>
-              </div>
+              <Tooltip key={type} content={<WidgetTooltipPreview type={type} />} placement="below">
+                <div
+                  data-tutorial={`widget-${type}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, type)}
+                  onClick={() => handleAdd(type)}
+                  className={`p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-button relative ${isHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                >
+                  <span className="text-xs font-body">+ {label}</span>
+                </div>
+              </Tooltip>
             );
           })}
         </div>
