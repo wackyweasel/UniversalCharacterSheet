@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 const TUTORIAL_STORAGE_KEY = 'ucs:tutorialStep';
 
+export const THEME_TUTORIAL_START_ID = 'themes-open-panel';
+
 // Tutorial step definitions
 export interface TutorialStep {
   id: string;
@@ -214,11 +216,62 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     position: 'center',
     page: 'sheet',
   },
+  {
+    id: THEME_TUTORIAL_START_ID,
+    title: 'Open Themes',
+    message: 'This tutorial starts with a complete character sheet. Click Change Theme to open the theme panel.',
+    targetSelector: '[data-tutorial="theme-button"], [data-tutorial="theme-button-mobile"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'themes-pick-theme',
+    title: 'Try a Built-In Theme',
+    message: 'Themes change the whole sheet: colors, borders, fonts, shadows, and textures. Pick one from the list to see it apply instantly.',
+    targetSelector: '[data-tutorial="theme-option-medieval"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'themes-scroll-custom',
+    title: 'Find Custom Themes',
+    message: 'Scroll down inside the theme panel until you reach the Custom Themes section, then click Next.',
+    targetSelector: '[data-tutorial="theme-panel"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'themes-create-custom',
+    title: 'Create a Custom Theme',
+    message: 'You can also build your own theme from scratch, or copy a built-in theme with the pencil button and customize it.',
+    targetSelector: '[data-tutorial="theme-create-custom"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'themes-share-custom',
+    title: 'Share a Custom Theme',
+    message: 'Saved custom theme cards have a Share button. Use it to open the same gallery submission dialog and share your theme with the community.',
+    targetSelector: '[data-tutorial="theme-share-custom"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'themes-complete',
+    title: 'Themes Tutorial Complete',
+    message: 'That is the theme flow: load a sheet, open Themes, try built-in looks, and create custom styles when you want something personal.',
+    position: 'center',
+    page: 'sheet',
+  },
 ];
 
 interface TutorialState {
   tutorialStep: number | null;
   startTutorial: () => void;
+  startThemesTutorial: () => void;
   exitTutorial: () => void;
   advanceTutorial: () => void;
   setTutorialStep: (step: number | null) => void;
@@ -230,6 +283,13 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   startTutorial: () => {
     set({ tutorialStep: 0 });
     localStorage.setItem(TUTORIAL_STORAGE_KEY, '0');
+  },
+
+  startThemesTutorial: () => {
+    const themeTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === THEME_TUTORIAL_START_ID);
+    const tutorialStep = themeTutorialStart >= 0 ? themeTutorialStart : 0;
+    set({ tutorialStep });
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },
 
   exitTutorial: () => {

@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { THEMES, applyTheme, applyCustomTheme, isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { useStore } from '../store/useStore';
 import { useCustomThemeStore, CustomTheme, getCustomTheme } from '../store/useCustomThemeStore';
 import CustomThemeEditor from './CustomThemeEditor';
 import { Tooltip } from './Tooltip';
+import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
+import GalleryShareModal from './GalleryShareModal';
+import { submitToGallery } from '../hooks/useGallery';
 
 interface ThemeSidebarProps {
   collapsed: boolean;
@@ -27,9 +30,26 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
   const updateCustomTheme = useCustomThemeStore((state) => state.updateCustomTheme);
   const deleteCustomTheme = useCustomThemeStore((state) => state.deleteCustomTheme);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
 
   const [showEditor, setShowEditor] = useState(false);
   const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(undefined);
+  const [sharingTheme, setSharingTheme] = useState<CustomTheme | null>(null);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('themes-create-custom') || isCurrentTutorialStep('themes-share-custom')) {
+      const selector = isCurrentTutorialStep('themes-share-custom')
+        ? '[data-tutorial="theme-share-custom"]'
+        : '[data-tutorial="theme-create-custom"]';
+
+      document.querySelector(selector)?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    }
+  }, [tutorialStep]);
 
   const handleSelectTheme = (themeId: string) => {
     if (activeCharacterId) {
@@ -41,18 +61,43 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       } else {
         applyTheme(themeId);
       }
+
+      if (isCurrentTutorialStep('themes-pick-theme')) {
+        advanceTutorial();
+      }
     }
   };
 
   const handleCreateCustom = () => {
     setEditingTheme(undefined);
     setShowEditor(true);
+
+    if (isCurrentTutorialStep('themes-create-custom')) {
+      advanceTutorial();
+    }
   };
 
   const handleEditCustom = (theme: CustomTheme, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTheme(theme);
     setShowEditor(true);
+  };
+
+  const handleShareCustom = (theme: CustomTheme, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSharingTheme(theme);
+
+    if (isCurrentTutorialStep('themes-share-custom')) {
+      advanceTutorial();
+    }
+  };
+
+  const handleSubmitShare = async (name: string, author: string, description: string) => {
+    if (!sharingTheme) {
+      return false;
+    }
+
+    return submitToGallery('Themes', name, author, description, sharingTheme);
   };
 
   const handleEditPreset = (theme: typeof THEMES[number], e: React.MouseEvent) => {
@@ -118,6 +163,13 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
 
   return (
     <>
+      <GalleryShareModal
+        open={!!sharingTheme}
+        initialName={sharingTheme?.name || ''}
+        onClose={() => setSharingTheme(null)}
+        onSubmit={handleSubmitShare}
+      />
+
       {/* Custom Theme Editor Modal */}
       {showEditor && (
         <CustomThemeEditor
@@ -140,6 +192,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       )}
       
       <div 
+        data-tutorial="theme-panel"
         className={`fixed right-0 top-0 bottom-0 w-[80vw] max-w-[280px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? 'translate-x-full' : 'translate-x-0'
         }`}
@@ -190,6 +243,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
             return (
               <div
                 key={theme.id}
+                data-tutorial={`theme-option-${theme.id}`}
                 style={{
                   backgroundColor: isSelected ? theme.colors.accent : theme.colors.paper,
                   color: isSelected ? theme.colors.paper : theme.colors.ink,
@@ -280,13 +334,14 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         </div>
 
         {/* Custom Themes Section */}
-        <div className="mt-6 pt-4 border-t border-theme-border/50">
+        <div data-tutorial="theme-custom-section" className="mt-6 pt-4 border-t border-theme-border/50">
           <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">
             ✨ Custom Themes
           </h3>
           
           {/* Create New Custom Theme Button */}
           <button
+            data-tutorial="theme-create-custom"
             onClick={handleCreateCustom}
             className="w-full p-2 border-[length:var(--border-width)] border-dashed border-theme-border transition-all text-left font-bold bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper hover:border-solid mb-2"
             style={{ borderRadius: 'min(var(--button-radius), 16px)' }}
@@ -344,7 +399,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                     onClick={() => handleSelectTheme(theme.id)}
                     className="relative w-full text-left"
                   >
-                    <div className="flex items-center gap-2 pr-8">
+                    <div className="flex items-center gap-2 pr-20">
                       <span className="text-base">{theme.icon}</span>
                       <span className="text-xs" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
                     </div>
@@ -379,7 +434,20 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                       </Tooltip>
                     </div>
                   </button>
-                  {/* Edit button */}
+                  {/* Share and edit buttons */}
+                  <Tooltip content="Share theme to gallery">
+                    <button
+                      data-tutorial="theme-share-custom"
+                      onClick={(e) => handleShareCustom(theme, e)}
+                      style={{
+                        backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
+                        color: isSelected ? theme.colors.paper : theme.colors.accent,
+                      }}
+                      className="absolute top-2 right-10 h-6 px-2 flex items-center justify-center rounded text-[10px] font-bold hover:scale-105 transition-transform z-10"
+                    >
+                      Share
+                    </button>
+                  </Tooltip>
                   <Tooltip content="Edit theme">
                     <button
                       onClick={(e) => handleEditCustom(theme, e)}

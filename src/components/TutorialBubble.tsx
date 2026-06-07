@@ -16,6 +16,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
+  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete';
 
   // Handle narrow window detection on resize
   useEffect(() => {
@@ -76,14 +77,14 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
             <button
               onClick={exitTutorial}
               className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                step.id === 'try-widgets'
+                isFinalStep
                   ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
                   : darkMode
                     ? 'bg-white/10 hover:bg-white/20 text-white/70'
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
               }`}
             >
-              {step.id === 'try-widgets' ? '🎉 End of Tutorial' : 'Exit Tutorial'}
+              {isFinalStep ? '🎉 End of Tutorial' : 'Exit Tutorial'}
             </button>
           </div>
         </div>
@@ -110,6 +111,7 @@ function PositionedBubble({
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [adjustedTransform, setAdjustedTransform] = useState('');
   const [isCentered, setIsCentered] = useState(false);
+  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete';
 
   useEffect(() => {
     // Handle centered position (no target)
@@ -127,6 +129,17 @@ function PositionedBubble({
 
     const updatePosition = () => {
       const target = document.querySelector(step.targetSelector!);
+      if (!target) {
+        setIsCentered(true);
+        setPosition({
+          top: window.innerHeight / 2,
+          left: window.innerWidth / 2,
+        });
+        setAdjustedTransform('translate(-50%, -50%)');
+        return;
+      }
+
+      setIsCentered(false);
       if (target) {
         const rect = target.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
@@ -310,14 +323,14 @@ function PositionedBubble({
           <button
             onClick={exitTutorial}
             className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-              step.id === 'try-widgets'
+              isFinalStep
                 ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
                 : darkMode
                   ? 'bg-white/10 hover:bg-white/20 text-white/70'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
             }`}
           >
-            {step.id === 'try-widgets' ? '🎉 End of Tutorial' : 'Exit Tutorial'}
+            {isFinalStep ? '🎉 End of Tutorial' : 'Exit Tutorial'}
           </button>
         </div>
       </div>

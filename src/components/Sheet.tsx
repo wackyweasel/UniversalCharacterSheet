@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
-import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { applyTheme, applyCustomTheme, THEMES } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
@@ -61,6 +61,7 @@ export default function Sheet() {
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   // Print mode state
   const printerFriendly = usePrintStore((state) => state.printerFriendly);
@@ -195,6 +196,19 @@ export default function Sheet() {
     setScale,
     setPan,
   });
+
+  const handleToggleThemeSidebar = (closeGridMenu = false) => {
+    const wasCollapsed = themeSidebarCollapsed;
+    setThemeSidebarCollapsed((current) => !current);
+
+    if (closeGridMenu) {
+      setGridMenuOpen(false);
+    }
+
+    if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) && wasCollapsed) {
+      advanceTutorial();
+    }
+  };
 
   // Close paper format dropdown on outside click
   useEffect(() => {
@@ -443,6 +457,18 @@ export default function Sheet() {
     }
   }, [tutorialStep]);
 
+  // Themes tutorial starts from the same complete tutorial sheet and should open in edit mode.
+  useEffect(() => {
+    if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID)) {
+      setMode('edit');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        handleFitAllWidgets();
+      }, 200);
+    }
+  }, [tutorialStep]);
+
   // Auto-open mobile menu when tutorial step requires the Edit/Play Mode button or Add Widget (hidden on mobile)
   useEffect(() => {
     const isNarrowScreen = window.innerWidth < 640; // sm breakpoint
@@ -450,8 +476,9 @@ export default function Sheet() {
       (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') ||
       (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play');
     const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
+    const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
     
-    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton)) {
+    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton || needsThemeButton)) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
@@ -1268,8 +1295,9 @@ export default function Sheet() {
               </Tooltip>
               <Tooltip content="Open theme editor" placement="below">
                 <button
-                  onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-                  className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                  data-tutorial="theme-button"
+                  onClick={() => handleToggleThemeSidebar()}
+                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 >
                   Change Theme
                 </button>
@@ -1545,11 +1573,11 @@ export default function Sheet() {
                   {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
                 </button>
                 <button
+                  data-tutorial="theme-button-mobile"
                   onClick={() => {
-                    setThemeSidebarCollapsed(!themeSidebarCollapsed);
-                    setGridMenuOpen(false);
+                    handleToggleThemeSidebar(true);
                   }}
-                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
                 >
                   {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
                 </button>
