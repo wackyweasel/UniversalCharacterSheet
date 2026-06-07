@@ -90,6 +90,7 @@ function migrateCharacter(char: any): Character {
 
 interface StoreState {
   characters: Character[];
+  transientCharacterIds: string[];
   activeCharacterId: string | null;
   mode: Mode;
   editingWidgetId: string | null;
@@ -98,6 +99,9 @@ interface StoreState {
   // Actions
   createCharacter: (name: string) => void;
   createCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
+  createTransientCharacter: (name: string) => void;
+  createTransientCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
+  cleanupTransientCharacters: () => void;
   importCharacter: (character: Character) => void;
   duplicateCharacter: (id: string) => void;
   selectCharacter: (id: string | null) => void;
@@ -187,6 +191,7 @@ export const useStore = create<StoreState>((set, get) => {
 
   const api: StoreState = {
     characters: initialCharacters,
+    transientCharacterIds: [],
     activeCharacterId: initialActive,
     mode: initialMode,
     editingWidgetId: null,
@@ -229,6 +234,71 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
+    createTransientCharacter: (name) => set((state) => {
+      const transientIds = new Set(state.transientCharacterIds);
+      state.transientCharacterIds.forEach((id) => {
+        useTimelineStore.getState().clearEvents(id);
+      });
+      const defaultSheet: Sheet = {
+        id: uuidv4(),
+        name: 'Main',
+        widgets: []
+      };
+      const newChar: Character = {
+        id: uuidv4(),
+        name,
+        sheets: [defaultSheet],
+        activeSheetId: defaultSheet.id
+      };
+
+      return {
+        characters: [...state.characters.filter(c => !transientIds.has(c.id)), newChar],
+        transientCharacterIds: [newChar.id],
+        activeCharacterId: newChar.id,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+      };
+    }),
+
+    createTransientCharacterFromPreset: (preset, name) => set((state) => {
+      const transientIds = new Set(state.transientCharacterIds);
+      state.transientCharacterIds.forEach((id) => {
+        useTimelineStore.getState().clearEvents(id);
+      });
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+
+      const newChar: Character = {
+        id: uuidv4(),
+        name: name || preset.name,
+        theme: preset.theme,
+        sheets: newSheets,
+        activeSheetId
+      };
+
+      return {
+        characters: [...state.characters.filter(c => !transientIds.has(c.id)), newChar],
+        transientCharacterIds: [newChar.id],
+        activeCharacterId: newChar.id,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+      };
+    }),
+
+    cleanupTransientCharacters: () => set((state) => {
+      if (state.transientCharacterIds.length === 0) return state;
+
+      const transientIds = new Set(state.transientCharacterIds);
+      state.transientCharacterIds.forEach((id) => {
+        useTimelineStore.getState().clearEvents(id);
+      });
+
+      return {
+        characters: state.characters.filter(c => !transientIds.has(c.id)),
+        transientCharacterIds: [],
+        activeCharacterId: state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId,
+        editingWidgetId: null,
+        selectedWidgetId: null,
+      };
+    }),
+
     importCharacter: (character) => set((state) => {
       const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
 
@@ -264,10 +334,24 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    selectCharacter: (id) => set((state) => ({
-      activeCharacterId: id,
-      mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
-    })),
+    selectCharacter: (id) => set((state) => {
+      const transientIds = new Set(state.transientCharacterIds);
+      const shouldCleanupTransients = id === null && transientIds.size > 0;
+      if (shouldCleanupTransients) {
+        state.transientCharacterIds.forEach((transientId) => {
+          useTimelineStore.getState().clearEvents(transientId);
+        });
+      }
+
+      return {
+        characters: shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters,
+        transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
+        activeCharacterId: id,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
+        editingWidgetId: null,
+        selectedWidgetId: null,
+      };
+    }),
 
     deleteCharacter: (id) => set((state) => ({
       characters: state.characters.filter(c => c.id !== id),
@@ -1577,15 +1661,18 @@ export const useStore = create<StoreState>((set, get) => {
     saveTimeout = window.setTimeout(() => {
       try {
         const state = (useStore as any).getState();
-        const data = { characters: state.characters, activeCharacterId: state.activeCharacterId, mode: state.mode };
+        const transientIds = new Set(state.transientCharacterIds ?? []);
+        const persistedCharacters = state.characters.filter((character: Character) => !transientIds.has(character.id));
+        const activeCharacterId = state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId;
+        const data = { characters: persistedCharacters, activeCharacterId, mode: activeCharacterId ? state.mode : 'play' };
         localStorage.setItem('ucs:store', JSON.stringify(data));
         
         // Refresh storage warning after successful save
         import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().refresh()).catch(() => {});
         
         // Send telemetry for active character (rate-limited to once per 24h)
-        if (state.activeCharacterId) {
-          const activeCharacter = state.characters.find((c: Character) => c.id === state.activeCharacterId);
+        if (activeCharacterId) {
+          const activeCharacter = persistedCharacters.find((c: Character) => c.id === activeCharacterId);
           if (activeCharacter) {
             useTelemetryStore.getState().sendTelemetry(activeCharacter);
           }

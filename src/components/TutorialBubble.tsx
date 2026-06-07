@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
+import { useStore } from '../store/useStore';
 
 const BUBBLE_WIDTH = 300; // max-w-[300px]
 const BUBBLE_PADDING = 16; // padding from screen edge
@@ -14,6 +15,8 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const setTutorialStep = useTutorialStore((state) => state.setTutorialStep);
+  const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
+  const selectCharacter = useStore((state) => state.selectCharacter);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
@@ -29,6 +32,17 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
     }
 
     advanceTutorial();
+  };
+
+  const handleExitTutorial = () => {
+    if (step?.id === 'try-widgets') {
+      exitTutorial();
+      return;
+    }
+
+    cleanupTransientCharacters();
+    selectCharacter(null);
+    exitTutorial();
   };
 
   // Handle narrow window detection on resize
@@ -90,7 +104,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
               </button>
             )}
             <button
-              onClick={exitTutorial}
+              onClick={handleExitTutorial}
               className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
                 isFinalStep
                   ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
@@ -108,7 +122,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   }
 
   // Desktop/wide layout with positioned bubbles
-  return <PositionedBubble step={step} darkMode={darkMode} exitTutorial={exitTutorial} advanceTutorial={handleAdvanceTutorial} />;
+  return <PositionedBubble step={step} darkMode={darkMode} exitTutorial={handleExitTutorial} advanceTutorial={handleAdvanceTutorial} />;
 }
 
 // Separate component for positioned bubbles (desktop)

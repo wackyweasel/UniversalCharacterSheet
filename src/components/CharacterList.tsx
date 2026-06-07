@@ -19,7 +19,7 @@ const TUTORIAL_DESCRIPTIONS = {
   basic: 'Create a character, add widgets, edit a widget, and learn camera controls.',
   themes: 'Try built-in themes, create a custom theme, and share it with the community.',
   templates: 'Save widgets and groups as templates, load them later, and share them.',
-  automation: 'Link values with tags and formulas, then roll a d20 using Strength as the modifier.',
+  automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',
   various: 'Tour gallery sharing and downloads, backup, feedback, print, vertical view, timeline, and sheets.',
 };
 
@@ -106,6 +106,9 @@ export default function CharacterList() {
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
   const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const createTransientCharacter = useStore((state) => state.createTransientCharacter);
+  const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
+  const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const importCharacter = useStore((state) => state.importCharacter);
@@ -214,6 +217,7 @@ export default function CharacterList() {
   }, [openDropdown, showHeaderMenu, showPresetDropdown, showImportDropdown, showTutorialDropdown]);
 
   const handleStartBasicTutorial = () => {
+    cleanupTransientCharacters();
     startTutorial();
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
@@ -221,7 +225,7 @@ export default function CharacterList() {
   };
 
   const handleStartThemesTutorial = () => {
-    createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
     if (newCharacterId && darkMode) {
@@ -236,7 +240,7 @@ export default function CharacterList() {
   };
 
   const handleStartTemplatesTutorial = () => {
-    createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
     if (newCharacterId && darkMode) {
@@ -251,6 +255,7 @@ export default function CharacterList() {
   };
 
   const handleStartAutomationTutorial = () => {
+    cleanupTransientCharacters();
     automationLoadHandledRef.current = false;
     startAutomationTutorial();
     setShowTutorialDropdown(false);
@@ -259,6 +264,7 @@ export default function CharacterList() {
   };
 
   const handleStartVariousTutorial = () => {
+    cleanupTransientCharacters();
     variousLoadHandledRef.current = false;
     startVariousTutorial();
     setShowTutorialDropdown(false);
@@ -272,7 +278,7 @@ export default function CharacterList() {
 
     automationLoadHandledRef.current = true;
 
-    createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
     if (newCharacterId && darkMode) {
@@ -281,7 +287,7 @@ export default function CharacterList() {
 
     setMode('edit');
     advanceTutorial();
-  }, [tutorialStep, createCharacterFromPreset, updateCharacterTheme, darkMode, setMode, advanceTutorial]);
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, advanceTutorial]);
 
   useEffect(() => {
     if (isCurrentTutorialStep('various-gallery-concepts') || isCurrentTutorialStep('various-gallery-manage') || isCurrentTutorialStep('various-gallery-download')) {
@@ -307,7 +313,7 @@ export default function CharacterList() {
     if (variousLoadHandledRef.current) return;
 
     variousLoadHandledRef.current = true;
-    createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
     if (newCharacterId && darkMode) {
@@ -316,10 +322,11 @@ export default function CharacterList() {
 
     setMode('play');
     setShowHeaderMenu(false);
-  }, [tutorialStep, createCharacterFromPreset, updateCharacterTheme, darkMode, setMode]);
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode]);
 
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
+    const isBasicTutorialCreateStep = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
     
     if (selectedPreset && selectedPreset !== '') {
       // Check if it's a user preset
@@ -327,7 +334,11 @@ export default function CharacterList() {
         const userPresetId = selectedPreset.replace('user:', '');
         const userPreset = userPresets.find(p => p.id === userPresetId);
         if (userPreset) {
-          createCharacterFromPreset(userPreset.preset, name);
+          if (isBasicTutorialCreateStep) {
+            createTransientCharacterFromPreset(userPreset.preset, name);
+          } else {
+            createCharacterFromPreset(userPreset.preset, name);
+          }
           const state = useStore.getState();
           const newChar = state.characters[state.characters.length - 1];
           // Use the preset's stored theme if available, otherwise use the selected theme
@@ -340,7 +351,11 @@ export default function CharacterList() {
         // Create from built-in preset
         const preset = getPreset(selectedPreset);
         if (preset) {
-          createCharacterFromPreset(preset, name);
+          if (isBasicTutorialCreateStep) {
+            createTransientCharacterFromPreset(preset, name);
+          } else {
+            createCharacterFromPreset(preset, name);
+          }
           // Get the newly created character and update its theme
           // Since the preset might have its own theme, we override it with the selected one
           const state = useStore.getState();
@@ -352,7 +367,11 @@ export default function CharacterList() {
       }
     } else {
       // Create blank character
-      createCharacter(name);
+      if (isBasicTutorialCreateStep) {
+        createTransientCharacter(name);
+      } else {
+        createCharacter(name);
+      }
       // Update theme if not default
       const state = useStore.getState();
       const newChar = state.characters[state.characters.length - 1];

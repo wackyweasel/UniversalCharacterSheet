@@ -44,8 +44,8 @@ export default function Sheet() {
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
   const renameSheet = useStore((state) => state.renameSheet);
-  const deleteCharacter = useStore((state) => state.deleteCharacter);
-  const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
+  const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const undo = useStore((state) => state.undo);
   const redo = useStore((state) => state.redo);
@@ -60,6 +60,7 @@ export default function Sheet() {
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -470,13 +471,8 @@ export default function Sheet() {
   // Handle tutorial step 22 -> 23: load tutorial preset
   useEffect(() => {
     if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
-      // We just advanced to step 23, load the tutorial preset
-      const oldCharId = activeCharacterId;
-      createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
-      // Delete the old tutorial character
-      if (oldCharId) {
-        deleteCharacter(oldCharId);
-      }
+      // We just advanced to step 23, load the tutorial preset as a transient character.
+      createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
       // If in dark mode, set theme to classic-dark
       // We need to get the new character ID after creation
       setTimeout(() => {
@@ -702,6 +698,14 @@ export default function Sheet() {
     setVerticalDropIndex(null);
   };
 
+  const handleExitToMenu = useCallback(() => {
+    cleanupTransientCharacters();
+    selectCharacter(null);
+    if (tutorialStep !== null) {
+      exitTutorial();
+    }
+  }, [cleanupTransientCharacters, exitTutorial, selectCharacter, tutorialStep]);
+
   if (!activeCharacter) return null;
 
   // Vertical mode menu state
@@ -725,7 +729,7 @@ export default function Sheet() {
           <div className="hidden sm:flex items-center gap-1">
             <Tooltip content="Exit to character select" placement="below">
               <button
-                onClick={() => selectCharacter(null)}
+                onClick={handleExitToMenu}
                 className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
               >
                 Exit
@@ -946,7 +950,7 @@ export default function Sheet() {
               </button>
               <button
                 onClick={() => {
-                  selectCharacter(null);
+                  handleExitToMenu();
                   setVerticalMenuOpen(false);
                 }}
                 className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
@@ -1092,7 +1096,7 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   resetPrintSettings();
-                  selectCharacter(null);
+                  handleExitToMenu();
                 }}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-600 text-xs font-body hover:bg-red-600 hover:text-white transition-colors"
               >
@@ -1244,7 +1248,7 @@ export default function Sheet() {
           <button
             onClick={() => {
               resetPrintSettings();
-              selectCharacter(null);
+              handleExitToMenu();
               setPrintMenuOpen(false);
             }}
             className="w-full px-4 py-2.5 text-sm text-left font-body text-red-600 hover:bg-red-600 hover:text-white transition-colors whitespace-nowrap"
@@ -1369,7 +1373,7 @@ export default function Sheet() {
         <div className="hidden lg:flex items-center gap-1 shrink-0">
           <Tooltip content="Exit to character select" placement="below">
             <button
-              onClick={() => selectCharacter(null)}
+              onClick={handleExitToMenu}
               className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
             >
               Exit
@@ -1769,7 +1773,7 @@ export default function Sheet() {
             {/* Exit */}
             <button
               onClick={() => {
-                selectCharacter(null);
+                handleExitToMenu();
                 setGridMenuOpen(false);
               }}
               className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
