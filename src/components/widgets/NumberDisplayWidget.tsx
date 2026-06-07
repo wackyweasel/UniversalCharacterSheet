@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 
 interface Props {
   widget: Widget;
@@ -21,6 +22,9 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
 
   const labels = useMemo(() => {
     const char = characters.find(c => c.id === activeCharacterId);
@@ -47,6 +51,9 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
       updateWidgetData(widget.id, { displayNumbers: updated });
       if (oldVal !== newValue) {
         addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${updated[index].label}: ${oldVal} → ${newValue}`, '🔢');
+        if (updated[index].label === 'Strength' && isCurrentTutorialStep('automation-change-strength')) {
+          advanceTutorial();
+        }
       }
     }
     setEditingIndex(null);
@@ -97,6 +104,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
             {/* Value - editable on click */}
             {editingIndex === idx ? (
               <input
+                data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
                 type="text"
                 inputMode="numeric"
                 value={editValue}
@@ -110,6 +118,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
               />
             ) : (
               <span 
+                data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
                 className={`font-bold text-theme-ink transition-colors leading-none font-body ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
                 style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                 data-print-hide={hideValues ? 'true' : undefined}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUserPresetStore } from '../store/useUserPresetStore';
 import { useCustomThemeStore } from '../store/useCustomThemeStore';
 import { useTemplateStore } from '../store/useTemplateStore';
@@ -6,6 +6,7 @@ import { useGallery, submitToGallery, GalleryPreset, GalleryTheme, GalleryTempla
 import { IMAGE_TEXTURES, isImageTexture, getShadowStyleCSS } from '../store/useThemeStore';
 import { v4 as uuidv4 } from 'uuid';
 import GalleryShareModal from './GalleryShareModal';
+import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 
 interface GallerySidebarProps {
   collapsed: boolean;
@@ -28,6 +29,11 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   const [activeTab, setActiveTab] = useState<TabType>('presets');
   const [shareExpanded, setShareExpanded] = useState(false);
   const [browseExpanded, setBrowseExpanded] = useState(true);
+  const conceptsRef = useRef<HTMLDivElement>(null);
+  const manageDataRef = useRef<HTMLDivElement>(null);
+  const downloadRef = useRef<HTMLDivElement>(null);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -51,6 +57,35 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   
   // Gallery data
   const { manifest, themeData, loading, error, refresh, downloadPreset, downloadTheme, downloadTemplate } = useGallery();
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('various-gallery-manage')) {
+      setShareExpanded(true);
+    }
+    if (isCurrentTutorialStep('various-gallery-download')) {
+      setBrowseExpanded(true);
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    if (collapsed) return;
+
+    const target = isCurrentTutorialStep('various-gallery-concepts')
+      ? conceptsRef.current
+      : isCurrentTutorialStep('various-gallery-manage')
+        ? manageDataRef.current
+        : isCurrentTutorialStep('various-gallery-download')
+          ? downloadRef.current
+          : null;
+
+    if (!target) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [tutorialStep, collapsed]);
 
   const currentShareItemName = shareType === 'preset'
     ? userPresets.find(p => p.id === shareItemId)?.name || ''
@@ -253,7 +288,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
         
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className={`p-3 rounded-lg ${cardClass}`}>
+          <div ref={conceptsRef} className={`p-3 rounded-lg ${cardClass}`} data-tutorial="gallery-concepts">
             <p className={`text-sm mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
               Manage your gallery data here, including presets, templates, and themes.
             </p>
@@ -271,7 +306,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
           </div>
 
           {/* Share Section */}
-          <div className={`rounded-lg overflow-hidden ${cardClass}`}>
+          <div ref={manageDataRef} className={`rounded-lg overflow-hidden ${cardClass}`} data-tutorial="gallery-manage-data">
             <button
               onClick={() => setShareExpanded(!shareExpanded)}
               className={`w-full flex items-center justify-between p-3 font-bold ${darkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
@@ -444,7 +479,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
           </div>
           
           {/* Browse Section */}
-          <div className={`rounded-lg overflow-hidden ${cardClass}`}>
+          <div ref={downloadRef} className={`rounded-lg overflow-hidden ${cardClass}`} data-tutorial="gallery-download">
             <button
               onClick={() => setBrowseExpanded(!browseExpanded)}
               className={`w-full flex items-center justify-between p-3 font-bold ${darkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}

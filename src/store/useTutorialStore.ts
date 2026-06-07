@@ -4,6 +4,8 @@ const TUTORIAL_STORAGE_KEY = 'ucs:tutorialStep';
 
 export const THEME_TUTORIAL_START_ID = 'themes-open-panel';
 export const TEMPLATE_TUTORIAL_START_ID = 'templates-open-widget-menu';
+export const AUTOMATION_TUTORIAL_START_ID = 'automation-intro';
+export const VARIOUS_TUTORIAL_START_ID = 'various-open-gallery';
 
 // Tutorial step definitions
 export interface TutorialStep {
@@ -346,6 +348,276 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     position: 'center',
     page: 'sheet',
   },
+  {
+    id: AUTOMATION_TUTORIAL_START_ID,
+    title: 'What Is Automation?',
+    message: 'Automations connect values so the sheet can do the math for you. For example, if you want to roll d20 + your Strength modifier, you can tag Strength once, then tell the dice roller to use that tag as its modifier.',
+    position: 'center',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'automation-load-character',
+    title: 'Load the Tutorial Character',
+    message: 'Loading a tutorial character with a Strength attribute and a d20 dice roller.',
+    position: 'center',
+    page: 'character-list',
+  },
+  {
+    id: 'automation-open-number-display-menu',
+    title: 'Open the Stats Widget',
+    message: 'A tutorial character is loaded. Open the menu on the Number Display widget that contains Strength.',
+    targetSelector: '[data-tutorial="widget-menu-NUMBER_DISPLAY"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-edit-number-display',
+    title: 'Edit the Stats Widget',
+    message: 'Choose Edit so we can assign a tag to the Strength attribute.',
+    targetSelector: '[data-tutorial="edit-button-NUMBER_DISPLAY"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-strength-tag-button',
+    title: 'Tag Strength',
+    message: 'Click the tag button on the Strength row. A tag gives this value a formula name.',
+    targetSelector: '[data-tutorial="automation-strength-tag-button"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-set-strength-tag',
+    title: 'Name It str',
+    message: 'Type str, then click Set. Other formulas can now read Strength by using @str.',
+    targetSelector: '[data-tutorial="automation-strength-tag-input"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-close-number-display',
+    title: 'Close the Stats Editor',
+    message: 'Click Done to return to the sheet. The Strength value is now available as @str.',
+    targetSelector: '[data-tutorial="edit-done-button"]',
+    position: 'top',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-open-dice-menu',
+    title: 'Open the Dice Roller',
+    message: 'Now open the menu on the d20 dice roller. We will connect its modifier to Strength.',
+    targetSelector: '[data-tutorial="widget-menu-DICE_ROLLER"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-edit-dice-roller',
+    title: 'Edit the Dice Roller',
+    message: 'Choose Edit, then we will set the modifier formula.',
+    targetSelector: '[data-tutorial="edit-button-DICE_ROLLER"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-dice-formula-button',
+    title: 'Formula the Modifier',
+    message: 'Click the fx button beside Modifier. This makes the modifier calculated instead of manually typed.',
+    targetSelector: '[data-tutorial="automation-dice-modifier-fx-button"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-type-dice-formula',
+    title: 'Use the Strength Tag',
+    message: 'Type @str in the formula field. That tells the dice roller to use the current Strength value as its modifier.',
+    targetSelector: '[data-tutorial="automation-dice-modifier-formula-input"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'automation-formula-operations',
+    title: 'Formula Operations',
+    message: 'Formulas can use + to add, - to subtract, * to multiply, / to divide, and parentheses for order. They also support floor(x), ceil(x), round(x), min(a,b), max(a,b), abs(x), and IF(condition, trueValue, falseValue) with =, <>, <, >, <=, and >= comparisons.',
+    position: 'center',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'automation-set-dice-formula',
+    title: 'Set the Formula',
+    message: 'Click Set. The modifier preview should show the current Strength value.',
+    targetSelector: '[data-tutorial="automation-dice-modifier-formula-confirm"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-close-dice-roller',
+    title: 'Close the Dice Editor',
+    message: 'Click Done to return to the sheet. The dice roller is now automated.',
+    targetSelector: '[data-tutorial="edit-done-button"]',
+    position: 'top',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-roll-dice',
+    title: 'Roll the Dice',
+    message: 'Roll the d20. The button should now include the Strength modifier from @str.',
+    targetSelector: '[data-tutorial="automation-roll-dice"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-change-strength',
+    title: 'Change Strength',
+    message: 'Click the Strength value and change it. When you confirm the new number, the dice roller modifier updates because it is reading @str.',
+    targetSelector: '[data-tutorial="automation-strength-value"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'automation-complete',
+    title: 'Automation Tutorial Complete',
+    message: 'That is the automation loop: tag a source value, use @tag in another widget formula, then let the sheet keep the connected values in sync.',
+    position: 'center',
+    page: 'sheet',
+  },
+  {
+    id: VARIOUS_TUTORIAL_START_ID,
+    title: 'Open the Gallery',
+    message: 'The Various tutorial covers tools that do not fit into the other tutorials. Start by opening the Community Gallery.',
+    targetSelector: '[data-tutorial="gallery-button"], [data-tutorial="gallery-button-mobile"]',
+    position: 'bottom',
+    page: 'character-list',
+  },
+  {
+    id: 'various-gallery-concepts',
+    title: 'Gallery Concepts',
+    message: 'The gallery works with presets, templates, and themes. Presets are complete starting sheets, templates are reusable widgets or widget groups, and themes are visual styles.',
+    targetSelector: '[data-tutorial="gallery-concepts"]',
+    position: 'left',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-gallery-manage',
+    title: 'Manage Your Data',
+    message: 'This section is where you manage your saved presets, templates, and themes. From here you can share your creations with the community or delete local items you no longer need.',
+    targetSelector: '[data-tutorial="gallery-manage-data"]',
+    position: 'left',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-gallery-download',
+    title: 'Download from the Gallery',
+    message: 'The Community Gallery section lets you browse and download shared presets, themes, and templates made by other users.',
+    targetSelector: '[data-tutorial="gallery-download"]',
+    position: 'left',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-open-backup',
+    title: 'Open Backup',
+    message: 'Next, open Backup and Restore.',
+    targetSelector: '[data-tutorial="backup-button"], [data-tutorial="backup-button-mobile"]',
+    position: 'bottom',
+    page: 'character-list',
+  },
+  {
+    id: 'various-backup-overview',
+    title: 'Back Up Regularly',
+    message: 'Download backups regularly. Your data is stored in this browser, and this is where you can restore from a backup file if you change devices, browsers, or lose local storage.',
+    targetSelector: '[data-tutorial="backup-modal"]',
+    position: 'right',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-feedback',
+    title: 'Send Feedback',
+    message: 'Use Feedback to report bugs or request new features. It is the best place to tell us what is broken, confusing, or missing.',
+    targetSelector: '[data-tutorial="feedback-button"]',
+    position: 'bottom',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-print-mode',
+    title: 'Print Mode',
+    message: 'Print Mode lets you prepare a printable version of the current sheet, with print options like paper format and simplified styling.',
+    targetSelector: '[data-tutorial="print-mode-button"], [data-tutorial="print-mode-button-mobile"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'various-print-overview',
+    title: 'Print Tools',
+    message: 'In Print Mode you can adjust the print area and use the print controls. This is only a quick stop for this tutorial.',
+    targetSelector: '[data-tutorial="print-toolbar"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-vertical-view',
+    title: 'Vertical View',
+    message: 'Vertical View presents widgets as a single column. It is especially useful on phones and narrow screens.',
+    targetSelector: '[data-tutorial="vertical-view-button"], [data-tutorial="vertical-view-button-mobile"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'various-vertical-overview',
+    title: 'Vertical Layout',
+    message: 'This view keeps the same widgets but makes them easier to scan on mobile. You can return to Grid View when you want the canvas layout again.',
+    position: 'center',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-timeline',
+    title: 'Timeline',
+    message: 'Timeline records notable sheet activity, such as rolls and automated formula changes, so you can review what happened during play.',
+    targetSelector: '[data-tutorial="timeline-button"], [data-tutorial="timeline-button-mobile"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'various-timeline-overview',
+    title: 'Timeline Panel',
+    message: 'The timeline panel slides in from the side. It keeps recent events organized, and you can filter formula events, change sort order, clear events, or delete individual entries.',
+    targetSelector: '[data-tutorial="timeline-panel"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-add-sheets',
+    title: 'Multiple Sheets',
+    message: 'A character can have multiple sheets. Open the sheet selector to switch sheets, rename them, delete extra sheets, or add a new sheet.',
+    targetSelector: '[data-tutorial="sheet-selector"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'various-add-sheet-button',
+    title: 'Add a Sheet',
+    message: 'Use Add New Sheet when you want another page for inventory, spells, notes, companions, vehicles, or anything else your character needs.',
+    targetSelector: '[data-tutorial="add-sheet-button"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'various-complete',
+    title: 'Various Tutorial Complete',
+    message: 'That is the tour of gallery sharing and downloads, backups, feedback, print mode, vertical view, timeline, and multiple sheets.',
+    position: 'center',
+    page: 'sheet',
+  },
 ];
 
 interface TutorialState {
@@ -353,6 +625,8 @@ interface TutorialState {
   startTutorial: () => void;
   startThemesTutorial: () => void;
   startTemplatesTutorial: () => void;
+  startAutomationTutorial: () => void;
+  startVariousTutorial: () => void;
   exitTutorial: () => void;
   advanceTutorial: () => void;
   setTutorialStep: (step: number | null) => void;
@@ -376,6 +650,20 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   startTemplatesTutorial: () => {
     const templateTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === TEMPLATE_TUTORIAL_START_ID);
     const tutorialStep = templateTutorialStart >= 0 ? templateTutorialStart : 0;
+    set({ tutorialStep });
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+  },
+
+  startAutomationTutorial: () => {
+    const automationTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === AUTOMATION_TUTORIAL_START_ID);
+    const tutorialStep = automationTutorialStart >= 0 ? automationTutorialStart : 0;
+    set({ tutorialStep });
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+  },
+
+  startVariousTutorial: () => {
+    const variousTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === VARIOUS_TUTORIAL_START_ID);
+    const tutorialStep = variousTutorialStart >= 0 ? variousTutorialStart : 0;
     set({ tutorialStep });
     localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },

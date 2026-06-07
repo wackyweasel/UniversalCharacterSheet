@@ -262,6 +262,13 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               if (tutorialStep === 21 && TUTORIAL_STEPS[21]?.id === 'form-click-done') {
                 advanceTutorial();
               }
+              if (
+                tutorialStep !== null &&
+                (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
+                  TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller')
+              ) {
+                advanceTutorial();
+              }
               onClose();
             }}
             className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium ${

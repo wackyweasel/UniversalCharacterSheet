@@ -56,6 +56,7 @@ export default function Sheet() {
   // Timeline state
   const timelineIsOpen = useTimelineStore((state) => state.isOpen);
   const toggleTimeline = useTimelineStore((state) => state.toggleOpen);
+  const setTimelineOpen = useTimelineStore((state) => state.setOpen);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -510,12 +511,95 @@ export default function Sheet() {
   }, [tutorialStep, frameWidgetForTutorial, handleFitAllWidgets]);
 
   useEffect(() => {
+    if (isCurrentTutorialStep('automation-open-number-display-menu')) {
+      setMode('edit');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('NUMBER_DISPLAY');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-open-dice-menu')) {
+      setMode('edit');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('DICE_ROLLER');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-roll-dice')) {
+      setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('DICE_ROLLER');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-change-strength')) {
+      setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('NUMBER_DISPLAY');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
     if (isCurrentTutorialStep('templates-share-template')) {
       setMode('edit');
       setThemeSidebarCollapsed(true);
       setSidebarCollapsed(false);
     }
   }, [tutorialStep]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('various-print-mode')) {
+      setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setSheetDropdownOpen(false);
+    }
+
+    if (isCurrentTutorialStep('various-vertical-view')) {
+      if (mode === 'print') {
+        exitPrintMode('play');
+      } else if (mode !== 'play') {
+        setMode('play');
+      }
+      setSheetDropdownOpen(false);
+    }
+
+    if (isCurrentTutorialStep('various-timeline') || isCurrentTutorialStep('various-timeline-overview')) {
+      if (mode !== 'play') {
+        setMode('play');
+      }
+      if (isCurrentTutorialStep('various-timeline-overview')) {
+        setTimelineOpen(true);
+      }
+      setSheetDropdownOpen(false);
+    }
+
+    if (isCurrentTutorialStep('various-add-sheets') || isCurrentTutorialStep('various-add-sheet-button')) {
+      if (mode !== 'edit') {
+        setMode('edit');
+      }
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      if (isCurrentTutorialStep('various-add-sheet-button')) {
+        setSheetDropdownOpen(true);
+      }
+    }
+  }, [tutorialStep, mode, exitPrintMode, setMode, setTimelineOpen]);
 
   // Auto-open mobile menu when tutorial step requires the Edit/Play Mode button or Add Widget (hidden on mobile)
   useEffect(() => {
@@ -528,6 +612,18 @@ export default function Sheet() {
     const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
     
     if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton || needsThemeButton || needsTemplateToolboxButton)) {
+      setGridMenuOpen(true);
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    const isNarrowToolbar = window.innerWidth < 1024;
+    const needsGridMenuButton =
+      isCurrentTutorialStep('various-print-mode') ||
+      isCurrentTutorialStep('various-vertical-view') ||
+      isCurrentTutorialStep('various-timeline');
+
+    if (isNarrowToolbar && needsGridMenuButton) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
@@ -891,6 +987,9 @@ export default function Sheet() {
 
         {/* Timeline Sidebar */}
         <TimelineSidebar />
+
+        {/* Tutorial Bubble */}
+        {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
       </div>
     );
   }
@@ -977,7 +1076,7 @@ export default function Sheet() {
 
       {/* Print Mode Header */}
       {mode === 'print' && (
-        <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
+        <div data-tutorial="print-toolbar" className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
           {/* Menu button - only on narrow screens */}
           <button
             onClick={() => setPrintMenuOpen(!printMenuOpen)}
@@ -1298,7 +1397,13 @@ export default function Sheet() {
           </Tooltip>
           <Tooltip content="Enter print mode to print your character sheet" placement="below">
             <button
-              onClick={enterPrintMode}
+              data-tutorial="print-mode-button"
+              onClick={() => {
+                enterPrintMode();
+                if (isCurrentTutorialStep('various-print-mode')) {
+                  advanceTutorial();
+                }
+              }}
               className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               Print Mode
@@ -1307,7 +1412,13 @@ export default function Sheet() {
           {mode === 'play' && (
             <Tooltip content="Switch to single-column Vertical View" placement="below">
               <button
-                onClick={() => setMode('vertical')}
+                data-tutorial="vertical-view-button"
+                onClick={() => {
+                  setMode('vertical');
+                  if (isCurrentTutorialStep('various-vertical-view')) {
+                    advanceTutorial();
+                  }
+                }}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
                 Vertical View
@@ -1317,7 +1428,15 @@ export default function Sheet() {
           {mode === 'play' && (
             <Tooltip content="Open event timeline" placement="below">
               <button
-                onClick={toggleTimeline}
+                data-tutorial="timeline-button"
+                onClick={() => {
+                  if (isCurrentTutorialStep('various-timeline')) {
+                    setTimelineOpen(true);
+                    advanceTutorial();
+                  } else {
+                    toggleTimeline();
+                  }
+                }}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Timeline
@@ -1437,7 +1556,13 @@ export default function Sheet() {
         <div className="relative shrink-0">
           <Tooltip content="Switch sheet" placement="left">
             <button
-              onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
+              data-tutorial="sheet-selector"
+              onClick={() => {
+                setSheetDropdownOpen(!sheetDropdownOpen);
+                if (isCurrentTutorialStep('various-add-sheets')) {
+                  advanceTutorial();
+                }
+              }}
               className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body"
             >
               <span className="text-theme-ink truncate max-w-[60px]">
@@ -1563,8 +1688,12 @@ export default function Sheet() {
             <button
               onClick={() => {
                 enterPrintMode();
+                if (isCurrentTutorialStep('various-print-mode')) {
+                  advanceTutorial();
+                }
                 setGridMenuOpen(false);
               }}
+              data-tutorial="print-mode-button-mobile"
               className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
             >
               Print Mode
@@ -1575,8 +1704,12 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   setMode('vertical');
+                  if (isCurrentTutorialStep('various-vertical-view')) {
+                    advanceTutorial();
+                  }
                   setGridMenuOpen(false);
                 }}
+                data-tutorial="vertical-view-button-mobile"
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
                 Vertical View
@@ -1587,9 +1720,15 @@ export default function Sheet() {
             {mode === 'play' && (
               <button
                 onClick={() => {
-                  toggleTimeline();
+                  if (isCurrentTutorialStep('various-timeline')) {
+                    setTimelineOpen(true);
+                    advanceTutorial();
+                  } else {
+                    toggleTimeline();
+                  }
                   setGridMenuOpen(false);
                 }}
+                data-tutorial="timeline-button-mobile"
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
                 Timeline
@@ -1726,8 +1865,12 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
+                  if (isCurrentTutorialStep('various-add-sheet-button')) {
+                    advanceTutorial();
+                  }
                   setSheetDropdownOpen(false);
                 }}
+                data-tutorial="add-sheet-button"
                 className="w-full px-3 py-2 text-xs text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
               >
                 + Add New Sheet

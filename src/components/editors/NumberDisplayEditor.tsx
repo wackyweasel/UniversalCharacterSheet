@@ -235,6 +235,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
               <LabeledNumberField
                 value={item.value}
                 onChange={(v) => updateItemValue(idx, v)}
+                tutorialTargetPrefix={item.label?.toLowerCase() === 'strength' || idx === 0 ? 'automation-strength' : undefined}
                 fieldLabel={item.valueLabel}
                 onFieldLabelChange={(l) => {
                   const updated = [...displayNumbers] as DisplayNumber[];

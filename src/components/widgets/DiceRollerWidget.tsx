@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Widget, DiceGroup } from '../../types';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 
 interface Props {
   widget: Widget;
@@ -34,6 +35,9 @@ export default function DiceRollerWidget({ widget }: Props) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showIndividualResults = false } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
 
   // Check if a string is purely numeric
   const isNumericString = (val: string | number): boolean => {
@@ -149,6 +153,10 @@ export default function DiceRollerWidget({ widget }: Props) {
   const gapClass = 'gap-1';
 
   const rollDice = () => {
+    if (isCurrentTutorialStep('automation-roll-dice')) {
+      advanceTutorial();
+    }
+
     setIsRolling(true);
     
     setTimeout(() => {
@@ -286,6 +294,7 @@ export default function DiceRollerWidget({ widget }: Props) {
       {/* Roll Button */}
       <Tooltip content={`Roll ${diceNotation}`}>
         <button
+          data-tutorial="automation-roll-dice"
           onClick={rollDice}
           onMouseDown={(e) => e.stopPropagation()}
           className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
+import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 
@@ -30,6 +31,8 @@ interface LabeledNumberFieldProps {
   className?: string;
   /** Whether to show compact (inline) style */
   compact?: boolean;
+  /** Optional prefix for tutorial targets exposed by this field's tag/formula controls */
+  tutorialTargetPrefix?: string;
   /** When provided, the controls are passed to this render function so the parent
    *  can place drag-handle, name input, delete button etc. on the SAME row.
    *  Popovers are rendered below that row automatically. */
@@ -50,12 +53,16 @@ export function LabeledNumberField({
   placeholder,
   className = '',
   compact = false,
+  tutorialTargetPrefix,
   renderRow,
 }: LabeledNumberFieldProps) {
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(fieldLabel || '');
   const [formulaDraft, setFormulaDraft] = useState(formula || '');
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
 
   // Get all available labels from the character
   const characters = useStore(state => state.characters);
@@ -127,6 +134,9 @@ export function LabeledNumberField({
     const trimmed = labelDraft.trim().replace(/\s+/g, '_');
     onFieldLabelChange(trimmed || undefined);
     setShowLabelInput(false);
+    if (tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag')) {
+      advanceTutorial();
+    }
   };
 
   const clearLabel = () => {
@@ -140,6 +150,9 @@ export function LabeledNumberField({
     const trimmed = formulaDraft.trim();
     onFormulaChange(trimmed || undefined);
     setShowFormulaInput(false);
+    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-set-dice-formula')) {
+      advanceTutorial();
+    }
   };
 
   const clearFormula = () => {
@@ -152,12 +165,18 @@ export function LabeledNumberField({
     setLabelDraft(fieldLabel || '');
     setShowLabelInput(true);
     setShowFormulaInput(false);
+    if (tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-strength-tag-button')) {
+      advanceTutorial();
+    }
   };
 
   const openFormulaInput = () => {
     setFormulaDraft(formula || '');
     setShowFormulaInput(true);
     setShowLabelInput(false);
+    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button')) {
+      advanceTutorial();
+    }
   };
 
   /* ---- build the inline controls (buttons + number input) ---- */
@@ -210,6 +229,7 @@ export function LabeledNumberField({
         {/* Label button */}
         <Tooltip content={fieldLabel ? `Label: @${fieldLabel}` : 'Set variable label'}>
           <button
+            data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-button` : undefined}
             type="button"
             onClick={openLabelInput}
             className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs transition-colors ${
@@ -230,6 +250,7 @@ export function LabeledNumberField({
         {/* Formula button */}
         <Tooltip content={formula ? `Formula: ${formula}` : 'Set formula'}>
           <button
+            data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-fx-button` : undefined}
             type="button"
             onClick={openFormulaInput}
             className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
@@ -285,6 +306,7 @@ export function LabeledNumberField({
           <div className="flex items-center gap-1">
             <span className="text-sm text-theme-muted">@</span>
             <input
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-input` : undefined}
               type="text"
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
@@ -297,6 +319,7 @@ export function LabeledNumberField({
               autoFocus
             />
             <button
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-confirm` : undefined}
               type="button"
               onClick={confirmLabel}
               className="px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90"
@@ -328,6 +351,7 @@ export function LabeledNumberField({
           </div>
           <div className="flex items-center gap-1">
             <input
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-formula-input` : undefined}
               type="text"
               value={formulaDraft}
               onChange={(e) => setFormulaDraft(e.target.value)}
@@ -340,6 +364,7 @@ export function LabeledNumberField({
               autoFocus
             />
             <button
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-formula-confirm` : undefined}
               type="button"
               onClick={confirmFormula}
               disabled={isCircular}
@@ -406,7 +431,7 @@ export function LabeledNumberField({
           )}
 
           <p className="text-[10px] text-theme-muted mt-1">
-            Use @label to reference values. Supports +, −, *, /, parentheses, floor(), ceil(), round()
+            Use @label to reference values. Supports +, -, *, /, parentheses, floor(), ceil(), round(), min(), max(), abs(), and IF()
           </p>
         </div>
       )}

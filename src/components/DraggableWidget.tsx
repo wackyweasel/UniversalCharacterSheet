@@ -149,11 +149,18 @@ export default function DraggableWidget({ widget, scale }: Props) {
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
   );
+  const shouldShowAutomationTutorialMenu =
+    (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-open-number-display-menu')) ||
+    (widget.type === 'DICE_ROLLER' && isCurrentTutorialStep('automation-open-dice-menu'));
+  const shouldShowAutomationTutorialEdit =
+    (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-edit-number-display')) ||
+    (widget.type === 'DICE_ROLLER' && isCurrentTutorialStep('automation-edit-dice-roller'));
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
 
-  // Auto-open dropdown for Form widget during tutorial step 17
+  // Auto-open dropdown for the original form tutorial step only. Automation edit steps keep
+  // the dropdown opened by the widget the user actually clicked.
   useEffect(() => {
     if (tutorialStep === 17 && widget.type === 'FORM') {
       setShowDropdown(true);
@@ -163,7 +170,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      // Don't close dropdown during tutorial step 17 for Form widget
+      // Don't close dropdown during the original form tutorial step that points inside it.
       if (tutorialStep === 17 && widget.type === 'FORM') {
         return;
       }
@@ -612,6 +619,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
         <div 
           ref={nodeRef}
           data-widget-id={widget.id}
+          data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
           className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
@@ -663,12 +671,12 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
-          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
+          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
             <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
               <Tooltip content="Widget options">
                 <button
-                  data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
-                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  data-tutorial={`widget-menu-${widget.type}`}
+                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
@@ -676,6 +684,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       advanceTutorial();
                     }
                     if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
+                      advanceTutorial();
+                    }
+                    if (shouldShowAutomationTutorialMenu) {
                       advanceTutorial();
                     }
                     setShowDropdown(!showDropdown);
@@ -754,11 +765,14 @@ export default function DraggableWidget({ widget, scale }: Props) {
                     <>
                       <Tooltip content="Open this widget's editor" placement="left">
                         <button
-                          data-tutorial={widget.type === 'FORM' ? 'edit-button-FORM' : undefined}
-                          className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${tutorialStep === 17 && widget.type === 'FORM' ? 'bg-blue-500 text-white' : ''}`}
+                          data-tutorial={`edit-button-${widget.type}`}
+                          className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${(tutorialStep === 17 && widget.type === 'FORM') || shouldShowAutomationTutorialEdit ? 'bg-blue-500 text-white' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
+                              advanceTutorial();
+                            }
+                            if (shouldShowAutomationTutorialEdit) {
                               advanceTutorial();
                             }
                             setShowDropdown(false);

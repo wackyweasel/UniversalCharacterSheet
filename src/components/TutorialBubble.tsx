@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 
 const BUBBLE_WIDTH = 300; // max-w-[300px]
@@ -13,10 +13,23 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const setTutorialStep = useTutorialStore((state) => state.setTutorialStep);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
-  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete' || step?.id === 'templates-complete';
+  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete' || step?.id === 'templates-complete' || step?.id === 'automation-complete' || step?.id === 'various-complete';
+
+  const handleAdvanceTutorial = () => {
+    if (step?.id === 'various-feedback') {
+      const printModeStep = TUTORIAL_STEPS.findIndex((tutorialStep) => tutorialStep.id === 'various-print-mode');
+      if (printModeStep >= 0) {
+        setTutorialStep(printModeStep);
+        return;
+      }
+    }
+
+    advanceTutorial();
+  };
 
   // Handle narrow window detection on resize
   useEffect(() => {
@@ -30,12 +43,14 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   if (!step) return null;
 
   // Steps that should show at top on narrow screens (e.g., when Done button is at bottom)
-  const showAtTopOnNarrow = step.id === 'form-click-done';
+  const showAtTopOnNarrow = step.id === 'form-click-done' || step.id === 'automation-close-number-display' || step.id === 'automation-close-dice-roller';
 
   // For narrow windows, show at bottom or top depending on step
   if (isNarrow) {
     return (
       <div
+        data-tutorial-bubble="true"
+        onMouseDown={(event) => event.stopPropagation()}
         className="fixed z-[100] left-0 right-0 px-4"
         style={showAtTopOnNarrow ? { top: BUBBLE_PADDING + 50 } : { bottom: BUBBLE_PADDING }}
       >
@@ -68,7 +83,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
           <div className="mt-3 flex gap-2">
             {step.requiresManualAdvance && (
               <button
-                onClick={advanceTutorial}
+                onClick={handleAdvanceTutorial}
                 className="flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors bg-blue-500 hover:bg-blue-600 text-white"
               >
                 Next →
@@ -93,7 +108,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   }
 
   // Desktop/wide layout with positioned bubbles
-  return <PositionedBubble step={step} darkMode={darkMode} exitTutorial={exitTutorial} advanceTutorial={advanceTutorial} />;
+  return <PositionedBubble step={step} darkMode={darkMode} exitTutorial={exitTutorial} advanceTutorial={handleAdvanceTutorial} />;
 }
 
 // Separate component for positioned bubbles (desktop)
@@ -111,7 +126,8 @@ function PositionedBubble({
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [adjustedTransform, setAdjustedTransform] = useState('');
   const [isCentered, setIsCentered] = useState(false);
-  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete';
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete' || step.id === 'automation-complete' || step.id === 'various-complete';
 
   useEffect(() => {
     // Handle centered position (no target)
@@ -143,6 +159,10 @@ function PositionedBubble({
       if (target) {
         const rect = target.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const bubbleWidth = bubbleRef.current?.offsetWidth || BUBBLE_WIDTH;
+        const bubbleHeight = bubbleRef.current?.offsetHeight || 180;
+        const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
         let top = 0;
         let left = 0;
         let transform = '';
@@ -183,14 +203,14 @@ function PositionedBubble({
             }
             break;
           case 'left':
-            top = rect.top + rect.height / 2;
-            left = rect.left - 12;
-            transform = 'translateX(-100%) translateY(-50%)';
+            top = clamp(rect.top + rect.height / 2 - bubbleHeight / 2, BUBBLE_PADDING, viewportHeight - bubbleHeight - BUBBLE_PADDING);
+            left = clamp(rect.left - 12 - bubbleWidth, BUBBLE_PADDING, viewportWidth - bubbleWidth - BUBBLE_PADDING);
+            transform = '';
             break;
           case 'right':
-            top = rect.top + rect.height / 2;
-            left = rect.right + 12;
-            transform = 'translateY(-50%)';
+            top = clamp(rect.top + rect.height / 2 - bubbleHeight / 2, BUBBLE_PADDING, viewportHeight - bubbleHeight - BUBBLE_PADDING);
+            left = clamp(rect.right + 12, BUBBLE_PADDING, viewportWidth - bubbleWidth - BUBBLE_PADDING);
+            transform = '';
             break;
         }
 
@@ -275,6 +295,8 @@ function PositionedBubble({
 
   return (
     <div
+      data-tutorial-bubble="true"
+      onMouseDown={(event) => event.stopPropagation()}
       className="fixed z-[100]"
       style={{
         top: position.top,
@@ -283,6 +305,7 @@ function PositionedBubble({
       }}
     >
       <div
+        ref={bubbleRef}
         className={`relative p-4 rounded-lg shadow-lg max-w-[300px] ${
           darkMode
             ? 'bg-black border border-white/30 text-white'

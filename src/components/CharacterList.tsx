@@ -15,6 +15,14 @@ import { stripImages } from '../utils/stripImages';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
+const TUTORIAL_DESCRIPTIONS = {
+  basic: 'Create a character, add widgets, edit a widget, and learn camera controls.',
+  themes: 'Try built-in themes, create a custom theme, and share it with the community.',
+  templates: 'Save widgets and groups as templates, load them later, and share them.',
+  automation: 'Link values with tags and formulas, then roll a d20 using Strength as the modifier.',
+  various: 'Tour gallery sharing and downloads, backup, feedback, print, vertical view, timeline, and sheets.',
+};
+
 // Get initial dark mode preference from localStorage or OS
 function getInitialDarkMode(): boolean {
   const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
@@ -111,8 +119,11 @@ export default function CharacterList() {
   const startTutorial = useTutorialStore((state) => state.startTutorial);
   const startThemesTutorial = useTutorialStore((state) => state.startThemesTutorial);
   const startTemplatesTutorial = useTutorialStore((state) => state.startTemplatesTutorial);
+  const startAutomationTutorial = useTutorialStore((state) => state.startAutomationTutorial);
+  const startVariousTutorial = useTutorialStore((state) => state.startVariousTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
@@ -143,12 +154,22 @@ export default function CharacterList() {
   const presetDropdownRef = useRef<HTMLDivElement>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
+  const automationLoadHandledRef = useRef(false);
+  const variousLoadHandledRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   
   const presetNames = getPresetNames();
+
+  const tutorialOptionClass = (mobile = false) => `w-full px-4 py-3 ${mobile ? 'pl-12 ' : ''}text-left text-sm font-body flex items-center gap-3 transition-colors ${
+    mobile ? 'sm:hidden ' : ''
+  }${
+    darkMode 
+      ? 'text-white hover:bg-white/10' 
+      : 'text-gray-700 hover:bg-gray-100'
+  }`;
 
   // Toggle dark mode and persist to localStorage
   const toggleDarkMode = () => {
@@ -162,6 +183,9 @@ export default function CharacterList() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if ((event.target as HTMLElement).closest('[data-tutorial-bubble="true"]')) {
+        return;
+      }
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setOpenDropdown(null);
       }
@@ -225,6 +249,74 @@ export default function CharacterList() {
     setShowMobileTutorialOptions(false);
     setShowHeaderMenu(false);
   };
+
+  const handleStartAutomationTutorial = () => {
+    automationLoadHandledRef.current = false;
+    startAutomationTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  const handleStartVariousTutorial = () => {
+    variousLoadHandledRef.current = false;
+    startVariousTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  useEffect(() => {
+    if (tutorialStep === null || TUTORIAL_STEPS[tutorialStep]?.id !== 'automation-load-character') return;
+    if (automationLoadHandledRef.current) return;
+
+    automationLoadHandledRef.current = true;
+
+    createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('edit');
+    advanceTutorial();
+  }, [tutorialStep, createCharacterFromPreset, updateCharacterTheme, darkMode, setMode, advanceTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('various-gallery-concepts') || isCurrentTutorialStep('various-gallery-manage') || isCurrentTutorialStep('various-gallery-download')) {
+      setShowGallery(true);
+      setShowBackupModal(false);
+      setShowHeaderMenu(false);
+    }
+
+    if (isCurrentTutorialStep('various-open-backup')) {
+      setShowGallery(false);
+      setShowBackupModal(false);
+    }
+
+    if (isCurrentTutorialStep('various-feedback')) {
+      setShowGallery(false);
+      setShowBackupModal(false);
+      setShowHeaderMenu(true);
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    if (!isCurrentTutorialStep('various-print-mode')) return;
+    if (variousLoadHandledRef.current) return;
+
+    variousLoadHandledRef.current = true;
+    createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('play');
+    setShowHeaderMenu(false);
+  }, [tutorialStep, createCharacterFromPreset, updateCharacterTheme, darkMode, setMode]);
 
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
@@ -415,7 +507,13 @@ export default function CharacterList() {
             {/* Gallery Button */}
             <Tooltip content="Community Gallery">
               <button
-                onClick={() => setShowGallery(true)}
+                onClick={() => {
+                  setShowGallery(true);
+                  if (isCurrentTutorialStep('various-open-gallery')) {
+                    advanceTutorial();
+                  }
+                }}
+                data-tutorial="gallery-button"
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
@@ -460,52 +558,59 @@ export default function CharacterList() {
                       : 'bg-white border border-gray-300'
                   }`}
                 >
-                  <button
-                    onClick={handleStartBasicTutorial}
-                    className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                      darkMode 
-                        ? 'text-white hover:bg-white/10' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
-                    </svg>
-                    <span>Basic</span>
-                  </button>
-                  <button
-                    onClick={handleStartThemesTutorial}
-                    className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                      darkMode 
-                        ? 'text-white hover:bg-white/10' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.486M7 17h.01" />
-                    </svg>
-                    <span>Themes</span>
-                  </button>
-                  <button
-                    onClick={handleStartTemplatesTutorial}
-                    className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                      darkMode 
-                        ? 'text-white hover:bg-white/10' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2m-4 4V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6m6 0H7" />
-                    </svg>
-                    <span>Templates</span>
-                  </button>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.basic} placement="left">
+                    <button onClick={handleStartBasicTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span>Basic</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.themes} placement="left">
+                    <button onClick={handleStartThemesTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.486M7 17h.01" />
+                      </svg>
+                      <span>Themes</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.templates} placement="left">
+                    <button onClick={handleStartTemplatesTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2m-4 4V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6m6 0H7" />
+                      </svg>
+                      <span>Templates</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.automation} placement="left">
+                    <button onClick={handleStartAutomationTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span>Automation</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.various} placement="left">
+                    <button onClick={handleStartVariousTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      <span>Various</span>
+                    </button>
+                  </Tooltip>
                 </div>
               )}
             </div>
             {/* Backup Button */}
             <Tooltip content="Backup &amp; Restore">
               <button
-                onClick={() => setShowBackupModal(true)}
+                onClick={() => {
+                  setShowBackupModal(true);
+                  if (isCurrentTutorialStep('various-open-backup')) {
+                    advanceTutorial();
+                  }
+                }}
+                data-tutorial="backup-button"
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
@@ -576,8 +681,12 @@ export default function CharacterList() {
                 <button
                   onClick={() => {
                     setShowGallery(true);
+                    if (isCurrentTutorialStep('various-open-gallery')) {
+                      advanceTutorial();
+                    }
                     setShowHeaderMenu(false);
                   }}
+                  data-tutorial="gallery-button-mobile"
                   className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
@@ -610,45 +719,46 @@ export default function CharacterList() {
                 </button>
                 {showMobileTutorialOptions && (
                   <>
-                    <button
-                      onClick={handleStartBasicTutorial}
-                      className={`sm:hidden w-full px-4 py-3 pl-12 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                        darkMode 
-                          ? 'text-white hover:bg-white/10' 
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
-                      </svg>
-                      <span>Basic</span>
-                    </button>
-                    <button
-                      onClick={handleStartThemesTutorial}
-                      className={`sm:hidden w-full px-4 py-3 pl-12 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                        darkMode 
-                          ? 'text-white hover:bg-white/10' 
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.486M7 17h.01" />
-                      </svg>
-                      <span>Themes</span>
-                    </button>
-                    <button
-                      onClick={handleStartTemplatesTutorial}
-                      className={`sm:hidden w-full px-4 py-3 pl-12 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                        darkMode 
-                          ? 'text-white hover:bg-white/10' 
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2m-4 4V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6m6 0H7" />
-                      </svg>
-                      <span>Templates</span>
-                    </button>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.basic} placement="left">
+                      <button onClick={handleStartBasicTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
+                        </svg>
+                        <span>Basic</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.themes} placement="left">
+                      <button onClick={handleStartThemesTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.486M7 17h.01" />
+                        </svg>
+                        <span>Themes</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.templates} placement="left">
+                      <button onClick={handleStartTemplatesTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2m-4 4V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6m6 0H7" />
+                        </svg>
+                        <span>Templates</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.automation} placement="left">
+                      <button onClick={handleStartAutomationTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>Automation</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.various} placement="left">
+                      <button onClick={handleStartVariousTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <span>Various</span>
+                      </button>
+                    </Tooltip>
                   </>
                 )}
                 <a
@@ -656,6 +766,7 @@ export default function CharacterList() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setShowHeaderMenu(false)}
+                  data-tutorial="feedback-button"
                   className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
@@ -670,8 +781,12 @@ export default function CharacterList() {
                 <button
                   onClick={() => {
                     setShowBackupModal(true);
+                    if (isCurrentTutorialStep('various-open-backup')) {
+                      advanceTutorial();
+                    }
                     setShowHeaderMenu(false);
                   }}
+                  data-tutorial="backup-button-mobile"
                   className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
@@ -1560,7 +1675,7 @@ export default function CharacterList() {
             className="fixed inset-0 bg-black/50 z-50" 
             onClick={() => setShowBackupModal(false)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] ${
+          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'

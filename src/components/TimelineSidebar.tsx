@@ -77,6 +77,7 @@ export default function TimelineSidebar() {
 
   return (
     <div
+      data-tutorial="timeline-panel"
       className="fixed right-0 top-0 bottom-0 w-[320px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-40 flex flex-col shadow-theme"
       style={{ top: '0' }}
     >

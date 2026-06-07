@@ -273,6 +273,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
           displayLabel="Modifier"
           value={modifier}
           onChange={(v) => updateData({ modifier: v })}
+          tutorialTargetPrefix="automation-dice-modifier"
           fieldLabel={fieldLabels['modifier']}
           onFieldLabelChange={(l) => setFieldLabel('modifier', l)}
           formula={fieldFormulas['modifier']}
