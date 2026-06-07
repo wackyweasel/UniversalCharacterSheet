@@ -92,6 +92,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const addGroupTemplate = useTemplateStore((state) => state.addGroupTemplate);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   // Print mode state
   const textureDisabled = usePrintStore((state) => state.textureDisabled);
@@ -144,6 +145,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
 
   const isSelected = selectedWidgetId === widget.id;
+  const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
+    isCurrentTutorialStep('templates-open-widget-menu') ||
+    isCurrentTutorialStep('templates-open-group-menu')
+  );
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
@@ -658,16 +663,19 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
-          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM')) && (tutorialStep === null || tutorialStep >= 16) && (
+          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
             <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
               <Tooltip content="Widget options">
                 <button
                   data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
-                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${tutorialStep === 16 && widget.type === 'FORM' ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
                     if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
+                      advanceTutorial();
+                    }
+                    if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
                       advanceTutorial();
                     }
                     setShowDropdown(!showDropdown);
@@ -717,10 +725,14 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       </Tooltip>
                       <Tooltip content="Show actions for the whole group" placement="left">
                         <button
+                          data-tutorial="template-group-tab"
                           className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${dropdownTab === 'group' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setDropdownTab('group');
+                            if (isCurrentTutorialStep('templates-open-group-tab')) {
+                              advanceTutorial();
+                            }
                             // Reset sub-states when switching tabs
                             setShowDeleteConfirm(false);
                             setShowTemplateNameInput(false);
@@ -790,11 +802,15 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       {!showTemplateNameInput ? (
                         <Tooltip content="Save this widget as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
                           <button
+                            data-tutorial="template-save-widget"
                             className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                             onClick={(e) => {
                               e.stopPropagation();
                               setTemplateName(widget.data.label || '');
                               setShowTemplateNameInput(true);
+                              if (isCurrentTutorialStep('templates-save-widget-template')) {
+                                advanceTutorial();
+                              }
                             }}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
@@ -804,6 +820,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       ) : (
                         <div className="px-2 py-2">
                           <input
+                            data-tutorial="template-widget-name-input"
                             type="text"
                             value={templateName}
                             onChange={(e) => setTemplateName(e.target.value)}
@@ -818,6 +835,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                                 setShowDropdown(false);
                                 setShowTemplateNameInput(false);
                                 setTemplateName('');
+                                if (isCurrentTutorialStep('templates-name-widget-template')) {
+                                  advanceTutorial();
+                                }
                               } else if (e.key === 'Escape') {
                                 setShowTemplateNameInput(false);
                                 setTemplateName('');
@@ -827,6 +847,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                           <div className="flex gap-1">
                             <Tooltip content="Save this widget template" placement="left">
                               <button
+                                data-tutorial="template-widget-save-confirm"
                                 className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -835,6 +856,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                                     setShowDropdown(false);
                                     setShowTemplateNameInput(false);
                                     setTemplateName('');
+                                    if (isCurrentTutorialStep('templates-name-widget-template')) {
+                                      advanceTutorial();
+                                    }
                                   }
                                 }}
                               >
@@ -1016,11 +1040,15 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       {!showGroupTemplateNameInput ? (
                         <Tooltip content="Save this group as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
                           <button
+                            data-tutorial="template-save-group"
                             className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                             onClick={(e) => {
                               e.stopPropagation();
                               setGroupTemplateName('');
                               setShowGroupTemplateNameInput(true);
+                              if (isCurrentTutorialStep('templates-save-group-template')) {
+                                advanceTutorial();
+                              }
                             }}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
@@ -1030,6 +1058,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       ) : (
                         <div className="px-2 py-2">
                           <input
+                            data-tutorial="template-group-name-input"
                             type="text"
                             value={groupTemplateName}
                             onChange={(e) => setGroupTemplateName(e.target.value)}
@@ -1045,6 +1074,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                                 setShowDropdown(false);
                                 setShowGroupTemplateNameInput(false);
                                 setGroupTemplateName('');
+                                if (isCurrentTutorialStep('templates-name-group-template')) {
+                                  advanceTutorial();
+                                }
                               } else if (e.key === 'Escape') {
                                 setShowGroupTemplateNameInput(false);
                                 setGroupTemplateName('');
@@ -1054,6 +1086,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                           <div className="flex gap-1">
                             <Tooltip content="Save this group template" placement="left">
                               <button
+                                data-tutorial="template-group-save-confirm"
                                 className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1063,6 +1096,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                                     setShowDropdown(false);
                                     setShowGroupTemplateNameInput(false);
                                     setGroupTemplateName('');
+                                    if (isCurrentTutorialStep('templates-name-group-template')) {
+                                      advanceTutorial();
+                                    }
                                   }
                                 }}
                               >

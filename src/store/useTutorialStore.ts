@@ -3,6 +3,7 @@ import { create } from 'zustand';
 const TUTORIAL_STORAGE_KEY = 'ucs:tutorialStep';
 
 export const THEME_TUTORIAL_START_ID = 'themes-open-panel';
+export const TEMPLATE_TUTORIAL_START_ID = 'templates-open-widget-menu';
 
 // Tutorial step definitions
 export interface TutorialStep {
@@ -233,15 +234,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'sheet',
   },
   {
-    id: 'themes-scroll-custom',
-    title: 'Find Custom Themes',
-    message: 'Scroll down inside the theme panel until you reach the Custom Themes section, then click Next.',
-    targetSelector: '[data-tutorial="theme-panel"]',
-    position: 'left',
-    page: 'sheet',
-    requiresManualAdvance: true,
-  },
-  {
     id: 'themes-create-custom',
     title: 'Create a Custom Theme',
     message: 'You can also build your own theme from scratch, or copy a built-in theme with the pencil button and customize it.',
@@ -266,12 +258,101 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     position: 'center',
     page: 'sheet',
   },
+  {
+    id: TEMPLATE_TUTORIAL_START_ID,
+    title: 'Create a Widget Template',
+    message: 'Templates let you reuse widgets across character sheets. Start by opening the menu on this Form widget.',
+    targetSelector: '[data-tutorial="widget-menu-FORM"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-save-widget-template',
+    title: 'Save the Widget',
+    message: 'Choose Save as Template. This stores the widget layout and data so you can add another copy later.',
+    targetSelector: '[data-tutorial="template-save-widget"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-name-widget-template',
+    title: 'Name the Template',
+    message: 'Give the template a clear name, then click Save. It will appear at the bottom of the toolbox.',
+    targetSelector: '[data-tutorial="template-widget-name-input"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-open-toolbox',
+    title: 'Open the Toolbox',
+    message: 'Open Add Widget to find your saved templates below the standard widget list.',
+    targetSelector: '[data-tutorial="add-widget-button"], [data-tutorial="add-widget-button-mobile"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-load-widget-template',
+    title: 'Load a Template',
+    message: 'Scroll to Templates, then click your saved template to add it to this character sheet.',
+    targetSelector: '[data-tutorial="template-load-item"]',
+    position: 'right',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-open-group-menu',
+    title: 'Create a Group Template',
+    message: 'You can save attached widgets as one reusable group. Open the Form widget menu again.',
+    targetSelector: '[data-tutorial="widget-menu-FORM"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-open-group-tab',
+    title: 'Switch to Group Actions',
+    message: 'Use the Group tab to work with the whole attached widget group instead of just one widget.',
+    targetSelector: '[data-tutorial="template-group-tab"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-save-group-template',
+    title: 'Save the Group',
+    message: 'Choose Save as Template here to store the attached widgets together.',
+    targetSelector: '[data-tutorial="template-save-group"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-name-group-template',
+    title: 'Name the Group Template',
+    message: 'Name the group template and save it. Loading it later will recreate the widgets and their attachments.',
+    targetSelector: '[data-tutorial="template-group-name-input"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'templates-share-template',
+    title: 'Share a Template',
+    message: 'Template cards have a Share button. Use it to open the gallery submission dialog and share your widget or group template with the community.',
+    targetSelector: '[data-tutorial="template-share-button"]',
+    position: 'right',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'templates-complete',
+    title: 'Templates Tutorial Complete',
+    message: 'That is the template flow: save a widget, load it from the toolbox, save a group, and share templates with the community.',
+    position: 'center',
+    page: 'sheet',
+  },
 ];
 
 interface TutorialState {
   tutorialStep: number | null;
   startTutorial: () => void;
   startThemesTutorial: () => void;
+  startTemplatesTutorial: () => void;
   exitTutorial: () => void;
   advanceTutorial: () => void;
   setTutorialStep: (step: number | null) => void;
@@ -288,6 +369,13 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   startThemesTutorial: () => {
     const themeTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === THEME_TUTORIAL_START_ID);
     const tutorialStep = themeTutorialStart >= 0 ? themeTutorialStart : 0;
+    set({ tutorialStep });
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+  },
+
+  startTemplatesTutorial: () => {
+    const templateTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === TEMPLATE_TUTORIAL_START_ID);
+    const tutorialStep = templateTutorialStart >= 0 ? templateTutorialStart : 0;
     set({ tutorialStep });
     localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
-import { THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { applyTheme, applyCustomTheme, THEMES } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
@@ -197,6 +197,26 @@ export default function Sheet() {
     setPan,
   });
 
+  const frameWidgetForTutorial = useCallback((widgetType: WidgetType) => {
+    const targetWidget = activeSheetWidgets.find((widget) => widget.type === widgetType);
+    if (!targetWidget) {
+      handleFitAllWidgets();
+      return;
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const newScale = viewportWidth < 640 ? 0.85 : 1;
+    const targetX = targetWidget.x + (targetWidget.w || 200);
+    const targetY = targetWidget.y;
+
+    setScale(newScale);
+    setPan({
+      x: viewportWidth * 0.68 - targetX * newScale,
+      y: viewportHeight * 0.38 - targetY * newScale,
+    });
+  }, [activeSheetWidgets, handleFitAllWidgets, setPan, setScale]);
+
   const handleToggleThemeSidebar = (closeGridMenu = false) => {
     const wasCollapsed = themeSidebarCollapsed;
     setThemeSidebarCollapsed((current) => !current);
@@ -206,6 +226,22 @@ export default function Sheet() {
     }
 
     if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) && wasCollapsed) {
+      advanceTutorial();
+    }
+  };
+
+  const handleToggleWidgetSidebar = (closeGridMenu = false) => {
+    const wasCollapsed = sidebarCollapsed;
+    setSidebarCollapsed((current) => !current);
+
+    if (closeGridMenu) {
+      setGridMenuOpen(false);
+    }
+
+    if (
+      wasCollapsed &&
+      (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox'))
+    ) {
       advanceTutorial();
     }
   };
@@ -457,15 +493,27 @@ export default function Sheet() {
     }
   }, [tutorialStep]);
 
-  // Themes tutorial starts from the same complete tutorial sheet and should open in edit mode.
+  // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
   useEffect(() => {
-    if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID)) {
+    if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) || isCurrentTutorialStep(TEMPLATE_TUTORIAL_START_ID)) {
       setMode('edit');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
-        handleFitAllWidgets();
+        if (isCurrentTutorialStep(TEMPLATE_TUTORIAL_START_ID)) {
+          frameWidgetForTutorial('FORM');
+        } else {
+          handleFitAllWidgets();
+        }
       }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial, handleFitAllWidgets]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('templates-share-template')) {
+      setMode('edit');
+      setThemeSidebarCollapsed(true);
+      setSidebarCollapsed(false);
     }
   }, [tutorialStep]);
 
@@ -477,8 +525,9 @@ export default function Sheet() {
       (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play');
     const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
     const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
+    const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
     
-    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton || needsThemeButton)) {
+    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton || needsThemeButton || needsTemplateToolboxButton)) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
@@ -1280,15 +1329,8 @@ export default function Sheet() {
               <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
                 <button
                   data-tutorial="add-widget-button"
-                  onClick={() => {
-                    const wasCollapsed = sidebarCollapsed;
-                    setSidebarCollapsed(!sidebarCollapsed);
-                    // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
-                    if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
-                      advanceTutorial();
-                    }
-                  }}
-                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 4 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                  onClick={() => handleToggleWidgetSidebar()}
+                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 >
                   {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
                 </button>
@@ -1559,16 +1601,8 @@ export default function Sheet() {
               <>
                 <button
                   data-tutorial="add-widget-button-mobile"
-                  onClick={() => {
-                    const wasCollapsed = sidebarCollapsed;
-                    setSidebarCollapsed(!sidebarCollapsed);
-                    setGridMenuOpen(false);
-                    // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
-                    if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
-                      advanceTutorial();
-                    }
-                  }}
-                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${tutorialStep === 4 ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                  onClick={() => handleToggleWidgetSidebar(true)}
+                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
                 >
                   {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
                 </button>

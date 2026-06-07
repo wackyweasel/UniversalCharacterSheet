@@ -16,7 +16,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
-  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete';
+  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete' || step?.id === 'templates-complete';
 
   // Handle narrow window detection on resize
   useEffect(() => {
@@ -111,7 +111,7 @@ function PositionedBubble({
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [adjustedTransform, setAdjustedTransform] = useState('');
   const [isCentered, setIsCentered] = useState(false);
-  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete';
+  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete';
 
   useEffect(() => {
     // Handle centered position (no target)

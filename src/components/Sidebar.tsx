@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useTemplateStore, isGroupTemplate } from '../store/useTemplateStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -62,6 +62,20 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('templates-load-widget-template') || isCurrentTutorialStep('templates-share-template')) {
+      const selector = isCurrentTutorialStep('templates-share-template')
+        ? '[data-tutorial="template-share-button"]'
+        : '[data-tutorial="template-load-item"]';
+
+      document.querySelector(selector)?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    }
+  }, [tutorialStep, templates.length]);
 
   // Map tutorial steps to widget types
   const tutorialWidgetSteps: Record<number, WidgetType> = {
@@ -193,7 +207,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
         {/* Templates Section */}
         {templates.length > 0 && (
           <>
-            <div className="mt-6 mb-4">
+            <div data-tutorial="templates-section" className="mt-6 mb-4">
               <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
                 Templates
               </h2>
@@ -204,15 +218,22 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                 return (
                   <div
                     key={template.id}
+                    data-tutorial="template-card"
                     className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center justify-between bg-theme-paper text-theme-ink rounded-theme group"
                   >
                     <span 
+                      data-tutorial="template-load-item"
                       className="text-xs font-body flex-1 truncate flex items-center gap-1.5"
                       onClick={() => {
                         if (isGroup) {
                           addGroupFromTemplate(template, viewport);
                         } else {
                           addWidgetFromTemplate(template, viewport);
+                        }
+
+                        if (isCurrentTutorialStep('templates-load-widget-template')) {
+                          advanceTutorial();
+                          onToggle();
                         }
                       }}
                     >
@@ -252,13 +273,18 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className={`flex items-center gap-1 ml-2 transition-opacity ${isCurrentTutorialStep('templates-share-template') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         <Tooltip content="Submit this template for the community gallery">
                           <button
-                            className="px-1.5 py-0.5 text-[10px] font-bold rounded-button text-theme-muted hover:text-white hover:bg-blue-600 transition-colors"
+                            data-tutorial="template-share-button"
+                            className={`px-1.5 py-0.5 text-[10px] font-bold rounded-button text-theme-muted hover:text-white hover:bg-blue-600 transition-colors ${isCurrentTutorialStep('templates-share-template') ? 'opacity-100 bg-blue-600 text-white ring-2 ring-blue-500 ring-offset-1' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSharingTemplateId(template.id);
+
+                              if (isCurrentTutorialStep('templates-share-template')) {
+                                advanceTutorial();
+                              }
                             }}
                           >
                             Share
