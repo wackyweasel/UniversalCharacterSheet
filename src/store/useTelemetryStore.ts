@@ -4,7 +4,7 @@ import { stripImages } from '../utils/stripImages';
 
 const TELEMETRY_STORAGE_KEY = 'ucs:telemetry';
 const TELEMETRY_CLIENT_ID_KEY = 'ucs:telemetry:clientId';
-const TELEMETRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyRj89srSi2oUB3ZYNkhALCf5LkAXVzzm5P4L2jYkWBmcB-8JLk9aUXfUtRW5XlZEPMYQ/exec';
+const TELEMETRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycby8xvlrO8encU4T1lLWXxRf7YglX-NvmlCKvQn5YPabdUXIhllx-7NtM8dlKk4dE8XGvg/exec';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 type TelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'gallery' | 'print' | 'timeline' | 'view' | 'app';
