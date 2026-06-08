@@ -8,6 +8,19 @@ import { resolveCharacterFormulas, FormulaChange } from '../utils/formulaEngine'
 import { useTimelineStore } from './useTimelineStore';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
+type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
+type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
+type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view';
+
+interface StoreTelemetryEvent {
+  eventName: string;
+  category: StoreTelemetryCategory;
+  characterId?: string | null;
+  sheetId?: string | null;
+  widgetType?: WidgetType | null;
+  source?: string | null;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+}
 
 // Helper to get the active sheet's widgets from a character
 function getActiveSheetWidgets(character: Character): Widget[] {
@@ -88,6 +101,39 @@ function migrateCharacter(char: any): Character {
   };
 }
 
+function recordStoreEvent(
+  state: Pick<StoreState, 'characters' | 'transientCharacterIds' | 'activeCharacterId' | 'mode'>,
+  event: StoreTelemetryEvent
+) {
+  const characterId = event.characterId === undefined ? state.activeCharacterId : event.characterId;
+  if (characterId && state.transientCharacterIds.includes(characterId)) return;
+
+  const character = characterId ? state.characters.find(c => c.id === characterId) : undefined;
+
+  useTelemetryStore.getState().recordEvent({
+    eventName: event.eventName,
+    category: event.category,
+    characterId: characterId ?? null,
+    sheetId: event.sheetId ?? character?.activeSheetId ?? null,
+    mode: state.mode,
+    widgetType: event.widgetType ?? null,
+    source: event.source ?? null,
+    metadata: event.metadata,
+  });
+}
+
+function getPresetCreatedEventName(source: PresetTelemetrySource): string {
+  if (source === 'builtin_preset') return 'character_created_from_builtin_preset';
+  if (source === 'user_preset') return 'character_created_from_user_preset';
+  return 'character_created_from_preset';
+}
+
+function getImportEventName(source: ImportTelemetrySource): string {
+  if (source === 'json_file') return 'character_imported_json_file';
+  if (source === 'raw_json') return 'character_imported_raw_json';
+  return 'character_imported';
+}
+
 interface StoreState {
   characters: Character[];
   transientCharacterIds: string[];
@@ -98,11 +144,11 @@ interface StoreState {
   
   // Actions
   createCharacter: (name: string) => void;
-  createCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
+  createCharacterFromPreset: (preset: CharacterPreset, name?: string, telemetrySource?: PresetTelemetrySource) => void;
   createTransientCharacter: (name: string) => void;
   createTransientCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
   cleanupTransientCharacters: () => void;
-  importCharacter: (character: Character) => void;
+  importCharacter: (character: Character, telemetrySource?: ImportTelemetrySource) => void;
   duplicateCharacter: (id: string) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
@@ -209,6 +255,13 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: [defaultSheet],
         activeSheetId: defaultSheet.id
       };
+      recordStoreEvent(state, {
+        eventName: 'character_created_blank',
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: defaultSheet.id,
+        source: 'blank',
+      });
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
@@ -216,7 +269,7 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    createCharacterFromPreset: (preset, name) => set((state) => {
+    createCharacterFromPreset: (preset, name, telemetrySource = 'unknown') => set((state) => {
       const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
 
       const newChar: Character = {
@@ -226,6 +279,19 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         activeSheetId
       };
+
+      recordStoreEvent(state, {
+        eventName: getPresetCreatedEventName(telemetrySource),
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: activeSheetId,
+        source: telemetrySource,
+        metadata: {
+          presetName: preset.name,
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
 
       return {
         characters: [...state.characters, newChar],
@@ -299,7 +365,7 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    importCharacter: (character) => set((state) => {
+    importCharacter: (character, telemetrySource = 'unknown') => set((state) => {
       const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
 
       const newChar: Character = {
@@ -309,6 +375,18 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         activeSheetId
       };
+
+      recordStoreEvent(state, {
+        eventName: getImportEventName(telemetrySource),
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: activeSheetId,
+        source: telemetrySource,
+        metadata: {
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
 
       return {
         characters: [...state.characters, newChar]
@@ -329,6 +407,19 @@ export const useStore = create<StoreState>((set, get) => {
         activeSheetId
       };
 
+      recordStoreEvent(state, {
+        eventName: 'character_duplicated',
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: activeSheetId,
+        source: 'character_menu',
+        metadata: {
+          sourceCharacterId: id,
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
+
       return {
         characters: [...state.characters, newChar]
       };
@@ -343,6 +434,19 @@ export const useStore = create<StoreState>((set, get) => {
         });
       }
 
+      if (id) {
+        const character = state.characters.find(c => c.id === id);
+        if (character) {
+          recordStoreEvent(state, {
+            eventName: 'character_opened',
+            category: 'character',
+            characterId: id,
+            sheetId: character.activeSheetId,
+            source: 'character_list',
+          });
+        }
+      }
+
       return {
         characters: shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters,
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
@@ -353,20 +457,78 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    deleteCharacter: (id) => set((state) => ({
-      characters: state.characters.filter(c => c.id !== id),
-      activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId
-    })),
+    deleteCharacter: (id) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (character) {
+        recordStoreEvent(state, {
+          eventName: 'character_deleted',
+          category: 'character',
+          characterId: id,
+          sheetId: character.activeSheetId,
+          source: 'character_menu',
+          metadata: {
+            sheetCount: character.sheets.length,
+            widgetCount: character.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+          },
+        });
+      }
 
-    updateCharacterName: (id, name) => set((state) => ({
-      characters: state.characters.map(c => c.id === id ? { ...c, name } : c)
-    })),
+      return {
+        characters: state.characters.filter(c => c.id !== id),
+        activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId
+      };
+    }),
 
-    updateCharacterTheme: (id, theme) => set((state) => ({
-      characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
-    })),
+    updateCharacterName: (id, name) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (character && character.name !== name) {
+        recordStoreEvent(state, {
+          eventName: 'character_renamed',
+          category: 'character',
+          characterId: id,
+          sheetId: character.activeSheetId,
+          source: 'character_name',
+        });
+      }
 
-    setMode: (mode) => set({ mode, selectedWidgetId: null }),
+      return {
+        characters: state.characters.map(c => c.id === id ? { ...c, name } : c)
+      };
+    }),
+
+    updateCharacterTheme: (id, theme) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (character && character.theme !== theme) {
+        recordStoreEvent(state, {
+          eventName: 'character_theme_changed',
+          category: 'theme',
+          characterId: id,
+          sheetId: character.activeSheetId,
+          source: 'theme_selection',
+          metadata: { themeId: theme },
+        });
+      }
+
+      return {
+        characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
+      };
+    }),
+
+    setMode: (mode) => set((state) => {
+      if (state.mode !== mode) {
+        recordStoreEvent(state, {
+          eventName: 'mode_changed',
+          category: 'view',
+          source: 'sheet_toolbar',
+          metadata: {
+            previousMode: state.mode,
+            nextMode: mode,
+          },
+        });
+      }
+
+      return { mode, selectedWidgetId: null };
+    }),
 
     setEditingWidgetId: (id) => set({ editingWidgetId: id }),
 
@@ -381,6 +543,13 @@ export const useStore = create<StoreState>((set, get) => {
         name,
         widgets: []
       };
+      recordStoreEvent(state, {
+        eventName: 'sheet_created',
+        category: 'sheet',
+        sheetId: newSheet.id,
+        source: 'sheet_selector',
+        metadata: { sheetCount: (state.characters.find(c => c.id === state.activeCharacterId)?.sheets.length ?? 0) + 1 },
+      });
       
       return {
         characters: state.characters.map(c => {
@@ -398,6 +567,16 @@ export const useStore = create<StoreState>((set, get) => {
 
     selectSheet: (sheetId) => set((state) => {
       if (!state.activeCharacterId) return state;
+      const character = state.characters.find(c => c.id === state.activeCharacterId);
+      if (!character || character.activeSheetId === sheetId) return state;
+
+      recordStoreEvent(state, {
+        eventName: 'sheet_selected',
+        category: 'sheet',
+        sheetId,
+        source: 'sheet_selector',
+        metadata: { previousSheetId: character.activeSheetId },
+      });
       
       return {
         characters: state.characters.map(c => {
@@ -415,6 +594,17 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        const sheet = character?.sheets.find(s => s.id === sheetId);
+        if (character && sheet && character.sheets.length > 1) {
+          recordStoreEvent(state, {
+            eventName: 'sheet_deleted',
+            category: 'sheet',
+            sheetId,
+            source: 'sheet_selector',
+            metadata: { widgetCount: sheet.widgets.length },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -440,6 +630,16 @@ export const useStore = create<StoreState>((set, get) => {
 
     renameSheet: (sheetId, name) => set((state) => {
       if (!state.activeCharacterId) return state;
+      const character = state.characters.find(c => c.id === state.activeCharacterId);
+      const sheet = character?.sheets.find(s => s.id === sheetId);
+      if (sheet && sheet.name !== name) {
+        recordStoreEvent(state, {
+          eventName: 'sheet_renamed',
+          category: 'sheet',
+          sheetId,
+          source: 'sheet_selector',
+        });
+      }
       
       return {
         characters: state.characters.map(c => {
@@ -591,6 +791,14 @@ export const useStore = create<StoreState>((set, get) => {
           }
         };
 
+        recordStoreEvent(state, {
+          eventName: 'widget_added',
+          category: 'widget',
+          widgetType: type,
+          source: viewport ? 'toolbox_visible_area' : 'toolbox',
+          metadata: { x: finalX, y: finalY },
+        });
+
         return {
           characters: state.characters.map(c => {
             if (c.id === state.activeCharacterId) {
@@ -627,6 +835,14 @@ export const useStore = create<StoreState>((set, get) => {
           h: sourceWidget.h,
           data: JSON.parse(JSON.stringify(sourceWidget.data)), // Deep clone the data
         };
+
+        recordStoreEvent(state, {
+          eventName: 'widget_cloned',
+          category: 'widget',
+          widgetType: sourceWidget.type,
+          source: 'widget_menu',
+          metadata: { sourceWidgetId: widgetId },
+        });
 
         return {
           characters: state.characters.map(c => {
@@ -735,6 +951,14 @@ export const useStore = create<StoreState>((set, get) => {
           h: template.h || 120,
           data: JSON.parse(JSON.stringify(template.data)), // Deep clone the data
         };
+
+        recordStoreEvent(state, {
+          eventName: 'widget_added_from_template',
+          category: 'template',
+          widgetType: template.type,
+          source: 'template_panel',
+          metadata: { x: finalX, y: finalY },
+        });
 
         return {
           characters: state.characters.map(c => {
@@ -873,6 +1097,16 @@ export const useStore = create<StoreState>((set, get) => {
             }
           }
         });
+
+        recordStoreEvent(state, {
+          eventName: 'widget_group_added_from_template',
+          category: 'template',
+          source: 'template_panel',
+          metadata: {
+            widgetCount: newWidgets.length,
+            attachmentCount: template.attachments.length,
+          },
+        });
         
         return {
           characters: state.characters.map(c => {
@@ -982,6 +1216,16 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
+            const widget = getActiveSheetWidgets(c).find(w => w.id === id);
+            if (widget) {
+              recordStoreEvent(state, {
+                eventName: 'widget_deleted',
+                category: 'widget',
+                widgetType: widget.type,
+                source: 'widget_menu',
+                metadata: { widgetId: id },
+              });
+            }
             return updateActiveSheetWidgets(c, widgets => 
               widgets.filter(w => w.id !== id)
             );
@@ -995,6 +1239,16 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
+            const widget = getActiveSheetWidgets(c).find(w => w.id === id);
+            if (widget) {
+              recordStoreEvent(state, {
+                eventName: widget.locked ? 'widget_unlocked' : 'widget_locked',
+                category: 'widget',
+                widgetType: widget.type,
+                source: 'widget_menu',
+                metadata: { widgetId: id },
+              });
+            }
             return updateActiveSheetWidgets(c, widgets =>
               widgets.map(w => w.id === id ? { ...w, locked: !w.locked } : w)
             );
@@ -1027,6 +1281,18 @@ export const useStore = create<StoreState>((set, get) => {
         // Check target sheet exists
         const targetSheet = character.sheets.find(s => s.id === targetSheetId);
         if (!targetSheet) return state;
+
+        recordStoreEvent(state, {
+          eventName: 'widget_moved_to_sheet',
+          category: 'widget',
+          widgetType: widget.type,
+          sheetId: character.activeSheetId,
+          source: 'widget_menu',
+          metadata: {
+            widgetId,
+            targetSheetId,
+          },
+        });
         
         // Remove widget from attachments and groups when moving
         const widgetToMove = {
@@ -1114,6 +1380,18 @@ export const useStore = create<StoreState>((set, get) => {
             
             // Check if already attached
             if (widget1.attachedTo?.includes(widgetId2)) return c;
+
+            recordStoreEvent(state, {
+              eventName: 'widgets_attached',
+              category: 'widget',
+              widgetType: widget1.type,
+              source: 'attachment_button',
+              metadata: {
+                widgetId1,
+                widgetId2,
+                widgetType2: widget2.type,
+              },
+            });
             
             // Determine the group ID to use
             let newGroupId: string;
@@ -1187,6 +1465,18 @@ export const useStore = create<StoreState>((set, get) => {
             
             const groupId = widget1.groupId;
             const widget1Neighbors = widget1.attachedTo || [];
+
+            recordStoreEvent(state, {
+              eventName: 'widget_detached_from_group',
+              category: 'widget',
+              widgetType: widget1.type,
+              source: 'widget_menu',
+              metadata: {
+                widgetId: widgetId1,
+                groupId,
+                neighborCount: widget1Neighbors.length,
+              },
+            });
             
             // Remove widget1 from the group entirely
             let updatedWidgets = widgets.map(w => {
@@ -1374,6 +1664,16 @@ export const useStore = create<StoreState>((set, get) => {
           locked: w.locked,
           data: JSON.parse(JSON.stringify(w.data)),
         }));
+
+        recordStoreEvent(state, {
+          eventName: 'widget_group_cloned',
+          category: 'widget',
+          source: 'group_menu',
+          metadata: {
+            groupId,
+            widgetCount: groupWidgets.length,
+          },
+        });
         
         return {
           characters: state.characters.map(c => {
@@ -1392,6 +1692,19 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        const groupWidgets = character ? getActiveSheetWidgets(character).filter(w => w.groupId === groupId) : [];
+        if (groupWidgets.length > 0) {
+          recordStoreEvent(state, {
+            eventName: 'widget_group_deleted',
+            category: 'widget',
+            source: 'group_menu',
+            metadata: {
+              groupId,
+              widgetCount: groupWidgets.length,
+            },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -1420,6 +1733,18 @@ export const useStore = create<StoreState>((set, get) => {
         // Check if any widget in the group is unlocked - if so, lock all; otherwise unlock all
         const anyUnlocked = groupWidgets.some(w => !w.locked);
         const newLockState = anyUnlocked;
+
+        if (groupWidgets.length > 0) {
+          recordStoreEvent(state, {
+            eventName: newLockState ? 'widget_group_locked' : 'widget_group_unlocked',
+            category: 'widget',
+            source: 'group_menu',
+            metadata: {
+              groupId,
+              widgetCount: groupWidgets.length,
+            },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -1457,6 +1782,18 @@ export const useStore = create<StoreState>((set, get) => {
         // Get all widgets in the group
         const widgetsToMove = activeSheet.widgets.filter(w => w.groupId === groupId);
         if (widgetsToMove.length === 0) return state;
+
+        recordStoreEvent(state, {
+          eventName: 'widget_group_moved_to_sheet',
+          category: 'widget',
+          sheetId: character.activeSheetId,
+          source: 'group_menu',
+          metadata: {
+            groupId,
+            targetSheetId,
+            widgetCount: widgetsToMove.length,
+          },
+        });
         
         const widgetIdsToMove = new Set(widgetsToMove.map(w => w.id));
         
@@ -1500,6 +1837,19 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        const groupWidgets = character ? getActiveSheetWidgets(character).filter(w => w.groupId === groupId) : [];
+        if (groupWidgets.length > 0) {
+          recordStoreEvent(state, {
+            eventName: 'widget_group_detached_all',
+            category: 'widget',
+            source: 'group_menu',
+            metadata: {
+              groupId,
+              widgetCount: groupWidgets.length,
+            },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {

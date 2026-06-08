@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useStore } from './useStore';
+import { useTelemetryStore } from './useTelemetryStore';
 
 export interface TimelineEvent {
   id: string;
@@ -60,6 +61,23 @@ function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTime
 
 const persisted = loadPersistedState();
 
+function recordTimelineEvent(eventName: string, metadata?: Record<string, string | number | boolean | null | undefined>) {
+  const storeState = useStore.getState();
+  const characterId = storeState.activeCharacterId;
+  if (characterId && storeState.transientCharacterIds.includes(characterId)) return;
+
+  const character = characterId ? storeState.characters.find(c => c.id === characterId) : undefined;
+  useTelemetryStore.getState().recordEvent({
+    eventName,
+    category: 'timeline',
+    characterId: characterId ?? null,
+    sheetId: character?.activeSheetId ?? null,
+    mode: storeState.mode,
+    source: 'timeline_sidebar',
+    metadata,
+  });
+}
+
 export const useTimelineStore = create<TimelineState>((set) => ({
   eventsByCharacter: persisted.eventsByCharacter,
   isOpen: false,
@@ -88,6 +106,8 @@ export const useTimelineStore = create<TimelineState>((set) => ({
     const charTimeline = state.eventsByCharacter[characterId];
     if (!charTimeline) return state;
 
+    recordTimelineEvent('timeline_event_deleted', { eventId });
+
     return {
       eventsByCharacter: {
         ...state.eventsByCharacter,
@@ -99,19 +119,32 @@ export const useTimelineStore = create<TimelineState>((set) => ({
     };
   }),
   
-  clearEvents: (characterId) => set((state) => ({
-    eventsByCharacter: {
-      ...state.eventsByCharacter,
-      [characterId]: { events: [], nextId: state.eventsByCharacter[characterId]?.nextId ?? 1 },
-    },
-  })),
+  clearEvents: (characterId) => set((state) => {
+    const eventCount = state.eventsByCharacter[characterId]?.events.length ?? 0;
+    if (eventCount > 0) {
+      recordTimelineEvent('timeline_cleared', { eventCount });
+    }
+
+    return {
+      eventsByCharacter: {
+        ...state.eventsByCharacter,
+        [characterId]: { events: [], nextId: state.eventsByCharacter[characterId]?.nextId ?? 1 },
+      },
+    };
+  }),
   
   toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
   
   setOpen: (open) => set({ isOpen: open }),
   
-  toggleOrder: () => set((state) => ({ orderNewestFirst: !state.orderNewestFirst })),
-  toggleShowFormulas: () => set((state) => ({ showFormulas: !state.showFormulas })),
+  toggleOrder: () => set((state) => {
+    recordTimelineEvent('timeline_order_changed', { newestFirst: !state.orderNewestFirst });
+    return { orderNewestFirst: !state.orderNewestFirst };
+  }),
+  toggleShowFormulas: () => set((state) => {
+    recordTimelineEvent('timeline_formula_visibility_changed', { showFormulas: !state.showFormulas });
+    return { showFormulas: !state.showFormulas };
+  }),
 }));
 
 // Persist timeline to localStorage on changes (debounced)

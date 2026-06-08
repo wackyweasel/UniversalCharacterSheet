@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Widget, WidgetType } from '../types';
+import { useStore } from './useStore';
+import { useTelemetryStore } from './useTelemetryStore';
 
 export interface WidgetTemplate {
   id: string;
@@ -40,6 +42,28 @@ export type AnyTemplate = WidgetTemplate | GroupTemplate;
 // Type guard to check if a template is a group template
 export function isGroupTemplate(template: AnyTemplate): template is GroupTemplate {
   return 'isGroup' in template && template.isGroup === true;
+}
+
+function recordTemplateEvent(
+  eventName: string,
+  metadata: Record<string, string | number | boolean | null | undefined> = {},
+  widgetType?: WidgetType
+) {
+  const storeState = useStore.getState();
+  const characterId = storeState.activeCharacterId;
+  if (characterId && storeState.transientCharacterIds.includes(characterId)) return;
+
+  const character = characterId ? storeState.characters.find(c => c.id === characterId) : undefined;
+  useTelemetryStore.getState().recordEvent({
+    eventName,
+    category: 'template',
+    characterId: characterId ?? null,
+    sheetId: character?.activeSheetId ?? null,
+    mode: storeState.mode,
+    widgetType: widgetType ?? null,
+    source: 'template_store',
+    metadata,
+  });
 }
 
 interface TemplateStoreState {
@@ -92,6 +116,11 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
         data: { ...widget.data },
         createdAt: Date.now(),
       };
+
+      recordTemplateEvent('widget_template_created', {
+        templateId: template.id,
+        hasCustomName: !!name,
+      }, widget.type);
 
       set((state) => {
         const newTemplates = [...state.templates, template];
@@ -152,6 +181,12 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
         createdAt: Date.now(),
       };
 
+      recordTemplateEvent('widget_group_template_created', {
+        templateId: template.id,
+        widgetCount: widgetTemplates.length,
+        attachmentCount: attachments.length,
+      });
+
       set((state) => {
         const newTemplates = [...state.templates, template];
         persistTemplates(newTemplates);
@@ -161,6 +196,14 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
 
     removeTemplate: (id) => {
       set((state) => {
+        const template = state.templates.find(t => t.id === id);
+        if (template) {
+          recordTemplateEvent(isGroupTemplate(template) ? 'widget_group_template_deleted' : 'widget_template_deleted', {
+            templateId: id,
+            isGroup: isGroupTemplate(template),
+            widgetCount: isGroupTemplate(template) ? template.widgets.length : 1,
+          }, isGroupTemplate(template) ? undefined : template.type);
+        }
         const newTemplates = state.templates.filter(t => t.id !== id);
         persistTemplates(newTemplates);
         return { templates: newTemplates };

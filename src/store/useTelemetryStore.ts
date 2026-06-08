@@ -3,8 +3,46 @@ import { Character } from '../types';
 import { stripImages } from '../utils/stripImages';
 
 const TELEMETRY_STORAGE_KEY = 'ucs:telemetry';
+const TELEMETRY_CLIENT_ID_KEY = 'ucs:telemetry:clientId';
 const TELEMETRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyRj89srSi2oUB3ZYNkhALCf5LkAXVzzm5P4L2jYkWBmcB-8JLk9aUXfUtRW5XlZEPMYQ/exec';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+type TelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'gallery' | 'print' | 'timeline' | 'view' | 'app';
+
+type TelemetryMetadata = Record<string, string | number | boolean | null | undefined>;
+
+export interface TelemetryEventInput {
+  eventName: string;
+  category: TelemetryCategory;
+  characterId?: string | null;
+  sheetId?: string | null;
+  mode?: string | null;
+  widgetType?: string | null;
+  source?: string | null;
+  metadata?: TelemetryMetadata;
+}
+
+function createRandomId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getClientId(): string {
+  try {
+    const existing = localStorage.getItem(TELEMETRY_CLIENT_ID_KEY);
+    if (existing) return existing;
+
+    const clientId = createRandomId();
+    localStorage.setItem(TELEMETRY_CLIENT_ID_KEY, clientId);
+    return clientId;
+  } catch {
+    return 'unknown';
+  }
+}
+
+const sessionId = createRandomId();
 
 interface TelemetryState {
   // Map of characterId -> timestamp of last send
@@ -15,6 +53,9 @@ interface TelemetryState {
   
   // Send telemetry for a character (respects rate limit)
   sendTelemetry: (character: Character) => void;
+
+  // Record a workflow event in the Telemetry sheet (not rate-limited)
+  recordEvent: (event: TelemetryEventInput) => void;
 }
 
 export const useTelemetryStore = create<TelemetryState>((set, get) => {
@@ -72,6 +113,35 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       }).catch((e) => {
         // Silently fail - telemetry is not critical
         console.debug('Telemetry send failed (this is okay):', e);
+      });
+    },
+
+    recordEvent: (event) => {
+      const payload = {
+        kind: 'event',
+        clientTimestamp: new Date().toISOString(),
+        eventName: event.eventName,
+        category: event.category,
+        sessionId,
+        clientId: getClientId(),
+        characterId: event.characterId ?? null,
+        sheetId: event.sheetId ?? null,
+        mode: event.mode ?? null,
+        widgetType: event.widgetType ?? null,
+        source: event.source ?? null,
+        metadata: event.metadata ?? {},
+      };
+
+      fetch(TELEMETRY_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }).catch((e) => {
+        console.debug('Telemetry event send failed (this is okay):', e);
       });
     },
   };

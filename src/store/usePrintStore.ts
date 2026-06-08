@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { useStore } from './useStore';
+import { useTelemetryStore } from './useTelemetryStore';
 
 export interface PrintArea {
   x: number;
@@ -62,6 +64,23 @@ interface PrintState {
   resetPrintSettings: () => void;
 }
 
+function recordPrintSettingChanged(setting: string, value: string | number | boolean | null) {
+  const storeState = useStore.getState();
+  const characterId = storeState.activeCharacterId;
+  if (characterId && storeState.transientCharacterIds.includes(characterId)) return;
+
+  const character = characterId ? storeState.characters.find(c => c.id === characterId) : undefined;
+  useTelemetryStore.getState().recordEvent({
+    eventName: 'print_settings_changed',
+    category: 'print',
+    characterId: characterId ?? null,
+    sheetId: character?.activeSheetId ?? null,
+    mode: storeState.mode,
+    source: 'print_toolbar',
+    metadata: { setting, value },
+  });
+}
+
 export const usePrintStore = create<PrintState>((set) => ({
   printerFriendly: false,
   textureDisabled: false,
@@ -73,13 +92,34 @@ export const usePrintStore = create<PrintState>((set) => ({
   printArea: null,
   previousMode: null,
   
-  setPrinterFriendly: (enabled) => set({ printerFriendly: enabled }),
-  setTextureDisabled: (disabled) => set({ textureDisabled: disabled }),
-  setBordersDisabled: (disabled) => set({ bordersDisabled: disabled }),
-  setShadowsDisabled: (disabled) => set({ shadowsDisabled: disabled }),
-  setPaperFormat: (format) => set({ paperFormat: format }),
-  setIsLandscape: (landscape) => set({ isLandscape: landscape }),
-  setShowInEditMode: (show) => set({ showInEditMode: show }),
+  setPrinterFriendly: (enabled) => {
+    recordPrintSettingChanged('printerFriendly', enabled);
+    set({ printerFriendly: enabled });
+  },
+  setTextureDisabled: (disabled) => {
+    recordPrintSettingChanged('textureDisabled', disabled);
+    set({ textureDisabled: disabled });
+  },
+  setBordersDisabled: (disabled) => {
+    recordPrintSettingChanged('bordersDisabled', disabled);
+    set({ bordersDisabled: disabled });
+  },
+  setShadowsDisabled: (disabled) => {
+    recordPrintSettingChanged('shadowsDisabled', disabled);
+    set({ shadowsDisabled: disabled });
+  },
+  setPaperFormat: (format) => {
+    recordPrintSettingChanged('paperFormat', format);
+    set({ paperFormat: format });
+  },
+  setIsLandscape: (landscape) => {
+    recordPrintSettingChanged('isLandscape', landscape);
+    set({ isLandscape: landscape });
+  },
+  setShowInEditMode: (show) => {
+    recordPrintSettingChanged('showInEditMode', show);
+    set({ showInEditMode: show });
+  },
   setPrintArea: (area) => set({ printArea: area }),
   setPreviousMode: (mode) => set({ previousMode: mode }),
   

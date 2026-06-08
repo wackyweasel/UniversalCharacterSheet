@@ -22,6 +22,7 @@ import TimelineSidebar from './TimelineSidebar';
 import { Tooltip } from './Tooltip';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 // Helper to get active sheet widgets
 function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
@@ -32,6 +33,7 @@ function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widge
 export default function Sheet() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
+  const transientCharacterIds = useStore((state) => state.transientCharacterIds);
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
@@ -52,6 +54,7 @@ export default function Sheet() {
   const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Timeline state
   const timelineIsOpen = useTimelineStore((state) => state.isOpen);
@@ -108,6 +111,20 @@ export default function Sheet() {
   
   // Get widgets from active sheet
   const activeSheetWidgets = activeCharacter ? getActiveSheetWidgets(activeCharacter) : [];
+
+  const recordSheetWorkflowEvent = useCallback((eventName: string, category: 'view' | 'print' | 'widget', metadata?: Record<string, string | number | boolean | null | undefined>) => {
+    if (activeCharacterId && transientCharacterIds.includes(activeCharacterId)) return;
+
+    recordTelemetryEvent({
+      eventName,
+      category,
+      characterId: activeCharacterId,
+      sheetId: activeCharacter?.activeSheetId,
+      mode,
+      source: 'sheet_toolbar',
+      metadata,
+    });
+  }, [activeCharacter?.activeSheetId, activeCharacterId, mode, recordTelemetryEvent, transientCharacterIds]);
   
   // Default sidebar collapsed (toolbox hidden until user clicks "Add Widget")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -396,6 +413,12 @@ export default function Sheet() {
   // Print function - uses native browser print with a temporary wrapper element
   const handlePrint = useCallback(() => {
     if (!printArea) return;
+    recordSheetWorkflowEvent('print_triggered', 'print', {
+      width: Math.round(printArea.width),
+      height: Math.round(printArea.height),
+      paperFormat,
+      isLandscape,
+    });
     
     // Get the canvas content
     const canvas = document.querySelector('.print-canvas-content');
@@ -466,7 +489,7 @@ export default function Sheet() {
 
     // Trigger native print
     window.print();
-  }, [printArea]);
+  }, [isLandscape, paperFormat, printArea, recordSheetWorkflowEvent]);
 
   // Handle tutorial step 22 -> 23: load tutorial preset
   useEffect(() => {
@@ -1585,6 +1608,7 @@ export default function Sheet() {
             onClick={() => {
               if (viewLocked) return;
               handleFitAllWidgets();
+              recordSheetWorkflowEvent('view_fit_used', 'view', { widgetCount: activeSheetWidgets.length });
               // If tutorial is on step 12 (fit-button), advance
               if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
                 advanceTutorial();
@@ -1600,7 +1624,10 @@ export default function Sheet() {
         {/* Lock View button */}
         <Tooltip content={viewLocked ? 'Unlock view (allow pan & zoom)' : 'Lock view (disable pan & zoom)'} placement="left">
           <button
-            onClick={toggleViewLock}
+            onClick={() => {
+              recordSheetWorkflowEvent('view_lock_changed', 'view', { locked: !viewLocked });
+              toggleViewLock();
+            }}
             aria-pressed={viewLocked}
             className={`w-8 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button shrink-0 ${
               viewLocked
@@ -1941,6 +1968,7 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   handleAutoStack();
+                  recordSheetWorkflowEvent('widgets_auto_stacked', 'widget', { widgetCount: activeSheetWidgets.length });
                   setShowAutoStackConfirm(false);
                 }}
                 className="px-3 py-1.5 text-sm font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors"

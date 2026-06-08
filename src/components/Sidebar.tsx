@@ -9,6 +9,7 @@ import { submitToGallery } from '../hooks/useGallery';
 import { Tooltip } from './Tooltip';
 import GalleryShareModal from './GalleryShareModal';
 import WidgetTooltipPreview from './WidgetTooltipPreview';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
   { type: 'CHECKBOX', label: 'Checklist' },
@@ -48,6 +49,9 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   const addGroupFromTemplate = useStore((state) => state.addGroupFromTemplate);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
+  const mode = useStore((state) => state.mode);
+  const transientCharacterIds = useStore((state) => state.transientCharacterIds);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
@@ -107,7 +111,23 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
       return false;
     }
 
-    return submitToGallery('Templates', name, author, description, sharingTemplate);
+    const success = await submitToGallery('Templates', name, author, description, sharingTemplate);
+    if (success && (!activeCharacterId || !transientCharacterIds.includes(activeCharacterId))) {
+      recordTelemetryEvent({
+        eventName: 'widget_template_shared',
+        category: 'template',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode,
+        source: 'toolbox',
+        widgetType: isGroupTemplate(sharingTemplate) ? null : sharingTemplate.type,
+        metadata: {
+          templateId: sharingTemplate.id,
+          isGroup: isGroupTemplate(sharingTemplate),
+        },
+      });
+    }
+    return success;
   };
 
   return (

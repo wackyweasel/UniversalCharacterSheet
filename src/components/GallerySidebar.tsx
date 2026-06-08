@@ -7,6 +7,7 @@ import { IMAGE_TEXTURES, isImageTexture, getShadowStyleCSS } from '../store/useT
 import { v4 as uuidv4 } from 'uuid';
 import GalleryShareModal from './GalleryShareModal';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface GallerySidebarProps {
   collapsed: boolean;
@@ -34,6 +35,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   const downloadRef = useRef<HTMLDivElement>(null);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -114,6 +116,13 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
       removeTemplate(deleteTarget.id);
     }
 
+    recordTelemetryEvent({
+      eventName: `gallery_deleted_${deleteTarget.type}`,
+      category: deleteTarget.type === 'theme' ? 'theme' : 'gallery',
+      source: 'gallery_sidebar',
+      metadata: { itemId: deleteTarget.id },
+    });
+
     setDeleteTarget(null);
   };
   
@@ -158,7 +167,16 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     }
     
     if (data) {
-      return submitToGallery(sheet, name, author, description, data);
+      const success = await submitToGallery(sheet, name, author, description, data);
+      if (success) {
+        recordTelemetryEvent({
+          eventName: `gallery_shared_${shareType}`,
+          category: shareType === 'theme' ? 'theme' : 'gallery',
+          source: 'gallery_sidebar',
+          metadata: { itemId: shareItemId },
+        });
+      }
+      return success;
     }
 
     return false;
@@ -174,6 +192,12 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
         ...preset,
       };
       addUserPreset(tempCharacter, `${item.name} (Gallery)`, false);
+      recordTelemetryEvent({
+        eventName: 'gallery_downloaded_preset',
+        category: 'gallery',
+        source: 'gallery_sidebar',
+        metadata: { itemId: item.id },
+      });
       setDownloadSuccess(item.id);
       setTimeout(() => setDownloadSuccess(null), 2000);
     }
@@ -186,6 +210,12 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     if (theme) {
       // Generate new ID to avoid conflicts
       addCustomTheme({ ...theme, id: uuidv4() });
+      recordTelemetryEvent({
+        eventName: 'gallery_downloaded_theme',
+        category: 'theme',
+        source: 'gallery_sidebar',
+        metadata: { itemId: item.id },
+      });
       setDownloadSuccess(item.id);
       setTimeout(() => setDownloadSuccess(null), 2000);
     }
@@ -200,6 +230,12 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
       const templateStore = useTemplateStore.getState();
       const newTemplates = [...templateStore.templates, { ...template, id: uuidv4(), createdAt: Date.now() }];
       localStorage.setItem('ucs:templates', JSON.stringify({ templates: newTemplates }));
+      recordTelemetryEvent({
+        eventName: 'gallery_downloaded_template',
+        category: 'gallery',
+        source: 'gallery_sidebar',
+        metadata: { itemId: item.id },
+      });
       // Force refresh by reloading - templates store doesn't have an addTemplateRaw
       window.location.reload();
     }

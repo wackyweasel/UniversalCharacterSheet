@@ -5,6 +5,7 @@ import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStor
 import { useTemplateStore, AnyTemplate } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { TelemetryEventInput, useTelemetryStore } from '../store/useTelemetryStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
 import { Character } from '../types';
@@ -116,6 +117,8 @@ export default function CharacterList() {
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
+  const transientCharacterIds = useStore((state) => state.transientCharacterIds);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Tutorial state from store
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -127,6 +130,12 @@ export default function CharacterList() {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  const recordCharacterListEvent = (event: TelemetryEventInput) => {
+    if (tutorialActiveOnPage) return;
+    if (event.characterId && transientCharacterIds.includes(event.characterId)) return;
+    recordTelemetryEvent(event);
+  };
   
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
@@ -179,6 +188,12 @@ export default function CharacterList() {
     setDarkMode((prev) => {
       const newValue = !prev;
       localStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
+      recordCharacterListEvent({
+        eventName: 'app_dark_mode_changed',
+        category: 'app',
+        source: 'header_menu',
+        metadata: { enabled: newValue },
+      });
       return newValue;
     });
   };
@@ -346,7 +361,7 @@ export default function CharacterList() {
           if (isBasicTutorialCreateStep) {
             createTransientCharacterFromPreset(userPreset.preset, name);
           } else {
-            createCharacterFromPreset(userPreset.preset, name);
+            createCharacterFromPreset(userPreset.preset, name, 'user_preset');
           }
           const state = useStore.getState();
           const newChar = state.characters[state.characters.length - 1];
@@ -363,7 +378,7 @@ export default function CharacterList() {
           if (isBasicTutorialCreateStep) {
             createTransientCharacterFromPreset(preset, name);
           } else {
-            createCharacterFromPreset(preset, name);
+            createCharacterFromPreset(preset, name, 'builtin_preset');
           }
           // Get the newly created character and update its theme
           // Since the preset might have its own theme, we override it with the selected one
@@ -407,6 +422,17 @@ export default function CharacterList() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    recordCharacterListEvent({
+      eventName: 'character_exported_json',
+      category: 'character',
+      characterId: char.id,
+      sheetId: char.activeSheetId,
+      source: 'character_menu',
+      metadata: {
+        sheetCount: char.sheets.length,
+        widgetCount: char.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+      },
+    });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -422,7 +448,7 @@ export default function CharacterList() {
           alert('Invalid character file format');
           return;
         }
-        importCharacter(character);
+        importCharacter(character, 'json_file');
       } catch (err) {
         alert('Failed to parse character file');
         console.error(err);
@@ -456,6 +482,16 @@ export default function CharacterList() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    recordCharacterListEvent({
+      eventName: 'backup_exported',
+      category: 'app',
+      source: 'backup_modal',
+      metadata: {
+        characterCount: characters.length,
+        templateCount: templates.length,
+        userPresetCount: userPresets.length,
+      },
+    });
   };
 
   const handleRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -506,9 +542,20 @@ export default function CharacterList() {
         if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
           localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
         }
+
+        recordCharacterListEvent({
+          eventName: 'backup_restored',
+          category: 'app',
+          source: 'backup_modal',
+          metadata: {
+            characterCount: backupData.characters.length,
+            templateCount,
+            userPresetCount,
+          },
+        });
         
         // Reload the page to apply changes
-        window.location.reload();
+        window.setTimeout(() => window.location.reload(), 250);
       } catch (err) {
         alert('Failed to parse backup file');
         console.error(err);
@@ -795,7 +842,14 @@ export default function CharacterList() {
                   href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowHeaderMenu(false)}
+                  onClick={() => {
+                    recordCharacterListEvent({
+                      eventName: 'external_feedback_opened',
+                      category: 'app',
+                      source: 'header_menu',
+                    });
+                    setShowHeaderMenu(false);
+                  }}
                   data-tutorial="feedback-button"
                   className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     isCurrentTutorialStep('various-feedback')
@@ -836,7 +890,14 @@ export default function CharacterList() {
                   href="https://buymeacoffee.com/wackyweasel"
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowHeaderMenu(false)}
+                  onClick={() => {
+                    recordCharacterListEvent({
+                      eventName: 'external_donate_opened',
+                      category: 'app',
+                      source: 'header_menu',
+                    });
+                    setShowHeaderMenu(false);
+                  }}
                   className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
@@ -1401,7 +1462,20 @@ export default function CharacterList() {
               </button>
               <button
                 onClick={() => {
-                  addUserPreset(createPresetCharacter, presetName || `${createPresetCharacter.name} Preset`, includeThemeInPreset);
+                  const name = presetName || `${createPresetCharacter.name} Preset`;
+                  addUserPreset(createPresetCharacter, name, includeThemeInPreset);
+                  recordCharacterListEvent({
+                    eventName: 'user_preset_created',
+                    category: 'template',
+                    characterId: createPresetCharacter.id,
+                    sheetId: createPresetCharacter.activeSheetId,
+                    source: 'character_menu',
+                    metadata: {
+                      includeTheme: includeThemeInPreset,
+                      sheetCount: createPresetCharacter.sheets.length,
+                      widgetCount: createPresetCharacter.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+                    },
+                  });
                   setShowCreatePresetModal(false);
                   setCreatePresetCharacter(null);
                 }}
@@ -1447,6 +1521,12 @@ export default function CharacterList() {
               </button>
               <button
                 onClick={() => {
+                  recordCharacterListEvent({
+                    eventName: 'user_preset_deleted',
+                    category: 'template',
+                    source: 'character_list',
+                    metadata: { presetId: presetToDelete.id },
+                  });
                   removeUserPreset(presetToDelete.id);
                   // If the deleted preset was selected, clear the selection
                   if (selectedPreset === `user:${presetToDelete.id}`) {
@@ -1860,6 +1940,14 @@ export default function CharacterList() {
                 onClick={async () => {
                   const data = excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter;
                   await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                  recordCharacterListEvent({
+                    eventName: 'character_raw_data_copied',
+                    category: 'character',
+                    characterId: rawDataCharacter.id,
+                    sheetId: rawDataCharacter.activeSheetId,
+                    source: 'raw_data_modal',
+                    metadata: { excludeImages },
+                  });
                   setRawDataCopied(true);
                   setTimeout(() => setRawDataCopied(false), 2000);
                 }}
@@ -1950,7 +2038,7 @@ export default function CharacterList() {
                       alert('Invalid character data format');
                       return;
                     }
-                    importCharacter(character);
+                    importCharacter(character, 'raw_json');
                     setShowRawImportModal(false);
                     setRawImportValue('');
                   } catch {

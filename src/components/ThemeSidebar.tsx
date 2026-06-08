@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import GalleryShareModal from './GalleryShareModal';
 import { submitToGallery } from '../hooks/useGallery';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface ThemeSidebarProps {
   collapsed: boolean;
@@ -30,6 +31,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
   const updateCustomTheme = useCustomThemeStore((state) => state.updateCustomTheme);
   const deleteCustomTheme = useCustomThemeStore((state) => state.deleteCustomTheme);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
 
@@ -97,7 +99,19 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       return false;
     }
 
-    return submitToGallery('Themes', name, author, description, sharingTheme);
+    const success = await submitToGallery('Themes', name, author, description, sharingTheme);
+    if (success) {
+      recordTelemetryEvent({
+        eventName: 'custom_theme_shared',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'theme_sidebar',
+        metadata: { themeId: sharingTheme.id },
+      });
+    }
+    return success;
   };
 
   const handleEditPreset = (theme: typeof THEMES[number], e: React.MouseEvent) => {
@@ -128,12 +142,30 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
     // If editingTheme has no id (empty string) or doesn't exist, we're creating a new one
     if (editingTheme && editingTheme.id) {
       updateCustomTheme(theme.id, theme);
+      recordTelemetryEvent({
+        eventName: 'custom_theme_updated',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'custom_theme_editor',
+        metadata: { themeId: theme.id },
+      });
       // If this theme is currently active, re-apply it
       if (currentTheme === theme.id) {
         applyCustomTheme(theme);
       }
     } else {
       addCustomTheme(theme);
+      recordTelemetryEvent({
+        eventName: 'custom_theme_created',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'custom_theme_editor',
+        metadata: { themeId: theme.id },
+      });
     }
     setShowEditor(false);
     setEditingTheme(undefined);
@@ -147,6 +179,15 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         applyTheme('default');
       }
       deleteCustomTheme(editingTheme.id);
+      recordTelemetryEvent({
+        eventName: 'custom_theme_deleted',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'custom_theme_editor',
+        metadata: { themeId: editingTheme.id },
+      });
     }
     setShowEditor(false);
     setEditingTheme(undefined);
