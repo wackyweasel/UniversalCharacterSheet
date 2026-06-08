@@ -103,6 +103,12 @@ export function LabeledNumberField({
   }, [formulaDraft, activeChar, isCircular]);
 
   const hasFormula = !!formula;
+  const hasValidLabelDraft = labelDraft.trim().replace(/\s+/g, '_').length > 0;
+  const hasValidFormulaDraft = formulaDraft.trim().length > 0 && !isCircular && formulaPreview !== null;
+  const shouldHighlightStrengthTagButton = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-strength-tag-button');
+  const shouldHighlightStrengthTagConfirm = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag') && hasValidLabelDraft;
+  const shouldHighlightDiceFormulaButton = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button');
+  const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula') && hasValidFormulaDraft;
 
   const handleIncrement = () => {
     if (hasFormula) return;
@@ -134,7 +140,7 @@ export function LabeledNumberField({
     const trimmed = labelDraft.trim().replace(/\s+/g, '_');
     onFieldLabelChange(trimmed || undefined);
     setShowLabelInput(false);
-    if (tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag')) {
+    if (tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag') && hasValidLabelDraft) {
       advanceTutorial();
     }
   };
@@ -150,7 +156,7 @@ export function LabeledNumberField({
     const trimmed = formulaDraft.trim();
     onFormulaChange(trimmed || undefined);
     setShowFormulaInput(false);
-    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-set-dice-formula')) {
+    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula') && hasValidFormulaDraft) {
       advanceTutorial();
     }
   };
@@ -238,7 +244,7 @@ export function LabeledNumberField({
                 : fieldLabel
                   ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
                   : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
-            }`}
+                } ${shouldHighlightStrengthTagButton ? 'ring-4 ring-blue-500 ring-offset-1 bg-blue-500 text-white border-blue-500' : ''}`}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
@@ -259,7 +265,7 @@ export function LabeledNumberField({
                 : formula
                   ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
                   : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
-            }`}
+                } ${shouldHighlightDiceFormulaButton ? 'ring-4 ring-blue-500 ring-offset-1 bg-blue-500 text-white border-blue-500' : ''}`}
           >
             <span className="italic" style={{ fontSize: '11px' }}>fx</span>
           </button>
@@ -306,7 +312,7 @@ export function LabeledNumberField({
           <div className="flex items-center gap-1">
             <span className="text-sm text-theme-muted">@</span>
             <input
-              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-input` : undefined}
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidLabelDraft ? 'tag-input' : 'tag-target'}` : undefined}
               type="text"
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
@@ -319,10 +325,10 @@ export function LabeledNumberField({
               autoFocus
             />
             <button
-              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-confirm` : undefined}
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidLabelDraft ? 'tag-target' : 'tag-confirm'}` : undefined}
               type="button"
               onClick={confirmLabel}
-              className="px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90"
+              className={`px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90 ${shouldHighlightStrengthTagConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
             >
               Set
             </button>
@@ -351,7 +357,7 @@ export function LabeledNumberField({
           </div>
           <div className="flex items-center gap-1">
             <input
-              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-formula-input` : undefined}
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidFormulaDraft ? 'formula-input' : 'formula-target'}` : undefined}
               type="text"
               value={formulaDraft}
               onChange={(e) => setFormulaDraft(e.target.value)}
@@ -364,13 +370,13 @@ export function LabeledNumberField({
               autoFocus
             />
             <button
-              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-formula-confirm` : undefined}
+              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidFormulaDraft ? 'formula-target' : 'formula-confirm'}` : undefined}
               type="button"
               onClick={confirmFormula}
               disabled={isCircular}
               className={`px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90 ${
                 isCircular ? 'opacity-40 cursor-not-allowed' : ''
-              }`}
+              } ${shouldHighlightDiceFormulaConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
             >
               Set
             </button>

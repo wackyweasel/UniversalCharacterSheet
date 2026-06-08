@@ -57,7 +57,11 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   if (!step) return null;
 
   // Steps that should show at top on narrow screens (e.g., when Done button is at bottom)
-  const showAtTopOnNarrow = step.id === 'form-click-done' || step.id === 'automation-close-number-display' || step.id === 'automation-close-dice-roller';
+  const showAtTopOnNarrow =
+    step.id === 'form-click-done' ||
+    step.id === 'automation-close-number-display' ||
+    step.id === 'automation-close-dice-roller' ||
+    step.id === 'templates-load-widget-template';
 
   // For narrow windows, show at bottom or top depending on step
   if (isNarrow) {

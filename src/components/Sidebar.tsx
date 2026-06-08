@@ -213,16 +213,17 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
               </h2>
             </div>
             <div className="flex flex-col gap-2">
-              {templates.map((template) => {
+              {templates.map((template, index) => {
                 const isGroup = isGroupTemplate(template);
+                const shouldHighlightTemplateLoad = index === 0 && isCurrentTutorialStep('templates-load-widget-template');
                 return (
                   <div
                     key={template.id}
                     data-tutorial="template-card"
-                    className="p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center justify-between bg-theme-paper text-theme-ink rounded-theme group"
+                    className={`p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center justify-between bg-theme-paper text-theme-ink rounded-theme group ${shouldHighlightTemplateLoad ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                   >
                     <span 
-                      data-tutorial="template-load-item"
+                      data-tutorial={index === 0 ? 'template-load-item' : undefined}
                       className="text-xs font-body flex-1 truncate flex items-center gap-1.5"
                       onClick={() => {
                         if (isGroup) {

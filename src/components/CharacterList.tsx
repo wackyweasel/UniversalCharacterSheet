@@ -290,6 +290,13 @@ export default function CharacterList() {
   }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, advanceTutorial]);
 
   useEffect(() => {
+    if (isCurrentTutorialStep('various-open-gallery')) {
+      setShowGallery(false);
+      setShowBackupModal(false);
+      setShowHeaderMenu(window.innerWidth < 640);
+      setShowMobileTutorialOptions(false);
+    }
+
     if (isCurrentTutorialStep('various-gallery-concepts') || isCurrentTutorialStep('various-gallery-manage') || isCurrentTutorialStep('various-gallery-download')) {
       setShowGallery(true);
       setShowBackupModal(false);
@@ -299,6 +306,8 @@ export default function CharacterList() {
     if (isCurrentTutorialStep('various-open-backup')) {
       setShowGallery(false);
       setShowBackupModal(false);
+      setShowHeaderMenu(window.innerWidth < 640);
+      setShowMobileTutorialOptions(false);
     }
 
     if (isCurrentTutorialStep('various-feedback')) {
@@ -537,7 +546,7 @@ export default function CharacterList() {
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-                }`}
+                } ${isCurrentTutorialStep('various-open-gallery') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -634,7 +643,7 @@ export default function CharacterList() {
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-                }`}
+                } ${isCurrentTutorialStep('various-open-backup') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -707,9 +716,11 @@ export default function CharacterList() {
                   }}
                   data-tutorial="gallery-button-mobile"
                   className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                    darkMode 
-                      ? 'text-white hover:bg-white/10' 
-                      : 'text-gray-700 hover:bg-gray-100'
+                    isCurrentTutorialStep('various-open-gallery')
+                      ? 'bg-blue-500 text-white font-bold'
+                      : darkMode 
+                        ? 'text-white hover:bg-white/10' 
+                        : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -787,9 +798,11 @@ export default function CharacterList() {
                   onClick={() => setShowHeaderMenu(false)}
                   data-tutorial="feedback-button"
                   className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                    darkMode 
-                      ? 'text-white hover:bg-white/10' 
-                      : 'text-gray-700 hover:bg-gray-100'
+                    isCurrentTutorialStep('various-feedback')
+                      ? 'bg-blue-500 text-white font-bold'
+                      : darkMode 
+                        ? 'text-white hover:bg-white/10' 
+                        : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -807,9 +820,11 @@ export default function CharacterList() {
                   }}
                   data-tutorial="backup-button-mobile"
                   className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                    darkMode 
-                      ? 'text-white hover:bg-white/10' 
-                      : 'text-gray-700 hover:bg-gray-100'
+                    isCurrentTutorialStep('various-open-backup')
+                      ? 'bg-blue-500 text-white font-bold'
+                      : darkMode 
+                        ? 'text-white hover:bg-white/10' 
+                        : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

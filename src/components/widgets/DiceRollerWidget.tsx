@@ -38,6 +38,7 @@ export default function DiceRollerWidget({ widget }: Props) {
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+  const isAttackDiceRoller = String(label || '').toLowerCase() === 'attack';
 
   // Check if a string is purely numeric
   const isNumericString = (val: string | number): boolean => {
@@ -153,7 +154,7 @@ export default function DiceRollerWidget({ widget }: Props) {
   const gapClass = 'gap-1';
 
   const rollDice = () => {
-    if (isCurrentTutorialStep('automation-roll-dice')) {
+    if (isAttackDiceRoller && isCurrentTutorialStep('automation-roll-dice')) {
       advanceTutorial();
     }
 
@@ -294,7 +295,7 @@ export default function DiceRollerWidget({ widget }: Props) {
       {/* Roll Button */}
       <Tooltip content={`Roll ${diceNotation}`}>
         <button
-          data-tutorial="automation-roll-dice"
+          data-tutorial={isAttackDiceRoller ? 'automation-roll-dice' : undefined}
           onClick={rollDice}
           onMouseDown={(e) => e.stopPropagation()}
           className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${

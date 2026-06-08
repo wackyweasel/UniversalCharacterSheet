@@ -199,8 +199,8 @@ export default function Sheet() {
     setPan,
   });
 
-  const frameWidgetForTutorial = useCallback((widgetType: WidgetType) => {
-    const targetWidget = activeSheetWidgets.find((widget) => widget.type === widgetType);
+  const frameWidgetForTutorial = useCallback((widgetType: WidgetType, predicate?: (widget: Widget) => boolean) => {
+    const targetWidget = activeSheetWidgets.find((widget) => widget.type === widgetType && (!predicate || predicate(widget)));
     if (!targetWidget) {
       handleFitAllWidgets();
       return;
@@ -523,7 +523,7 @@ export default function Sheet() {
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
-        frameWidgetForTutorial('DICE_ROLLER');
+        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
       }, 200);
     }
   }, [tutorialStep, frameWidgetForTutorial]);
@@ -534,7 +534,7 @@ export default function Sheet() {
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
-        frameWidgetForTutorial('DICE_ROLLER');
+        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
       }, 200);
     }
   }, [tutorialStep, frameWidgetForTutorial]);
@@ -563,6 +563,7 @@ export default function Sheet() {
       setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
+      setTimelineOpen(false);
       setSheetDropdownOpen(false);
     }
 
@@ -1408,7 +1409,7 @@ export default function Sheet() {
                   advanceTutorial();
                 }
               }}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-print-mode') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             >
               Print Mode
             </button>
@@ -1423,7 +1424,7 @@ export default function Sheet() {
                     advanceTutorial();
                   }
                 }}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-vertical-view') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 Vertical View
               </button>
@@ -1441,7 +1442,7 @@ export default function Sheet() {
                     toggleTimeline();
                   }
                 }}
-                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'} ${isCurrentTutorialStep('various-timeline') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 Timeline
               </button>
@@ -1567,7 +1568,7 @@ export default function Sheet() {
                   advanceTutorial();
                 }
               }}
-              className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body"
+              className={`h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body ${isCurrentTutorialStep('various-add-sheets') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             >
               <span className="text-theme-ink truncate max-w-[60px]">
                 {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
@@ -1698,7 +1699,7 @@ export default function Sheet() {
                 setGridMenuOpen(false);
               }}
               data-tutorial="print-mode-button-mobile"
-              className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+              className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-print-mode') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
             >
               Print Mode
             </button>
@@ -1714,7 +1715,7 @@ export default function Sheet() {
                   setGridMenuOpen(false);
                 }}
                 data-tutorial="vertical-view-button-mobile"
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-vertical-view') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Vertical View
               </button>
@@ -1733,7 +1734,7 @@ export default function Sheet() {
                   setGridMenuOpen(false);
                 }}
                 data-tutorial="timeline-button-mobile"
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-timeline') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Timeline
               </button>
@@ -1875,7 +1876,7 @@ export default function Sheet() {
                   setSheetDropdownOpen(false);
                 }}
                 data-tutorial="add-sheet-button"
-                className="w-full px-3 py-2 text-xs text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
+                className={`w-full px-3 py-2 text-xs text-left font-body border-t border-theme-border/50 transition-colors ${isCurrentTutorialStep('various-add-sheet-button') ? 'bg-blue-500 text-white font-bold' : 'text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20'}`}
               >
                 + Add New Sheet
               </button>

@@ -97,6 +97,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
+  const isAutomationCloseStep =
+    tutorialStep !== null &&
+    (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
+      TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller');
 
   const handleUpdateData = (data: any) => {
     const newData = { ...localData, ...data };
@@ -275,7 +279,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21 
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:opacity-90'
-            } ${tutorialStep === 21 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            } ${tutorialStep === 21 || isAutomationCloseStep ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             Done
           </button>

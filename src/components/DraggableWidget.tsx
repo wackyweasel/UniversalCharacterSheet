@@ -149,12 +149,24 @@ export default function DraggableWidget({ widget, scale }: Props) {
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
   );
+  const isAutomationAttackDiceRoller = widget.type === 'DICE_ROLLER' && String(widget.data?.label || '').toLowerCase() === 'attack';
   const shouldShowAutomationTutorialMenu =
     (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-open-number-display-menu')) ||
-    (widget.type === 'DICE_ROLLER' && isCurrentTutorialStep('automation-open-dice-menu'));
+    (isAutomationAttackDiceRoller && isCurrentTutorialStep('automation-open-dice-menu'));
   const shouldShowAutomationTutorialEdit =
     (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-edit-number-display')) ||
-    (widget.type === 'DICE_ROLLER' && isCurrentTutorialStep('automation-edit-dice-roller'));
+    (isAutomationAttackDiceRoller && isCurrentTutorialStep('automation-edit-dice-roller'));
+  const shouldHighlightWidgetTemplateSave = isCurrentTutorialStep('templates-save-widget-template');
+  const shouldHighlightWidgetTemplateConfirm = isCurrentTutorialStep('templates-name-widget-template') && templateName.trim().length > 0;
+  const shouldHighlightGroupTab = isCurrentTutorialStep('templates-open-group-tab');
+  const shouldHighlightGroupTemplateSave = isCurrentTutorialStep('templates-save-group-template');
+  const shouldHighlightGroupTemplateConfirm = isCurrentTutorialStep('templates-name-group-template') && groupTemplateName.trim().length > 0;
+  const widgetMenuTutorialTarget = widget.type === 'DICE_ROLLER'
+    ? isAutomationAttackDiceRoller ? 'widget-menu-DICE_ROLLER' : undefined
+    : `widget-menu-${widget.type}`;
+  const editButtonTutorialTarget = widget.type === 'DICE_ROLLER'
+    ? isAutomationAttackDiceRoller ? 'edit-button-DICE_ROLLER' : undefined
+    : `edit-button-${widget.type}`;
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
@@ -675,7 +687,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
               <Tooltip content="Widget options">
                 <button
-                  data-tutorial={`widget-menu-${widget.type}`}
+                  data-tutorial={widgetMenuTutorialTarget}
                   className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -737,7 +749,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       <Tooltip content="Show actions for the whole group" placement="left">
                         <button
                           data-tutorial="template-group-tab"
-                          className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${dropdownTab === 'group' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'}`}
+                          className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${dropdownTab === 'group' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'} ${shouldHighlightGroupTab ? 'ring-4 ring-blue-500 ring-inset' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setDropdownTab('group');
@@ -765,7 +777,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                     <>
                       <Tooltip content="Open this widget's editor" placement="left">
                         <button
-                          data-tutorial={`edit-button-${widget.type}`}
+                          data-tutorial={editButtonTutorialTarget}
                           className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${(tutorialStep === 17 && widget.type === 'FORM') || shouldShowAutomationTutorialEdit ? 'bg-blue-500 text-white' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -817,10 +829,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
                         <Tooltip content="Save this widget as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
                           <button
                             data-tutorial="template-save-widget"
-                            className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                            className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${shouldHighlightWidgetTemplateSave ? 'bg-blue-500 text-white font-bold' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setTemplateName(widget.data.label || '');
+                              setTemplateName(isCurrentTutorialStep('templates-save-widget-template') ? '' : widget.data.label || '');
                               setShowTemplateNameInput(true);
                               if (isCurrentTutorialStep('templates-save-widget-template')) {
                                 advanceTutorial();
@@ -834,7 +846,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                       ) : (
                         <div className="px-2 py-2">
                           <input
-                            data-tutorial="template-widget-name-input"
+                            data-tutorial={templateName.trim() ? 'template-widget-name-input' : 'template-widget-name-target'}
                             type="text"
                             value={templateName}
                             onChange={(e) => setTemplateName(e.target.value)}
@@ -861,8 +873,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
                           <div className="flex gap-1">
                             <Tooltip content="Save this widget template" placement="left">
                               <button
-                                data-tutorial="template-widget-save-confirm"
-                                className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
+                                data-tutorial={templateName.trim() ? 'template-widget-name-target' : 'template-widget-save-confirm'}
+                                className={`flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors ${shouldHighlightWidgetTemplateConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (templateName.trim()) {
@@ -1055,7 +1067,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                         <Tooltip content="Save this group as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
                           <button
                             data-tutorial="template-save-group"
-                            className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                            className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${shouldHighlightGroupTemplateSave ? 'bg-blue-500 text-white font-bold' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setGroupTemplateName('');
@@ -1066,13 +1078,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
                             }}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                            Save as Template
+                            Save Group as Template
                           </button>
                         </Tooltip>
                       ) : (
                         <div className="px-2 py-2">
                           <input
-                            data-tutorial="template-group-name-input"
+                            data-tutorial={groupTemplateName.trim() ? 'template-group-name-input' : 'template-group-name-target'}
                             type="text"
                             value={groupTemplateName}
                             onChange={(e) => setGroupTemplateName(e.target.value)}
@@ -1100,8 +1112,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
                           <div className="flex gap-1">
                             <Tooltip content="Save this group template" placement="left">
                               <button
-                                data-tutorial="template-group-save-confirm"
-                                className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
+                                data-tutorial={groupTemplateName.trim() ? 'template-group-name-target' : 'template-group-save-confirm'}
+                                className={`flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors ${shouldHighlightGroupTemplateConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (groupTemplateName.trim()) {
