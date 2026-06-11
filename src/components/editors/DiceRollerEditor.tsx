@@ -14,7 +14,6 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
-  const [countDrafts, setCountDrafts] = useState<Record<number, string>>({});
 
   const setFieldLabel = (field: string, labelName: string | undefined) => {
     const updated = { ...fieldLabels };
@@ -91,6 +90,12 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   const updateDiceGroup = (index: number, field: 'count' | 'faces' | 'customFaces' | 'customDiceName', value: number | string | string[]) => {
     const newGroups = [...diceGroups];
     newGroups[index] = { ...newGroups[index], [field]: value };
+    updateData({ diceGroups: newGroups });
+  };
+
+  const updateDiceGroupAutomation = (index: number, updates: Pick<Partial<DiceGroup>, 'countLabel' | 'countFormula'>) => {
+    const newGroups = [...diceGroups];
+    newGroups[index] = { ...newGroups[index], ...updates };
     updateData({ diceGroups: newGroups });
   };
 
@@ -185,69 +190,60 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
         <div className="space-y-2">
           {diceGroups.map((group: DiceGroup, index: number) => (
             <div key={index} className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  value={countDrafts[index] !== undefined ? countDrafts[index] : group.count}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setCountDrafts(prev => ({ ...prev, [index]: v }));
-                    if (v === '') return;
-                    const n = parseInt(v);
-                    if (!isNaN(n) && n >= 1) updateDiceGroup(index, 'count', n);
-                  }}
-                  onBlur={(e) => {
-                    const n = parseInt(e.target.value);
-                    updateDiceGroup(index, 'count', Math.max(1, isNaN(n) ? 1 : n));
-                    setCountDrafts(prev => {
-                      const next = { ...prev };
-                      delete next[index];
-                      return next;
-                    });
-                  }}
-                  className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
-                />
-                <span className="text-theme-ink">d</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={group.faces}
-                  onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                  onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
-                  disabled={!!group.customFaces?.length}
-                  title={group.customFaces?.length ? 'Faces set by custom faces' : ''}
-                />
-                <Tooltip content="Set custom faces">
-                  <button
-                    onClick={() => openCustomFacesModal(index)}
-                    className={`px-2 py-1 border border-theme-border rounded-button text-xs hover:bg-theme-accent hover:text-theme-paper ${
-                      group.customFaces?.length ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper text-theme-ink'
-                    }`}
-                  >
-                    Custom Faces
-                  </button>
-                </Tooltip>
-                {group.customFaces?.length ? (
-                  <Tooltip content="Clear custom faces">
-                    <button
-                      onClick={() => clearCustomFaces(index)}
-                      className="text-orange-500 hover:text-orange-700 px-1 text-xs"
-                    >
-                      ✕
-                    </button>
-                  </Tooltip>
-                ) : null}
-                {diceGroups.length > 1 && (
-                  <button
-                    onClick={() => removeDiceGroup(index)}
-                    className="text-red-500 hover:text-red-700 px-2"
-                  >
-                    ×
-                  </button>
+              <LabeledNumberField
+                value={group.count}
+                onChange={(v) => updateDiceGroup(index, 'count', Math.max(1, v))}
+                fieldLabel={group.countLabel}
+                onFieldLabelChange={(l) => updateDiceGroupAutomation(index, { countLabel: l })}
+                formula={group.countFormula}
+                onFormulaChange={(f) => updateDiceGroupAutomation(index, { countFormula: f })}
+                min={1}
+                compact
+                renderRow={({ controls }) => (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {controls}
+                    <span className="text-theme-ink">d</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={group.faces}
+                      onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                      onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
+                      disabled={!!group.customFaces?.length}
+                      title={group.customFaces?.length ? 'Faces set by custom faces' : ''}
+                    />
+                    <Tooltip content="Set custom faces">
+                      <button
+                        onClick={() => openCustomFacesModal(index)}
+                        className={`px-2 py-1 border border-theme-border rounded-button text-xs hover:bg-theme-accent hover:text-theme-paper ${
+                          group.customFaces?.length ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper text-theme-ink'
+                        }`}
+                      >
+                        Custom Faces
+                      </button>
+                    </Tooltip>
+                    {group.customFaces?.length ? (
+                      <Tooltip content="Clear custom faces">
+                        <button
+                          onClick={() => clearCustomFaces(index)}
+                          className="text-orange-500 hover:text-orange-700 px-1 text-xs"
+                        >
+                          ✕
+                        </button>
+                      </Tooltip>
+                    ) : null}
+                    {diceGroups.length > 1 && (
+                      <button
+                        onClick={() => removeDiceGroup(index)}
+                        className="text-red-500 hover:text-red-700 px-2"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 )}
-              </div>
+              />
               {group.customFaces?.length ? (
                 <div className="text-xs text-theme-muted ml-2 flex flex-wrap gap-1">
                   {group.customDiceName && <span className="font-medium text-theme-ink">{group.customDiceName}:</span>}
