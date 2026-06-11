@@ -25,6 +25,7 @@ interface RollResultItem {
 
 interface RollResult {
   dice: RollResultItem[];
+  modifier: number;
   total: number | null; // null if no numeric results
   aggregatedResults: AggregatedResult[];
 }
@@ -42,7 +43,7 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export default function DiceTrayWidget({ widget }: Props) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20], showIndividualResults = false } = widget.data;
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, showIndividualResults = false } = widget.data;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -184,9 +185,9 @@ export default function DiceTrayWidget({ widget }: Props) {
       
       const aggregated = aggregateResults(allRolls);
       const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? numericResult.numericTotal || 0 : null;
+      const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
       
-      setResult({ dice: rolls, total, aggregatedResults: aggregated });
+      setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
       setIsRolling(false);
       setLastRolledPool([...dicePool]);
       setDicePool([]);
@@ -223,20 +224,14 @@ export default function DiceTrayWidget({ widget }: Props) {
         
         const aggregated = aggregateResults(allRolls);
         const numericResult = aggregated.find(r => r.isNumeric);
-        const total = numericResult ? numericResult.numericTotal || 0 : null;
+        const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
         
-        setResult({ dice: rolls, total, aggregatedResults: aggregated });
+        setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
         setIsRolling(false);
         setDicePool([]);
 
         // Timeline event
-        const notationParts: string[] = [];
-        const stdDice: Record<number, number> = {};
-        for (const die of lastRolledPool) {
-          if (!Array.isArray(die.faces)) stdDice[die.faces] = (stdDice[die.faces] || 0) + 1;
-        }
-        Object.entries(stdDice).forEach(([f, c]) => notationParts.push(`${c}d${f}`));
-        const rerollNotation = notationParts.join(' + ') || 'dice';
+        const rerollNotation = buildPoolNotation(lastRolledPool, modifier);
         const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
         addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
       }, 300);
@@ -270,9 +265,9 @@ export default function DiceTrayWidget({ widget }: Props) {
       const allRolls = newDice.map(d => d.roll);
       const aggregated = aggregateResults(allRolls);
       const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? numericResult.numericTotal || 0 : null;
+      const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
       
-      setResult({ dice: newDice, total, aggregatedResults: aggregated });
+      setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
       
       // Timeline event for single die reroll
       const dieFacesLabel = Array.isArray(dieToReroll.faces)
@@ -293,11 +288,11 @@ export default function DiceTrayWidget({ widget }: Props) {
   };
 
   // Group dice in pool by type for display
-  const buildPoolNotation = () => {
+  const buildPoolNotation = (pool: DiceInPool[] = dicePool, poolModifier: number = modifier) => {
     const standardDice: Record<number, number> = {};
     const customDice: Record<string, number> = {};
     
-    for (const die of dicePool) {
+    for (const die of pool) {
       if (Array.isArray(die.faces)) {
         const name = die.customDieName || 'custom';
         customDice[name] = (customDice[name] || 0) + 1;
@@ -320,7 +315,11 @@ export default function DiceTrayWidget({ widget }: Props) {
       parts.push(count > 1 ? `${count}× ${name}` : name);
     });
     
-    return parts.length > 0 ? parts.join(' + ') : 'Empty';
+    let notation = parts.length > 0 ? parts.join(' + ') : 'Empty';
+    if (poolModifier !== 0) {
+      notation += poolModifier >= 0 ? ` + ${poolModifier}` : ` - ${Math.abs(poolModifier)}`;
+    }
+    return notation;
   };
 
   // Format the aggregated result for display
@@ -329,14 +328,18 @@ export default function DiceTrayWidget({ widget }: Props) {
     
     // If showing individual results, display all dice separately
     if (showIndividualResults) {
-      return result.dice.map(d => String(d.roll)).join(', ');
+      const rolls = result.dice.map(d => String(d.roll));
+      if (result.modifier !== 0) {
+        rolls.push(result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier));
+      }
+      return rolls.join(', ');
     }
     
     const parts: string[] = [];
     
     for (const agg of result.aggregatedResults) {
       if (agg.isNumeric) {
-        parts.push(String(agg.numericTotal || 0));
+        parts.push(String((agg.numericTotal || 0) + (result.modifier || 0)));
       } else {
         parts.push(`${agg.count}${agg.value}`);
       }
@@ -471,6 +474,15 @@ export default function DiceTrayWidget({ widget }: Props) {
                   </div>
                 );
               })}
+              {result.modifier !== 0 && (
+                <div className="flex items-center justify-between gap-1 px-1 py-0.5">
+                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>mod</span>
+                  <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center`}>
+                    {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
+                  </span>
+                  <span className="w-[18px] flex-shrink-0" />
+                </div>
+              )}
             </div>
           ) : (
           <>
@@ -501,6 +513,9 @@ export default function DiceTrayWidget({ widget }: Props) {
                   </Tooltip>
                 </span>
               ))}
+              {result.modifier !== 0 && (
+                <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+              )}
             </div>
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.dice.length === 1 && 
