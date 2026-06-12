@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { XIcon } from './icons';
 
 // Import all editors
 import {
@@ -204,7 +205,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -217,7 +218,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchEnd={(e) => e.stopPropagation()}
       onDragOver={(e) => e.preventDefault()}
     >
-      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-in">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border">
           <h2 className="text-lg font-bold text-theme-ink font-heading">
@@ -225,9 +226,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-button transition-colors"
           >
-            ✕
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 
@@ -275,7 +277,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               }
               onClose();
             }}
-            className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium ${
+            className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium transition-opacity ${
               tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21 
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:opacity-90'

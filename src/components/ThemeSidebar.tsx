@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import GalleryShareModal from './GalleryShareModal';
 import { submitToGallery } from '../hooks/useGallery';
+import { XIcon, PencilIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface ThemeSidebarProps {
@@ -261,18 +262,19 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         <Tooltip content="Close theme panel">
           <button
             onClick={onToggle}
-            className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
+            className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors"
+            aria-label="Close theme panel"
           >
-            ✕
+            <XIcon className="w-5 h-5" />
           </button>
         </Tooltip>
         
         {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12">
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 -mr-3 pr-3">
 
         <div className="mb-4">
           <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
-            🎨 Themes
+            Themes
           </h2>
         </div>
 
@@ -365,8 +367,9 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                       color: isSelected ? theme.colors.paper : theme.colors.accent,
                     }}
                     className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                    aria-label="Copy to custom theme"
                   >
-                    ✏️
+                    <PencilIcon className="w-3.5 h-3.5" />
                   </button>
                 </Tooltip>
               </div>
@@ -377,7 +380,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         {/* Custom Themes Section */}
         <div data-tutorial="theme-custom-section" className="mt-6 pt-4 border-t border-theme-border/50">
           <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">
-            ✨ Custom Themes
+            Custom Themes
           </h3>
           
           {/* Create New Custom Theme Button */}
@@ -388,7 +391,9 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
             style={{ borderRadius: 'min(var(--button-radius), 16px)' }}
           >
             <div className="flex items-center gap-2">
-              <span className="text-base">➕</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
               <span className="text-xs font-heading">Create Custom Theme</span>
             </div>
             <p className="text-[10px] mt-1 opacity-70 font-body">
@@ -497,8 +502,9 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                         color: isSelected ? theme.colors.paper : theme.colors.accent,
                       }}
                       className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                      aria-label="Edit theme"
                     >
-                    ✏️
+                    <PencilIcon className="w-3.5 h-3.5" />
                   </button>
                   </Tooltip>
               </div>

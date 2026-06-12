@@ -20,6 +20,7 @@ import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
 import { Tooltip } from './Tooltip';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon } from './icons';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -744,9 +745,10 @@ export default function Sheet() {
           {/* Mobile: Menu button */}
           <button
             onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink"
+            aria-label="Menu"
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            ☰
+            <MenuIcon className="w-4 h-4" />
           </button>
           
           {/* Desktop: Inline menu buttons */}
@@ -754,7 +756,7 @@ export default function Sheet() {
             <Tooltip content="Exit to character select" placement="below">
               <button
                 onClick={handleExitToMenu}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
+                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
               >
                 Exit
               </button>
@@ -828,12 +830,12 @@ export default function Sheet() {
             <Tooltip content="Switch sheet" placement="left">
               <button
                 onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
+                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs hover:bg-theme-accent/10 transition-colors"
               >
                 <span className="text-theme-ink truncate max-w-[60px]">
                   {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
                 </span>
-                <span className="text-theme-muted">▼</span>
+                <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
               </button>
             </Tooltip>
             
@@ -843,7 +845,7 @@ export default function Sheet() {
                   className="fixed inset-0 z-40" 
                   onClick={() => setSheetDropdownOpen(false)}
                 />
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px]">
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px] animate-dropdown-in">
                   {activeCharacter.sheets.map((sheet) => (
                     <button
                       key={sheet.id}
@@ -874,9 +876,10 @@ export default function Sheet() {
                 });
                 window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
               }}
-              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
+              aria-label="Expand all"
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              ▼
+              <ChevronDownIcon className="w-4 h-4" />
             </button>
           </Tooltip>
           <Tooltip content="Collapse All" placement="below">
@@ -887,9 +890,10 @@ export default function Sheet() {
                 });
                 window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
               }}
-              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
+              aria-label="Collapse all"
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              ▲
+              <ChevronUpIcon className="w-4 h-4" />
             </button>
           </Tooltip>
           {/* Undo/Redo buttons for mobile */}
@@ -897,9 +901,10 @@ export default function Sheet() {
             <Tooltip content="Timeline" placement="below">
               <button
                 onClick={toggleTimeline}
+                aria-label="Timeline"
                 className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
-                ⧖
+                <ClockIcon className="w-4 h-4" />
               </button>
             </Tooltip>
             <Tooltip content="Undo" placement="below">
@@ -944,7 +949,7 @@ export default function Sheet() {
               className="fixed inset-0 z-40" 
               onClick={() => setVerticalMenuOpen(false)}
             />
-            <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
+            <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
               <button
                 onClick={() => {
                   setMode('play');
@@ -1108,9 +1113,10 @@ export default function Sheet() {
           {/* Menu button - only on narrow screens */}
           <button
             onClick={() => setPrintMenuOpen(!printMenuOpen)}
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
+            aria-label="Menu"
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0 hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            ☰
+            <MenuIcon className="w-4 h-4" />
           </button>
 
           {/* Wide screen: inline buttons */}
@@ -1122,7 +1128,7 @@ export default function Sheet() {
                   resetPrintSettings();
                   handleExitToMenu();
                 }}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-600 text-xs font-body hover:bg-red-600 hover:text-white transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
               >
                 Exit
               </button>
@@ -1204,7 +1210,7 @@ export default function Sheet() {
                 </button>
               </Tooltip>
               {paperFormatDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-50 overflow-hidden min-w-[140px]">
+                <div className="absolute top-full left-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-50 overflow-hidden min-w-[140px] animate-dropdown-in">
                   {([
                     ['none', false, 'None'],
                     ['a4', false, 'A4 Portrait'],
@@ -1268,14 +1274,14 @@ export default function Sheet() {
 
       {/* Print Mode Mobile Menu Dropdown */}
       {printMenuOpen && mode === 'print' && (
-        <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme z-40 overflow-hidden">
+        <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-40 overflow-hidden animate-dropdown-in">
           <button
             onClick={() => {
               resetPrintSettings();
               handleExitToMenu();
               setPrintMenuOpen(false);
             }}
-            className="w-full px-4 py-2.5 text-sm text-left font-body text-red-600 hover:bg-red-600 hover:text-white transition-colors whitespace-nowrap"
+            className="w-full px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
           >
             Exit
           </button>
@@ -1304,39 +1310,39 @@ export default function Sheet() {
               setPrinterFriendly(!printerFriendly);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               printerFriendly 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            Printer Friendly Theme {printerFriendly ? '✓' : ''}
+            Printer Friendly Theme {printerFriendly && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
           <button
             onClick={() => {
               setBordersDisabled(!bordersDisabled);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               bordersDisabled 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            No Borders {bordersDisabled ? '✓' : ''}
+            No Borders {bordersDisabled && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
           <button
             onClick={() => {
               setShadowsDisabled(!shadowsDisabled);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               shadowsDisabled 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            No Shadows {shadowsDisabled ? '✓' : ''}
+            No Shadows {shadowsDisabled && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
           <div className="border-t border-theme-border" />
           <div className="px-4 py-1.5 text-xs font-body text-theme-ink opacity-60">Paper Format</div>
@@ -1355,13 +1361,13 @@ export default function Sheet() {
                   handlePaperFormatChange(fmt, land);
                   setPrintMenuOpen(false);
                 }}
-                className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+                className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
                   isActive
                     ? 'bg-theme-accent text-theme-paper'
                     : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
-                {label} {isActive ? '✓' : ''}
+                {label} {isActive && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
               </button>
             );
           })}
@@ -1371,13 +1377,13 @@ export default function Sheet() {
               setShowInEditMode(!showInEditMode);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               showInEditMode
                 ? 'bg-theme-accent text-theme-paper'
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            Show in Edit Mode {showInEditMode ? '✓' : ''}
+            Show in Edit Mode {showInEditMode && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
         </div>
       )}
@@ -1388,9 +1394,10 @@ export default function Sheet() {
         {/* Menu button - only on narrow screens */}
         <button
           onClick={() => setGridMenuOpen(!gridMenuOpen)}
-          className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
+          aria-label="Menu"
+          className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0 hover:bg-theme-accent hover:text-theme-paper transition-colors"
         >
-          ☰
+          <MenuIcon className="w-4 h-4" />
         </button>
 
         {/* Wide screen: inline buttons */}
@@ -1398,7 +1405,7 @@ export default function Sheet() {
           <Tooltip content="Exit to character select" placement="below">
             <button
               onClick={handleExitToMenu}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
             >
               Exit
             </button>
@@ -1591,12 +1598,12 @@ export default function Sheet() {
                   advanceTutorial();
                 }
               }}
-              className={`h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body ${isCurrentTutorialStep('various-add-sheets') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+              className={`h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body hover:bg-theme-accent/10 transition-colors ${isCurrentTutorialStep('various-add-sheets') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             >
               <span className="text-theme-ink truncate max-w-[60px]">
                 {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
               </span>
-              <span className="text-theme-muted">▼</span>
+              <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
             </button>
           </Tooltip>
         </div>
@@ -1694,7 +1701,7 @@ export default function Sheet() {
             className="lg:hidden fixed inset-0 z-40" 
             onClick={() => setGridMenuOpen(false)}
           />
-          <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
+          <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
             {/* Mode toggle */}
             <button
               data-tutorial="edit-mode-button-mobile"
@@ -1819,7 +1826,7 @@ export default function Sheet() {
             className="fixed inset-0 z-40" 
             onClick={() => setSheetDropdownOpen(false)}
           />
-          <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px]">
+          <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px] animate-dropdown-in">
             {activeCharacter.sheets.map((sheet) => (
               <div key={sheet.id} className="group relative">
                 {editingSheetId === sheet.id ? (
@@ -1868,13 +1875,13 @@ export default function Sheet() {
                             setEditedSheetName(sheet.name);
                             setEditingSheetId(sheet.id);
                           }}
-                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center transition-colors ${
                             sheet.id === activeCharacter.activeSheetId
                               ? 'bg-theme-paper/30 text-theme-paper hover:bg-theme-paper/50'
                               : 'bg-theme-accent/20 text-theme-ink hover:bg-theme-accent/40'
                           }`}
                         >
-                          ✎
+                          <PencilIcon className="w-3 h-3" />
                         </span>
                         {activeCharacter.sheets.length > 1 && (
                           <span
@@ -1882,9 +1889,9 @@ export default function Sheet() {
                               e.stopPropagation();
                               setSheetToDelete(sheet.id);
                             }}
-                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors"
                           >
-                            ×
+                            <XIcon className="w-3 h-3" />
                           </span>
                         )}
                       </span>
@@ -1916,10 +1923,10 @@ export default function Sheet() {
       {sheetToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setSheetToDelete(null)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in">
             <h3 className="font-heading text-theme-ink font-bold mb-2">Delete Sheet?</h3>
             <p className="text-sm text-theme-muted font-body mb-4">
               Are you sure you want to delete "{activeCharacter.sheets.find(s => s.id === sheetToDelete)?.name}"? This will delete all widgets on this sheet.
@@ -1950,10 +1957,10 @@ export default function Sheet() {
       {showAutoStackConfirm && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowAutoStackConfirm(false)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in">
             <h3 className="font-heading text-theme-ink font-bold mb-2">Auto Stack?</h3>
             <p className="text-sm text-theme-muted font-body mb-4">
               This will automatically rearrange all widgets on this sheet. Your current layout will be replaced.

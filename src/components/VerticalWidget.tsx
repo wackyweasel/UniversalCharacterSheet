@@ -3,6 +3,7 @@ import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { ChevronDownIcon } from './icons';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import ListWidget from './widgets/ListWidget';
@@ -314,11 +315,10 @@ export default function VerticalWidget({
           {/* Collapse Toggle */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors"
           >
-            <span className={`transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`}>
-              ▼
-            </span>
+            <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
           </button>
         </div>
 

@@ -627,7 +627,7 @@ export default function CharacterList() {
               </Tooltip>
               {showTutorialDropdown && (
                 <div 
-                  className={`absolute right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 ${
+                  className={`absolute right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
                     darkMode 
                       ? 'bg-black border border-white/30' 
                       : 'bg-white border border-gray-300'
@@ -724,7 +724,7 @@ export default function CharacterList() {
             {/* Dropdown menu */}
             {showHeaderMenu && (
               <div 
-                className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 ${
+                className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
                   darkMode 
                     ? 'bg-black border border-white/30' 
                     : 'bg-white border border-gray-300'
@@ -971,7 +971,7 @@ export default function CharacterList() {
             IMPORT
           </button>
           {showImportDropdown && (
-            <div className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 ${
+            <div className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
               darkMode 
                 ? 'bg-black border border-white/30' 
                 : 'bg-white border border-gray-300'
@@ -1108,7 +1108,7 @@ export default function CharacterList() {
                   
                   {openDropdown === char.id && (
                     <div 
-                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden z-50"
+                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden z-50 animate-dropdown-in"
                       style={{ 
                         backgroundColor: 'var(--card-background)',
                         border: '1px solid var(--card-border)'
@@ -1304,10 +1304,10 @@ export default function CharacterList() {
       {characterToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setCharacterToDelete(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[250px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1345,10 +1345,10 @@ export default function CharacterList() {
       {renamingCharacterId && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setRenamingCharacterId(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[300px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[300px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1409,13 +1409,13 @@ export default function CharacterList() {
       {showCreatePresetModal && createPresetCharacter && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => {
               setShowCreatePresetModal(false);
               setCreatePresetCharacter(null);
             }}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1519,10 +1519,10 @@ export default function CharacterList() {
       {presetToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-[60]" 
+            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" 
             onClick={() => setPresetToDelete(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1570,10 +1570,10 @@ export default function CharacterList() {
       {showCreateModal && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowCreateModal(false)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1809,10 +1809,10 @@ export default function CharacterList() {
       {showBackupModal && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowBackupModal(false)}
           />
-          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] ${
+          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1821,6 +1821,7 @@ export default function CharacterList() {
               <h3 className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Backup & Restore</h3>
               <button
                 onClick={() => setShowBackupModal(false)}
+                aria-label="Close"
                 className={`transition-colors ${darkMode ? 'text-white/60 hover:text-white' : 'text-theme-muted hover:text-theme-ink'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1913,10 +1914,10 @@ export default function CharacterList() {
       {rawDataCharacter && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setRawDataCharacter(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -2017,10 +2018,10 @@ export default function CharacterList() {
       {showRawImportModal && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowRawImportModal(false)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'

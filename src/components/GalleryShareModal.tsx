@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CheckIcon } from './icons';
 
 interface GalleryShareModalProps {
   open: boolean;
@@ -32,14 +33,23 @@ export default function GalleryShareModal({
     setSuccess(false);
   }, [open, initialName]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) {
     return null;
   }
 
   const useGalleryVariant = variant === 'gallery';
   const panelClassName = useGalleryVariant
-    ? `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-lg shadow-xl w-[90vw] max-w-[400px] ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`
-    : 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-theme shadow-theme w-[90vw] max-w-[400px] bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border';
+    ? `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-lg shadow-xl w-[90vw] max-w-[400px] animate-fade-in ${darkMode ? 'bg-gray-900 text-white border border-white/20' : 'bg-white text-gray-900 border border-gray-200'}`
+    : 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-theme shadow-theme w-[90vw] max-w-[400px] animate-fade-in bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border';
   const inputClassName = useGalleryVariant
     ? `w-full px-3 py-2 rounded border ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`
     : 'w-full px-3 py-2 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background text-theme-ink';
@@ -47,8 +57,8 @@ export default function GalleryShareModal({
     ? `w-full px-3 py-2 rounded border resize-none ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`
     : 'w-full px-3 py-2 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background text-theme-ink resize-none';
   const cancelButtonClassName = useGalleryVariant
-    ? `${darkMode ? 'bg-black text-white border border-white/30 hover:bg-white/10' : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-100'} px-4 py-2 rounded`
-    : 'px-4 py-2 rounded-button bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper';
+    ? `${darkMode ? 'bg-black text-white border border-white/30 hover:bg-white/10' : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-100'} px-4 py-2 rounded transition-colors`
+    : 'px-4 py-2 rounded-button bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors';
   const helperTextClassName = useGalleryVariant
     ? `${darkMode ? 'text-gray-200' : 'text-gray-700'}`
     : 'text-theme-muted';
@@ -73,17 +83,19 @@ export default function GalleryShareModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-[60]" onClick={handleClose} />
-      <div className={panelClassName}>
+      <div className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" onClick={handleClose} />
+      <div className={panelClassName} role="dialog" aria-modal="true">
         {success ? (
           <div className="text-center py-4">
-            <div className="text-4xl mb-2">✓</div>
+            <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-green-600 text-white flex items-center justify-center">
+              <CheckIcon className="w-6 h-6" strokeWidth={3} />
+            </div>
             <p className="text-lg font-bold">Submitted!</p>
             <p className={`text-sm mt-2 ${helperTextClassName}`}>Thank you for sharing with the community.</p>
             <p className={`text-sm mt-1 ${helperTextClassName}`}>Your submission will appear in the gallery once it has been reviewed and approved.</p>
             <button
               onClick={handleClose}
-              className="mt-4 px-6 py-2 rounded-button font-medium bg-blue-600 text-white hover:bg-blue-700"
+              className="mt-4 px-6 py-2 rounded-button font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             >
               Ok
             </button>
@@ -129,13 +141,9 @@ export default function GalleryShareModal({
               <button
                 onClick={handleSubmit}
                 disabled={!name.trim() || !author.trim() || !description.trim() || submitting}
-                className={`px-4 py-2 rounded-button font-medium ${
-                  name.trim() && author.trim() && description.trim() && !submitting
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                }`}
+                className="px-4 py-2 rounded-button font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
               >
-                {submitting ? 'Submitting...' : 'Submit'}
+                {submitting ? 'Submitting…' : 'Submit'}
               </button>
             </div>
           </>

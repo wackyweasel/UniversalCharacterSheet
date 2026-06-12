@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTimelineStore, useCurrentCharacterEvents, TimelineEvent } from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
+import { XIcon } from './icons';
 
 function formatTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -50,7 +51,7 @@ function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (event
           className="self-center w-5 h-5 flex items-center justify-center rounded-button text-theme-muted hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           aria-label="Delete event"
         >
-          ×
+          <XIcon className="w-3 h-3" />
         </button>
       </Tooltip>
     </div>
@@ -88,8 +89,9 @@ export default function TimelineSidebar() {
           <button
             onClick={() => setOpen(false)}
             className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors text-sm"
+            aria-label="Close timeline"
           >
-            ✕
+            <XIcon className="w-4 h-4" />
           </button>
         </Tooltip>
       </div>

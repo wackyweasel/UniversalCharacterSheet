@@ -113,6 +113,7 @@ export function Tooltip({ content, children, placement = 'above' }: TooltipProps
             whiteSpace: 'pre-wrap',
             pointerEvents: 'none',
           }}
+          className="animate-fade-in"
         >
           {content}
         </div>,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { PlayIcon, PauseIcon, ResetIcon } from '../icons';
 
 interface Props {
   widget: Widget;
@@ -126,23 +127,26 @@ export default function TimerWidget({ widget, mode }: Props) {
             <button
               onClick={handleStart}
               disabled={isFinished}
+              aria-label="Start timer"
               className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80 disabled:opacity-40`}
             >
-              ▶
+              <PlayIcon className="w-3.5 h-3.5" />
             </button>
           ) : (
             <button
               onClick={handlePause}
+              aria-label="Pause timer"
               className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80`}
             >
-              ⏸
+              <PauseIcon className="w-3.5 h-3.5" />
             </button>
           )}
           <button
             onClick={handleReset}
+            aria-label="Reset timer"
             className={`${btnBase} text-theme-ink hover:bg-theme-accent/20`}
           >
-            ↺
+            <ResetIcon className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

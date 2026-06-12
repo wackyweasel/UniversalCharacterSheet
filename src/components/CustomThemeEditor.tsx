@@ -194,9 +194,9 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2">
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2 animate-fade-in">
       <div 
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-4xl max-h-[95vh] flex flex-col"
+        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-4xl max-h-[95vh] flex flex-col animate-modal-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -467,7 +467,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 }}
                 className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-button hover:bg-red-600 transition-colors font-heading"
               >
-                🗑️ Delete
+                Delete
               </button>
             )}
           </div>
@@ -482,7 +482,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
               onClick={handleSave}
               className="px-3 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-button hover:bg-theme-accent-hover transition-colors font-heading"
             >
-              {isEditing ? '💾 Save Changes' : '✨ Create Theme'}
+              {isEditing ? 'Save Changes' : 'Create Theme'}
             </button>
           </div>
         </div>

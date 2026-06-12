@@ -9,6 +9,7 @@ import { submitToGallery } from '../hooks/useGallery';
 import { Tooltip } from './Tooltip';
 import GalleryShareModal from './GalleryShareModal';
 import WidgetTooltipPreview from './WidgetTooltipPreview';
+import { XIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
 const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
@@ -188,14 +189,15 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                 advanceTutorial();
               }
             }}
-            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            aria-label="Close toolbox"
           >
-            ✕
+            <XIcon className="w-5 h-5" />
           </button>
         </Tooltip>
         
         {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 px-1">
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 pl-1 -mr-3 pr-4">
 
         <div className="mb-4">
           <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
@@ -318,8 +320,9 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                               e.stopPropagation();
                               setConfirmingDeleteId(template.id);
                             }}
+                            aria-label="Delete template"
                           >
-                            ×
+                            <XIcon className="w-3.5 h-3.5" />
                           </button>
                         </Tooltip>
                       </div>

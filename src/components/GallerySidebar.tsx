@@ -7,6 +7,7 @@ import { IMAGE_TEXTURES, isImageTexture, getShadowStyleCSS } from '../store/useT
 import { v4 as uuidv4 } from 'uuid';
 import GalleryShareModal from './GalleryShareModal';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
+import { XIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface GallerySidebarProps {
@@ -265,14 +266,14 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
       {deleteTarget && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-[60]" 
+            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" 
             onClick={() => setDeleteTarget(null)}
           />
           <div 
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-data-title"
-            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-lg shadow-xl w-[90vw] max-w-[400px] ${darkMode ? 'bg-gray-900 text-white border border-white/20' : 'bg-white text-gray-900 border border-gray-200'}`}
+            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] p-6 rounded-lg shadow-xl w-[90vw] max-w-[400px] animate-fade-in ${darkMode ? 'bg-gray-900 text-white border border-white/20' : 'bg-white text-gray-900 border border-gray-200'}`}
           >
             <h3 id="delete-data-title" className="text-lg font-bold mb-2">
               Delete {getUserDataTypeLabel(deleteTarget.type)}?
@@ -283,13 +284,13 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
             <div className="flex gap-2 justify-end mt-5">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className={`px-4 py-2 rounded ${baseButtonClass}`}
+                className={`px-4 py-2 rounded transition-colors ${baseButtonClass}`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDeleteUserData}
-                className="px-4 py-2 rounded font-medium bg-red-600 text-white hover:bg-red-700"
+                className="px-4 py-2 rounded font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
               >
                 Delete
               </button>
@@ -301,7 +302,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
       {/* Overlay backdrop */}
       {!collapsed && (
         <div 
-          className="fixed inset-0 bg-black/30 z-40"
+          className="fixed inset-0 bg-black/30 z-40 animate-fade-in"
           onClick={onToggle}
         />
       )}
@@ -316,9 +317,10 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
           <h2 className="text-xl font-bold">Community Gallery</h2>
           <button
             onClick={onToggle}
-            className={`w-10 h-10 flex items-center justify-center rounded-lg ${baseButtonClass}`}
+            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${baseButtonClass}`}
+            aria-label="Close gallery"
           >
-            ✕
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
         
