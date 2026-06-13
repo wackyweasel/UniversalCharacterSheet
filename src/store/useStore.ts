@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetType, Sheet } from '../types';
+import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
-import { resolveCharacterFormulas, FormulaChange } from '../utils/formulaEngine';
+import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
@@ -194,6 +194,7 @@ interface StoreState {
   // Rest Action (for Rest Button widget)
   performRest: (options: {
     healAmount?: number | 'full';
+    poolRestores?: PoolRestoreTarget[];
     clearConditions?: boolean;
     resetSpellSlots?: boolean;
     passTimeSeconds?: number;
@@ -1877,60 +1878,126 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => {
         if (!state.activeCharacterId) return state;
         
-        const { healAmount, clearConditions, resetSpellSlots, passTimeSeconds } = options;
+        const { healAmount, clearConditions, resetSpellSlots, passTimeSeconds, poolRestores } = options;
+        
+        // Build a lookup of pool restore targets keyed by widget id
+        const poolRestoreMap = new Map<string, PoolRestoreTarget[]>();
+        (poolRestores || []).forEach(target => {
+          const list = poolRestoreMap.get(target.widgetId) || [];
+          list.push(target);
+          poolRestoreMap.set(target.widgetId, list);
+        });
+        
+        // Labels for evaluating per-pool restore formulas
+        const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
+        const restoreLabels = activeChar ? collectLabels(activeChar) : {};
+        
+        // Resolve the flat restore amount for a target (formula overrides amount when set)
+        const resolveRestoreAmount = (target: PoolRestoreTarget): number => {
+          if (target.amountFormula) {
+            const computed = evaluateFormula(target.amountFormula, restoreLabels);
+            if (computed !== null) return Math.max(0, Math.round(computed));
+          }
+          return target.amount ?? 0;
+        };
+        
+        // Apply pool restores to a POOL widget (works on any sheet, targeted by id)
+        const applyPoolRestore = (w: Widget): Widget => {
+          if (w.type !== 'POOL') return w;
+          const targets = poolRestoreMap.get(w.id);
+          if (!targets || targets.length === 0) return w;
+          
+          const poolResources = w.data.poolResources || [];
+          if (poolResources.length > 0) {
+            // Multi-resource mode — match each target by resource index
+            const newResources = poolResources.map((r: PoolResource, idx: number) => {
+              const target = targets.find(t => t.resourceIndex === idx);
+              if (!target || r.currentFormula) return r; // skip unselected or formula-driven
+              const newCurrent = target.mode === 'full'
+                ? r.max
+                : Math.min(r.max, (r.current ?? 0) + resolveRestoreAmount(target));
+              return { ...r, current: newCurrent };
+            });
+            return { ...w, data: { ...w.data, poolResources: newResources } };
+          } else {
+            // Legacy single pool mode (resourceIndex === -1)
+            const target = targets.find(t => t.resourceIndex === -1);
+            if (!target) return w;
+            const fieldFormulas = (w.data.fieldFormulas as Record<string, string> | undefined);
+            if (fieldFormulas?.currentPool) return w; // skip formula-driven pool
+            const maxPool = w.data.maxPool ?? 5;
+            const currentPool = w.data.currentPool ?? 0;
+            const newCurrent = target.mode === 'full'
+              ? maxPool
+              : Math.min(maxPool, currentPool + resolveRestoreAmount(target));
+            return { ...w, data: { ...w.data, currentPool: newCurrent } };
+          }
+        };
         
         return {
           characters: state.characters.map(c => {
-            if (c.id === state.activeCharacterId) {
-              return updateActiveSheetWidgets(c, widgets => 
-                widgets.map(w => {
-                  // Handle Health Bar widgets
-                  if (w.type === 'HEALTH_BAR' && healAmount !== undefined) {
-                    const currentValue = w.data.currentValue ?? 0;
-                    const maxValue = w.data.maxValue ?? 10;
+            if (c.id !== state.activeCharacterId) return c;
+            return {
+              ...c,
+              sheets: c.sheets.map(sheet => {
+                const isActiveSheet = sheet.id === c.activeSheetId;
+                return {
+                  ...sheet,
+                  widgets: sheet.widgets.map(w => {
+                    // Pool restores can target widgets on any sheet
+                    const pooled = applyPoolRestore(w);
+                    if (pooled !== w) return pooled;
                     
-                    let newValue: number;
-                    if (healAmount === 'full') {
-                      newValue = maxValue;
-                    } else {
-                      newValue = Math.min(maxValue, currentValue + healAmount);
+                    // The remaining effects only apply to the active sheet
+                    if (!isActiveSheet) return w;
+                    
+                    // Handle Health Bar widgets
+                    if (w.type === 'HEALTH_BAR' && healAmount !== undefined) {
+                      const currentValue = w.data.currentValue ?? 0;
+                      const maxValue = w.data.maxValue ?? 10;
+                      
+                      let newValue: number;
+                      if (healAmount === 'full') {
+                        newValue = maxValue;
+                      } else {
+                        newValue = Math.min(maxValue, currentValue + healAmount);
+                      }
+                      
+                      return { ...w, data: { ...w.data, currentValue: newValue } };
                     }
                     
-                    return { ...w, data: { ...w.data, currentValue: newValue } };
-                  }
-                  
-                  // Handle Condition widgets (TOGGLE_GROUP)
-                  if (w.type === 'TOGGLE_GROUP' && clearConditions) {
-                    const toggleItems = w.data.toggleItems || [];
-                    const clearedItems = toggleItems.map((item: { name: string; active: boolean }) => ({ ...item, active: false }));
-                    return { ...w, data: { ...w.data, toggleItems: clearedItems } };
-                  }
-                  
-                  // Handle Spell Slot widgets
-                  if (w.type === 'SPELL_SLOT' && resetSpellSlots) {
-                    const spellLevels = w.data.spellLevels || [];
-                    const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
-                    return { ...w, data: { ...w.data, spellLevels: resetLevels } };
-                  }
-                  
-                  // Handle Time Tracker widgets
-                  if (w.type === 'TIME_TRACKER' && passTimeSeconds !== undefined && passTimeSeconds > 0) {
-                    const timedEffects = w.data.timedEffects || [];
-                    const roundMode = w.data.roundMode || false;
-                    // In round mode, passTimeSeconds represents rounds (1 second = 1 round)
-                    const amountToPass = roundMode ? passTimeSeconds : passTimeSeconds;
-                    const updatedEffects = timedEffects.map((effect: { name: string; remainingSeconds: number }) => ({
-                      ...effect,
-                      remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
-                    }));
-                    return { ...w, data: { ...w.data, timedEffects: updatedEffects } };
-                  }
-                  
-                  return w;
-                })
-              );
-            }
-            return c;
+                    // Handle Condition widgets (TOGGLE_GROUP)
+                    if (w.type === 'TOGGLE_GROUP' && clearConditions) {
+                      const toggleItems = w.data.toggleItems || [];
+                      const clearedItems = toggleItems.map((item: { name: string; active: boolean }) => ({ ...item, active: false }));
+                      return { ...w, data: { ...w.data, toggleItems: clearedItems } };
+                    }
+                    
+                    // Handle Spell Slot widgets
+                    if (w.type === 'SPELL_SLOT' && resetSpellSlots) {
+                      const spellLevels = w.data.spellLevels || [];
+                      const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
+                      return { ...w, data: { ...w.data, spellLevels: resetLevels } };
+                    }
+                    
+                    // Handle Time Tracker widgets
+                    if (w.type === 'TIME_TRACKER' && passTimeSeconds !== undefined && passTimeSeconds > 0) {
+                      const timedEffects = w.data.timedEffects || [];
+                      const roundMode = w.data.roundMode || false;
+                      // In round mode, passTimeSeconds represents rounds (1 second = 1 round)
+                      const amountToPass = roundMode ? passTimeSeconds : passTimeSeconds;
+                      const updatedEffects = timedEffects.map((effect: { name: string; remainingSeconds: number }) => ({
+                        ...effect,
+                        remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
+                      }));
+                      return { ...w, data: { ...w.data, timedEffects: updatedEffects } };
+                    }
+                    
+                    return w;
+                  })
+                };
+              })
+            };
           })
         };
       });

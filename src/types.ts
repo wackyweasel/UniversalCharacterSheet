@@ -130,15 +130,22 @@ export interface PoolResource {
   tooltip?: string;
 }
 
+// Configures how a Rest Button restores a specific resource pool target.
+export interface PoolRestoreTarget {
+  widgetId: string;
+  resourceIndex: number; // -1 for a legacy single-pool widget; otherwise index in poolResources
+  mode: 'full' | 'flat';
+  amount?: number;         // used when mode === 'flat'
+  amountFormula?: string;  // optional formula evaluated at rest time (overrides amount when set)
+}
+
 export interface InitiativeParticipant {
   name: string;
   diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
   flatBonus: number;   // Flat bonus to add to the roll
   flatBonusLabel?: string;
   flatBonusFormula?: string;
-}
-
-export interface InitiativeEncounterEntry {
+}export interface InitiativeEncounterEntry {
   id: string;          // Unique ID for drag/drop ordering
   name: string;
   diceFaces: number;
@@ -206,6 +213,7 @@ export interface WidgetData {
   healToFull?: boolean;
   healRandomDice?: DiceGroup[];
   healFlatAmount?: number;
+  poolRestores?: PoolRestoreTarget[];
   clearConditions?: boolean;
   resetSpellSlots?: boolean;
   passTime?: boolean;
