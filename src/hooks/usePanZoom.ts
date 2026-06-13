@@ -3,11 +3,19 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
 const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
 
-function readInitialLock(): { locked: boolean; pan: { x: number; y: number }; scale: number } {
+function lockKey(characterId: string | null | undefined): string {
+  return characterId ? `${VIEW_LOCK_STORAGE_KEY}:${characterId}` : VIEW_LOCK_STORAGE_KEY;
+}
+
+function viewKey(characterId: string | null | undefined): string {
+  return characterId ? `${LOCKED_VIEW_STORAGE_KEY}:${characterId}` : LOCKED_VIEW_STORAGE_KEY;
+}
+
+function readInitialLock(characterId: string | null | undefined): { locked: boolean; pan: { x: number; y: number }; scale: number } {
   try {
-    const locked = localStorage.getItem(VIEW_LOCK_STORAGE_KEY) === 'true';
+    const locked = localStorage.getItem(lockKey(characterId)) === 'true';
     if (!locked) return { locked: false, pan: { x: 0, y: 0 }, scale: 1 };
-    const raw = localStorage.getItem(LOCKED_VIEW_STORAGE_KEY);
+    const raw = localStorage.getItem(viewKey(characterId));
     if (!raw) return { locked: true, pan: { x: 0, y: 0 }, scale: 1 };
     const parsed = JSON.parse(raw);
     if (
@@ -27,11 +35,12 @@ interface UsePanZoomOptions {
   maxScale?: number;
   editingWidgetId: string | null;
   mode: 'play' | 'edit' | 'vertical' | 'print';
+  characterId?: string | null;
   onBackgroundClick?: () => void;
 }
 
-export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, onBackgroundClick }: UsePanZoomOptions) {
-  const initial = useRef(readInitialLock()).current;
+export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, onBackgroundClick }: UsePanZoomOptions) {
+  const initial = useRef(readInitialLock(characterId)).current;
   const [pan, setPan] = useState(initial.pan);
   const [scale, setScale] = useState(initial.scale);
   const [viewLocked, setViewLockedState] = useState(initial.locked);
@@ -162,23 +171,36 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     setViewLockedState(locked);
     try {
       if (locked) {
-        localStorage.setItem(VIEW_LOCK_STORAGE_KEY, 'true');
+        localStorage.setItem(lockKey(characterId), 'true');
         localStorage.setItem(
-          LOCKED_VIEW_STORAGE_KEY,
+          viewKey(characterId),
           JSON.stringify({ pan: panRef.current, scale: scaleRefInternal.current }),
         );
       } else {
-        localStorage.removeItem(VIEW_LOCK_STORAGE_KEY);
-        localStorage.removeItem(LOCKED_VIEW_STORAGE_KEY);
+        localStorage.removeItem(lockKey(characterId));
+        localStorage.removeItem(viewKey(characterId));
       }
     } catch {
       // ignore storage errors (quota, privacy mode)
     }
-  }, []);
+  }, [characterId]);
 
   const toggleViewLock = useCallback(() => {
     setViewLocked(!viewLockedRef.current);
   }, [setViewLocked]);
+
+  // Re-apply the lock state (and locked view) for the active character when it changes.
+  const prevCharacterIdRef = useRef(characterId);
+  useEffect(() => {
+    if (prevCharacterIdRef.current === characterId) return;
+    prevCharacterIdRef.current = characterId;
+    const next = readInitialLock(characterId);
+    setViewLockedState(next.locked);
+    if (next.locked) {
+      setPan(next.pan);
+      setScale(next.scale);
+    }
+  }, [characterId]);
 
   return {
     pan,

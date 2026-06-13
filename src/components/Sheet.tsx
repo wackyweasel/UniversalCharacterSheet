@@ -177,6 +177,7 @@ export default function Sheet() {
   } = usePanZoom({
     editingWidgetId,
     mode,
+    characterId: activeCharacterId,
     onBackgroundClick: handleBackgroundInteraction,
   });
 
