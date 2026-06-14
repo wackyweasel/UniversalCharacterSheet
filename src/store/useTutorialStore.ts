@@ -438,7 +438,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'automation-formula-operations',
     title: 'Formula Operations',
-    message: 'Formulas can use + to add, - to subtract, * to multiply, / to divide, and parentheses for order. They also support floor(x), ceil(x), round(x), min(a,b), max(a,b), abs(x), IF(condition, trueValue, falseValue) with comparisons, SWITCH(value, case1, result1, default) with ranges like 1..5, THRESHOLD(value, @columnLabel, start), and VALUE(@columnLabel, index, fallback) for generated table-column labels.',
+    message: 'Formulas can use + to add, - to subtract, * to multiply, / to divide, and parentheses for order. They also support floor(x), ceil(x), round(x), min(a,b), max(a,b), abs(x), IF(condition, trueValue, falseValue) with comparisons, SWITCH(value, case1, result1, default) with ranges like 1..5, THRESHOLD(value, @columnLabel, start), VALUE(@columnLabel, index, fallback), SUM(@columnLabel), and row-wise sums like SUM(@qty * @weight) for generated table-column labels.',
     position: 'center',
     page: 'sheet',
     requiresManualAdvance: true,

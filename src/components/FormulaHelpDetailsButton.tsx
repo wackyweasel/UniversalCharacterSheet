@@ -81,13 +81,15 @@ export function FormulaHelpDetailsButton({ className = '' }: FormulaHelpDetailsB
               </div>
 
               <div>
-                <h4 className="font-semibold text-theme-ink mb-1">Table Thresholds</h4>
+                <h4 className="font-semibold text-theme-ink mb-1">Table Columns</h4>
                 <p>
-                  <span className="font-mono">THRESHOLD(value, @columnLabel, start)</span> counts generated table-column labels like <span className="font-mono">xp1</span>, <span className="font-mono">xp2</span>, and <span className="font-mono">xp3</span>. <span className="font-mono">VALUE(@columnLabel, index, fallback)</span> reads the actual value at one of those generated rows. Use <span className="font-mono">@columnLabel</span> without a number to refer to the column label group.
+                  <span className="font-mono">THRESHOLD(value, @columnLabel, start)</span> counts generated table-column labels like <span className="font-mono">xp1</span>, <span className="font-mono">xp2</span>, and <span className="font-mono">xp3</span>. <span className="font-mono">VALUE(@columnLabel, index, fallback)</span> reads one generated row. <span className="font-mono">SUM(@columnLabel)</span> adds every numeric value in a column, and <span className="font-mono">SUM(@qty * @weight)</span> adds a row-wise expression across matching columns. Empty sums return <span className="font-mono">0</span>.
                 </p>
                 <code className="mt-1 block rounded bg-theme-background/60 px-2 py-1 font-mono text-[11px] text-theme-ink whitespace-pre-wrap">
                   THRESHOLD(@xp, @xp_threshold, 1)
                   {'\n'}VALUE(@xp_threshold, THRESHOLD(@xp, @xp_threshold), 0)
+                  {'\n'}SUM(@treasure)
+                  {'\n'}SUM(@qty * @weight)
                 </code>
               </div>
             </div>

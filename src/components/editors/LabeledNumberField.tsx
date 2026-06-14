@@ -438,7 +438,7 @@ export function LabeledNumberField({
           )}
 
           <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-theme-muted">
-            <span>Use @label to reference values. Supports math functions, IF(), SWITCH(), ranges like 1..5, THRESHOLD(), and VALUE(@column, row)</span>
+            <span>Use @label to reference values. Supports math functions, IF(), SWITCH(), ranges like 1..5, THRESHOLD(), VALUE(@column, row), SUM(@column), and SUM(@qty * @weight)</span>
             <FormulaHelpDetailsButton className="text-[10px]" />
           </div>
         </div>

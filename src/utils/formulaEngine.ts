@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, ToggleItem, TimedEffect, CheckboxItem } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem } from '../types';
 
 /**
  * Collects all labels and their current values from a character.
@@ -63,19 +63,24 @@ export function collectLabels(character: Character): Record<string, number> {
         }
       }
 
-      // Collect from Table cell and generated column labels
+      // Collect from Table cell and generated row/column labels
       if (data.rows) {
         const columnSettings = data.tableColumnSettings || [];
+        const rowSettings = data.tableRowSettings || [];
         for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
+          const rowLabel = getTableRowSetting(rowSettings, rowIndex).label;
           for (const [colIndex, cell] of row.cells.entries()) {
             const value = typeof cell === 'string' ? cell : cell.value;
             const num = parseFloat(value);
             if (typeof cell !== 'string' && cell.label) {
               if (!isNaN(num)) labels[cell.label] = num;
             }
-            const columnLabel = columnSettings[colIndex]?.label;
+            const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
             if (columnLabel && !isNaN(num)) {
               labels[`${columnLabel}${rowIndex + 1}`] = num;
+            }
+            if (rowLabel && !isNaN(num)) {
+              labels[`${rowLabel}${colIndex + 1}`] = num;
             }
           }
         }
@@ -130,13 +135,69 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-type FormulaFunctionName = 'IF' | 'SWITCH' | 'THRESHOLD' | 'VALUE';
+function getTableColumnSetting(settings: (TableColumnSettings | null | undefined)[] | undefined, colIndex: number): TableColumnSettings {
+  const setting = settings?.[colIndex];
+  return setting && typeof setting === 'object' ? setting : {};
+}
+
+function getTableRowSetting(settings: (TableRowSettings | null | undefined)[] | undefined, rowIndex: number): TableRowSettings {
+  const setting = settings?.[rowIndex];
+  return setting && typeof setting === 'object' ? setting : {};
+}
+
+function getTableCellLabel(cell: TableRow['cells'][number] | undefined): string | undefined {
+  return !cell || typeof cell === 'string' ? undefined : cell.label;
+}
+
+function getTableRowControlledLabels(row: TableRow, rowIndex: number, columnSettings: (TableColumnSettings | null | undefined)[], rowSetting: TableRowSettings): string[] {
+  const labels: string[] = [];
+  if (rowSetting.label) {
+    labels.push(rowSetting.label);
+    row.cells.forEach((_, colIndex) => labels.push(`${rowSetting.label}${colIndex + 1}`));
+  }
+
+  row.cells.forEach(cell => {
+    const cellLabel = getTableCellLabel(cell);
+    if (cellLabel) labels.push(cellLabel);
+  });
+
+  columnSettings.forEach((_, colIndex) => {
+    const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
+    if (columnLabel) {
+      labels.push(columnLabel, `${columnLabel}${rowIndex + 1}`);
+    }
+  });
+
+  return Array.from(new Set(labels));
+}
+
+function getTableColumnControlledLabels(rows: TableRow[], colIndex: number, columnSetting: TableColumnSettings, rowSettings: (TableRowSettings | null | undefined)[]): string[] {
+  const labels: string[] = [];
+  if (columnSetting.label) {
+    labels.push(columnSetting.label);
+    rows.forEach((_, rowIndex) => labels.push(`${columnSetting.label}${rowIndex + 1}`));
+  }
+
+  rows.forEach((row, rowIndex) => {
+    const cellLabel = getTableCellLabel(row.cells[colIndex]);
+    if (cellLabel) labels.push(cellLabel);
+
+    const rowLabel = getTableRowSetting(rowSettings, rowIndex).label;
+    if (rowLabel) {
+      labels.push(rowLabel, `${rowLabel}${colIndex + 1}`);
+    }
+  });
+
+  return Array.from(new Set(labels));
+}
+
+type FormulaFunctionName = 'IF' | 'SWITCH' | 'THRESHOLD' | 'VALUE' | 'SUM';
 
 /**
  * Finds the rightmost (innermost) conditional formula function in the expression.
  */
 function findInnermostFormulaFunction(expr: string): { name: FormulaFunctionName; index: number; argsStart: number } | null {
-  const regex = /\b(IF|SWITCH|THRESHOLD|VALUE)\s*\(/gi;
+  const regex = /\b(IF|SWITCH|THRESHOLD|VALUE|SUM)\s*\(/gi;
   let lastMatch: { name: FormulaFunctionName; index: number; argsStart: number } | null = null;
   let match;
   while ((match = regex.exec(expr)) !== null) {
@@ -179,9 +240,26 @@ function parseGeneratedLabelGroupReference(arg: string): string | null {
   return match ? match[1] : null;
 }
 
+function extractGeneratedLabelGroupReferencesFromExpression(expr: string): string[] {
+  const refs = expr.match(/@([a-zA-Z_][a-zA-Z0-9_]*)\b/g);
+  if (!refs) return [];
+  return Array.from(new Set(refs.map(ref => ref.slice(1))));
+}
+
+function getGeneratedLabelIndexes(labelPrefix: string, labels: Record<string, number>): number[] {
+  const prefixRegex = new RegExp(`^${escapeRegex(labelPrefix)}([1-9]\\d*)$`);
+  return Object.entries(labels)
+    .map(([label, value]) => {
+      const match = label.match(prefixRegex);
+      return match && isFinite(value) ? parseInt(match[1], 10) : null;
+    })
+    .filter((index): index is number => index !== null)
+    .sort((a, b) => a - b);
+}
+
 function stripGeneratedLabelGroupReferences(formula: string): string {
   const replacements: { start: number; end: number; value: string }[] = [];
-  const regex = /\b(THRESHOLD|VALUE)\s*\(/gi;
+  const regex = /\b(THRESHOLD|VALUE|SUM)\s*\(/gi;
   let match;
 
   while ((match = regex.exec(formula)) !== null) {
@@ -189,11 +267,26 @@ function stripGeneratedLabelGroupReferences(formula: string): string {
     const parsed = parseFunctionArguments(formula, match.index + match[0].length);
     if (!parsed) continue;
 
-    const argIndex = functionName === 'THRESHOLD' ? 1 : 0;
-    const labelPrefix = parseGeneratedLabelGroupReference(parsed.args[argIndex] || '');
-    const span = parsed.argSpans[argIndex];
-    if (labelPrefix && span) {
-      replacements.push({ start: span.start, end: span.end, value: labelPrefix });
+    if (functionName === 'SUM') {
+      const span = parsed.argSpans[0];
+      if (!span) continue;
+      const arg = parsed.args[0] || '';
+      const refRegex = /@([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+      let refMatch;
+      while ((refMatch = refRegex.exec(arg)) !== null) {
+        replacements.push({
+          start: span.start + refMatch.index,
+          end: span.start + refMatch.index + refMatch[0].length,
+          value: refMatch[1],
+        });
+      }
+    } else {
+      const argIndex = functionName === 'THRESHOLD' ? 1 : 0;
+      const labelPrefix = parseGeneratedLabelGroupReference(parsed.args[argIndex] || '');
+      const span = parsed.argSpans[argIndex];
+      if (labelPrefix && span) {
+        replacements.push({ start: span.start, end: span.end, value: labelPrefix });
+      }
     }
   }
 
@@ -202,6 +295,44 @@ function stripGeneratedLabelGroupReferences(formula: string): string {
     .reduce((result, replacement) => (
       result.substring(0, replacement.start) + replacement.value + result.substring(replacement.end)
     ), formula);
+}
+
+function collectGeneratedLabelGroupReferences(formula: string): string[] {
+  const references: string[] = [];
+  const regex = /\b(THRESHOLD|VALUE|SUM)\s*\(/gi;
+  let match;
+
+  while ((match = regex.exec(formula)) !== null) {
+    const functionName = match[1].toUpperCase();
+    const parsed = parseFunctionArguments(formula, match.index + match[0].length);
+    if (!parsed) continue;
+
+    if (functionName === 'SUM') {
+      references.push(...extractGeneratedLabelGroupReferencesFromExpression(parsed.args[0] || ''));
+    } else {
+      const argIndex = functionName === 'THRESHOLD' ? 1 : 0;
+      const labelPrefix = parseGeneratedLabelGroupReference(parsed.args[argIndex] || '');
+      if (labelPrefix) {
+        references.push(labelPrefix);
+      }
+    }
+  }
+
+  return Array.from(new Set(references));
+}
+
+function formulaReferencesLabel(formula: string, label: string): boolean {
+  const directRefs = formula.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
+  if (directRefs.some(ref => ref.slice(1) === label)) return true;
+
+  return collectGeneratedLabelGroupReferences(formula).some(labelPrefix => {
+    const generatedLabelRegex = new RegExp(`^${escapeRegex(labelPrefix)}[1-9]\d*$`);
+    return labelPrefix === label || generatedLabelRegex.test(label);
+  });
+}
+
+function formulaReferencesAnyLabel(formula: string, labels: string[]): boolean {
+  return labels.some(label => formulaReferencesLabel(formula, label));
 }
 
 function findTopLevelRangeOperator(expr: string): number | null {
@@ -309,6 +440,28 @@ function buildGeneratedLabelValueExpression(args: string[], labels: Record<strin
   return `(${expression})`;
 }
 
+function buildGeneratedLabelSumExpression(args: string[], labels: Record<string, number>): string | null {
+  if (args.length !== 1) return null;
+
+  const sumExpression = args[0].trim();
+  if (!sumExpression) return null;
+
+  const labelPrefixes = extractGeneratedLabelGroupReferencesFromExpression(sumExpression);
+  if (labelPrefixes.length === 0) return null;
+
+  const rowIndexes = Array.from(new Set(
+    labelPrefixes.flatMap(labelPrefix => getGeneratedLabelIndexes(labelPrefix, labels))
+  )).sort((a, b) => a - b);
+
+  if (rowIndexes.length === 0) return '(0)';
+
+  const rowExpressions = rowIndexes.map(index => (
+    `(${sumExpression.replace(/@([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (_match, labelPrefix) => `@${labelPrefix}${index}`)})`
+  ));
+
+  return `(${rowExpressions.join(' + ')})`;
+}
+
 /**
  * Converts Excel-style comparison operators in a condition string to JS equivalents.
  * <> → !=, standalone = → ==, <=/>=/</> kept as-is.
@@ -320,7 +473,7 @@ function convertComparison(condition: string): string {
 }
 
 /**
- * Processes IF(), SWITCH(), THRESHOLD(), and VALUE() calls in an expression,
+ * Processes IF(), SWITCH(), THRESHOLD(), VALUE(), and SUM() calls in an expression,
  * converting them to JavaScript expressions. Handles nesting by processing innermost calls first.
  */
 function processFormulaFunctions(expr: string, labels: Record<string, number>): string {
@@ -343,8 +496,10 @@ function processFormulaFunctions(expr: string, labels: Record<string, number>): 
       replacement = buildSwitchExpression(parsed.args);
     } else if (functionMatch.name === 'THRESHOLD') {
       replacement = buildThresholdExpression(parsed.args, labels);
-    } else {
+    } else if (functionMatch.name === 'VALUE') {
       replacement = buildGeneratedLabelValueExpression(parsed.args, labels);
+    } else {
+      replacement = buildGeneratedLabelSumExpression(parsed.args, labels);
     }
 
     if (!replacement) break;
@@ -361,6 +516,8 @@ function processFormulaFunctions(expr: string, labels: Record<string, number>): 
  * can be single values or inclusive ranges like 1..5. THRESHOLD(value, @labelPrefix, start?)
  * counts generated labels like labelPrefix1, labelPrefix2, etc. that value has reached.
  * VALUE(@labelPrefix, index, fallback?) reads a generated label value by row index.
+ * SUM(@labelPrefix) sums all generated label values for a column, returning 0 when empty.
+ * SUM(@qty * @weight) sums a row-wise expression across matching generated labels.
  * Returns the computed number, or null if evaluation fails.
  */
 export function evaluateFormula(formula: string, labels: Record<string, number>): number | null {
@@ -554,17 +711,26 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
     }
   }
 
-  // Table cell and generated column formula changes
+  // Table cell and generated row/column formula changes
   if (oldWidget.data.rows && newWidget.data.rows) {
     const oldRows = oldWidget.data.rows as TableRow[];
     const newRows = newWidget.data.rows as TableRow[];
     const newColumnSettings = newWidget.data.tableColumnSettings || [];
+    const newRowSettings = newWidget.data.tableRowSettings || [];
     for (let r = 0; r < Math.min(oldRows.length, newRows.length); r++) {
+      const rowSetting = getTableRowSetting(newRowSettings, r);
       for (let c = 0; c < Math.min(oldRows[r].cells.length, newRows[r].cells.length); c++) {
         const oldCell = oldRows[r].cells[c];
         const newCell = newRows[r].cells[c];
-        const formula = typeof newCell !== 'string' ? newCell.formula || newColumnSettings[c]?.formula : newColumnSettings[c]?.formula;
+        const columnSetting = getTableColumnSetting(newColumnSettings, c);
+        const cellFormula = typeof newCell !== 'string' ? newCell.formula : undefined;
+        const rowFormula = rowSetting.formula;
+        const columnFormula = columnSetting.formula;
+        const formula = cellFormula || rowFormula || columnFormula;
         if (formula) {
+          if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(newRows[r], r, newColumnSettings, rowSetting))) continue;
+          if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(newRows, c, columnSetting, newRowSettings))) continue;
+
           const oldVal = typeof oldCell === 'string' ? parseFloat(oldCell) : parseFloat(oldCell.value);
           const newVal = typeof newCell === 'string' ? parseFloat(newCell) : parseFloat(newCell.value);
           if (!isNaN(oldVal) && !isNaN(newVal) && oldVal !== newVal) {
@@ -725,15 +891,24 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
     }
   }
 
-  // Resolve Table cell and generated column formulas
+  // Resolve Table cell and generated row/column formulas
   if (widget.data.rows) {
     let rowsChanged = false;
     const columnSettings = widget.data.tableColumnSettings || [];
-    const updatedRows = (widget.data.rows as TableRow[]).map(row => {
+    const rowSettings = widget.data.tableRowSettings || [];
+    const updatedRows = (widget.data.rows as TableRow[]).map((row, rowIndex) => {
       let rowChanged = false;
+      const rowSetting = getTableRowSetting(rowSettings, rowIndex);
       const updatedCells = row.cells.map((cell, colIndex) => {
-        const formula = typeof cell === 'string' ? columnSettings[colIndex]?.formula : cell.formula || columnSettings[colIndex]?.formula;
+        const columnSetting = getTableColumnSetting(columnSettings, colIndex);
+        const cellFormula = typeof cell === 'string' ? undefined : cell.formula;
+        const rowFormula = rowSetting.formula;
+        const columnFormula = columnSetting.formula;
+        const formula = cellFormula || rowFormula || columnFormula;
         if (!formula) return cell;
+        if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(row, rowIndex, columnSettings, rowSetting))) return cell;
+        if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(widget.data.rows as TableRow[], colIndex, columnSetting, rowSettings))) return cell;
+
         const computed = evaluateFormula(formula, labels);
         if (computed !== null) {
           const newValue = String(computed);
@@ -816,19 +991,24 @@ export function getAvailableLabels(character: Character): { label: string; value
         }
       }
 
-      // Table cell and generated column labels
+      // Table cell and generated row/column labels
       if (data.rows) {
         const columnSettings = data.tableColumnSettings || [];
+        const rowSettings = data.tableRowSettings || [];
         for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
+          const rowLabel = getTableRowSetting(rowSettings, rowIndex).label;
           for (const [colIndex, cell] of row.cells.entries()) {
             const value = typeof cell === 'string' ? cell : cell.value;
             const num = parseFloat(value);
             if (typeof cell !== 'string' && cell.label) {
               result.push({ label: cell.label, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
             }
-            const columnLabel = columnSettings[colIndex]?.label;
+            const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
             if (columnLabel) {
               result.push({ label: `${columnLabel}${rowIndex + 1}`, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
+            }
+            if (rowLabel) {
+              result.push({ label: `${rowLabel}${colIndex + 1}`, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
             }
           }
         }
@@ -869,10 +1049,25 @@ export function getAvailableLabels(character: Character): { label: string; value
 /**
  * Extracts @label references from a formula string.
  */
-function extractFormulaRefs(formula: string): string[] {
+function extractFormulaRefs(formula: string, labels: Record<string, number> = {}): string[] {
   const formulaWithoutGroupRefs = stripGeneratedLabelGroupReferences(formula);
   const matches = formulaWithoutGroupRefs.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g);
-  return matches ? matches.map(m => m.slice(1)) : [];
+  const refs = matches ? matches.map(m => m.slice(1)) : [];
+
+  for (const labelPrefix of collectGeneratedLabelGroupReferences(formula)) {
+    const prefixRegex = new RegExp(`^${escapeRegex(labelPrefix)}([1-9]\\d*)$`);
+    refs.push(
+      ...Object.keys(labels)
+        .filter(label => prefixRegex.test(label))
+        .sort((a, b) => {
+          const aIndex = parseInt(a.match(prefixRegex)?.[1] || '0', 10);
+          const bIndex = parseInt(b.match(prefixRegex)?.[1] || '0', 10);
+          return aIndex - bIndex;
+        })
+    );
+  }
+
+  return Array.from(new Set(refs));
 }
 
 /**
@@ -881,6 +1076,7 @@ function extractFormulaRefs(formula: string): string[] {
  */
 export function buildDependencyGraph(character: Character): Record<string, string[]> {
   const graph: Record<string, string[]> = {};
+  const labels = collectLabels(character);
 
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
@@ -890,7 +1086,7 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       if (data.fieldLabels && data.fieldFormulas) {
         for (const [field, labelName] of Object.entries(data.fieldLabels)) {
           if (labelName && data.fieldFormulas[field]) {
-            graph[labelName] = extractFormulaRefs(data.fieldFormulas[field]);
+            graph[labelName] = extractFormulaRefs(data.fieldFormulas[field], labels);
           }
         }
       }
@@ -899,7 +1095,7 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       if (data.numberItems) {
         for (const item of data.numberItems as NumberItem[]) {
           if (item.valueLabel && item.valueFormula) {
-            graph[item.valueLabel] = extractFormulaRefs(item.valueFormula);
+            graph[item.valueLabel] = extractFormulaRefs(item.valueFormula, labels);
           }
         }
       }
@@ -908,7 +1104,7 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       if (data.displayNumbers) {
         for (const item of data.displayNumbers as DisplayNumber[]) {
           if (item.valueLabel && item.valueFormula) {
-            graph[item.valueLabel] = extractFormulaRefs(item.valueFormula);
+            graph[item.valueLabel] = extractFormulaRefs(item.valueFormula, labels);
           }
         }
       }
@@ -916,8 +1112,8 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       // PoolResource arrays
       if (data.poolResources) {
         for (const res of data.poolResources as PoolResource[]) {
-          if (res.maxLabel && res.maxFormula) graph[res.maxLabel] = extractFormulaRefs(res.maxFormula);
-          if (res.currentLabel && res.currentFormula) graph[res.currentLabel] = extractFormulaRefs(res.currentFormula);
+          if (res.maxLabel && res.maxFormula) graph[res.maxLabel] = extractFormulaRefs(res.maxFormula, labels);
+          if (res.currentLabel && res.currentFormula) graph[res.currentLabel] = extractFormulaRefs(res.currentFormula, labels);
         }
       }
 
@@ -925,7 +1121,7 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       if (data.initiativePool) {
         for (const p of data.initiativePool as InitiativeParticipant[]) {
           if (p.flatBonusLabel && p.flatBonusFormula) {
-            graph[p.flatBonusLabel] = extractFormulaRefs(p.flatBonusFormula);
+            graph[p.flatBonusLabel] = extractFormulaRefs(p.flatBonusFormula, labels);
           }
         }
       }
@@ -934,24 +1130,32 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       if (data.diceGroups) {
         for (const g of data.diceGroups as DiceGroup[]) {
           if (g.countLabel && g.countFormula) {
-            graph[g.countLabel] = extractFormulaRefs(g.countFormula);
+            graph[g.countLabel] = extractFormulaRefs(g.countFormula, labels);
           }
         }
       }
 
-      // Table cell and generated column formulas
+      // Table cell and generated row/column formulas
       if (data.rows) {
         const columnSettings = data.tableColumnSettings || [];
+        const rowSettings = data.tableRowSettings || [];
         for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
+          const rowSetting = getTableRowSetting(rowSettings, rowIndex);
+          const rowLabel = rowSetting.label;
           for (const [colIndex, cell] of row.cells.entries()) {
             if (typeof cell !== 'string' && cell.label && cell.formula) {
-              graph[cell.label] = extractFormulaRefs(cell.formula);
+              graph[cell.label] = extractFormulaRefs(cell.formula, labels);
             }
-            const columnLabel = columnSettings[colIndex]?.label;
-            const columnFormula = columnSettings[colIndex]?.formula;
-            const effectiveFormula = typeof cell === 'string' ? columnFormula : cell.formula || columnFormula;
+            const columnSetting = getTableColumnSetting(columnSettings, colIndex);
+            const columnLabel = columnSetting.label;
+            const columnFormula = columnSetting.formula;
+            const rowFormula = rowSetting.formula;
+            const effectiveFormula = typeof cell === 'string' ? rowFormula || columnFormula : cell.formula || rowFormula || columnFormula;
+            if (rowLabel && effectiveFormula) {
+              graph[`${rowLabel}${colIndex + 1}`] = extractFormulaRefs(effectiveFormula, labels);
+            }
             if (columnLabel && effectiveFormula) {
-              graph[`${columnLabel}${rowIndex + 1}`] = extractFormulaRefs(effectiveFormula);
+              graph[`${columnLabel}${rowIndex + 1}`] = extractFormulaRefs(effectiveFormula, labels);
             }
           }
         }
@@ -975,7 +1179,8 @@ export function detectCircularReference(
   const graph = buildDependencyGraph(character);
 
   // Temporarily add the proposed edge
-  const proposedDeps = extractFormulaRefs(formulaStr);
+  const labels = collectLabels(character);
+  const proposedDeps = extractFormulaRefs(formulaStr, labels);
   graph[sourceLabel] = proposedDeps;
 
   // DFS cycle detection

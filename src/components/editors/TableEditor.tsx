@@ -4,7 +4,7 @@ import { TableRow } from '../../types';
 import { Tooltip } from '../Tooltip';
 
 export function TableEditor({ widget, updateData }: EditorProps) {
-  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [] } = widget.data;
+  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [] } = widget.data;
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragItem = React.useRef<number | null>(null);
@@ -102,14 +102,16 @@ export function TableEditor({ widget, updateData }: EditorProps) {
 
   const addRow = () => {
     const newRow = { cells: columns.map(() => '') };
-    updateData({ rows: [...rows, newRow] });
+    updateData({ rows: [...rows, newRow], tableRowSettings: [...tableRowSettings, {}] });
   };
 
   const removeRow = (index: number) => {
     if (rows.length <= 1) return;
     const newRows = [...rows];
+    const newRowSettings = [...tableRowSettings];
     newRows.splice(index, 1);
-    updateData({ rows: newRows });
+    newRowSettings.splice(index, 1);
+    updateData({ rows: newRows, tableRowSettings: newRowSettings });
   };
 
   return (

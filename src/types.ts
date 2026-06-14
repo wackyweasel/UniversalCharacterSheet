@@ -72,6 +72,12 @@ export interface TableColumnSettings {
   formula?: string;
 }
 
+export interface TableRowSettings {
+  format?: CellFormat;
+  label?: string;
+  formula?: string;
+}
+
 export interface CheckboxItem {
   name: string;
   checked: boolean;
@@ -212,6 +218,7 @@ export interface WidgetData {
   columns?: string[];
   rows?: TableRow[];
   tableColumnSettings?: TableColumnSettings[];
+  tableRowSettings?: TableRowSettings[];
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;
