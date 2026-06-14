@@ -9,9 +9,12 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     currentValue = 0,
     showPercentage = true,
     showValues = true,
+    allowOutOfRange = false,
     fieldLabels = {},
     fieldFormulas = {}
   } = widget.data;
+
+  const clampCurrentValue = (value: number, maximum = maxValue) => Math.max(0, Math.min(maximum, value));
 
   const setFieldLabel = (field: string, labelName: string | undefined) => {
     const updated = { ...fieldLabels };
@@ -57,19 +60,26 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
           <LabeledNumberField
             displayLabel="Current Value"
             value={typeof currentValue === 'number' ? currentValue : 0}
-            onChange={(v) => updateData({ currentValue: Math.max(0, Math.min(maxValue, v)) })}
+            onChange={(v) => updateData({ currentValue: allowOutOfRange ? v : clampCurrentValue(v) })}
             fieldLabel={fieldLabels['currentValue']}
             onFieldLabelChange={(l) => setFieldLabel('currentValue', l)}
             formula={fieldFormulas['currentValue']}
             onFormulaChange={(f) => setFieldFormula('currentValue', f)}
-            min={0}
+            min={allowOutOfRange ? undefined : 0}
+            max={allowOutOfRange ? undefined : maxValue}
           />
         </div>
         <div>
           <LabeledNumberField
             displayLabel="Maximum Value"
             value={typeof maxValue === 'number' ? maxValue : 100}
-            onChange={(v) => updateData({ maxValue: Math.max(1, v) })}
+            onChange={(v) => {
+              const nextMax = Math.max(1, v);
+              updateData({
+                maxValue: nextMax,
+                ...(allowOutOfRange ? {} : { currentValue: clampCurrentValue(currentValue, nextMax) })
+              });
+            }}
             fieldLabel={fieldLabels['maxValue']}
             onFieldLabelChange={(l) => setFieldLabel('maxValue', l)}
             formula={fieldFormulas['maxValue']}
@@ -81,6 +91,22 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
 
       <div className="border border-theme-border rounded-button p-3">
         <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
+
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={allowOutOfRange}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              updateData({
+                allowOutOfRange: enabled,
+                ...(enabled ? {} : { currentValue: clampCurrentValue(currentValue) })
+              });
+            }}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Allow values outside 0 to max</span>
+        </label>
         
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input

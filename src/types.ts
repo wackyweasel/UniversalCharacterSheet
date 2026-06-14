@@ -171,6 +171,7 @@ export interface WidgetData {
   // Progress Bar
   showPercentage?: boolean;
   showValues?: boolean;
+  allowOutOfRange?: boolean;
   // Dice Roller
   diceCount?: number;
   diceType?: number;

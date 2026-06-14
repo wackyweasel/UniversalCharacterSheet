@@ -124,15 +124,17 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+type FormulaFunctionName = 'IF' | 'SWITCH';
+
 /**
- * Finds the rightmost (innermost) IF( in the expression for processing.
+ * Finds the rightmost (innermost) conditional formula function in the expression.
  */
-function findInnermostIF(expr: string): { index: number; argsStart: number } | null {
-  const regex = /\bIF\s*\(/gi;
-  let lastMatch: { index: number; argsStart: number } | null = null;
+function findInnermostFormulaFunction(expr: string): { name: FormulaFunctionName; index: number; argsStart: number } | null {
+  const regex = /\b(IF|SWITCH)\s*\(/gi;
+  let lastMatch: { name: FormulaFunctionName; index: number; argsStart: number } | null = null;
   let match;
   while ((match = regex.exec(expr)) !== null) {
-    lastMatch = { index: match.index, argsStart: match.index + match[0].length };
+    lastMatch = { name: match[1].toUpperCase() as FormulaFunctionName, index: match.index, argsStart: match.index + match[0].length };
   }
   return lastMatch;
 }
@@ -141,7 +143,7 @@ function findInnermostIF(expr: string): { index: number; argsStart: number } | n
  * Parses the comma-separated arguments of a function call starting right after
  * the opening parenthesis, respecting nested parentheses.
  */
-function parseIFArguments(expr: string, startAfterParen: number): { args: string[]; endIndex: number } | null {
+function parseFunctionArguments(expr: string, startAfterParen: number): { args: string[]; endIndex: number } | null {
   let depth = 1;
   let argStart = startAfterParen;
   const args: string[] = [];
@@ -163,6 +165,59 @@ function parseIFArguments(expr: string, startAfterParen: number): { args: string
   return null;
 }
 
+function findTopLevelRangeOperator(expr: string): number | null {
+  let depth = 0;
+  for (let i = 0; i < expr.length - 1; i++) {
+    const ch = expr[i];
+    if (ch === '(') {
+      depth++;
+    } else if (ch === ')') {
+      depth--;
+    } else if (ch === '.' && expr[i + 1] === '.' && depth === 0) {
+      return i;
+    }
+  }
+  return null;
+}
+
+function buildSwitchCaseExpression(switchValue: string, caseValue: string, resultValue: string, fallbackValue: string): string | null {
+  const rangeIndex = findTopLevelRangeOperator(caseValue);
+  if (rangeIndex !== null) {
+    const rangeStart = caseValue.substring(0, rangeIndex).trim();
+    const rangeEnd = caseValue.substring(rangeIndex + 2).trim();
+    if (!rangeStart || !rangeEnd) return null;
+
+    const lowerBound = `min((${rangeStart}), (${rangeEnd}))`;
+    const upperBound = `max((${rangeStart}), (${rangeEnd}))`;
+    return `(((${switchValue}) >= ${lowerBound}) ? ((${switchValue}) <= ${upperBound}) : 0) ? ${resultValue} : ${fallbackValue}`;
+  }
+
+  return `((${switchValue}) === (${caseValue}) ? ${resultValue} : ${fallbackValue})`;
+}
+
+function buildSwitchExpression(args: string[]): string | null {
+  if (args.length < 3) return null;
+
+  const switchValue = args[0].trim();
+  const caseArgs = args.slice(1).map(arg => arg.trim());
+  const hasDefault = caseArgs.length % 2 === 1;
+  const defaultValue = hasDefault ? caseArgs[caseArgs.length - 1] : '(0 / 0)';
+  const casePairs = hasDefault ? caseArgs.slice(0, -1) : caseArgs;
+
+  if (casePairs.length < 2 || casePairs.length % 2 !== 0) return null;
+
+  let expression = defaultValue;
+  for (let i = casePairs.length - 2; i >= 0; i -= 2) {
+    const caseValue = casePairs[i];
+    const resultValue = casePairs[i + 1];
+    const caseExpression = buildSwitchCaseExpression(switchValue, caseValue, resultValue, expression);
+    if (!caseExpression) return null;
+    expression = `(${caseExpression})`;
+  }
+
+  return `(${expression})`;
+}
+
 /**
  * Converts Excel-style comparison operators in a condition string to JS equivalents.
  * <> → !=, standalone = → ==, <=/>=/</> kept as-is.
@@ -174,23 +229,31 @@ function convertComparison(condition: string): string {
 }
 
 /**
- * Processes all IF(condition, value_if_true, value_if_false) calls in an expression,
- * converting them to JavaScript ternary expressions.
- * Handles nested IF() calls by processing the innermost first.
+ * Processes all IF() and SWITCH() calls in an expression, converting them to
+ * JavaScript ternary expressions. Handles nesting by processing innermost calls first.
  */
-function processIFStatements(expr: string): string {
+function processConditionalFunctions(expr: string): string {
   let result = expr;
   const MAX_ITERATIONS = 20;
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    const ifMatch = findInnermostIF(result);
-    if (ifMatch === null) break;
-    const parsed = parseIFArguments(result, ifMatch.argsStart);
+    const functionMatch = findInnermostFormulaFunction(result);
+    if (functionMatch === null) break;
+    const parsed = parseFunctionArguments(result, functionMatch.argsStart);
     if (!parsed) break;
-    if (parsed.args.length !== 3) break;
-    const condition = convertComparison(parsed.args[0].trim());
-    const trueVal = parsed.args[1].trim();
-    const falseVal = parsed.args[2].trim();
-    result = result.substring(0, ifMatch.index) + `(${condition} ? ${trueVal} : ${falseVal})` + result.substring(parsed.endIndex + 1);
+
+    let replacement: string | null = null;
+    if (functionMatch.name === 'IF') {
+      if (parsed.args.length !== 3) break;
+      const condition = convertComparison(parsed.args[0].trim());
+      const trueVal = parsed.args[1].trim();
+      const falseVal = parsed.args[2].trim();
+      replacement = `(${condition} ? ${trueVal} : ${falseVal})`;
+    } else {
+      replacement = buildSwitchExpression(parsed.args);
+    }
+
+    if (!replacement) break;
+    result = result.substring(0, functionMatch.index) + replacement + result.substring(parsed.endIndex + 1);
   }
   return result;
 }
@@ -198,7 +261,9 @@ function processIFStatements(expr: string): string {
 /**
  * Evaluates a formula string, replacing @label references with values.
  * Supports basic arithmetic: +, -, *, /, parentheses, floor/ceil/round/min/max/abs,
- * and IF(condition, value_if_true, value_if_false) with =, <>, <, >, <=, >= comparisons.
+ * IF(condition, value_if_true, value_if_false) with =, <>, <, >, <=, >= comparisons,
+ * and SWITCH(value, case1, result1, case2, result2, default). SWITCH cases
+ * can be single values or inclusive ranges like 1..5.
  * Returns the computed number, or null if evaluation fails.
  */
 export function evaluateFormula(formula: string, labels: Record<string, number>): number | null {
@@ -216,8 +281,8 @@ export function evaluateFormula(formula: string, labels: Record<string, number>)
   // Replace any remaining unresolved @refs with 0 (treat missing labels as false/0)
   expr = expr.replace(/@[\w]+/g, '0');
 
-  // Process IF() statements → JS ternary (before Math replacements, since args may contain functions)
-  expr = processIFStatements(expr);
+  // Process conditionals before Math replacements, since args may contain functions.
+  expr = processConditionalFunctions(expr);
 
   // Replace floor/ceil/round with Math equivalents
   expr = expr.replace(/\bfloor\s*\(/g, 'Math.floor(');
@@ -426,21 +491,38 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
       if (formula) {
         const computed = evaluateFormula(formula, labels);
         if (computed !== null) {
+          if (widget.type === 'PROGRESS_BAR' && field === 'currentValue' && !widget.data.allowOutOfRange) {
+            updates.currentValue = computed;
+            continue;
+          }
+
           const currentVal = getFieldValue(widget.data, field);
-          if (currentVal !== computed) {
+          const resolvedValue = computed;
+          if (currentVal !== resolvedValue) {
             changed = true;
             switch (field) {
-              case 'maxValue': updates.maxValue = computed; break;
-              case 'currentValue': updates.currentValue = computed; break;
-              case 'increment': updates.increment = computed; break;
-              case 'maxPool': updates.maxPool = computed; break;
-              case 'currentPool': updates.currentPool = computed; break;
-              case 'modifier': updates.modifier = computed; break;
-              case 'healFlatAmount': updates.healFlatAmount = computed; break;
+              case 'maxValue': updates.maxValue = resolvedValue; break;
+              case 'currentValue': updates.currentValue = resolvedValue; break;
+              case 'increment': updates.increment = resolvedValue; break;
+              case 'maxPool': updates.maxPool = resolvedValue; break;
+              case 'currentPool': updates.currentPool = resolvedValue; break;
+              case 'modifier': updates.modifier = resolvedValue; break;
+              case 'healFlatAmount': updates.healFlatAmount = resolvedValue; break;
             }
           }
         }
       }
+    }
+  }
+
+  if (widget.type === 'PROGRESS_BAR' && !widget.data.allowOutOfRange) {
+    const maxValue = updates.maxValue ?? widget.data.maxValue ?? 100;
+    const originalCurrentValue = widget.data.currentValue ?? 0;
+    const currentValue = updates.currentValue ?? originalCurrentValue;
+    const clampedValue = Math.max(0, Math.min(maxValue, currentValue));
+    if (originalCurrentValue !== clampedValue) {
+      changed = true;
+      updates.currentValue = clampedValue;
     }
   }
 

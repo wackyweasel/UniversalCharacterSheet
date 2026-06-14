@@ -437,7 +437,7 @@ export function LabeledNumberField({
           )}
 
           <p className="text-[10px] text-theme-muted mt-1">
-            Use @label to reference values. Supports +, -, *, /, parentheses, floor(), ceil(), round(), min(), max(), abs(), and IF()
+            Use @label to reference values. Supports +, -, *, /, parentheses, floor(), ceil(), round(), min(), max(), abs(), IF(), SWITCH(), and ranges like 1..5
           </p>
         </div>
       )}

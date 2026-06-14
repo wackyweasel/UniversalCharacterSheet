@@ -612,7 +612,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           )}
 
           <p className="text-[9px] text-theme-muted mt-0.5">
-            Use @label to reference values. Supports +, −, *, /, parentheses, floor(), ceil(), round()
+            Use @label to reference values. Supports math functions, IF(), SWITCH(), and ranges like 1..5
           </p>
         </div>
       )}
