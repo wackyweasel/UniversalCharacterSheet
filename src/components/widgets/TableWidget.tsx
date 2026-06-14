@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Widget, TableRow, TableCell, CellFormat } from '../../types';
+import { Widget, TableRow, TableCell, CellFormat, TableColumnSettings } from '../../types';
 import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
 
 interface Props {
   widget: Widget;
@@ -46,6 +47,24 @@ function getCellFormula(cell: string | TableCell): string | undefined {
 
 function createCell(value: string, format?: CellFormat, label?: string, formula?: string): TableCell {
   return { value, format, label, formula };
+}
+
+function cleanFormat(format: CellFormat): CellFormat | undefined {
+  const cleaned = { ...format };
+  Object.keys(cleaned).forEach(key => {
+    if (cleaned[key as keyof CellFormat] === undefined) {
+      delete cleaned[key as keyof CellFormat];
+    }
+  });
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
+function getColumnSetting(settings: TableColumnSettings[] | undefined, colIdx: number): TableColumnSettings {
+  return settings?.[colIdx] || {};
+}
+
+function getEffectiveCellFormat(cell: string | TableCell, columnSetting?: TableColumnSettings): CellFormat {
+  return { ...(columnSetting?.format || {}), ...getCellFormat(cell) };
 }
 
 // Color with opacity pair for recently used colors
@@ -93,9 +112,14 @@ interface FormatToolbarProps {
   onLabelChange: (label: string | undefined) => void;
   onFormulaChange: (formula: string | undefined) => void;
   character: any;
+  labelScope?: 'cell' | 'column';
+  canAssignLabelOverride?: boolean;
+  formulaSourceLabels?: string[];
+  excludedFormulaLabels?: string[];
+  labelDisabledReason?: string;
 }
 
-function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character }: FormatToolbarProps) {
+function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character, labelScope = 'cell', canAssignLabelOverride, formulaSourceLabels = [], excludedFormulaLabels = [], labelDisabledReason }: FormatToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState({ x: position.x, y: position.y });
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -106,7 +130,11 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   const [formulaDraft, setFormulaDraft] = useState(cellFormula || '');
 
   const isNumeric = cellValue === '' || !isNaN(Number(cellValue));
-  const canAssignLabel = isNumeric;
+  const canAssignLabel = canAssignLabelOverride ?? isNumeric;
+  const isLabelButtonDisabled = !!labelDisabledReason || (!canAssignLabel && !cellLabel);
+  const labelTooltip = labelDisabledReason || (cellLabel ? (labelScope === 'column' ? `Column labels: @${cellLabel}1, @${cellLabel}2...` : `Label: @${cellLabel}`) : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label');
+  const selfReferenceLabels = formulaSourceLabels.length > 0 ? formulaSourceLabels : (cellLabel ? [cellLabel] : []);
+  const excludedFormulaLabelSet = useMemo(() => new Set(excludedFormulaLabels), [excludedFormulaLabels]);
 
   const availableLabels = useMemo(
     () => character ? getAvailableLabels(character) : [],
@@ -121,17 +149,21 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
 
   // Self-reference check
   const isSelfReferencing = useMemo(() => {
-    if (!formulaDraft || !cellLabel) return false;
+    if (!formulaDraft || selfReferenceLabels.length === 0) return false;
     const refs = formulaDraft.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g);
     if (!refs) return false;
-    return refs.some(r => r.slice(1) === cellLabel);
-  }, [formulaDraft, cellLabel]);
+    return refs.some(r => selfReferenceLabels.includes(r.slice(1)));
+  }, [formulaDraft, selfReferenceLabels]);
 
   // Circular reference check
   const circularPath = useMemo(() => {
-    if (!formulaDraft || !cellLabel || !character || isSelfReferencing) return null;
-    return detectCircularReference(cellLabel, formulaDraft, character);
-  }, [formulaDraft, cellLabel, character, isSelfReferencing]);
+    if (!formulaDraft || selfReferenceLabels.length === 0 || !character || isSelfReferencing) return null;
+    for (const sourceLabel of selfReferenceLabels) {
+      const cycle = detectCircularReference(sourceLabel, formulaDraft, character);
+      if (cycle) return cycle;
+    }
+    return null;
+  }, [formulaDraft, selfReferenceLabels, character, isSelfReferencing]);
 
   const isCircular = isSelfReferencing || circularPath !== null;
 
@@ -420,11 +452,11 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         <div className="w-px h-5 bg-theme-border mx-1" />
 
         {/* Label button */}
-        <Tooltip content={cellLabel ? `Label: @${cellLabel}` : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label'}>
+        <Tooltip content={labelTooltip}>
           <button
-            className={`${buttonClass} ${iconSize} ${cellLabel ? 'bg-theme-accent text-theme-paper' : canAssignLabel ? 'text-theme-ink' : 'text-theme-muted opacity-40 cursor-not-allowed'}`}
+            className={`${buttonClass} ${iconSize} ${isLabelButtonDisabled ? 'text-theme-muted opacity-40 cursor-not-allowed' : cellLabel ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink'}`}
             onClick={() => {
-              if (!canAssignLabel && !cellLabel) return;
+              if (isLabelButtonDisabled) return;
               setShowLabelInput(!showLabelInput);
               setShowFormulaInput(false);
               setShowColorPicker(false);
@@ -462,7 +494,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
               <line x1="7" y1="7" x2="7.01" y2="7"/>
             </svg>
-            <span className="text-[10px] font-medium text-theme-ink">Variable Label</span>
+            <span className="text-[10px] font-medium text-theme-ink">{labelScope === 'column' ? 'Column Label' : 'Variable Label'}</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-xs text-theme-muted">@</span>
@@ -510,7 +542,11 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
             <p className="text-[9px] text-red-500 mt-0.5">Cell must contain a number to assign a label</p>
           )}
           <p className="text-[9px] text-theme-muted mt-0.5">
-            Others can reference this as <span className="font-mono">@{labelDraft || 'name'}</span> in formulas
+            {labelScope === 'column' ? (
+              <>Rows are referenced as <span className="font-mono">@{labelDraft || 'name'}1</span>, <span className="font-mono">@{labelDraft || 'name'}2</span>, etc.</>
+            ) : (
+              <>Others can reference this as <span className="font-mono">@{labelDraft || 'name'}</span> in formulas</>
+            )}
           </p>
         </div>
       )}
@@ -569,7 +605,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           {/* Self-reference warning */}
           {isSelfReferencing && (
             <p className="text-[9px] text-red-500 mt-0.5">
-              A formula cannot reference its own label (@{cellLabel})
+              {labelScope === 'column' ? 'A column formula cannot reference labels generated by that same column' : `A formula cannot reference its own label (@${cellLabel})`}
             </p>
           )}
 
@@ -595,7 +631,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
             <div className="mt-1">
               <p className="text-[9px] text-theme-muted mb-0.5">Available labels (click to insert):</p>
               <div className="flex flex-wrap gap-0.5 max-h-16 overflow-y-auto">
-                {availableLabels.filter(l => l.label !== cellLabel).map((l, i) => (
+                {availableLabels.filter(l => l.label !== cellLabel && !excludedFormulaLabelSet.has(l.label)).map((l, i) => (
                   <button
                     key={`${l.label}-${i}`}
                     type="button"
@@ -611,9 +647,10 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
             </div>
           )}
 
-          <p className="text-[9px] text-theme-muted mt-0.5">
-            Use @label to reference values. Supports math functions, IF(), SWITCH(), and ranges like 1..5
-          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[9px] text-theme-muted">
+            <span>Use @label to reference values. Supports math functions, IF(), SWITCH(), ranges like 1..5, THRESHOLD(), and VALUE(@column, row)</span>
+            <FormulaHelpDetailsButton className="text-[9px]" />
+          </div>
         </div>
       )}
     </div>
@@ -630,11 +667,13 @@ export default function TableWidget({ widget, height }: Props) {
   const { 
     label, 
     columns = ['Item', 'Qty', 'Weight'],
-    rows = []
+    rows = [],
+    tableColumnSettings = []
   } = widget.data;
   
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
   const [selectedCell, setSelectedCell] = useState<{row: number, col: number} | null>(null);
+  const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
   const [showToolbar, setShowToolbar] = useState(false);
   const [toolbarPos, setToolbarPos] = useState<ToolbarPosition>({ x: 0, y: 0 });
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
@@ -653,6 +692,16 @@ export default function TableWidget({ widget, height }: Props) {
     activeChar.sheets.forEach(sheet => {
       sheet.widgets.forEach(w => {
         if (w.type === 'TABLE' && w.data.rows) {
+          (w.data.tableColumnSettings || []).forEach(setting => {
+            const fmt = setting.format || {};
+            if (fmt.bgColor) {
+              const key = `${fmt.bgColor}|${fmt.bgOpacity ?? 1}`;
+              if (!colorMap.has(key)) {
+                colorMap.set(key, { color: fmt.bgColor, opacity: fmt.bgOpacity ?? 1 });
+              }
+            }
+          });
+
           (w.data.rows as TableRow[]).forEach(row => {
             row.cells.forEach(cell => {
               const fmt = getCellFormat(cell);
@@ -693,6 +742,26 @@ export default function TableWidget({ widget, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
+  const updateColumnSettings = (colIdx: number, update: Partial<TableColumnSettings>) => {
+    const newColumnSettings = [...tableColumnSettings];
+    const nextSetting = { ...(newColumnSettings[colIdx] || {}), ...update };
+    if (!nextSetting.format || Object.keys(nextSetting.format).length === 0) delete nextSetting.format;
+    if (!nextSetting.label) delete nextSetting.label;
+    if (!nextSetting.formula) delete nextSetting.formula;
+    newColumnSettings[colIdx] = nextSetting;
+    return newColumnSettings;
+  };
+
+  const handleColumnLabelChange = (colIdx: number, label: string | undefined) => {
+    const newColumnSettings = updateColumnSettings(colIdx, { label });
+    updateWidgetData(widget.id, { tableColumnSettings: newColumnSettings });
+  };
+
+  const handleColumnFormulaChange = (colIdx: number, formula: string | undefined) => {
+    const newColumnSettings = updateColumnSettings(colIdx, { formula });
+    updateWidgetData(widget.id, { tableColumnSettings: newColumnSettings });
+  };
+
   const handleCellFormulaChange = (rowIdx: number, colIdx: number, formula: string | undefined) => {
     const newRows = [...rows];
     const currentCell = newRows[rowIdx].cells[colIdx];
@@ -730,10 +799,11 @@ export default function TableWidget({ widget, height }: Props) {
     const currentCell = newRows[rowIdx].cells[colIdx];
     const currentFormat = getCellFormat(currentCell);
     const currentLabel = getCellLabel(currentCell);
-    const currentFormula = getCellFormula(currentCell);
+    const currentFormula = getCellFormula(currentCell) || getColumnSetting(tableColumnSettings, colIdx).formula;
+    const columnLabel = getColumnSetting(tableColumnSettings, colIdx).label;
     
     // If cell has a label, only allow numeric input
-    if (currentLabel && value !== '' && isNaN(Number(value))) return;
+    if ((currentLabel || columnLabel) && value !== '' && isNaN(Number(value))) return;
     // If cell has a formula, don't allow manual editing
     if (currentFormula) return;
     
@@ -770,8 +840,28 @@ export default function TableWidget({ widget, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
+  const handleColumnFormatChange = (colIdx: number, formatUpdate: Partial<CellFormat>) => {
+    const currentColumnFormat = getColumnSetting(tableColumnSettings, colIdx).format || {};
+    const nextFormat = cleanFormat({ ...currentColumnFormat, ...formatUpdate });
+    const newColumnSettings = updateColumnSettings(colIdx, { format: nextFormat });
+    const newRows = rows.map((row: TableRow) => {
+      const currentCell = row.cells[colIdx] ?? '';
+      const currentValue = getCellValue(currentCell);
+      const currentLabel = getCellLabel(currentCell);
+      const currentFormula = getCellFormula(currentCell);
+      return {
+        ...row,
+        cells: row.cells.map((cell, cellIdx) => (
+          cellIdx === colIdx ? createCell(currentValue, nextFormat, currentLabel, currentFormula) : cell
+        ))
+      };
+    });
+
+    updateWidgetData(widget.id, { rows: newRows, tableColumnSettings: newColumnSettings });
+  };
+
   const getToolbarPositionForElement = (element: HTMLElement): ToolbarPosition => {
-    const cellElement = element.closest('td') || element;
+    const cellElement = element.closest('td, th') || element;
     const rect = cellElement.getBoundingClientRect();
     const toolbarWidth = isMobile ? 280 : 320;
     return {
@@ -792,6 +882,15 @@ export default function TableWidget({ widget, height }: Props) {
     // Always enter edit mode on click, show toolbar alongside
     setEditingCell({ row: rowIdx, col: colIdx });
     setSelectedCell({ row: rowIdx, col: colIdx });
+    setSelectedColumn(null);
+    setToolbarPos(getToolbarPositionForElement(event.currentTarget));
+    setShowToolbar(true);
+  };
+
+  const handleColumnHeaderClick = (colIdx: number, event: React.MouseEvent<HTMLElement>) => {
+    setEditingCell(null);
+    setSelectedCell(null);
+    setSelectedColumn(colIdx);
     setToolbarPos(getToolbarPositionForElement(event.currentTarget));
     setShowToolbar(true);
   };
@@ -1019,6 +1118,7 @@ export default function TableWidget({ widget, height }: Props) {
       if (tableRef.current && !tableRef.current.contains(e.target as Node)) {
         setShowToolbar(false);
         setSelectedCell(null);
+        setSelectedColumn(null);
       }
     };
     
@@ -1068,6 +1168,19 @@ export default function TableWidget({ widget, height }: Props) {
     setTouchStart(null);
   };
 
+  const selectedColumnSetting = selectedColumn !== null ? getColumnSetting(tableColumnSettings, selectedColumn) : null;
+  const selectedColumnLabel = selectedColumnSetting?.label;
+  const selectedColumnGeneratedLabels = selectedColumnLabel ? rows.map((_, index) => `${selectedColumnLabel}${index + 1}`) : [];
+  const selectedCellColumnSetting = selectedCell ? getColumnSetting(tableColumnSettings, selectedCell.col) : null;
+  const selectedCellColumnLabel = selectedCellColumnSetting?.label;
+  const selectedCellGeneratedLabel = selectedCell && selectedCellColumnLabel ? `${selectedCellColumnLabel}${selectedCell.row + 1}` : undefined;
+  const selectedCellOwnLabel = selectedCell ? getCellLabel(rows[selectedCell.row]?.cells[selectedCell.col]) : undefined;
+  const selectedCellFormulaLabels = [selectedCellOwnLabel, selectedCellGeneratedLabel].filter((label): label is string => !!label);
+  const selectedColumnCanAssignLabel = selectedColumn === null || rows.every((row: TableRow) => {
+    const value = getCellValue(row.cells[selectedColumn] ?? '');
+    return value === '' || !isNaN(Number(value));
+  });
+
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
@@ -1092,15 +1205,29 @@ export default function TableWidget({ widget, height }: Props) {
           <thead className="sticky top-0 z-10">
             <tr>
               <th className="w-4 bg-transparent"></th>
-              {columns.map((col: string, idx: number) => (
-                <th 
-                  key={idx} 
-                  className={`border border-theme-border bg-theme-background ${cellClass} text-theme-ink font-heading`}
-                  style={{ borderLeftWidth: idx === 0 ? 1 : 0 }}
+              {columns.map((col: string, idx: number) => {
+                const columnSetting = getColumnSetting(tableColumnSettings, idx);
+                const columnFormat = columnSetting.format || {};
+                const isSelected = selectedColumn === idx;
+                const needsDarkText = columnFormat.bgColor ? isLightColor(columnFormat.bgColor, columnFormat.bgOpacity ?? 1) : false;
+                const textColorStyle = needsDarkText ? { color: '#1a1a1a' } : {};
+
+                return (
+                <th
+                  key={idx}
+                  className={`border border-theme-border bg-theme-background ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'} font-heading cursor-pointer hover:opacity-80 ${isSelected ? 'ring-2 ring-theme-accent ring-inset' : ''}`}
+                  style={{
+                    ...getCellStyle(columnFormat),
+                    ...textColorStyle,
+                    borderLeftWidth: idx === 0 ? 1 : 0
+                  }}
+                  onClick={(e) => handleColumnHeaderClick(idx, e)}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   {col}
                 </th>
-              ))}
+                );
+              })}
               <th className="w-4 bg-transparent"></th>
             </tr>
           </thead>
@@ -1137,8 +1264,9 @@ export default function TableWidget({ widget, height }: Props) {
                 </td>
                 {row.cells.map((cell, colIdx: number) => {
                   const cellValue = getCellValue(cell);
-                  const cellFormat = getCellFormat(cell);
-                  const cellFml = getCellFormula(cell);
+                  const columnSetting = getColumnSetting(tableColumnSettings, colIdx);
+                  const cellFormat = getEffectiveCellFormat(cell, columnSetting);
+                  const cellFml = getCellFormula(cell) || columnSetting.formula;
                   const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
                   const isEditing = editingCell?.row === rowIdx && editingCell?.col === colIdx;
                   const needsDarkText = cellFormat.bgColor ? isLightColor(cellFormat.bgColor, cellFormat.bgOpacity ?? 1) : false;
@@ -1242,16 +1370,45 @@ export default function TableWidget({ widget, height }: Props) {
           onClose={() => {
             setShowToolbar(false);
             setSelectedCell(null);
+            setSelectedColumn(null);
           }}
           position={toolbarPos}
           isMobile={isMobile}
           usedColors={usedColors}
           cellValue={getCellValue(rows[selectedCell.row]?.cells[selectedCell.col])}
-          cellLabel={getCellLabel(rows[selectedCell.row]?.cells[selectedCell.col])}
+          cellLabel={selectedCellOwnLabel}
           cellFormula={getCellFormula(rows[selectedCell.row]?.cells[selectedCell.col])}
           onLabelChange={(l) => handleCellLabelChange(selectedCell.row, selectedCell.col, l)}
           onFormulaChange={(f) => handleCellFormulaChange(selectedCell.row, selectedCell.col, f)}
           character={activeChar}
+          labelDisabledReason={selectedCellGeneratedLabel ? `Column label @${selectedCellColumnLabel} controls this cell. Current label: @${selectedCellGeneratedLabel}.` : undefined}
+          formulaSourceLabels={selectedCellFormulaLabels}
+          excludedFormulaLabels={selectedCellFormulaLabels}
+        />,
+        document.body
+      )}
+      {showToolbar && selectedColumn !== null && createPortal(
+        <FormatToolbar
+          format={selectedColumnSetting?.format || {}}
+          onFormatChange={(formatUpdate) => handleColumnFormatChange(selectedColumn, formatUpdate)}
+          onClose={() => {
+            setShowToolbar(false);
+            setSelectedCell(null);
+            setSelectedColumn(null);
+          }}
+          position={toolbarPos}
+          isMobile={isMobile}
+          usedColors={usedColors}
+          cellValue=""
+          cellLabel={selectedColumnSetting?.label}
+          cellFormula={selectedColumnSetting?.formula}
+          onLabelChange={(l) => handleColumnLabelChange(selectedColumn, l)}
+          onFormulaChange={(f) => handleColumnFormulaChange(selectedColumn, f)}
+          character={activeChar}
+          labelScope="column"
+          canAssignLabelOverride={selectedColumnCanAssignLabel}
+          formulaSourceLabels={selectedColumnGeneratedLabels}
+          excludedFormulaLabels={selectedColumnGeneratedLabels}
         />,
         document.body
       )}

@@ -66,6 +66,12 @@ export interface TableRow {
   cells: (string | TableCell)[];  // Support both legacy string and new TableCell format
 }
 
+export interface TableColumnSettings {
+  format?: CellFormat;
+  label?: string;
+  formula?: string;
+}
+
 export interface CheckboxItem {
   name: string;
   checked: boolean;
@@ -205,6 +211,7 @@ export interface WidgetData {
   // Table
   columns?: string[];
   rows?: TableRow[];
+  tableColumnSettings?: TableColumnSettings[];
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;

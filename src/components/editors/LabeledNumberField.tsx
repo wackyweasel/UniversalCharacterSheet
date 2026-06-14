@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
 
 interface LabeledNumberFieldProps {
   /** Current numeric value */
@@ -436,9 +437,10 @@ export function LabeledNumberField({
             </div>
           )}
 
-          <p className="text-[10px] text-theme-muted mt-1">
-            Use @label to reference values. Supports +, -, *, /, parentheses, floor(), ceil(), round(), min(), max(), abs(), IF(), SWITCH(), and ranges like 1..5
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-theme-muted">
+            <span>Use @label to reference values. Supports math functions, IF(), SWITCH(), ranges like 1..5, THRESHOLD(), and VALUE(@column, row)</span>
+            <FormulaHelpDetailsButton className="text-[10px]" />
+          </div>
         </div>
       )}
     </>

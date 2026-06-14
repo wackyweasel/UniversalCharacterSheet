@@ -4,7 +4,7 @@ import { TableRow } from '../../types';
 import { Tooltip } from '../Tooltip';
 
 export function TableEditor({ widget, updateData }: EditorProps) {
-  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [] } = widget.data;
+  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [] } = widget.data;
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragItem = React.useRef<number | null>(null);
@@ -21,19 +21,21 @@ export function TableEditor({ widget, updateData }: EditorProps) {
       ...row,
       cells: [...row.cells, '']
     }));
-    updateData({ columns: [...columns, 'New'], rows: newRows });
+    updateData({ columns: [...columns, 'New'], rows: newRows, tableColumnSettings: [...tableColumnSettings, {}] });
   };
 
   const removeColumn = (index: number) => {
     if (columns.length <= 1) return;
     const newColumns = [...columns];
+    const newColumnSettings = [...tableColumnSettings];
     newColumns.splice(index, 1);
+    newColumnSettings.splice(index, 1);
     // Also update rows to remove the column data
     const newRows = rows.map((row: TableRow) => ({
       ...row,
       cells: row.cells.filter((_, i: number) => i !== index)
     }));
-    updateData({ columns: newColumns, rows: newRows });
+    updateData({ columns: newColumns, rows: newRows, tableColumnSettings: newColumnSettings });
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -67,14 +69,17 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     if (fromIndex !== null && fromIndex !== toIndex) {
       // Create new arrays
       const newColumns = [...columns];
+      const newColumnSettings = [...tableColumnSettings];
       const newRows = rows.map((row: TableRow) => ({ ...row, cells: [...row.cells] }));
       
       // Move column: remove from old position, insert at new position
       const [movedColumn] = newColumns.splice(fromIndex, 1);
+      const [movedColumnSettings] = newColumnSettings.splice(fromIndex, 1);
       // When moving down, the target index shifts after removal, so we use toIndex directly
       // When moving up, toIndex is already correct
       const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
       newColumns.splice(insertIndex, 0, movedColumn);
+      newColumnSettings.splice(insertIndex, 0, movedColumnSettings || {});
       
       // Do the same for row cells
       newRows.forEach((row) => {
@@ -82,7 +87,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
         row.cells.splice(insertIndex, 0, movedCell);
       });
       
-      updateData({ columns: newColumns, rows: newRows });
+      updateData({ columns: newColumns, rows: newRows, tableColumnSettings: newColumnSettings });
     }
     dragItem.current = null;
     setDraggedIndex(null);
