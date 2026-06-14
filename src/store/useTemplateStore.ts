@@ -72,6 +72,7 @@ interface TemplateStoreState {
   // Actions
   addTemplate: (widget: Widget, name?: string) => void;
   addGroupTemplate: (widgets: Widget[], name: string) => void;
+  addImportedTemplate: (template: AnyTemplate) => void;
   removeTemplate: (id: string) => void;
   renameTemplate: (id: string, name: string) => void;
 }
@@ -187,6 +188,14 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
         attachmentCount: attachments.length,
       });
 
+      set((state) => {
+        const newTemplates = [...state.templates, template];
+        persistTemplates(newTemplates);
+        return { templates: newTemplates };
+      });
+    },
+
+    addImportedTemplate: (template) => {
       set((state) => {
         const newTemplates = [...state.templates, template];
         persistTemplates(newTemplates);

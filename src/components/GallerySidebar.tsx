@@ -56,6 +56,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
   const deleteCustomTheme = useCustomThemeStore((state) => state.deleteCustomTheme);
   const templates = useTemplateStore((state) => state.templates);
+  const addImportedTemplate = useTemplateStore((state) => state.addImportedTemplate);
   const removeTemplate = useTemplateStore((state) => state.removeTemplate);
   
   // Gallery data
@@ -227,18 +228,15 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     setDownloadingId(item.id);
     const template = await downloadTemplate(item);
     if (template) {
-      // Add template with new ID
-      const templateStore = useTemplateStore.getState();
-      const newTemplates = [...templateStore.templates, { ...template, id: uuidv4(), createdAt: Date.now() }];
-      localStorage.setItem('ucs:templates', JSON.stringify({ templates: newTemplates }));
+      addImportedTemplate({ ...template, id: uuidv4(), createdAt: Date.now() });
       recordTelemetryEvent({
         eventName: 'gallery_downloaded_template',
         category: 'gallery',
         source: 'gallery_sidebar',
         metadata: { itemId: item.id },
       });
-      // Force refresh by reloading - templates store doesn't have an addTemplateRaw
-      window.location.reload();
+      setDownloadSuccess(item.id);
+      setTimeout(() => setDownloadSuccess(null), 2000);
     }
     setDownloadingId(null);
   };
