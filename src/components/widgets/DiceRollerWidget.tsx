@@ -31,6 +31,8 @@ interface AggregatedResult {
   numericTotal?: number;
 }
 
+const MAX_EXPLOSION_ROLLS = 100;
+
 export default function DiceRollerWidget({ widget }: Props) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showIndividualResults = false } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
@@ -97,6 +99,68 @@ export default function DiceRollerWidget({ widget }: Props) {
     }
     
     return results;
+  };
+
+  const getFaceOptions = (group: DiceGroup): string[] => {
+    if (group.customFaces && group.customFaces.length > 0) {
+      return Array.from(new Set(group.customFaces.map(face => String(face))));
+    }
+
+    const faceCount = Math.max(1, Math.floor(Number(group.faces) || 1));
+    return Array.from({ length: faceCount }, (_, i) => String(i + 1));
+  };
+
+  const getDefaultExplodeOn = (group: DiceGroup): string[] => {
+    const options = getFaceOptions(group);
+    if (options.length === 0 || !options.every(isNumericString)) return [];
+
+    const maxFace = Math.max(...options.map(face => Number(face)));
+    return options.filter(face => Number(face) === maxFace);
+  };
+
+  const getExplodeOn = (group: DiceGroup): string[] => {
+    if (!group.explodes) return [];
+
+    const options = getFaceOptions(group);
+    const selected = Array.isArray(group.explodeOn)
+      ? group.explodeOn.map(face => String(face))
+      : getDefaultExplodeOn(group);
+
+    return selected.filter(face => options.includes(face));
+  };
+
+  const rollSingleDie = (group: DiceGroup): number | string => {
+    if (group.customFaces && group.customFaces.length > 0) {
+      const faceIndex = Math.floor(Math.random() * group.customFaces.length);
+      return group.customFaces[faceIndex];
+    }
+
+    const faceCount = Math.max(1, Math.floor(Number(group.faces) || 1));
+    return Math.floor(Math.random() * faceCount) + 1;
+  };
+
+  const shouldExplode = (group: DiceGroup, roll: number | string): boolean => {
+    const explodeOn = getExplodeOn(group);
+    return explodeOn.length > 0 && explodeOn.includes(String(roll));
+  };
+
+  const rollDieSequence = (group: DiceGroup): (number | string)[] => {
+    const rolls: (number | string)[] = [];
+    let roll = rollSingleDie(group);
+    rolls.push(roll);
+
+    const canExplodeAgain = group.explodeAgain ?? true;
+    let explosionRolls = 0;
+
+    while (shouldExplode(group, roll) && explosionRolls < MAX_EXPLOSION_ROLLS) {
+      roll = rollSingleDie(group);
+      rolls.push(roll);
+      explosionRolls += 1;
+
+      if (!canExplodeAgain) break;
+    }
+
+    return rolls;
   };
 
   // Aggregate roll results: sum numbers, count identical symbols/strings
@@ -166,22 +230,22 @@ export default function DiceRollerWidget({ widget }: Props) {
       
       for (const group of diceGroups as DiceGroup[]) {
         const rolls: (number | string)[] = [];
+        const diceCount = Math.max(0, Math.floor(Number(group.count) || 0));
         
         if (group.customFaces && group.customFaces.length > 0) {
           // Roll custom faces
-          for (let i = 0; i < group.count; i++) {
-            const faceIndex = Math.floor(Math.random() * group.customFaces.length);
-            const roll = group.customFaces[faceIndex];
-            rolls.push(roll);
-            allRolls.push(roll);
+          for (let i = 0; i < diceCount; i++) {
+            const rollSequence = rollDieSequence(group);
+            rolls.push(...rollSequence);
+            allRolls.push(...rollSequence);
           }
           groups.push({ faces: group.customFaces.length, rolls, customFaces: group.customFaces });
         } else {
           // Roll standard numeric dice
-          for (let i = 0; i < group.count; i++) {
-            const roll = Math.floor(Math.random() * group.faces) + 1;
-            rolls.push(roll);
-            allRolls.push(roll);
+          for (let i = 0; i < diceCount; i++) {
+            const rollSequence = rollDieSequence(group);
+            rolls.push(...rollSequence);
+            allRolls.push(...rollSequence);
           }
           groups.push({ faces: group.faces, rolls });
         }
@@ -204,18 +268,17 @@ export default function DiceRollerWidget({ widget }: Props) {
   const rerollDie = (groupIdx: number, rollIdx: number) => {
     if (!result) return;
     const group = result.groups[groupIdx];
-    let newRoll: number | string;
-    if (group.customFaces && group.customFaces.length > 0) {
-      const faceIndex = Math.floor(Math.random() * group.customFaces.length);
-      newRoll = group.customFaces[faceIndex];
-    } else {
-      newRoll = Math.floor(Math.random() * group.faces) + 1;
-    }
+    const diceGroup = (diceGroups as DiceGroup[])[groupIdx] || {
+      count: 1,
+      faces: group.faces,
+      customFaces: group.customFaces,
+    };
+    const newRollsForDie = rollDieSequence(diceGroup);
 
     const newGroups = result.groups.map((g, gi) => {
       if (gi !== groupIdx) return g;
       const newRolls = [...g.rolls];
-      newRolls[rollIdx] = newRoll;
+      newRolls.splice(rollIdx, 1, ...newRollsForDie);
       return { ...g, rolls: newRolls };
     });
 
@@ -230,16 +293,20 @@ export default function DiceRollerWidget({ widget }: Props) {
     const dieName = group.customFaces && group.customFaces.length > 0
       ? (diceGroups as DiceGroup[])[groupIdx]?.customDiceName || 'custom'
       : `d${group.faces}`;
-    addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Re-rolled ${dieName}: ${newRoll}`, '🎲');
+    addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Re-rolled ${dieName}: ${newRollsForDie.join(', ')}`, '🎲');
   };
 
   const buildDiceNotation = () => {
     const parts = (diceGroups as DiceGroup[]).map((g) => {
+      let notation: string;
       if (g.customFaces && g.customFaces.length > 0) {
         const diceName = g.customDiceName || 'custom';
-        return g.count > 1 ? `${g.count}× ${diceName}` : diceName;
+        notation = g.count > 1 ? `${g.count}× ${diceName}` : diceName;
+      } else {
+        notation = `${g.count}d${g.faces}`;
       }
-      return `${g.count}d${g.faces}`;
+
+      return g.explodes ? `${notation}!` : notation;
     });
     let notation = parts.join(' + ');
     if (modifier !== 0) {

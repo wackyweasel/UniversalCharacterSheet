@@ -32,6 +32,8 @@ interface LabeledNumberFieldProps {
   className?: string;
   /** Whether to show compact (inline) style */
   compact?: boolean;
+  /** Hide the +/- buttons while keeping label/formula controls */
+  hideStepperButtons?: boolean;
   /** Optional prefix for tutorial targets exposed by this field's tag/formula controls */
   tutorialTargetPrefix?: string;
   /** When provided, the controls are passed to this render function so the parent
@@ -54,6 +56,7 @@ export function LabeledNumberField({
   placeholder,
   className = '',
   compact = false,
+  hideStepperButtons = false,
   tutorialTargetPrefix,
   renderRow,
 }: LabeledNumberFieldProps) {
@@ -189,6 +192,7 @@ export function LabeledNumberField({
   /* ---- build the inline controls (buttons + number input) ---- */
   const controls = (
     <div className="flex items-center gap-1 flex-shrink-0">
+      {!hideStepperButtons && (
         <button
           type="button"
           onClick={handleDecrement}
@@ -201,6 +205,7 @@ export function LabeledNumberField({
         >
           −
         </button>
+      )}
 
         <input
           type="number"
@@ -212,7 +217,7 @@ export function LabeledNumberField({
           max={max}
           placeholder={placeholder}
           className={`px-2 py-1 border border-theme-border rounded-button text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-            compact ? 'w-[6rem]' : 'flex-1 min-w-[60px]'
+            compact ? (hideStepperButtons ? 'w-14' : 'w-[6rem]') : 'flex-1 min-w-[60px]'
           } ${
             hasFormula
               ? 'bg-theme-accent/10 cursor-default'
@@ -220,6 +225,7 @@ export function LabeledNumberField({
           } ${compact ? 'h-7' : ''}`}
         />
 
+      {!hideStepperButtons && (
         <button
           type="button"
           onClick={handleIncrement}
@@ -232,6 +238,7 @@ export function LabeledNumberField({
         >
           +
         </button>
+      )}
 
         {/* Label button */}
         <Tooltip content={fieldLabel ? `Label: @${fieldLabel}` : 'Set variable label'}>

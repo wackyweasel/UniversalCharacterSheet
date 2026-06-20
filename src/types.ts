@@ -123,6 +123,9 @@ export interface DiceGroup {
   customDiceName?: string; // Optional name for custom dice
   countLabel?: string;
   countFormula?: string;
+  explodes?: boolean;
+  explodeOn?: string[];
+  explodeAgain?: boolean;
 }
 
 export interface CustomDie {

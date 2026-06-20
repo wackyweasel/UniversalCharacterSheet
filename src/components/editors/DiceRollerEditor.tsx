@@ -10,6 +10,56 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
   return typeof die === 'object' && 'faces' in die && Array.isArray(die.faces);
 };
 
+const isNumericFace = (face: string) => face.trim() !== '' && !Number.isNaN(Number(face));
+
+const getFaceOptions = (group: DiceGroup): string[] => {
+  if (group.customFaces && group.customFaces.length > 0) {
+    return Array.from(new Set(group.customFaces.map(face => String(face))));
+  }
+
+  const faceCount = Math.max(1, Math.floor(Number(group.faces) || 1));
+  return Array.from({ length: faceCount }, (_, i) => String(i + 1));
+};
+
+const getDefaultExplodeOn = (group: DiceGroup): string[] => {
+  const options = getFaceOptions(group);
+  if (options.length === 0 || !options.every(isNumericFace)) return [];
+
+  const maxFace = Math.max(...options.map(face => Number(face)));
+  return options.filter(face => Number(face) === maxFace);
+};
+
+const getSelectedExplodeFaces = (group: DiceGroup): string[] => {
+  const options = getFaceOptions(group);
+  const selected = Array.isArray(group.explodeOn)
+    ? group.explodeOn
+    : getDefaultExplodeOn(group);
+
+  return selected.map(face => String(face)).filter(face => options.includes(face));
+};
+
+const normalizeExplodingSettings = (group: DiceGroup, preferDefaultWhenEmpty = false): DiceGroup => {
+  if (!group.explodes) return group;
+
+  const selected = getSelectedExplodeFaces(group);
+  const explodeOn = selected.length > 0 || !preferDefaultWhenEmpty
+    ? selected
+    : getDefaultExplodeOn(group);
+
+  return {
+    ...group,
+    explodeOn,
+    explodeAgain: group.explodeAgain ?? true,
+  };
+};
+
+const describeExplodeFaces = (group: DiceGroup): string => {
+  const selected = getSelectedExplodeFaces(group);
+  if (selected.length === 0) return 'Select faces';
+  if (selected.length <= 3) return selected.join(', ');
+  return `${selected.length} faces`;
+};
+
 export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
@@ -87,10 +137,28 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     }
   };
 
-  const updateDiceGroup = (index: number, field: 'count' | 'faces' | 'customFaces' | 'customDiceName', value: number | string | string[]) => {
+  const updateDiceGroup = (index: number, field: 'count' | 'faces' | 'customFaces' | 'customDiceName' | 'explodes' | 'explodeOn' | 'explodeAgain', value: number | string | string[] | boolean) => {
     const newGroups = [...diceGroups];
-    newGroups[index] = { ...newGroups[index], [field]: value };
+    let updatedGroup = { ...newGroups[index], [field]: value } as DiceGroup;
+
+    if (field === 'explodes' && value === true) {
+      updatedGroup = normalizeExplodingSettings(updatedGroup, true);
+    } else if (updatedGroup.explodes && (field === 'faces' || field === 'customFaces')) {
+      updatedGroup = normalizeExplodingSettings(updatedGroup, true);
+    }
+
+    newGroups[index] = updatedGroup;
     updateData({ diceGroups: newGroups });
+  };
+
+  const toggleExplodeFace = (index: number, face: string) => {
+    const group = diceGroups[index];
+    const selected = getSelectedExplodeFaces(group);
+    const nextSelected = selected.includes(face)
+      ? selected.filter(selectedFace => selectedFace !== face)
+      : [...selected, face];
+
+    updateDiceGroup(index, 'explodeOn', nextSelected);
   };
 
   const updateDiceGroupAutomation = (index: number, updates: Pick<Partial<DiceGroup>, 'countLabel' | 'countFormula'>) => {
@@ -115,16 +183,16 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     if (customFacesModal.groupIndex >= 0) {
       const newGroups = [...diceGroups];
       if (customFacesModal.faces.length > 0) {
-        newGroups[customFacesModal.groupIndex] = { 
+        newGroups[customFacesModal.groupIndex] = normalizeExplodingSettings({ 
           ...newGroups[customFacesModal.groupIndex], 
           customFaces: customFacesModal.faces,
           customDiceName: customFacesModal.diceName.trim() || undefined,
           faces: customFacesModal.faces.length // Update faces count to match custom faces
-        };
+        }, true);
       } else {
         // Remove customFaces if empty
         const { customFaces, customDiceName, ...rest } = newGroups[customFacesModal.groupIndex];
-        newGroups[customFacesModal.groupIndex] = rest as DiceGroup;
+        newGroups[customFacesModal.groupIndex] = normalizeExplodingSettings(rest as DiceGroup, true);
       }
       updateData({ diceGroups: newGroups });
     }
@@ -145,7 +213,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   const clearCustomFaces = (index: number) => {
     const newGroups = [...diceGroups];
     const { customFaces, customDiceName, ...rest } = newGroups[index];
-    newGroups[index] = { ...rest, faces: 6 } as DiceGroup; // Reset to d6
+    newGroups[index] = normalizeExplodingSettings({ ...rest, faces: 6 } as DiceGroup, true); // Reset to d6
     updateData({ diceGroups: newGroups });
   };
 
@@ -199,6 +267,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                 onFormulaChange={(f) => updateDiceGroupAutomation(index, { countFormula: f })}
                 min={1}
                 compact
+                hideStepperButtons
                 renderRow={({ controls }) => (
                   <div className="flex items-center gap-2 flex-wrap">
                     {controls}
@@ -209,7 +278,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                       value={group.faces}
                       onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                       onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
+                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       disabled={!!group.customFaces?.length}
                       title={group.customFaces?.length ? 'Faces set by custom faces' : ''}
                     />
@@ -233,6 +302,15 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                         </button>
                       </Tooltip>
                     ) : null}
+                      <label className="inline-flex h-7 items-center gap-1 px-2 border border-theme-border rounded-button text-xs text-theme-ink hover:border-theme-accent cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!group.explodes}
+                          onChange={(e) => updateDiceGroup(index, 'explodes', e.target.checked)}
+                          className="w-3 h-3 border border-theme-border rounded bg-theme-paper text-theme-accent focus:ring-theme-accent"
+                        />
+                        <span>Explode</span>
+                      </label>
                     {diceGroups.length > 1 && (
                       <button
                         onClick={() => removeDiceGroup(index)}
@@ -251,6 +329,40 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                   {group.customFaces.map((face, i) => (
                     <span key={i} className="bg-theme-border/30 px-1 rounded">{face}</span>
                   ))}
+                </div>
+              ) : null}
+              {group.explodes ? (
+                <div className="ml-2 flex flex-wrap items-start gap-2 text-xs">
+                  <details className="relative">
+                    <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:border-theme-accent">
+                      Triggers: {describeExplodeFaces(group)}
+                    </summary>
+                    <div className="mt-1 w-44 max-h-36 overflow-y-auto border border-theme-border rounded-button bg-theme-paper p-1 shadow-sm">
+                      {getFaceOptions(group).map(face => (
+                        <label
+                          key={face}
+                          className="flex items-center gap-2 px-2 py-1 rounded text-theme-ink hover:bg-theme-border/30 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={getSelectedExplodeFaces(group).includes(face)}
+                            onChange={() => toggleExplodeFace(index, face)}
+                            className="w-3 h-3 border border-theme-border rounded bg-theme-paper text-theme-accent focus:ring-theme-accent"
+                          />
+                          <span className="truncate">{face}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                  <label className="inline-flex items-center gap-1 px-2 py-1 border border-theme-border rounded-button text-theme-ink hover:border-theme-accent cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={group.explodeAgain ?? true}
+                      onChange={(e) => updateDiceGroup(index, 'explodeAgain', e.target.checked)}
+                      className="w-3 h-3 border border-theme-border rounded bg-theme-paper text-theme-accent focus:ring-theme-accent"
+                    />
+                    <span>Chain explosions</span>
+                  </label>
                 </div>
               ) : null}
             </div>
