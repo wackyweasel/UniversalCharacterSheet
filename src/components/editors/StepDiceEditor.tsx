@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { StepDiceItem } from '../../types';
+import { DiceStep, formatDiceStep, normalizeDiceExpression } from '../../utils/diceExpression';
 import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
 
-const DEFAULT_DICE_CHAIN = [4, 6, 8, 10, 12, 20];
+const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
 export function StepDiceEditor({ widget, updateData }: EditorProps) {
   const { label, stepDiceItems = [], stepDiceChain } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [newItemName, setNewItemName] = useState('');
-  const [newDieFaces, setNewDieFaces] = useState('');
+  const [newDiceExpression, setNewDiceExpression] = useState('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
+  const normalizedNewDiceExpression = normalizeDiceExpression(newDiceExpression);
 
   const addItem = (name: string) => {
     if (name.trim()) {
@@ -51,19 +53,11 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
     updateData({ stepDiceItems: updated });
   };
 
-  const insertDie = (faces: number) => {
-    // Find sorted insertion index
-    let insertIdx = diceChain.length;
-    for (let i = 0; i < diceChain.length; i++) {
-      if (faces <= diceChain[i]) { insertIdx = i; break; }
-    }
-    const newChain = [...diceChain.slice(0, insertIdx), faces, ...diceChain.slice(insertIdx)];
-    // Shift item currentStep values for items at or after the insertion point
-    const adjustedItems = stepDiceItems.map((item: StepDiceItem) => ({
-      ...item,
-      currentStep: item.currentStep >= insertIdx ? item.currentStep + 1 : item.currentStep,
-    }));
-    updateData({ stepDiceChain: newChain, stepDiceItems: adjustedItems });
+  const addDiceStep = () => {
+    if (!normalizedNewDiceExpression) return;
+
+    updateData({ stepDiceChain: [...diceChain, normalizedNewDiceExpression] });
+    setNewDiceExpression('');
   };
 
   // Drag-and-drop handlers
@@ -126,14 +120,14 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Dice Chain</label>
         <div className="flex flex-wrap items-center gap-1 mb-2">
-          {diceChain.map((d: number, idx: number) => (
+          {diceChain.map((step: DiceStep, idx: number) => (
             <React.Fragment key={idx}>
               {idx > 0 && <span className="text-theme-muted text-xs">→</span>}
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink">
-                d{d}
+                {formatDiceStep(step)}
                 <button
                   onClick={() => {
-                    const updated = diceChain.filter((_: number, i: number) => i !== idx);
+                    const updated = diceChain.filter((_: DiceStep, i: number) => i !== idx);
                     // Clamp trait steps that are now out of range
                     const clampedItems = stepDiceItems.map((item: StepDiceItem) => ({
                       ...item,
@@ -150,35 +144,22 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
           ))}
         </div>
         <div className="flex gap-2 items-center">
-          <span className="text-xs text-theme-muted">d</span>
           <input
-            type="number"
-            min={2}
-            className="w-16 px-2 py-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={newDieFaces}
-            onChange={(e) => setNewDieFaces(e.target.value)}
-            placeholder="#"
+            className="w-40 px-2 py-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            value={newDiceExpression}
+            onChange={(e) => setNewDiceExpression(e.target.value)}
+            placeholder="2d6 or 1d12 + 1d20 - 2"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                const faces = parseInt(newDieFaces);
-                if (faces >= 2) {
-                  insertDie(faces);
-                  setNewDieFaces('');
-                }
+                addDiceStep();
               }
             }}
           />
           <button
             type="button"
-            onClick={() => {
-              const faces = parseInt(newDieFaces);
-              if (faces >= 2) {
-                insertDie(faces);
-                setNewDieFaces('');
-              }
-            }}
-            disabled={!newDieFaces || parseInt(newDieFaces) < 2}
+            onClick={addDiceStep}
+            disabled={!normalizedNewDiceExpression}
             className="px-2 py-1 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-xs"
           >
             Add Step
@@ -240,8 +221,8 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
                   value={item.currentStep}
                   onChange={(e) => updateItemStep(i, parseInt(e.target.value))}
                 >
-                  {diceChain.map((d: number, idx: number) => (
-                    <option key={idx} value={idx}>d{d}</option>
+                  {diceChain.map((step: DiceStep, idx: number) => (
+                    <option key={idx} value={idx}>{formatDiceStep(step)}</option>
                   ))}
                 </select>
 

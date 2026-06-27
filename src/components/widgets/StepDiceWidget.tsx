@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Widget, StepDiceItem } from '../../types';
+import { DiceStep, formatDiceRollDetail, formatDiceStep, parseDiceStep, rollDiceExpression, DiceExpressionRollResult } from '../../utils/diceExpression';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
@@ -11,14 +12,14 @@ interface Props {
   height: number;
 }
 
-const DEFAULT_DICE_CHAIN = [4, 6, 8, 10, 12, 20];
+const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
 export default function StepDiceWidget({ widget, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, stepDiceItems = [], stepDiceChain } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
-  const [lastResults, setLastResults] = useState<Record<number, number>>({});
+  const [lastResults, setLastResults] = useState<Record<number, DiceExpressionRollResult>>({});
 
   const stepUp = (index: number) => {
     const items = [...stepDiceItems] as StepDiceItem[];
@@ -38,17 +39,24 @@ export default function StepDiceWidget({ widget, mode }: Props) {
 
   const rollDie = (index: number) => {
     const item = stepDiceItems[index];
-    const faces = diceChain[item.currentStep];
+    const expression = formatDiceStep(diceChain[item.currentStep]);
+    if (!parseDiceStep(diceChain[item.currentStep])) return;
+
     setRollingIndex(index);
 
     setTimeout(() => {
-      const result = Math.floor(Math.random() * faces) + 1;
+      const result = rollDiceExpression(expression);
+      if (!result) {
+        setRollingIndex(null);
+        return;
+      }
+
       setLastResults(prev => ({ ...prev, [index]: result }));
       setRollingIndex(null);
       addTimelineEvent(
         label || 'Step Dice',
         'STEP_DICE',
-        `${item.name}: d${faces} → ${result}`,
+        `${item.name}: ${formatDiceRollDetail(result)}`,
         '🎲'
       );
     }, 300);
@@ -73,7 +81,8 @@ export default function StepDiceWidget({ widget, mode }: Props) {
         <div className="text-xs font-bold text-theme-ink font-heading truncate mb-0.5">{label}</div>
       )}
       {stepDiceItems.map((item: StepDiceItem, i: number) => {
-        const faces = diceChain[item.currentStep];
+        const expression = formatDiceStep(diceChain[item.currentStep]);
+        const isValidExpression = !!parseDiceStep(diceChain[item.currentStep]);
         const isAtMin = item.currentStep === 0;
         const isAtMax = item.currentStep === diceChain.length - 1;
         const isRolling = rollingIndex === i;
@@ -101,13 +110,14 @@ export default function StepDiceWidget({ widget, mode }: Props) {
             {mode !== 'print' ? (
               <button
                 onClick={() => rollDie(i)}
-                className={`min-w-[44px] h-6 px-1.5 flex items-center justify-center text-xs font-bold rounded-button border border-theme-border text-theme-ink hover:bg-theme-accent hover:text-white transition-colors flex-shrink-0 ${isRolling ? 'animate-pulse bg-theme-accent/20' : ''}`}
+                disabled={!isValidExpression}
+                className={`min-w-[52px] max-w-[112px] h-6 px-1.5 flex items-center justify-center text-xs font-bold rounded-button border border-theme-border text-theme-ink hover:bg-theme-accent hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-theme-ink transition-colors flex-shrink-0 truncate ${isRolling ? 'animate-pulse bg-theme-accent/20' : ''}`}
               >
-                d{faces}
+                {expression}
               </button>
             ) : (
-              <span className="min-w-[44px] h-6 px-1.5 flex items-center justify-center text-xs font-bold text-theme-ink flex-shrink-0">
-                d{faces}
+              <span className="min-w-[52px] max-w-[112px] h-6 px-1.5 flex items-center justify-center text-xs font-bold text-theme-ink flex-shrink-0 truncate">
+                {expression}
               </span>
             )}
 
@@ -124,8 +134,8 @@ export default function StepDiceWidget({ widget, mode }: Props) {
 
             {/* Result */}
             {result !== undefined && mode !== 'print' && (
-              <div className="min-w-[24px] text-center text-xs font-bold text-theme-accent flex-shrink-0">
-                {isRolling ? '…' : result}
+              <div className="min-w-[24px] text-center text-xs font-bold text-theme-accent flex-shrink-0" title={formatDiceRollDetail(result)}>
+                {isRolling ? '…' : result.total}
               </div>
             )}
           </div>

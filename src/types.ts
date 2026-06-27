@@ -1,3 +1,5 @@
+import type { DiceStep } from './utils/diceExpression';
+
 export type WidgetType = 
   | 'NUMBER' 
   | 'NUMBER_DISPLAY'
@@ -268,7 +270,7 @@ export interface WidgetData {
   timerDuration?: number;      // Duration in milliseconds (for countdown mode)
   // Step Dice
   stepDiceItems?: StepDiceItem[];  // Array of step dice traits
-  stepDiceChain?: number[];        // Custom dice chain (default: [4,6,8,10,12,20])
+  stepDiceChain?: DiceStep[];      // Custom dice chain (default: [1d4,1d6,1d8,1d10,1d12,1d20])
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
@@ -286,7 +288,7 @@ export interface TimedEffect {
 
 export interface StepDiceItem {
   name: string;
-  currentStep: number;  // Index into the dice chain (0 = d4, 1 = d6, ...)
+  currentStep: number;  // Index into the dice chain
   tooltip?: string;
 }
 
