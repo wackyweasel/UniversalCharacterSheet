@@ -120,6 +120,14 @@ export function useTouchCamera({
       return false;
     };
 
+    const hasTouchOnIgnoredControl = (): boolean => {
+      for (const [touchId, target] of touchStartTargets.current.entries()) {
+        if (!activeTouches.current.has(touchId)) continue;
+        if (target && isOnTouchCameraIgnoredControl(target)) return true;
+      }
+      return false;
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       const eventTarget = e.target as Element | null;
 
@@ -135,7 +143,7 @@ export function useTouchCamera({
       
       const touchStartTarget = getActiveTouchStartTarget();
 
-      if (hasTouchOnSidebar()) {
+      if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) {
         return;
       }
       
@@ -193,7 +201,7 @@ export function useTouchCamera({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (hasTouchOnSidebar()) {
+      if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) {
         return;
       }
       

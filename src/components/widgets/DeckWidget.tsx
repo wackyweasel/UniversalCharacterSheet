@@ -31,9 +31,11 @@ function PileModal({ title, cards, onClose, showCounts = false, onReturnCard }: 
 
   return createPortal(
     <div 
+      data-touch-camera-ignore="true"
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
       onMouseDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
     >
       <div 
         className="bg-theme-paper border-2 border-theme-border rounded-button p-4 max-w-sm w-full max-h-[60vh] flex flex-col shadow-xl"
@@ -52,7 +54,7 @@ function PileModal({ title, cards, onClose, showCounts = false, onReturnCard }: 
         {cards.length === 0 ? (
           <p className="text-theme-muted text-sm italic">No cards</p>
         ) : (
-          <div className="overflow-y-auto flex-1 space-y-1">
+          <div className="overflow-y-auto overscroll-contain flex-1 space-y-1">
             {showCounts ? (
               // Show unique cards with counts (for draw pile)
               uniqueCards.map(([card, count], idx) => (
