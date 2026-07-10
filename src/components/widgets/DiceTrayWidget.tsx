@@ -25,6 +25,7 @@ interface RollResultItem {
 
 interface RollResult {
   dice: RollResultItem[];
+  modifier: number;
   total: number | null; // null if no numeric results
   aggregatedResults: AggregatedResult[];
 }
@@ -42,7 +43,7 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export default function DiceTrayWidget({ widget }: Props) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20], showIndividualResults = false } = widget.data;
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, showIndividualResults = false } = widget.data;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -184,9 +185,9 @@ export default function DiceTrayWidget({ widget }: Props) {
       
       const aggregated = aggregateResults(allRolls);
       const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? numericResult.numericTotal || 0 : null;
+      const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
       
-      setResult({ dice: rolls, total, aggregatedResults: aggregated });
+      setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
       setIsRolling(false);
       setLastRolledPool([...dicePool]);
       setDicePool([]);
@@ -223,20 +224,14 @@ export default function DiceTrayWidget({ widget }: Props) {
         
         const aggregated = aggregateResults(allRolls);
         const numericResult = aggregated.find(r => r.isNumeric);
-        const total = numericResult ? numericResult.numericTotal || 0 : null;
+        const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
         
-        setResult({ dice: rolls, total, aggregatedResults: aggregated });
+        setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
         setIsRolling(false);
         setDicePool([]);
 
         // Timeline event
-        const notationParts: string[] = [];
-        const stdDice: Record<number, number> = {};
-        for (const die of lastRolledPool) {
-          if (!Array.isArray(die.faces)) stdDice[die.faces] = (stdDice[die.faces] || 0) + 1;
-        }
-        Object.entries(stdDice).forEach(([f, c]) => notationParts.push(`${c}d${f}`));
-        const rerollNotation = notationParts.join(' + ') || 'dice';
+        const rerollNotation = buildPoolNotation(lastRolledPool, modifier);
         const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
         addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
       }, 300);
@@ -270,9 +265,9 @@ export default function DiceTrayWidget({ widget }: Props) {
       const allRolls = newDice.map(d => d.roll);
       const aggregated = aggregateResults(allRolls);
       const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? numericResult.numericTotal || 0 : null;
+      const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
       
-      setResult({ dice: newDice, total, aggregatedResults: aggregated });
+      setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
       
       // Timeline event for single die reroll
       const dieFacesLabel = Array.isArray(dieToReroll.faces)
@@ -293,11 +288,11 @@ export default function DiceTrayWidget({ widget }: Props) {
   };
 
   // Group dice in pool by type for display
-  const buildPoolNotation = () => {
+  const buildPoolNotation = (pool: DiceInPool[] = dicePool, poolModifier: number = modifier) => {
     const standardDice: Record<number, number> = {};
     const customDice: Record<string, number> = {};
     
-    for (const die of dicePool) {
+    for (const die of pool) {
       if (Array.isArray(die.faces)) {
         const name = die.customDieName || 'custom';
         customDice[name] = (customDice[name] || 0) + 1;
@@ -320,7 +315,11 @@ export default function DiceTrayWidget({ widget }: Props) {
       parts.push(count > 1 ? `${count}× ${name}` : name);
     });
     
-    return parts.length > 0 ? parts.join(' + ') : 'Empty';
+    let notation = parts.length > 0 ? parts.join(' + ') : 'Empty';
+    if (poolModifier !== 0) {
+      notation += poolModifier >= 0 ? ` + ${poolModifier}` : ` - ${Math.abs(poolModifier)}`;
+    }
+    return notation;
   };
 
   // Format the aggregated result for display
@@ -329,14 +328,18 @@ export default function DiceTrayWidget({ widget }: Props) {
     
     // If showing individual results, display all dice separately
     if (showIndividualResults) {
-      return result.dice.map(d => String(d.roll)).join(', ');
+      const rolls = result.dice.map(d => String(d.roll));
+      if (result.modifier !== 0) {
+        rolls.push(result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier));
+      }
+      return rolls.join(', ');
     }
     
     const parts: string[] = [];
     
     for (const agg of result.aggregatedResults) {
       if (agg.isNumeric) {
-        parts.push(String(agg.numericTotal || 0));
+        parts.push(String((agg.numericTotal || 0) + (result.modifier || 0)));
       } else {
         parts.push(`${agg.count}${agg.value}`);
       }
@@ -433,44 +436,66 @@ export default function DiceTrayWidget({ widget }: Props) {
       </div>
 
       {/* Result Display */}
-      <div className={`text-center flex-shrink-0`}>
+      <div
+        className={`text-center flex-1 min-h-0 overflow-y-auto`}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {result && !isRolling ? (
-          <>
-            {/* Show aggregated result for mixed/custom dice, or just total for standard */}
-            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-              {showIndividualResults || hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
-            </div>
-            {/* Individual dice - clickable to re-roll */}
-            {!showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5`}>
-                {result.dice.map((d, i) => (
-                  <span key={d.id} className="inline-flex items-center">
-                    {i > 0 && <span className="mx-0.5">+</span>}
-                    <Tooltip content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
+          showIndividualResults ? (
+            <div className="flex flex-col gap-0.5">
+              {result.dice.map((d, i) => {
+                const dieLabel = Array.isArray(d.faces)
+                  ? (d.customDieName || 'custom')
+                  : `d${d.faces}`;
+                return (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between gap-1 px-1 py-0.5 border-b border-theme-border/30 last:border-b-0"
+                  >
+                    <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>{dieLabel}</span>
+                    <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
+                      {String(d.roll)}
+                    </span>
+                    <Tooltip content={`Re-roll ${dieLabel}`}>
                       <button
                         onClick={() => rerollSingleDie(i)}
                         onMouseDown={(e) => e.stopPropagation()}
                         disabled={rerollingDieId !== null}
-                        className={`
-                          px-1 py-0.5 rounded transition-all
-                          hover:bg-theme-accent hover:text-theme-paper
-                          focus:outline-none focus:ring-1 focus:ring-theme-accent
-                          ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
-                          cursor-pointer
-                        `}
+                        className={`p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0 ${
+                          rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''
+                        }`}
+                        aria-label={`Re-roll ${dieLabel}`}
                       >
-                        {d.roll}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
                       </button>
                     </Tooltip>
+                  </div>
+                );
+              })}
+              {result.modifier !== 0 && (
+                <div className="flex items-center justify-between gap-1 px-1 py-0.5">
+                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>mod</span>
+                  <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center`}>
+                    {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
                   </span>
-                ))}
-              </div>
-            )}
-            {/* Individual dice for showIndividualResults mode - also clickable */}
-            {showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5 mt-1`}>
-                {result.dice.map((d, i) => (
-                  <Tooltip key={d.id} content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
+                  <span className="w-[18px] flex-shrink-0" />
+                </div>
+              )}
+            </div>
+          ) : (
+          <>
+            {/* Show aggregated result for mixed/custom dice, or just total for standard */}
+            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
+              {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+            </div>
+            {/* Individual dice - clickable to re-roll */}
+            <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5`}>
+              {result.dice.map((d, i) => (
+                <span key={d.id} className="inline-flex items-center">
+                  {i > 0 && <span className="mx-0.5">+</span>}
+                  <Tooltip content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
                     <button
                       onClick={() => rerollSingleDie(i)}
                       onMouseDown={(e) => e.stopPropagation()}
@@ -483,14 +508,15 @@ export default function DiceTrayWidget({ widget }: Props) {
                         cursor-pointer
                       `}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+                      {d.roll}
                     </button>
                   </Tooltip>
-                ))}
-              </div>
-            )}
+                </span>
+              ))}
+              {result.modifier !== 0 && (
+                <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+              )}
+            </div>
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.dice.length === 1 && 
              typeof result.dice[0].faces === 'number' && 
@@ -505,6 +531,7 @@ export default function DiceTrayWidget({ widget }: Props) {
               </>
             )}
           </>
+          )
         ) : (
           <>
             <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>

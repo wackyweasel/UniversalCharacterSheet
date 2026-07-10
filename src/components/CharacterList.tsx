@@ -5,14 +5,24 @@ import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStor
 import { useTemplateStore, AnyTemplate } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { TelemetryEventInput, useTelemetryStore } from '../store/useTelemetryStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { getPresetNames, getPreset } from '../presets';
+import { getPresetNames, getPreset, TUTORIAL_PRESET } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
+import { stripImages } from '../utils/stripImages';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
+
+const TUTORIAL_DESCRIPTIONS = {
+  basic: 'Create a character, add widgets, edit a widget, and learn camera controls.',
+  themes: 'Try built-in themes, create a custom theme, and share it with the community.',
+  templates: 'Save widgets and groups as templates, load them later, and share them.',
+  automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',
+  various: 'Tour gallery sharing and downloads, backup, feedback, print, vertical view, timeline, and sheets.',
+};
 
 // Get initial dark mode preference from localStorage or OS
 function getInitialDarkMode(): boolean {
@@ -97,18 +107,35 @@ export default function CharacterList() {
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
   const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const createTransientCharacter = useStore((state) => state.createTransientCharacter);
+  const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
+  const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const importCharacter = useStore((state) => state.importCharacter);
   const duplicateCharacter = useStore((state) => state.duplicateCharacter);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
+  const setMode = useStore((state) => state.setMode);
+  const transientCharacterIds = useStore((state) => state.transientCharacterIds);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Tutorial state from store
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const startTutorial = useTutorialStore((state) => state.startTutorial);
+  const startThemesTutorial = useTutorialStore((state) => state.startThemesTutorial);
+  const startTemplatesTutorial = useTutorialStore((state) => state.startTemplatesTutorial);
+  const startAutomationTutorial = useTutorialStore((state) => state.startAutomationTutorial);
+  const startVariousTutorial = useTutorialStore((state) => state.startVariousTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  const recordCharacterListEvent = (event: TelemetryEventInput) => {
+    if (tutorialActiveOnPage) return;
+    if (event.characterId && transientCharacterIds.includes(event.characterId)) return;
+    recordTelemetryEvent(event);
+  };
   
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
@@ -128,7 +155,19 @@ export default function CharacterList() {
   const [presetToDelete, setPresetToDelete] = useState<UserPreset | null>(null);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [rawDataCharacter, setRawDataCharacter] = useState<Character | null>(null);
+  const [rawDataCopied, setRawDataCopied] = useState(false);
+  const [excludeImages, setExcludeImages] = useState(false);
+  const [showImportDropdown, setShowImportDropdown] = useState(false);
+  const [showTutorialDropdown, setShowTutorialDropdown] = useState(false);
+  const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
+  const [showRawImportModal, setShowRawImportModal] = useState(false);
+  const [rawImportValue, setRawImportValue] = useState('');
   const presetDropdownRef = useRef<HTMLDivElement>(null);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
+  const tutorialDropdownRef = useRef<HTMLDivElement>(null);
+  const automationLoadHandledRef = useRef(false);
+  const variousLoadHandledRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -136,11 +175,25 @@ export default function CharacterList() {
   
   const presetNames = getPresetNames();
 
+  const tutorialOptionClass = (mobile = false) => `w-full px-4 py-3 ${mobile ? 'pl-12 ' : ''}text-left text-sm font-body flex items-center gap-3 transition-colors ${
+    mobile ? 'sm:hidden ' : ''
+  }${
+    darkMode 
+      ? 'text-white hover:bg-white/10' 
+      : 'text-gray-700 hover:bg-gray-100'
+  }`;
+
   // Toggle dark mode and persist to localStorage
   const toggleDarkMode = () => {
     setDarkMode((prev) => {
       const newValue = !prev;
       localStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
+      recordCharacterListEvent({
+        eventName: 'app_dark_mode_changed',
+        category: 'app',
+        source: 'header_menu',
+        metadata: { enabled: newValue },
+      });
       return newValue;
     });
   };
@@ -148,28 +201,156 @@ export default function CharacterList() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if ((event.target as HTMLElement).closest('[data-tutorial-bubble="true"]')) {
+        return;
+      }
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setOpenDropdown(null);
       }
       if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
         setShowHeaderMenu(false);
+        setShowMobileTutorialOptions(false);
       }
       if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target as Node)) {
         setShowPresetDropdown(false);
       }
+      if (importDropdownRef.current && !importDropdownRef.current.contains(event.target as Node)) {
+        setShowImportDropdown(false);
+      }
+      if (tutorialDropdownRef.current && !tutorialDropdownRef.current.contains(event.target as Node)) {
+        setShowTutorialDropdown(false);
+      }
     };
     
-    if (openDropdown || showHeaderMenu || showPresetDropdown) {
+    if (openDropdown || showHeaderMenu || showPresetDropdown || showImportDropdown || showTutorialDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [openDropdown, showHeaderMenu]);
+  }, [openDropdown, showHeaderMenu, showPresetDropdown, showImportDropdown, showTutorialDropdown]);
+
+  const handleStartBasicTutorial = () => {
+    cleanupTransientCharacters();
+    startTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  const handleStartThemesTutorial = () => {
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('edit');
+    startThemesTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  const handleStartTemplatesTutorial = () => {
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('edit');
+    startTemplatesTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  const handleStartAutomationTutorial = () => {
+    cleanupTransientCharacters();
+    automationLoadHandledRef.current = false;
+    startAutomationTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  const handleStartVariousTutorial = () => {
+    cleanupTransientCharacters();
+    variousLoadHandledRef.current = false;
+    startVariousTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  useEffect(() => {
+    if (tutorialStep === null || TUTORIAL_STEPS[tutorialStep]?.id !== 'automation-load-character') return;
+    if (automationLoadHandledRef.current) return;
+
+    automationLoadHandledRef.current = true;
+
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('edit');
+    advanceTutorial();
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, advanceTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('various-open-gallery')) {
+      setShowGallery(false);
+      setShowBackupModal(false);
+      setShowHeaderMenu(window.innerWidth < 640);
+      setShowMobileTutorialOptions(false);
+    }
+
+    if (isCurrentTutorialStep('various-gallery-concepts') || isCurrentTutorialStep('various-gallery-manage') || isCurrentTutorialStep('various-gallery-download')) {
+      setShowGallery(true);
+      setShowBackupModal(false);
+      setShowHeaderMenu(false);
+    }
+
+    if (isCurrentTutorialStep('various-open-backup')) {
+      setShowGallery(false);
+      setShowBackupModal(false);
+      setShowHeaderMenu(window.innerWidth < 640);
+      setShowMobileTutorialOptions(false);
+    }
+
+    if (isCurrentTutorialStep('various-feedback')) {
+      setShowGallery(false);
+      setShowBackupModal(false);
+      setShowHeaderMenu(true);
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    if (!isCurrentTutorialStep('various-print-mode')) return;
+    if (variousLoadHandledRef.current) return;
+
+    variousLoadHandledRef.current = true;
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('play');
+    setShowHeaderMenu(false);
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode]);
 
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
+    const isBasicTutorialCreateStep = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
     
     if (selectedPreset && selectedPreset !== '') {
       // Check if it's a user preset
@@ -177,7 +358,11 @@ export default function CharacterList() {
         const userPresetId = selectedPreset.replace('user:', '');
         const userPreset = userPresets.find(p => p.id === userPresetId);
         if (userPreset) {
-          createCharacterFromPreset(userPreset.preset, name);
+          if (isBasicTutorialCreateStep) {
+            createTransientCharacterFromPreset(userPreset.preset, name);
+          } else {
+            createCharacterFromPreset(userPreset.preset, name, 'user_preset');
+          }
           const state = useStore.getState();
           const newChar = state.characters[state.characters.length - 1];
           // Use the preset's stored theme if available, otherwise use the selected theme
@@ -190,7 +375,11 @@ export default function CharacterList() {
         // Create from built-in preset
         const preset = getPreset(selectedPreset);
         if (preset) {
-          createCharacterFromPreset(preset, name);
+          if (isBasicTutorialCreateStep) {
+            createTransientCharacterFromPreset(preset, name);
+          } else {
+            createCharacterFromPreset(preset, name, 'builtin_preset');
+          }
           // Get the newly created character and update its theme
           // Since the preset might have its own theme, we override it with the selected one
           const state = useStore.getState();
@@ -202,7 +391,11 @@ export default function CharacterList() {
       }
     } else {
       // Create blank character
-      createCharacter(name);
+      if (isBasicTutorialCreateStep) {
+        createTransientCharacter(name);
+      } else {
+        createCharacter(name);
+      }
       // Update theme if not default
       const state = useStore.getState();
       const newChar = state.characters[state.characters.length - 1];
@@ -229,6 +422,17 @@ export default function CharacterList() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    recordCharacterListEvent({
+      eventName: 'character_exported_json',
+      category: 'character',
+      characterId: char.id,
+      sheetId: char.activeSheetId,
+      source: 'character_menu',
+      metadata: {
+        sheetCount: char.sheets.length,
+        widgetCount: char.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+      },
+    });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,7 +448,7 @@ export default function CharacterList() {
           alert('Invalid character file format');
           return;
         }
-        importCharacter(character);
+        importCharacter(character, 'json_file');
       } catch (err) {
         alert('Failed to parse character file');
         console.error(err);
@@ -278,6 +482,16 @@ export default function CharacterList() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    recordCharacterListEvent({
+      eventName: 'backup_exported',
+      category: 'app',
+      source: 'backup_modal',
+      metadata: {
+        characterCount: characters.length,
+        templateCount: templates.length,
+        userPresetCount: userPresets.length,
+      },
+    });
   };
 
   const handleRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -328,9 +542,20 @@ export default function CharacterList() {
         if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
           localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
         }
+
+        recordCharacterListEvent({
+          eventName: 'backup_restored',
+          category: 'app',
+          source: 'backup_modal',
+          metadata: {
+            characterCount: backupData.characters.length,
+            templateCount,
+            userPresetCount,
+          },
+        });
         
         // Reload the page to apply changes
-        window.location.reload();
+        window.setTimeout(() => window.location.reload(), 250);
       } catch (err) {
         alert('Failed to parse backup file');
         console.error(err);
@@ -357,12 +582,18 @@ export default function CharacterList() {
             {/* Gallery Button */}
             <Tooltip content="Community Gallery">
               <button
-                onClick={() => setShowGallery(true)}
+                onClick={() => {
+                  setShowGallery(true);
+                  if (isCurrentTutorialStep('various-open-gallery')) {
+                    advanceTutorial();
+                  }
+                }}
+                data-tutorial="gallery-button"
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-                }`}
+                } ${isCurrentTutorialStep('various-open-gallery') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -371,30 +602,95 @@ export default function CharacterList() {
               </button>
             </Tooltip>
             {/* Tutorial Button */}
-            <Tooltip content="Start Tutorial">
-              <button
-                onClick={startTutorial}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                  darkMode 
-                    ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                <span>Tutorial</span>
-              </button>
-            </Tooltip>
+            <div className="relative" ref={tutorialDropdownRef}>
+              <Tooltip content="Tutorials">
+                <button
+                  onClick={() => {
+                    setShowTutorialDropdown((current) => !current);
+                    setShowHeaderMenu(false);
+                    setShowMobileTutorialOptions(false);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                    darkMode 
+                      ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>Tutorials</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showTutorialDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </Tooltip>
+              {showTutorialDropdown && (
+                <div 
+                  className={`absolute right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
+                    darkMode 
+                      ? 'bg-black border border-white/30' 
+                      : 'bg-white border border-gray-300'
+                  }`}
+                >
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.basic} placement="left">
+                    <button onClick={handleStartBasicTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span>Basic</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.themes} placement="left">
+                    <button onClick={handleStartThemesTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.486M7 17h.01" />
+                      </svg>
+                      <span>Themes</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.templates} placement="left">
+                    <button onClick={handleStartTemplatesTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2m-4 4V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6m6 0H7" />
+                      </svg>
+                      <span>Templates</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.automation} placement="left">
+                    <button onClick={handleStartAutomationTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span>Automation</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.various} placement="left">
+                    <button onClick={handleStartVariousTutorial} className={tutorialOptionClass()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      <span>Various</span>
+                    </button>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
             {/* Backup Button */}
             <Tooltip content="Backup &amp; Restore">
               <button
-                onClick={() => setShowBackupModal(true)}
+                onClick={() => {
+                  setShowBackupModal(true);
+                  if (isCurrentTutorialStep('various-open-backup')) {
+                    advanceTutorial();
+                  }
+                }}
+                data-tutorial="backup-button"
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-                }`}
+                } ${isCurrentTutorialStep('various-open-backup') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -408,7 +704,11 @@ export default function CharacterList() {
           <div className="relative" ref={headerMenuRef}>
             <Tooltip content="Menu">
               <button
-                onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+                onClick={() => {
+                  setShowHeaderMenu((current) => !current);
+                  setShowTutorialDropdown(false);
+                  setShowMobileTutorialOptions(false);
+                }}
                 className={`flex items-center justify-center px-2 py-2 rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                   darkMode 
                     ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
@@ -424,7 +724,7 @@ export default function CharacterList() {
             {/* Dropdown menu */}
             {showHeaderMenu && (
               <div 
-                className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 ${
+                className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
                   darkMode 
                     ? 'bg-black border border-white/30' 
                     : 'bg-white border border-gray-300'
@@ -456,12 +756,18 @@ export default function CharacterList() {
                 <button
                   onClick={() => {
                     setShowGallery(true);
+                    if (isCurrentTutorialStep('various-open-gallery')) {
+                      advanceTutorial();
+                    }
                     setShowHeaderMenu(false);
                   }}
+                  data-tutorial="gallery-button-mobile"
                   className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                    darkMode 
-                      ? 'text-white hover:bg-white/10' 
-                      : 'text-gray-700 hover:bg-gray-100'
+                    isCurrentTutorialStep('various-open-gallery')
+                      ? 'bg-blue-500 text-white font-bold'
+                      : darkMode 
+                        ? 'text-white hover:bg-white/10' 
+                        : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -472,8 +778,7 @@ export default function CharacterList() {
                 {/* Tutorial - only in mobile menu */}
                 <button
                   onClick={() => {
-                    startTutorial();
-                    setShowHeaderMenu(false);
+                    setShowMobileTutorialOptions((current) => !current);
                   }}
                   className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
@@ -484,17 +789,74 @@ export default function CharacterList() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  <span>Tutorial</span>
+                  <span>Tutorials</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`ml-auto h-4 w-4 transition-transform ${showMobileTutorialOptions ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+                {showMobileTutorialOptions && (
+                  <>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.basic} placement="left">
+                      <button onClick={handleStartBasicTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
+                        </svg>
+                        <span>Basic</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.themes} placement="left">
+                      <button onClick={handleStartThemesTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.486M7 17h.01" />
+                        </svg>
+                        <span>Themes</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.templates} placement="left">
+                      <button onClick={handleStartTemplatesTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2m-4 4V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6m6 0H7" />
+                        </svg>
+                        <span>Templates</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.automation} placement="left">
+                      <button onClick={handleStartAutomationTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span>Automation</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.various} placement="left">
+                      <button onClick={handleStartVariousTutorial} className={tutorialOptionClass(true)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <span>Various</span>
+                      </button>
+                    </Tooltip>
+                  </>
+                )}
                 <a
                   href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowHeaderMenu(false)}
+                  onClick={() => {
+                    recordCharacterListEvent({
+                      eventName: 'external_feedback_opened',
+                      category: 'app',
+                      source: 'header_menu',
+                    });
+                    setShowHeaderMenu(false);
+                  }}
+                  data-tutorial="feedback-button"
                   className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                    darkMode 
-                      ? 'text-white hover:bg-white/10' 
-                      : 'text-gray-700 hover:bg-gray-100'
+                    isCurrentTutorialStep('various-feedback')
+                      ? 'bg-blue-500 text-white font-bold'
+                      : darkMode 
+                        ? 'text-white hover:bg-white/10' 
+                        : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -502,15 +864,44 @@ export default function CharacterList() {
                   </svg>
                   <span>Feedback</span>
                 </a>
-                <button
+                <a
+                  href="https://www.reddit.com/r/UniversalCharSheet/"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={() => {
-                    setShowBackupModal(true);
+                    recordCharacterListEvent({
+                      eventName: 'external_reddit_opened',
+                      category: 'app',
+                      source: 'header_menu',
+                    });
                     setShowHeaderMenu(false);
                   }}
-                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path d="M18 10.1c0-1-.8-1.8-1.8-1.7-.4 0-.9.2-1.2.5-1.4-.9-3-1.5-4.7-1.5l.8-3.8 2.6.6c0 .7.6 1.2 1.3 1.2.7 0 1.2-.6 1.2-1.3 0-.7-.6-1.2-1.3-1.2-.5 0-.9.3-1.1.7L11 2.9h-.2c-.1 0-.1.1-.1.2l-1 4.3C8 7.4 6.4 7.9 5 8.9c-.7-.7-1.8-.7-2.5 0s-.7 1.8 0 2.5c.1.1.3.3.5.3v.5c0 2.7 3.1 4.9 7 4.9s7-2.2 7-4.9v-.5c.6-.3 1-.9 1-1.6zM6 11.4c0-.7.6-1.2 1.2-1.2.7 0 1.2.6 1.2 1.2s-.6 1.2-1.2 1.2c-.7 0-1.2-.5-1.2-1.2zm7 3.3c-.9.6-1.9 1-3 .9-1.1 0-2.1-.3-3-.9-.1-.1-.1-.3 0-.5.1-.1.3-.1.4 0 .7.5 1.6.8 2.5.7.9.1 1.8-.2 2.5-.7.1-.1.3-.1.5 0s.2.3.1.5zm-.3-2.1c-.7 0-1.2-.6-1.2-1.2s.6-1.2 1.2-1.2c.7 0 1.2.6 1.2 1.2.1.7-.5 1.2-1.2 1.2z" />
+                  </svg>
+                  <span>Reddit</span>
+                </a>
+                <button
+                  onClick={() => {
+                    setShowBackupModal(true);
+                    if (isCurrentTutorialStep('various-open-backup')) {
+                      advanceTutorial();
+                    }
+                    setShowHeaderMenu(false);
+                  }}
+                  data-tutorial="backup-button-mobile"
+                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                    isCurrentTutorialStep('various-open-backup')
+                      ? 'bg-blue-500 text-white font-bold'
+                      : darkMode 
+                        ? 'text-white hover:bg-white/10' 
+                        : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -522,7 +913,14 @@ export default function CharacterList() {
                   href="https://buymeacoffee.com/wackyweasel"
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowHeaderMenu(false)}
+                  onClick={() => {
+                    recordCharacterListEvent({
+                      eventName: 'external_donate_opened',
+                      category: 'app',
+                      source: 'header_menu',
+                    });
+                    setShowHeaderMenu(false);
+                  }}
                   className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
@@ -561,20 +959,65 @@ export default function CharacterList() {
         >
           + CREATE NEW CHARACTER
         </button>
-        <label className={`px-4 py-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
-          darkMode 
-            ? 'bg-black text-white border border-white/30 hover:bg-white/10' 
-            : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper'
-        }`}>
-          IMPORT
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-          />
-        </label>
+        <div className="relative self-stretch" ref={importDropdownRef}>
+          <button
+            onClick={() => setShowImportDropdown(!showImportDropdown)}
+            className={`h-full px-4 font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading cursor-pointer text-center flex items-center justify-center ${
+              darkMode 
+                ? 'bg-black text-white border border-white/30 hover:bg-white/10' 
+                : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            IMPORT
+          </button>
+          {showImportDropdown && (
+            <div className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
+              darkMode 
+                ? 'bg-black border border-white/30' 
+                : 'bg-white border border-gray-300'
+            }`}>
+              <label
+                className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors cursor-pointer ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                </svg>
+                <span>From File</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => {
+                    handleImport(e);
+                    setShowImportDropdown(false);
+                  }}
+                  className="hidden"
+                />
+              </label>
+              <button
+                onClick={() => {
+                  setRawImportValue('');
+                  setShowRawImportModal(true);
+                  setShowImportDropdown(false);
+                }}
+                className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  darkMode 
+                    ? 'text-white hover:bg-white/10' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                <span>From Raw Data</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
@@ -665,141 +1108,179 @@ export default function CharacterList() {
                   
                   {openDropdown === char.id && (
                     <div 
-                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden z-50"
+                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden z-50 animate-dropdown-in"
                       style={{ 
                         backgroundColor: 'var(--card-background)',
                         border: '1px solid var(--card-border)'
                       }}
                     >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenameValue(char.name);
-                          setRenamingCharacterId(char.id);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Rename
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleExport(char);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Export
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          duplicateCharacter(char.id);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Duplicate
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCreatePresetCharacter(char);
-                          setPresetName(`${char.name} Preset`);
-                          setIncludeThemeInPreset(true);
-                          setShowCreatePresetModal(true);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                          e.currentTarget.style.color = 'var(--card-background)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Create Preset
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCharacterToDelete(char.id);
-                          setOpenDropdown(null);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
-                        style={{ 
-                          color: 'var(--card-ink)',
-                          backgroundColor: 'var(--card-background)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#ef4444';
-                          e.currentTarget.style.color = '#ffffff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--card-background)';
-                          e.currentTarget.style.color = 'var(--card-ink)';
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
-                      </button>
+                      <Tooltip content="Rename this character" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenameValue(char.name);
+                            setRenamingCharacterId(char.id);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Rename
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Export this character as a JSON file" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExport(char);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Export
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Create a copy of this character" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            duplicateCharacter(char.id);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Duplicate
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Save this character as a reusable preset (Presets are selectable at character creation)" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCreatePresetCharacter(char);
+                            setPresetName(`${char.name} Preset`);
+                            setIncludeThemeInPreset(true);
+                            setShowCreatePresetModal(true);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Create Preset
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="View this character's raw JSON data (useful to copy and import from raw)" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRawDataCharacter(char);
+                            setRawDataCopied(false);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                            e.currentTarget.style.color = 'var(--card-background)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          Show Raw Data
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete this character" placement="left">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCharacterToDelete(char.id);
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                          style={{ 
+                            color: 'var(--card-ink)',
+                            backgroundColor: 'var(--card-background)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#ef4444';
+                            e.currentTarget.style.color = '#ffffff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--card-background)';
+                            e.currentTarget.style.color = 'var(--card-ink)';
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Delete
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
@@ -823,10 +1304,10 @@ export default function CharacterList() {
       {characterToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setCharacterToDelete(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[250px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -864,10 +1345,10 @@ export default function CharacterList() {
       {renamingCharacterId && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setRenamingCharacterId(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[300px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-50 min-w-[300px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -928,13 +1409,13 @@ export default function CharacterList() {
       {showCreatePresetModal && createPresetCharacter && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => {
               setShowCreatePresetModal(false);
               setCreatePresetCharacter(null);
             }}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1004,7 +1485,20 @@ export default function CharacterList() {
               </button>
               <button
                 onClick={() => {
-                  addUserPreset(createPresetCharacter, presetName || `${createPresetCharacter.name} Preset`, includeThemeInPreset);
+                  const name = presetName || `${createPresetCharacter.name} Preset`;
+                  addUserPreset(createPresetCharacter, name, includeThemeInPreset);
+                  recordCharacterListEvent({
+                    eventName: 'user_preset_created',
+                    category: 'template',
+                    characterId: createPresetCharacter.id,
+                    sheetId: createPresetCharacter.activeSheetId,
+                    source: 'character_menu',
+                    metadata: {
+                      includeTheme: includeThemeInPreset,
+                      sheetCount: createPresetCharacter.sheets.length,
+                      widgetCount: createPresetCharacter.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+                    },
+                  });
                   setShowCreatePresetModal(false);
                   setCreatePresetCharacter(null);
                 }}
@@ -1025,10 +1519,10 @@ export default function CharacterList() {
       {presetToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-[60]" 
+            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" 
             onClick={() => setPresetToDelete(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1050,6 +1544,12 @@ export default function CharacterList() {
               </button>
               <button
                 onClick={() => {
+                  recordCharacterListEvent({
+                    eventName: 'user_preset_deleted',
+                    category: 'template',
+                    source: 'character_list',
+                    metadata: { presetId: presetToDelete.id },
+                  });
                   removeUserPreset(presetToDelete.id);
                   // If the deleted preset was selected, clear the selection
                   if (selectedPreset === `user:${presetToDelete.id}`) {
@@ -1070,10 +1570,10 @@ export default function CharacterList() {
       {showCreateModal && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowCreateModal(false)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1309,10 +1809,10 @@ export default function CharacterList() {
       {showBackupModal && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowBackupModal(false)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] ${
+          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1321,6 +1821,7 @@ export default function CharacterList() {
               <h3 className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Backup & Restore</h3>
               <button
                 onClick={() => setShowBackupModal(false)}
+                aria-label="Close"
                 className={`transition-colors ${darkMode ? 'text-white/60 hover:text-white' : 'text-theme-muted hover:text-theme-ink'}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1404,6 +1905,178 @@ export default function CharacterList() {
                   className="hidden"
                 />
               </label>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Raw Data View Modal */}
+      {rawDataCharacter && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
+            onClick={() => setRawDataCharacter(null)}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col animate-fade-in ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              Raw Data — {rawDataCharacter.name}
+            </h3>
+            <textarea
+              readOnly
+              value={JSON.stringify(excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter, null, 2)}
+              className={`flex-1 w-full min-h-[300px] p-3 text-xs font-mono rounded-theme resize-none ${
+                darkMode 
+                  ? 'bg-white/5 border border-white/30 text-white/80' 
+                  : 'bg-gray-50 border-[length:var(--border-width)] border-theme-border text-theme-ink'
+              }`}
+            />
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={() => setExcludeImages(!excludeImages)}
+                className={`px-3 py-2 text-sm font-body rounded-button transition-colors flex items-center gap-2 ${
+                  excludeImages
+                    ? darkMode
+                      ? 'bg-white text-black'
+                      : 'bg-theme-accent text-theme-paper'
+                    : darkMode
+                      ? 'text-white border border-white/30 hover:bg-white/10'
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {excludeImages ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  )}
+                  {!excludeImages && (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  )}
+                </svg>
+                Exclude Images
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={async () => {
+                  const data = excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter;
+                  await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                  recordCharacterListEvent({
+                    eventName: 'character_raw_data_copied',
+                    category: 'character',
+                    characterId: rawDataCharacter.id,
+                    sheetId: rawDataCharacter.activeSheetId,
+                    source: 'raw_data_modal',
+                    metadata: { excludeImages },
+                  });
+                  setRawDataCopied(true);
+                  setTimeout(() => setRawDataCopied(false), 2000);
+                }}
+                className={`px-4 py-2 font-body rounded-button transition-colors font-bold flex items-center gap-2 ${
+                  rawDataCopied
+                    ? 'bg-green-500 text-white'
+                    : darkMode 
+                      ? 'bg-white text-black hover:bg-white/80' 
+                      : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
+              >
+                {rawDataCopied ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy to Clipboard
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setRawDataCharacter(null)}
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white border border-white/30 hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Raw Data Import Modal */}
+      {showRawImportModal && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
+            onClick={() => setShowRawImportModal(false)}
+          />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col animate-fade-in ${
+            darkMode 
+              ? 'bg-black border border-white/30' 
+              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`}>
+            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              Import from Raw Data
+            </h3>
+            <p className={`text-sm font-body mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
+              Paste character JSON data below.
+            </p>
+            <textarea
+              value={rawImportValue}
+              onChange={(e) => setRawImportValue(e.target.value)}
+              placeholder='Paste JSON here...'
+              className={`flex-1 w-full min-h-[300px] p-3 text-xs font-mono rounded-theme resize-none ${
+                darkMode 
+                  ? 'bg-white/5 border border-white/30 text-white/80 placeholder-white/30' 
+                  : 'bg-gray-50 border-[length:var(--border-width)] border-theme-border text-theme-ink'
+              }`}
+              autoFocus
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <button
+                onClick={() => setShowRawImportModal(false)}
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode 
+                    ? 'text-white border border-white/30 hover:bg-white/10' 
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    const character = JSON.parse(rawImportValue) as Character;
+                    if (!character.name || !character.sheets || !Array.isArray(character.sheets)) {
+                      alert('Invalid character data format');
+                      return;
+                    }
+                    importCharacter(character, 'raw_json');
+                    setShowRawImportModal(false);
+                    setRawImportValue('');
+                  } catch {
+                    alert('Failed to parse JSON data');
+                  }
+                }}
+                className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
+                  darkMode 
+                    ? 'bg-white text-black hover:bg-white/80' 
+                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
+              >
+                Import
+              </button>
             </div>
           </div>
         </>

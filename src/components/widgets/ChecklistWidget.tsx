@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -11,6 +12,8 @@ interface Props {
 export default function CheckboxWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, checkboxItems = [], checklistSettings } = widget.data;
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
 
   // Fixed small sizing
@@ -83,6 +86,55 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
         ))}
         {checkboxItems.length === 0 && (
           <div className={`${itemClass} text-theme-muted italic`}>No items yet</div>
+        )}
+        {mode === 'play' && !adding && (
+          <button
+            className="flex items-center justify-center w-5 h-5 mt-0.5 rounded border border-theme-border text-theme-muted hover:text-theme-accent hover:border-theme-accent transition-colors flex-shrink-0"
+            onClick={() => setAdding(true)}
+            onMouseDown={(e) => e.stopPropagation()}
+            title="Add item"
+          >
+            <span className="text-sm leading-none">+</span>
+          </button>
+        )}
+        {mode === 'play' && adding && (
+          <form
+            className="flex items-center gap-1 mt-0.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = newName.trim();
+              if (trimmed) {
+                const updated = [...checkboxItems, { name: trimmed, checked: false }];
+                updateWidgetData(widget.id, { checkboxItems: updated });
+              }
+              setNewName('');
+              setAdding(false);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <input
+              autoFocus
+              className="flex-1 min-w-0 text-xs bg-theme-paper border border-theme-border rounded px-1 py-0.5 text-theme-ink outline-none focus:border-theme-accent"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onBlur={() => {
+                const trimmed = newName.trim();
+                if (trimmed) {
+                  const updated = [...checkboxItems, { name: trimmed, checked: false }];
+                  updateWidgetData(widget.id, { checkboxItems: updated });
+                }
+                setNewName('');
+                setAdding(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setNewName('');
+                  setAdding(false);
+                }
+              }}
+              placeholder="New item…"
+            />
+          </form>
         )}
       </div>
     </div>

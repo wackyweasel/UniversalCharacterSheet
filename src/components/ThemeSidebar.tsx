@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { THEMES, applyTheme, applyCustomTheme, isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { useStore } from '../store/useStore';
 import { useCustomThemeStore, CustomTheme, getCustomTheme } from '../store/useCustomThemeStore';
 import CustomThemeEditor from './CustomThemeEditor';
 import { Tooltip } from './Tooltip';
+import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
+import GalleryShareModal from './GalleryShareModal';
+import { submitToGallery } from '../hooks/useGallery';
+import { XIcon, PencilIcon } from './icons';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface ThemeSidebarProps {
   collapsed: boolean;
@@ -27,9 +32,27 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
   const updateCustomTheme = useCustomThemeStore((state) => state.updateCustomTheme);
   const deleteCustomTheme = useCustomThemeStore((state) => state.deleteCustomTheme);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
 
   const [showEditor, setShowEditor] = useState(false);
   const [editingTheme, setEditingTheme] = useState<CustomTheme | undefined>(undefined);
+  const [sharingTheme, setSharingTheme] = useState<CustomTheme | null>(null);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('themes-create-custom') || isCurrentTutorialStep('themes-share-custom')) {
+      const selector = isCurrentTutorialStep('themes-share-custom')
+        ? '[data-tutorial="theme-share-custom"]'
+        : '[data-tutorial="theme-create-custom"]';
+
+      document.querySelector(selector)?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    }
+  }, [tutorialStep]);
 
   const handleSelectTheme = (themeId: string) => {
     if (activeCharacterId) {
@@ -41,18 +64,55 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       } else {
         applyTheme(themeId);
       }
+
+      if (isCurrentTutorialStep('themes-pick-theme')) {
+        advanceTutorial();
+      }
     }
   };
 
   const handleCreateCustom = () => {
     setEditingTheme(undefined);
     setShowEditor(true);
+
+    if (isCurrentTutorialStep('themes-create-custom')) {
+      advanceTutorial();
+    }
   };
 
   const handleEditCustom = (theme: CustomTheme, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingTheme(theme);
     setShowEditor(true);
+  };
+
+  const handleShareCustom = (theme: CustomTheme, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSharingTheme(theme);
+
+    if (isCurrentTutorialStep('themes-share-custom')) {
+      advanceTutorial();
+    }
+  };
+
+  const handleSubmitShare = async (name: string, author: string, description: string) => {
+    if (!sharingTheme) {
+      return false;
+    }
+
+    const success = await submitToGallery('Themes', name, author, description, sharingTheme);
+    if (success) {
+      recordTelemetryEvent({
+        eventName: 'custom_theme_shared',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'theme_sidebar',
+        metadata: { themeId: sharingTheme.id },
+      });
+    }
+    return success;
   };
 
   const handleEditPreset = (theme: typeof THEMES[number], e: React.MouseEvent) => {
@@ -83,12 +143,30 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
     // If editingTheme has no id (empty string) or doesn't exist, we're creating a new one
     if (editingTheme && editingTheme.id) {
       updateCustomTheme(theme.id, theme);
+      recordTelemetryEvent({
+        eventName: 'custom_theme_updated',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'custom_theme_editor',
+        metadata: { themeId: theme.id },
+      });
       // If this theme is currently active, re-apply it
       if (currentTheme === theme.id) {
         applyCustomTheme(theme);
       }
     } else {
       addCustomTheme(theme);
+      recordTelemetryEvent({
+        eventName: 'custom_theme_created',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'custom_theme_editor',
+        metadata: { themeId: theme.id },
+      });
     }
     setShowEditor(false);
     setEditingTheme(undefined);
@@ -102,6 +180,15 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         applyTheme('default');
       }
       deleteCustomTheme(editingTheme.id);
+      recordTelemetryEvent({
+        eventName: 'custom_theme_deleted',
+        category: 'theme',
+        characterId: activeCharacterId,
+        sheetId: activeCharacter?.activeSheetId,
+        mode: useStore.getState().mode,
+        source: 'custom_theme_editor',
+        metadata: { themeId: editingTheme.id },
+      });
     }
     setShowEditor(false);
     setEditingTheme(undefined);
@@ -118,6 +205,13 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
 
   return (
     <>
+      <GalleryShareModal
+        open={!!sharingTheme}
+        initialName={sharingTheme?.name || ''}
+        onClose={() => setSharingTheme(null)}
+        onSubmit={handleSubmitShare}
+      />
+
       {/* Custom Theme Editor Modal */}
       {showEditor && (
         <CustomThemeEditor
@@ -140,6 +234,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       )}
       
       <div 
+        data-tutorial="theme-panel"
         className={`fixed right-0 top-0 bottom-0 w-[80vw] max-w-[280px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? 'translate-x-full' : 'translate-x-0'
         }`}
@@ -167,18 +262,19 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         <Tooltip content="Close theme panel">
           <button
             onClick={onToggle}
-            className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme"
+            className="absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors"
+            aria-label="Close theme panel"
           >
-            ✕
+            <XIcon className="w-5 h-5" />
           </button>
         </Tooltip>
         
         {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12">
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 -mr-3 pr-3">
 
         <div className="mb-4">
           <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
-            🎨 Themes
+            Themes
           </h2>
         </div>
 
@@ -190,6 +286,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
             return (
               <div
                 key={theme.id}
+                data-tutorial={`theme-option-${theme.id}`}
                 style={{
                   backgroundColor: isSelected ? theme.colors.accent : theme.colors.paper,
                   color: isSelected ? theme.colors.paper : theme.colors.ink,
@@ -270,8 +367,9 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                       color: isSelected ? theme.colors.paper : theme.colors.accent,
                     }}
                     className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                    aria-label="Copy to custom theme"
                   >
-                    ✏️
+                    <PencilIcon className="w-3.5 h-3.5" />
                   </button>
                 </Tooltip>
               </div>
@@ -280,19 +378,22 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
         </div>
 
         {/* Custom Themes Section */}
-        <div className="mt-6 pt-4 border-t border-theme-border/50">
+        <div data-tutorial="theme-custom-section" className="mt-6 pt-4 border-t border-theme-border/50">
           <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">
-            ✨ Custom Themes
+            Custom Themes
           </h3>
           
           {/* Create New Custom Theme Button */}
           <button
+            data-tutorial="theme-create-custom"
             onClick={handleCreateCustom}
             className="w-full p-2 border-[length:var(--border-width)] border-dashed border-theme-border transition-all text-left font-bold bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper hover:border-solid mb-2"
             style={{ borderRadius: 'min(var(--button-radius), 16px)' }}
           >
             <div className="flex items-center gap-2">
-              <span className="text-base">➕</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
               <span className="text-xs font-heading">Create Custom Theme</span>
             </div>
             <p className="text-[10px] mt-1 opacity-70 font-body">
@@ -344,7 +445,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                     onClick={() => handleSelectTheme(theme.id)}
                     className="relative w-full text-left"
                   >
-                    <div className="flex items-center gap-2 pr-8">
+                    <div className="flex items-center gap-2 pr-20">
                       <span className="text-base">{theme.icon}</span>
                       <span className="text-xs" style={{ fontFamily: theme.fonts.heading }}>{theme.name}</span>
                     </div>
@@ -379,7 +480,20 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                       </Tooltip>
                     </div>
                   </button>
-                  {/* Edit button */}
+                  {/* Share and edit buttons */}
+                  <Tooltip content="Share theme to gallery">
+                    <button
+                      data-tutorial="theme-share-custom"
+                      onClick={(e) => handleShareCustom(theme, e)}
+                      style={{
+                        backgroundColor: isSelected ? `${theme.colors.paper}33` : `${theme.colors.accent}1a`,
+                        color: isSelected ? theme.colors.paper : theme.colors.accent,
+                      }}
+                      className="absolute top-2 right-10 h-6 px-2 flex items-center justify-center rounded text-[10px] font-bold hover:scale-105 transition-transform z-10"
+                    >
+                      Share
+                    </button>
+                  </Tooltip>
                   <Tooltip content="Edit theme">
                     <button
                       onClick={(e) => handleEditCustom(theme, e)}
@@ -388,8 +502,9 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                         color: isSelected ? theme.colors.paper : theme.colors.accent,
                       }}
                       className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded text-xs hover:scale-110 transition-transform z-10"
+                      aria-label="Edit theme"
                     >
-                    ✏️
+                    <PencilIcon className="w-3.5 h-3.5" />
                   </button>
                   </Tooltip>
               </div>

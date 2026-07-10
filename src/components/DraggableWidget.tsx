@@ -7,6 +7,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { DotsVerticalIcon } from './icons';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
@@ -30,6 +31,8 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
+import TimerWidget from './widgets/TimerWidget';
+import StepDiceWidget from './widgets/StepDiceWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 
@@ -63,6 +66,8 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'ROLL_TABLE': { width: 70, height: 30 },
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'DECK': { width: 70, height: 40 },
+  'TIMER': { width: 80, height: 60 },
+  'STEP_DICE': { width: 70, height: 40 },
 };
 
 export default function DraggableWidget({ widget, scale }: Props) {
@@ -88,6 +93,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const addGroupTemplate = useTemplateStore((state) => state.addGroupTemplate);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   // Print mode state
   const textureDisabled = usePrintStore((state) => state.textureDisabled);
@@ -140,11 +146,34 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
 
   const isSelected = selectedWidgetId === widget.id;
+  const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
+    isCurrentTutorialStep('templates-open-widget-menu') ||
+    isCurrentTutorialStep('templates-open-group-menu')
+  );
+  const isAutomationAttackDiceRoller = widget.type === 'DICE_ROLLER' && String(widget.data?.label || '').toLowerCase() === 'attack';
+  const shouldShowAutomationTutorialMenu =
+    (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-open-number-display-menu')) ||
+    (isAutomationAttackDiceRoller && isCurrentTutorialStep('automation-open-dice-menu'));
+  const shouldShowAutomationTutorialEdit =
+    (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-edit-number-display')) ||
+    (isAutomationAttackDiceRoller && isCurrentTutorialStep('automation-edit-dice-roller'));
+  const shouldHighlightWidgetTemplateSave = isCurrentTutorialStep('templates-save-widget-template');
+  const shouldHighlightWidgetTemplateConfirm = isCurrentTutorialStep('templates-name-widget-template') && templateName.trim().length > 0;
+  const shouldHighlightGroupTab = isCurrentTutorialStep('templates-open-group-tab');
+  const shouldHighlightGroupTemplateSave = isCurrentTutorialStep('templates-save-group-template');
+  const shouldHighlightGroupTemplateConfirm = isCurrentTutorialStep('templates-name-group-template') && groupTemplateName.trim().length > 0;
+  const widgetMenuTutorialTarget = widget.type === 'DICE_ROLLER'
+    ? isAutomationAttackDiceRoller ? 'widget-menu-DICE_ROLLER' : undefined
+    : `widget-menu-${widget.type}`;
+  const editButtonTutorialTarget = widget.type === 'DICE_ROLLER'
+    ? isAutomationAttackDiceRoller ? 'edit-button-DICE_ROLLER' : undefined
+    : `edit-button-${widget.type}`;
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
 
-  // Auto-open dropdown for Form widget during tutorial step 17
+  // Auto-open dropdown for the original form tutorial step only. Automation edit steps keep
+  // the dropdown opened by the widget the user actually clicked.
   useEffect(() => {
     if (tutorialStep === 17 && widget.type === 'FORM') {
       setShowDropdown(true);
@@ -154,7 +183,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      // Don't close dropdown during tutorial step 17 for Form widget
+      // Don't close dropdown during the original form tutorial step that points inside it.
       if (tutorialStep === 17 && widget.type === 'FORM') {
         return;
       }
@@ -582,6 +611,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'TIMER': return <TimerWidget {...props} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };
@@ -601,6 +632,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
         <div 
           ref={nodeRef}
           data-widget-id={widget.id}
+          data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
           className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
@@ -652,16 +684,22 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
-          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM')) && (tutorialStep === null || tutorialStep >= 16) && (
+          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
             <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
               <Tooltip content="Widget options">
                 <button
-                  data-tutorial={widget.type === 'FORM' ? 'widget-menu-FORM' : undefined}
-                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${tutorialStep === 16 && widget.type === 'FORM' ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  data-tutorial={widgetMenuTutorialTarget}
+                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
                     if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
+                      advanceTutorial();
+                    }
+                    if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
+                      advanceTutorial();
+                    }
+                    if (shouldShowAutomationTutorialMenu) {
                       advanceTutorial();
                     }
                     setShowDropdown(!showDropdown);
@@ -681,111 +719,135 @@ export default function DraggableWidget({ widget, scale }: Props) {
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                 >
-                  ⋮
+                  <DotsVerticalIcon className="w-4 h-4" />
                 </button>
               </Tooltip>
               
               {/* Dropdown Menu with Tabs */}
               {showDropdown && (
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[200] font-body">
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[200] font-body animate-dropdown-in">
                   {/* Tab Header - only show if widget is part of a group */}
                   {widget.groupId && (
                     <div className="flex border-b border-theme-border">
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors ${dropdownTab === 'widget' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDropdownTab('widget');
-                          // Reset sub-states when switching tabs
-                          setShowDeleteConfirm(false);
-                          setShowTemplateNameInput(false);
-                          setShowMoveToSheet(false);
-                          setShowGroupDeleteConfirm(false);
-                          setShowGroupTemplateNameInput(false);
-                          setShowGroupMoveToSheet(false);
-                        }}
-                      >
-                        Widget
-                      </button>
-                      <button
-                        className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${dropdownTab === 'group' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDropdownTab('group');
-                          // Reset sub-states when switching tabs
-                          setShowDeleteConfirm(false);
-                          setShowTemplateNameInput(false);
-                          setShowMoveToSheet(false);
-                          setShowGroupDeleteConfirm(false);
-                          setShowGroupTemplateNameInput(false);
-                          setShowGroupMoveToSheet(false);
-                        }}
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-                        Group
-                      </button>
+                      <Tooltip content="Show actions for this widget" placement="left">
+                        <button
+                          className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors ${dropdownTab === 'widget' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDropdownTab('widget');
+                            // Reset sub-states when switching tabs
+                            setShowDeleteConfirm(false);
+                            setShowTemplateNameInput(false);
+                            setShowMoveToSheet(false);
+                            setShowGroupDeleteConfirm(false);
+                            setShowGroupTemplateNameInput(false);
+                            setShowGroupMoveToSheet(false);
+                          }}
+                        >
+                          Widget
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Show actions for the whole group" placement="left">
+                        <button
+                          data-tutorial="template-group-tab"
+                          className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${dropdownTab === 'group' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'} ${shouldHighlightGroupTab ? 'ring-4 ring-blue-500 ring-inset' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDropdownTab('group');
+                            if (isCurrentTutorialStep('templates-open-group-tab')) {
+                              advanceTutorial();
+                            }
+                            // Reset sub-states when switching tabs
+                            setShowDeleteConfirm(false);
+                            setShowTemplateNameInput(false);
+                            setShowMoveToSheet(false);
+                            setShowGroupDeleteConfirm(false);
+                            setShowGroupTemplateNameInput(false);
+                            setShowGroupMoveToSheet(false);
+                          }}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+                          Group
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                   
                   {/* Widget Actions Tab */}
                   {dropdownTab === 'widget' && (
                     <>
-                      <button
-                        data-tutorial={widget.type === 'FORM' ? 'edit-button-FORM' : undefined}
-                        className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${tutorialStep === 17 && widget.type === 'FORM' ? 'bg-blue-500 text-white' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
-                            advanceTutorial();
-                          }
-                          setShowDropdown(false);
-                          openEditModal();
-                        }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                        Edit
-                      </button>
-                      <button
-                        className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDropdown(false);
-                          cloneWidget(widget.id);
-                        }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                        Clone
-                      </button>
-                      <button
-                        className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDropdown(false);
-                          toggleWidgetLock(widget.id);
-                        }}
-                      >
-                        {widget.locked ? (
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
-                        ) : (
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                        )}
-                        {widget.locked ? 'Unlock' : 'Lock'}
-                      </button>
-                      {!showTemplateNameInput ? (
+                      <Tooltip content="Open this widget's editor" placement="left">
+                        <button
+                          data-tutorial={editButtonTutorialTarget}
+                          className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${(tutorialStep === 17 && widget.type === 'FORM') || shouldShowAutomationTutorialEdit ? 'bg-blue-500 text-white' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
+                              advanceTutorial();
+                            }
+                            if (shouldShowAutomationTutorialEdit) {
+                              advanceTutorial();
+                            }
+                            setShowDropdown(false);
+                            openEditModal();
+                          }}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          Edit
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Create a copy of this widget" placement="left">
                         <button
                           className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setTemplateName(widget.data.label || '');
-                            setShowTemplateNameInput(true);
+                            setShowDropdown(false);
+                            cloneWidget(widget.id);
                           }}
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                          Save as Template
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                          Clone
                         </button>
+                      </Tooltip>
+                      <Tooltip content={widget.locked ? 'Unlock this widget so it can be moved or edited' : 'Lock this widget to prevent changes'} placement="left">
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDropdown(false);
+                            toggleWidgetLock(widget.id);
+                          }}
+                        >
+                          {widget.locked ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                          )}
+                          {widget.locked ? 'Unlock' : 'Lock'}
+                        </button>
+                      </Tooltip>
+                      {!showTemplateNameInput ? (
+                        <Tooltip content="Save this widget as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
+                          <button
+                            data-tutorial="template-save-widget"
+                            className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${shouldHighlightWidgetTemplateSave ? 'bg-blue-500 text-white font-bold' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTemplateName(isCurrentTutorialStep('templates-save-widget-template') ? '' : widget.data.label || '');
+                              setShowTemplateNameInput(true);
+                              if (isCurrentTutorialStep('templates-save-widget-template')) {
+                                advanceTutorial();
+                              }
+                            }}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                            Save as Template
+                          </button>
+                        </Tooltip>
                       ) : (
                         <div className="px-2 py-2">
                           <input
+                            data-tutorial={templateName.trim() ? 'template-widget-name-input' : 'template-widget-name-target'}
                             type="text"
                             value={templateName}
                             onChange={(e) => setTemplateName(e.target.value)}
@@ -800,6 +862,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                                 setShowDropdown(false);
                                 setShowTemplateNameInput(false);
                                 setTemplateName('');
+                                if (isCurrentTutorialStep('templates-name-widget-template')) {
+                                  advanceTutorial();
+                                }
                               } else if (e.key === 'Escape') {
                                 setShowTemplateNameInput(false);
                                 setTemplateName('');
@@ -807,126 +872,147 @@ export default function DraggableWidget({ widget, scale }: Props) {
                             }}
                           />
                           <div className="flex gap-1">
-                            <button
-                              className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (templateName.trim()) {
-                                  addTemplate(widget, templateName.trim());
-                                  setShowDropdown(false);
+                            <Tooltip content="Save this widget template" placement="left">
+                              <button
+                                data-tutorial={templateName.trim() ? 'template-widget-name-target' : 'template-widget-save-confirm'}
+                                className={`flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors ${shouldHighlightWidgetTemplateConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (templateName.trim()) {
+                                    addTemplate(widget, templateName.trim());
+                                    setShowDropdown(false);
+                                    setShowTemplateNameInput(false);
+                                    setTemplateName('');
+                                    if (isCurrentTutorialStep('templates-name-widget-template')) {
+                                      advanceTutorial();
+                                    }
+                                  }
+                                }}
+                              >
+                                Save
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Cancel template creation" placement="left">
+                              <button
+                                className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setShowTemplateNameInput(false);
                                   setTemplateName('');
-                                }
-                              }}
-                            >
-                              Save
-                            </button>
-                            <button
-                              className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowTemplateNameInput(false);
-                                setTemplateName('');
-                              }}
-                            >
-                              Cancel
-                            </button>
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                       )}
                       {hasMultipleSheets && (
                         <>
                           {!showMoveToSheet ? (
-                            <button
-                              className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowMoveToSheet(true);
-                              }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
-                              Move to Sheet
-                            </button>
+                            <Tooltip content="Move this widget to another sheet" placement="left">
+                              <button
+                                className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowMoveToSheet(true);
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
+                                Move to Sheet
+                              </button>
+                            </Tooltip>
                           ) : (
                             <div className="px-2 py-2">
                               <div className="text-xs text-theme-muted mb-2">Select target sheet:</div>
                               {sheets
                                 .filter(s => s.id !== activeCharacter?.activeSheetId)
                                 .map(sheet => (
-                                  <button
-                                    key={sheet.id}
-                                    className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      moveWidgetToSheet(widget.id, sheet.id);
-                                      setShowDropdown(false);
-                                      setShowMoveToSheet(false);
-                                    }}
-                                  >
-                                    {sheet.name}
-                                  </button>
+                                  <Tooltip key={sheet.id} content={`Move this widget to ${sheet.name}`} placement="left">
+                                    <button
+                                      className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        moveWidgetToSheet(widget.id, sheet.id);
+                                        setShowDropdown(false);
+                                        setShowMoveToSheet(false);
+                                      }}
+                                    >
+                                      {sheet.name}
+                                    </button>
+                                  </Tooltip>
                                 ))}
-                              <button
-                                className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowMoveToSheet(false);
-                                }}
-                              >
-                                Cancel
-                              </button>
+                              <Tooltip content="Cancel moving this widget" placement="left">
+                                <button
+                                  className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowMoveToSheet(false);
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </Tooltip>
                             </div>
                           )}
                         </>
                       )}
                       {/* Detach from group - only if widget is in a group */}
                       {widget.groupId && (
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            detachWidgets(widget.id, widget.id);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
-                          Detach from Group
-                        </button>
-                      )}
-                      <div className="border-t border-theme-border" />
-                      {!showDeleteConfirm ? (
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteConfirm(true);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                          Delete
-                        </button>
-                      ) : (
-                        <div className="flex">
+                        <Tooltip content="Remove this widget from its current group" placement="left">
                           <button
-                            className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
+                            className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                             onClick={(e) => {
                               e.stopPropagation();
                               setShowDropdown(false);
-                              setShowDeleteConfirm(false);
-                              removeWidget(widget.id);
+                              detachWidgets(widget.id, widget.id);
                             }}
                           >
-                            Confirm
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+                            Detach from Group
                           </button>
+                        </Tooltip>
+                      )}
+                      <div className="border-t border-theme-border" />
+                      {!showDeleteConfirm ? (
+                        <Tooltip content="Delete this widget" placement="left">
                           <button
-                            className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                            className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setShowDeleteConfirm(false);
+                              setShowDeleteConfirm(true);
                             }}
                           >
-                            Cancel
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                            Delete
                           </button>
+                        </Tooltip>
+                      ) : (
+                        <div className="flex">
+                          <Tooltip content="Confirm widget deletion" placement="left">
+                            <button
+                              className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDropdown(false);
+                                setShowDeleteConfirm(false);
+                                removeWidget(widget.id);
+                              }}
+                            >
+                              Confirm
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Cancel widget deletion" placement="left">
+                            <button
+                              className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDeleteConfirm(false);
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </Tooltip>
                         </div>
                       )}
                     </>
@@ -935,56 +1021,71 @@ export default function DraggableWidget({ widget, scale }: Props) {
                   {/* Group Actions Tab */}
                   {dropdownTab === 'group' && widget.groupId && (
                     <>
-                      <button
-                        className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDropdown(false);
-                          cloneGroup(widget.groupId!);
-                        }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                        Clone Group
-                      </button>
-                      <button
-                        className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDropdown(false);
-                          toggleGroupLock(widget.groupId!);
-                        }}
-                      >
-                        {(() => {
-                          const groupWidgets = getWidgetsInGroup(widget.groupId!);
-                          const allLocked = groupWidgets.length > 0 && groupWidgets.every(w => w.locked);
-                          return allLocked ? (
-                            <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
-                              Unlock Group
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                              Lock Group
-                            </>
-                          );
-                        })()}
-                      </button>
-                      {!showGroupTemplateNameInput ? (
+                      <Tooltip content="Create a copy of this entire group" placement="left">
                         <button
                           className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setGroupTemplateName('');
-                            setShowGroupTemplateNameInput(true);
+                            setShowDropdown(false);
+                            cloneGroup(widget.groupId!);
                           }}
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                          Save as Template
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                          Clone Group
                         </button>
+                      </Tooltip>
+                      <Tooltip content={(() => {
+                        const groupWidgets = getWidgetsInGroup(widget.groupId!);
+                        const allLocked = groupWidgets.length > 0 && groupWidgets.every(w => w.locked);
+                        return allLocked ? 'Unlock this group so its widgets can be changed' : 'Lock this group to prevent changes';
+                      })()} placement="left">
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDropdown(false);
+                            toggleGroupLock(widget.groupId!);
+                          }}
+                        >
+                          {(() => {
+                            const groupWidgets = getWidgetsInGroup(widget.groupId!);
+                            const allLocked = groupWidgets.length > 0 && groupWidgets.every(w => w.locked);
+                            return allLocked ? (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
+                                Unlock Group
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                Lock Group
+                              </>
+                            );
+                          })()}
+                        </button>
+                      </Tooltip>
+                      {!showGroupTemplateNameInput ? (
+                        <Tooltip content="Save this group as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
+                          <button
+                            data-tutorial="template-save-group"
+                            className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${shouldHighlightGroupTemplateSave ? 'bg-blue-500 text-white font-bold' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setGroupTemplateName('');
+                              setShowGroupTemplateNameInput(true);
+                              if (isCurrentTutorialStep('templates-save-group-template')) {
+                                advanceTutorial();
+                              }
+                            }}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                            Save Group as Template
+                          </button>
+                        </Tooltip>
                       ) : (
                         <div className="px-2 py-2">
                           <input
+                            data-tutorial={groupTemplateName.trim() ? 'template-group-name-input' : 'template-group-name-target'}
                             type="text"
                             value={groupTemplateName}
                             onChange={(e) => setGroupTemplateName(e.target.value)}
@@ -1000,6 +1101,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                                 setShowDropdown(false);
                                 setShowGroupTemplateNameInput(false);
                                 setGroupTemplateName('');
+                                if (isCurrentTutorialStep('templates-name-group-template')) {
+                                  advanceTutorial();
+                                }
                               } else if (e.key === 'Escape') {
                                 setShowGroupTemplateNameInput(false);
                                 setGroupTemplateName('');
@@ -1007,124 +1111,145 @@ export default function DraggableWidget({ widget, scale }: Props) {
                             }}
                           />
                           <div className="flex gap-1">
-                            <button
-                              className="flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (groupTemplateName.trim()) {
-                                  const groupWidgets = getWidgetsInGroup(widget.groupId!);
-                                  addGroupTemplate(groupWidgets, groupTemplateName.trim());
-                                  setShowDropdown(false);
+                            <Tooltip content="Save this group template" placement="left">
+                              <button
+                                data-tutorial={groupTemplateName.trim() ? 'template-group-name-target' : 'template-group-save-confirm'}
+                                className={`flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors ${shouldHighlightGroupTemplateConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (groupTemplateName.trim()) {
+                                    const groupWidgets = getWidgetsInGroup(widget.groupId!);
+                                    addGroupTemplate(groupWidgets, groupTemplateName.trim());
+                                    setShowDropdown(false);
+                                    setShowGroupTemplateNameInput(false);
+                                    setGroupTemplateName('');
+                                    if (isCurrentTutorialStep('templates-name-group-template')) {
+                                      advanceTutorial();
+                                    }
+                                  }
+                                }}
+                              >
+                                Save
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Cancel group template creation" placement="left">
+                              <button
+                                className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setShowGroupTemplateNameInput(false);
                                   setGroupTemplateName('');
-                                }
-                              }}
-                            >
-                              Save
-                            </button>
-                            <button
-                              className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowGroupTemplateNameInput(false);
-                                setGroupTemplateName('');
-                              }}
-                            >
-                              Cancel
-                            </button>
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                       )}
                       {hasMultipleSheets && (
                         <>
                           {!showGroupMoveToSheet ? (
-                            <button
-                              className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowGroupMoveToSheet(true);
-                              }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
-                              Move to Sheet
-                            </button>
+                            <Tooltip content="Move this whole group to another sheet" placement="left">
+                              <button
+                                className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowGroupMoveToSheet(true);
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
+                                Move to Sheet
+                              </button>
+                            </Tooltip>
                           ) : (
                             <div className="px-2 py-2">
                               <div className="text-xs text-theme-muted mb-2">Move group to:</div>
                               {sheets
                                 .filter(s => s.id !== activeCharacter?.activeSheetId)
                                 .map(sheet => (
-                                  <button
-                                    key={sheet.id}
-                                    className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      moveGroupToSheet(widget.groupId!, sheet.id);
-                                      setShowDropdown(false);
-                                      setShowGroupMoveToSheet(false);
-                                    }}
-                                  >
-                                    {sheet.name}
-                                  </button>
+                                  <Tooltip key={sheet.id} content={`Move this group to ${sheet.name}`} placement="left">
+                                    <button
+                                      className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        moveGroupToSheet(widget.groupId!, sheet.id);
+                                        setShowDropdown(false);
+                                        setShowGroupMoveToSheet(false);
+                                      }}
+                                    >
+                                      {sheet.name}
+                                    </button>
+                                  </Tooltip>
                                 ))}
-                              <button
-                                className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowGroupMoveToSheet(false);
-                                }}
-                              >
-                                Cancel
-                              </button>
+                              <Tooltip content="Cancel moving this group" placement="left">
+                                <button
+                                  className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowGroupMoveToSheet(false);
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </Tooltip>
                             </div>
                           )}
                         </>
                       )}
-                      <button
-                        className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDropdown(false);
-                          detachAllInGroup(widget.groupId!);
-                        }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
-                        Detach All
-                      </button>
-                      <div className="border-t border-theme-border" />
-                      {!showGroupDeleteConfirm ? (
+                      <Tooltip content="Break apart this group into individual widgets" placement="left">
                         <button
-                          className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
+                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setShowGroupDeleteConfirm(true);
+                            setShowDropdown(false);
+                            detachAllInGroup(widget.groupId!);
                           }}
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                          Delete Group ({getWidgetsInGroup(widget.groupId!).length})
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+                          Detach All
                         </button>
+                      </Tooltip>
+                      <div className="border-t border-theme-border" />
+                      {!showGroupDeleteConfirm ? (
+                        <Tooltip content="Delete every widget in this group" placement="left">
+                          <button
+                            className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowGroupDeleteConfirm(true);
+                            }}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                            Delete Group ({getWidgetsInGroup(widget.groupId!).length})
+                          </button>
+                        </Tooltip>
                       ) : (
                         <div className="flex">
-                          <button
-                            className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowDropdown(false);
-                              setShowGroupDeleteConfirm(false);
-                              removeGroup(widget.groupId!);
-                            }}
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowGroupDeleteConfirm(false);
-                            }}
-                          >
-                            Cancel
-                          </button>
+                          <Tooltip content="Confirm group deletion" placement="left">
+                            <button
+                              className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDropdown(false);
+                                setShowGroupDeleteConfirm(false);
+                                removeGroup(widget.groupId!);
+                              }}
+                            >
+                              Confirm
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Cancel group deletion" placement="left">
+                            <button
+                              className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowGroupDeleteConfirm(false);
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </Tooltip>
                         </div>
                       )}
                     </>
@@ -1147,13 +1272,16 @@ export default function DraggableWidget({ widget, scale }: Props) {
                   onMouseDown={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                 >
-                  ⚙️
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
                 </button>
               </Tooltip>
               
               {/* Print Settings Dropdown */}
               {showPrintSettings && (
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[9999] p-2">
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[9999] p-2 animate-dropdown-in">
                   {/* Number Tracker specific settings */}
                   {(widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY') && (
                     <label className="flex items-center gap-2 cursor-pointer text-sm text-theme-ink hover:bg-theme-accent/10 p-1 rounded">

@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
-import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { applyTheme, applyCustomTheme, THEMES } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { usePrintStore } from '../store/usePrintStore';
+import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
+import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
 
@@ -19,8 +20,10 @@ import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
 import { Tooltip } from './Tooltip';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon } from './icons';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 // Helper to get active sheet widgets
 function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
@@ -31,6 +34,7 @@ function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widge
 export default function Sheet() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
+  const transientCharacterIds = useStore((state) => state.transientCharacterIds);
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
@@ -43,23 +47,27 @@ export default function Sheet() {
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
   const renameSheet = useStore((state) => state.renameSheet);
-  const deleteCharacter = useStore((state) => state.deleteCharacter);
-  const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
+  const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
   const undo = useStore((state) => state.undo);
   const redo = useStore((state) => state.redo);
   const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Timeline state
   const timelineIsOpen = useTimelineStore((state) => state.isOpen);
   const toggleTimeline = useTimelineStore((state) => state.toggleOpen);
+  const setTimelineOpen = useTimelineStore((state) => state.setOpen);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
+  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   // Print mode state
   const printerFriendly = usePrintStore((state) => state.printerFriendly);
@@ -74,6 +82,12 @@ export default function Sheet() {
   const setPreviousMode = usePrintStore((state) => state.setPreviousMode);
   const calculatePrintAreaFromWidgets = usePrintStore((state) => state.calculatePrintAreaFromWidgets);
   const resetPrintSettings = usePrintStore((state) => state.resetPrintSettings);
+  const paperFormat = usePrintStore((state) => state.paperFormat);
+  const setPaperFormat = usePrintStore((state) => state.setPaperFormat);
+  const isLandscape = usePrintStore((state) => state.isLandscape);
+  const setIsLandscape = usePrintStore((state) => state.setIsLandscape);
+  const showInEditMode = usePrintStore((state) => state.showInEditMode);
+  const setShowInEditMode = usePrintStore((state) => state.setShowInEditMode);
   
   // Dark mode state (read from localStorage to match CharacterList)
   const [darkMode, setDarkMode] = useState(() => {
@@ -98,6 +112,20 @@ export default function Sheet() {
   
   // Get widgets from active sheet
   const activeSheetWidgets = activeCharacter ? getActiveSheetWidgets(activeCharacter) : [];
+
+  const recordSheetWorkflowEvent = useCallback((eventName: string, category: 'view' | 'print' | 'widget', metadata?: Record<string, string | number | boolean | null | undefined>) => {
+    if (activeCharacterId && transientCharacterIds.includes(activeCharacterId)) return;
+
+    recordTelemetryEvent({
+      eventName,
+      category,
+      characterId: activeCharacterId,
+      sheetId: activeCharacter?.activeSheetId,
+      mode,
+      source: 'sheet_toolbar',
+      metadata,
+    });
+  }, [activeCharacter?.activeSheetId, activeCharacterId, mode, recordTelemetryEvent, transientCharacterIds]);
   
   // Default sidebar collapsed (toolbox hidden until user clicks "Add Widget")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
@@ -112,6 +140,8 @@ export default function Sheet() {
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
+  const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
+  const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
   
   // Vertical mode drag state
@@ -142,9 +172,12 @@ export default function Sheet() {
     handleMouseMove,
     handleMouseUp,
     handleWheel,
+    viewLocked,
+    toggleViewLock,
   } = usePanZoom({
     editingWidgetId,
     mode,
+    characterId: activeCharacterId,
     onBackgroundClick: handleBackgroundInteraction,
   });
 
@@ -156,6 +189,9 @@ export default function Sheet() {
   
   const getScale = useCallback(() => scaleRef.current, []);
   const getPan = useCallback(() => panRef.current, []);
+  const viewLockedRef = useRef(viewLocked);
+  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+  const getViewLocked = useCallback(() => viewLockedRef.current, []);
   
   const { isTouchPanning } = useTouchCamera({
     mode,
@@ -165,6 +201,7 @@ export default function Sheet() {
     getScale,
     getPan,
     onBackgroundTouch: handleBackgroundInteraction,
+    isViewLocked: getViewLocked,
   });
 
   // Auto-stack hook
@@ -180,6 +217,67 @@ export default function Sheet() {
     setScale,
     setPan,
   });
+
+  const frameWidgetForTutorial = useCallback((widgetType: WidgetType, predicate?: (widget: Widget) => boolean) => {
+    const targetWidget = activeSheetWidgets.find((widget) => widget.type === widgetType && (!predicate || predicate(widget)));
+    if (!targetWidget) {
+      handleFitAllWidgets();
+      return;
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const newScale = viewportWidth < 640 ? 0.85 : 1;
+    const targetX = targetWidget.x + (targetWidget.w || 200);
+    const targetY = targetWidget.y;
+
+    setScale(newScale);
+    setPan({
+      x: viewportWidth * 0.68 - targetX * newScale,
+      y: viewportHeight * 0.38 - targetY * newScale,
+    });
+  }, [activeSheetWidgets, handleFitAllWidgets, setPan, setScale]);
+
+  const handleToggleThemeSidebar = (closeGridMenu = false) => {
+    const wasCollapsed = themeSidebarCollapsed;
+    setThemeSidebarCollapsed((current) => !current);
+
+    if (closeGridMenu) {
+      setGridMenuOpen(false);
+    }
+
+    if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) && wasCollapsed) {
+      advanceTutorial();
+    }
+  };
+
+  const handleToggleWidgetSidebar = (closeGridMenu = false) => {
+    const wasCollapsed = sidebarCollapsed;
+    setSidebarCollapsed((current) => !current);
+
+    if (closeGridMenu) {
+      setGridMenuOpen(false);
+    }
+
+    if (
+      wasCollapsed &&
+      (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox'))
+    ) {
+      advanceTutorial();
+    }
+  };
+
+  // Close paper format dropdown on outside click
+  useEffect(() => {
+    if (!paperFormatDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (paperFormatDropdownRef.current && !paperFormatDropdownRef.current.contains(e.target as Node)) {
+        setPaperFormatDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [paperFormatDropdownOpen]);
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
@@ -209,18 +307,43 @@ export default function Sheet() {
   const enterPrintMode = useCallback(() => {
     setPreviousMode(mode as 'play' | 'edit' | 'vertical');
     setMode('print');
-    // Calculate initial print area from widgets
-    const area = calculatePrintAreaFromWidgets(activeSheetWidgets);
-    if (area) {
-      setPrintArea(area);
+    // Only calculate print area if there isn't one already (preserve previous)
+    if (!printArea) {
+      const area = calculatePrintAreaFromWidgets(activeSheetWidgets);
+      if (area) {
+        setPrintArea(area);
+      }
     }
-  }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea]);
+  }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea, printArea]);
 
   const exitPrintMode = useCallback((targetMode?: 'play' | 'edit') => {
     const modeToSwitchTo = targetMode || previousMode || 'play';
     setMode(modeToSwitchTo);
+    // If "Show in Edit Mode" is on, preserve the print area and that flag
+    const keepOverlay = showInEditMode && printArea;
+    const savedArea = printArea;
     resetPrintSettings();
-  }, [previousMode, setMode, resetPrintSettings]);
+    if (keepOverlay) {
+      setShowInEditMode(true);
+      setPrintArea(savedArea);
+    }
+  }, [previousMode, setMode, resetPrintSettings, showInEditMode, printArea, setShowInEditMode, setPrintArea]);
+
+  // Handle paper format change: enforce aspect ratio on the print area
+  const handlePaperFormatChange = useCallback((format: PaperFormat, landscape: boolean) => {
+    setPaperFormat(format);
+    setIsLandscape(landscape);
+    const ratio = getEffectiveAspectRatio(format, landscape);
+    if (ratio && printArea) {
+      const newHeight = printArea.width / ratio;
+      const deltaY = (newHeight - printArea.height) / 2;
+      setPrintArea({
+        ...printArea,
+        y: printArea.y - deltaY,
+        height: newHeight,
+      });
+    }
+  }, [setPaperFormat, setIsLandscape, printArea, setPrintArea]);
 
   // Recalculate print area on mount if already in print mode (e.g., after page refresh)
   useEffect(() => {
@@ -292,6 +415,12 @@ export default function Sheet() {
   // Print function - uses native browser print with a temporary wrapper element
   const handlePrint = useCallback(() => {
     if (!printArea) return;
+    recordSheetWorkflowEvent('print_triggered', 'print', {
+      width: Math.round(printArea.width),
+      height: Math.round(printArea.height),
+      paperFormat,
+      isLandscape,
+    });
     
     // Get the canvas content
     const canvas = document.querySelector('.print-canvas-content');
@@ -329,25 +458,46 @@ export default function Sheet() {
     // Add the wrapper to the body
     document.body.appendChild(printWrapper);
     
+    // Clean up after printing - iOS Safari fires window.print() asynchronously,
+    // so a fixed timeout would remove content before iOS renders the print preview.
+    // Use afterprint event with a matchMedia fallback and a long safety timeout.
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener('afterprint', cleanup);
+      mql?.removeListener(onMqlChange);
+      clearTimeout(fallbackTimer);
+      if (printWrapper.parentNode) {
+        document.body.removeChild(printWrapper);
+      }
+    };
+
+    // Primary: afterprint event
+    window.addEventListener('afterprint', cleanup);
+
+    // Fallback: matchMedia change (covers Safari versions without afterprint)
+    const mql = window.matchMedia?.('print');
+    const onMqlChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (!(e as MediaQueryListEvent).matches) cleanup();
+    };
+    if (mql) {
+      // addListener is deprecated but has wider iOS support than addEventListener
+      mql.addListener(onMqlChange);
+    }
+
+    // Safety net: long timeout so it never stays forever
+    const fallbackTimer = setTimeout(cleanup, 60000);
+
     // Trigger native print
     window.print();
-    
-    // Remove the wrapper after printing
-    setTimeout(() => {
-      document.body.removeChild(printWrapper);
-    }, 100);
-  }, [printArea]);
+  }, [isLandscape, paperFormat, printArea, recordSheetWorkflowEvent]);
 
   // Handle tutorial step 22 -> 23: load tutorial preset
   useEffect(() => {
     if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
-      // We just advanced to step 23, load the tutorial preset
-      const oldCharId = activeCharacterId;
-      createCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
-      // Delete the old tutorial character
-      if (oldCharId) {
-        deleteCharacter(oldCharId);
-      }
+      // We just advanced to step 23, load the tutorial preset as a transient character.
+      createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
       // If in dark mode, set theme to classic-dark
       // We need to get the new character ID after creation
       setTimeout(() => {
@@ -365,6 +515,114 @@ export default function Sheet() {
     }
   }, [tutorialStep]);
 
+  // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
+  useEffect(() => {
+    if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) || isCurrentTutorialStep(TEMPLATE_TUTORIAL_START_ID)) {
+      setMode('edit');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        if (isCurrentTutorialStep(TEMPLATE_TUTORIAL_START_ID)) {
+          frameWidgetForTutorial('FORM');
+        } else {
+          handleFitAllWidgets();
+        }
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial, handleFitAllWidgets]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-open-number-display-menu')) {
+      setMode('edit');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('NUMBER_DISPLAY');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-open-dice-menu')) {
+      setMode('edit');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-roll-dice')) {
+      setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('automation-change-strength')) {
+      setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimeout(() => {
+        frameWidgetForTutorial('NUMBER_DISPLAY');
+      }, 200);
+    }
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('templates-share-template')) {
+      setMode('edit');
+      setThemeSidebarCollapsed(true);
+      setSidebarCollapsed(false);
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    if (isCurrentTutorialStep('various-print-mode')) {
+      setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      setTimelineOpen(false);
+      setSheetDropdownOpen(false);
+    }
+
+    if (isCurrentTutorialStep('various-vertical-view')) {
+      if (mode === 'print') {
+        exitPrintMode('play');
+      } else if (mode !== 'play') {
+        setMode('play');
+      }
+      setSheetDropdownOpen(false);
+    }
+
+    if (isCurrentTutorialStep('various-timeline') || isCurrentTutorialStep('various-timeline-overview')) {
+      if (mode !== 'play') {
+        setMode('play');
+      }
+      if (isCurrentTutorialStep('various-timeline-overview')) {
+        setTimelineOpen(true);
+      }
+      setSheetDropdownOpen(false);
+    }
+
+    if (isCurrentTutorialStep('various-add-sheets') || isCurrentTutorialStep('various-add-sheet-button')) {
+      if (mode !== 'edit') {
+        setMode('edit');
+      }
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
+      if (isCurrentTutorialStep('various-add-sheet-button')) {
+        setSheetDropdownOpen(true);
+      }
+    }
+  }, [tutorialStep, mode, exitPrintMode, setMode, setTimelineOpen]);
+
   // Auto-open mobile menu when tutorial step requires the Edit/Play Mode button or Add Widget (hidden on mobile)
   useEffect(() => {
     const isNarrowScreen = window.innerWidth < 640; // sm breakpoint
@@ -372,14 +630,29 @@ export default function Sheet() {
       (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') ||
       (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play');
     const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
+    const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
+    const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
     
-    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton)) {
+    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton || needsThemeButton || needsTemplateToolboxButton)) {
+      setGridMenuOpen(true);
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    const isNarrowToolbar = window.innerWidth < 1024;
+    const needsGridMenuButton =
+      isCurrentTutorialStep('various-print-mode') ||
+      isCurrentTutorialStep('various-vertical-view') ||
+      isCurrentTutorialStep('various-timeline');
+
+    if (isNarrowToolbar && needsGridMenuButton) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
 
   // Fit all widgets when character sheet is opened or sheet is changed
   useEffect(() => {
+    if (viewLocked) return;
     if (activeCharacterId && activeSheetWidgets.length > 0) {
       // Small delay to ensure DOM elements are rendered
       const timer = setTimeout(() => {
@@ -451,6 +724,14 @@ export default function Sheet() {
     setVerticalDropIndex(null);
   };
 
+  const handleExitToMenu = useCallback(() => {
+    cleanupTransientCharacters();
+    selectCharacter(null);
+    if (tutorialStep !== null) {
+      exitTutorial();
+    }
+  }, [cleanupTransientCharacters, exitTutorial, selectCharacter, tutorialStep]);
+
   if (!activeCharacter) return null;
 
   // Vertical mode menu state
@@ -465,17 +746,18 @@ export default function Sheet() {
           {/* Mobile: Menu button */}
           <button
             onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink"
+            aria-label="Menu"
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            ☰
+            <MenuIcon className="w-4 h-4" />
           </button>
           
           {/* Desktop: Inline menu buttons */}
           <div className="hidden sm:flex items-center gap-1">
             <Tooltip content="Exit to character select" placement="below">
               <button
-                onClick={() => selectCharacter(null)}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white transition-colors"
+                onClick={handleExitToMenu}
+                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
               >
                 Exit
               </button>
@@ -549,12 +831,12 @@ export default function Sheet() {
             <Tooltip content="Switch sheet" placement="left">
               <button
                 onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs"
+                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs hover:bg-theme-accent/10 transition-colors"
               >
                 <span className="text-theme-ink truncate max-w-[60px]">
                   {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
                 </span>
-                <span className="text-theme-muted">▼</span>
+                <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
               </button>
             </Tooltip>
             
@@ -564,7 +846,7 @@ export default function Sheet() {
                   className="fixed inset-0 z-40" 
                   onClick={() => setSheetDropdownOpen(false)}
                 />
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px]">
+                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px] animate-dropdown-in">
                   {activeCharacter.sheets.map((sheet) => (
                     <button
                       key={sheet.id}
@@ -595,9 +877,10 @@ export default function Sheet() {
                 });
                 window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
               }}
-              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
+              aria-label="Expand all"
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              ▼
+              <ChevronDownIcon className="w-4 h-4" />
             </button>
           </Tooltip>
           <Tooltip content="Collapse All" placement="below">
@@ -608,9 +891,10 @@ export default function Sheet() {
                 });
                 window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
               }}
-              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs"
+              aria-label="Collapse all"
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              ▲
+              <ChevronUpIcon className="w-4 h-4" />
             </button>
           </Tooltip>
           {/* Undo/Redo buttons for mobile */}
@@ -618,9 +902,10 @@ export default function Sheet() {
             <Tooltip content="Timeline" placement="below">
               <button
                 onClick={toggleTimeline}
+                aria-label="Timeline"
                 className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
-                ⧖
+                <ClockIcon className="w-4 h-4" />
               </button>
             </Tooltip>
             <Tooltip content="Undo" placement="below">
@@ -665,7 +950,7 @@ export default function Sheet() {
               className="fixed inset-0 z-40" 
               onClick={() => setVerticalMenuOpen(false)}
             />
-            <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
+            <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
               <button
                 onClick={() => {
                   setMode('play');
@@ -695,7 +980,7 @@ export default function Sheet() {
               </button>
               <button
                 onClick={() => {
-                  selectCharacter(null);
+                  handleExitToMenu();
                   setVerticalMenuOpen(false);
                 }}
                 className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
@@ -736,6 +1021,9 @@ export default function Sheet() {
 
         {/* Timeline Sidebar */}
         <TimelineSidebar />
+
+        {/* Tutorial Bubble */}
+        {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
       </div>
     );
   }
@@ -809,11 +1097,12 @@ export default function Sheet() {
             />
           )}
           
-          {/* Print Area Overlay - only in print mode */}
-          {mode === 'print' && (
+          {/* Print Area Overlay - in print mode or edit mode when showInEditMode is on */}
+          {(mode === 'print' || (mode === 'edit' && showInEditMode && printArea)) && (
             <PrintAreaOverlay 
               scale={scale}
               pan={pan}
+              readOnly={mode === 'edit'}
             />
           )}
         </div>
@@ -821,13 +1110,14 @@ export default function Sheet() {
 
       {/* Print Mode Header */}
       {mode === 'print' && (
-        <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
+        <div data-tutorial="print-toolbar" className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
           {/* Menu button - only on narrow screens */}
           <button
             onClick={() => setPrintMenuOpen(!printMenuOpen)}
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
+            aria-label="Menu"
+            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0 hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            ☰
+            <MenuIcon className="w-4 h-4" />
           </button>
 
           {/* Wide screen: inline buttons */}
@@ -837,9 +1127,9 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   resetPrintSettings();
-                  selectCharacter(null);
+                  handleExitToMenu();
                 }}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-600 text-xs font-body hover:bg-red-600 hover:text-white transition-colors"
+                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-red-400 rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
               >
                 Exit
               </button>
@@ -903,6 +1193,66 @@ export default function Sheet() {
                 No Shadows
               </button>
             </Tooltip>
+            {/* Paper Format dropdown */}
+            <div className="relative" ref={paperFormatDropdownRef}>
+              <Tooltip content="Force print area to a paper aspect ratio" placement="below">
+                <button
+                  onClick={() => setPaperFormatDropdownOpen(!paperFormatDropdownOpen)}
+                  className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors flex items-center gap-1 ${
+                    paperFormat !== 'none'
+                      ? 'bg-theme-accent text-theme-paper'
+                      : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                  }`}
+                >
+                  Paper Format{paperFormat !== 'none' ? `: ${paperFormat === 'a4' ? 'A4' : 'Letter'} ${isLandscape ? 'Landscape' : 'Portrait'}` : ''}
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </Tooltip>
+              {paperFormatDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-50 overflow-hidden min-w-[140px] animate-dropdown-in">
+                  {([
+                    ['none', false, 'None'],
+                    ['a4', false, 'A4 Portrait'],
+                    ['a4', true, 'A4 Landscape'],
+                    ['letter', false, 'Letter Portrait'],
+                    ['letter', true, 'Letter Landscape'],
+                  ] as [PaperFormat, boolean, string][]).map(([fmt, land, label]) => {
+                    const isActive = paperFormat === fmt && (fmt === 'none' || isLandscape === land);
+                    return (
+                      <button
+                        key={label}
+                        onClick={() => {
+                          handlePaperFormatChange(fmt, land);
+                          setPaperFormatDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-2 text-sm text-left font-body transition-colors whitespace-nowrap ${
+                          isActive
+                            ? 'bg-theme-accent text-theme-paper'
+                            : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {/* Show in Edit Mode toggle */}
+            <Tooltip content="Also show the print area rectangle in edit mode" placement="below">
+              <button
+                onClick={() => setShowInEditMode(!showInEditMode)}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+                  showInEditMode
+                    ? 'bg-theme-accent text-theme-paper'
+                    : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                Show in Edit Mode
+              </button>
+            </Tooltip>
           </div>
           
           {/* Spacer */}
@@ -925,14 +1275,14 @@ export default function Sheet() {
 
       {/* Print Mode Mobile Menu Dropdown */}
       {printMenuOpen && mode === 'print' && (
-        <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme z-40 overflow-hidden">
+        <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-40 overflow-hidden animate-dropdown-in">
           <button
             onClick={() => {
               resetPrintSettings();
-              selectCharacter(null);
+              handleExitToMenu();
               setPrintMenuOpen(false);
             }}
-            className="w-full px-4 py-2.5 text-sm text-left font-body text-red-600 hover:bg-red-600 hover:text-white transition-colors whitespace-nowrap"
+            className="w-full px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors whitespace-nowrap"
           >
             Exit
           </button>
@@ -961,39 +1311,80 @@ export default function Sheet() {
               setPrinterFriendly(!printerFriendly);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               printerFriendly 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            Printer Friendly Theme {printerFriendly ? '✓' : ''}
+            Printer Friendly Theme {printerFriendly && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
           <button
             onClick={() => {
               setBordersDisabled(!bordersDisabled);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               bordersDisabled 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            No Borders {bordersDisabled ? '✓' : ''}
+            No Borders {bordersDisabled && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
           <button
             onClick={() => {
               setShadowsDisabled(!shadowsDisabled);
               setPrintMenuOpen(false);
             }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
               shadowsDisabled 
                 ? 'bg-theme-accent text-theme-paper' 
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            No Shadows {shadowsDisabled ? '✓' : ''}
+            No Shadows {shadowsDisabled && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
+          </button>
+          <div className="border-t border-theme-border" />
+          <div className="px-4 py-1.5 text-xs font-body text-theme-ink opacity-60">Paper Format</div>
+          {([
+            ['none', false, 'None'],
+            ['a4', false, 'A4 Portrait'],
+            ['a4', true, 'A4 Landscape'],
+            ['letter', false, 'Letter Portrait'],
+            ['letter', true, 'Letter Landscape'],
+          ] as [PaperFormat, boolean, string][]).map(([fmt, land, label]) => {
+            const isActive = paperFormat === fmt && (fmt === 'none' || isLandscape === land);
+            return (
+              <button
+                key={label}
+                onClick={() => {
+                  handlePaperFormatChange(fmt, land);
+                  setPrintMenuOpen(false);
+                }}
+                className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
+                  isActive
+                    ? 'bg-theme-accent text-theme-paper'
+                    : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                {label} {isActive && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+          <div className="border-t border-theme-border" />
+          <button
+            onClick={() => {
+              setShowInEditMode(!showInEditMode);
+              setPrintMenuOpen(false);
+            }}
+            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
+              showInEditMode
+                ? 'bg-theme-accent text-theme-paper'
+                : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+          >
+            Show in Edit Mode {showInEditMode && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
         </div>
       )}
@@ -1004,17 +1395,18 @@ export default function Sheet() {
         {/* Menu button - only on narrow screens */}
         <button
           onClick={() => setGridMenuOpen(!gridMenuOpen)}
-          className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0"
+          aria-label="Menu"
+          className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0 hover:bg-theme-accent hover:text-theme-paper transition-colors"
         >
-          ☰
+          <MenuIcon className="w-4 h-4" />
         </button>
 
         {/* Wide screen: inline buttons */}
         <div className="hidden lg:flex items-center gap-1 shrink-0">
           <Tooltip content="Exit to character select" placement="below">
             <button
-              onClick={() => selectCharacter(null)}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-700 transition-colors"
+              onClick={handleExitToMenu}
+              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
             >
               Exit
             </button>
@@ -1041,8 +1433,14 @@ export default function Sheet() {
           </Tooltip>
           <Tooltip content="Enter print mode to print your character sheet" placement="below">
             <button
-              onClick={enterPrintMode}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              data-tutorial="print-mode-button"
+              onClick={() => {
+                enterPrintMode();
+                if (isCurrentTutorialStep('various-print-mode')) {
+                  advanceTutorial();
+                }
+              }}
+              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-print-mode') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             >
               Print Mode
             </button>
@@ -1050,8 +1448,14 @@ export default function Sheet() {
           {mode === 'play' && (
             <Tooltip content="Switch to single-column Vertical View" placement="below">
               <button
-                onClick={() => setMode('vertical')}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                data-tutorial="vertical-view-button"
+                onClick={() => {
+                  setMode('vertical');
+                  if (isCurrentTutorialStep('various-vertical-view')) {
+                    advanceTutorial();
+                  }
+                }}
+                className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-vertical-view') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 Vertical View
               </button>
@@ -1060,8 +1464,16 @@ export default function Sheet() {
           {mode === 'play' && (
             <Tooltip content="Open event timeline" placement="below">
               <button
-                onClick={toggleTimeline}
-                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                data-tutorial="timeline-button"
+                onClick={() => {
+                  if (isCurrentTutorialStep('various-timeline')) {
+                    setTimelineOpen(true);
+                    advanceTutorial();
+                  } else {
+                    toggleTimeline();
+                  }
+                }}
+                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'} ${isCurrentTutorialStep('various-timeline') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 Timeline
               </button>
@@ -1072,23 +1484,17 @@ export default function Sheet() {
               <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
                 <button
                   data-tutorial="add-widget-button"
-                  onClick={() => {
-                    const wasCollapsed = sidebarCollapsed;
-                    setSidebarCollapsed(!sidebarCollapsed);
-                    // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
-                    if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
-                      advanceTutorial();
-                    }
-                  }}
-                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${tutorialStep === 4 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                  onClick={() => handleToggleWidgetSidebar()}
+                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 >
                   {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
                 </button>
               </Tooltip>
               <Tooltip content="Open theme editor" placement="below">
                 <button
-                  onClick={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-                  className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                  data-tutorial="theme-button"
+                  onClick={() => handleToggleThemeSidebar()}
+                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 >
                   Change Theme
                 </button>
@@ -1186,13 +1592,19 @@ export default function Sheet() {
         <div className="relative shrink-0">
           <Tooltip content="Switch sheet" placement="left">
             <button
-              onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-              className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body"
+              data-tutorial="sheet-selector"
+              onClick={() => {
+                setSheetDropdownOpen(!sheetDropdownOpen);
+                if (isCurrentTutorialStep('various-add-sheets')) {
+                  advanceTutorial();
+                }
+              }}
+              className={`h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body hover:bg-theme-accent/10 transition-colors ${isCurrentTutorialStep('various-add-sheets') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             >
               <span className="text-theme-ink truncate max-w-[60px]">
                 {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
               </span>
-              <span className="text-theme-muted">▼</span>
+              <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
             </button>
           </Tooltip>
         </div>
@@ -1202,15 +1614,46 @@ export default function Sheet() {
           <button
             data-tutorial="fit-button"
             onClick={() => {
+              if (viewLocked) return;
               handleFitAllWidgets();
+              recordSheetWorkflowEvent('view_fit_used', 'view', { widgetCount: activeSheetWidgets.length });
               // If tutorial is on step 12 (fit-button), advance
               if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
                 advanceTutorial();
               }
             }}
-            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            disabled={viewLocked}
+            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''} ${viewLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Fit
+          </button>
+        </Tooltip>
+
+        {/* Lock View button */}
+        <Tooltip content={viewLocked ? 'Unlock view (allow pan & zoom)' : 'Lock view (disable pan & zoom)'} placement="left">
+          <button
+            onClick={() => {
+              recordSheetWorkflowEvent('view_lock_changed', 'view', { locked: !viewLocked });
+              toggleViewLock();
+            }}
+            aria-pressed={viewLocked}
+            className={`w-8 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button shrink-0 ${
+              viewLocked
+                ? 'bg-theme-accent text-theme-paper'
+                : 'text-theme-ink'
+            }`}
+          >
+            {viewLocked ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0" />
+              </svg>
+            )}
           </button>
         </Tooltip>
         
@@ -1259,7 +1702,7 @@ export default function Sheet() {
             className="lg:hidden fixed inset-0 z-40" 
             onClick={() => setGridMenuOpen(false)}
           />
-          <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col">
+          <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
             {/* Mode toggle */}
             <button
               data-tutorial="edit-mode-button-mobile"
@@ -1285,9 +1728,13 @@ export default function Sheet() {
             <button
               onClick={() => {
                 enterPrintMode();
+                if (isCurrentTutorialStep('various-print-mode')) {
+                  advanceTutorial();
+                }
                 setGridMenuOpen(false);
               }}
-              className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+              data-tutorial="print-mode-button-mobile"
+              className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-print-mode') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
             >
               Print Mode
             </button>
@@ -1297,9 +1744,13 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   setMode('vertical');
+                  if (isCurrentTutorialStep('various-vertical-view')) {
+                    advanceTutorial();
+                  }
                   setGridMenuOpen(false);
                 }}
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                data-tutorial="vertical-view-button-mobile"
+                className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-vertical-view') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Vertical View
               </button>
@@ -1309,10 +1760,16 @@ export default function Sheet() {
             {mode === 'play' && (
               <button
                 onClick={() => {
-                  toggleTimeline();
+                  if (isCurrentTutorialStep('various-timeline')) {
+                    setTimelineOpen(true);
+                    advanceTutorial();
+                  } else {
+                    toggleTimeline();
+                  }
                   setGridMenuOpen(false);
                 }}
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                data-tutorial="timeline-button-mobile"
+                className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-timeline') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Timeline
               </button>
@@ -1323,25 +1780,17 @@ export default function Sheet() {
               <>
                 <button
                   data-tutorial="add-widget-button-mobile"
-                  onClick={() => {
-                    const wasCollapsed = sidebarCollapsed;
-                    setSidebarCollapsed(!sidebarCollapsed);
-                    setGridMenuOpen(false);
-                    // If tutorial is on step 4 (add-widget) and user clicked Add Widget, advance
-                    if (tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget' && wasCollapsed) {
-                      advanceTutorial();
-                    }
-                  }}
-                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${tutorialStep === 4 ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                  onClick={() => handleToggleWidgetSidebar(true)}
+                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
                 >
                   {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
                 </button>
                 <button
+                  data-tutorial="theme-button-mobile"
                   onClick={() => {
-                    setThemeSidebarCollapsed(!themeSidebarCollapsed);
-                    setGridMenuOpen(false);
+                    handleToggleThemeSidebar(true);
                   }}
-                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
                 >
                   {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
                 </button>
@@ -1360,7 +1809,7 @@ export default function Sheet() {
             {/* Exit */}
             <button
               onClick={() => {
-                selectCharacter(null);
+                handleExitToMenu();
                 setGridMenuOpen(false);
               }}
               className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
@@ -1378,7 +1827,7 @@ export default function Sheet() {
             className="fixed inset-0 z-40" 
             onClick={() => setSheetDropdownOpen(false)}
           />
-          <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px]">
+          <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px] animate-dropdown-in">
             {activeCharacter.sheets.map((sheet) => (
               <div key={sheet.id} className="group relative">
                 {editingSheetId === sheet.id ? (
@@ -1427,13 +1876,13 @@ export default function Sheet() {
                             setEditedSheetName(sheet.name);
                             setEditingSheetId(sheet.id);
                           }}
-                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center transition-colors ${
                             sheet.id === activeCharacter.activeSheetId
                               ? 'bg-theme-paper/30 text-theme-paper hover:bg-theme-paper/50'
                               : 'bg-theme-accent/20 text-theme-ink hover:bg-theme-accent/40'
                           }`}
                         >
-                          ✎
+                          <PencilIcon className="w-3 h-3" />
                         </span>
                         {activeCharacter.sheets.length > 1 && (
                           <span
@@ -1441,9 +1890,9 @@ export default function Sheet() {
                               e.stopPropagation();
                               setSheetToDelete(sheet.id);
                             }}
-                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors"
                           >
-                            ×
+                            <XIcon className="w-3 h-3" />
                           </span>
                         )}
                       </span>
@@ -1456,9 +1905,13 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
+                  if (isCurrentTutorialStep('various-add-sheet-button')) {
+                    advanceTutorial();
+                  }
                   setSheetDropdownOpen(false);
                 }}
-                className="w-full px-3 py-2 text-xs text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20 text-left font-body border-t border-theme-border/50 transition-colors"
+                data-tutorial="add-sheet-button"
+                className={`w-full px-3 py-2 text-xs text-left font-body border-t border-theme-border/50 transition-colors ${isCurrentTutorialStep('various-add-sheet-button') ? 'bg-blue-500 text-white font-bold' : 'text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20'}`}
               >
                 + Add New Sheet
               </button>
@@ -1471,10 +1924,10 @@ export default function Sheet() {
       {sheetToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setSheetToDelete(null)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in">
             <h3 className="font-heading text-theme-ink font-bold mb-2">Delete Sheet?</h3>
             <p className="text-sm text-theme-muted font-body mb-4">
               Are you sure you want to delete "{activeCharacter.sheets.find(s => s.id === sheetToDelete)?.name}"? This will delete all widgets on this sheet.
@@ -1505,10 +1958,10 @@ export default function Sheet() {
       {showAutoStackConfirm && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-50" 
+            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowAutoStackConfirm(false)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in">
             <h3 className="font-heading text-theme-ink font-bold mb-2">Auto Stack?</h3>
             <p className="text-sm text-theme-muted font-body mb-4">
               This will automatically rearrange all widgets on this sheet. Your current layout will be replaced.
@@ -1523,6 +1976,7 @@ export default function Sheet() {
               <button
                 onClick={() => {
                   handleAutoStack();
+                  recordSheetWorkflowEvent('widgets_auto_stacked', 'widget', { widgetCount: activeSheetWidgets.length });
                   setShowAutoStackConfirm(false);
                 }}
                 className="px-3 py-1.5 text-sm font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors"

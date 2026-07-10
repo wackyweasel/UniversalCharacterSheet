@@ -88,6 +88,7 @@ export default function RestButtonWidget({ widget }: Props) {
     healToFull = false,
     healRandomDice = [],
     healFlatAmount = 0,
+    poolRestores = [],
     clearConditions = false,
     resetSpellSlots = false,
     passTime = false,
@@ -96,7 +97,7 @@ export default function RestButtonWidget({ widget }: Props) {
   } = widget.data;
 
   // Check if any action is enabled
-  const hasAnyAction = healToFull || healRandomDice.length > 0 || (healFlatAmount ?? 0) > 0 || clearConditions || resetSpellSlots || passTime;
+  const hasAnyAction = healToFull || healRandomDice.length > 0 || (healFlatAmount ?? 0) > 0 || poolRestores.length > 0 || clearConditions || resetSpellSlots || passTime;
 
   // Execute the rest with optional pass time seconds
   const executeRest = (passTimeSeconds?: number) => {
@@ -123,6 +124,9 @@ export default function RestButtonWidget({ widget }: Props) {
     if (healAmount !== undefined) {
       actions.push(resultMessage);
     }
+    if (poolRestores.length > 0) {
+      actions.push(`${poolRestores.length} pool${poolRestores.length > 1 ? 's' : ''} restored`);
+    }
     if (clearConditions) {
       actions.push('Conditions cleared');
     }
@@ -138,6 +142,7 @@ export default function RestButtonWidget({ widget }: Props) {
     // Perform the rest action
     performRest({
       healAmount,
+      poolRestores: poolRestores.length > 0 ? poolRestores : undefined,
       clearConditions,
       resetSpellSlots,
       passTimeSeconds
@@ -197,6 +202,9 @@ export default function RestButtonWidget({ widget }: Props) {
       parts.push(`Heal ${diceStr}${healFlatAmount ? ` + ${healFlatAmount}` : ''} HP`);
     } else if ((healFlatAmount ?? 0) > 0) {
       parts.push(`Heal ${healFlatAmount} HP`);
+    }
+    if (poolRestores.length > 0) {
+      parts.push(`Restore ${poolRestores.length} resource pool${poolRestores.length > 1 ? 's' : ''}`);
     }
     if (clearConditions) parts.push('Clear conditions');
     if (resetSpellSlots) parts.push('Reset spell slots');

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CharacterPreset } from '../presets';
 import { CustomTheme } from '../store/useCustomThemeStore';
-import { WidgetTemplate } from '../store/useTemplateStore';
+import { AnyTemplate } from '../store/useTemplateStore';
 
 const GALLERY_BASE_URL = 'https://wackyweasel.github.io/ucs-community-gallery';
 const CACHE_KEY = 'ucs:gallery-cache';
@@ -193,7 +193,7 @@ export function useGallery() {
     }
   }, []);
 
-  const downloadTemplate = useCallback(async (item: GalleryTemplate): Promise<WidgetTemplate | null> => {
+  const downloadTemplate = useCallback(async (item: GalleryTemplate): Promise<AnyTemplate | null> => {
     try {
       const response = await fetch(`${GALLERY_BASE_URL}/${item.file}`);
       if (!response.ok) {

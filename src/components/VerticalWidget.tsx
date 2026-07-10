@@ -3,6 +3,7 @@ import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { ChevronDownIcon } from './icons';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import ListWidget from './widgets/ListWidget';
@@ -24,6 +25,8 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
+import TimerWidget from './widgets/TimerWidget';
+import StepDiceWidget from './widgets/StepDiceWidget';
 
 interface Props {
   widget: Widget;
@@ -116,6 +119,8 @@ export default function VerticalWidget({
     'TIME_TRACKER': 'Temporary Effects',
     'ROLL_TABLE': 'Roll Table',
     'DECK': 'Deck of Cards',
+    'TIMER': 'Timer',
+    'STEP_DICE': 'Step Dice',
   };
   
   // Get widget label for collapsed header
@@ -219,6 +224,8 @@ export default function VerticalWidget({
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'TIMER': return <TimerWidget {...props} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };
@@ -308,11 +315,10 @@ export default function VerticalWidget({
           {/* Collapse Toggle */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors"
           >
-            <span className={`transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`}>
-              ▼
-            </span>
+            <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
           </button>
         </div>
 

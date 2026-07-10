@@ -1,13 +1,14 @@
 {
-  "id": "d1314816-deac-414a-aac4-ee8e34f3a43f",
-  "name": "Forbidden Lands Preset",
+  "id": "df630463-068c-432d-b937-ba9faf241ac3",
+  "name": "Forbidden Lands",
+  "theme": "medieval",
   "sheets": [
     {
-      "id": "24ccc8eb-ccbb-4017-bf4c-c41e1e1c3942",
+      "id": "f216af9f-c49d-460f-bb30-2887aec58c59",
       "name": "Main",
       "widgets": [
         {
-          "id": "2a4977ab-5bf5-4249-bcbe-f85c98d44a0e",
+          "id": "a0be304f-6c28-4749-a11e-deac63dc3558",
           "type": "IMAGE",
           "x": 0,
           "y": 0,
@@ -19,13 +20,15 @@
             "items": [],
             "text": ""
           },
-          "groupId": "24a99c59-bcf1-43c4-81a3-27d1ba361b2b",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "77dae175-0c90-4ae9-9bd2-09900b47b452"
+            "50fe4b83-a2d8-48bc-a28c-1e87a3c11cd9",
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "84348c03-111a-4936-94fb-5eb24a64beff"
           ]
         },
         {
-          "id": "77dae175-0c90-4ae9-9bd2-09900b47b452",
+          "id": "84348c03-111a-4936-94fb-5eb24a64beff",
           "type": "POOL",
           "x": 0,
           "y": 220,
@@ -64,19 +67,20 @@
             ],
             "showPoolCount": false
           },
-          "groupId": "24a99c59-bcf1-43c4-81a3-27d1ba361b2b",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "2a4977ab-5bf5-4249-bcbe-f85c98d44a0e",
-            "b6005e83-2df9-4d9e-899a-c287d6174b61"
+            "a0be304f-6c28-4749-a11e-deac63dc3558",
+            "16719d8c-bf39-4856-bff8-004a37313b12",
+            "7e709a7b-85c3-421b-b486-92dfeedfe227"
           ]
         },
         {
-          "id": "b6005e83-2df9-4d9e-899a-c287d6174b61",
+          "id": "16719d8c-bf39-4856-bff8-004a37313b12",
           "type": "TOGGLE_GROUP",
           "x": 0,
           "y": 460,
           "w": 180,
-          "h": 150,
+          "h": 90,
           "data": {
             "label": "Conditions",
             "value": 0,
@@ -101,13 +105,15 @@
               }
             ]
           },
-          "groupId": "24a99c59-bcf1-43c4-81a3-27d1ba361b2b",
           "attachedTo": [
-            "77dae175-0c90-4ae9-9bd2-09900b47b452"
-          ]
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "ead9414d-87be-44fb-a694-27ac9944d51b",
+            "84348c03-111a-4936-94fb-5eb24a64beff"
+          ],
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302"
         },
         {
-          "id": "ebe42a9f-7198-406a-af8c-0ae26471caaf",
+          "id": "f417228b-f031-4a3d-8364-ef5217d7521a",
           "type": "TIME_TRACKER",
           "x": 470,
           "y": 380,
@@ -117,22 +123,23 @@
             "label": "Critical Injuries",
             "value": 0,
             "items": [],
-            "text": ""
+            "text": "",
+            "timedEffects": []
           },
-          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
-            "4735c60d-3ded-4680-a9dc-58a4d528c26c",
-            "8dc758e6-5b01-4c7d-9c6c-09680bcfd46e"
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "9e428ff8-d9d9-4946-bff0-d9436b14b204",
+            "60ca8674-74a8-4f26-9f12-7a823b1af11a"
           ]
         },
         {
-          "id": "89f10e14-d560-43dd-821f-cea26f89c170",
+          "id": "af1e7f5d-c25d-4af3-896c-87c60f457f88",
           "type": "DICE_TRAY",
           "x": 760,
           "y": 0,
           "w": 240,
-          "h": 200,
+          "h": 180,
           "data": {
             "label": "",
             "value": 0,
@@ -144,10 +151,14 @@
               10,
               12
             ]
-          }
+          },
+          "groupId": "c6dffc46-bddb-449a-99f2-5dd732c31ccb",
+          "attachedTo": [
+            "68bae85a-4601-4297-9319-ffe5297bd214"
+          ]
         },
         {
-          "id": "e8466ec2-dba6-467c-bccd-dd6606a39408",
+          "id": "50fe4b83-a2d8-48bc-a28c-1e87a3c11cd9",
           "type": "FORM",
           "x": 180,
           "y": 0,
@@ -185,14 +196,14 @@
               }
             ]
           },
-          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
-            "4735c60d-3ded-4680-a9dc-58a4d528c26c"
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "9e428ff8-d9d9-4946-bff0-d9436b14b204"
           ]
         },
         {
-          "id": "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
+          "id": "7e709a7b-85c3-421b-b486-92dfeedfe227",
           "type": "NUMBER",
           "x": 180,
           "y": 180,
@@ -257,7 +268,7 @@
                 "value": 0
               },
               {
-                "name": "PErformance (emp)",
+                "name": "Performance (emp)",
                 "value": 0
               },
               {
@@ -274,16 +285,20 @@
               }
             ]
           },
-          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "e8466ec2-dba6-467c-bccd-dd6606a39408",
-            "4735c60d-3ded-4680-a9dc-58a4d528c26c",
-            "ebe42a9f-7198-406a-af8c-0ae26471caaf",
-            "8dc758e6-5b01-4c7d-9c6c-09680bcfd46e"
+            "50fe4b83-a2d8-48bc-a28c-1e87a3c11cd9",
+            "9e428ff8-d9d9-4946-bff0-d9436b14b204",
+            "f417228b-f031-4a3d-8364-ef5217d7521a",
+            "60ca8674-74a8-4f26-9f12-7a823b1af11a",
+            "a0be304f-6c28-4749-a11e-deac63dc3558",
+            "ead9414d-87be-44fb-a694-27ac9944d51b",
+            "16719d8c-bf39-4856-bff8-004a37313b12",
+            "84348c03-111a-4936-94fb-5eb24a64beff"
           ]
         },
         {
-          "id": "4735c60d-3ded-4680-a9dc-58a4d528c26c",
+          "id": "9e428ff8-d9d9-4946-bff0-d9436b14b204",
           "type": "LIST",
           "x": 470,
           "y": 180,
@@ -296,15 +311,15 @@
             "text": "",
             "itemCount": 5
           },
-          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "e8466ec2-dba6-467c-bccd-dd6606a39408",
-            "8944f7d8-d339-4345-a2ee-f0a54745dcd9",
-            "ebe42a9f-7198-406a-af8c-0ae26471caaf"
+            "50fe4b83-a2d8-48bc-a28c-1e87a3c11cd9",
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "f417228b-f031-4a3d-8364-ef5217d7521a"
           ]
         },
         {
-          "id": "8dc758e6-5b01-4c7d-9c6c-09680bcfd46e",
+          "id": "60ca8674-74a8-4f26-9f12-7a823b1af11a",
           "type": "LIST",
           "x": 0,
           "y": 610,
@@ -317,14 +332,105 @@
             "text": "",
             "itemCount": 6
           },
-          "groupId": "79947237-61a0-4981-a8b8-da5a29e5a82c",
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
           "attachedTo": [
-            "ebe42a9f-7198-406a-af8c-0ae26471caaf",
-            "8944f7d8-d339-4345-a2ee-f0a54745dcd9"
+            "f417228b-f031-4a3d-8364-ef5217d7521a",
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "ead9414d-87be-44fb-a694-27ac9944d51b"
+          ]
+        },
+        {
+          "id": "68bae85a-4601-4297-9319-ffe5297bd214",
+          "type": "STEP_DICE",
+          "x": 760,
+          "y": 180,
+          "w": 240,
+          "h": 180,
+          "data": {
+            "label": "Ressources",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "stepDiceChain": [
+              6,
+              8,
+              10,
+              12
+            ],
+            "stepDiceItems": [
+              {
+                "name": "Food",
+                "currentStep": 0
+              },
+              {
+                "name": "Water",
+                "currentStep": 0
+              },
+              {
+                "name": "Arrows",
+                "currentStep": 0
+              },
+              {
+                "name": "Torches",
+                "currentStep": 0
+              }
+            ]
+          },
+          "groupId": "c6dffc46-bddb-449a-99f2-5dd732c31ccb",
+          "attachedTo": [
+            "af1e7f5d-c25d-4af3-896c-87c60f457f88"
+          ]
+        },
+        {
+          "id": "ead9414d-87be-44fb-a694-27ac9944d51b",
+          "type": "REST_BUTTON",
+          "x": 0,
+          "y": 550,
+          "w": 180,
+          "h": 60,
+          "data": {
+            "label": "Rest",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "restorePools": false,
+            "restorePoolsToFull": false,
+            "clearConditions": false,
+            "poolRestores": [
+              {
+                "widgetId": "84348c03-111a-4936-94fb-5eb24a64beff",
+                "resourceIndex": 0,
+                "mode": "full"
+              },
+              {
+                "widgetId": "84348c03-111a-4936-94fb-5eb24a64beff",
+                "resourceIndex": 1,
+                "mode": "full"
+              },
+              {
+                "widgetId": "84348c03-111a-4936-94fb-5eb24a64beff",
+                "resourceIndex": 2,
+                "mode": "full"
+              },
+              {
+                "widgetId": "84348c03-111a-4936-94fb-5eb24a64beff",
+                "resourceIndex": 3,
+                "mode": "full"
+              }
+            ],
+            "passTime": true,
+            "passTimeAmount": 6,
+            "passTimeUnit": "hours"
+          },
+          "groupId": "d6ef9bfb-2542-4fae-afc3-74ff6c807302",
+          "attachedTo": [
+            "7e709a7b-85c3-421b-b486-92dfeedfe227",
+            "60ca8674-74a8-4f26-9f12-7a823b1af11a",
+            "16719d8c-bf39-4856-bff8-004a37313b12"
           ]
         }
       ]
     }
   ],
-  "activeSheetId": "24ccc8eb-ccbb-4017-bf4c-c41e1e1c3942"
+  "activeSheetId": "f216af9f-c49d-460f-bb30-2887aec58c59"
 }

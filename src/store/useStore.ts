@@ -1,13 +1,26 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetType, Sheet } from '../types';
+import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
-import { resolveCharacterFormulas, FormulaChange } from '../utils/formulaEngine';
+import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
+type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
+type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
+type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view';
+
+interface StoreTelemetryEvent {
+  eventName: string;
+  category: StoreTelemetryCategory;
+  characterId?: string | null;
+  sheetId?: string | null;
+  widgetType?: WidgetType | null;
+  source?: string | null;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+}
 
 // Helper to get the active sheet's widgets from a character
 function getActiveSheetWidgets(character: Character): Widget[] {
@@ -88,8 +101,42 @@ function migrateCharacter(char: any): Character {
   };
 }
 
+function recordStoreEvent(
+  state: Pick<StoreState, 'characters' | 'transientCharacterIds' | 'activeCharacterId' | 'mode'>,
+  event: StoreTelemetryEvent
+) {
+  const characterId = event.characterId === undefined ? state.activeCharacterId : event.characterId;
+  if (characterId && state.transientCharacterIds.includes(characterId)) return;
+
+  const character = characterId ? state.characters.find(c => c.id === characterId) : undefined;
+
+  useTelemetryStore.getState().recordEvent({
+    eventName: event.eventName,
+    category: event.category,
+    characterId: characterId ?? null,
+    sheetId: event.sheetId ?? character?.activeSheetId ?? null,
+    mode: state.mode,
+    widgetType: event.widgetType ?? null,
+    source: event.source ?? null,
+    metadata: event.metadata,
+  });
+}
+
+function getPresetCreatedEventName(source: PresetTelemetrySource): string {
+  if (source === 'builtin_preset') return 'character_created_from_builtin_preset';
+  if (source === 'user_preset') return 'character_created_from_user_preset';
+  return 'character_created_from_preset';
+}
+
+function getImportEventName(source: ImportTelemetrySource): string {
+  if (source === 'json_file') return 'character_imported_json_file';
+  if (source === 'raw_json') return 'character_imported_raw_json';
+  return 'character_imported';
+}
+
 interface StoreState {
   characters: Character[];
+  transientCharacterIds: string[];
   activeCharacterId: string | null;
   mode: Mode;
   editingWidgetId: string | null;
@@ -97,8 +144,11 @@ interface StoreState {
   
   // Actions
   createCharacter: (name: string) => void;
-  createCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
-  importCharacter: (character: Character) => void;
+  createCharacterFromPreset: (preset: CharacterPreset, name?: string, telemetrySource?: PresetTelemetrySource) => void;
+  createTransientCharacter: (name: string) => void;
+  createTransientCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
+  cleanupTransientCharacters: () => void;
+  importCharacter: (character: Character, telemetrySource?: ImportTelemetrySource) => void;
   duplicateCharacter: (id: string) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
@@ -144,6 +194,7 @@ interface StoreState {
   // Rest Action (for Rest Button widget)
   performRest: (options: {
     healAmount?: number | 'full';
+    poolRestores?: PoolRestoreTarget[];
     clearConditions?: boolean;
     resetSpellSlots?: boolean;
     passTimeSeconds?: number;
@@ -187,6 +238,7 @@ export const useStore = create<StoreState>((set, get) => {
 
   const api: StoreState = {
     characters: initialCharacters,
+    transientCharacterIds: [],
     activeCharacterId: initialActive,
     mode: initialMode,
     editingWidgetId: null,
@@ -204,6 +256,13 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: [defaultSheet],
         activeSheetId: defaultSheet.id
       };
+      recordStoreEvent(state, {
+        eventName: 'character_created_blank',
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: defaultSheet.id,
+        source: 'blank',
+      });
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
@@ -211,7 +270,67 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    createCharacterFromPreset: (preset, name) => set((state) => {
+    createCharacterFromPreset: (preset, name, telemetrySource = 'unknown') => set((state) => {
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+
+      const newChar: Character = {
+        id: uuidv4(),
+        name: name || preset.name,
+        theme: preset.theme,
+        sheets: newSheets,
+        activeSheetId
+      };
+
+      recordStoreEvent(state, {
+        eventName: getPresetCreatedEventName(telemetrySource),
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: activeSheetId,
+        source: telemetrySource,
+        metadata: {
+          presetName: preset.name,
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
+
+      return {
+        characters: [...state.characters, newChar],
+        activeCharacterId: newChar.id,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+      };
+    }),
+
+    createTransientCharacter: (name) => set((state) => {
+      const transientIds = new Set(state.transientCharacterIds);
+      state.transientCharacterIds.forEach((id) => {
+        useTimelineStore.getState().clearEvents(id);
+      });
+      const defaultSheet: Sheet = {
+        id: uuidv4(),
+        name: 'Main',
+        widgets: []
+      };
+      const newChar: Character = {
+        id: uuidv4(),
+        name,
+        sheets: [defaultSheet],
+        activeSheetId: defaultSheet.id
+      };
+
+      return {
+        characters: [...state.characters.filter(c => !transientIds.has(c.id)), newChar],
+        transientCharacterIds: [newChar.id],
+        activeCharacterId: newChar.id,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+      };
+    }),
+
+    createTransientCharacterFromPreset: (preset, name) => set((state) => {
+      const transientIds = new Set(state.transientCharacterIds);
+      state.transientCharacterIds.forEach((id) => {
+        useTimelineStore.getState().clearEvents(id);
+      });
       const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
 
       const newChar: Character = {
@@ -223,13 +342,31 @@ export const useStore = create<StoreState>((set, get) => {
       };
 
       return {
-        characters: [...state.characters, newChar],
+        characters: [...state.characters.filter(c => !transientIds.has(c.id)), newChar],
+        transientCharacterIds: [newChar.id],
         activeCharacterId: newChar.id,
         mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
 
-    importCharacter: (character) => set((state) => {
+    cleanupTransientCharacters: () => set((state) => {
+      if (state.transientCharacterIds.length === 0) return state;
+
+      const transientIds = new Set(state.transientCharacterIds);
+      state.transientCharacterIds.forEach((id) => {
+        useTimelineStore.getState().clearEvents(id);
+      });
+
+      return {
+        characters: state.characters.filter(c => !transientIds.has(c.id)),
+        transientCharacterIds: [],
+        activeCharacterId: state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId,
+        editingWidgetId: null,
+        selectedWidgetId: null,
+      };
+    }),
+
+    importCharacter: (character, telemetrySource = 'unknown') => set((state) => {
       const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
 
       const newChar: Character = {
@@ -239,6 +376,18 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         activeSheetId
       };
+
+      recordStoreEvent(state, {
+        eventName: getImportEventName(telemetrySource),
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: activeSheetId,
+        source: telemetrySource,
+        metadata: {
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
 
       return {
         characters: [...state.characters, newChar]
@@ -259,30 +408,128 @@ export const useStore = create<StoreState>((set, get) => {
         activeSheetId
       };
 
+      recordStoreEvent(state, {
+        eventName: 'character_duplicated',
+        category: 'character',
+        characterId: newChar.id,
+        sheetId: activeSheetId,
+        source: 'character_menu',
+        metadata: {
+          sourceCharacterId: id,
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
+
       return {
         characters: [...state.characters, newChar]
       };
     }),
 
-    selectCharacter: (id) => set((state) => ({
-      activeCharacterId: id,
-      mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
-    })),
+    selectCharacter: (id) => set((state) => {
+      const transientIds = new Set(state.transientCharacterIds);
+      const shouldCleanupTransients = id === null && transientIds.size > 0;
+      if (shouldCleanupTransients) {
+        state.transientCharacterIds.forEach((transientId) => {
+          useTimelineStore.getState().clearEvents(transientId);
+        });
+      }
 
-    deleteCharacter: (id) => set((state) => ({
-      characters: state.characters.filter(c => c.id !== id),
-      activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId
-    })),
+      if (id) {
+        const character = state.characters.find(c => c.id === id);
+        if (character) {
+          recordStoreEvent(state, {
+            eventName: 'character_opened',
+            category: 'character',
+            characterId: id,
+            sheetId: character.activeSheetId,
+            source: 'character_list',
+          });
+        }
+      }
 
-    updateCharacterName: (id, name) => set((state) => ({
-      characters: state.characters.map(c => c.id === id ? { ...c, name } : c)
-    })),
+      return {
+        characters: shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters,
+        transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
+        activeCharacterId: id,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
+        editingWidgetId: null,
+        selectedWidgetId: null,
+      };
+    }),
 
-    updateCharacterTheme: (id, theme) => set((state) => ({
-      characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
-    })),
+    deleteCharacter: (id) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (character) {
+        recordStoreEvent(state, {
+          eventName: 'character_deleted',
+          category: 'character',
+          characterId: id,
+          sheetId: character.activeSheetId,
+          source: 'character_menu',
+          metadata: {
+            sheetCount: character.sheets.length,
+            widgetCount: character.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+          },
+        });
+      }
 
-    setMode: (mode) => set({ mode, selectedWidgetId: null }),
+      return {
+        characters: state.characters.filter(c => c.id !== id),
+        activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId
+      };
+    }),
+
+    updateCharacterName: (id, name) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (character && character.name !== name) {
+        recordStoreEvent(state, {
+          eventName: 'character_renamed',
+          category: 'character',
+          characterId: id,
+          sheetId: character.activeSheetId,
+          source: 'character_name',
+        });
+      }
+
+      return {
+        characters: state.characters.map(c => c.id === id ? { ...c, name } : c)
+      };
+    }),
+
+    updateCharacterTheme: (id, theme) => set((state) => {
+      const character = state.characters.find(c => c.id === id);
+      if (character && character.theme !== theme) {
+        recordStoreEvent(state, {
+          eventName: 'character_theme_changed',
+          category: 'theme',
+          characterId: id,
+          sheetId: character.activeSheetId,
+          source: 'theme_selection',
+          metadata: { themeId: theme },
+        });
+      }
+
+      return {
+        characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
+      };
+    }),
+
+    setMode: (mode) => set((state) => {
+      if (state.mode !== mode) {
+        recordStoreEvent(state, {
+          eventName: 'mode_changed',
+          category: 'view',
+          source: 'sheet_toolbar',
+          metadata: {
+            previousMode: state.mode,
+            nextMode: mode,
+          },
+        });
+      }
+
+      return { mode, selectedWidgetId: null };
+    }),
 
     setEditingWidgetId: (id) => set({ editingWidgetId: id }),
 
@@ -297,6 +544,13 @@ export const useStore = create<StoreState>((set, get) => {
         name,
         widgets: []
       };
+      recordStoreEvent(state, {
+        eventName: 'sheet_created',
+        category: 'sheet',
+        sheetId: newSheet.id,
+        source: 'sheet_selector',
+        metadata: { sheetCount: (state.characters.find(c => c.id === state.activeCharacterId)?.sheets.length ?? 0) + 1 },
+      });
       
       return {
         characters: state.characters.map(c => {
@@ -314,6 +568,16 @@ export const useStore = create<StoreState>((set, get) => {
 
     selectSheet: (sheetId) => set((state) => {
       if (!state.activeCharacterId) return state;
+      const character = state.characters.find(c => c.id === state.activeCharacterId);
+      if (!character || character.activeSheetId === sheetId) return state;
+
+      recordStoreEvent(state, {
+        eventName: 'sheet_selected',
+        category: 'sheet',
+        sheetId,
+        source: 'sheet_selector',
+        metadata: { previousSheetId: character.activeSheetId },
+      });
       
       return {
         characters: state.characters.map(c => {
@@ -331,6 +595,17 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        const sheet = character?.sheets.find(s => s.id === sheetId);
+        if (character && sheet && character.sheets.length > 1) {
+          recordStoreEvent(state, {
+            eventName: 'sheet_deleted',
+            category: 'sheet',
+            sheetId,
+            source: 'sheet_selector',
+            metadata: { widgetCount: sheet.widgets.length },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -356,6 +631,16 @@ export const useStore = create<StoreState>((set, get) => {
 
     renameSheet: (sheetId, name) => set((state) => {
       if (!state.activeCharacterId) return state;
+      const character = state.characters.find(c => c.id === state.activeCharacterId);
+      const sheet = character?.sheets.find(s => s.id === sheetId);
+      if (sheet && sheet.name !== name) {
+        recordStoreEvent(state, {
+          eventName: 'sheet_renamed',
+          category: 'sheet',
+          sheetId,
+          source: 'sheet_selector',
+        });
+      }
       
       return {
         characters: state.characters.map(c => {
@@ -486,6 +771,8 @@ export const useStore = create<StoreState>((set, get) => {
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'DECK': 'Deck',
+            'TIMER': 'Timer',
+            'STEP_DICE': 'Step Dice',
           };
           return defaultLabels[widgetType] || '';
         };
@@ -504,6 +791,14 @@ export const useStore = create<StoreState>((set, get) => {
             text: ''
           }
         };
+
+        recordStoreEvent(state, {
+          eventName: 'widget_added',
+          category: 'widget',
+          widgetType: type,
+          source: viewport ? 'toolbox_visible_area' : 'toolbox',
+          metadata: { x: finalX, y: finalY },
+        });
 
         return {
           characters: state.characters.map(c => {
@@ -541,6 +836,14 @@ export const useStore = create<StoreState>((set, get) => {
           h: sourceWidget.h,
           data: JSON.parse(JSON.stringify(sourceWidget.data)), // Deep clone the data
         };
+
+        recordStoreEvent(state, {
+          eventName: 'widget_cloned',
+          category: 'widget',
+          widgetType: sourceWidget.type,
+          source: 'widget_menu',
+          metadata: { sourceWidgetId: widgetId },
+        });
 
         return {
           characters: state.characters.map(c => {
@@ -649,6 +952,14 @@ export const useStore = create<StoreState>((set, get) => {
           h: template.h || 120,
           data: JSON.parse(JSON.stringify(template.data)), // Deep clone the data
         };
+
+        recordStoreEvent(state, {
+          eventName: 'widget_added_from_template',
+          category: 'template',
+          widgetType: template.type,
+          source: 'template_panel',
+          metadata: { x: finalX, y: finalY },
+        });
 
         return {
           characters: state.characters.map(c => {
@@ -787,6 +1098,16 @@ export const useStore = create<StoreState>((set, get) => {
             }
           }
         });
+
+        recordStoreEvent(state, {
+          eventName: 'widget_group_added_from_template',
+          category: 'template',
+          source: 'template_panel',
+          metadata: {
+            widgetCount: newWidgets.length,
+            attachmentCount: template.attachments.length,
+          },
+        });
         
         return {
           characters: state.characters.map(c => {
@@ -896,6 +1217,16 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
+            const widget = getActiveSheetWidgets(c).find(w => w.id === id);
+            if (widget) {
+              recordStoreEvent(state, {
+                eventName: 'widget_deleted',
+                category: 'widget',
+                widgetType: widget.type,
+                source: 'widget_menu',
+                metadata: { widgetId: id },
+              });
+            }
             return updateActiveSheetWidgets(c, widgets => 
               widgets.filter(w => w.id !== id)
             );
@@ -909,6 +1240,16 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
+            const widget = getActiveSheetWidgets(c).find(w => w.id === id);
+            if (widget) {
+              recordStoreEvent(state, {
+                eventName: widget.locked ? 'widget_unlocked' : 'widget_locked',
+                category: 'widget',
+                widgetType: widget.type,
+                source: 'widget_menu',
+                metadata: { widgetId: id },
+              });
+            }
             return updateActiveSheetWidgets(c, widgets =>
               widgets.map(w => w.id === id ? { ...w, locked: !w.locked } : w)
             );
@@ -941,6 +1282,18 @@ export const useStore = create<StoreState>((set, get) => {
         // Check target sheet exists
         const targetSheet = character.sheets.find(s => s.id === targetSheetId);
         if (!targetSheet) return state;
+
+        recordStoreEvent(state, {
+          eventName: 'widget_moved_to_sheet',
+          category: 'widget',
+          widgetType: widget.type,
+          sheetId: character.activeSheetId,
+          source: 'widget_menu',
+          metadata: {
+            widgetId,
+            targetSheetId,
+          },
+        });
         
         // Remove widget from attachments and groups when moving
         const widgetToMove = {
@@ -1028,6 +1381,18 @@ export const useStore = create<StoreState>((set, get) => {
             
             // Check if already attached
             if (widget1.attachedTo?.includes(widgetId2)) return c;
+
+            recordStoreEvent(state, {
+              eventName: 'widgets_attached',
+              category: 'widget',
+              widgetType: widget1.type,
+              source: 'attachment_button',
+              metadata: {
+                widgetId1,
+                widgetId2,
+                widgetType2: widget2.type,
+              },
+            });
             
             // Determine the group ID to use
             let newGroupId: string;
@@ -1101,6 +1466,18 @@ export const useStore = create<StoreState>((set, get) => {
             
             const groupId = widget1.groupId;
             const widget1Neighbors = widget1.attachedTo || [];
+
+            recordStoreEvent(state, {
+              eventName: 'widget_detached_from_group',
+              category: 'widget',
+              widgetType: widget1.type,
+              source: 'widget_menu',
+              metadata: {
+                widgetId: widgetId1,
+                groupId,
+                neighborCount: widget1Neighbors.length,
+              },
+            });
             
             // Remove widget1 from the group entirely
             let updatedWidgets = widgets.map(w => {
@@ -1288,6 +1665,16 @@ export const useStore = create<StoreState>((set, get) => {
           locked: w.locked,
           data: JSON.parse(JSON.stringify(w.data)),
         }));
+
+        recordStoreEvent(state, {
+          eventName: 'widget_group_cloned',
+          category: 'widget',
+          source: 'group_menu',
+          metadata: {
+            groupId,
+            widgetCount: groupWidgets.length,
+          },
+        });
         
         return {
           characters: state.characters.map(c => {
@@ -1306,6 +1693,19 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        const groupWidgets = character ? getActiveSheetWidgets(character).filter(w => w.groupId === groupId) : [];
+        if (groupWidgets.length > 0) {
+          recordStoreEvent(state, {
+            eventName: 'widget_group_deleted',
+            category: 'widget',
+            source: 'group_menu',
+            metadata: {
+              groupId,
+              widgetCount: groupWidgets.length,
+            },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -1334,6 +1734,18 @@ export const useStore = create<StoreState>((set, get) => {
         // Check if any widget in the group is unlocked - if so, lock all; otherwise unlock all
         const anyUnlocked = groupWidgets.some(w => !w.locked);
         const newLockState = anyUnlocked;
+
+        if (groupWidgets.length > 0) {
+          recordStoreEvent(state, {
+            eventName: newLockState ? 'widget_group_locked' : 'widget_group_unlocked',
+            category: 'widget',
+            source: 'group_menu',
+            metadata: {
+              groupId,
+              widgetCount: groupWidgets.length,
+            },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -1371,6 +1783,18 @@ export const useStore = create<StoreState>((set, get) => {
         // Get all widgets in the group
         const widgetsToMove = activeSheet.widgets.filter(w => w.groupId === groupId);
         if (widgetsToMove.length === 0) return state;
+
+        recordStoreEvent(state, {
+          eventName: 'widget_group_moved_to_sheet',
+          category: 'widget',
+          sheetId: character.activeSheetId,
+          source: 'group_menu',
+          metadata: {
+            groupId,
+            targetSheetId,
+            widgetCount: widgetsToMove.length,
+          },
+        });
         
         const widgetIdsToMove = new Set(widgetsToMove.map(w => w.id));
         
@@ -1414,6 +1838,19 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
+        const character = state.characters.find(c => c.id === state.activeCharacterId);
+        const groupWidgets = character ? getActiveSheetWidgets(character).filter(w => w.groupId === groupId) : [];
+        if (groupWidgets.length > 0) {
+          recordStoreEvent(state, {
+            eventName: 'widget_group_detached_all',
+            category: 'widget',
+            source: 'group_menu',
+            metadata: {
+              groupId,
+              widgetCount: groupWidgets.length,
+            },
+          });
+        }
         
         return {
           characters: state.characters.map(c => {
@@ -1441,60 +1878,126 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => {
         if (!state.activeCharacterId) return state;
         
-        const { healAmount, clearConditions, resetSpellSlots, passTimeSeconds } = options;
+        const { healAmount, clearConditions, resetSpellSlots, passTimeSeconds, poolRestores } = options;
+        
+        // Build a lookup of pool restore targets keyed by widget id
+        const poolRestoreMap = new Map<string, PoolRestoreTarget[]>();
+        (poolRestores || []).forEach(target => {
+          const list = poolRestoreMap.get(target.widgetId) || [];
+          list.push(target);
+          poolRestoreMap.set(target.widgetId, list);
+        });
+        
+        // Labels for evaluating per-pool restore formulas
+        const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
+        const restoreLabels = activeChar ? collectLabels(activeChar) : {};
+        
+        // Resolve the flat restore amount for a target (formula overrides amount when set)
+        const resolveRestoreAmount = (target: PoolRestoreTarget): number => {
+          if (target.amountFormula) {
+            const computed = evaluateFormula(target.amountFormula, restoreLabels);
+            if (computed !== null) return Math.max(0, Math.round(computed));
+          }
+          return target.amount ?? 0;
+        };
+        
+        // Apply pool restores to a POOL widget (works on any sheet, targeted by id)
+        const applyPoolRestore = (w: Widget): Widget => {
+          if (w.type !== 'POOL') return w;
+          const targets = poolRestoreMap.get(w.id);
+          if (!targets || targets.length === 0) return w;
+          
+          const poolResources = w.data.poolResources || [];
+          if (poolResources.length > 0) {
+            // Multi-resource mode — match each target by resource index
+            const newResources = poolResources.map((r: PoolResource, idx: number) => {
+              const target = targets.find(t => t.resourceIndex === idx);
+              if (!target || r.currentFormula) return r; // skip unselected or formula-driven
+              const newCurrent = target.mode === 'full'
+                ? r.max
+                : Math.min(r.max, (r.current ?? 0) + resolveRestoreAmount(target));
+              return { ...r, current: newCurrent };
+            });
+            return { ...w, data: { ...w.data, poolResources: newResources } };
+          } else {
+            // Legacy single pool mode (resourceIndex === -1)
+            const target = targets.find(t => t.resourceIndex === -1);
+            if (!target) return w;
+            const fieldFormulas = (w.data.fieldFormulas as Record<string, string> | undefined);
+            if (fieldFormulas?.currentPool) return w; // skip formula-driven pool
+            const maxPool = w.data.maxPool ?? 5;
+            const currentPool = w.data.currentPool ?? 0;
+            const newCurrent = target.mode === 'full'
+              ? maxPool
+              : Math.min(maxPool, currentPool + resolveRestoreAmount(target));
+            return { ...w, data: { ...w.data, currentPool: newCurrent } };
+          }
+        };
         
         return {
           characters: state.characters.map(c => {
-            if (c.id === state.activeCharacterId) {
-              return updateActiveSheetWidgets(c, widgets => 
-                widgets.map(w => {
-                  // Handle Health Bar widgets
-                  if (w.type === 'HEALTH_BAR' && healAmount !== undefined) {
-                    const currentValue = w.data.currentValue ?? 0;
-                    const maxValue = w.data.maxValue ?? 10;
+            if (c.id !== state.activeCharacterId) return c;
+            return {
+              ...c,
+              sheets: c.sheets.map(sheet => {
+                const isActiveSheet = sheet.id === c.activeSheetId;
+                return {
+                  ...sheet,
+                  widgets: sheet.widgets.map(w => {
+                    // Pool restores can target widgets on any sheet
+                    const pooled = applyPoolRestore(w);
+                    if (pooled !== w) return pooled;
                     
-                    let newValue: number;
-                    if (healAmount === 'full') {
-                      newValue = maxValue;
-                    } else {
-                      newValue = Math.min(maxValue, currentValue + healAmount);
+                    // The remaining effects only apply to the active sheet
+                    if (!isActiveSheet) return w;
+                    
+                    // Handle Health Bar widgets
+                    if (w.type === 'HEALTH_BAR' && healAmount !== undefined) {
+                      const currentValue = w.data.currentValue ?? 0;
+                      const maxValue = w.data.maxValue ?? 10;
+                      
+                      let newValue: number;
+                      if (healAmount === 'full') {
+                        newValue = maxValue;
+                      } else {
+                        newValue = Math.min(maxValue, currentValue + healAmount);
+                      }
+                      
+                      return { ...w, data: { ...w.data, currentValue: newValue } };
                     }
                     
-                    return { ...w, data: { ...w.data, currentValue: newValue } };
-                  }
-                  
-                  // Handle Condition widgets (TOGGLE_GROUP)
-                  if (w.type === 'TOGGLE_GROUP' && clearConditions) {
-                    const toggleItems = w.data.toggleItems || [];
-                    const clearedItems = toggleItems.map((item: { name: string; active: boolean }) => ({ ...item, active: false }));
-                    return { ...w, data: { ...w.data, toggleItems: clearedItems } };
-                  }
-                  
-                  // Handle Spell Slot widgets
-                  if (w.type === 'SPELL_SLOT' && resetSpellSlots) {
-                    const spellLevels = w.data.spellLevels || [];
-                    const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
-                    return { ...w, data: { ...w.data, spellLevels: resetLevels } };
-                  }
-                  
-                  // Handle Time Tracker widgets
-                  if (w.type === 'TIME_TRACKER' && passTimeSeconds !== undefined && passTimeSeconds > 0) {
-                    const timedEffects = w.data.timedEffects || [];
-                    const roundMode = w.data.roundMode || false;
-                    // In round mode, passTimeSeconds represents rounds (1 second = 1 round)
-                    const amountToPass = roundMode ? passTimeSeconds : passTimeSeconds;
-                    const updatedEffects = timedEffects.map((effect: { name: string; remainingSeconds: number }) => ({
-                      ...effect,
-                      remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
-                    }));
-                    return { ...w, data: { ...w.data, timedEffects: updatedEffects } };
-                  }
-                  
-                  return w;
-                })
-              );
-            }
-            return c;
+                    // Handle Condition widgets (TOGGLE_GROUP)
+                    if (w.type === 'TOGGLE_GROUP' && clearConditions) {
+                      const toggleItems = w.data.toggleItems || [];
+                      const clearedItems = toggleItems.map((item: { name: string; active: boolean }) => ({ ...item, active: false }));
+                      return { ...w, data: { ...w.data, toggleItems: clearedItems } };
+                    }
+                    
+                    // Handle Spell Slot widgets
+                    if (w.type === 'SPELL_SLOT' && resetSpellSlots) {
+                      const spellLevels = w.data.spellLevels || [];
+                      const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
+                      return { ...w, data: { ...w.data, spellLevels: resetLevels } };
+                    }
+                    
+                    // Handle Time Tracker widgets
+                    if (w.type === 'TIME_TRACKER' && passTimeSeconds !== undefined && passTimeSeconds > 0) {
+                      const timedEffects = w.data.timedEffects || [];
+                      const roundMode = w.data.roundMode || false;
+                      // In round mode, passTimeSeconds represents rounds (1 second = 1 round)
+                      const amountToPass = roundMode ? passTimeSeconds : passTimeSeconds;
+                      const updatedEffects = timedEffects.map((effect: { name: string; remainingSeconds: number }) => ({
+                        ...effect,
+                        remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
+                      }));
+                      return { ...w, data: { ...w.data, timedEffects: updatedEffects } };
+                    }
+                    
+                    return w;
+                  })
+                };
+              })
+            };
           })
         };
       });
@@ -1575,15 +2078,18 @@ export const useStore = create<StoreState>((set, get) => {
     saveTimeout = window.setTimeout(() => {
       try {
         const state = (useStore as any).getState();
-        const data = { characters: state.characters, activeCharacterId: state.activeCharacterId, mode: state.mode };
+        const transientIds = new Set(state.transientCharacterIds ?? []);
+        const persistedCharacters = state.characters.filter((character: Character) => !transientIds.has(character.id));
+        const activeCharacterId = state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId;
+        const data = { characters: persistedCharacters, activeCharacterId, mode: activeCharacterId ? state.mode : 'play' };
         localStorage.setItem('ucs:store', JSON.stringify(data));
         
         // Refresh storage warning after successful save
         import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().refresh()).catch(() => {});
         
         // Send telemetry for active character (rate-limited to once per 24h)
-        if (state.activeCharacterId) {
-          const activeCharacter = state.characters.find((c: Character) => c.id === state.activeCharacterId);
+        if (activeCharacterId) {
+          const activeCharacter = persistedCharacters.find((c: Character) => c.id === activeCharacterId);
           if (activeCharacter) {
             useTelemetryStore.getState().sendTelemetry(activeCharacter);
           }

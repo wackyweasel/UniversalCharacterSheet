@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { XIcon } from './icons';
 
 // Import all editors
 import {
@@ -27,6 +28,8 @@ import {
   RollTableEditor,
   InitiativeTrackerEditor,
   DeckEditor,
+  TimerEditor,
+  StepDiceEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -51,6 +54,8 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
+import TimerWidget from './widgets/TimerWidget';
+import StepDiceWidget from './widgets/StepDiceWidget';
 
 interface Props {
   widget: Widget;
@@ -80,6 +85,8 @@ function getWidgetTitle(type: WidgetType): string {
     'ROLL_TABLE': 'Roll Table',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'DECK': 'Deck of Cards',
+    'TIMER': 'Timer',
+    'STEP_DICE': 'Step Dice',
   };
   return titles[type] || 'Widget';
 }
@@ -91,6 +98,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
+  const isAutomationCloseStep =
+    tutorialStep !== null &&
+    (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
+      TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller');
 
   const handleUpdateData = (data: any) => {
     const newData = { ...localData, ...data };
@@ -131,6 +142,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
       case 'DECK': return <DeckEditor {...editorProps} />;
+      case 'TIMER': return <TimerEditor {...editorProps} />;
+      case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -173,6 +186,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'TIMER': return <TimerWidget {...props} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };
@@ -190,7 +205,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -203,7 +218,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchEnd={(e) => e.stopPropagation()}
       onDragOver={(e) => e.preventDefault()}
     >
-      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-in">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border">
           <h2 className="text-lg font-bold text-theme-ink font-heading">
@@ -211,9 +226,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-button transition-colors"
           >
-            ✕
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 
@@ -252,13 +268,20 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               if (tutorialStep === 21 && TUTORIAL_STEPS[21]?.id === 'form-click-done') {
                 advanceTutorial();
               }
+              if (
+                tutorialStep !== null &&
+                (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
+                  TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller')
+              ) {
+                advanceTutorial();
+              }
               onClose();
             }}
-            className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium ${
+            className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium transition-opacity ${
               tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21 
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:opacity-90'
-            } ${tutorialStep === 21 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            } ${tutorialStep === 21 || isAutomationCloseStep ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             Done
           </button>

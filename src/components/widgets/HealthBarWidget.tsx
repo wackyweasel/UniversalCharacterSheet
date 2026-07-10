@@ -45,11 +45,11 @@ function HealthModal({
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/50 z-[9999]" 
+        className="fixed inset-0 bg-black/50 z-[9999] animate-fade-in" 
         onClick={onCancel}
       />
       <div 
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-[9999] min-w-[200px]"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-[9999] min-w-[200px] animate-fade-in"
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleConfirm();
           if (e.key === 'Escape') onCancel();

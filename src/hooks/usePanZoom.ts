@@ -1,24 +1,60 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
+const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
+
+function lockKey(characterId: string | null | undefined): string {
+  return characterId ? `${VIEW_LOCK_STORAGE_KEY}:${characterId}` : VIEW_LOCK_STORAGE_KEY;
+}
+
+function viewKey(characterId: string | null | undefined): string {
+  return characterId ? `${LOCKED_VIEW_STORAGE_KEY}:${characterId}` : LOCKED_VIEW_STORAGE_KEY;
+}
+
+function readInitialLock(characterId: string | null | undefined): { locked: boolean; pan: { x: number; y: number }; scale: number } {
+  try {
+    const locked = localStorage.getItem(lockKey(characterId)) === 'true';
+    if (!locked) return { locked: false, pan: { x: 0, y: 0 }, scale: 1 };
+    const raw = localStorage.getItem(viewKey(characterId));
+    if (!raw) return { locked: true, pan: { x: 0, y: 0 }, scale: 1 };
+    const parsed = JSON.parse(raw);
+    if (
+      parsed && typeof parsed.scale === 'number' &&
+      parsed.pan && typeof parsed.pan.x === 'number' && typeof parsed.pan.y === 'number'
+    ) {
+      return { locked: true, pan: parsed.pan, scale: parsed.scale };
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return { locked: false, pan: { x: 0, y: 0 }, scale: 1 };
+}
+
 interface UsePanZoomOptions {
   minScale?: number;
   maxScale?: number;
   editingWidgetId: string | null;
   mode: 'play' | 'edit' | 'vertical' | 'print';
+  characterId?: string | null;
   onBackgroundClick?: () => void;
 }
 
-export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, onBackgroundClick }: UsePanZoomOptions) {
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
+export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, onBackgroundClick }: UsePanZoomOptions) {
+  const initial = useRef(readInitialLock(characterId)).current;
+  const [pan, setPan] = useState(initial.pan);
+  const [scale, setScale] = useState(initial.scale);
+  const [viewLocked, setViewLockedState] = useState(initial.locked);
   const [isPanning, setIsPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const viewLockedRef = useRef(viewLocked);
+  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
 
   // Global mouse handlers for panning outside window
   useEffect(() => {
     const handleGlobalMouseUp = () => setIsPanning(false);
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (isPanning) {
+        if (viewLockedRef.current) return;
         const dx = e.clientX - lastMousePos.current.x;
         const dy = e.clientY - lastMousePos.current.y;
         setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -36,6 +72,14 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Disable panning when editing a widget
     if (editingWidgetId) return;
+    // Disable panning when view is locked
+    if (viewLockedRef.current) {
+      // Still allow background-click selection clearing
+      if (!(e.target as HTMLElement).closest('.react-draggable')) {
+        onBackgroundClick?.();
+      }
+      return;
+    }
     
     // Ignore if clicking on a widget
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
@@ -62,6 +106,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
+      if (viewLockedRef.current) return;
       const dx = e.clientX - lastMousePos.current.x;
       const dy = e.clientY - lastMousePos.current.y;
       setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -76,6 +121,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Disable zoom when editing a widget
     if (editingWidgetId) return;
+    // Disable zoom when view is locked
+    if (viewLockedRef.current) return;
     
     // Zoom with scroll wheel relative to mouse cursor
     const zoomFactor = Math.exp(-e.deltaY * 0.001);
@@ -115,10 +162,51 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     setScale(newScale);
   }, []);
 
+  const panRef = useRef(pan);
+  const scaleRefInternal = useRef(scale);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { scaleRefInternal.current = scale; }, [scale]);
+
+  const setViewLocked = useCallback((locked: boolean) => {
+    setViewLockedState(locked);
+    try {
+      if (locked) {
+        localStorage.setItem(lockKey(characterId), 'true');
+        localStorage.setItem(
+          viewKey(characterId),
+          JSON.stringify({ pan: panRef.current, scale: scaleRefInternal.current }),
+        );
+      } else {
+        localStorage.removeItem(lockKey(characterId));
+        localStorage.removeItem(viewKey(characterId));
+      }
+    } catch {
+      // ignore storage errors (quota, privacy mode)
+    }
+  }, [characterId]);
+
+  const toggleViewLock = useCallback(() => {
+    setViewLocked(!viewLockedRef.current);
+  }, [setViewLocked]);
+
+  // Re-apply the lock state (and locked view) for the active character when it changes.
+  const prevCharacterIdRef = useRef(characterId);
+  useEffect(() => {
+    if (prevCharacterIdRef.current === characterId) return;
+    prevCharacterIdRef.current = characterId;
+    const next = readInitialLock(characterId);
+    setViewLockedState(next.locked);
+    if (next.locked) {
+      setPan(next.pan);
+      setScale(next.scale);
+    }
+  }, [characterId]);
+
   return {
     pan,
     scale,
     isPanning,
+    viewLocked,
     setPan,
     setScale,
     handleMouseDown,
@@ -129,5 +217,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     zoomOut,
     resetView,
     setView,
+    setViewLocked,
+    toggleViewLock,
   };
 }

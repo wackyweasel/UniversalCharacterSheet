@@ -19,7 +19,8 @@ function ValueModal({
   onCancel,
   buttonLabel,
   currentValue,
-  maxValue
+  maxValue,
+  allowOutOfRange
 }: { 
   title: string; 
   onConfirm: (amount: number) => void; 
@@ -27,12 +28,14 @@ function ValueModal({
   buttonLabel: string;
   currentValue: number;
   maxValue: number;
+  allowOutOfRange: boolean;
 }) {
   const [amount, setAmount] = useState<number | string>(currentValue);
+  const clampValue = (value: number) => allowOutOfRange ? value : Math.max(0, Math.min(maxValue, value));
 
   const handleConfirm = () => {
     const val = typeof amount === 'string' ? parseInt(amount) || 0 : amount;
-    onConfirm(Math.max(0, Math.min(maxValue, val)));
+    onConfirm(clampValue(val));
   };
 
   return (
@@ -45,19 +48,21 @@ function ValueModal({
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
         <input
           type="number"
-          min="0"
-          max={maxValue}
+          min={allowOutOfRange ? undefined : 0}
+          max={allowOutOfRange ? undefined : maxValue}
           className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
           value={amount}
           onChange={(e) => setAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
-          onBlur={(e) => setAmount(Math.max(0, Math.min(maxValue, parseInt(e.target.value) || 0)))}
+          onBlur={(e) => setAmount(clampValue(parseInt(e.target.value) || 0))}
           autoFocus
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleConfirm();
             if (e.key === 'Escape') onCancel();
           }}
         />
-        <p className="text-xs text-theme-muted mb-3 text-center">Max: {maxValue}</p>
+        <p className="text-xs text-theme-muted mb-3 text-center">
+          {allowOutOfRange ? `Range guide: 0 to ${maxValue}` : `Max: ${maxValue}`}
+        </p>
         <div className="flex gap-2">
           <button
             onClick={onCancel}
@@ -86,7 +91,8 @@ export default function ProgressBarWidget({ widget }: Props) {
     currentValue = 0, 
     maxValue = 100,
     showPercentage = true,
-    showValues = true
+    showValues = true,
+    allowOutOfRange = false
   } = widget.data;
   const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
   
@@ -112,10 +118,10 @@ export default function ProgressBarWidget({ widget }: Props) {
   const barHeight = 'h-4';
 
   const setValue = (newValue: number) => {
-    const clamped = Math.max(0, Math.min(maxValue, newValue));
-    updateWidgetData(widget.id, { currentValue: clamped });
+    const nextValue = allowOutOfRange ? newValue : Math.max(0, Math.min(maxValue, newValue));
+    updateWidgetData(widget.id, { currentValue: nextValue });
     setShowValueModal(false);
-    addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue} → ${clamped} / ${maxValue}`, '📊');
+    addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue} → ${nextValue} / ${maxValue}`, '📊');
   };
 
   // Determine what text to show on the bar
@@ -176,6 +182,7 @@ export default function ProgressBarWidget({ widget }: Props) {
           buttonLabel="Set"
           currentValue={currentValue}
           maxValue={maxValue}
+          allowOutOfRange={allowOutOfRange}
         />
       )}
     </div>

@@ -1,16 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { usePrintStore, PrintArea as PrintAreaType } from '../store/usePrintStore';
+import { usePrintStore, PrintArea as PrintAreaType, getEffectiveAspectRatio } from '../store/usePrintStore';
 
 interface Props {
   scale: number;
   pan: { x: number; y: number };
+  readOnly?: boolean;
 }
 
-type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'move';
 
-export default function PrintAreaOverlay({ scale }: Props) {
+export default function PrintAreaOverlay({ scale, readOnly }: Props) {
   const printArea = usePrintStore((state) => state.printArea);
   const setPrintArea = usePrintStore((state) => state.setPrintArea);
+  const paperFormat = usePrintStore((state) => state.paperFormat);
+  const isLandscape = usePrintStore((state) => state.isLandscape);
   
   const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, area: { x: 0, y: 0, width: 0, height: 0 } });
@@ -47,8 +50,12 @@ export default function PrintAreaOverlay({ scale }: Props) {
     
     const newArea: PrintAreaType = { ...area };
     
-    // Handle resizing based on which handle is being dragged
+    // Handle resizing or moving based on which handle is being dragged
     switch (resizeHandle) {
+      case 'move':
+        newArea.x = area.x + deltaX;
+        newArea.y = area.y + deltaY;
+        break;
       case 'n':
         newArea.y = area.y + deltaY;
         newArea.height = area.height - deltaY;
@@ -85,6 +92,12 @@ export default function PrintAreaOverlay({ scale }: Props) {
         break;
     }
     
+    // Skip dimension constraints for move
+    if (resizeHandle === 'move') {
+      setPrintArea(newArea);
+      return;
+    }
+
     // Ensure minimum dimensions
     if (newArea.width < 100) {
       newArea.width = 100;
@@ -99,8 +112,39 @@ export default function PrintAreaOverlay({ scale }: Props) {
       }
     }
     
+    // Enforce aspect ratio if a paper format is selected
+    const aspectRatio = getEffectiveAspectRatio(paperFormat, isLandscape);
+    if (aspectRatio) {
+      // Determine whether width or height is the "driving" dimension based on the handle
+      const isHorizontalHandle = resizeHandle === 'e' || resizeHandle === 'w';
+      const isVerticalHandle = resizeHandle === 'n' || resizeHandle === 's';
+      
+      if (isHorizontalHandle) {
+        // Width changed → adjust height to match
+        const requiredHeight = newArea.width / aspectRatio;
+        const heightDelta = requiredHeight - newArea.height;
+        newArea.height = requiredHeight;
+        // Center the height adjustment
+        newArea.y = newArea.y - heightDelta / 2;
+      } else if (isVerticalHandle) {
+        // Height changed → adjust width to match
+        const requiredWidth = newArea.height * aspectRatio;
+        const widthDelta = requiredWidth - newArea.width;
+        newArea.width = requiredWidth;
+        // Center the width adjustment
+        newArea.x = newArea.x - widthDelta / 2;
+      } else {
+        // Corner handle: use width as driving dimension
+        const requiredHeight = newArea.width / aspectRatio;
+        if (resizeHandle.includes('n')) {
+          newArea.y = newArea.y + newArea.height - requiredHeight;
+        }
+        newArea.height = requiredHeight;
+      }
+    }
+    
     setPrintArea(newArea);
-  }, [resizeHandle, printArea, scale, setPrintArea]);
+  }, [resizeHandle, printArea, scale, setPrintArea, paperFormat, isLandscape]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     handleMove(e.clientX, e.clientY);
@@ -113,8 +157,11 @@ export default function PrintAreaOverlay({ scale }: Props) {
     }
   }, [handleMove]);
   
+  const [isDragging, setIsDragging] = useState(false);
+
   const handleEnd = useCallback(() => {
     setResizeHandle(null);
+    setIsDragging(false);
   }, []);
   
   useEffect(() => {
@@ -133,6 +180,29 @@ export default function PrintAreaOverlay({ scale }: Props) {
       };
     }
   }, [resizeHandle, handleMouseMove, handleTouchMove, handleEnd]);
+
+  const handleMoveStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!printArea) return;
+
+    let clientX: number, clientY: number;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    dragStartRef.current = {
+      mouseX: clientX,
+      mouseY: clientY,
+      area: { ...printArea },
+    };
+    setResizeHandle('move');
+    setIsDragging(true);
+  }, [printArea]);
   
   if (!printArea) return null;
   
@@ -150,6 +220,7 @@ export default function PrintAreaOverlay({ scale }: Props) {
     >
       {/* Border frame */}
       <div className="absolute inset-0 border-2 border-blue-500 border-dashed rounded-sm">
+        {!readOnly && <>
         {/* Resize handles - corners */}
         <div 
           className={`${handleStyle} -top-2.5 -left-2.5 cursor-nw-resize pointer-events-auto`}
@@ -193,6 +264,17 @@ export default function PrintAreaOverlay({ scale }: Props) {
           onMouseDown={(e) => handleResizeStart(e, 'e')}
           onTouchStart={(e) => handleResizeStart(e, 'e')}
         />
+        {/* Move handle - center */}
+        <div 
+          className={`${handleStyle} top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 cursor-move pointer-events-auto ${isDragging ? 'scale-125' : ''}`}
+          onMouseDown={handleMoveStart}
+          onTouchStart={handleMoveStart}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="white" className="w-3 h-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <path d="M8 1l2 2H9v3h3V5l2 2-2 2V8H9v3h1l-2 2-2-2h1V8H4v1L2 7l2-2v1h3V3H6l2-2z"/>
+          </svg>
+        </div>
+        </>}
       </div>
       
       {/* Label */}

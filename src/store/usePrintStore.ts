@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { useStore } from './useStore';
+import { useTelemetryStore } from './useTelemetryStore';
 
 export interface PrintArea {
   x: number;
@@ -7,12 +9,36 @@ export interface PrintArea {
   height: number;
 }
 
+export type PaperFormat = 'none' | 'a4' | 'letter';
+
+// Aspect ratios (width / height) for paper formats in portrait orientation
+export const PAPER_ASPECT_RATIOS: Record<PaperFormat, number | null> = {
+  none: null,
+  a4: 210 / 297,       // ~0.7071
+  letter: 8.5 / 11,    // ~0.7727
+};
+
+export function getEffectiveAspectRatio(format: PaperFormat, landscape: boolean): number | null {
+  const ratio = PAPER_ASPECT_RATIOS[format];
+  if (ratio == null) return null;
+  return landscape ? 1 / ratio : ratio;
+}
+
 interface PrintState {
   // Print mode settings
   printerFriendly: boolean;
   textureDisabled: boolean;
   bordersDisabled: boolean;
   shadowsDisabled: boolean;
+  
+  // Paper format
+  paperFormat: PaperFormat;
+  
+  // Landscape orientation
+  isLandscape: boolean;
+  
+  // Show print area in edit mode
+  showInEditMode: boolean;
   
   // Print area (in canvas coordinates)
   printArea: PrintArea | null;
@@ -25,6 +51,9 @@ interface PrintState {
   setTextureDisabled: (disabled: boolean) => void;
   setBordersDisabled: (disabled: boolean) => void;
   setShadowsDisabled: (disabled: boolean) => void;
+  setPaperFormat: (format: PaperFormat) => void;
+  setIsLandscape: (landscape: boolean) => void;
+  setShowInEditMode: (show: boolean) => void;
   setPrintArea: (area: PrintArea | null) => void;
   setPreviousMode: (mode: 'play' | 'edit' | 'vertical' | null) => void;
   
@@ -35,18 +64,62 @@ interface PrintState {
   resetPrintSettings: () => void;
 }
 
+function recordPrintSettingChanged(setting: string, value: string | number | boolean | null) {
+  const storeState = useStore.getState();
+  const characterId = storeState.activeCharacterId;
+  if (characterId && storeState.transientCharacterIds.includes(characterId)) return;
+
+  const character = characterId ? storeState.characters.find(c => c.id === characterId) : undefined;
+  useTelemetryStore.getState().recordEvent({
+    eventName: 'print_settings_changed',
+    category: 'print',
+    characterId: characterId ?? null,
+    sheetId: character?.activeSheetId ?? null,
+    mode: storeState.mode,
+    source: 'print_toolbar',
+    metadata: { setting, value },
+  });
+}
+
 export const usePrintStore = create<PrintState>((set) => ({
   printerFriendly: false,
   textureDisabled: false,
   bordersDisabled: false,
   shadowsDisabled: false,
+  paperFormat: 'none' as PaperFormat,
+  isLandscape: false,
+  showInEditMode: false,
   printArea: null,
   previousMode: null,
   
-  setPrinterFriendly: (enabled) => set({ printerFriendly: enabled }),
-  setTextureDisabled: (disabled) => set({ textureDisabled: disabled }),
-  setBordersDisabled: (disabled) => set({ bordersDisabled: disabled }),
-  setShadowsDisabled: (disabled) => set({ shadowsDisabled: disabled }),
+  setPrinterFriendly: (enabled) => {
+    recordPrintSettingChanged('printerFriendly', enabled);
+    set({ printerFriendly: enabled });
+  },
+  setTextureDisabled: (disabled) => {
+    recordPrintSettingChanged('textureDisabled', disabled);
+    set({ textureDisabled: disabled });
+  },
+  setBordersDisabled: (disabled) => {
+    recordPrintSettingChanged('bordersDisabled', disabled);
+    set({ bordersDisabled: disabled });
+  },
+  setShadowsDisabled: (disabled) => {
+    recordPrintSettingChanged('shadowsDisabled', disabled);
+    set({ shadowsDisabled: disabled });
+  },
+  setPaperFormat: (format) => {
+    recordPrintSettingChanged('paperFormat', format);
+    set({ paperFormat: format });
+  },
+  setIsLandscape: (landscape) => {
+    recordPrintSettingChanged('isLandscape', landscape);
+    set({ isLandscape: landscape });
+  },
+  setShowInEditMode: (show) => {
+    recordPrintSettingChanged('showInEditMode', show);
+    set({ showInEditMode: show });
+  },
   setPrintArea: (area) => set({ printArea: area }),
   setPreviousMode: (mode) => set({ previousMode: mode }),
   
@@ -84,6 +157,9 @@ export const usePrintStore = create<PrintState>((set) => ({
     textureDisabled: false,
     bordersDisabled: false,
     shadowsDisabled: false,
+    paperFormat: 'none' as PaperFormat,
+    isLandscape: false,
+    showInEditMode: false,
     printArea: null,
     previousMode: null,
   }),

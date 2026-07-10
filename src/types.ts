@@ -1,3 +1,5 @@
+import type { DiceStep } from './utils/diceExpression';
+
 export type WidgetType = 
   | 'NUMBER' 
   | 'NUMBER_DISPLAY'
@@ -19,7 +21,9 @@ export type WidgetType =
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
   | 'INITIATIVE_TRACKER'
-  | 'DECK';
+  | 'DECK'
+  | 'TIMER'
+  | 'STEP_DICE';
 
 export interface ToggleItem {
   name: string;
@@ -62,6 +66,18 @@ export interface TableCell {
 
 export interface TableRow {
   cells: (string | TableCell)[];  // Support both legacy string and new TableCell format
+}
+
+export interface TableColumnSettings {
+  format?: CellFormat;
+  label?: string;
+  formula?: string;
+}
+
+export interface TableRowSettings {
+  format?: CellFormat;
+  label?: string;
+  formula?: string;
 }
 
 export interface CheckboxItem {
@@ -109,6 +125,9 @@ export interface DiceGroup {
   customDiceName?: string; // Optional name for custom dice
   countLabel?: string;
   countFormula?: string;
+  explodes?: boolean;
+  explodeOn?: string[];
+  explodeAgain?: boolean;
 }
 
 export interface CustomDie {
@@ -128,15 +147,22 @@ export interface PoolResource {
   tooltip?: string;
 }
 
+// Configures how a Rest Button restores a specific resource pool target.
+export interface PoolRestoreTarget {
+  widgetId: string;
+  resourceIndex: number; // -1 for a legacy single-pool widget; otherwise index in poolResources
+  mode: 'full' | 'flat';
+  amount?: number;         // used when mode === 'flat'
+  amountFormula?: string;  // optional formula evaluated at rest time (overrides amount when set)
+}
+
 export interface InitiativeParticipant {
   name: string;
   diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
   flatBonus: number;   // Flat bonus to add to the roll
   flatBonusLabel?: string;
   flatBonusFormula?: string;
-}
-
-export interface InitiativeEncounterEntry {
+}export interface InitiativeEncounterEntry {
   id: string;          // Unique ID for drag/drop ordering
   name: string;
   diceFaces: number;
@@ -162,6 +188,7 @@ export interface WidgetData {
   // Progress Bar
   showPercentage?: boolean;
   showValues?: boolean;
+  allowOutOfRange?: boolean;
   // Dice Roller
   diceCount?: number;
   diceType?: number;
@@ -195,6 +222,8 @@ export interface WidgetData {
   // Table
   columns?: string[];
   rows?: TableRow[];
+  tableColumnSettings?: TableColumnSettings[];
+  tableRowSettings?: TableRowSettings[];
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;
@@ -204,6 +233,7 @@ export interface WidgetData {
   healToFull?: boolean;
   healRandomDice?: DiceGroup[];
   healFlatAmount?: number;
+  poolRestores?: PoolRestoreTarget[];
   clearConditions?: boolean;
   resetSpellSlots?: boolean;
   passTime?: boolean;
@@ -232,6 +262,15 @@ export interface WidgetData {
   initiativeAdvanceByRound?: boolean;               // Advance by 1 round (for round-mode Time Trackers)
   initiativeAdvanceTimeAmount?: number;             // Amount of time to advance
   initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
+  // Timer
+  timerElapsed?: number;       // Elapsed time in milliseconds
+  timerRunning?: boolean;      // Whether the timer is currently running
+  timerStartedAt?: number;     // Timestamp when timer was last started (for calculating elapsed while running)
+  timerCountDown?: boolean;    // If true, count down from timerDuration
+  timerDuration?: number;      // Duration in milliseconds (for countdown mode)
+  // Step Dice
+  stepDiceItems?: StepDiceItem[];  // Array of step dice traits
+  stepDiceChain?: DiceStep[];      // Custom dice chain (default: [1d4,1d6,1d8,1d10,1d12,1d20])
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
@@ -245,6 +284,12 @@ export interface TimedEffect {
   name: string;
   remainingSeconds: number;
   initialSeconds?: number;
+}
+
+export interface StepDiceItem {
+  name: string;
+  currentStep: number;  // Index into the dice chain
+  tooltip?: string;
 }
 
 export interface Widget {

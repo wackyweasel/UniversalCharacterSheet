@@ -3,6 +3,7 @@ import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
 import { DiceGroup, CustomDie } from '../../types';
 import { Tooltip } from '../Tooltip';
+import { LabeledNumberField } from './LabeledNumberField';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -10,7 +11,7 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export function DiceTrayEditor({ widget, updateData }: EditorProps) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20] } = widget.data;
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
   const [newDiceFaces, setNewDiceFaces] = useState('');
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; faces: string[]; diceName: string; editIndex: number | null }>({ 
     open: false, 
@@ -21,6 +22,20 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
   const [newFaceValue, setNewFaceValue] = useState('');
   
   const COMMON_DICE = [4, 6, 8, 10, 12, 20, 100];
+
+  const setFieldLabel = (field: string, labelName: string | undefined) => {
+    const updated = { ...fieldLabels };
+    if (labelName) updated[field] = labelName;
+    else delete updated[field];
+    updateData({ fieldLabels: updated });
+  };
+
+  const setFieldFormula = (field: string, formula: string | undefined) => {
+    const updated = { ...fieldFormulas };
+    if (formula) updated[field] = formula;
+    else delete updated[field];
+    updateData({ fieldFormulas: updated });
+  };
 
   // Get all custom dice from the current character (from both DICE_ROLLER and DICE_TRAY widgets)
   const characters = useStore(state => state.characters);
@@ -306,6 +321,19 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
         ) : (
           <p className="text-xs text-theme-muted">No standard dice selected</p>
         )}
+      </div>
+
+      <div>
+        <LabeledNumberField
+          displayLabel="Modifier"
+          value={modifier}
+          onChange={(v) => updateData({ modifier: v })}
+          tutorialTargetPrefix="automation-dice-modifier"
+          fieldLabel={fieldLabels['modifier']}
+          onFieldLabelChange={(l) => setFieldLabel('modifier', l)}
+          formula={fieldFormulas['modifier']}
+          onFormulaChange={(f) => setFieldFormula('modifier', f)}
+        />
       </div>
 
       <div className="flex items-center gap-2">

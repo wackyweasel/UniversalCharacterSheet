@@ -2,13 +2,25 @@ import { useState } from 'react';
 import { useTimelineStore, useCurrentCharacterEvents, TimelineEvent } from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
+import { XIcon } from './icons';
 
 function formatTime(timestamp: number): string {
   const d = new Date(timestamp);
+  const now = new Date();
   const h = d.getHours().toString().padStart(2, '0');
   const m = d.getMinutes().toString().padStart(2, '0');
   const s = d.getSeconds().toString().padStart(2, '0');
-  return `${h}:${m}:${s}`;
+  const time = `${h}:${m}:${s}`;
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (eventDay.getTime() === today.getTime()) return time;
+  if (eventDay.getTime() === yesterday.getTime()) return `Yesterday ${time}`;
+  if (eventDay.getFullYear() === now.getFullYear())
+    return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${time}`;
+  return `${d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} ${time}`;
 }
 
 function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (eventId: string) => void }) {
@@ -39,7 +51,7 @@ function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (event
           className="self-center w-5 h-5 flex items-center justify-center rounded-button text-theme-muted hover:text-white hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
           aria-label="Delete event"
         >
-          ×
+          <XIcon className="w-3 h-3" />
         </button>
       </Tooltip>
     </div>
@@ -66,6 +78,7 @@ export default function TimelineSidebar() {
 
   return (
     <div
+      data-tutorial="timeline-panel"
       className="fixed right-0 top-0 bottom-0 w-[320px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-40 flex flex-col shadow-theme"
       style={{ top: '0' }}
     >
@@ -76,8 +89,9 @@ export default function TimelineSidebar() {
           <button
             onClick={() => setOpen(false)}
             className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors text-sm"
+            aria-label="Close timeline"
           >
-            ✕
+            <XIcon className="w-4 h-4" />
           </button>
         </Tooltip>
       </div>

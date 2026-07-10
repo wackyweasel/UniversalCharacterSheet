@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 
 interface TooltipProps {
-  content: string | undefined;
+  content: React.ReactNode;
   children: React.ReactElement;
   placement?: 'above' | 'below' | 'left';
 }
@@ -113,6 +113,7 @@ export function Tooltip({ content, children, placement = 'above' }: TooltipProps
             whiteSpace: 'pre-wrap',
             pointerEvents: 'none',
           }}
+          className="animate-fade-in"
         >
           {content}
         </div>,
