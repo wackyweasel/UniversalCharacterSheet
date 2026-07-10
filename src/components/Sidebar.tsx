@@ -12,31 +12,35 @@ import WidgetTooltipPreview from './WidgetTooltipPreview';
 import { XIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
-const WIDGET_OPTIONS: { type: WidgetType; label: string }[] = [
-  { type: 'CHECKBOX', label: 'Checklist' },
-  { type: 'TOGGLE_GROUP', label: 'Conditions' },
-  { type: 'DECK', label: 'Deck of Cards' },
-  { type: 'DICE_ROLLER', label: 'Dice Roller' },
-  { type: 'DICE_TRAY', label: 'Dice Tray' },
-  { type: 'FORM', label: 'Form' },
-  { type: 'HEALTH_BAR', label: 'Health Bar' },
-  { type: 'IMAGE', label: 'Image' },
-  { type: 'INITIATIVE_TRACKER', label: 'Initiative Tracker' },
-  { type: 'LIST', label: 'List' },
-  { type: 'MAP_SKETCHER', label: 'Map Sketcher' },
-  { type: 'NUMBER_DISPLAY', label: 'Number Display' },
-  { type: 'NUMBER', label: 'Number Tracker' },
-  { type: 'POOL', label: 'Resource Pool' },
-  { type: 'PROGRESS_BAR', label: 'Progress Bar' },
-  { type: 'REST_BUTTON', label: 'Rest Button' },
-  { type: 'ROLL_TABLE', label: 'Roll Table' },
-  { type: 'SPELL_SLOT', label: 'Spell Slots' },
-  { type: 'STEP_DICE', label: 'Step Dice' },
-  { type: 'TABLE', label: 'Table' },
-  { type: 'TEXT', label: 'Text Area' },
-  { type: 'TIME_TRACKER', label: 'Temporary Effects' },
-  { type: 'TIMER', label: 'Timer' },
+type WidgetCategory = 'Essentials' | 'Track & manage' | 'Roll & resolve' | 'Reference & utilities';
+
+const WIDGET_OPTIONS: { type: WidgetType; label: string; category: WidgetCategory; keywords?: string }[] = [
+  { type: 'FORM', label: 'Fields & stats', category: 'Essentials', keywords: 'form attributes scores details' },
+  { type: 'TEXT', label: 'Notes', category: 'Essentials', keywords: 'text biography description' },
+  { type: 'NUMBER', label: 'Number tracker', category: 'Essentials', keywords: 'counter value resource' },
+  { type: 'LIST', label: 'List', category: 'Essentials', keywords: 'inventory abilities equipment' },
+  { type: 'IMAGE', label: 'Image', category: 'Essentials', keywords: 'portrait picture artwork' },
+  { type: 'HEALTH_BAR', label: 'Health bar', category: 'Track & manage', keywords: 'hp wounds damage' },
+  { type: 'POOL', label: 'Resource pool', category: 'Track & manage', keywords: 'tokens points mana' },
+  { type: 'PROGRESS_BAR', label: 'Progress bar', category: 'Track & manage', keywords: 'clock advancement track' },
+  { type: 'CHECKBOX', label: 'Checklist', category: 'Track & manage', keywords: 'check marks tasks' },
+  { type: 'TOGGLE_GROUP', label: 'Conditions', category: 'Track & manage', keywords: 'status toggle effects' },
+  { type: 'SPELL_SLOT', label: 'Spell slots', category: 'Track & manage', keywords: 'magic casting' },
+  { type: 'TIME_TRACKER', label: 'Temporary effects', category: 'Track & manage', keywords: 'duration rounds conditions' },
+  { type: 'TIMER', label: 'Timer', category: 'Track & manage', keywords: 'countdown time' },
+  { type: 'REST_BUTTON', label: 'Rest button', category: 'Track & manage', keywords: 'reset recover refresh' },
+  { type: 'DICE_ROLLER', label: 'Dice roller', category: 'Roll & resolve', keywords: 'roll formula check' },
+  { type: 'DICE_TRAY', label: 'Dice tray', category: 'Roll & resolve', keywords: 'roll dice' },
+  { type: 'STEP_DICE', label: 'Step dice', category: 'Roll & resolve', keywords: 'die rating savage' },
+  { type: 'ROLL_TABLE', label: 'Roll table', category: 'Roll & resolve', keywords: 'random result generator' },
+  { type: 'DECK', label: 'Deck of cards', category: 'Roll & resolve', keywords: 'draw shuffle cards' },
+  { type: 'INITIATIVE_TRACKER', label: 'Initiative tracker', category: 'Roll & resolve', keywords: 'combat turn order' },
+  { type: 'NUMBER_DISPLAY', label: 'Number display', category: 'Reference & utilities', keywords: 'formula calculated total' },
+  { type: 'TABLE', label: 'Table', category: 'Reference & utilities', keywords: 'grid reference data' },
+  { type: 'MAP_SKETCHER', label: 'Map sketcher', category: 'Reference & utilities', keywords: 'draw map diagram' },
 ];
+
+const WIDGET_CATEGORIES: WidgetCategory[] = ['Essentials', 'Track & manage', 'Roll & resolve', 'Reference & utilities'];
 
 interface SidebarProps {
   collapsed: boolean;
@@ -63,6 +67,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   const removeTemplate = useTemplateStore((state) => state.removeTemplate);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [sharingTemplateId, setSharingTemplateId] = useState<string | null>(null);
+  const [widgetSearch, setWidgetSearch] = useState('');
 
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -106,6 +111,10 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   };
 
   const sharingTemplate = templates.find((template) => template.id === sharingTemplateId) || null;
+  const normalizedSearch = widgetSearch.trim().toLowerCase();
+  const filteredWidgets = WIDGET_OPTIONS.filter(({ label, category, keywords }) => (
+    !normalizedSearch || `${label} ${category} ${keywords || ''}`.toLowerCase().includes(normalizedSearch)
+  ));
 
   const handleSubmitTemplateShare = async (name: string, author: string, description: string) => {
     if (!sharingTemplate) {
@@ -155,7 +164,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
       )}
       
       <div 
-        className={`fixed left-0 top-0 bottom-0 w-[80vw] max-w-[280px] bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
+        className={`fixed left-0 top-0 bottom-0 w-[88vw] max-w-[360px] bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? '-translate-x-full' : 'translate-x-0'
         }`}
       >
@@ -200,30 +209,64 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
         <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 pl-1 -mr-3 pr-4">
 
         <div className="mb-4">
-          <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
-            Toolbox
+          <p className="text-[10px] font-body font-bold uppercase tracking-[0.18em] text-theme-accent">Build</p>
+          <h2 className="text-xl font-bold border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
+            Add to this sheet
           </h2>
+          <p className="font-body text-xs text-theme-muted mt-2">Choose what the character needs to track or use.</p>
         </div>
 
-        <div className="flex flex-col gap-3 py-1">
-          {WIDGET_OPTIONS.map(({ type, label }) => {
-            // Check if this widget should be highlighted for the tutorial
-            const isHighlighted = tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type;
-            
+        <label className="relative block mb-4">
+          <span className="sr-only">Search things to add</span>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            type="search"
+            value={widgetSearch}
+            onChange={(event) => setWidgetSearch(event.target.value)}
+            placeholder="Search stats, dice, notes…"
+            className="w-full pl-9 pr-3 py-2 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs text-theme-ink placeholder:text-theme-muted font-body focus:outline-none focus:ring-2 focus:ring-theme-accent"
+          />
+        </label>
+
+        <div className="flex flex-col gap-5 py-1">
+          {WIDGET_CATEGORIES.map((category) => {
+            const categoryWidgets = filteredWidgets.filter((option) => option.category === category);
+            if (categoryWidgets.length === 0) return null;
+
             return (
-              <Tooltip key={type} content={<WidgetTooltipPreview type={type} />} placement="below">
-                <div
-                  data-tutorial={`widget-${type}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, type)}
-                  onClick={() => handleAdd(type)}
-                  className={`p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center gap-2 bg-theme-paper text-theme-ink rounded-button relative ${isHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                >
-                  <span className="text-xs font-body">+ {label}</span>
+              <section key={category}>
+                <h3 className="mb-2 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted">{category}</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {categoryWidgets.map(({ type, label }) => {
+                    const isHighlighted = tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type;
+
+                    return (
+                      <Tooltip key={type} content={<WidgetTooltipPreview type={type} />} placement="below">
+                        <div
+                          data-tutorial={`widget-${type}`}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, type)}
+                          onClick={() => handleAdd(type)}
+                          className={`min-h-12 p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold active:translate-y-px cursor-pointer flex items-center bg-theme-background text-theme-ink rounded-button relative ${isHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                        >
+                          <span className="text-[11px] leading-tight font-body">+ {label}</span>
+                        </div>
+                      </Tooltip>
+                    );
+                  })}
                 </div>
-              </Tooltip>
+              </section>
             );
           })}
+          {filteredWidgets.length === 0 && (
+            <div className="py-6 text-center border border-dashed border-theme-border rounded-theme">
+              <p className="font-body text-sm text-theme-ink">No matching tools</p>
+              <button type="button" onClick={() => setWidgetSearch('')} className="font-body text-xs text-theme-accent underline mt-1">Clear search</button>
+            </div>
+          )}
         </div>
 
         {/* Templates Section */}
@@ -338,7 +381,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
           <p>Tap to add widgets.</p>
           <p>Pan with finger/mouse.</p>
           <p>Pinch/scroll to zoom.</p>
-          <p className="mt-2 text-theme-ink font-bold">Edit Mode Active</p>
+          <p className="mt-2 text-theme-ink font-bold">Build workspace active</p>
         </div>
         </div>
       </div>

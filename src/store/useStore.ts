@@ -266,7 +266,7 @@ export const useStore = create<StoreState>((set, get) => {
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
-        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+        mode: 'edit' as const
       };
     }),
 
@@ -448,11 +448,20 @@ export const useStore = create<StoreState>((set, get) => {
         }
       }
 
+      const selectedCharacter = id ? state.characters.find(c => c.id === id) : undefined;
+      const selectedCharacterIsBlank = selectedCharacter
+        ? selectedCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
+        : false;
+
       return {
         characters: shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters,
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
         activeCharacterId: id,
-        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
+        mode: selectedCharacterIsBlank
+          ? 'edit' as const
+          : state.mode === 'vertical'
+            ? 'vertical' as const
+            : 'play' as const,
         editingWidgetId: null,
         selectedWidgetId: null,
       };

@@ -36,15 +36,55 @@ import TutorialPreset from './Tutorial.json';
 // Type for preset data (same as Character but IDs will be regenerated)
 export type CharacterPreset = Omit<Character, 'id'>;
 
+export interface PresetDefinition {
+  id: string;
+  name: string;
+  accent: string;
+  preset: CharacterPreset;
+}
+
+/**
+ * Presentation metadata for built-in presets. Keep names stable because saved
+ * data and tutorial code resolve presets through getPreset().
+ */
+export const PRESET_DEFINITIONS: PresetDefinition[] = [
+  {
+    id: 'dnd-5e',
+    name: 'D&D 5e',
+    accent: '#7f1d1d',
+    preset: DnD5ePreset as CharacterPreset,
+  },
+  {
+    id: 'dcc-level-0',
+    name: 'Dungeon Crawl Classics - Level 0',
+    accent: '#92400e',
+    preset: DCCLvl0Preset as CharacterPreset,
+  },
+  {
+    id: 'mothership',
+    name: 'Mothership',
+    accent: '#0f766e',
+    preset: MothershipPreset as CharacterPreset,
+  },
+  {
+    id: 'forbidden-lands',
+    name: 'Forbidden Lands',
+    accent: '#3f6212',
+    preset: ForbiddenLandsPreset as CharacterPreset,
+  },
+  {
+    id: 'world-of-darkness',
+    name: 'World of Darkness',
+    accent: '#581c87',
+    preset: WorldOfDarknessPreset as CharacterPreset,
+  },
+];
+
 // Map of preset name to preset data
 // Add your presets here!
-export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
-  'D&D 5e': DnD5ePreset as CharacterPreset,
-  'Dungeon Crawl Classics - Level 0': DCCLvl0Preset as CharacterPreset,
-  'Mothership': MothershipPreset as CharacterPreset,
-  'Forbidden Lands': ForbiddenLandsPreset as CharacterPreset,
-  'World of Darkness': WorldOfDarknessPreset as CharacterPreset,
-};
+export const CHARACTER_PRESETS: Record<string, CharacterPreset> = Object.fromEntries(
+  PRESET_DEFINITIONS.map((definition) => [definition.name, definition.preset]),
+);
 
 // Get list of available preset names
 export function getPresetNames(): string[] {
@@ -54,6 +94,10 @@ export function getPresetNames(): string[] {
 // Get a preset by name
 export function getPreset(name: string): CharacterPreset | undefined {
   return CHARACTER_PRESETS[name];
+}
+
+export function getPresetDefinition(id: string): PresetDefinition | undefined {
+  return PRESET_DEFINITIONS.find((definition) => definition.id === id);
 }
 
 // Tutorial preset (used internally by tutorial system, not shown in preset list)

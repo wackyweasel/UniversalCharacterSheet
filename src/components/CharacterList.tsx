@@ -8,9 +8,10 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { TelemetryEventInput, useTelemetryStore } from '../store/useTelemetryStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
+import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { getPresetNames, getPreset, TUTORIAL_PRESET } from '../presets';
+import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 
@@ -21,7 +22,7 @@ const TUTORIAL_DESCRIPTIONS = {
   themes: 'Try built-in themes, create a custom theme, and share it with the community.',
   templates: 'Save widgets and groups as templates, load them later, and share them.',
   automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',
-  various: 'Tour gallery sharing and downloads, backup, feedback, print, vertical view, timeline, and sheets.',
+  various: 'Tour Discover, sharing, backup, feedback, Print Preview, the Play List layout, timeline, and sheets.',
 };
 
 // Get initial dark mode preference from localStorage or OS
@@ -139,11 +140,11 @@ export default function CharacterList() {
   
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCharacterCreator, setShowCharacterCreator] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
-  const [selectedTheme, setSelectedTheme] = useState<string>('default');
+  const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [renamingCharacterId, setRenamingCharacterId] = useState<string | null>(null);
@@ -153,7 +154,6 @@ export default function CharacterList() {
   const [presetName, setPresetName] = useState('');
   const [includeThemeInPreset, setIncludeThemeInPreset] = useState(true);
   const [presetToDelete, setPresetToDelete] = useState<UserPreset | null>(null);
-  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [rawDataCharacter, setRawDataCharacter] = useState<Character | null>(null);
   const [rawDataCopied, setRawDataCopied] = useState(false);
@@ -163,7 +163,6 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
-  const presetDropdownRef = useRef<HTMLDivElement>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
@@ -172,8 +171,6 @@ export default function CharacterList() {
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
-  
-  const presetNames = getPresetNames();
 
   const tutorialOptionClass = (mobile = false) => `w-full px-4 py-3 ${mobile ? 'pl-12 ' : ''}text-left text-sm font-body flex items-center gap-3 transition-colors ${
     mobile ? 'sm:hidden ' : ''
@@ -211,9 +208,6 @@ export default function CharacterList() {
         setShowHeaderMenu(false);
         setShowMobileTutorialOptions(false);
       }
-      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target as Node)) {
-        setShowPresetDropdown(false);
-      }
       if (importDropdownRef.current && !importDropdownRef.current.contains(event.target as Node)) {
         setShowImportDropdown(false);
       }
@@ -222,18 +216,25 @@ export default function CharacterList() {
       }
     };
     
-    if (openDropdown || showHeaderMenu || showPresetDropdown || showImportDropdown || showTutorialDropdown) {
+    if (openDropdown || showHeaderMenu || showImportDropdown || showTutorialDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [openDropdown, showHeaderMenu, showPresetDropdown, showImportDropdown, showTutorialDropdown]);
+  }, [openDropdown, showHeaderMenu, showImportDropdown, showTutorialDropdown]);
 
   const handleStartBasicTutorial = () => {
     cleanupTransientCharacters();
     startTutorial();
+    if (characters.length === 0) {
+      setNewCharName('');
+      setSelectedPreset('');
+      setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+      setShowCharacterCreator(true);
+      advanceTutorial();
+    }
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
     setShowHeaderMenu(false);
@@ -282,6 +283,47 @@ export default function CharacterList() {
     cleanupTransientCharacters();
     variousLoadHandledRef.current = false;
     startVariousTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  const resetCharacterCreator = () => {
+    setNewCharName('');
+    setSelectedPreset('');
+    setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+  };
+
+  const handleChooseBlank = () => {
+    setSelectedPreset('');
+    setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+  };
+
+  const handleChooseBuiltInPreset = (definition: PresetDefinition) => {
+    setSelectedPreset(definition.name);
+    setSelectedTheme(definition.preset.theme || (darkMode ? 'classic-dark' : 'default'));
+  };
+
+  const handleChooseUserPreset = (preset: UserPreset) => {
+    setSelectedPreset(`user:${preset.id}`);
+    setSelectedTheme(preset.theme || preset.preset.theme || (darkMode ? 'classic-dark' : 'default'));
+  };
+
+  const handleOpenCreation = () => {
+    resetCharacterCreator();
+    setShowCharacterCreator(true);
+
+    if (isCurrentTutorialStep('create-character')) {
+      advanceTutorial();
+    }
+  };
+
+  const handleStartBasicTutorialFromChooser = () => {
+    cleanupTransientCharacters();
+    startTutorial();
+    advanceTutorial();
+    resetCharacterCreator();
+    setShowCharacterCreator(true);
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
     setShowHeaderMenu(false);
@@ -405,10 +447,28 @@ export default function CharacterList() {
     }
     
     // Reset form
-    setNewCharName('');
-    setSelectedPreset('');
-    setSelectedTheme('default');
-    setShowCreateModal(false);
+    resetCharacterCreator();
+    setShowCharacterCreator(false);
+  };
+
+  const handleNewCharacterNameChange = (name: string) => {
+    setNewCharName(name);
+    if (tutorialStep === 1 && TUTORIAL_STEPS[1]?.id === 'name-character' && name.trim().length > 0) {
+      advanceTutorial();
+    }
+  };
+
+  const handleSubmitCharacter = () => {
+    const shouldAdvanceTutorial = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
+    handleCreateCharacter();
+    if (shouldAdvanceTutorial) {
+      advanceTutorial();
+    }
+  };
+
+  const handleCloseCharacterCreator = () => {
+    resetCharacterCreator();
+    setShowCharacterCreator(false);
   };
 
   const handleExport = (char: Character) => {
@@ -457,9 +517,7 @@ export default function CharacterList() {
     reader.readAsText(file);
     
     // Reset file input so the same file can be imported again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    e.target.value = '';
   };
 
   const handleBackup = () => {
@@ -571,6 +629,13 @@ export default function CharacterList() {
 
   return (
     <div className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleImport}
+        className="hidden"
+      />
       <div className="max-w-4xl mx-auto pb-safe">
       <div className={`flex justify-between items-center mb-4 border-b-[length:var(--border-width)] pb-2 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
         <h1 className={`text-2xl font-bold uppercase tracking-wider font-heading ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
@@ -580,7 +645,7 @@ export default function CharacterList() {
           {/* Desktop buttons - visible on larger screens */}
           <div className="hidden sm:flex items-center gap-2">
             {/* Gallery Button */}
-            <Tooltip content="Community Gallery">
+            <Tooltip content="Discover community content">
               <button
                 onClick={() => {
                   setShowGallery(true);
@@ -598,7 +663,7 @@ export default function CharacterList() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
-                <span>Gallery</span>
+                <span>Discover</span>
               </button>
             </Tooltip>
             {/* Tutorial Button */}
@@ -773,7 +838,7 @@ export default function CharacterList() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
-                  <span>Gallery</span>
+                  <span>Discover</span>
                 </button>
                 {/* Tutorial - only in mobile menu */}
                 <button
@@ -939,18 +1004,10 @@ export default function CharacterList() {
       </div>
 
       {/* Create and Import buttons */}
-      <div className="mb-6 flex gap-2">
+      {characters.length > 0 && <div className="mb-6 flex gap-2">
         <button 
           data-tutorial="create-character"
-          onClick={() => {
-            // Set default theme based on dark mode
-            setSelectedTheme(darkMode ? 'classic-dark' : 'default');
-            setShowCreateModal(true);
-            // If tutorial is on step 0 (create character), advance to next step
-            if (tutorialStep === 0 && TUTORIAL_STEPS[0]?.id === 'create-character') {
-              advanceTutorial();
-            }
-          }}
+          onClick={handleOpenCreation}
           className={`flex-1 px-6 py-4 text-lg font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading ${
             darkMode 
               ? 'bg-white text-black hover:bg-white/80' 
@@ -976,7 +1033,9 @@ export default function CharacterList() {
                 ? 'bg-black border border-white/30' 
                 : 'bg-white border border-gray-300'
             }`}>
-              <label
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
                 className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors cursor-pointer ${
                   darkMode 
                     ? 'text-white hover:bg-white/10' 
@@ -987,17 +1046,7 @@ export default function CharacterList() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
                 </svg>
                 <span>From File</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => {
-                    handleImport(e);
-                    setShowImportDropdown(false);
-                  }}
-                  className="hidden"
-                />
-              </label>
+              </button>
               <button
                 onClick={() => {
                   setRawImportValue('');
@@ -1018,7 +1067,7 @@ export default function CharacterList() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
         {characters.map((char) => {
@@ -1290,12 +1339,28 @@ export default function CharacterList() {
         })}
         
         {characters.length === 0 && (
-          <div className={`col-span-full text-center py-8 border-[length:var(--border-width)] border-dashed text-sm rounded-theme font-body ${
-            darkMode 
-              ? 'text-white/50 border-white/30' 
-              : 'text-theme-muted border-theme-border/50'
-          }`}>
-            No characters found. Create one to begin.
+          <div className="col-span-full">
+            <CharacterCreator
+              darkMode={darkMode}
+              firstCharacter
+              name={newCharName}
+              selectedPreset={selectedPreset}
+              selectedTheme={selectedTheme}
+              customThemes={customThemes}
+              userPresets={userPresets}
+              startingPointLocked={isCurrentTutorialStep('name-character') || isCurrentTutorialStep('click-create')}
+              nameHighlighted={isCurrentTutorialStep('name-character')}
+              createHighlighted={isCurrentTutorialStep('click-create')}
+              onNameChange={handleNewCharacterNameChange}
+              onChooseBlank={handleChooseBlank}
+              onChooseBuiltIn={handleChooseBuiltInPreset}
+              onChooseUser={handleChooseUserPreset}
+              onThemeChange={setSelectedTheme}
+              onCreate={handleSubmitCharacter}
+              onImport={() => fileInputRef.current?.click()}
+              onDiscover={() => setShowGallery(true)}
+              onTour={handleStartBasicTutorialFromChooser}
+            />
           </div>
         )}
       </div>
@@ -1519,10 +1584,10 @@ export default function CharacterList() {
       {presetToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" 
+            className="fixed inset-0 bg-black/50 z-[70] animate-fade-in"
             onClick={() => setPresetToDelete(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] animate-fade-in ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[70] min-w-[280px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1566,241 +1631,45 @@ export default function CharacterList() {
         </>
       )}
       
-      {/* Create Character Modal */}
-      {showCreateModal && (
+      {/* Single-surface creator for returning users */}
+      {showCharacterCreator && characters.length > 0 && (
         <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
-            onClick={() => setShowCreateModal(false)}
+          <div
+            className="fixed inset-0 bg-black/60 z-50 animate-fade-in"
+            onClick={handleCloseCharacterCreator}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] animate-fade-in ${
-            darkMode 
-              ? 'bg-black border border-white/30' 
-              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-          }`}>
-            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create New Character</h3>
-            
-            {/* Character Name */}
-            <div className="mb-4" data-tutorial="character-name-input">
-              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Character Name</label>
-              <input
-                type="text"
-                value={newCharName}
-                onChange={(e) => {
-                  setNewCharName(e.target.value);
-                  // If tutorial is on step 1 (name character) and user typed something, advance
-                  if (tutorialStep === 1 && TUTORIAL_STEPS[1]?.id === 'name-character' && e.target.value.trim().length > 0) {
-                    advanceTutorial();
-                  }
-                }}
-                placeholder="Enter character name..."
-                className={`w-full p-3 text-base shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all rounded-theme font-body ${
-                  darkMode 
-                    ? 'bg-black text-white border border-white/30 placeholder-white/40' 
-                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                } ${tutorialStep === 1 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-                autoFocus
-              />
-            </div>
-            
-            {/* Preset Selection */}
-            <div className="mb-4">
-              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Preset</label>
-              <div className="relative" ref={presetDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowPresetDropdown(!showPresetDropdown)}
-                  className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer text-left flex items-center justify-between ${
-                    darkMode 
-                      ? 'bg-black text-white border border-white/30' 
-                      : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                  }`}
-                >
-                  <span>
-                    {selectedPreset === '' 
-                      ? 'No Preset' 
-                      : selectedPreset.startsWith('user:') 
-                        ? userPresets.find(p => p.id === selectedPreset.replace('user:', ''))?.name || 'No Preset'
-                        : selectedPreset
-                    }
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showPresetDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showPresetDropdown && (
-                  <div className={`absolute z-50 w-full mt-1 rounded-theme shadow-theme max-h-60 overflow-y-auto ${
-                    darkMode 
-                      ? 'bg-black border border-white/30' 
-                      : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-                  }`}>
-                    {/* No Preset option */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPreset('');
-                        setShowPresetDropdown(false);
-                      }}
-                      className={`w-full px-3 py-3 text-left text-base font-body transition-colors ${
-                        selectedPreset === '' 
-                          ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
-                          : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
-                      } ${darkMode ? 'text-white' : 'text-theme-ink'}`}
-                    >
-                      No Preset
-                    </button>
-                    
-                    {/* Built-in Presets */}
-                    {presetNames.length > 0 && (
-                      <>
-                        <div className={`px-3 py-1.5 text-xs font-body font-semibold uppercase tracking-wider ${
-                          darkMode ? 'text-white/40 bg-white/5' : 'text-theme-muted bg-theme-accent/5'
-                        }`}>
-                          Built-in Presets
-                        </div>
-                        {presetNames.map((name) => (
-                          <button
-                            key={name}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPreset(name);
-                              setShowPresetDropdown(false);
-                            }}
-                            className={`w-full px-3 py-3 text-left text-base font-body transition-colors ${
-                              selectedPreset === name 
-                                ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
-                                : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
-                            } ${darkMode ? 'text-white' : 'text-theme-ink'}`}
-                          >
-                            {name}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    
-                    {/* My Presets */}
-                    {userPresets.length > 0 && (
-                      <>
-                        <div className={`px-3 py-1.5 text-xs font-body font-semibold uppercase tracking-wider ${
-                          darkMode ? 'text-white/40 bg-white/5' : 'text-theme-muted bg-theme-accent/5'
-                        }`}>
-                          My Presets
-                        </div>
-                        {userPresets.map((preset) => (
-                          <div
-                            key={`user:${preset.id}`}
-                            className={`flex items-center group ${
-                              selectedPreset === `user:${preset.id}` 
-                                ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
-                                : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedPreset(`user:${preset.id}`);
-                                if (preset.theme) {
-                                  setSelectedTheme(preset.theme);
-                                }
-                                setShowPresetDropdown(false);
-                              }}
-                              className={`flex-1 px-3 py-3 text-left text-base font-body transition-colors ${
-                                darkMode ? 'text-white' : 'text-theme-ink'
-                              }`}
-                            >
-                              {preset.name}
-                            </button>
-                            <Tooltip content="Delete preset">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPresetToDelete(preset);
-                                  setShowPresetDropdown(false);
-                                }}
-                                className={`px-3 py-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors active:bg-red-500/20 ${
-                                  darkMode 
-                                    ? 'text-white/40 hover:text-red-400' 
-                                    : 'text-theme-muted hover:text-red-500'
-                                }`}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </Tooltip>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Theme Selection */}
-            <div className="mb-6">
-              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Theme</label>
-              <select
-                value={selectedTheme}
-                onChange={(e) => setSelectedTheme(e.target.value)}
-                className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer ${
-                  darkMode 
-                    ? 'bg-black text-white border border-white/30' 
-                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                }`}
-              >
-                <optgroup label="Built-in Themes">
-                  {THEMES.map((theme) => (
-                    <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
-                  ))}
-                </optgroup>
-                {Object.keys(customThemes).length > 0 && (
-                  <optgroup label="Custom Themes">
-                    {Object.values(customThemes).map((theme) => (
-                      <option key={theme.id} value={theme.id}>🎨 {theme.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewCharName('');
-                  setSelectedPreset('');
-                  setSelectedTheme('default');
-                }}
-                className={`px-4 py-2 font-body rounded-button transition-colors ${
-                  darkMode 
-                    ? 'text-white border border-white/30 hover:bg-white/10' 
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                data-tutorial="create-button"
-                onClick={() => {
-                  handleCreateCharacter();
-                  // If tutorial is on step 2 (click create), advance
-                  if (tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create') {
-                    advanceTutorial();
-                  }
-                }}
-                className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
-                  darkMode 
-                    ? 'bg-white text-black hover:bg-white/80' 
-                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-                } ${tutorialStep === 2 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-              >
-                Create
-              </button>
-            </div>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-creator-title"
+            className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-1.5rem)] sm:w-[calc(100%-4rem)] max-w-4xl max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-theme shadow-xl animate-fade-in ${
+              darkMode ? 'bg-black border border-white/30' : 'bg-white border border-gray-300'
+            }`}
+          >
+            <CharacterCreator
+              darkMode={darkMode}
+              name={newCharName}
+              selectedPreset={selectedPreset}
+              selectedTheme={selectedTheme}
+              customThemes={customThemes}
+              userPresets={userPresets}
+              startingPointLocked={isCurrentTutorialStep('name-character') || isCurrentTutorialStep('click-create')}
+              nameHighlighted={isCurrentTutorialStep('name-character')}
+              createHighlighted={isCurrentTutorialStep('click-create')}
+              onNameChange={handleNewCharacterNameChange}
+              onChooseBlank={handleChooseBlank}
+              onChooseBuiltIn={handleChooseBuiltInPreset}
+              onChooseUser={handleChooseUserPreset}
+              onThemeChange={setSelectedTheme}
+              onCreate={handleSubmitCharacter}
+              onCancel={handleCloseCharacterCreator}
+              onImport={() => fileInputRef.current?.click()}
+              onDiscover={() => {
+                setShowCharacterCreator(false);
+                setShowGallery(true);
+              }}
+              onTour={handleStartBasicTutorialFromChooser}
+            />
           </div>
         </>
       )}

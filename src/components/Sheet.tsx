@@ -7,7 +7,7 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
-import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
+import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation } from '../hooks';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
@@ -19,6 +19,8 @@ import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
+import ShareExportMenu from './ShareExportMenu';
+import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
 import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon } from './icons';
 import { useTimelineStore } from '../store/useTimelineStore';
@@ -38,6 +40,7 @@ export default function Sheet() {
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
+  const { workspace, playLayout, enterBuild, enterPlay, setPlayLayout } = useWorkspaceNavigation();
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
@@ -61,6 +64,12 @@ export default function Sheet() {
   const timelineIsOpen = useTimelineStore((state) => state.isOpen);
   const toggleTimeline = useTimelineStore((state) => state.toggleOpen);
   const setTimelineOpen = useTimelineStore((state) => state.setOpen);
+
+  useEffect(() => {
+    if ((mode === 'edit' || mode === 'print') && timelineIsOpen) {
+      setTimelineOpen(false);
+    }
+  }, [mode, setTimelineOpen, timelineIsOpen]);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -263,6 +272,27 @@ export default function Sheet() {
       wasCollapsed &&
       (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox'))
     ) {
+      advanceTutorial();
+    }
+  };
+
+  const handleEnterBuildWorkspace = () => {
+    enterBuild();
+    if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') {
+      advanceTutorial();
+    }
+  };
+
+  const handleEnterPlayWorkspace = () => {
+    enterPlay();
+    if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
+      advanceTutorial();
+    }
+  };
+
+  const handleSelectPlayLayout = (layout: 'canvas' | 'list') => {
+    setPlayLayout(layout);
+    if (layout === 'list' && isCurrentTutorialStep('various-vertical-view')) {
       advanceTutorial();
     }
   };
@@ -725,12 +755,13 @@ export default function Sheet() {
   };
 
   const handleExitToMenu = useCallback(() => {
+    setTimelineOpen(false);
     cleanupTransientCharacters();
     selectCharacter(null);
     if (tutorialStep !== null) {
       exitTutorial();
     }
-  }, [cleanupTransientCharacters, exitTutorial, selectCharacter, tutorialStep]);
+  }, [cleanupTransientCharacters, exitTutorial, selectCharacter, setTimelineOpen, tutorialStep]);
 
   if (!activeCharacter) return null;
 
@@ -747,13 +778,13 @@ export default function Sheet() {
           <button
             onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
             aria-label="Menu"
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
             <MenuIcon className="w-4 h-4" />
           </button>
           
           {/* Desktop: Inline menu buttons */}
-          <div className="hidden sm:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-1 shrink-0">
             <Tooltip content="Exit to character select" placement="below">
               <button
                 onClick={handleExitToMenu}
@@ -762,30 +793,28 @@ export default function Sheet() {
                 Exit
               </button>
             </Tooltip>
-            <Tooltip content="Switch to Edit Mode" placement="below">
-              <button
-                onClick={() => setMode('edit')}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-              >
-                Edit Mode
-              </button>
-            </Tooltip>
-            <Tooltip content="Switch to Grid View" placement="below">
-              <button
-                onClick={() => setMode('play')}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-              >
-                Grid View
-              </button>
-            </Tooltip>
-            <Tooltip content="Open event timeline" placement="below">
+            <WorkspaceToggleGroup
+              workspace={workspace}
+              playLayout={playLayout}
+              onBuild={handleEnterBuildWorkspace}
+              onPlay={handleEnterPlayWorkspace}
+              onCanvas={() => handleSelectPlayLayout('canvas')}
+              onList={() => handleSelectPlayLayout('list')}
+              listHighlighted={isCurrentTutorialStep('various-vertical-view')}
+            />
+            <div className="flex items-center w-[224px] shrink-0">
+              <Tooltip content="Open event timeline" placement="below">
               <button
                 onClick={toggleTimeline}
-                className={`h-8 px-3 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                aria-controls="timeline-panel"
+                aria-expanded={timelineIsOpen}
+                aria-pressed={timelineIsOpen}
+                className={`w-20 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Timeline
               </button>
-            </Tooltip>
+              </Tooltip>
+            </div>
             {/* Undo/Redo buttons */}
             <Tooltip content="Undo (Ctrl+Z)" placement="below">
               <button
@@ -839,11 +868,11 @@ export default function Sheet() {
                 <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
               </button>
             </Tooltip>
-            
+
             {sheetDropdownOpen && (
               <>
-                <div 
-                  className="fixed inset-0 z-40" 
+                <div
+                  className="fixed inset-0 z-40"
                   onClick={() => setSheetDropdownOpen(false)}
                 />
                 <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px] animate-dropdown-in">
@@ -866,6 +895,10 @@ export default function Sheet() {
                 </div>
               </>
             )}
+          </div>
+
+          <div className="hidden lg:block">
+            <ShareExportMenu character={activeCharacter} onPrintPreview={enterPrintMode} />
           </div>
           
           {/* Expand/Collapse buttons */}
@@ -898,11 +931,14 @@ export default function Sheet() {
             </button>
           </Tooltip>
           {/* Undo/Redo buttons for mobile */}
-          <div className="sm:hidden flex items-center gap-1">
+          <div className="lg:hidden flex items-center gap-1">
             <Tooltip content="Timeline" placement="below">
               <button
                 onClick={toggleTimeline}
                 aria-label="Timeline"
+                aria-controls="timeline-panel"
+                aria-expanded={timelineIsOpen}
+                aria-pressed={timelineIsOpen}
                 className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 <ClockIcon className="w-4 h-4" />
@@ -945,7 +981,7 @@ export default function Sheet() {
 
         {/* Mobile: Dropdown menu */}
         {verticalMenuOpen && (
-          <div className="sm:hidden">
+          <div className="lg:hidden">
             <div 
               className="fixed inset-0 z-40" 
               onClick={() => setVerticalMenuOpen(false)}
@@ -953,27 +989,29 @@ export default function Sheet() {
             <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
               <button
                 onClick={() => {
-                  setMode('play');
+                  setPlayLayout('canvas');
                   setVerticalMenuOpen(false);
                 }}
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
-                Grid View
+                Use Canvas layout
               </button>
               <button
                 onClick={() => {
-                  setMode('edit');
+                  enterBuild();
                   setVerticalMenuOpen(false);
                 }}
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
-                Edit Mode
+                Go to Build
               </button>
               <button
                 onClick={() => {
                   toggleTimeline();
                   setVerticalMenuOpen(false);
                 }}
+                aria-controls="timeline-panel"
+                aria-expanded={timelineIsOpen}
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
                 Timeline
@@ -1013,7 +1051,7 @@ export default function Sheet() {
             {activeSheetWidgets.length === 0 && (
               <div className="text-center text-theme-muted py-12">
                 <p className="font-body">No widgets on this sheet</p>
-                <p className="text-sm mt-2">Switch to Edit mode to add widgets</p>
+                <p className="text-sm mt-2">Switch to Build to add widgets</p>
               </div>
             )}
           </div>
@@ -1057,6 +1095,35 @@ export default function Sheet() {
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}
       >
+        {mode === 'edit' && activeSheetWidgets.length === 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-lg bg-theme-paper/95 backdrop-blur-sm border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme p-6 sm:p-8 text-center">
+              <p className="font-body text-xs font-bold uppercase tracking-[0.18em] text-theme-accent">Build workspace</p>
+              <h2 className="font-heading text-2xl sm:text-3xl font-bold text-theme-ink mt-2">Build the sheet around the game</h2>
+              <p className="font-body text-sm text-theme-muted mt-3 max-w-md mx-auto">
+                Add only what you need now—stats, notes, resources, dice, or trackers. You can rearrange everything later.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="px-5 py-2.5 bg-theme-accent text-theme-paper rounded-button font-body font-bold text-sm hover:bg-theme-accent-hover transition-colors"
+                >
+                  Add your first widget
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExitToMenu}
+                  className="px-5 py-2.5 bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-button font-body font-semibold text-sm hover:bg-theme-accent/10 transition-colors"
+                >
+                  Choose a Preset instead
+                </button>
+              </div>
+              <p className="font-body text-[11px] text-theme-muted mt-4">Build changes structure. Play keeps the sheet ready for use at the table.</p>
+            </div>
+          </div>
+        )}
+
         {/* Transformed Content */}
         <div 
           ref={printAreaRef}
@@ -1135,34 +1202,32 @@ export default function Sheet() {
               </button>
             </Tooltip>
             
-            {/* Mode switch buttons */}
-            <Tooltip content="Exit print mode, go to Play Mode" placement="below">
+            {/* Return to a primary workspace */}
+            <Tooltip content="Exit print preview and return to Play" placement="below">
               <button
                 onClick={() => exitPrintMode('play')}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Play Mode
+                Play
               </button>
             </Tooltip>
-            <Tooltip content="Exit print mode, go to Edit Mode" placement="below">
+            <Tooltip content="Exit print preview and return to Build" placement="below">
               <button
                 onClick={() => exitPrintMode('edit')}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Edit Mode
+                Build
               </button>
             </Tooltip>
-            
-            {/* Separator */}
+
             <div className="w-px h-6 bg-theme-border" />
-            
-            {/* Print options */}
+
             <Tooltip content="Use printer-friendly colors (black &amp; white)" placement="below">
               <button
                 onClick={() => setPrinterFriendly(!printerFriendly)}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  printerFriendly 
-                    ? 'bg-theme-accent text-theme-paper' 
+                  printerFriendly
+                    ? 'bg-theme-accent text-theme-paper'
                     : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
@@ -1173,8 +1238,8 @@ export default function Sheet() {
               <button
                 onClick={() => setBordersDisabled(!bordersDisabled)}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  bordersDisabled 
-                    ? 'bg-theme-accent text-theme-paper' 
+                  bordersDisabled
+                    ? 'bg-theme-accent text-theme-paper'
                     : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
@@ -1411,56 +1476,17 @@ export default function Sheet() {
               Exit
             </button>
           </Tooltip>
-          <Tooltip content={mode === 'play' ? 'Switch to Edit Mode' : 'Switch to Play Mode'} placement="below">
-            <button
-              data-tutorial="edit-mode-button"
-              onClick={() => {
-                const newMode = mode === 'play' ? 'edit' : 'play';
-                setMode(newMode);
-                // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
-                if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
-                  advanceTutorial();
-                }
-                // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
-                if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
-                  advanceTutorial();
-                }
-              }}
-              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-            >
-              {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
-            </button>
-          </Tooltip>
-          <Tooltip content="Enter print mode to print your character sheet" placement="below">
-            <button
-              data-tutorial="print-mode-button"
-              onClick={() => {
-                enterPrintMode();
-                if (isCurrentTutorialStep('various-print-mode')) {
-                  advanceTutorial();
-                }
-              }}
-              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-print-mode') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-            >
-              Print Mode
-            </button>
-          </Tooltip>
-          {mode === 'play' && (
-            <Tooltip content="Switch to single-column Vertical View" placement="below">
-              <button
-                data-tutorial="vertical-view-button"
-                onClick={() => {
-                  setMode('vertical');
-                  if (isCurrentTutorialStep('various-vertical-view')) {
-                    advanceTutorial();
-                  }
-                }}
-                className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-vertical-view') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-              >
-                Vertical View
-              </button>
-            </Tooltip>
-          )}
+          <WorkspaceToggleGroup
+            workspace={workspace}
+            playLayout={playLayout}
+            onBuild={handleEnterBuildWorkspace}
+            onPlay={handleEnterPlayWorkspace}
+            onCanvas={() => handleSelectPlayLayout('canvas')}
+            onList={() => handleSelectPlayLayout('list')}
+            workspaceHighlighted={(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit')}
+            listHighlighted={isCurrentTutorialStep('various-vertical-view')}
+          />
+          <div className="flex items-center gap-1 w-[224px] shrink-0">
           {mode === 'play' && (
             <Tooltip content="Open event timeline" placement="below">
               <button
@@ -1473,7 +1499,10 @@ export default function Sheet() {
                     toggleTimeline();
                   }
                 }}
-                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'} ${isCurrentTutorialStep('various-timeline') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                aria-controls="timeline-panel"
+                aria-expanded={timelineIsOpen}
+                aria-pressed={timelineIsOpen}
+                className={`w-20 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'} ${isCurrentTutorialStep('various-timeline') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 Timeline
               </button>
@@ -1485,30 +1514,31 @@ export default function Sheet() {
                 <button
                   data-tutorial="add-widget-button"
                   onClick={() => handleToggleWidgetSidebar()}
-                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                  className={`w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 >
-                  {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
+                  {sidebarCollapsed ? 'Add' : 'Hide Add'}
                 </button>
               </Tooltip>
               <Tooltip content="Open theme editor" placement="below">
                 <button
                   data-tutorial="theme-button"
                   onClick={() => handleToggleThemeSidebar()}
-                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                  className={`w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
                 >
-                  Change Theme
+                  Theme
                 </button>
               </Tooltip>
               <Tooltip content="Auto-arrange all widgets into a neat stack" placement="below">
                 <button
                   onClick={() => setShowAutoStackConfirm(true)}
-                  className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                  className="w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
                 >
-                  Auto Stack
+                  Stack
                 </button>
               </Tooltip>
             </>
           )}
+          </div>
           {/* Undo/Redo buttons */}
           <Tooltip content="Undo (Ctrl+Z)" placement="below">
             <button
@@ -1608,6 +1638,10 @@ export default function Sheet() {
             </button>
           </Tooltip>
         </div>
+
+        <div className="hidden sm:block">
+          <ShareExportMenu character={activeCharacter} onPrintPreview={enterPrintMode} />
+        </div>
         
         {/* Fit button */}
         <Tooltip content="Fit all widgets on screen" placement="left">
@@ -1703,25 +1737,28 @@ export default function Sheet() {
             onClick={() => setGridMenuOpen(false)}
           />
           <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
-            {/* Mode toggle */}
+            {/* Workspace toggle */}
             <button
               data-tutorial="edit-mode-button-mobile"
               onClick={() => {
-                const newMode = mode === 'play' ? 'edit' : 'play';
-                setMode(newMode);
+                const newMode = workspace === 'build' ? 'play' : 'edit';
+                if (newMode === 'edit') {
+                  enterBuild();
+                } else {
+                  enterPlay();
+                }
                 setGridMenuOpen(false);
-                // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
+                // Preserve tutorial transitions while exposing Build/Play terminology.
                 if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
                   advanceTutorial();
                 }
-                // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
                 if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
                   advanceTutorial();
                 }
               }}
               className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
             >
-              {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
+              {workspace === 'build' ? 'Go to Play' : 'Go to Build'}
             </button>
             
             {/* Print Mode */}
@@ -1736,14 +1773,14 @@ export default function Sheet() {
               data-tutorial="print-mode-button-mobile"
               className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-print-mode') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
             >
-              Print Mode
+              Print Preview
             </button>
             
-            {/* Vertical View - only in play mode */}
-            {mode === 'play' && (
+            {/* List layout - only in Play */}
+            {workspace === 'play' && playLayout === 'canvas' && (
               <button
                 onClick={() => {
-                  setMode('vertical');
+                  setPlayLayout('list');
                   if (isCurrentTutorialStep('various-vertical-view')) {
                     advanceTutorial();
                   }
@@ -1752,12 +1789,12 @@ export default function Sheet() {
                 data-tutorial="vertical-view-button-mobile"
                 className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-vertical-view') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
-                Vertical View
+                Use List layout
               </button>
             )}
             
             {/* Timeline - only in play mode */}
-            {mode === 'play' && (
+            {workspace === 'play' && (
               <button
                 onClick={() => {
                   if (isCurrentTutorialStep('various-timeline')) {
@@ -1769,14 +1806,16 @@ export default function Sheet() {
                   setGridMenuOpen(false);
                 }}
                 data-tutorial="timeline-button-mobile"
+                aria-controls="timeline-panel"
+                aria-expanded={timelineIsOpen}
                 className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-timeline') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
               >
                 Timeline
               </button>
             )}
             
-            {/* Edit mode specific options */}
-            {mode === 'edit' && (
+            {/* Build-specific options */}
+            {workspace === 'build' && (
               <>
                 <button
                   data-tutorial="add-widget-button-mobile"

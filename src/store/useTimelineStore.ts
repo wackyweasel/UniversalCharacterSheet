@@ -26,6 +26,7 @@ interface TimelineState {
   
   addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>) => void;
   removeEvent: (characterId: string, eventId: string) => void;
+  restoreEvents: (characterId: string, events: TimelineEvent[]) => void;
   clearEvents: (characterId: string) => void;
   toggleOpen: () => void;
   setOpen: (open: boolean) => void;
@@ -114,6 +115,35 @@ export const useTimelineStore = create<TimelineState>((set) => ({
         [characterId]: {
           ...charTimeline,
           events: charTimeline.events.filter((event) => event.id !== eventId),
+        },
+      },
+    };
+  }),
+
+  restoreEvents: (characterId, events) => set((state) => {
+    if (events.length === 0) return state;
+
+    const charTimeline = state.eventsByCharacter[characterId] ?? { events: [], nextId: 1 };
+    const existingIds = new Set(charTimeline.events.map((event) => event.id));
+    const eventsToRestore = events.filter((event) => !existingIds.has(event.id));
+    if (eventsToRestore.length === 0) return state;
+
+    const restoredEvents = [...charTimeline.events, ...eventsToRestore]
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-200);
+    const nextId = restoredEvents.reduce((highestId, event) => {
+      const numericId = Number(event.id);
+      return Number.isFinite(numericId) ? Math.max(highestId, numericId + 1) : highestId;
+    }, charTimeline.nextId);
+
+    recordTimelineEvent('timeline_events_restored', { eventCount: eventsToRestore.length });
+
+    return {
+      eventsByCharacter: {
+        ...state.eventsByCharacter,
+        [characterId]: {
+          events: restoredEvents,
+          nextId,
         },
       },
     };
