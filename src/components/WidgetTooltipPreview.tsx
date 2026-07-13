@@ -472,7 +472,7 @@ function renderWidget(widget: Widget) {
     case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
     case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
     case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
-    case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
+    case 'DICE_TRAY': return <DiceTrayWidget {...props} interactive={false} />;
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
     case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
     case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;

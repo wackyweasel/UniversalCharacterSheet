@@ -197,6 +197,8 @@ export interface WidgetData {
   diceGroups?: DiceGroup[];
   showRollDetails?: boolean;
   // Dice Tray
+  showTrayRollDetails?: boolean;
+  // Legacy setting used to initialize details for existing saved widgets.
   showIndividualResults?: boolean;
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
