@@ -64,6 +64,7 @@ export default function Sheet() {
   const timelineIsOpen = useTimelineStore((state) => state.isOpen);
   const toggleTimeline = useTimelineStore((state) => state.toggleOpen);
   const setTimelineOpen = useTimelineStore((state) => state.setOpen);
+  const requestCharacterCreator = useStore((state) => state.requestCharacterCreator);
 
   useEffect(() => {
     if ((mode === 'edit' || mode === 'print') && timelineIsOpen) {
@@ -763,6 +764,17 @@ export default function Sheet() {
     }
   }, [cleanupTransientCharacters, exitTutorial, selectCharacter, setTimelineOpen, tutorialStep]);
 
+  const handleChoosePresetInstead = useCallback(() => {
+    if (!activeCharacter) return;
+    const characterIsBlank = activeCharacter.sheets.every((sheet) => sheet.widgets.length === 0);
+    const canReplaceBlankCharacter = characterIsBlank && !transientCharacterIds.includes(activeCharacter.id);
+    requestCharacterCreator({
+      initialName: characterIsBlank ? activeCharacter.name : '',
+      replaceCharacterId: canReplaceBlankCharacter ? activeCharacter.id : undefined,
+    });
+    handleExitToMenu();
+  }, [activeCharacter, handleExitToMenu, requestCharacterCreator, transientCharacterIds]);
+
   if (!activeCharacter) return null;
 
   // Vertical mode menu state
@@ -1031,7 +1043,7 @@ export default function Sheet() {
 
         {/* Vertical Mode Container - scrollable */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-md mx-auto px-3 py-4 pb-24">
+          <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6 pb-24">
             {/* Widgets in vertical layout */}
             {activeSheetWidgets.map((widget, index) => (
               <VerticalWidget
@@ -1113,10 +1125,12 @@ export default function Sheet() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleExitToMenu}
+                  onClick={handleChoosePresetInstead}
                   className="px-5 py-2.5 bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-button font-body font-semibold text-sm hover:bg-theme-accent/10 transition-colors"
                 >
-                  Choose a Preset instead
+                  {activeCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
+                    ? 'Choose a Preset instead'
+                    : 'Create from a Preset'}
                 </button>
               </div>
               <p className="font-body text-[11px] text-theme-muted mt-4">Build changes structure. Play keeps the sheet ready for use at the table.</p>

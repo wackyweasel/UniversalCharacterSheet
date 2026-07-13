@@ -95,6 +95,8 @@ export default function RollTableWidget({ widget, height }: Props) {
     return Math.round((weight / total) * 100);
   };
 
+  const hasValidItems = normalizedItems.some((item) => item.text.trim() && item.weight > 0);
+
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
@@ -108,14 +110,14 @@ export default function RollTableWidget({ widget, height }: Props) {
         <button
           onClick={rollTable}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
+          className={`${buttonClass} widget-control font-bold flex-shrink-0 ${
             isRolling 
               ? 'bg-theme-muted animate-pulse text-theme-paper' 
-              : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+              : ''
           }`}
-          disabled={isRolling}
+          disabled={isRolling || !hasValidItems}
         >
-          Roll Table
+          {hasValidItems ? 'Roll Table' : 'Add an item to roll'}
         </button>
       </Tooltip>
 
@@ -146,6 +148,7 @@ export default function RollTableWidget({ widget, height }: Props) {
                 onChange={(e) => updateItem(idx, 'text', e.target.value)}
                 placeholder="Item text..."
                 onMouseDown={(e) => e.stopPropagation()}
+                aria-label={`Roll table item ${idx + 1}`}
               />
               <span className="text-[10px] text-theme-muted w-8 text-right" title="Probability">
                 {getPercentage(item.weight)}%

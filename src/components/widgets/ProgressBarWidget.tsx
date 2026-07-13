@@ -44,7 +44,7 @@ function ValueModal({
         className="fixed inset-0 bg-black/50 z-50" 
         onClick={onCancel}
       />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-50 min-w-[200px]">
+      <div role="dialog" aria-modal="true" aria-label={title} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-50 min-w-[200px]">
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
         <input
           type="number"
@@ -152,6 +152,18 @@ export default function ProgressBarWidget({ widget }: Props) {
             className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border ${hasCurrentFormula ? 'cursor-default' : 'cursor-pointer'}`}
             onClick={() => !hasCurrentFormula && setShowValueModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
+            role="progressbar"
+            tabIndex={hasCurrentFormula ? undefined : 0}
+            aria-label={label || 'Progress'}
+            aria-valuemin={0}
+            aria-valuemax={maxValue}
+            aria-valuenow={currentValue}
+            onKeyDown={(e) => {
+              if (!hasCurrentFormula && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setShowValueModal(true);
+              }
+            }}
           >
           {/* Filled portion */}
           <div 

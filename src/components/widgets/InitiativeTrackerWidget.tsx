@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, InitiativeParticipant, InitiativeEncounterEntry } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -43,6 +44,9 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add temporary participant"
         className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -50,6 +54,7 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
           <h3 className="font-bold text-theme-ink font-heading">Add Temporary Participant</h3>
           <button
             onClick={onClose}
+            aria-label="Close participant form"
             className="text-theme-muted hover:text-theme-ink text-xl leading-none"
           >
             ×
@@ -402,7 +407,8 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         <Tooltip content="Reset to all pool participants with no roll values">
           <button
             onClick={newEncounter}
-            className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+            disabled={initiativePool.length === 0}
+            className={`${buttonClass} widget-control widget-control--subtle disabled:opacity-35`}
           >
             Reset
           </button>
@@ -412,7 +418,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         <Tooltip content="Add a one-off temporary participant">
           <button
             onClick={() => setShowAddTempModal(true)}
-            className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+            className={`${buttonClass} widget-control`}
           >
             Add
           </button>
@@ -437,9 +443,15 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       {/* Encounter List */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {initiativeEncounter.length === 0 ? (
-          <div className={`text-theme-muted italic ${itemClass} text-center py-2`}>
-            Add participants to start
-          </div>
+          <WidgetEmptyState
+            title="No encounter yet"
+            hint={mode === 'vertical'
+              ? initiativePool.length > 0
+                ? 'Reset to load the configured roster, or add a temporary participant.'
+                : 'Add a temporary participant, or configure a roster in Build.'
+              : undefined}
+            compact={mode !== 'vertical'}
+          />
         ) : (
           <div className="space-y-0.5">
             {initiativeEncounter.map((entry: InitiativeEncounterEntry, index: number) => (
@@ -488,6 +500,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                       removeFromEncounter(entry.id);
                     }}
                     className={`${itemClass} hover:text-red-500 transition-colors px-1 font-body`}
+                    aria-label={`Remove ${entry.name} from encounter`}
                   >
                     ×
                   </button>

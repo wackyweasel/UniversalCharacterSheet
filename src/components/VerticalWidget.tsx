@@ -249,9 +249,7 @@ export default function VerticalWidget({
       )}
       
       {/* Widget Card */}
-      <div 
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme overflow-visible relative"
-      >
+      <div className="vertical-widget-card">
         {/* Image texture overlay */}
         {hasImageTexture && (
           <div
@@ -272,7 +270,7 @@ export default function VerticalWidget({
         )}
 
         {/* Header with drag handle and collapse toggle */}
-        <div className="flex items-center justify-between px-3 py-1.5 relative z-20">
+        <div className={`vertical-widget-header ${isCollapsed ? '' : 'vertical-widget-header--expanded'}`}>
           {/* Drag Handle - positioned at left, only this area is draggable (disabled when locked) */}
           <div 
             className="vertical-drag-handle cursor-grab active:cursor-grabbing flex items-center gap-2 touch-none select-none"
@@ -305,18 +303,14 @@ export default function VerticalWidget({
           )}
           
           {/* Label when collapsed */}
-          {isCollapsed && (
-            <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1 ml-2">{getWidgetLabel()}</span>
-          )}
-          
-          {/* Spacer when not collapsed */}
-          {!isCollapsed && <div className="flex-1" />}
+          <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1">{getWidgetLabel()}</span>
           
           {/* Collapse Toggle */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-            className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors"
+            aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${getWidgetLabel()}`}
+            aria-expanded={!isCollapsed}
+            className="widget-control widget-control--subtle w-7 h-7 min-h-0"
           >
             <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
           </button>
@@ -324,7 +318,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`relative px-3 pb-2 ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${widget.data.label && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
@@ -335,10 +329,7 @@ export default function VerticalWidget({
         <div className="absolute -bottom-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
       )}
       
-      {/* Separator between widgets (except last) - always show to prevent layout shift */}
-      {index < totalWidgets - 1 && (
-        <div className="h-px bg-theme-border/30 my-1" />
-      )}
+      {index < totalWidgets - 1 && <div className="h-2" />}
     </div>
   );
 }

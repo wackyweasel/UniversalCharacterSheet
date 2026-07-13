@@ -4,6 +4,7 @@ import { Widget, DiceGroup } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -27,6 +28,9 @@ function Modal({ title, onClose, children }: ModalProps) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -34,6 +38,7 @@ function Modal({ title, onClose, children }: ModalProps) {
           <h3 className="font-bold text-theme-ink font-heading">{title}</h3>
           <button
             onClick={onClose}
+            aria-label={`Close ${title}`}
             className="text-theme-muted hover:text-theme-ink text-xl leading-none"
           >
             ×
@@ -216,20 +221,19 @@ export default function RestButtonWidget({ widget }: Props) {
 
   return (
     <div className="flex flex-col gap-1 w-full h-full items-center justify-center p-1">
-      <Tooltip content={restTooltip}>
-        <button
-          onClick={handleRest}
-          onMouseDown={(e) => e.stopPropagation()}
-          disabled={!hasAnyAction}
-          className={`w-full h-full min-w-0 px-2 py-1 font-bold text-xs border-[length:var(--border-width)] border-theme-border rounded-button shadow-theme transition-all font-body truncate ${
-            hasAnyAction
-              ? 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer'
-              : 'bg-theme-muted text-theme-paper opacity-50 cursor-not-allowed'
-          } ${isAnimating ? 'scale-95' : ''}`}
-        >
-          {buttonText}
-        </button>
-      </Tooltip>
+      {hasAnyAction ? (
+        <Tooltip content={restTooltip}>
+          <button
+            onClick={handleRest}
+            onMouseDown={(e) => e.stopPropagation()}
+            className={`widget-control widget-control--primary w-full h-full min-w-0 px-3 py-2 font-bold text-xs shadow-theme truncate ${isAnimating ? 'scale-95' : ''}`}
+          >
+            {buttonText}
+          </button>
+        </Tooltip>
+      ) : (
+        <WidgetEmptyState title="Rest is not configured" hint="Choose what this button restores in Build." />
+      )}
       
       {/* Result message */}
       {lastResult && (

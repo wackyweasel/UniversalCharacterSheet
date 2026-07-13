@@ -2,6 +2,7 @@ import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -25,7 +26,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
   // Fixed small sizing
   const labelClass = 'text-xs';
   const levelLabelClass = 'w-6 text-[10px]';
-  const slotSize = 'w-4 h-4';
+  const slotSize = 'w-5 h-5';
   const buttonClass = 'text-[10px] px-1 py-0.5';
   const gapClass = 'gap-1';
   
@@ -92,7 +93,9 @@ export default function SpellSlotWidget({ widget, height }: Props) {
                   <button
                     onClick={() => toggleSlot(levelIdx, slotIdx)}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className={`${slotSize} rounded-full border border-theme-border transition-all ${
+                    aria-label={`${ordinalSuffix(levelData.level)} level slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
+                    aria-pressed={slotIdx < levelData.used}
+                    className={`${slotSize} rounded-full border border-theme-border transition-all focus-visible:scale-110 ${
                       slotIdx < levelData.used 
                         ? 'bg-theme-accent' 
                         : 'bg-theme-paper hover:opacity-80'
@@ -104,7 +107,7 @@ export default function SpellSlotWidget({ widget, height }: Props) {
           </div>
         ))}
         {spellLevels.length === 0 && (
-          <div className={`${levelLabelClass} text-theme-muted italic`}>No spell levels configured</div>
+          <WidgetEmptyState title="No spell levels configured" hint="Add slot levels in Build." compact />
         )}
       </div>
 
@@ -114,7 +117,8 @@ export default function SpellSlotWidget({ widget, height }: Props) {
           <button
             onClick={resetAll}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-body`}
+            disabled={(spellLevels as SpellLevel[]).every((level) => level.used === 0)}
+            className={`${buttonClass} widget-control widget-control--subtle disabled:opacity-35`}
           >
             Reset All
           </button>

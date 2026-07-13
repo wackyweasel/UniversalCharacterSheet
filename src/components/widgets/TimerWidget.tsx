@@ -117,6 +117,9 @@ export default function TimerWidget({ widget, mode }: Props) {
         className={`font-mono text-2xl font-bold text-theme-ink tabular-nums ${
           isFinished ? 'text-red-500 animate-pulse' : ''
         }`}
+        role="timer"
+        aria-live="off"
+        aria-label={`${label || 'Timer'}: ${formatTime(shownMs)}`}
       >
         {formatTime(shownMs)}
       </div>

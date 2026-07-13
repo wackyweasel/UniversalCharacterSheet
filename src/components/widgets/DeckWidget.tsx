@@ -4,6 +4,7 @@ import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -38,6 +39,9 @@ function PileModal({ title, cards, onClose, showCounts = false, onReturnCard }: 
       onWheel={(e) => e.stopPropagation()}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="bg-theme-paper border-2 border-theme-border rounded-button p-4 max-w-sm w-full max-h-[60vh] flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -45,6 +49,7 @@ function PileModal({ title, cards, onClose, showCounts = false, onReturnCard }: 
           <h3 className="font-bold text-theme-ink font-heading">{title}</h3>
           <button
             onClick={onClose}
+            aria-label={`Close ${title}`}
             className="text-theme-muted hover:text-theme-ink transition-colors text-xl leading-none"
           >
             ×
@@ -196,6 +201,7 @@ export default function DeckWidget({ widget, mode }: Props) {
   };
 
   const currentState = getCurrentState();
+  const hasConfiguredCards = getTotalCards() > 0;
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -205,18 +211,22 @@ export default function DeckWidget({ widget, mode }: Props) {
         </div>
       )}
       
+      {!hasConfiguredCards ? (
+        <WidgetEmptyState title="No cards configured" hint="Add cards to this deck in Build." />
+      ) : (
+      <>
       {/* Draw Button and Reset */}
       <div className="flex gap-1 flex-shrink-0">
         <Tooltip content={getTotalRemaining() === 0 ? 'Deck is empty' : 'Draw a random card from the deck'}>
           <button
             onClick={drawCard}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`flex-1 ${buttonClass} border border-theme-border font-bold transition-all rounded-button font-body ${
+            className={`flex-1 ${buttonClass} widget-control font-bold ${
               isDrawing 
                 ? 'bg-theme-muted animate-pulse text-theme-paper' 
                 : getTotalRemaining() === 0
                   ? 'bg-theme-muted/50 text-theme-muted cursor-not-allowed'
-                  : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                  : ''
             }`}
             disabled={isDrawing || getTotalRemaining() === 0}
           >
@@ -264,6 +274,8 @@ export default function DeckWidget({ widget, mode }: Props) {
           </button>
         </Tooltip>
       </div>
+      </>
+      )}
 
       {/* Draw Pile Modal */}
       {showDrawPile && (

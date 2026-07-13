@@ -49,6 +49,9 @@ function HealthModal({
         onClick={onCancel}
       />
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-[9999] min-w-[200px] animate-fade-in"
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleConfirm();
@@ -61,6 +64,7 @@ function HealthModal({
             onClick={decrement}
             onMouseDown={(e) => e.stopPropagation()}
             className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl font-body"
+            aria-label="Decrease amount"
           >
             −
           </button>
@@ -78,6 +82,7 @@ function HealthModal({
             onClick={increment}
             onMouseDown={(e) => e.stopPropagation()}
             className="w-10 h-10 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xl font-body"
+            aria-label="Increase amount"
           >
             +
           </button>
@@ -177,14 +182,22 @@ export default function HealthBarWidget({ widget, mode }: Props) {
             }}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            aria-label={`Decrease ${label || 'health'} by ${increment}`}
+            className={`widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             −
           </button>
         </Tooltip>
         
         {/* Health Bar */}
-        <div className={`relative ${barHeight} flex-1 bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}>
+        <div
+          className={`relative ${barHeight} flex-1 bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border`}
+          role="progressbar"
+          aria-label={label || 'Health'}
+          aria-valuemin={0}
+          aria-valuemax={maxValue}
+          aria-valuenow={currentValue}
+        >
           {/* Filled portion - uses theme accent color, empty in print mode */}
           <div 
             className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
@@ -223,7 +236,8 @@ export default function HealthBarWidget({ widget, mode }: Props) {
             }}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`w-5 h-5 flex items-center justify-center border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold text-xs flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            aria-label={`Increase ${label || 'health'} by ${increment}`}
+            className={`widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             +
           </button>
@@ -237,7 +251,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
             onClick={() => !hasCurrentFormula && setShowDamageModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`${buttonClass} widget-control font-bold ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Damage
           </button>
@@ -247,7 +261,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
             onClick={() => !hasCurrentFormula && setShowHealModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`${buttonClass} widget-control font-bold ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Heal
           </button>
@@ -257,7 +271,7 @@ export default function HealthBarWidget({ widget, mode }: Props) {
             onClick={() => !hasCurrentFormula && fullHeal()}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`${buttonClass} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors text-theme-ink rounded-button font-bold font-body ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`${buttonClass} widget-control font-bold ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Full
           </button>

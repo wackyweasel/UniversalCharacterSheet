@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 import { PRESET_DEFINITIONS, type CharacterPreset, type PresetDefinition } from '../presets';
 import { THEMES } from '../store/useThemeStore';
 import type { CustomTheme } from '../store/useCustomThemeStore';
@@ -12,6 +12,8 @@ interface CharacterCreatorProps {
   selectedTheme: string;
   customThemes: CustomTheme[];
   userPresets: UserPreset[];
+  presetsOnly?: boolean;
+  replacingBlankCharacter?: boolean;
   startingPointLocked?: boolean;
   nameHighlighted?: boolean;
   createHighlighted?: boolean;
@@ -47,6 +49,7 @@ interface StartingPointProps {
 function StartingPoint({ name, meta, accent, selected, disabled = false, darkMode, onClick }: StartingPointProps) {
   return (
     <button
+      data-starting-point-option
       type="button"
       role="radio"
       aria-checked={selected}
@@ -93,6 +96,8 @@ export default function CharacterCreator({
   selectedTheme,
   customThemes,
   userPresets,
+  presetsOnly = false,
+  replacingBlankCharacter = false,
   startingPointLocked = false,
   nameHighlighted = false,
   createHighlighted = false,
@@ -107,13 +112,26 @@ export default function CharacterCreator({
   onTour,
   onDiscover,
 }: CharacterCreatorProps) {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!presetsOnly) return;
+    const frame = window.requestAnimationFrame(() => {
+      const options = Array.from(sectionRef.current?.querySelectorAll<HTMLElement>('[data-starting-point-option]') || []);
+      options.find((option) => option.offsetParent !== null)?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [presetsOnly]);
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (presetsOnly && !selectedPreset) return;
     onCreate();
   };
 
   return (
     <section
+      ref={sectionRef}
       aria-labelledby="character-creator-title"
       className={`${onCancel ? 'p-5 sm:p-7' : `p-5 sm:p-7 rounded-theme shadow-theme border ${darkMode ? 'bg-black border-white/25' : 'bg-white border-gray-300'}`}`}
     >
@@ -124,8 +142,15 @@ export default function CharacterCreator({
               New character
             </p>
             <h2 id="character-creator-title" className={`font-heading text-2xl sm:text-3xl font-bold mt-1 ${darkMode ? 'text-white' : 'text-gray-950'}`}>
-              {firstCharacter ? 'Create your first character' : 'Create a character'}
+              {presetsOnly ? 'Choose a Preset' : firstCharacter ? 'Create your first character' : 'Create a character'}
             </h2>
+            {presetsOnly && (
+              <p className={`font-body text-xs mt-1.5 ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>
+                {replacingBlankCharacter
+                  ? 'Your empty character will be replaced only after you create from a preset.'
+                  : 'This will create a new character; your current character will stay saved.'}
+              </p>
+            )}
           </div>
           {onCancel && (
             <button
@@ -149,7 +174,7 @@ export default function CharacterCreator({
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
             placeholder="New Character"
-            autoFocus
+            autoFocus={!presetsOnly}
             className={`w-full h-12 px-4 text-base rounded-button border font-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
               darkMode
                 ? 'bg-black text-white border-white/30 placeholder-white/35 focus:ring-offset-black'
@@ -163,11 +188,12 @@ export default function CharacterCreator({
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
             <span className={`font-heading font-bold ${darkMode ? 'text-white' : 'text-gray-950'}`}>Starting point</span>
             <p className={`font-body text-xs ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>
-              Blank opens in Build. Presets open ready to play.
+              {presetsOnly ? 'Choose one to open ready to play.' : 'Blank opens in Build. Presets open ready to play.'}
             </p>
           </div>
 
           <select
+            data-starting-point-option
             aria-label="Starting point"
             value={selectedPreset}
             disabled={startingPointLocked}
@@ -189,7 +215,9 @@ export default function CharacterCreator({
               darkMode ? 'bg-black text-white border-white/30' : 'bg-white text-gray-950 border-gray-400'
             } ${startingPointLocked ? 'opacity-50' : ''}`}
           >
-            <option value="">Blank sheet</option>
+            {presetsOnly
+              ? <option value="" disabled>Choose a preset…</option>
+              : <option value="">Blank sheet</option>}
             <optgroup label="Built-in Presets">
               {PRESET_DEFINITIONS.map((definition) => (
                 <option key={definition.id} value={definition.name}>{definition.name}</option>
@@ -205,14 +233,16 @@ export default function CharacterCreator({
           </select>
 
           <div role="radiogroup" aria-label="Starting point" className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
-            <StartingPoint
-              name="Blank sheet"
-              meta="Start from scratch"
-              accent="#2563eb"
-              selected={selectedPreset === ''}
-              darkMode={darkMode}
-              onClick={onChooseBlank}
-            />
+            {!presetsOnly && (
+              <StartingPoint
+                name="Blank sheet"
+                meta="Start from scratch"
+                accent="#2563eb"
+                selected={selectedPreset === ''}
+                darkMode={darkMode}
+                onClick={onChooseBlank}
+              />
+            )}
             {PRESET_DEFINITIONS.map((definition) => {
               const stats = getPresetStats(definition.preset);
               return (
@@ -298,12 +328,13 @@ export default function CharacterCreator({
               )}
               <button
                 type="submit"
+                disabled={presetsOnly && !selectedPreset}
                 data-tutorial="create-button"
                 className={`w-full sm:w-auto h-11 px-6 rounded-button font-heading font-bold transition-colors ${
                   darkMode ? 'bg-white text-black hover:bg-white/85' : 'bg-blue-700 text-white hover:bg-blue-800'
-                } ${createHighlighted ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                } ${presetsOnly && !selectedPreset ? 'opacity-40' : ''} ${createHighlighted ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
               >
-                Create character
+                {presetsOnly ? 'Create from Preset' : 'Create character'}
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { Widget, ToggleItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -124,6 +125,8 @@ export default function ConditionWidget({ widget, mode }: Props) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onDragEnd={handleDragEnd}
+              aria-pressed={item.active}
+              aria-label={`${item.name}: ${item.active ? 'active' : 'inactive'}`}
               className={`${toggleClass} border border-theme-border transition-all rounded-button font-body cursor-grab active:cursor-grabbing select-none ${
                 isDragging ? 'opacity-40' : ''
               } ${
@@ -155,7 +158,19 @@ export default function ConditionWidget({ widget, mode }: Props) {
         )}
 
         {toggleItems.length === 0 && !showAddInput && (
-          <div className={`${toggleClass} text-theme-muted italic`}>No conditions</div>
+          <WidgetEmptyState
+            title="No active conditions"
+            action={mode !== 'print' ? (
+              <button
+                type="button"
+                className="widget-control px-2 text-[10px] font-bold"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => { setShowAddInput(true); setTimeout(() => inputRef.current?.focus(), 0); }}
+              >
+                Add condition
+              </button>
+            ) : undefined}
+          />
         )}
 
         {/* Inline Add Input */}
@@ -175,12 +190,13 @@ export default function ConditionWidget({ widget, mode }: Props) {
         )}
 
         {/* Add "+" button */}
-        {mode !== 'print' && !showAddInput && (
+        {mode !== 'print' && !showAddInput && toggleItems.length > 0 && (
           <Tooltip content="Add condition">
             <button
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => { setShowAddInput(true); setTimeout(() => inputRef.current?.focus(), 0); }}
-              className={`${toggleClass} border border-dashed border-theme-border rounded-button text-theme-muted hover:text-theme-accent hover:border-theme-accent transition-colors`}
+              aria-label="Add condition"
+              className="widget-control widget-control--subtle w-6 h-6 min-h-0 border-dashed"
             >
               +
             </button>

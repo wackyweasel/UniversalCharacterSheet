@@ -3,6 +3,7 @@ import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -60,9 +61,10 @@ export default function CheckboxWidget({ widget, height, mode }: Props) {
         }}
       >
         {(checkboxItems as CheckboxItem[]).map((item, idx) => (
-          <div 
+          <button
+            type="button"
             key={idx} 
-            className={`flex items-center ${gapClass} cursor-pointer ${deleting ? 'hover:bg-red-100 dark:hover:bg-red-900/20 rounded' : ''}`}
+            className={`w-full flex items-center text-left ${gapClass} cursor-pointer ${deleting ? 'hover:bg-red-100 dark:hover:bg-red-900/20 rounded' : ''}`}
             onClick={() => {
               if (deleting) {
                 const updated = checkboxItems.filter((_: CheckboxItem, i: number) => i !== idx);
@@ -73,6 +75,8 @@ export default function CheckboxWidget({ widget, height, mode }: Props) {
               }
             }}
             onMouseDown={(e) => e.stopPropagation()}
+            aria-pressed={item.checked}
+            aria-label={deleting ? `Delete ${item.name}` : `${item.name}: ${item.checked ? 'checked' : 'not checked'}`}
           >
             {deleting && (
               <span className="text-red-500 text-xs font-bold flex-shrink-0 leading-none">✕</span>
@@ -91,18 +95,31 @@ export default function CheckboxWidget({ widget, height, mode }: Props) {
                 </Tooltip>
               ) : item.name}
             </span>
-          </div>
+          </button>
         ))}
         {checkboxItems.length === 0 && (
-          <div className={`${itemClass} text-theme-muted italic`}>No items yet</div>
+          <WidgetEmptyState
+            title="Nothing on the checklist"
+            hint="Add an item to get started."
+            action={mode === 'play' && !adding ? (
+              <button
+                type="button"
+                className="widget-control px-2 text-[10px] font-bold"
+                onClick={() => { setAdding(true); setDeleting(false); }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                Add first item
+              </button>
+            ) : undefined}
+          />
         )}
-        {mode === 'play' && !adding && (
+        {mode === 'play' && !adding && checkboxItems.length > 0 && (
           <div className="flex items-center gap-1 mt-0.5">
             <button
-              className="flex items-center justify-center w-5 h-5 rounded border border-theme-border text-theme-muted hover:text-theme-accent hover:border-theme-accent transition-colors flex-shrink-0"
+              className="widget-control widget-control--subtle w-6 h-6 min-h-0 flex-shrink-0"
               onClick={() => { setAdding(true); setDeleting(false); }}
               onMouseDown={(e) => e.stopPropagation()}
-              title="Add item"
+              aria-label="Add checklist item"
             >
               <span className="text-sm leading-none">+</span>
             </button>
@@ -116,6 +133,7 @@ export default function CheckboxWidget({ widget, height, mode }: Props) {
                 onClick={() => setDeleting(!deleting)}
                 onMouseDown={(e) => e.stopPropagation()}
                 title={deleting ? 'Cancel delete' : 'Remove item'}
+                aria-label={deleting ? 'Stop deleting checklist items' : 'Delete checklist items'}
               >
                 <span className="text-sm leading-none">−</span>
               </button>

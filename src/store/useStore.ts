@@ -12,6 +12,11 @@ type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
 type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
 type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view';
 
+interface CharacterCreatorRequest {
+  initialName: string;
+  replaceCharacterId?: string;
+}
+
 interface StoreTelemetryEvent {
   eventName: string;
   category: StoreTelemetryCategory;
@@ -141,10 +146,12 @@ interface StoreState {
   mode: Mode;
   editingWidgetId: string | null;
   selectedWidgetId: string | null; // For showing edit/delete/attach buttons on mobile
+  characterCreatorRequest: CharacterCreatorRequest | null;
   
   // Actions
   createCharacter: (name: string) => void;
   createCharacterFromPreset: (preset: CharacterPreset, name?: string, telemetrySource?: PresetTelemetrySource) => void;
+  replaceBlankCharacterFromPreset: (characterId: string, preset: CharacterPreset, name?: string, telemetrySource?: PresetTelemetrySource) => boolean;
   createTransientCharacter: (name: string) => void;
   createTransientCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
   cleanupTransientCharacters: () => void;
@@ -154,6 +161,8 @@ interface StoreState {
   deleteCharacter: (id: string) => void;
   updateCharacterName: (id: string, name: string) => void;
   updateCharacterTheme: (id: string, theme: string) => void;
+  requestCharacterCreator: (request: CharacterCreatorRequest) => void;
+  clearCharacterCreatorRequest: () => void;
   setMode: (mode: Mode) => void;
   setEditingWidgetId: (id: string | null) => void;
   setSelectedWidgetId: (id: string | null) => void;
@@ -243,6 +252,7 @@ export const useStore = create<StoreState>((set, get) => {
     mode: initialMode,
     editingWidgetId: null,
     selectedWidgetId: null,
+    characterCreatorRequest: null,
 
     createCharacter: (name) => set((state) => {
       const defaultSheet: Sheet = {
@@ -300,6 +310,46 @@ export const useStore = create<StoreState>((set, get) => {
         mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
+
+    replaceBlankCharacterFromPreset: (characterId, preset, name, telemetrySource = 'unknown') => {
+      const state = get();
+      const existingCharacter = state.characters.find((character) => character.id === characterId);
+      if (!existingCharacter || existingCharacter.sheets.some((sheet) => sheet.widgets.length > 0)) {
+        return false;
+      }
+
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+      const replacement: Character = {
+        id: existingCharacter.id,
+        name: name || preset.name,
+        theme: preset.theme,
+        sheets: newSheets,
+        activeSheetId,
+      };
+
+      recordStoreEvent(state, {
+        eventName: getPresetCreatedEventName(telemetrySource),
+        category: 'character',
+        characterId: replacement.id,
+        sheetId: activeSheetId,
+        source: telemetrySource,
+        metadata: {
+          presetName: preset.name,
+          replacedBlankCharacter: true,
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
+
+      set({
+        characters: state.characters.map((character) => character.id === characterId ? replacement : character),
+        activeCharacterId: characterId,
+        mode: 'play',
+        editingWidgetId: null,
+        selectedWidgetId: null,
+      });
+      return true;
+    },
 
     createTransientCharacter: (name) => set((state) => {
       const transientIds = new Set(state.transientCharacterIds);
@@ -523,6 +573,10 @@ export const useStore = create<StoreState>((set, get) => {
         characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
       };
     }),
+
+    requestCharacterCreator: (request) => set({ characterCreatorRequest: request }),
+
+    clearCharacterCreatorRequest: () => set({ characterCreatorRequest: null }),
 
     setMode: (mode) => set((state) => {
       if (state.mode !== mode) {

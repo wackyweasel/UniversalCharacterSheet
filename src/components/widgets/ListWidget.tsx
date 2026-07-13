@@ -93,12 +93,14 @@ export default function ListWidget({ widget, mode, height }: Props) {
               onBlur={() => handleBlur(idx)}
               placeholder={mode === 'print' ? '' : '...'}
               onMouseDown={(e) => e.stopPropagation()}
+              aria-label={`${label || 'List'} item ${idx + 1}`}
             />
             <Tooltip content="Clear this item">
               <button 
                 onClick={() => clearItem(idx)}
-                className="opacity-0 group-hover:opacity-100 text-theme-muted hover:text-theme-ink px-1 flex-shrink-0"
+                className={`text-theme-muted hover:text-red-500 px-1 flex-shrink-0 transition-opacity ${item ? 'opacity-50 group-hover:opacity-100 focus:opacity-100' : 'opacity-0 pointer-events-none'}`}
                 onMouseDown={(e) => e.stopPropagation()}
+                aria-label={`Clear ${label || 'list'} item ${idx + 1}`}
               >
                 ×
               </button>

@@ -108,6 +108,7 @@ export default function CharacterList() {
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
   const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const replaceBlankCharacterFromPreset = useStore((state) => state.replaceBlankCharacterFromPreset);
   const createTransientCharacter = useStore((state) => state.createTransientCharacter);
   const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
   const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
@@ -119,6 +120,8 @@ export default function CharacterList() {
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
   const transientCharacterIds = useStore((state) => state.transientCharacterIds);
+  const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
+  const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Tutorial state from store
@@ -141,6 +144,8 @@ export default function CharacterList() {
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
   const [showCharacterCreator, setShowCharacterCreator] = useState(false);
+  const [presetsOnly, setPresetsOnly] = useState(false);
+  const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
@@ -311,6 +316,8 @@ export default function CharacterList() {
 
   const handleOpenCreation = () => {
     resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
     setShowCharacterCreator(true);
 
     if (isCurrentTutorialStep('create-character')) {
@@ -323,11 +330,25 @@ export default function CharacterList() {
     startTutorial();
     advanceTutorial();
     resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
     setShowCharacterCreator(true);
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
     setShowHeaderMenu(false);
   };
+
+  useEffect(() => {
+    if (!characterCreatorRequest) return;
+
+    setNewCharName(characterCreatorRequest.initialName);
+    setSelectedPreset('');
+    setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+    setPresetsOnly(true);
+    setReplaceCharacterId(characterCreatorRequest.replaceCharacterId || null);
+    setShowCharacterCreator(true);
+    clearCharacterCreatorRequest();
+  }, [characterCreatorRequest, clearCharacterCreatorRequest, darkMode]);
 
   useEffect(() => {
     if (tutorialStep === null || TUTORIAL_STEPS[tutorialStep]?.id !== 'automation-load-character') return;
@@ -393,6 +414,8 @@ export default function CharacterList() {
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
     const isBasicTutorialCreateStep = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
+    let createdCharacterId: string | null = null;
+    let creationSucceeded = false;
     
     if (selectedPreset && selectedPreset !== '') {
       // Check if it's a user preset
@@ -400,13 +423,22 @@ export default function CharacterList() {
         const userPresetId = selectedPreset.replace('user:', '');
         const userPreset = userPresets.find(p => p.id === userPresetId);
         if (userPreset) {
-          if (isBasicTutorialCreateStep) {
+          if (replaceCharacterId) {
+            creationSucceeded = replaceBlankCharacterFromPreset(replaceCharacterId, userPreset.preset, name, 'user_preset');
+            if (creationSucceeded) createdCharacterId = replaceCharacterId;
+          } else if (isBasicTutorialCreateStep) {
             createTransientCharacterFromPreset(userPreset.preset, name);
+            creationSucceeded = true;
           } else {
             createCharacterFromPreset(userPreset.preset, name, 'user_preset');
+            creationSucceeded = true;
           }
           const state = useStore.getState();
-          const newChar = state.characters[state.characters.length - 1];
+          const newChar = creationSucceeded
+            ? createdCharacterId
+              ? state.characters.find((character) => character.id === createdCharacterId)
+              : state.characters[state.characters.length - 1]
+            : undefined;
           // Use the preset's stored theme if available, otherwise use the selected theme
           const themeToApply = userPreset.theme || selectedTheme;
           if (newChar && themeToApply !== 'default') {
@@ -417,27 +449,38 @@ export default function CharacterList() {
         // Create from built-in preset
         const preset = getPreset(selectedPreset);
         if (preset) {
-          if (isBasicTutorialCreateStep) {
+          if (replaceCharacterId) {
+            creationSucceeded = replaceBlankCharacterFromPreset(replaceCharacterId, preset, name, 'builtin_preset');
+            if (creationSucceeded) createdCharacterId = replaceCharacterId;
+          } else if (isBasicTutorialCreateStep) {
             createTransientCharacterFromPreset(preset, name);
+            creationSucceeded = true;
           } else {
             createCharacterFromPreset(preset, name, 'builtin_preset');
+            creationSucceeded = true;
           }
           // Get the newly created character and update its theme
           // Since the preset might have its own theme, we override it with the selected one
           const state = useStore.getState();
-          const newChar = state.characters[state.characters.length - 1];
+          const newChar = creationSucceeded
+            ? createdCharacterId
+              ? state.characters.find((character) => character.id === createdCharacterId)
+              : state.characters[state.characters.length - 1]
+            : undefined;
           if (newChar && selectedTheme !== 'default') {
             updateCharacterTheme(newChar.id, selectedTheme);
           }
         }
       }
     } else {
+      if (presetsOnly) return;
       // Create blank character
       if (isBasicTutorialCreateStep) {
         createTransientCharacter(name);
       } else {
         createCharacter(name);
       }
+      creationSucceeded = true;
       // Update theme if not default
       const state = useStore.getState();
       const newChar = state.characters[state.characters.length - 1];
@@ -445,9 +488,13 @@ export default function CharacterList() {
         updateCharacterTheme(newChar.id, selectedTheme);
       }
     }
+
+    if (!creationSucceeded) return;
     
     // Reset form
     resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
     setShowCharacterCreator(false);
   };
 
@@ -468,6 +515,8 @@ export default function CharacterList() {
 
   const handleCloseCharacterCreator = () => {
     resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
     setShowCharacterCreator(false);
   };
 
@@ -1343,6 +1392,8 @@ export default function CharacterList() {
             <CharacterCreator
               darkMode={darkMode}
               firstCharacter
+              presetsOnly={presetsOnly}
+              replacingBlankCharacter={replaceCharacterId !== null}
               name={newCharName}
               selectedPreset={selectedPreset}
               selectedTheme={selectedTheme}
@@ -1648,6 +1699,8 @@ export default function CharacterList() {
           >
             <CharacterCreator
               darkMode={darkMode}
+              presetsOnly={presetsOnly}
+              replacingBlankCharacter={replaceCharacterId !== null}
               name={newCharName}
               selectedPreset={selectedPreset}
               selectedTheme={selectedTheme}

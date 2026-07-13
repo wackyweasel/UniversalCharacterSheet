@@ -78,8 +78,8 @@ export default function PoolWidget({ widget, height, mode }: Props) {
 
   // Fixed small sizing
   const labelClass = 'text-xs';
-  const symbolSize = 'w-5 h-5 text-sm';
-  const counterClass = 'text-[10px]';
+  const symbolSize = 'w-6 h-6 text-base';
+  const counterClass = 'text-[11px]';
   const gapClass = 'gap-1';
 
   // If poolResources has items, use multi-resource mode
@@ -175,6 +175,9 @@ export default function PoolWidget({ widget, height, mode }: Props) {
                     <button
                       onClick={() => toggleResourcePoint(idx, pointIdx)}
                       onMouseDown={(e) => e.stopPropagation()}
+                      disabled={!!resource.currentFormula}
+                      aria-label={`${resource.name || 'Resource'} ${pointIdx + 1}: ${pointIdx < resource.current ? 'filled' : 'empty'}`}
+                      aria-pressed={pointIdx < resource.current}
                       className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
                     >
                       {getSymbolForStyle(pointIdx < resource.current, resource.style)}
@@ -184,7 +187,7 @@ export default function PoolWidget({ widget, height, mode }: Props) {
                 </div>
               </div>
               {showPoolCount && (
-                <div className={`${counterClass} text-theme-muted font-body`}>
+                <div className={`${counterClass} text-theme-muted font-body tabular-nums`}>
                   {resource.currentFormula && isFormulaBroken(resource.currentFormula, labels) && (
                     <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${resource.currentFormula}`}>⚠</span>
                   )}
@@ -214,6 +217,9 @@ export default function PoolWidget({ widget, height, mode }: Props) {
                 <button
                   onClick={() => togglePoint(idx)}
                   onMouseDown={(e) => e.stopPropagation()}
+                  disabled={hasCurrentPoolFormula}
+                  aria-label={`${label || 'Resource'} ${idx + 1}: ${idx < currentPool ? 'filled' : 'empty'}`}
+                  aria-pressed={idx < currentPool}
                   className={`${getClassNameForStyle(idx < currentPool, poolStyle, symbolSize)} ${hasCurrentPoolFormula ? '!cursor-default hover:!scale-100' : ''}`}
                 >
                   {getSymbolForStyle(idx < currentPool, poolStyle)}
@@ -223,7 +229,7 @@ export default function PoolWidget({ widget, height, mode }: Props) {
           </div>
 
           {showPoolCount && (
-            <div className={`${counterClass} text-center text-theme-muted font-body flex-shrink-0`}>
+            <div className={`${counterClass} text-center text-theme-muted font-body tabular-nums flex-shrink-0`}>
               {hasCurrentPoolFormula && isFormulaBroken((widget.data.fieldFormulas as Record<string, string>).currentPool, labels) && (
                 <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${(widget.data.fieldFormulas as Record<string, string>).currentPool}`}>⚠</span>
               )}

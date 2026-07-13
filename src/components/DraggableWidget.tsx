@@ -588,7 +588,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
     // Always render in play mode style - the modal handles editing
     // But pass 'print' mode when in print mode for special rendering
     const widgetMode = mode === 'print' ? 'print' : 'play';
-    const props = { widget, mode: widgetMode as 'play' | 'print', width: widgetWidth, height: widgetHeight || 120 };
+    const contentInset = 16;
+    const props = {
+      widget,
+      mode: widgetMode as 'play' | 'print',
+      width: Math.max(20, widgetWidth - contentInset),
+      height: Math.max(20, (widgetHeight || 120) - contentInset),
+    };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
@@ -634,7 +640,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
@@ -671,7 +677,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className="drag-handle absolute -top-2 left-8 right-8 h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]">
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
@@ -689,6 +695,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
               <Tooltip content="Widget options">
                 <button
                   data-tutorial={widgetMenuTutorialTarget}
+                  aria-label={`Options for ${widget.data.label || widget.type}`}
+                  aria-expanded={showDropdown}
                   className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1355,7 +1363,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </Tooltip>
           )}
 
-          <div ref={contentRef} className="h-full overflow-hidden relative z-10 pt-1 pl-1">
+          <div ref={contentRef} className={`widget-content ${widget.type === 'FORM' ? 'widget-content--form-interactive' : ''}`}>
             {renderContent()}
           </div>
         </div>

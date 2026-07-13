@@ -337,9 +337,9 @@ export const THEMES: Theme[] = [
       ink: '#e0e0e0',
       accent: '#d4a574',
       accentHover: '#c49464',
-      border: '#404040',
+      border: '#4b4b4b',
       shadow: '#00000080',
-      muted: '#888888',
+      muted: '#a3a3a3',
       glow: 'transparent',
     },
     fonts: {

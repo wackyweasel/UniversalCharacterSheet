@@ -5,6 +5,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -124,6 +125,15 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
                 data-print-hide={hideValues ? 'true' : undefined}
                 onClick={() => handleValueClick(idx, item.value)}
                 onMouseDown={(e) => e.stopPropagation()}
+                role={item.valueFormula ? undefined : 'button'}
+                tabIndex={item.valueFormula ? undefined : 0}
+                aria-label={item.valueFormula ? undefined : `Set ${item.label || 'value'}, currently ${item.value}`}
+                onKeyDown={(e) => {
+                  if (!item.valueFormula && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleValueClick(idx, item.value);
+                  }
+                }}
               >
                 {item.value}
                 {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
@@ -145,7 +155,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
         ))}
         
         {displayNumbers.length === 0 && (
-          <div className="text-xs text-theme-muted italic">No numbers configured</div>
+          <WidgetEmptyState title="No stats configured" hint="Add displayed values in Build." compact />
         )}
       </div>
     </div>

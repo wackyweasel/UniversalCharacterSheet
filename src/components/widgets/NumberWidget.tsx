@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -123,7 +124,8 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                   onClick={() => adjustItemValue(idx, -1)}
                   onMouseDown={(e) => e.stopPropagation()}
                   disabled={!!item.valueFormula}
-                  className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  aria-label={`Decrease ${item.name || 'value'}`}
+                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
                 >
                   -
                 </button>
@@ -147,6 +149,15 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                   data-print-hide={hideValues ? 'true' : undefined}
                   onClick={() => handleValueClick(idx, item.value)}
                   onMouseDown={(e) => e.stopPropagation()}
+                  role={item.valueFormula ? undefined : 'button'}
+                  tabIndex={item.valueFormula ? undefined : 0}
+                  aria-label={item.valueFormula ? undefined : `Set ${item.name || 'value'}, currently ${item.value}`}
+                  onKeyDown={(e) => {
+                    if (!item.valueFormula && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      handleValueClick(idx, item.value);
+                    }
+                  }}
                 >
                   {item.value}
                   {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
@@ -159,7 +170,8 @@ export default function NumberWidget({ widget, mode, height }: Props) {
                   onClick={() => adjustItemValue(idx, 1)}
                   onMouseDown={(e) => e.stopPropagation()}
                   disabled={!!item.valueFormula}
-                  className={`${buttonSize} border border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center justify-center text-theme-ink rounded-button flex-shrink-0 font-body ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  aria-label={`Increase ${item.name || 'value'}`}
+                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
                 >
                   +
                 </button>
@@ -168,7 +180,7 @@ export default function NumberWidget({ widget, mode, height }: Props) {
           </div>
         ))}
         {numberItems.length === 0 && (
-          <div className={`${itemClass} text-theme-muted italic`}>No items yet</div>
+          <WidgetEmptyState title="No trackers yet" hint="Add tracked values in Build." compact />
         )}
       </div>
     </div>

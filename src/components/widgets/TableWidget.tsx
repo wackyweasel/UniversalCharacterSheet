@@ -688,6 +688,7 @@ export default function TableWidget({ widget, height }: Props) {
   const [toolbarPos, setToolbarPos] = useState<ToolbarPosition>({ x: 0, y: 0 });
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
+  const [rowPendingClear, setRowPendingClear] = useState<number | null>(null);
   const dragRowItem = useRef<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -974,6 +975,32 @@ export default function TableWidget({ widget, height }: Props) {
     const newRowSettings = updateRowSettings(index, { label: undefined, formula: undefined });
     updateWidgetData(widget.id, { rows: newRows, tableRowSettings: newRowSettings });
   };
+
+  const requestClearRow = (index: number) => {
+    setEditingCell(null);
+    setSelectedCell(null);
+    setSelectedColumn(null);
+    setSelectedRow(null);
+    setShowToolbar(false);
+    setRowPendingClear(index);
+  };
+
+  const confirmClearRow = () => {
+    if (rowPendingClear === null) return;
+    clearRow(rowPendingClear);
+    setRowPendingClear(null);
+  };
+
+  useEffect(() => {
+    if (rowPendingClear === null) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setRowPendingClear(null);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [rowPendingClear]);
 
   // Row drag handlers
   const handleRowDragStart = (e: React.DragEvent, index: number) => {
@@ -1343,6 +1370,13 @@ export default function TableWidget({ widget, height }: Props) {
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={columns.length + 2} className="py-4 px-2 text-center text-[10px] text-theme-muted font-body border border-t-0 border-theme-border">
+                  {isPrintMode ? '' : 'No rows yet — add rows in Build.'}
+                </td>
+              </tr>
+            )}
             {rows.map((row: TableRow, rowIdx: number) => (
               <tr 
                 key={rowIdx} 
@@ -1462,9 +1496,15 @@ export default function TableWidget({ widget, height }: Props) {
                 })}
                 <td className={`w-4 p-0`}>
                   <button
-                    onClick={() => clearRow(rowIdx)}
+                    type="button"
+                    aria-label={`Clear row ${rowIdx + 1}`}
+                    title={`Clear row ${rowIdx + 1}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestClearRow(rowIdx);
+                    }}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className={`w-full h-full text-theme-muted hover:text-theme-ink opacity-0 group-hover:opacity-100 ${isPrintMode ? '!opacity-0' : ''}`}
+                    className={`w-full h-full text-theme-muted hover:text-theme-ink opacity-0 group-hover:opacity-100 focus-visible:opacity-100 ${isPrintMode ? '!opacity-0' : ''}`}
                   >
                     ×
                   </button>
@@ -1474,6 +1514,50 @@ export default function TableWidget({ widget, height }: Props) {
           </tbody>
         </table>
       </div>
+
+      {rowPendingClear !== null && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={() => setRowPendingClear(null)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`table-clear-row-title-${widget.id}`}
+            aria-describedby={`table-clear-row-description-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id={`table-clear-row-title-${widget.id}`} className="font-heading text-base font-bold">
+              Clear row {rowPendingClear + 1}?
+            </h3>
+            <p id={`table-clear-row-description-${widget.id}`} className="mt-2 text-sm text-theme-muted">
+              All values, labels, and formulas in this row will be removed.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setRowPendingClear(null)}
+                className="widget-control px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmClearRow}
+                className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+              >
+                Clear row
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Formatting Toolbar - rendered via portal to escape transformed container */}
       {showToolbar && selectedCell && createPortal(

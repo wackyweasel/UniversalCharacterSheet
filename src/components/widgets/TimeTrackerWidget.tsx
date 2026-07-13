@@ -4,6 +4,7 @@ import { Widget, TimedEffect } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -27,6 +28,9 @@ function Modal({ title, onClose, children }: ModalProps) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -34,6 +38,7 @@ function Modal({ title, onClose, children }: ModalProps) {
           <h3 className="font-bold text-theme-ink font-heading">{title}</h3>
           <button
             onClick={onClose}
+            aria-label={`Close ${title}`}
             className="text-theme-muted hover:text-theme-ink text-xl leading-none"
           >
             ×
@@ -254,7 +259,11 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
           </div>
         ))}
         {timedEffects.length === 0 && !showAddForm && (
-          <div className={`text-theme-muted italic text-center py-2 ${isPrintMode ? 'opacity-0' : ''}`}>No active effects</div>
+          <WidgetEmptyState
+            title="No active effects"
+            hint={mode === 'vertical' ? 'Track a duration, condition, or cooldown.' : undefined}
+            className={isPrintMode ? 'opacity-0' : ''}
+          />
         )}
       </div>
 
@@ -263,7 +272,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
         <Tooltip content="Track a new timed effect">
           <button
             onClick={() => setShowAddForm(true)}
-            className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
+            className={`${buttonClass} widget-control flex-1 font-bold`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             + Add Effect
@@ -274,7 +283,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <Tooltip content="Advance all active effects by one round">
               <button
                 onClick={passRound}
-                className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
+                className={`${buttonClass} widget-control flex-1 font-bold`}
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 ⏱ Pass Round
@@ -284,7 +293,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <Tooltip content="Advance all active effects by a chosen time amount">
               <button
                 onClick={() => setShowPassTime(true)}
-                className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-bold font-body`}
+                className={`${buttonClass} widget-control flex-1 font-bold`}
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 ⏱ Pass Time

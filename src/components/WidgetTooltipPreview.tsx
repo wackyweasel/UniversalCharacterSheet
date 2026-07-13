@@ -480,7 +480,7 @@ function renderWidget(widget: Widget) {
     case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
     case 'TABLE': return <TableWidget {...props} />;
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-    case 'FORM': return <FormWidget {...props} />;
+    case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
     case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
