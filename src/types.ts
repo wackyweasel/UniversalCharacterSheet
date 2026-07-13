@@ -177,6 +177,7 @@ export interface WidgetData {
   items?: string[];
   itemCount?: number;
   text?: string;
+  richText?: string;
   // Checkbox
   checked?: boolean;
   checkboxItems?: CheckboxItem[];

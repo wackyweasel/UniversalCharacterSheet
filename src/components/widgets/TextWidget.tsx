@@ -1,6 +1,23 @@
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { useRef, useEffect, useCallback } from 'react';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { TextStyle } from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import {
+  Bold,
+  IndentDecrease,
+  IndentIncrease,
+  Italic,
+  List,
+  ListOrdered,
+  Palette,
+  RemoveFormatting,
+  Strikethrough,
+  Underline,
+} from 'lucide-react';
+import { Tooltip } from '../Tooltip';
 
 interface Props {
   widget: Widget;
@@ -13,50 +30,65 @@ export default function TextWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
-  const { label, text = '' } = widget.data;
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { label, text = '', richText } = widget.data;
+  const editorScrollRef = useRef<HTMLDivElement>(null);
 
-  // Prevent wheel events from bubbling up when textarea is scrollable
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLTextAreaElement>) => {
-    const textarea = e.currentTarget;
-    const isScrollable = textarea.scrollHeight > textarea.clientHeight;
+  const initialContent = richText ?? plainTextToHtml(text);
+  const editor = useEditor({
+    extensions: [StarterKit, TextStyle, Color],
+    content: initialContent,
+    editable: !isPrintMode,
+    editorProps: {
+      attributes: {
+        class: 'notes-rich-text__content',
+        'aria-label': label ? `${label} notes` : 'Notes',
+      },
+    },
+    onUpdate: ({ editor: currentEditor }) => {
+      updateWidgetData(widget.id, {
+        richText: currentEditor.getHTML(),
+        text: currentEditor.getText({ blockSeparator: '\n' }),
+      });
+    },
+  });
+
+  const toolbarState = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) => ({
+      bold: currentEditor?.isActive('bold') ?? false,
+      italic: currentEditor?.isActive('italic') ?? false,
+      underline: currentEditor?.isActive('underline') ?? false,
+      strike: currentEditor?.isActive('strike') ?? false,
+      bulletList: currentEditor?.isActive('bulletList') ?? false,
+      orderedList: currentEditor?.isActive('orderedList') ?? false,
+      color: currentEditor?.getAttributes('textStyle').color as string | undefined,
+      canIndent: currentEditor?.can().sinkListItem('listItem') ?? false,
+      canOutdent: currentEditor?.can().liftListItem('listItem') ?? false,
+    }),
+  });
+
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    const editorScroll = e.currentTarget;
+    const isScrollable = editorScroll.scrollHeight > editorScroll.clientHeight;
     
-    // Always stop propagation if the textarea is scrollable to prevent camera zoom
     if (isScrollable) {
       e.stopPropagation();
     }
   }, []);
 
-  // Fixed small sizing
   const labelClass = 'text-xs';
-  const textClass = 'text-xs p-1';
   const gapClass = 'gap-1';
-  
-  // Check if we're in "auto-height" mode (vertical view passes large height)
   const isAutoHeight = height >= 10000;
-  
-  // Calculate textarea height based on available space
-  const labelHeight = 16;
-  const gapSize = 4;
-  const padding = 0; // p-1 from parent
-  const textareaHeight = Math.max(32, height - labelHeight - gapSize - padding * 2);
 
-  // Auto-resize textarea when in auto-height mode
   useEffect(() => {
-    if (isAutoHeight && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.max(60, textareaRef.current.scrollHeight)}px`;
+    if (editor && editor.getHTML() !== initialContent) {
+      editor.commands.setContent(initialContent, { emitUpdate: false });
     }
-  }, [text, isAutoHeight]);
+  }, [editor, initialContent]);
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateWidgetData(widget.id, { text: e.target.value });
-    // Auto-resize on input when in auto-height mode
-    if (isAutoHeight && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.max(60, textareaRef.current.scrollHeight)}px`;
-    }
-  };
+  useEffect(() => {
+    editor?.setEditable(!isPrintMode);
+  }, [editor, isPrintMode]);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
@@ -65,18 +97,114 @@ export default function TextWidget({ widget, height }: Props) {
           {label}
         </div>
       )}
-      <textarea
-        ref={textareaRef}
-        className={`w-full ${isAutoHeight ? '' : 'flex-1'} ${textClass} border border-theme-border focus:border-theme-border focus:outline-none resize-none bg-transparent text-theme-ink font-body rounded-theme`}
-        style={isAutoHeight ? { minHeight: '60px', overflow: 'hidden', height: 'auto' } : { height: `${textareaHeight}px` }}
-        value={text}
-        onChange={handleTextChange}
-        placeholder={isPrintMode ? '' : 'Enter text here...'}
-        onMouseDown={(e) => e.stopPropagation()}
-        onWheel={handleWheel}
-      />
+      <div className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}>
+        {!isPrintMode && editor && (
+          <div className="notes-rich-text__toolbar" role="toolbar" aria-label="Text formatting">
+            <ToolbarButton label="Bold" active={toolbarState?.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
+              <Bold />
+            </ToolbarButton>
+            <ToolbarButton label="Italic" active={toolbarState?.italic} onClick={() => editor.chain().focus().toggleItalic().run()}>
+              <Italic />
+            </ToolbarButton>
+            <ToolbarButton label="Underline" active={toolbarState?.underline} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+              <Underline />
+            </ToolbarButton>
+            <ToolbarButton label="Strikethrough" active={toolbarState?.strike} onClick={() => editor.chain().focus().toggleStrike().run()}>
+              <Strikethrough />
+            </ToolbarButton>
+            <div className="notes-rich-text__divider" />
+            <Tooltip content="Text color">
+              <label className="notes-rich-text__color" aria-label="Text color">
+                <Palette />
+                <span style={{ backgroundColor: toolbarState?.color ?? 'var(--color-ink)' }} />
+                <input
+                  type="color"
+                  value={normalizeColor(toolbarState?.color)}
+                  onChange={(event) => editor.chain().focus().setColor(event.target.value).run()}
+                />
+              </label>
+            </Tooltip>
+            <div className="notes-rich-text__divider" />
+            <ToolbarButton label="Bullet list" active={toolbarState?.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+              <List />
+            </ToolbarButton>
+            <ToolbarButton label="Numbered list" active={toolbarState?.orderedList} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+              <ListOrdered />
+            </ToolbarButton>
+            <ToolbarButton label="Decrease indent" disabled={!toolbarState?.canOutdent} onClick={() => editor.chain().focus().liftListItem('listItem').run()}>
+              <IndentDecrease />
+            </ToolbarButton>
+            <ToolbarButton label="Increase indent" disabled={!toolbarState?.canIndent} onClick={() => editor.chain().focus().sinkListItem('listItem').run()}>
+              <IndentIncrease />
+            </ToolbarButton>
+            <div className="notes-rich-text__divider" />
+            <ToolbarButton label="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
+              <RemoveFormatting />
+            </ToolbarButton>
+          </div>
+        )}
+        <div
+          ref={editorScrollRef}
+          className="notes-rich-text__scroll"
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={handleWheel}
+        >
+          <EditorContent editor={editor} />
+          {!isPrintMode && editor?.isEmpty && (
+            <span className="notes-rich-text__placeholder">Enter text here...</span>
+          )}
+        </div>
+      </div>
     </div>
   );
+}
+
+interface ToolbarButtonProps {
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function ToolbarButton({ label, active = false, disabled = false, onClick, children }: ToolbarButtonProps) {
+  return (
+    <Tooltip content={label}>
+      <button
+        type="button"
+        className={`notes-rich-text__button ${active ? 'notes-rich-text__button--active' : ''}`}
+        aria-label={label}
+        aria-pressed={active}
+        disabled={disabled}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+}
+
+function plainTextToHtml(text: string) {
+  if (!text) return '';
+
+  return text
+    .split(/\r?\n/)
+    .map((line) => `<p>${escapeHtml(line) || '<br>'}</p>`)
+    .join('');
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function normalizeColor(color?: string) {
+  return /^#[0-9a-f]{6}$/i.test(color ?? '') ? color : '#000000';
 }
 
 
