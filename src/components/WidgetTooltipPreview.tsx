@@ -468,7 +468,7 @@ function renderWidget(widget: Widget) {
   switch (widget.type) {
     case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
     case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
-    case 'LIST': return <ListWidget {...props} />;
+    case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
     case 'TEXT': return <TextWidget {...props} />;
     case 'CHECKBOX': return <CheckboxWidget {...props} />;
     case 'HEALTH_BAR': return <HealthBarWidget {...props} />;

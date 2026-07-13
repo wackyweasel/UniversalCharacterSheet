@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -9,11 +10,16 @@ interface Props {
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  showFieldControls?: boolean;
 }
 
-export default function ListWidget({ widget, mode, height }: Props) {
+export default function ListWidget({ widget, mode, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, items = [], itemCount = 5 } = widget.data;
+  const isPrintMode = mode === 'print';
+  const controlsVisible = showFieldControls && !isPrintMode;
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -21,7 +27,7 @@ export default function ListWidget({ widget, mode, height }: Props) {
   const gapClass = 'gap-1';
   
   // Calculate list area height
-  const labelHeight = 16;
+  const labelHeight = controlsVisible ? 24 : label ? 16 : 0;
   const gapSize = 4;
   const padding = 0;
   const listHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
@@ -65,11 +71,89 @@ export default function ListWidget({ widget, mode, height }: Props) {
     }
   };
 
+  const addItem = () => {
+    updateWidgetData(widget.id, {
+      items: [...normalizedItems, ''],
+      itemCount: itemCount + 1,
+    });
+  };
+
+  const removeSelectedItems = () => {
+    if (selectedItems.size === 0) return;
+    const updated = normalizedItems.filter((_, index) => !selectedItems.has(index));
+    prevListValues.current = {};
+    updateWidgetData(widget.id, {
+      items: updated,
+      itemCount: updated.length,
+    });
+    setSelectedItems(new Set());
+    setShowRemoveDialog(false);
+  };
+
+  const closeRemoveDialog = () => {
+    setSelectedItems(new Set());
+    setShowRemoveDialog(false);
+  };
+
+  const toggleItemSelection = (index: number) => {
+    setSelectedItems((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!showRemoveDialog) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeRemoveDialog();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showRemoveDialog]);
+
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+      {(label || controlsVisible) && (
+        <div className={`flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
+          {label && (
+            <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+              {label}
+            </div>
+          )}
+          {controlsVisible && (
+            <div className="list-widget__controls ml-auto flex flex-shrink-0 items-center gap-1">
+              <Tooltip content={normalizedItems.length > 0 ? 'Choose items to remove' : 'No items to remove'}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedItems(new Set());
+                    setShowRemoveDialog(true);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  disabled={normalizedItems.length === 0}
+                  aria-label="Choose list items to remove"
+                  className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
+                >
+                  −
+                </button>
+              </Tooltip>
+              <Tooltip content="Add empty item">
+                <button
+                  type="button"
+                  onClick={addItem}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  aria-label="Add empty list item"
+                  className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
+                >
+                  +
+                </button>
+              </Tooltip>
+            </div>
+          )}
         </div>
       )}
       <div 
@@ -108,6 +192,59 @@ export default function ListWidget({ widget, mode, height }: Props) {
           </div>
         ))}
       </div>
+
+      {showRemoveDialog && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={closeRemoveDialog}
+          onMouseDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`list-remove-dialog-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id={`list-remove-dialog-title-${widget.id}`} className="font-heading text-base font-bold">
+              Remove list items
+            </h3>
+            <p className="mt-3 text-sm text-theme-muted">Select one or more items to remove.</p>
+            <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
+              {normalizedItems.map((item, index) => (
+                <label
+                  key={index}
+                  className="flex cursor-pointer items-center gap-3 rounded-button border border-theme-border px-3 py-2 text-sm transition-colors hover:bg-theme-accent hover:text-theme-paper"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.has(index)}
+                    onChange={() => toggleItemSelection(index)}
+                    className="h-4 w-4 flex-shrink-0 accent-theme-accent"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{item || `Empty item ${index + 1}`}</span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" autoFocus onClick={closeRemoveDialog} className="widget-control px-3 py-1.5 text-sm">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={removeSelectedItems}
+                disabled={selectedItems.size === 0}
+                className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Remove{selectedItems.size > 0 ? ` (${selectedItems.size})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

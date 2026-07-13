@@ -123,7 +123,8 @@
   }
 
   .form-widget__controls,
-  .number-widget__controls {
+  .number-widget__controls,
+  .list-widget__controls {
     position: relative;
     z-index: 70;
   }
