@@ -475,7 +475,7 @@ function renderWidget(widget: Widget) {
     case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
     case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
-    case 'IMAGE': return <ImageWidget {...props} />;
+    case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
     case 'POOL': return <PoolWidget {...props} />;
     case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
     case 'TABLE': return <TableWidget {...props} />;

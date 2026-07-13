@@ -124,9 +124,18 @@
 
   .form-widget__controls,
   .number-widget__controls,
-  .list-widget__controls {
+  .list-widget__controls,
+  .image-widget__empty-upload {
     position: relative;
     z-index: 70;
+  }
+
+  .image-widget__empty-upload {
+    cursor: pointer;
+  }
+
+  .image-widget__empty-upload:hover {
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-background));
   }
 
   .widget-control {

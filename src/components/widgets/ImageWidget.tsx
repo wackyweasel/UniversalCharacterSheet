@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseGIF, decompressFrames, ParsedFrame } from 'gifuct-js';
 import { Widget } from '../../types';
+import { useStore } from '../../store/useStore';
+import { ImageUploadButton } from '../ImageUploadButton';
 import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
@@ -8,9 +10,11 @@ interface Props {
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  showUploadControl?: boolean;
 }
 
-export default function ImageWidget({ widget, mode, width, height }: Props) {
+export default function ImageWidget({ widget, mode, width, height, showUploadControl = true }: Props) {
+  const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, imageUrl = '' } = widget.data;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [paused, setPaused] = useState(false);
@@ -199,10 +203,18 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
               }}
             />
           )
+        ) : mode !== 'print' && showUploadControl ? (
+          <ImageUploadButton
+            ariaLabel="Add image or GIF"
+            onImageReady={(dataUrl) => updateWidgetData(widget.id, { imageUrl: dataUrl })}
+            className="image-widget__empty-upload widget-empty-state h-full w-full border-0"
+          >
+            <span className="widget-empty-state__title">Add image</span>
+            <span className="widget-empty-state__hint">Choose an image or GIF</span>
+          </ImageUploadButton>
         ) : (
           <WidgetEmptyState
             title="No image selected"
-            hint={isVerticalMode ? 'Choose an image in Build.' : undefined}
             className="border-0"
           />
         )}

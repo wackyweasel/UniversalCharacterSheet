@@ -1363,7 +1363,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </Tooltip>
           )}
 
-          <div ref={contentRef} className={`widget-content ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' ? 'widget-content--field-controls-interactive' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || (widget.type === 'IMAGE' && !widget.data.imageUrl) ? 'widget-content--field-controls-interactive' : ''}`}>
             {renderContent()}
           </div>
         </div>
