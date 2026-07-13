@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -10,95 +11,90 @@ interface Props {
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  showMaxControl?: boolean;
+  interactive?: boolean;
 }
 
-// Modal component for value input
-function ValueModal({ 
-  title, 
-  onConfirm, 
-  onCancel,
-  buttonLabel,
-  currentValue,
-  maxValue,
-  allowOutOfRange
-}: { 
-  title: string; 
-  onConfirm: (amount: number) => void; 
-  onCancel: () => void;
-  buttonLabel: string;
-  currentValue: number;
-  maxValue: number;
-  allowOutOfRange: boolean;
-}) {
-  const [amount, setAmount] = useState<number | string>(currentValue);
-  const clampValue = (value: number) => allowOutOfRange ? value : Math.max(0, Math.min(maxValue, value));
+function MaxProgressModal({ value, onConfirm, onCancel }: { value: number; onConfirm: (value: number) => void; onCancel: () => void }) {
+  const [draft, setDraft] = useState(String(value));
 
-  const handleConfirm = () => {
-    const val = typeof amount === 'string' ? parseInt(amount) || 0 : amount;
-    onConfirm(clampValue(val));
+  const submit = () => {
+    const nextValue = Math.max(1, parseInt(draft, 10) || 1);
+    onConfirm(nextValue);
   };
 
   return (
     <>
-      <div 
-        className="fixed inset-0 bg-black/50 z-50" 
-        onClick={onCancel}
+      <div
+        className="fixed inset-0 z-[9999] bg-black/50 animate-fade-in"
+        onMouseDown={(event) => event.stopPropagation()}
+        onTouchStart={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          onCancel();
+        }}
       />
-      <div role="dialog" aria-modal="true" aria-label={title} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-button p-4 z-50 min-w-[200px]">
-        <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-label="Set maximum progress"
+        className="fixed left-1/2 top-1/2 z-[9999] min-w-[220px] -translate-x-1/2 -translate-y-1/2 rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-fade-in"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+        onTouchStart={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') onCancel();
+        }}
+      >
+        <h3 className="font-heading font-bold">Maximum progress</h3>
+        <label htmlFor="progress-max-value" className="mt-3 block text-sm font-medium">Max value</label>
         <input
-          type="number"
-          min={allowOutOfRange ? undefined : 0}
-          max={allowOutOfRange ? undefined : maxValue}
-          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent mb-3 text-center font-bold text-lg"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
-          onBlur={(e) => setAmount(clampValue(parseInt(e.target.value) || 0))}
+          id="progress-max-value"
           autoFocus
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleConfirm();
-            if (e.key === 'Escape') onCancel();
-          }}
+          type="number"
+          min="1"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none"
         />
-        <p className="text-xs text-theme-muted mb-3 text-center">
-          {allowOutOfRange ? `Range guide: 0 to ${maxValue}` : `Max: ${maxValue}`}
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors border border-theme-border"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="flex-1 px-3 py-1.5 text-sm font-body rounded-button transition-colors bg-theme-accent text-theme-paper hover:opacity-80"
-          >
-            {buttonLabel}
-          </button>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
+          <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Set maximum</button>
         </div>
-      </div>
+      </form>
     </>
   );
 }
 
-export default function ProgressBarWidget({ widget }: Props) {
+export default function ProgressBarWidget({ widget, mode, showMaxControl = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
+  const isPrintMode = mode === 'print';
   const { 
     label, 
     currentValue = 0, 
     maxValue = 100,
-    showPercentage = true,
+    showPercentage = false,
     showValues = true,
     allowOutOfRange = false
   } = widget.data;
   const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
-  
-  const [showValueModal, setShowValueModal] = useState(false);
+
+  const [showMaxModal, setShowMaxModal] = useState(false);
+  const [scrubValue, setScrubValue] = useState<number | null>(null);
+  const scrubbingRef = useRef(false);
+  const scrubStartRef = useRef(currentValue);
   const hasCurrentFormula = !!fieldFormulas?.currentValue;
   const hasMaxFormula = !!fieldFormulas?.maxValue;
+  const controlsVisible = interactive && !isPrintMode;
+  const maxControlVisible = showMaxControl && controlsVisible;
+  const safeMaxValue = Math.max(1, maxValue);
+  const displayedValue = scrubValue ?? currentValue;
 
   const labels = useMemo(() => {
     const char = characters.find(c => c.id === activeCharacterId);
@@ -108,28 +104,80 @@ export default function ProgressBarWidget({ widget }: Props) {
   const currentBroken = hasCurrentFormula && isFormulaBroken(fieldFormulas!.currentValue, labels);
   const maxBroken = hasMaxFormula && isFormulaBroken(fieldFormulas!.maxValue, labels);
 
-  // Calculate progress percentage
-  const progressPercent = maxValue > 0 ? Math.max(0, Math.min(100, (currentValue / maxValue) * 100)) : 0;
+  const progressPercent = Math.max(0, Math.min(100, (displayedValue / safeMaxValue) * 100));
 
-  // Fixed small sizing
-  const labelClass = 'text-xs';
-  const barTextClass = 'text-xs';
-  const gapClass = 'gap-1';
-  const barHeight = 'h-4';
-
-  const setValue = (newValue: number) => {
-    const nextValue = allowOutOfRange ? newValue : Math.max(0, Math.min(maxValue, newValue));
-    updateWidgetData(widget.id, { currentValue: nextValue });
-    setShowValueModal(false);
-    addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue} → ${nextValue} / ${maxValue}`, '📊');
+  const valueFromPointer = (clientX: number, element: HTMLDivElement) => {
+    const bounds = element.getBoundingClientRect();
+    const ratio = bounds.width > 0 ? (clientX - bounds.left) / bounds.width : 0;
+    return Math.round(Math.max(0, Math.min(1, ratio)) * safeMaxValue);
   };
 
-  // Determine what text to show on the bar
+  const startScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!controlsVisible || hasCurrentFormula) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const nextValue = valueFromPointer(event.clientX, event.currentTarget);
+    scrubbingRef.current = true;
+    scrubStartRef.current = currentValue;
+    setScrubValue(nextValue);
+  };
+
+  const moveScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!scrubbingRef.current) return;
+    event.preventDefault();
+    setScrubValue(valueFromPointer(event.clientX, event.currentTarget));
+  };
+
+  const finishScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!scrubbingRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const nextValue = valueFromPointer(event.clientX, event.currentTarget);
+    const previousValue = scrubStartRef.current;
+    scrubbingRef.current = false;
+    setScrubValue(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (nextValue !== previousValue) {
+      updateWidgetData(widget.id, { currentValue: nextValue });
+      addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${previousValue} → ${nextValue} / ${safeMaxValue}`, '📊');
+    }
+  };
+
+  const cancelScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!scrubbingRef.current) return;
+    scrubbingRef.current = false;
+    setScrubValue(null);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const setFromKeyboard = (nextValue: number) => {
+    const boundedValue = Math.max(0, Math.min(safeMaxValue, nextValue));
+    if (boundedValue === currentValue) return;
+    updateWidgetData(widget.id, { currentValue: boundedValue });
+    addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue} → ${boundedValue} / ${safeMaxValue}`, '📊');
+  };
+
+  const setMaximum = (nextMax: number) => {
+    const shouldClampCurrent = !allowOutOfRange && !hasCurrentFormula;
+    const updatedCurrent = Math.min(Math.max(0, currentValue), nextMax);
+    updateWidgetData(widget.id, {
+      maxValue: nextMax,
+      ...(shouldClampCurrent ? { currentValue: updatedCurrent } : {}),
+    });
+    setShowMaxModal(false);
+    addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `Maximum ${maxValue} → ${nextMax}`, '📊');
+  };
+
   const getBarText = () => {
     if (showValues && showPercentage) {
-      return `${currentValue} / ${maxValue} (${Math.round(progressPercent)}%)`;
+      return `${displayedValue}/${safeMaxValue} (${Math.round(progressPercent)}%)`;
     } else if (showValues) {
-      return `${currentValue} / ${maxValue}`;
+      return `${displayedValue}/${safeMaxValue}`;
     } else if (showPercentage) {
       return `${Math.round(progressPercent)}%`;
     }
@@ -137,65 +185,87 @@ export default function ProgressBarWidget({ widget }: Props) {
   };
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full h-full justify-between`}>
-      {/* Label */}
-      {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+    <div className="progress-bar-widget flex h-full w-full flex-col gap-1.5">
+      {(label || maxControlVisible) && (
+        <div className="flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
+          {label && (
+            <div className="min-w-0 flex-1 truncate font-heading text-xs font-bold text-theme-ink">
+              {label}
+            </div>
+          )}
+          {maxControlVisible && (
+            <Tooltip content={hasMaxFormula ? 'Maximum set by formula' : 'Change maximum progress'}>
+              <button
+                type="button"
+                onClick={() => !hasMaxFormula && setShowMaxModal(true)}
+                onMouseDown={(event) => event.stopPropagation()}
+                disabled={hasMaxFormula}
+                aria-label={`Set maximum ${label || 'progress'}, currently ${maxValue}`}
+                className={`progress-bar__max-control ${hasMaxFormula ? 'opacity-40 cursor-not-allowed' : ''}`}
+              >
+                <span>Max</span>
+                <strong>{maxValue}</strong>
+              </button>
+            </Tooltip>
+          )}
         </div>
       )}
-      
-      {/* Progress Bar */}
-      <div className="flex-1 flex flex-col justify-start">
-        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Click to set value'}>
-          <div 
-            className={`relative ${barHeight} bg-theme-muted/30 rounded-button overflow-hidden border border-theme-border ${hasCurrentFormula ? 'cursor-default' : 'cursor-pointer'}`}
-            onClick={() => !hasCurrentFormula && setShowValueModal(true)}
-            onMouseDown={(e) => e.stopPropagation()}
-            role="progressbar"
-            tabIndex={hasCurrentFormula ? undefined : 0}
+
+      <div className="progress-bar__main flex min-h-0 flex-1 items-center">
+        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Click or drag to set progress'}>
+          <div
+            className={`progress-bar__track ${hasCurrentFormula ? 'progress-bar__track--disabled' : ''}`}
+            role={controlsVisible && !hasCurrentFormula ? 'slider' : 'progressbar'}
+            tabIndex={controlsVisible && !hasCurrentFormula ? 0 : undefined}
             aria-label={label || 'Progress'}
             aria-valuemin={0}
-            aria-valuemax={maxValue}
-            aria-valuenow={currentValue}
-            onKeyDown={(e) => {
-              if (!hasCurrentFormula && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                setShowValueModal(true);
+            aria-valuemax={safeMaxValue}
+            aria-valuenow={displayedValue}
+            aria-valuetext={`${displayedValue} of ${safeMaxValue}`}
+            onPointerDown={startScrub}
+            onPointerMove={moveScrub}
+            onPointerUp={finishScrub}
+            onPointerCancel={cancelScrub}
+            onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (!controlsVisible || hasCurrentFormula) return;
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                setFromKeyboard(currentValue - 1);
+              } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                setFromKeyboard(currentValue + 1);
+              } else if (event.key === 'Home') {
+                event.preventDefault();
+                setFromKeyboard(0);
+              } else if (event.key === 'End') {
+                event.preventDefault();
+                setFromKeyboard(safeMaxValue);
               }
             }}
           >
-          {/* Filled portion */}
-          <div 
-            className="absolute inset-y-0 left-0 bg-theme-accent transition-all duration-300 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-          {/* Progress text overlay */}
-          {(showValues || showPercentage) && (
-            <div 
-              className={`absolute inset-0 flex items-center justify-center font-bold ${barTextClass} text-theme-ink font-body`}
-              style={{ textShadow: '0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper)' }}
-            >
-              {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
-              {getBarText()}
-              {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
-            </div>
-          )}
-        </div>
+            <div
+              className={`progress-bar__fill ${scrubValue !== null ? 'progress-bar__fill--scrubbing' : ''}`}
+              style={{ width: `${progressPercent}%` }}
+            />
+            {(showValues || showPercentage) && (
+              <div className="progress-bar__readout">
+                {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
+                <strong>{getBarText()}</strong>
+                {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
+              </div>
+            )}
+          </div>
         </Tooltip>
       </div>
 
-      {/* Value Modal */}
-      {showValueModal && (
-        <ValueModal
-          title="Set Progress"
-          onConfirm={setValue}
-          onCancel={() => setShowValueModal(false)}
-          buttonLabel="Set"
-          currentValue={currentValue}
-          maxValue={maxValue}
-          allowOutOfRange={allowOutOfRange}
-        />
+      {showMaxModal && createPortal(
+        <MaxProgressModal
+          value={safeMaxValue}
+          onConfirm={setMaximum}
+          onCancel={() => setShowMaxModal(false)}
+        />,
+        document.body
       )}
     </div>
   );

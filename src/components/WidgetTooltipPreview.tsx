@@ -306,7 +306,7 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       label: 'Progress',
       currentValue: 6,
       maxValue: 8,
-      showPercentage: true,
+      showPercentage: false,
       showValues: true,
     },
   },
@@ -482,7 +482,7 @@ function renderWidget(widget: Widget) {
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
     case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
-    case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+    case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;

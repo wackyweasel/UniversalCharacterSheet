@@ -851,7 +851,8 @@ export const useStore = create<StoreState>((set, get) => {
             label: getDefaultLabel(type),
             value: 0,
             items: [],
-            text: ''
+            text: '',
+            ...(type === 'PROGRESS_BAR' ? { showPercentage: false } : {})
           }
         };
 

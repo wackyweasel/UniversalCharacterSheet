@@ -138,11 +138,13 @@
     background: color-mix(in srgb, var(--color-accent) 12%, var(--color-background));
   }
 
-  .health-bar-widget {
+  .health-bar-widget,
+  .progress-bar-widget {
     container-type: size;
   }
 
-  .health-bar__max-control {
+  .health-bar__max-control,
+  .progress-bar__max-control {
     align-items: baseline;
     background: color-mix(in srgb, var(--color-background) 58%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
@@ -159,28 +161,33 @@
     z-index: 70;
   }
 
-  .health-bar__max-control strong {
+  .health-bar__max-control strong,
+  .progress-bar__max-control strong {
     color: var(--color-ink);
     font-size: 11px;
   }
 
-  .health-bar__max-control:hover:not(:disabled) {
+  .health-bar__max-control:hover:not(:disabled),
+  .progress-bar__max-control:hover:not(:disabled) {
     background: var(--color-accent);
     border-color: var(--color-accent);
     color: var(--color-paper);
   }
 
-  .health-bar__max-control:hover:not(:disabled) strong {
+  .health-bar__max-control:hover:not(:disabled) strong,
+  .progress-bar__max-control:hover:not(:disabled) strong {
     color: var(--color-paper);
   }
 
   .health-bar__main,
-  .health-bar__actions {
+  .health-bar__actions,
+  .progress-bar__main {
     position: relative;
     z-index: 70;
   }
 
-  .health-bar__track {
+  .health-bar__track,
+  .progress-bar__track {
     background: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
     border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
     border-radius: var(--button-radius);
@@ -194,11 +201,13 @@
     touch-action: none;
   }
 
-  .health-bar__track--disabled {
+  .health-bar__track--disabled,
+  .progress-bar__track--disabled {
     cursor: default;
   }
 
-  .health-bar__fill {
+  .health-bar__fill,
+  .progress-bar__fill {
     background: var(--color-accent);
     bottom: 0;
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
@@ -208,11 +217,13 @@
     transition: width 180ms ease-out;
   }
 
-  .health-bar__fill--scrubbing {
+  .health-bar__fill--scrubbing,
+  .progress-bar__fill--scrubbing {
     transition: none;
   }
 
-  .health-bar__readout {
+  .health-bar__readout,
+  .progress-bar__readout {
     align-items: center;
     color: var(--color-ink);
     display: flex;
@@ -226,7 +237,8 @@
     white-space: nowrap;
   }
 
-  .health-bar__readout strong {
+  .health-bar__readout strong,
+  .progress-bar__readout strong {
     font-size: 12px;
   }
 
@@ -261,7 +273,8 @@
       display: none;
     }
 
-    .health-bar__track {
+    .health-bar__track,
+    .progress-bar__track {
       height: 24px;
     }
   }
