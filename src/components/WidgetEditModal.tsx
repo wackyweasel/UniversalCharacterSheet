@@ -165,7 +165,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     const props = { widget: previewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
     
     switch (widget.type) {
-      case 'NUMBER': return <NumberWidget {...props} />;
+      case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
       case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;

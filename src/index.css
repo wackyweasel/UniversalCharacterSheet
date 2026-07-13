@@ -118,11 +118,12 @@
     z-index: 10;
   }
 
-  .widget-content--form-interactive {
+  .widget-content--field-controls-interactive {
     z-index: auto;
   }
 
-  .form-widget__controls {
+  .form-widget__controls,
+  .number-widget__controls {
     position: relative;
     z-index: 70;
   }

@@ -466,7 +466,7 @@ function renderWidget(widget: Widget) {
   };
 
   switch (widget.type) {
-    case 'NUMBER': return <NumberWidget {...props} />;
+    case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
     case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
     case 'LIST': return <ListWidget {...props} />;
     case 'TEXT': return <TextWidget {...props} />;
