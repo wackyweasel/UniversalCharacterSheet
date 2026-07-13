@@ -470,7 +470,7 @@ function renderWidget(widget: Widget) {
     case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
     case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
     case 'TEXT': return <TextWidget {...props} />;
-    case 'CHECKBOX': return <CheckboxWidget {...props} />;
+    case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
     case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
     case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
     case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
