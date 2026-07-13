@@ -852,7 +852,11 @@ export const useStore = create<StoreState>((set, get) => {
             value: 0,
             items: [],
             text: '',
-            ...(type === 'PROGRESS_BAR' ? { showPercentage: false } : {})
+            ...(type === 'PROGRESS_BAR' ? { showPercentage: false } : {}),
+            ...(type === 'POOL' ? {
+              poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
+              showPoolCount: false,
+            } : {})
           }
         };
 
@@ -1975,7 +1979,7 @@ export const useStore = create<StoreState>((set, get) => {
           if (poolResources.length > 0) {
             // Multi-resource mode — match each target by resource index
             const newResources = poolResources.map((r: PoolResource, idx: number) => {
-              const target = targets.find(t => t.resourceIndex === idx);
+              const target = targets.find(t => t.resourceIndex === idx || (idx === 0 && t.resourceIndex === -1));
               if (!target || r.currentFormula) return r; // skip unselected or formula-driven
               const newCurrent = target.mode === 'full'
                 ? r.max

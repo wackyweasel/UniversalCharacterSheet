@@ -64,10 +64,12 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
     return targets;
   }, [characters, activeCharacterId]);
 
-  const findRestore = (t: PoolTargetInfo): PoolRestoreTarget | undefined =>
-    (poolRestores as PoolRestoreTarget[]).find(
-      p => p.widgetId === t.widgetId && p.resourceIndex === t.resourceIndex
-    );
+  const matchesTarget = (restore: PoolRestoreTarget, target: PoolTargetInfo) =>
+    restore.widgetId === target.widgetId
+    && (restore.resourceIndex === target.resourceIndex || (target.resourceIndex === 0 && restore.resourceIndex === -1));
+
+  const findRestore = (target: PoolTargetInfo): PoolRestoreTarget | undefined =>
+    (poolRestores as PoolRestoreTarget[]).find(restore => matchesTarget(restore, target));
 
   // Labels available for formulas + a live evaluator for previews
   const activeChar = useMemo(
@@ -88,7 +90,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
   const toggleTarget = (t: PoolTargetInfo, enabled: boolean) => {
     const without = (poolRestores as PoolRestoreTarget[]).filter(
-      p => !(p.widgetId === t.widgetId && p.resourceIndex === t.resourceIndex)
+      restore => !matchesTarget(restore, t)
     );
     if (enabled) {
       without.push({ widgetId: t.widgetId, resourceIndex: t.resourceIndex, mode: 'full' });
@@ -98,7 +100,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
   const setTargetMode = (t: PoolTargetInfo, mode: 'full' | 'flat') => {
     const next = (poolRestores as PoolRestoreTarget[]).map(p =>
-      p.widgetId === t.widgetId && p.resourceIndex === t.resourceIndex
+      matchesTarget(p, t)
         ? { ...p, mode, amount: mode === 'flat' ? (p.amount ?? 1) : p.amount }
         : p
     );
@@ -107,7 +109,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
   const setTargetAmount = (t: PoolTargetInfo, amount: number) => {
     const next = (poolRestores as PoolRestoreTarget[]).map(p =>
-      p.widgetId === t.widgetId && p.resourceIndex === t.resourceIndex
+      matchesTarget(p, t)
         ? { ...p, amount }
         : p
     );
@@ -116,7 +118,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
   const setTargetFormula = (t: PoolTargetInfo, formula: string | undefined) => {
     const next = (poolRestores as PoolRestoreTarget[]).map(p =>
-      p.widgetId === t.widgetId && p.resourceIndex === t.resourceIndex
+      matchesTarget(p, t)
         ? { ...p, amountFormula: formula || undefined }
         : p
     );

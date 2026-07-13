@@ -207,7 +207,7 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
         { name: 'Stress', current: 4, max: 6, style: 'dots' },
         { name: 'Mana', current: 2, max: 4, style: 'squares' },
       ],
-      showPoolCount: true,
+      showPoolCount: false,
     },
   },
   TOGGLE_GROUP: {
@@ -476,7 +476,7 @@ function renderWidget(widget: Widget) {
     case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
     case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
-    case 'POOL': return <PoolWidget {...props} />;
+    case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;
     case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
     case 'TABLE': return <TableWidget {...props} />;
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
