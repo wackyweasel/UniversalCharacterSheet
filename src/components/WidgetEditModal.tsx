@@ -166,7 +166,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
       case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;

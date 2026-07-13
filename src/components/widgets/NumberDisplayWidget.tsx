@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, DisplayNumber } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -12,17 +13,22 @@ interface Props {
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  showFieldControls?: boolean;
 }
 
-export default function NumberDisplayWidget({ widget, mode, width, height }: Props) {
+export default function NumberDisplayWidget({ widget, mode, width, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
+  const controlsVisible = showFieldControls && !isPrintMode;
   const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
+  const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -70,6 +76,52 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
     }
   };
 
+  const addField = () => {
+    const fieldName = fieldNameDraft.trim();
+    if (!fieldName) return;
+    updateWidgetData(widget.id, {
+      displayNumbers: [...displayNumbers, { label: fieldName, value: 0 }],
+    });
+    setFieldNameDraft('');
+    setFieldDialog(null);
+  };
+
+  const removeSelectedFields = () => {
+    if (selectedFields.size === 0) return;
+    const updated = (displayNumbers as DisplayNumber[]).filter((_, index) => !selectedFields.has(index));
+    setEditingIndex(null);
+    setEditValue('');
+    updateWidgetData(widget.id, { displayNumbers: updated });
+    setSelectedFields(new Set());
+    setFieldDialog(null);
+  };
+
+  const closeFieldDialog = () => {
+    setFieldDialog(null);
+    setFieldNameDraft('');
+    setSelectedFields(new Set());
+  };
+
+  const toggleFieldSelection = (index: number) => {
+    setSelectedFields((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!fieldDialog) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeFieldDialog();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [fieldDialog]);
+
   const isHorizontal = displayLayout === 'horizontal';
   const itemCount = displayNumbers.length || 1;
   
@@ -80,12 +132,49 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      {label && (
-        <div 
-          className="font-bold text-theme-ink font-heading shrink-0 truncate px-1"
-          style={{ fontSize: '11px', lineHeight: '16px' }}
-        >
-          {label}
+      {(label || controlsVisible) && (
+        <div className="flex min-h-6 flex-shrink-0 items-center gap-2 px-1 pr-4">
+          {label && (
+            <div
+              className="min-w-0 flex-1 truncate font-bold text-theme-ink font-heading"
+              style={{ fontSize: '11px', lineHeight: '16px' }}
+            >
+              {label}
+            </div>
+          )}
+          {controlsVisible && (
+            <div className="ml-auto flex flex-shrink-0 items-center gap-1">
+              <Tooltip content={displayNumbers.length > 0 ? 'Choose displayed numbers to remove' : 'No displayed numbers to remove'}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFields(new Set());
+                    setFieldDialog('remove');
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  disabled={displayNumbers.length === 0}
+                  aria-label="Choose displayed numbers to remove"
+                  className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
+                >
+                  −
+                </button>
+              </Tooltip>
+              <Tooltip content="Add displayed number">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFieldNameDraft('');
+                    setFieldDialog('add');
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  aria-label="Add displayed number"
+                  className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
+                >
+                  +
+                </button>
+              </Tooltip>
+            </div>
+          )}
         </div>
       )}
 
@@ -155,9 +244,100 @@ export default function NumberDisplayWidget({ widget, mode, width, height }: Pro
         ))}
         
         {displayNumbers.length === 0 && (
-          <WidgetEmptyState title="No stats configured" hint="Add displayed values in Build." compact />
+          <WidgetEmptyState title="No stats configured" hint={controlsVisible ? 'Use + to add a displayed number.' : undefined} compact />
         )}
       </div>
+
+      {fieldDialog && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={closeFieldDialog}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`number-display-field-dialog-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={`number-display-field-dialog-title-${widget.id}`} className="font-heading text-base font-bold">
+              {fieldDialog === 'add' ? 'Add displayed number' : 'Remove displayed numbers'}
+            </h3>
+
+            {fieldDialog === 'add' ? (
+              <form
+                className="mt-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  addField();
+                }}
+              >
+                <label htmlFor={`number-display-field-name-${widget.id}`} className="block text-sm font-medium">
+                  Label
+                </label>
+                <input
+                  id={`number-display-field-name-${widget.id}`}
+                  autoFocus
+                  type="text"
+                  value={fieldNameDraft}
+                  onChange={(event) => setFieldNameDraft(event.target.value)}
+                  placeholder="e.g. Luck"
+                  className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button type="button" onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!fieldNameDraft.trim()}
+                    className="widget-control widget-control--primary px-3 py-1.5 text-sm"
+                  >
+                    Add displayed number
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="mt-3">
+                <p className="text-sm text-theme-muted">Select one or more displayed numbers to remove.</p>
+                <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
+                  {(displayNumbers as DisplayNumber[]).map((item, index) => (
+                    <label
+                      key={`${item.label}-${index}`}
+                      className="flex cursor-pointer items-center gap-3 rounded-button border border-theme-border px-3 py-2 text-sm transition-colors hover:bg-theme-accent hover:text-theme-paper"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedFields.has(index)}
+                        onChange={() => toggleFieldSelection(index)}
+                        className="h-4 w-4 flex-shrink-0 accent-theme-accent"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{item.label || `Displayed number ${index + 1}`}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button type="button" autoFocus onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeSelectedFields}
+                    disabled={selectedFields.size === 0}
+                    className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Remove{selectedFields.size > 0 ? ` (${selectedFields.size})` : ''}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
