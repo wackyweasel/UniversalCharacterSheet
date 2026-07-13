@@ -85,6 +85,55 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
+export function PlusIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Base>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 10v6M14 10v6" />
+    </Base>
+  );
+}
+
+export function GripVerticalIcon(props: IconProps) {
+  return (
+    <Base {...props} fill="currentColor" stroke="none">
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </Base>
+  );
+}
+
+export function RowsIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <rect x="3" y="10" width="18" height="4" rx="1" />
+      <rect x="3" y="16" width="18" height="4" rx="1" />
+    </Base>
+  );
+}
+
+export function ColumnsIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="4" y="3" width="4" height="18" rx="1" />
+      <rect x="10" y="3" width="4" height="18" rx="1" />
+      <rect x="16" y="3" width="4" height="18" rx="1" />
+    </Base>
+  );
+}
+
 export function PlayIcon(props: IconProps) {
   return (
     <Base {...props} fill="currentColor" stroke="none">
