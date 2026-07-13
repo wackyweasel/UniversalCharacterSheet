@@ -176,7 +176,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
       case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;
-      case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
+      case 'TOGGLE_GROUP': return <ConditionWidget {...props} showFieldControls={false} interactive={false} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} showFieldControls={false} />;

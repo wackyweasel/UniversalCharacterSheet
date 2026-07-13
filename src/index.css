@@ -126,6 +126,7 @@
   .number-widget__controls,
   .list-widget__controls,
   .checklist-widget__controls,
+  .condition-widget__controls,
   .pool-widget__controls,
   .image-widget__empty-upload {
     position: relative;
