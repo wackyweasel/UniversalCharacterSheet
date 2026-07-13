@@ -195,8 +195,9 @@ export interface WidgetData {
   diceType?: number;
   modifier?: number;
   diceGroups?: DiceGroup[];
-  showIndividualResults?: boolean; // If true, show individual dice results instead of summing
+  showRollDetails?: boolean;
   // Dice Tray
+  showIndividualResults?: boolean;
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
   spellLevels?: SpellLevel[];

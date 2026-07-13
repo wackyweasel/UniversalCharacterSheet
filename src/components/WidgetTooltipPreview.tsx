@@ -147,7 +147,6 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
         { count: 1, faces: 6 },
       ],
       modifier: 3,
-      showIndividualResults: true,
     },
   },
   DICE_TRAY: {
@@ -472,7 +471,7 @@ function renderWidget(widget: Widget) {
     case 'TEXT': return <TextWidget {...props} />;
     case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
     case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
-    case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
+    case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
     case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
     case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;

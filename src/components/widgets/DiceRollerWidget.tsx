@@ -1,20 +1,25 @@
 import { useState } from 'react';
 import { Widget, DiceGroup } from '../../types';
+import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
+import { ChevronDownIcon, ChevronUpIcon } from '../icons';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  interactive?: boolean;
 }
 
 interface RollGroupResult {
   faces: number;
   rolls: (number | string)[];
+  diceRolls: (number | string)[][];
   customFaces?: string[];
+  configuration: DiceGroup;
 }
 
 interface RollResult {
@@ -33,10 +38,12 @@ interface AggregatedResult {
 
 const MAX_EXPLOSION_ROLLS = 100;
 
-export default function DiceRollerWidget({ widget }: Props) {
-  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showIndividualResults = false } = widget.data;
+export default function DiceRollerWidget({ widget, mode, interactive = true }: Props) {
+  const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showRollDetails = false } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const controlsVisible = interactive && mode !== 'print';
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -230,25 +237,27 @@ export default function DiceRollerWidget({ widget }: Props) {
       
       for (const group of diceGroups as DiceGroup[]) {
         const rolls: (number | string)[] = [];
+        const diceRolls: (number | string)[][] = [];
         const diceCount = Math.max(0, Math.floor(Number(group.count) || 0));
-        
-        if (group.customFaces && group.customFaces.length > 0) {
-          // Roll custom faces
-          for (let i = 0; i < diceCount; i++) {
-            const rollSequence = rollDieSequence(group);
-            rolls.push(...rollSequence);
-            allRolls.push(...rollSequence);
-          }
-          groups.push({ faces: group.customFaces.length, rolls, customFaces: group.customFaces });
-        } else {
-          // Roll standard numeric dice
-          for (let i = 0; i < diceCount; i++) {
-            const rollSequence = rollDieSequence(group);
-            rolls.push(...rollSequence);
-            allRolls.push(...rollSequence);
-          }
-          groups.push({ faces: group.faces, rolls });
+
+        for (let i = 0; i < diceCount; i++) {
+          const rollSequence = rollDieSequence(group);
+          diceRolls.push(rollSequence);
+          rolls.push(...rollSequence);
+          allRolls.push(...rollSequence);
         }
+
+        groups.push({
+          faces: group.customFaces?.length || group.faces,
+          rolls,
+          diceRolls,
+          customFaces: group.customFaces,
+          configuration: {
+            ...group,
+            customFaces: group.customFaces ? [...group.customFaces] : undefined,
+            explodeOn: group.explodeOn ? [...group.explodeOn] : undefined,
+          },
+        });
       }
 
       const aggregated = aggregateResults(allRolls);
@@ -265,21 +274,15 @@ export default function DiceRollerWidget({ widget }: Props) {
     }, 300);
   };
 
-  const rerollDie = (groupIdx: number, rollIdx: number) => {
+  const rerollDie = (groupIdx: number, dieIdx: number) => {
     if (!result) return;
     const group = result.groups[groupIdx];
-    const diceGroup = (diceGroups as DiceGroup[])[groupIdx] || {
-      count: 1,
-      faces: group.faces,
-      customFaces: group.customFaces,
-    };
-    const newRollsForDie = rollDieSequence(diceGroup);
+    const newRollsForDie = rollDieSequence(group.configuration);
 
     const newGroups = result.groups.map((g, gi) => {
       if (gi !== groupIdx) return g;
-      const newRolls = [...g.rolls];
-      newRolls.splice(rollIdx, 1, ...newRollsForDie);
-      return { ...g, rolls: newRolls };
+      const diceRolls = g.diceRolls.map((rolls, index) => index === dieIdx ? newRollsForDie : rolls);
+      return { ...g, diceRolls, rolls: diceRolls.flat() };
     });
 
     const allRolls: (number | string)[] = [];
@@ -291,9 +294,9 @@ export default function DiceRollerWidget({ widget }: Props) {
     setResult({ groups: newGroups, modifier: result.modifier, total: newTotal, aggregatedResults: aggregated });
 
     const dieName = group.customFaces && group.customFaces.length > 0
-      ? (diceGroups as DiceGroup[])[groupIdx]?.customDiceName || 'custom'
+      ? group.configuration.customDiceName || 'custom'
       : `d${group.faces}`;
-    addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Re-rolled ${dieName}: ${newRollsForDie.join(', ')}`, '🎲');
+    addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Re-rolled ${dieName}: ${newRollsForDie.join(' → ')}`, '🎲');
   };
 
   const buildDiceNotation = () => {
@@ -320,22 +323,7 @@ export default function DiceRollerWidget({ widget }: Props) {
   // Format the aggregated result for display
   const formatAggregatedResult = () => {
     if (!result) return '';
-    
-    // If showing individual results, display all dice separately
-    if (showIndividualResults) {
-      const allRolls: string[] = [];
-      for (const g of result.groups) {
-        for (const roll of g.rolls) {
-          allRolls.push(String(roll));
-        }
-      }
-      // Add modifier at the end if non-zero
-      if (result.modifier !== 0) {
-        allRolls.push(result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier));
-      }
-      return allRolls.join(', ');
-    }
-    
+
     const parts: string[] = [];
     
     for (const agg of result.aggregatedResults) {
@@ -370,7 +358,7 @@ export default function DiceRollerWidget({ widget }: Props) {
               ? 'bg-theme-muted animate-pulse text-theme-paper' 
               : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
           }`}
-          disabled={isRolling}
+          disabled={isRolling || !controlsVisible}
         >
           Roll {diceNotation}
         </button>
@@ -378,71 +366,65 @@ export default function DiceRollerWidget({ widget }: Props) {
 
       {/* Result Display - Always visible to maintain consistent height */}
       <div
-        className={`text-center flex-1 flex flex-col justify-center min-h-0 overflow-y-auto`}
+        className={`text-center flex-1 flex flex-col min-h-0 overflow-y-auto ${showRollDetails ? 'justify-start' : 'justify-center'}`}
         onWheel={(e) => e.stopPropagation()}
       >
         {result && !isRolling ? (
-          showIndividualResults ? (
-            <div className="flex flex-col gap-0.5">
-              {result.groups.flatMap((g, gi) =>
-                g.rolls.map((roll, ri) => {
+          <>
+            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
+              {formatAggregatedResult() || '—'}
+            </div>
+            {controlsVisible && (
+              <button
+                type="button"
+                onClick={() => updateWidgetData(widget.id, { showRollDetails: !showRollDetails })}
+                onMouseDown={(event) => event.stopPropagation()}
+                aria-expanded={showRollDetails}
+                className="mx-auto mt-0.5 inline-flex min-h-6 items-center gap-1 rounded-button px-2 text-[10px] font-semibold text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
+              >
+                {showRollDetails ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
+                {showRollDetails ? 'Hide details' : 'Show details'}
+              </button>
+            )}
+            {showRollDetails && (
+              <div className="mt-1 flex flex-col gap-0.5">
+                {result.groups.flatMap((g, gi) =>
+                  g.diceRolls.map((rolls, dieIndex) => {
                   const dieLabel = g.customFaces && g.customFaces.length > 0
-                    ? (diceGroups as DiceGroup[])[gi]?.customDiceName || 'custom'
+                      ? g.configuration.customDiceName || 'custom'
                     : `d${g.faces}`;
                   return (
                     <div
-                      key={`${gi}-${ri}`}
+                      key={`${gi}-${dieIndex}`}
                       className="flex items-center justify-between gap-1 px-1 py-0.5 border-b border-theme-border/30 last:border-b-0"
                     >
                       <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>{dieLabel}</span>
                       <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
-                        {String(roll)}
+                        {rolls.map(String).join(' → ')}
                       </span>
-                      <Tooltip content={`Re-roll ${dieLabel}`}>
+                      {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
                         <button
-                          onClick={() => rerollDie(gi, ri)}
+                          onClick={() => rerollDie(gi, dieIndex)}
                           onMouseDown={(e) => e.stopPropagation()}
                           className="p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0"
-                          aria-label={`Re-roll ${dieLabel}`}
+                          aria-label={`Re-roll ${dieLabel} ${dieIndex + 1}`}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
                         </button>
-                      </Tooltip>
+                      </Tooltip> : <span className="w-4 flex-shrink-0" />}
                     </div>
                   );
-                })
-              )}
-              {result.modifier !== 0 && (
-                <div className="flex items-center justify-between gap-1 px-1 py-0.5">
-                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>mod</span>
-                  <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center`}>
-                    {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
-                  </span>
-                  <span className="w-[18px] flex-shrink-0" />
-                </div>
-              )}
-            </div>
-          ) : (
-          <>
-            {/* Show aggregated result (e.g., "17 | 2💀 | 3 poison") */}
-            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-              {formatAggregatedResult() || '—'}
-            </div>
-            {/* Only show individual rolls breakdown when not in showIndividualResults mode */}
-            {!showIndividualResults && (
-              <div className={`${smallTextClass} text-theme-muted font-body`}>
-                {result.groups.map((g, i) => (
-                  <span key={i}>
-                    {i > 0 && ' + '}
-                    <span title={g.customFaces ? `d[${g.customFaces.join(',')}]` : `d${g.faces}`}>
-                      [{g.rolls.join(', ')}]
-                    </span>
-                  </span>
-                ))}
+                }))}
                 {result.modifier !== 0 && (
-                  <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
+                  <div className="flex items-center justify-between gap-1 px-1 py-0.5">
+                    <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>modifier</span>
+                    <span className="flex-1 text-center font-heading text-base font-bold text-theme-ink">
+                      {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
+                    </span>
+                    <span className="w-4 flex-shrink-0" />
+                  </div>
                 )}
               </div>
             )}
@@ -461,7 +443,6 @@ export default function DiceRollerWidget({ widget }: Props) {
               </>
             )}
           </>
-          )
         ) : (
           <>
             <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>
