@@ -138,6 +138,134 @@
     background: color-mix(in srgb, var(--color-accent) 12%, var(--color-background));
   }
 
+  .health-bar-widget {
+    container-type: size;
+  }
+
+  .health-bar__max-control {
+    align-items: baseline;
+    background: color-mix(in srgb, var(--color-background) 58%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    border-radius: var(--button-radius);
+    color: var(--color-muted);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-family: var(--font-body);
+    font-size: 9px;
+    gap: 3px;
+    min-height: 22px;
+    padding: 1px 5px;
+    position: relative;
+    z-index: 70;
+  }
+
+  .health-bar__max-control strong {
+    color: var(--color-ink);
+    font-size: 11px;
+  }
+
+  .health-bar__max-control:hover:not(:disabled) {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  .health-bar__max-control:hover:not(:disabled) strong {
+    color: var(--color-paper);
+  }
+
+  .health-bar__main,
+  .health-bar__actions {
+    position: relative;
+    z-index: 70;
+  }
+
+  .health-bar__track {
+    background: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+    cursor: ew-resize;
+    flex: 1 1 auto;
+    height: 24px;
+    min-width: 44px;
+    overflow: hidden;
+    position: relative;
+    touch-action: none;
+  }
+
+  .health-bar__track--disabled {
+    cursor: default;
+  }
+
+  .health-bar__fill {
+    background: var(--color-accent);
+    bottom: 0;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
+    left: 0;
+    position: absolute;
+    top: 0;
+    transition: width 180ms ease-out;
+  }
+
+  .health-bar__fill--scrubbing {
+    transition: none;
+  }
+
+  .health-bar__readout {
+    align-items: center;
+    color: var(--color-ink);
+    display: flex;
+    font-family: var(--font-body);
+    left: 50%;
+    line-height: 1;
+    position: absolute;
+    text-shadow: 0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper);
+    top: 50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+  }
+
+  .health-bar__readout strong {
+    font-size: 12px;
+  }
+
+  .health-bar__actions {
+    justify-content: flex-end;
+  }
+
+  .health-bar__action {
+    align-items: center;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--color-border) 68%, transparent);
+    border-radius: var(--button-radius);
+    color: var(--color-muted);
+    display: inline-flex;
+    flex: 1 1 0;
+    font-family: var(--font-body);
+    font-size: 9px;
+    font-weight: 700;
+    justify-content: center;
+    min-height: 22px;
+    padding: 1px 5px;
+  }
+
+  .health-bar__action:hover:not(:disabled) {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  @container (max-height: 92px) {
+    .health-bar__actions {
+      display: none;
+    }
+
+    .health-bar__track {
+      height: 24px;
+    }
+  }
+
   .widget-control {
     align-items: center;
     background: color-mix(in srgb, var(--color-background) 38%, transparent);

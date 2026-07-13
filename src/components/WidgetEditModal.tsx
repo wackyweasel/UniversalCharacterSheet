@@ -170,7 +170,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
-      case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
+      case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
       case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
