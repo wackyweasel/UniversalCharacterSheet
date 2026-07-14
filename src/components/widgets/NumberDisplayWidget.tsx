@@ -133,7 +133,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {(label || controlsVisible) && (
-        <div className="flex min-h-6 flex-shrink-0 items-center gap-2 px-1 pr-4">
+        <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 px-1 pr-4">
           {label && (
             <div
               className="min-w-0 flex-1 truncate font-bold text-theme-ink font-heading"
@@ -143,7 +143,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             </div>
           )}
           {controlsVisible && (
-            <div className="ml-auto flex flex-shrink-0 items-center gap-1">
+            <div className="number-display-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={displayNumbers.length > 0 ? 'Choose displayed numbers to remove' : 'No displayed numbers to remove'}>
                 <button
                   type="button"

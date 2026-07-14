@@ -146,7 +146,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
   const gapClass = 'gap-1';
   
   // Calculate items area height
-  const labelHeight = label || controlsVisible ? 24 : 0;
+  const labelHeight = controlsVisible ? 18 : label ? 16 : 0;
   const gapSize = 4;
   const padding = 0;
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
@@ -176,14 +176,14 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
-        <div className={`flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
+        <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
               {label}
             </div>
           )}
           {controlsVisible && (
-            <div className="checklist-widget__controls ml-auto flex flex-shrink-0 items-center gap-1">
+            <div className="checklist-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={checkboxItems.length > 0 ? 'Choose checklist items to remove' : 'No items to remove'}>
                 <button
                   type="button"

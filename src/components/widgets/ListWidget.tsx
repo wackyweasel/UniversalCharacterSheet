@@ -27,7 +27,7 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
   const gapClass = 'gap-1';
   
   // Calculate list area height
-  const labelHeight = controlsVisible ? 24 : label ? 16 : 0;
+  const labelHeight = controlsVisible ? 18 : label ? 16 : 0;
   const gapSize = 4;
   const padding = 0;
   const listHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
@@ -118,14 +118,14 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
-        <div className={`flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
+        <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
               {label}
             </div>
           )}
           {controlsVisible && (
-            <div className="list-widget__controls ml-auto flex flex-shrink-0 items-center gap-1">
+            <div className="list-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={normalizedItems.length > 0 ? 'Choose items to remove' : 'No items to remove'}>
                 <button
                   type="button"

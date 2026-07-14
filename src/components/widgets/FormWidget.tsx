@@ -30,7 +30,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const gapClass = 'gap-1';
   
   // Calculate items area height
-  const labelHeight = controlsVisible ? 24 : label ? 16 : 0;
+  const labelHeight = controlsVisible ? 18 : label ? 16 : 0;
   const gapSize = 4;
   const padding = 0;
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
@@ -115,14 +115,14 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   return (
     <div className={`form-widget flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
-        <div className={`form-widget__header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
+        <div className={`form-widget__header widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className={`form-widget__label min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
               {label}
             </div>
           )}
           {controlsVisible && (
-            <div className="form-widget__controls ml-auto flex flex-shrink-0 items-center gap-1">
+            <div className="form-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={formItems.length > 0 ? 'Choose fields to remove' : 'No fields to remove'}>
                 <button
                   type="button"

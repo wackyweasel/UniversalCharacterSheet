@@ -295,16 +295,16 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
   };
 
   // Calculate available height for scrollable area
-  const headerHeight = label || controlsVisible ? 24 : 0;
+  const headerHeight = controlsVisible ? 18 : label ? 16 : 0;
   const availableHeight = height - headerHeight - 8;
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
-        <div className={`flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
+        <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>{label}</div>}
           {controlsVisible && (
-            <div className="pool-widget__controls ml-auto flex flex-shrink-0 items-center gap-1">
+            <div className="pool-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={resources.length > 1 ? 'Choose resources to remove' : 'At least one resource is required'}>
                 <button
                   type="button"

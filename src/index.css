@@ -122,8 +122,26 @@
     z-index: auto;
   }
 
+  .widget-content .widget-structure-header {
+    min-height: 18px;
+    padding-right: 0;
+  }
+
+  .widget-content .widget-structure-controls {
+    gap: 2px;
+  }
+
+  .widget-content .widget-structure-controls .widget-control {
+    font-size: 11px;
+    height: 18px;
+    min-height: 18px;
+    padding: 0;
+    width: 18px;
+  }
+
   .form-widget__controls,
   .number-widget__controls,
+  .number-display-widget__controls,
   .list-widget__controls,
   .checklist-widget__controls,
   .condition-widget__controls,
