@@ -55,7 +55,7 @@ export function useWorkspaceNavigation() {
 
   const setPlayLayout = useCallback((layout: PlayLayout) => {
     persistPlayLayout(layout);
-    if (mode !== 'print') {
+    if (mode !== 'edit' && mode !== 'print') {
       setMode(layout === 'list' ? 'vertical' : 'play');
     }
   }, [mode, persistPlayLayout, setMode]);

@@ -1,9 +1,12 @@
 import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { ChevronDownIcon } from './icons';
+import { ChevronDownIcon, PencilIcon, TrashIcon } from './icons';
+import { Tooltip } from './Tooltip';
+import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import ListWidget from './widgets/ListWidget';
@@ -38,7 +41,22 @@ interface Props {
   onDragStart: (index: number) => void;
   onDragOver: (index: number) => void;
   onDragEnd: () => void;
+  isBuildMode: boolean;
 }
+
+const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
+  'FORM',
+  'LIST',
+  'CHECKBOX',
+  'NUMBER',
+  'NUMBER_DISPLAY',
+  'POOL',
+  'TOGGLE_GROUP',
+  'HEALTH_BAR',
+  'PROGRESS_BAR',
+]);
+
+const WIDGETS_WITH_WIDE_HEADER_CONTROLS = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
 
 export default function VerticalWidget({
   widget,
@@ -50,21 +68,28 @@ export default function VerticalWidget({
   onDragStart,
   onDragOver,
   onDragEnd,
+  isBuildMode,
 }: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
+  const removeWidget = useStore((state) => state.removeWidget);
+  const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type);
+  const hasWideHeaderControls = WIDGETS_WITH_WIDE_HEADER_CONTROLS.has(widget.type);
 
   // Touch drag state
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [isDragHandle, setIsDragHandle] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -95,6 +120,17 @@ export default function VerticalWidget({
       window.removeEventListener('vertical-collapse-all', handleCollapseAll as EventListener);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowDeleteConfirm(false);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDeleteConfirm]);
   
   // Widget type to display name mapping (same as toolbox)
   const WIDGET_NAMES: Record<WidgetType, string> = {
@@ -126,6 +162,16 @@ export default function VerticalWidget({
   // Get widget label for collapsed header
   const getWidgetLabel = () => {
     return widget.data.label || WIDGET_NAMES[widget.type] || widget.type;
+  };
+
+  const openEditModal = () => {
+    setShowEditModal(true);
+    setEditingWidgetId(widget.id);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingWidgetId(null);
   };
   
   // Calculate if this widget should show a drop indicator
@@ -304,6 +350,35 @@ export default function VerticalWidget({
           
           {/* Label when collapsed */}
           <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1">{getWidgetLabel()}</span>
+
+          {hasHeaderControls && !isCollapsed && (
+            <div className={`h-6 flex-shrink-0 ${hasWideHeaderControls ? 'w-16' : 'w-[52px]'}`} aria-hidden="true" />
+          )}
+
+          {isBuildMode && (
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Tooltip content={`Edit ${getWidgetLabel()}`}>
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  aria-label={`Edit ${getWidgetLabel()}`}
+                  className="widget-control widget-control--subtle h-7 w-7 min-h-0"
+                >
+                  <PencilIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+              <Tooltip content={`Delete ${getWidgetLabel()}`}>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  aria-label={`Delete ${getWidgetLabel()}`}
+                  className="widget-control widget-control--subtle h-7 w-7 min-h-0 text-red-500 hover:border-red-500 hover:bg-red-500 hover:text-white"
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
           
           {/* Collapse Toggle */}
           <button
@@ -318,7 +393,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`vertical-widget-body ${widget.data.label && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : widget.data.label && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
@@ -330,6 +405,55 @@ export default function VerticalWidget({
       )}
       
       {index < totalWidgets - 1 && <div className="h-2" />}
+
+      {showEditModal && (
+        <WidgetEditModal
+          widget={widget}
+          onClose={closeEditModal}
+        />
+      )}
+
+      {showDeleteConfirm && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`vertical-delete-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={`vertical-delete-title-${widget.id}`} className="font-heading text-base font-bold">
+              Delete {getWidgetLabel()}?
+            </h3>
+            <p className="mt-2 text-sm text-theme-muted">Remove this widget from the sheet?</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowDeleteConfirm(false)}
+                className="widget-control px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  removeWidget(widget.id);
+                }}
+                className="min-h-8 rounded-button border border-red-600 bg-red-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+              >
+                Delete widget
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

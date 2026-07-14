@@ -201,7 +201,7 @@ export default function ProgressBarWidget({ widget, mode, showMaxControl = true,
                 onMouseDown={(event) => event.stopPropagation()}
                 disabled={hasMaxFormula}
                 aria-label={`Set maximum ${label || 'progress'}, currently ${maxValue}`}
-                className={`progress-bar__max-control ${hasMaxFormula ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`progress-bar__max-control ml-auto ${hasMaxFormula ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <span>Max</span>
                 <strong>{maxValue}</strong>

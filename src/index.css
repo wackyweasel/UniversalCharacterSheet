@@ -547,16 +547,39 @@
     z-index: 10;
   }
 
+  .vertical-widget-body .health-bar-widget,
+  .vertical-widget-body .progress-bar-widget {
+    container-type: normal;
+    height: auto;
+  }
+
   .vertical-widget-body--header-label > div:not(.form-widget) > :first-child {
     display: none;
   }
 
-  .vertical-widget-body--header-label .form-widget__label {
+  .vertical-widget-body--header-controls {
+    z-index: 21;
+  }
+
+  .vertical-widget-body--header-controls > div > :first-child {
+    min-height: 24px;
+    padding-right: 0;
+    position: absolute;
+    right: 44px;
+    top: -30px;
+    z-index: 30;
+  }
+
+  .vertical-widget-body--header-controls > div > :first-child > :not(.ml-auto) {
     display: none;
   }
 
-  .vertical-widget-body--header-label .form-widget__header {
+  .vertical-widget-body--header-controls > div > :first-child > .ml-auto {
     justify-content: flex-end;
+  }
+
+  .vertical-widget-body--header-controls.vertical-widget-body--build-actions > div > :first-child {
+    right: 112px;
   }
 }
 

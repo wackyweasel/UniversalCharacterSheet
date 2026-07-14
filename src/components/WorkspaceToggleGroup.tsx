@@ -44,15 +44,15 @@ export default function WorkspaceToggleGroup({
         </button>
       </div>
       <div className="flex w-32 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden">
-        <button type="button" onClick={onCanvas} aria-pressed={workspace === 'play' && playLayout === 'canvas'} className={layoutButton(workspace === 'play' && playLayout === 'canvas')}>
+        <button type="button" onClick={onCanvas} aria-pressed={playLayout === 'canvas'} className={layoutButton(playLayout === 'canvas')}>
           Canvas
         </button>
         <button
           type="button"
           data-tutorial="vertical-view-button"
           onClick={onList}
-          aria-pressed={workspace === 'play' && playLayout === 'list'}
-          className={`${layoutButton(workspace === 'play' && playLayout === 'list')} ${listHighlighted ? 'outline outline-2 outline-blue-500 outline-offset-[-2px]' : ''}`}
+          aria-pressed={playLayout === 'list'}
+          className={`${layoutButton(playLayout === 'list')} ${listHighlighted ? 'outline outline-2 outline-blue-500 outline-offset-[-2px]' : ''}`}
         >
           List
         </button>

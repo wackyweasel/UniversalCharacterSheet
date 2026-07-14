@@ -22,7 +22,7 @@ import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon, PlusIcon } from './icons';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -780,10 +780,17 @@ export default function Sheet() {
   // Vertical mode menu state
   const [verticalMenuOpen, setVerticalMenuOpen] = useState(false);
 
-  // Render Vertical Mode
-  if (mode === 'vertical') {
+  // Render list layout in either Play or Build.
+  if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
     return (
       <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
+        {workspace === 'build' && (
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
+        )}
+
         {/* Compact header bar */}
         <div className="bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 shrink-0">
           {/* Mobile: Menu button */}
@@ -815,17 +822,29 @@ export default function Sheet() {
               listHighlighted={isCurrentTutorialStep('various-vertical-view')}
             />
             <div className="flex items-center w-[224px] shrink-0">
-              <Tooltip content="Open event timeline" placement="below">
-              <button
-                onClick={toggleTimeline}
-                aria-controls="timeline-panel"
-                aria-expanded={timelineIsOpen}
-                aria-pressed={timelineIsOpen}
-                className={`w-20 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              >
-                Timeline
-              </button>
-              </Tooltip>
+              {workspace === 'play' ? (
+                <Tooltip content="Open event timeline" placement="below">
+                  <button
+                    onClick={toggleTimeline}
+                    aria-controls="timeline-panel"
+                    aria-expanded={timelineIsOpen}
+                    aria-pressed={timelineIsOpen}
+                    className={`w-20 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                  >
+                    Timeline
+                  </button>
+                </Tooltip>
+              ) : (
+                <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+                  <button
+                    data-tutorial="add-widget-button"
+                    onClick={() => handleToggleWidgetSidebar()}
+                    className="w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                  >
+                    {sidebarCollapsed ? 'Add' : 'Hide Add'}
+                  </button>
+                </Tooltip>
+              )}
             </div>
             {/* Undo/Redo buttons */}
             <Tooltip content="Undo (Ctrl+Z)" placement="below">
@@ -944,18 +963,31 @@ export default function Sheet() {
           </Tooltip>
           {/* Undo/Redo buttons for mobile */}
           <div className="lg:hidden flex items-center gap-1">
-            <Tooltip content="Timeline" placement="below">
-              <button
-                onClick={toggleTimeline}
-                aria-label="Timeline"
-                aria-controls="timeline-panel"
-                aria-expanded={timelineIsOpen}
-                aria-pressed={timelineIsOpen}
-                className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              >
-                <ClockIcon className="w-4 h-4" />
-              </button>
-            </Tooltip>
+            {workspace === 'build' ? (
+              <Tooltip content={sidebarCollapsed ? 'Add widget' : 'Hide widget panel'} placement="below">
+                <button
+                  type="button"
+                  onClick={() => handleToggleWidgetSidebar()}
+                  aria-label={sidebarCollapsed ? 'Add widget' : 'Hide widget panel'}
+                  className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            ) : (
+              <Tooltip content="Timeline" placement="below">
+                <button
+                  onClick={toggleTimeline}
+                  aria-label="Timeline"
+                  aria-controls="timeline-panel"
+                  aria-expanded={timelineIsOpen}
+                  aria-pressed={timelineIsOpen}
+                  className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                >
+                  <ClockIcon className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            )}
             <Tooltip content="Undo" placement="below">
               <button
                 onClick={undo}
@@ -1001,7 +1033,7 @@ export default function Sheet() {
             <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
               <button
                 onClick={() => {
-                  setPlayLayout('canvas');
+                  handleSelectPlayLayout('canvas');
                   setVerticalMenuOpen(false);
                 }}
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
@@ -1010,24 +1042,40 @@ export default function Sheet() {
               </button>
               <button
                 onClick={() => {
-                  enterBuild();
+                  if (workspace === 'build') {
+                    handleEnterPlayWorkspace();
+                  } else {
+                    handleEnterBuildWorkspace();
+                  }
                   setVerticalMenuOpen(false);
                 }}
                 className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
               >
-                Go to Build
+                {workspace === 'build' ? 'Go to Play' : 'Go to Build'}
               </button>
-              <button
-                onClick={() => {
-                  toggleTimeline();
-                  setVerticalMenuOpen(false);
-                }}
-                aria-controls="timeline-panel"
-                aria-expanded={timelineIsOpen}
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-              >
-                Timeline
-              </button>
+              {workspace === 'build' ? (
+                <button
+                  onClick={() => {
+                    handleToggleWidgetSidebar();
+                    setVerticalMenuOpen(false);
+                  }}
+                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                >
+                  {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    toggleTimeline();
+                    setVerticalMenuOpen(false);
+                  }}
+                  aria-controls="timeline-panel"
+                  aria-expanded={timelineIsOpen}
+                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                >
+                  Timeline
+                </button>
+              )}
               <button
                 onClick={() => {
                   handleExitToMenu();
@@ -1057,20 +1105,31 @@ export default function Sheet() {
                 onDragStart={handleVerticalDragStart}
                 onDragOver={handleVerticalDragOver}
                 onDragEnd={handleVerticalDragEnd}
+                isBuildMode={workspace === 'build'}
               />
             ))}
             
             {activeSheetWidgets.length === 0 && (
               <div className="text-center text-theme-muted py-12">
                 <p className="font-body">No widgets on this sheet</p>
-                <p className="text-sm mt-2">Switch to Build to add widgets</p>
+                {workspace === 'build' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleWidgetSidebar()}
+                    className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
+                  >
+                    Add widget
+                  </button>
+                ) : (
+                  <p className="text-sm mt-2">Switch to Build to add widgets</p>
+                )}
               </div>
             )}
           </div>
         </div>
 
         {/* Timeline Sidebar */}
-        <TimelineSidebar />
+        {workspace === 'play' && <TimelineSidebar />}
 
         {/* Tutorial Bubble */}
         {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
@@ -1790,8 +1849,8 @@ export default function Sheet() {
               Print Preview
             </button>
             
-            {/* List layout - only in Play */}
-            {workspace === 'play' && playLayout === 'canvas' && (
+            {/* List layout */}
+            {playLayout === 'canvas' && (
               <button
                 onClick={() => {
                   setPlayLayout('list');

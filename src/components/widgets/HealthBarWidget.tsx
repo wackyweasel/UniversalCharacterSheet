@@ -293,7 +293,7 @@ export default function HealthBarWidget({ widget, mode, showMaxControl = true, i
                 onMouseDown={(event) => event.stopPropagation()}
                 disabled={hasMaxFormula}
                 aria-label={`Set maximum ${label || 'health'}, currently ${maxValue}`}
-                className={`health-bar__max-control ${hasMaxFormula ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`health-bar__max-control ml-auto ${hasMaxFormula ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <span>Max</span>
                 <strong>{maxValue}</strong>
