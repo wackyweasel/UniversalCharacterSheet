@@ -785,10 +785,16 @@ export default function Sheet() {
     return (
       <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
         {workspace === 'build' && (
-          <Sidebar
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          />
+          <>
+            <Sidebar
+              collapsed={sidebarCollapsed}
+              onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
+            <ThemeSidebar
+              collapsed={themeSidebarCollapsed}
+              onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
+            />
+          </>
         )}
 
         {/* Compact header bar */}
@@ -821,7 +827,7 @@ export default function Sheet() {
               onList={() => handleSelectPlayLayout('list')}
               listHighlighted={isCurrentTutorialStep('various-vertical-view')}
             />
-            <div className="flex items-center w-[224px] shrink-0">
+            <div className="flex items-center gap-1 w-[224px] shrink-0">
               {workspace === 'play' ? (
                 <Tooltip content="Open event timeline" placement="below">
                   <button
@@ -835,15 +841,26 @@ export default function Sheet() {
                   </button>
                 </Tooltip>
               ) : (
-                <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
-                  <button
-                    data-tutorial="add-widget-button"
-                    onClick={() => handleToggleWidgetSidebar()}
-                    className="w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-                  >
-                    {sidebarCollapsed ? 'Add' : 'Hide Add'}
-                  </button>
-                </Tooltip>
+                <>
+                  <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+                    <button
+                      data-tutorial="add-widget-button"
+                      onClick={() => handleToggleWidgetSidebar()}
+                      className="w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                    >
+                      {sidebarCollapsed ? 'Add' : 'Hide Add'}
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Open theme editor" placement="below">
+                    <button
+                      data-tutorial="theme-button"
+                      onClick={() => handleToggleThemeSidebar()}
+                      className={`w-[72px] h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                    >
+                      Theme
+                    </button>
+                  </Tooltip>
+                </>
               )}
             </div>
             {/* Undo/Redo buttons */}
@@ -1054,15 +1071,27 @@ export default function Sheet() {
                 {workspace === 'build' ? 'Go to Play' : 'Go to Build'}
               </button>
               {workspace === 'build' ? (
-                <button
-                  onClick={() => {
-                    handleToggleWidgetSidebar();
-                    setVerticalMenuOpen(false);
-                  }}
-                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-                >
-                  {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      handleToggleWidgetSidebar();
+                      setVerticalMenuOpen(false);
+                    }}
+                    className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
+                  >
+                    {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+                  </button>
+                  <button
+                    data-tutorial="theme-button-mobile"
+                    onClick={() => {
+                      handleToggleThemeSidebar();
+                      setVerticalMenuOpen(false);
+                    }}
+                    className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                  >
+                    {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={() => {
