@@ -257,7 +257,10 @@ export default function CharacterList() {
 
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
     event.preventDefault();
-    drag.didMove = true;
+    if (!drag.didMove) {
+      drag.didMove = true;
+      listScrollRef.current?.setPointerCapture(event.pointerId);
+    }
 
     const scrollArea = listScrollRef.current;
     if (scrollArea) {
@@ -316,7 +319,6 @@ export default function CharacterList() {
       window.removeEventListener('blur', handleWindowBlur);
     };
 
-    listScrollRef.current?.setPointerCapture(event.pointerId);
     event.currentTarget.focus({ preventScroll: true });
     setOpenDropdown(null);
     setDraggingCharacterId(characterId);
