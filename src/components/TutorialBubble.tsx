@@ -162,7 +162,10 @@ function PositionedBubble({
     setIsCentered(false);
 
     const updatePosition = () => {
-      const target = document.querySelector(step.targetSelector!);
+      const target = Array.from(document.querySelectorAll(step.targetSelector!)).find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
       if (!target) {
         setIsCentered(true);
         setPosition({

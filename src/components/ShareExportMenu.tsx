@@ -4,10 +4,30 @@ import { useUserPresetStore } from '../store/useUserPresetStore';
 import { submitToGallery } from '../hooks/useGallery';
 import { stripImages } from '../utils/stripImages';
 import GalleryShareModal from './GalleryShareModal';
+import { MenuIcon } from './icons';
 
 interface ShareExportMenuProps {
   character: Character;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onPrintPreview: () => void;
+  onExit: () => void;
+  workspace: 'build' | 'play' | 'print';
+  playLayout: 'canvas' | 'list';
+  onSelectLayout: (layout: 'canvas' | 'list') => void;
+  timelineOpen: boolean;
+  onToggleTimeline: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onAddWidget?: () => void;
+  addWidgetLabel?: string;
+  onChangeTheme?: () => void;
+  changeThemeLabel?: string;
+  onAutoStack?: () => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
 }
 
 function downloadCharacter(character: Character) {
@@ -23,9 +43,30 @@ function downloadCharacter(character: Character) {
   URL.revokeObjectURL(url);
 }
 
-export default function ShareExportMenu({ character, onPrintPreview }: ShareExportMenuProps) {
+export default function ShareExportMenu({
+  character,
+  open,
+  onOpenChange,
+  onPrintPreview,
+  onExit,
+  workspace,
+  playLayout,
+  onSelectLayout,
+  timelineOpen,
+  onToggleTimeline,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onAddWidget,
+  addWidgetLabel = 'Add Widget',
+  onChangeTheme,
+  changeThemeLabel = 'Change Theme',
+  onAutoStack,
+  onExpandAll,
+  onCollapseAll,
+}: ShareExportMenuProps) {
   const addPreset = useUserPresetStore((state) => state.addPreset);
-  const [open, setOpen] = useState(false);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
   const [includeTheme, setIncludeTheme] = useState(true);
@@ -37,12 +78,12 @@ export default function ShareExportMenu({ character, onPrintPreview }: ShareExpo
     if (!open) return;
     const handleOutsideClick = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        onOpenChange(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [open]);
+  }, [onOpenChange, open]);
 
   useEffect(() => {
     setPresetName(`${character.name} Preset`);
@@ -70,24 +111,84 @@ export default function ShareExportMenu({ character, onPrintPreview }: ShareExpo
       <div ref={menuRef} className="relative shrink-0">
         <button
           type="button"
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => onOpenChange(!open)}
+          aria-label="Menu"
           aria-expanded={open}
-          className="h-8 px-3 bg-theme-accent text-theme-paper border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body font-bold hover:bg-theme-accent-hover transition-colors"
+          className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
         >
-          Share &amp; Export
+          <MenuIcon className="w-4 h-4" />
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-2 min-w-[220px] bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 animate-dropdown-in">
-            <div className="px-3 py-2 border-b border-theme-border/50">
-              <p className="font-heading text-xs font-bold text-theme-ink">Share &amp; Export</p>
-              <p className="font-body text-[11px] text-theme-muted mt-0.5">Actions for {character.name}</p>
+          <div className="absolute left-0 top-full mt-2 w-[min(280px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in">
+            <div className={`${workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
+              <div className={`grid grid-cols-2 gap-1 ${workspace === 'play' ? 'min-[380px]:hidden' : 'min-[460px]:hidden'}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectLayout('canvas');
+                    onOpenChange(false);
+                  }}
+                  aria-pressed={playLayout === 'canvas'}
+                  className={`h-8 rounded-button text-xs font-body transition-colors ${playLayout === 'canvas' ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
+                >
+                  Canvas
+                </button>
+                <button
+                  type="button"
+                  data-tutorial="vertical-view-button-mobile"
+                  onClick={() => {
+                    onSelectLayout('list');
+                    onOpenChange(false);
+                  }}
+                  aria-pressed={playLayout === 'list'}
+                  className={`h-8 rounded-button text-xs font-body transition-colors ${playLayout === 'list' ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
+                >
+                  List
+                </button>
+              </div>
+              <div className={`grid grid-cols-2 gap-1 ${workspace === 'play' ? 'min-[480px]:hidden' : 'min-[540px]:hidden'}`}>
+                <button type="button" onClick={() => { onUndo(); onOpenChange(false); }} disabled={!canUndo} className="h-8 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
+                  Undo
+                </button>
+                <button type="button" onClick={() => { onRedo(); onOpenChange(false); }} disabled={!canRedo} className="h-8 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
+                  Redo
+                </button>
+              </div>
+              {workspace === 'play' && (
+                <button
+                  type="button"
+                  data-tutorial="timeline-button-mobile"
+                  onClick={() => {
+                    onToggleTimeline();
+                    onOpenChange(false);
+                  }}
+                  aria-controls="timeline-panel"
+                  aria-expanded={timelineOpen}
+                  className={`min-[560px]:hidden w-full h-8 rounded-button text-xs font-body transition-colors ${timelineOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
+                >
+                  Timeline
+                </button>
+              )}
             </div>
+            {workspace === 'build' && (onAddWidget || onChangeTheme || onAutoStack) && (
+              <div className="py-1 border-b border-theme-border/50">
+                {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="min-[320px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{addWidgetLabel}</button>}
+                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{changeThemeLabel}</button>}
+                {onAutoStack && <button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Auto Stack</button>}
+              </div>
+            )}
+            {(onExpandAll || onCollapseAll) && (
+              <div className="py-1 border-b border-theme-border/50">
+                {onExpandAll && <button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Expand All</button>}
+                {onCollapseAll && <button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Collapse All</button>}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => {
                 setPresetName(`${character.name} Preset`);
                 setShowSavePreset(true);
-                setOpen(false);
+                onOpenChange(false);
               }}
               className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
@@ -98,7 +199,7 @@ export default function ShareExportMenu({ character, onPrintPreview }: ShareExpo
               type="button"
               onClick={() => {
                 downloadCharacter(character);
-                setOpen(false);
+                onOpenChange(false);
                 showNotice('Character exported');
               }}
               className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
@@ -110,7 +211,7 @@ export default function ShareExportMenu({ character, onPrintPreview }: ShareExpo
               type="button"
               onClick={() => {
                 setShowPublish(true);
-                setOpen(false);
+                onOpenChange(false);
               }}
               className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
@@ -119,14 +220,26 @@ export default function ShareExportMenu({ character, onPrintPreview }: ShareExpo
             </button>
             <button
               type="button"
+              data-tutorial="print-mode-button"
               onClick={() => {
                 onPrintPreview();
-                setOpen(false);
+                onOpenChange(false);
               }}
               className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors border-t border-theme-border/50"
             >
               <span className="block font-semibold">Print Preview</span>
               <span className="block text-[11px] opacity-65 mt-0.5">Prepare this sheet for paper or PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onExit();
+                onOpenChange(false);
+              }}
+              className="w-full px-3 py-2.5 text-left text-sm font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50"
+            >
+              <span className="block font-semibold">Exit</span>
+              <span className="block text-[11px] opacity-65 mt-0.5">Go back to character selection</span>
             </button>
           </div>
         )}

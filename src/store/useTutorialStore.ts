@@ -55,7 +55,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'add-widget',
     title: 'Add Your First Widget',
     message: 'Click "Add Widget" to open the Add panel. It groups everything you can place on a sheet by what it helps you do.',
-    targetSelector: '[data-tutorial="add-widget-button"]',
+    targetSelector: '[data-tutorial="add-widget-button"], [data-tutorial="add-widget-button-mobile"]',
     position: 'bottom',
     page: 'sheet',
   },

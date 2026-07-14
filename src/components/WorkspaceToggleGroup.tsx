@@ -10,6 +10,7 @@ interface WorkspaceToggleGroupProps {
   workspaceHighlighted?: boolean;
   listHighlighted?: boolean;
   className?: string;
+  layoutClassName?: string;
 }
 
 export default function WorkspaceToggleGroup({
@@ -22,8 +23,9 @@ export default function WorkspaceToggleGroup({
   workspaceHighlighted = false,
   listHighlighted = false,
   className = '',
+  layoutClassName = 'min-[380px]:flex',
 }: WorkspaceToggleGroupProps) {
-  const workspaceButton = (active: boolean) => `w-14 h-full text-xs font-body transition-colors ${
+  const workspaceButton = (active: boolean) => `flex-1 h-full text-xs font-body transition-colors ${
     active ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:text-theme-ink hover:bg-theme-accent/10'
   }`;
   const layoutButton = (active: boolean) => `w-16 h-full text-xs font-body transition-colors ${
@@ -34,7 +36,7 @@ export default function WorkspaceToggleGroup({
     <div className={`flex items-center gap-1 shrink-0 ${className}`}>
       <div
         data-tutorial="edit-mode-button"
-        className={`flex w-28 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden ${workspaceHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+        className={`flex w-24 sm:w-28 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden ${workspaceHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
       >
         <button type="button" onClick={onBuild} aria-pressed={workspace === 'build'} className={workspaceButton(workspace === 'build')}>
           Build
@@ -43,7 +45,7 @@ export default function WorkspaceToggleGroup({
           Play
         </button>
       </div>
-      <div className="flex w-32 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden">
+      <div className={`hidden ${layoutClassName} w-32 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button overflow-hidden`}>
         <button type="button" onClick={onCanvas} aria-pressed={playLayout === 'canvas'} className={layoutButton(playLayout === 'canvas')}>
           Canvas
         </button>
