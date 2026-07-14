@@ -35,6 +35,7 @@ import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
+import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -143,7 +144,25 @@ export default function DraggableWidget({ widget, scale }: Props) {
   
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
+  const isResizingRef = useRef(false);
   const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
+  const isDraggingRef = useRef(false);
+  const pinchCanceledDragRef = useRef(false);
+  const widgetTouchActiveRef = useRef(false);
+  const selectedBeforeTouchRef = useRef<string | null>(null);
+
+  useTouchCameraPinchCancellation(() => {
+    if (isDraggingRef.current) pinchCanceledDragRef.current = true;
+    if (isResizingRef.current) {
+      isResizingRef.current = false;
+      updateWidgetSize(widget.id, resizeStartRef.current.width, resizeStartRef.current.height);
+      setIsResizing(false);
+    }
+    if (widgetTouchActiveRef.current) {
+      widgetTouchActiveRef.current = false;
+      setSelectedWidgetId(selectedBeforeTouchRef.current);
+    }
+  });
 
   const isSelected = selectedWidgetId === widget.id;
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
@@ -261,11 +280,17 @@ export default function DraggableWidget({ widget, scale }: Props) {
     }
     
     if (mode === 'edit') {
+      widgetTouchActiveRef.current = true;
+      selectedBeforeTouchRef.current = selectedWidgetId;
       // If this widget is not selected, select it without canceling the native touch sequence
       if (!isSelected) {
         setSelectedWidgetId(widget.id);
       }
     }
+  };
+
+  const handleWidgetTouchEnd = () => {
+    widgetTouchActiveRef.current = false;
   };
 
   // Handle click/tap on widget - in edit mode, first tap shows controls
@@ -337,6 +362,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       height: currentHeight,
     };
     
+    isResizingRef.current = true;
     setIsResizing(true);
   }, [widget.w, widget.h, widget.groupId, widget.id, detachWidgets]);
 
@@ -356,6 +382,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   }, [isResizing, scale, minDimensions, widget.id, updateWidgetSize]);
 
   const handleResizeEnd = useCallback(() => {
+    isResizingRef.current = false;
     setIsResizing(false);
   }, []);
 
@@ -379,6 +406,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const handleStart = (_e: DraggableEvent, data: DraggableData) => {
     // Store the starting position for calculating delta
     dragStartPos.current = { x: data.x, y: data.y };
+    isDraggingRef.current = true;
+    pinchCanceledDragRef.current = false;
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
@@ -404,6 +433,21 @@ export default function DraggableWidget({ widget, scale }: Props) {
   };
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
+    isDraggingRef.current = false;
+    if (pinchCanceledDragRef.current) {
+      pinchCanceledDragRef.current = false;
+      if (widget.groupId) {
+        const siblings = useStore.getState().getWidgetsInGroup(widget.groupId);
+        document.querySelectorAll(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
+          const sibling = siblings.find(candidate => candidate.id === element.getAttribute('data-widget-id'));
+          if (sibling) {
+            (element as HTMLElement).style.transform = `translate(${sibling.x}px, ${sibling.y}px)`;
+          }
+        });
+      }
+      return;
+    }
+
     const snappedX = snapToGrid(data.x);
     const snappedY = snapToGrid(data.y);
     
@@ -653,6 +697,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onTouchStart={handleWidgetTouchStart}
+          onTouchEnd={handleWidgetTouchEnd}
+          onTouchCancel={handleWidgetTouchEnd}
           onClick={handleWidgetClick}
         >
           {/* Image texture overlay - grayscale texture tinted with card color */}

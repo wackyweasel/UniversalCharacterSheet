@@ -6,6 +6,7 @@ import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularRefer
 import { Tooltip } from '../Tooltip';
 import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
 import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, TrashIcon } from '../icons';
+import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -694,6 +695,28 @@ export default function TableWidget({ widget, height }: Props) {
   const showTableControls = isTableEditing && !isPrintMode;
   const dragRowItem = useRef<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
+  const touchUiSnapshotRef = useRef<{
+    editingCell: { row: number; col: number } | null;
+    selectedCell: { row: number; col: number } | null;
+    selectedColumn: number | null;
+    selectedRow: number | null;
+    showToolbar: boolean;
+    toolbarPos: ToolbarPosition;
+  } | null>(null);
+
+  const captureTouchUiState = () => {
+    if (touchUiSnapshotRef.current) return;
+    touchUiSnapshotRef.current = {
+      editingCell,
+      selectedCell,
+      selectedColumn,
+      selectedRow,
+      showToolbar,
+      toolbarPos: { ...toolbarPos },
+    };
+  };
 
   // Collect all used colors (with opacity) from the character's table widgets
   const usedColors = useMemo(() => {
@@ -1116,6 +1139,7 @@ export default function TableWidget({ widget, height }: Props) {
 
   const handleRowTouchStart = (e: React.TouchEvent, index: number) => {
     e.stopPropagation();
+    captureTouchUiState();
     setShowToolbar(false);
     setSelectedCell(null);
     setSelectedColumn(null);
@@ -1196,6 +1220,7 @@ export default function TableWidget({ widget, height }: Props) {
     dragRowItem.current = null;
     setDraggedRowIndex(null);
     setDragOverRowIndex(null);
+    touchUiSnapshotRef.current = null;
   };
 
   // Get cell style based on format
@@ -1272,10 +1297,30 @@ export default function TableWidget({ widget, height }: Props) {
   }, []);
 
   // Touch long press handling
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
+  useTouchCameraPinchCancellation(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    touchDragState.current = null;
+    dragRowItem.current = null;
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+    setTouchStart(null);
+    const snapshot = touchUiSnapshotRef.current;
+    if (snapshot) {
+      setEditingCell(snapshot.editingCell);
+      setSelectedCell(snapshot.selectedCell);
+      setSelectedColumn(snapshot.selectedColumn);
+      setSelectedRow(snapshot.selectedRow);
+      setShowToolbar(snapshot.showToolbar);
+      setToolbarPos(snapshot.toolbarPos);
+      touchUiSnapshotRef.current = null;
+    }
+  });
 
   const handleTouchStart = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
+    captureTouchUiState();
     const targetElement = e.currentTarget;
     setTouchStart({ row: rowIdx, col: colIdx });
     longPressTimer.current = setTimeout(() => {
@@ -1307,6 +1352,7 @@ export default function TableWidget({ widget, height }: Props) {
       }
     }
     setTouchStart(null);
+    touchUiSnapshotRef.current = null;
   };
 
   const handleTouchMove = () => {

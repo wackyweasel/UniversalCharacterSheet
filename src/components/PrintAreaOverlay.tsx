@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { usePrintStore, PrintArea as PrintAreaType, getEffectiveAspectRatio } from '../store/usePrintStore';
+import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   scale: number;
@@ -16,6 +17,7 @@ export default function PrintAreaOverlay({ scale, readOnly }: Props) {
   const isLandscape = usePrintStore((state) => state.isLandscape);
   
   const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
+  const resizeHandleRef = useRef<ResizeHandle | null>(null);
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, area: { x: 0, y: 0, width: 0, height: 0 } });
   
   const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, handle: ResizeHandle) => {
@@ -38,6 +40,7 @@ export default function PrintAreaOverlay({ scale, readOnly }: Props) {
       mouseY: clientY,
       area: { ...printArea },
     };
+    resizeHandleRef.current = handle;
     setResizeHandle(handle);
   }, [printArea]);
   
@@ -160,9 +163,16 @@ export default function PrintAreaOverlay({ scale, readOnly }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleEnd = useCallback(() => {
+    resizeHandleRef.current = null;
     setResizeHandle(null);
     setIsDragging(false);
   }, []);
+
+  useTouchCameraPinchCancellation(() => {
+    if (!resizeHandleRef.current) return;
+    setPrintArea({ ...dragStartRef.current.area });
+    handleEnd();
+  });
   
   useEffect(() => {
     if (resizeHandle) {
@@ -200,6 +210,7 @@ export default function PrintAreaOverlay({ scale, readOnly }: Props) {
       mouseY: clientY,
       area: { ...printArea },
     };
+    resizeHandleRef.current = 'move';
     setResizeHandle('move');
     setIsDragging(true);
   }, [printArea]);

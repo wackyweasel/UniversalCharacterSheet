@@ -30,6 +30,7 @@ import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -40,7 +41,7 @@ interface Props {
   dropTargetIndex: number | null;
   onDragStart: (index: number) => void;
   onDragOver: (index: number) => void;
-  onDragEnd: () => void;
+  onDragEnd: (canceled?: boolean) => void;
   isBuildMode: boolean;
 }
 
@@ -88,8 +89,17 @@ export default function VerticalWidget({
   // Touch drag state
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [isDragHandle, setIsDragHandle] = useState(false);
+  const touchDragActiveRef = useRef(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useTouchCameraPinchCancellation(() => {
+    if (!touchDragActiveRef.current) return;
+    touchDragActiveRef.current = false;
+    setIsDragHandle(false);
+    setTouchStartY(null);
+    onDragEnd(true);
+  });
   
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -190,6 +200,7 @@ export default function VerticalWidget({
     // Check if the touch is on the drag handle
     const target = e.target as HTMLElement;
     if (target.closest('.vertical-drag-handle')) {
+      touchDragActiveRef.current = true;
       setIsDragHandle(true);
       setTouchStartY(e.touches[0].clientY);
       onDragStart(index);
@@ -216,6 +227,7 @@ export default function VerticalWidget({
 
   const handleTouchEnd = () => {
     if (isDragHandle) {
+      touchDragActiveRef.current = false;
       setIsDragHandle(false);
       setTouchStartY(null);
       onDragEnd();

@@ -744,8 +744,8 @@ export default function Sheet() {
     setVerticalDropIndex(index);
   };
 
-  const handleVerticalDragEnd = () => {
-    if (verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
+  const handleVerticalDragEnd = (canceled = false) => {
+    if (!canceled && verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
       const widget = activeSheetWidgets[verticalDragIndex];
       if (widget) {
         reorderWidget(widget.id, verticalDropIndex);
