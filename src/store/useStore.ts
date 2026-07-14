@@ -157,6 +157,7 @@ interface StoreState {
   cleanupTransientCharacters: () => void;
   importCharacter: (character: Character, telemetrySource?: ImportTelemetrySource) => void;
   duplicateCharacter: (id: string) => void;
+  reorderCharacter: (characterId: string, newIndex: number) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
   updateCharacterName: (id: string, name: string) => void;
@@ -474,6 +475,17 @@ export const useStore = create<StoreState>((set, get) => {
       return {
         characters: [...state.characters, newChar]
       };
+    }),
+
+    reorderCharacter: (characterId, newIndex) => set((state) => {
+      const currentIndex = state.characters.findIndex((character) => character.id === characterId);
+      const clampedIndex = Math.max(0, Math.min(newIndex, state.characters.length - 1));
+      if (currentIndex < 0 || currentIndex === clampedIndex) return state;
+
+      const characters = [...state.characters];
+      const [character] = characters.splice(currentIndex, 1);
+      characters.splice(clampedIndex, 0, character);
+      return { characters };
     }),
 
     selectCharacter: (id) => set((state) => {

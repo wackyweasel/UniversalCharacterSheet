@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
@@ -116,6 +116,7 @@ export default function CharacterList() {
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const importCharacter = useStore((state) => state.importCharacter);
   const duplicateCharacter = useStore((state) => state.duplicateCharacter);
+  const reorderCharacter = useStore((state) => state.reorderCharacter);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
@@ -168,6 +169,8 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
+  const [draggingCharacterId, setDraggingCharacterId] = useState<string | null>(null);
+  const [dropTargetCharacterId, setDropTargetCharacterId] = useState<string | null>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
@@ -176,6 +179,171 @@ export default function CharacterList() {
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const characterCardRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousCharacterRectsRef = useRef(new Map<string, DOMRect>());
+  const removeCharacterDragListenersRef = useRef<(() => void) | null>(null);
+  const suppressCharacterClickRef = useRef<string | null>(null);
+  const characterDragRef = useRef<{
+    characterId: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    lastTargetId: string | null;
+    didMove: boolean;
+  } | null>(null);
+
+  const captureCharacterRects = () => {
+    previousCharacterRectsRef.current = new Map(
+      Array.from(characterCardRefs.current.entries()).map(([id, element]) => [id, element.getBoundingClientRect()])
+    );
+  };
+
+  useLayoutEffect(() => {
+    if (previousCharacterRectsRef.current.size === 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      previousCharacterRectsRef.current.clear();
+      return;
+    }
+
+    characterCardRefs.current.forEach((element, id) => {
+      const previousRect = previousCharacterRectsRef.current.get(id);
+      if (!previousRect) return;
+      const nextRect = element.getBoundingClientRect();
+      const deltaX = previousRect.left - nextRect.left;
+      const deltaY = previousRect.top - nextRect.top;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
+
+      element.getAnimations().forEach((animation) => animation.cancel());
+      const isDraggedCard = id === draggingCharacterId;
+      element.animate(
+        [
+          { transform: `translate(${deltaX}px, ${deltaY}px)${isDraggedCard ? ' scale(1.025) rotate(0.35deg)' : ''}` },
+          { transform: isDraggedCard ? 'translate(0, 0) scale(1.025) rotate(0.35deg)' : 'translate(0, 0)' },
+        ],
+        { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    });
+
+    previousCharacterRectsRef.current.clear();
+  }, [characters, draggingCharacterId]);
+
+  const finishCharacterDrag = (pointerId?: number) => {
+    const drag = characterDragRef.current;
+    if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
+
+    removeCharacterDragListenersRef.current?.();
+    removeCharacterDragListenersRef.current = null;
+    const scrollArea = listScrollRef.current;
+    if (drag && scrollArea?.hasPointerCapture(drag.pointerId)) {
+      scrollArea.releasePointerCapture(drag.pointerId);
+    }
+    if (drag?.didMove) {
+      suppressCharacterClickRef.current = drag.characterId;
+      window.setTimeout(() => {
+        if (suppressCharacterClickRef.current === drag.characterId) {
+          suppressCharacterClickRef.current = null;
+        }
+      }, 0);
+    }
+    characterDragRef.current = null;
+    setDraggingCharacterId(null);
+    setDropTargetCharacterId(null);
+  };
+
+  const handleCharacterDragMove = (event: PointerEvent) => {
+    const drag = characterDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
+    event.preventDefault();
+    drag.didMove = true;
+
+    const scrollArea = listScrollRef.current;
+    if (scrollArea) {
+      const edgeSize = 72;
+      if (event.clientY < edgeSize) scrollArea.scrollBy({ top: -14 });
+      if (event.clientY > window.innerHeight - edgeSize) scrollArea.scrollBy({ top: 14 });
+    }
+
+    const targetCard = document
+      .elementsFromPoint(event.clientX, event.clientY)
+      .map((element) => (element as HTMLElement).closest<HTMLElement>('[data-character-id]'))
+      .find((element): element is HTMLElement => Boolean(element && element.dataset.characterId !== drag.characterId));
+    const targetId = targetCard?.dataset.characterId;
+    if (!targetId) {
+      drag.lastTargetId = null;
+      setDropTargetCharacterId(null);
+      return;
+    }
+    if (targetId === drag.lastTargetId) return;
+
+    const targetIndex = useStore.getState().characters.findIndex((character) => character.id === targetId);
+    if (targetIndex < 0) return;
+
+    drag.lastTargetId = targetId;
+    setDropTargetCharacterId(targetId);
+    captureCharacterRects();
+    reorderCharacter(drag.characterId, targetIndex);
+  };
+
+  const startCharacterDrag = (characterId: string, event: React.PointerEvent<HTMLDivElement>) => {
+    if (characters.length < 2 || event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+
+    removeCharacterDragListenersRef.current?.();
+    characterDragRef.current = {
+      characterId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastTargetId: null,
+      didMove: false,
+    };
+
+    const handlePointerMove = (pointerEvent: PointerEvent) => handleCharacterDragMove(pointerEvent);
+    const handlePointerEnd = (pointerEvent: PointerEvent) => finishCharacterDrag(pointerEvent.pointerId);
+    const handleWindowBlur = () => finishCharacterDrag();
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('blur', handleWindowBlur);
+    removeCharacterDragListenersRef.current = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+
+    listScrollRef.current?.setPointerCapture(event.pointerId);
+    event.currentTarget.focus({ preventScroll: true });
+    setOpenDropdown(null);
+    setDraggingCharacterId(characterId);
+  };
+
+  useEffect(() => () => removeCharacterDragListenersRef.current?.(), []);
+
+  const handleCharacterReorderKey = (characterId: string, event: React.KeyboardEvent<HTMLElement>) => {
+    const currentIndex = characters.findIndex((character) => character.id === characterId);
+    if (currentIndex < 0) return;
+    const columns = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+    const offset = event.key === 'ArrowLeft'
+      ? -1
+      : event.key === 'ArrowRight'
+        ? 1
+        : event.key === 'ArrowUp'
+          ? -columns
+          : event.key === 'ArrowDown'
+            ? columns
+            : 0;
+    if (offset === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    captureCharacterRects();
+    reorderCharacter(characterId, currentIndex + offset);
+  };
 
   const tutorialOptionClass = (mobile = false) => `w-full px-4 py-3 ${mobile ? 'pl-12 ' : ''}text-left text-sm font-body flex items-center gap-3 transition-colors ${
     mobile ? 'sm:hidden ' : ''
@@ -677,7 +845,7 @@ export default function CharacterList() {
   };
 
   return (
-    <div className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+    <div ref={listScrollRef} className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -1127,9 +1295,33 @@ export default function CharacterList() {
           return (
             <div 
               key={char.id}
+              ref={(element) => {
+                if (element) characterCardRefs.current.set(char.id, element);
+                else characterCardRefs.current.delete(char.id);
+              }}
+              data-character-id={char.id}
               style={cardStyles}
-              className={`p-4 active:translate-x-[2px] active:translate-y-[2px] transition-transform cursor-pointer relative group ${openDropdown === char.id ? 'z-40' : ''}`}
-              onClick={() => selectCharacter(char.id)}
+              className={`character-sort-card p-4 relative group ${draggingCharacterId === char.id ? 'character-sort-card--dragging' : ''} ${dropTargetCharacterId === char.id ? 'character-sort-card--target' : ''} ${openDropdown === char.id ? 'z-40' : ''}`}
+              tabIndex={0}
+              onPointerDown={(event) => startCharacterDrag(char.id, event)}
+              onClick={(event) => {
+                if (suppressCharacterClickRef.current === char.id) {
+                  suppressCharacterClickRef.current = null;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return;
+                }
+                selectCharacter(char.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  selectCharacter(char.id);
+                  return;
+                }
+                handleCharacterReorderKey(char.id, event);
+              }}
             >
               <div 
                 className="absolute inset-0 pointer-events-none overflow-hidden"

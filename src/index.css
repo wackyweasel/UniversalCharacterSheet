@@ -819,6 +819,50 @@
   -webkit-touch-callout: none;
 }
 
+.character-sort-card {
+  cursor: grab;
+  transform: translate(0, 0);
+  transition: filter 180ms ease, opacity 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  touch-action: none;
+  user-select: none;
+  will-change: transform;
+  -webkit-touch-callout: none;
+}
+
+.character-sort-card:active:not(.character-sort-card--dragging) {
+  transform: translate(2px, 2px);
+}
+
+.character-sort-card:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: 3px;
+}
+
+.character-sort-card--dragging {
+  cursor: grabbing;
+  filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.22)) saturate(1.08);
+  opacity: 0.94;
+  transform: scale(1.025) rotate(0.35deg);
+  z-index: 35;
+}
+
+.character-sort-card--target::after {
+  border: 2px solid var(--card-accent);
+  border-radius: var(--card-radius);
+  content: '';
+  inset: 3px;
+  opacity: 0.8;
+  pointer-events: none;
+  position: absolute;
+  z-index: 25;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-sort-card {
+    transition: none;
+  }
+}
+
 /* Subtle scrollbars that follow the active character theme */
 * {
   scrollbar-color: color-mix(in srgb, var(--color-muted) 72%, var(--color-border)) transparent;
