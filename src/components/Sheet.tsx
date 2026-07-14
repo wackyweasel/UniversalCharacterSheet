@@ -22,7 +22,9 @@ import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon, PlusIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon, MinusIcon, PlusIcon } from './icons';
+const MIN_CANVAS_SCALE = 0.1;
+const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -185,6 +187,8 @@ export default function Sheet() {
     viewLocked,
     toggleViewLock,
   } = usePanZoom({
+    minScale: MIN_CANVAS_SCALE,
+    maxScale: MAX_CANVAS_SCALE,
     editingWidgetId,
     mode,
     characterId: activeCharacterId,
@@ -202,6 +206,29 @@ export default function Sheet() {
   const viewLockedRef = useRef(viewLocked);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
+
+    const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
+      if (viewLockedRef.current) return;
+      const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(MIN_CANVAS_SCALE, requestedScale));
+      const currentScale = scaleRef.current;
+      if (nextScale === currentScale) return;
+
+      const viewport = containerRef.current;
+      const centerX = (viewport?.clientWidth ?? window.innerWidth) / 2;
+      const centerY = (viewport?.clientHeight ?? window.innerHeight) / 2;
+      const currentPan = panRef.current;
+      const canvasX = (centerX - currentPan.x) / currentScale;
+      const canvasY = (centerY - currentPan.y) / currentScale;
+      const nextPan = {
+        x: centerX - canvasX * nextScale,
+        y: centerY - canvasY * nextScale,
+      };
+
+      scaleRef.current = nextScale;
+      panRef.current = nextPan;
+      setScale(nextScale);
+      setPan(() => nextPan);
+    }, [setPan, setScale]);
   
   const { isTouchPanning } = useTouchCamera({
     mode,
@@ -212,6 +239,8 @@ export default function Sheet() {
     getPan,
     onBackgroundTouch: handleBackgroundInteraction,
     isViewLocked: getViewLocked,
+    minScale: MIN_CANVAS_SCALE,
+    maxScale: MAX_CANVAS_SCALE,
   });
 
   // Auto-stack hook
@@ -2128,6 +2157,47 @@ export default function Sheet() {
           </div>
         </>
       )}
+
+      <div
+        className={`canvas-zoom-dock ${viewLocked ? 'canvas-zoom-dock--disabled' : ''}`}
+        data-touch-camera-ignore="true"
+        role="group"
+        aria-label="Canvas zoom controls"
+      >
+        <button
+          type="button"
+          className="canvas-zoom-button"
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current / 1.25)}
+          disabled={viewLocked || scale <= MIN_CANVAS_SCALE}
+          aria-label="Zoom out"
+        >
+          <MinusIcon className="h-4 w-4" />
+        </button>
+        <input
+          type="range"
+          className="canvas-zoom-range"
+          min={MIN_CANVAS_SCALE * 100}
+          max={MAX_CANVAS_SCALE * 100}
+          step="1"
+          value={Math.round(scale * 100)}
+          onChange={(event) => setCanvasScaleAtViewportCenter(Number(event.target.value) / 100)}
+          disabled={viewLocked}
+          aria-label="Canvas zoom"
+          aria-valuetext={`${Math.round(scale * 100)}%`}
+        />
+        <button
+          type="button"
+          className="canvas-zoom-button"
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current * 1.25)}
+          disabled={viewLocked || scale >= MAX_CANVAS_SCALE}
+          aria-label="Zoom in"
+        >
+          <PlusIcon className="h-4 w-4" />
+        </button>
+        <output className="canvas-zoom-value" aria-live="polite">
+          {Math.round(scale * 100)}%
+        </output>
+      </div>
 
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}

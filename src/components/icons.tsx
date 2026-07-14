@@ -93,6 +93,14 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+export function MinusIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 12h14" />
+    </Base>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <Base {...props}>
