@@ -1197,7 +1197,7 @@ export default function Sheet() {
 
   // Render Grid Mode (Edit, Play, or Print)
   return (
-    <div ref={containerRef} className="w-full h-screen overflow-hidden relative bg-theme-background">
+    <div ref={containerRef} className="canvas-workspace w-full overflow-hidden relative bg-theme-background">
       {mode === 'edit' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 

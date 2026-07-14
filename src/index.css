@@ -651,6 +651,11 @@
   touch-action: none;
 }
 
+.canvas-workspace {
+  height: 100vh;
+  height: 100dvh;
+}
+
 .canvas-zoom-dock {
   align-items: center;
   background: color-mix(in srgb, var(--color-paper) 94%, transparent);
