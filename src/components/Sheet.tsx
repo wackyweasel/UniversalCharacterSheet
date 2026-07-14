@@ -1226,31 +1226,26 @@ export default function Sheet() {
       >
         {mode === 'edit' && activeSheetWidgets.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-lg bg-theme-paper/95 backdrop-blur-sm border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme p-6 sm:p-8 text-center">
-              <p className="font-body text-xs font-bold uppercase tracking-[0.18em] text-theme-accent">Build workspace</p>
-              <h2 className="font-heading text-2xl sm:text-3xl font-bold text-theme-ink mt-2">Build the sheet around the game</h2>
-              <p className="font-body text-sm text-theme-muted mt-3 max-w-md mx-auto">
-                Add only what you need now—stats, notes, resources, dice, or trackers. You can rearrange everything later.
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-2 mt-6">
+            <div className="pointer-events-auto flex flex-col items-center gap-3 text-center">
+              <p className="font-heading text-sm font-bold text-theme-ink">Empty sheet</p>
+              <div className="flex flex-wrap justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => setSidebarCollapsed(false)}
-                  className="px-5 py-2.5 bg-theme-accent text-theme-paper rounded-button font-body font-bold text-sm hover:bg-theme-accent-hover transition-colors"
+                  className="h-9 px-3 bg-theme-accent text-theme-paper rounded-button font-body font-semibold text-sm hover:bg-theme-accent-hover transition-colors"
                 >
-                  Add your first widget
+                  Add widget
                 </button>
                 <button
                   type="button"
                   onClick={handleChoosePresetInstead}
-                  className="px-5 py-2.5 bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-button font-body font-semibold text-sm hover:bg-theme-accent/10 transition-colors"
+                  className="h-9 px-3 bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-button font-body font-semibold text-sm hover:bg-theme-accent/10 transition-colors"
                 >
                   {activeCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
-                    ? 'Choose a Preset instead'
-                    : 'Create from a Preset'}
+                    ? 'Use preset'
+                    : 'New from preset'}
                 </button>
               </div>
-              <p className="font-body text-[11px] text-theme-muted mt-4">Build changes structure. Play keeps the sheet ready for use at the table.</p>
             </div>
           </div>
         )}

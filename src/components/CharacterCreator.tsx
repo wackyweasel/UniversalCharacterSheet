@@ -1,5 +1,5 @@
 import { useEffect, useRef, type FormEvent } from 'react';
-import { PRESET_DEFINITIONS, type CharacterPreset, type PresetDefinition } from '../presets';
+import { PRESET_DEFINITIONS, type PresetDefinition } from '../presets';
 import { THEMES } from '../store/useThemeStore';
 import type { CustomTheme } from '../store/useCustomThemeStore';
 import type { UserPreset } from '../store/useUserPresetStore';
@@ -27,65 +27,6 @@ interface CharacterCreatorProps {
   onImport: () => void;
   onTour: () => void;
   onDiscover: () => void;
-}
-
-function getPresetStats(preset: CharacterPreset) {
-  return {
-    sheetCount: preset.sheets.length,
-    widgetCount: preset.sheets.reduce((total, sheet) => total + sheet.widgets.length, 0),
-  };
-}
-
-interface StartingPointProps {
-  name: string;
-  meta: string;
-  accent: string;
-  selected: boolean;
-  disabled?: boolean;
-  darkMode: boolean;
-  onClick: () => void;
-}
-
-function StartingPoint({ name, meta, accent, selected, disabled = false, darkMode, onClick }: StartingPointProps) {
-  return (
-    <button
-      data-starting-point-option
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={disabled}
-      onClick={onClick}
-      className={`relative min-h-[72px] p-3 pl-4 rounded-button border text-left flex items-center gap-3 transition-colors overflow-hidden ${
-        selected
-          ? darkMode
-            ? 'bg-white/10 border-white text-white'
-            : 'bg-blue-50 border-blue-700 text-gray-950'
-          : darkMode
-            ? 'bg-white/[0.03] border-white/20 text-white hover:bg-white/[0.07] hover:border-white/45'
-            : 'bg-white border-gray-300 text-gray-950 hover:border-gray-500 hover:bg-gray-50'
-      } ${disabled ? 'opacity-35 cursor-not-allowed' : ''}`}
-    >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} aria-hidden="true" />
-      <span
-        className={`w-5 h-5 shrink-0 rounded-full border flex items-center justify-center text-[11px] font-bold ${
-          selected
-            ? darkMode
-              ? 'bg-white border-white text-black'
-              : 'bg-blue-700 border-blue-700 text-white'
-            : darkMode
-              ? 'border-white/35 text-transparent'
-              : 'border-gray-400 text-transparent'
-        }`}
-        aria-hidden="true"
-      >
-        ✓
-      </span>
-      <span className="min-w-0">
-        <span className="block font-heading font-bold text-sm leading-tight">{name}</span>
-        <span className={`block font-body text-[11px] mt-1 ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>{meta}</span>
-      </span>
-    </button>
-  );
 }
 
 export default function CharacterCreator({
@@ -133,7 +74,7 @@ export default function CharacterCreator({
     <section
       ref={sectionRef}
       aria-labelledby="character-creator-title"
-      className={`${onCancel ? 'p-5 sm:p-7' : `p-5 sm:p-7 rounded-theme shadow-theme border ${darkMode ? 'bg-black border-white/25' : 'bg-white border-gray-300'}`}`}
+      className={`${onCancel ? 'p-5 sm:p-7' : `mx-auto w-full max-w-lg p-5 sm:p-7 rounded-theme shadow-theme border ${darkMode ? 'bg-black border-white/25' : 'bg-white border-gray-300'}`}`}
     >
       <form onSubmit={handleSubmit}>
         <div className="flex items-start justify-between gap-4">
@@ -194,6 +135,7 @@ export default function CharacterCreator({
 
           <select
             data-starting-point-option
+            id="new-character-preset"
             aria-label="Starting point"
             value={selectedPreset}
             disabled={startingPointLocked}
@@ -211,7 +153,7 @@ export default function CharacterCreator({
               const definition = PRESET_DEFINITIONS.find((item) => item.name === value);
               if (definition) onChooseBuiltIn(definition);
             }}
-            className={`sm:hidden w-full h-12 px-3 mt-3 rounded-button border font-body text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            className={`w-full h-12 px-3 mt-3 rounded-button border font-body text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
               darkMode ? 'bg-black text-white border-white/30' : 'bg-white text-gray-950 border-gray-400'
             } ${startingPointLocked ? 'opacity-50' : ''}`}
           >
@@ -231,57 +173,6 @@ export default function CharacterCreator({
               </optgroup>
             )}
           </select>
-
-          <div role="radiogroup" aria-label="Starting point" className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
-            {!presetsOnly && (
-              <StartingPoint
-                name="Blank sheet"
-                meta="Start from scratch"
-                accent="#2563eb"
-                selected={selectedPreset === ''}
-                darkMode={darkMode}
-                onClick={onChooseBlank}
-              />
-            )}
-            {PRESET_DEFINITIONS.map((definition) => {
-              const stats = getPresetStats(definition.preset);
-              return (
-                <StartingPoint
-                  key={definition.id}
-                  name={definition.name}
-                  meta={`${stats.widgetCount} widgets · ${stats.sheetCount} sheet${stats.sheetCount === 1 ? '' : 's'}`}
-                  accent={definition.accent}
-                  selected={selectedPreset === definition.name}
-                  disabled={startingPointLocked}
-                  darkMode={darkMode}
-                  onClick={() => onChooseBuiltIn(definition)}
-                />
-              );
-            })}
-          </div>
-
-          {userPresets.length > 0 && (
-            <div className="hidden sm:block mt-5">
-              <p className={`font-body text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>My presets</p>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                {userPresets.map((preset) => {
-                  const stats = getPresetStats(preset.preset);
-                  return (
-                    <StartingPoint
-                      key={preset.id}
-                      name={preset.name}
-                      meta={`${stats.widgetCount} widgets · ${stats.sheetCount} sheet${stats.sheetCount === 1 ? '' : 's'}`}
-                      accent="#7c3aed"
-                      selected={selectedPreset === `user:${preset.id}`}
-                      disabled={startingPointLocked}
-                      darkMode={darkMode}
-                      onClick={() => onChooseUser(preset)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {startingPointLocked && (
             <p className={`font-body text-xs mt-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>The Quick Tour starts with a blank sheet.</p>
@@ -330,7 +221,7 @@ export default function CharacterCreator({
                 type="submit"
                 disabled={presetsOnly && !selectedPreset}
                 data-tutorial="create-button"
-                className={`w-full sm:w-auto h-11 px-6 rounded-button font-heading font-bold transition-colors ${
+                className={`w-full sm:w-auto h-11 px-6 rounded-button font-body text-sm font-semibold transition-colors ${
                   darkMode ? 'bg-white text-black hover:bg-white/85' : 'bg-blue-700 text-white hover:bg-blue-800'
                 } ${presetsOnly && !selectedPreset ? 'opacity-40' : ''} ${createHighlighted ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
               >

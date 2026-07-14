@@ -1693,7 +1693,7 @@ export default function CharacterList() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="character-creator-title"
-            className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-1.5rem)] sm:w-[calc(100%-4rem)] max-w-4xl max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-theme shadow-xl animate-fade-in ${
+            className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-1.5rem)] sm:w-[calc(100%-4rem)] max-w-lg max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-theme shadow-xl animate-fade-in ${
               darkMode ? 'bg-black border border-white/30' : 'bg-white border border-gray-300'
             }`}
           >
