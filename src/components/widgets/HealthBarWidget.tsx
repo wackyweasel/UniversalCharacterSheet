@@ -176,7 +176,7 @@ export default function HealthBarWidget({ widget, mode, showMaxControl = true, i
   const hasCurrentFormula = !!fieldFormulas?.currentValue;
   const hasMaxFormula = !!fieldFormulas?.maxValue;
   const controlsVisible = interactive && !isPrintMode;
-  const maxControlVisible = showMaxControl && controlsVisible;
+  const maxControlVisible = showMaxControl && widget.data.showMaxControl !== false && controlsVisible;
   const safeMaxValue = Math.max(1, maxValue);
   const displayedValue = scrubValue ?? currentValue;
 

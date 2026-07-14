@@ -17,7 +17,7 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, items = [], itemCount = 5 } = widget.data;
   const isPrintMode = mode === 'print';
-  const controlsVisible = showFieldControls && !isPrintMode;
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 

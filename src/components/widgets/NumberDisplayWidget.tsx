@@ -21,7 +21,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const controlsVisible = showFieldControls && !isPrintMode;
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);

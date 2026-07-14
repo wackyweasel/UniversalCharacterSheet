@@ -134,7 +134,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
   const { label, checkboxItems = [], checklistSettings } = widget.data;
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  const controlsVisible = showFieldControls && interactive && mode !== 'print';
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const itemsInteractive = interactive && mode !== 'print';
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
 

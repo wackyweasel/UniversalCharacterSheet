@@ -19,7 +19,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
   const { label, formItems = [], labelWidth = 33 } = widget.data;
-  const controlsVisible = showFieldControls && !isPrintMode;
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());

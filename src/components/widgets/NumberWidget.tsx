@@ -22,7 +22,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const isPrintMode = mode === 'print';
   const { label, numberItems = [], printSettings } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
-  const controlsVisible = showFieldControls && !isPrintMode;
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);

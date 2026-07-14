@@ -174,6 +174,8 @@ export interface InitiativeParticipant {
 export interface WidgetData {
   label?: string;
   value?: number;
+  showFieldControls?: boolean;
+  showMaxControl?: boolean;
   items?: string[];
   itemCount?: number;
   text?: string;

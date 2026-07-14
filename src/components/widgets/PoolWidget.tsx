@@ -235,7 +235,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     inlineLabels = false,
     poolTooltip,
   } = widget.data;
-  const controlsVisible = showFieldControls && interactive && mode !== 'print';
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const resourceInteractive = interactive && mode !== 'print';
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);

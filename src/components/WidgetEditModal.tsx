@@ -62,6 +62,18 @@ interface Props {
   onClose: () => void;
 }
 
+const FIELD_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
+  'FORM',
+  'LIST',
+  'CHECKBOX',
+  'NUMBER',
+  'NUMBER_DISPLAY',
+  'POOL',
+  'TOGGLE_GROUP',
+]);
+
+const MAX_CONTROL_WIDGET_TYPES = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
+
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
     'NUMBER': 'Number Tracker',
@@ -146,6 +158,38 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
       default: return null;
     }
+  };
+
+  const renderControlVisibilitySetting = () => {
+    if (FIELD_CONTROL_WIDGET_TYPES.has(widget.type)) {
+      return (
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+          <input
+            type="checkbox"
+            checked={localData.showFieldControls !== false}
+            onChange={(event) => handleUpdateData({ showFieldControls: event.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Show add/remove buttons
+        </label>
+      );
+    }
+
+    if (MAX_CONTROL_WIDGET_TYPES.has(widget.type)) {
+      return (
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+          <input
+            type="checkbox"
+            checked={localData.showMaxControl !== false}
+            onChange={(event) => handleUpdateData({ showMaxControl: event.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Show maximum value button
+        </label>
+      );
+    }
+
+    return null;
   };
 
   // Get actual widget dimensions for preview
@@ -240,6 +284,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
               {renderEditor()}
+              {renderControlVisibilitySetting()}
             </div>
 
             {/* Preview Section */}

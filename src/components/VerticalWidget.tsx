@@ -83,8 +83,12 @@ export default function VerticalWidget({
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
-  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type);
   const hasWideHeaderControls = WIDGETS_WITH_WIDE_HEADER_CONTROLS.has(widget.type);
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && (
+    hasWideHeaderControls
+      ? widget.data.showMaxControl !== false
+      : widget.data.showFieldControls !== false
+  );
 
   // Touch drag state
   const [touchStartY, setTouchStartY] = useState<number | null>(null);

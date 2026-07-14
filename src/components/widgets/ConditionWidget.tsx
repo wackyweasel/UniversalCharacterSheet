@@ -133,7 +133,7 @@ export default function ConditionWidget({ widget, mode, showFieldControls = true
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, toggleItems = [] } = widget.data;
   const items = toggleItems as ToggleItem[];
-  const controlsVisible = showFieldControls && interactive && mode !== 'print';
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const itemsInteractive = interactive && mode !== 'print';
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
