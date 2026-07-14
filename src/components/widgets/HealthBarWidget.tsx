@@ -324,6 +324,7 @@ export default function HealthBarWidget({ widget, mode, showMaxControl = true, i
         <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Click or drag to set health'}>
           <div
             className={`health-bar__track ${hasCurrentFormula ? 'health-bar__track--disabled' : ''}`}
+            data-touch-camera-ignore={controlsVisible && !hasCurrentFormula ? 'true' : undefined}
             role={controlsVisible && !hasCurrentFormula ? 'slider' : 'progressbar'}
             tabIndex={controlsVisible && !hasCurrentFormula ? 0 : undefined}
             aria-label={label || 'Health'}

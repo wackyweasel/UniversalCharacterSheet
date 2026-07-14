@@ -215,6 +215,7 @@ export default function ProgressBarWidget({ widget, mode, showMaxControl = true,
         <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Click or drag to set progress'}>
           <div
             className={`progress-bar__track ${hasCurrentFormula ? 'progress-bar__track--disabled' : ''}`}
+            data-touch-camera-ignore={controlsVisible && !hasCurrentFormula ? 'true' : undefined}
             role={controlsVisible && !hasCurrentFormula ? 'slider' : 'progressbar'}
             tabIndex={controlsVisible && !hasCurrentFormula ? 0 : undefined}
             aria-label={label || 'Progress'}

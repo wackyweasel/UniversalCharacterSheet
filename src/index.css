@@ -645,10 +645,10 @@
   }
 }
 
-/* During pinch-to-zoom, disable touch events on widgets to prevent interference */
-.pinch-active .react-draggable {
-  pointer-events: none !important;
-  touch-action: none !important;
+/* The canvas owns touch gestures; scrollable widget regions are moved by useTouchCamera. */
+.canvas-touch-surface,
+.canvas-touch-surface * {
+  touch-action: none;
 }
 
 /* Vertical mode styles */

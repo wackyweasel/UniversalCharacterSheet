@@ -47,6 +47,7 @@ export function useTouchCamera({
   const touchStartedOnScrollable = useRef(false);
   const pinchSessionActive = useRef(false);
   const activeTouchPointers = useRef<Map<number, { target: Element | null; x: number; y: number }>>(new Map());
+  const managedScroll = useRef<{ element: HTMLElement; lastX: number; lastY: number } | null>(null);
   
   // Refs to avoid stale closures in global touch handlers
   const modeRef = useRef(mode);
@@ -88,6 +89,7 @@ export function useTouchCamera({
     const activatePinchSession = () => {
       isTouchPanning.current = false;
       touchStartedOnScrollable.current = false;
+      managedScroll.current = null;
       if (!pinchSessionActive.current) {
         pinchSessionActive.current = true;
         window.dispatchEvent(new CustomEvent(TOUCH_CAMERA_PINCH_START_EVENT));
@@ -132,6 +134,31 @@ export function useTouchCamera({
       };
     };
 
+    const updateCameraForPinch = (newDistance: number, newCenter: { x: number; y: number }) => {
+      if (isViewLockedRef.current?.()) return;
+      if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
+        lastTouchDistance.current = newDistance;
+        lastTouchCenter.current = newCenter;
+        return;
+      }
+
+      const currentScale = getScale();
+      const currentPan = getPan();
+      const zoomFactor = newDistance / lastTouchDistance.current;
+      const newScale = Math.min(Math.max(currentScale * zoomFactor, minScale), maxScale);
+      const canvasX = (lastTouchCenter.current.x - currentPan.x) / currentScale;
+      const canvasY = (lastTouchCenter.current.y - currentPan.y) / currentScale;
+
+      onScaleChange(newScale);
+      onPanChange(() => ({
+        x: newCenter.x - canvasX * newScale,
+        y: newCenter.y - canvasY * newScale,
+      }));
+
+      lastTouchDistance.current = newDistance;
+      lastTouchCenter.current = newCenter;
+    };
+
     const handlePointerDown = (event: PointerEvent) => {
       if (event.pointerType !== 'touch' || !event.isTrusted) return;
       activeTouchPointers.current.set(event.pointerId, {
@@ -155,7 +182,29 @@ export function useTouchCamera({
         pointer.x = event.clientX;
         pointer.y = event.clientY;
       }
-      if (pinchSessionActive.current) stopWidgetPointerHandling(event);
+      if (pinchSessionActive.current) {
+        const pointers = Array.from(activeTouchPointers.current.values());
+        if (pointers.length >= 2) {
+          updateCameraForPinch(
+            Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y),
+            {
+              x: (pointers[0].x + pointers[1].x) / 2,
+              y: (pointers[0].y + pointers[1].y) / 2,
+            },
+          );
+        }
+        stopWidgetPointerHandling(event);
+        return;
+      }
+
+      if (activeTouchPointers.current.size === 1 && managedScroll.current) {
+        const scrollState = managedScroll.current;
+        scrollState.element.scrollLeft -= event.clientX - scrollState.lastX;
+        scrollState.element.scrollTop -= event.clientY - scrollState.lastY;
+        scrollState.lastX = event.clientX;
+        scrollState.lastY = event.clientY;
+        stopWidgetPointerHandling(event);
+      }
     };
 
     const handlePointerEnd = (event: PointerEvent) => {
@@ -164,8 +213,8 @@ export function useTouchCamera({
       if (pinchSessionActive.current) stopWidgetPointerHandling(event, false);
     };
 
-    // Check if an element or its ancestors have scrollable overflow
-    const isScrollableElement = (el: Element | null): boolean => {
+    // Find the nearest scroll owner so canvas scrolling can remain available with touch-action disabled.
+    const findScrollableElement = (el: Element | null): HTMLElement | null => {
       while (el && el !== document.body) {
         const style = window.getComputedStyle(el);
         const overflowY = style.overflowY;
@@ -174,7 +223,24 @@ export function useTouchCamera({
                             overflowX === 'auto' || overflowX === 'scroll';
         if (isScrollable) {
           const hasScrollableContent = el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
-          if (hasScrollableContent) return true;
+          if (hasScrollableContent && el instanceof HTMLElement) return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const isOnDedicatedTouchGesture = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        if (
+          el.tagName === 'CANVAS' ||
+          el.classList.contains('touch-none') ||
+          el.classList.contains('drag-handle') ||
+          el.classList.contains('vertical-drag-handle') ||
+          el.classList.contains('print-area-overlay') ||
+          (el as HTMLElement).dataset?.touchCameraIgnore === 'true'
+        ) {
+          return true;
         }
         el = el.parentElement;
       }
@@ -276,7 +342,19 @@ export function useTouchCamera({
       }
       
       if (e.touches.length === 1) {
-        touchStartedOnScrollable.current = isScrollableElement(touchStartTarget);
+        const scrollableElement = findScrollableElement(touchStartTarget);
+        touchStartedOnScrollable.current = !!scrollableElement;
+        const touch = activeTouches.current.values().next().value;
+        const isOnCanvasTouchSurface = !!touchStartTarget?.closest('.canvas-touch-surface');
+        if (scrollableElement && touch && isOnCanvasTouchSurface && !isOnDedicatedTouchGesture(touchStartTarget)) {
+          managedScroll.current = {
+            element: scrollableElement,
+            lastX: touch.x,
+            lastY: touch.y,
+          };
+        } else {
+          managedScroll.current = null;
+        }
       }
       
       if (activeTouches.current.size === 1) {
@@ -315,7 +393,8 @@ export function useTouchCamera({
         if (!pinchSessionActive.current) {
           activatePinchSession();
         }
-        if (isViewLockedRef.current?.()) {
+        // Pointer Events own the gesture when available; this path is a compatibility fallback.
+        if (activeTouchPointers.current.size >= 2) {
           return;
         }
         const touches = Array.from(activeTouches.current.values());
@@ -326,36 +405,23 @@ export function useTouchCamera({
           x: (touches[0].x + touches[1].x) / 2,
           y: (touches[0].y + touches[1].y) / 2
         };
-        
-        if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
-          lastTouchDistance.current = newDistance;
-          lastTouchCenter.current = newCenter;
-          isTouchPanning.current = false;
-          return;
-        }
-        
-        const currentScale = getScale();
-        const currentPan = getPan();
-        
-        // Calculate zoom
-        const zoomFactor = newDistance / lastTouchDistance.current;
-        const newScale = Math.min(Math.max(currentScale * zoomFactor, minScale), maxScale);
-        
-        // Keep the canvas point under the previous center beneath the moving pinch center.
-        const canvasX = (lastTouchCenter.current.x - currentPan.x) / currentScale;
-        const canvasY = (lastTouchCenter.current.y - currentPan.y) / currentScale;
-        const newPanX = newCenter.x - canvasX * newScale;
-        const newPanY = newCenter.y - canvasY * newScale;
-        
-        onScaleChange(newScale);
-        onPanChange(() => ({ x: newPanX, y: newPanY }));
-        
-        lastTouchDistance.current = newDistance;
-        lastTouchCenter.current = newCenter;
+        updateCameraForPinch(newDistance, newCenter);
       }
       // Keep the remaining finger from falling back to a widget gesture.
       else if (pinchSessionActive.current) {
         stopWidgetTouchHandling(e);
+      }
+      // Canvas descendants cannot use native scrolling because the camera owns touch-action.
+      else if (touchCount === 1 && activeTouchPointers.current.size === 0 && managedScroll.current) {
+        const touch = activeTouches.current.values().next().value;
+        if (touch) {
+          e.preventDefault();
+          const scrollState = managedScroll.current;
+          scrollState.element.scrollLeft -= touch.x - scrollState.lastX;
+          scrollState.element.scrollTop -= touch.y - scrollState.lastY;
+          scrollState.lastX = touch.x;
+          scrollState.lastY = touch.y;
+        }
       }
       // Single finger pan
       else if (touchCount === 1 && isTouchPanning.current && lastTouchCenter.current) {
@@ -381,6 +447,7 @@ export function useTouchCamera({
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
+        managedScroll.current = null;
         touchStartTargets.current.clear();
         activeTouchPointers.current.clear();
         onPinchingChange(false);
