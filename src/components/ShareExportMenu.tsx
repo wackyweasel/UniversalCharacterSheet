@@ -5,6 +5,7 @@ import { submitToGallery } from '../hooks/useGallery';
 import { stripImages } from '../utils/stripImages';
 import GalleryShareModal from './GalleryShareModal';
 import { MenuIcon } from './icons';
+import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
 
 interface ShareExportMenuProps {
   character: Character;
@@ -67,6 +68,8 @@ export default function ShareExportMenu({
   onCollapseAll,
 }: ShareExportMenuProps) {
   const addPreset = useUserPresetStore((state) => state.addPreset);
+  const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
+  const setThreeDDiceEnabled = useDiceSettingsStore((state) => state.setThreeDDiceEnabled);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
   const [includeTheme, setIncludeTheme] = useState(true);
@@ -169,6 +172,27 @@ export default function ShareExportMenu({
                   Timeline
                 </button>
               )}
+            </div>
+            <div className="px-3 py-2.5 border-b border-theme-border/50">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>
+                  <span className="block text-[11px] font-body text-theme-muted mt-0.5">Physics simulation for supported dice</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={threeDDiceEnabled}
+                  aria-label="Enable 3D dice"
+                  onClick={() => setThreeDDiceEnabled(!threeDDiceEnabled)}
+                  className={`relative w-11 h-6 flex-shrink-0 rounded-full border border-theme-border transition-colors ${threeDDiceEnabled ? 'bg-theme-accent' : 'bg-theme-background'}`}
+                >
+                  <span
+                    className={`absolute left-0 top-0.5 w-4 h-4 rounded-full bg-white border border-black/25 shadow-sm transition-transform ${threeDDiceEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`}
+                  />
+                  <span className="sr-only">{threeDDiceEnabled ? 'On' : 'Off'}</span>
+                </button>
+              </div>
             </div>
             {workspace === 'build' && (onAddWidget || onChangeTheme || onAutoStack) && (
               <div className="py-1 border-b border-theme-border/50">

@@ -4,6 +4,11 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { ChevronDownIcon, ChevronUpIcon } from '../icons';
+import {
+  isPhysicalDieSupported,
+  rollPhysicalDice,
+  type PhysicalDieRequest,
+} from '../DicePhysicsOverlay';
 
 interface Props {
   widget: Widget;
@@ -78,6 +83,59 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
       return Array.from(segmenter.segment(str), (s: any) => s.segment);
     }
     return [...str];
+  };
+
+  const truncateGraphemes = (value: string, maximum: number): string => {
+    const graphemes = splitIntoGraphemes(value.trim());
+    if (graphemes.length <= maximum) return graphemes.join('');
+    return `${graphemes.slice(0, Math.max(1, maximum - 1)).join('')}…`;
+  };
+
+  const balanceLabelLines = (value: string): string => {
+    const graphemes = splitIntoGraphemes(value.trim());
+    if (graphemes.length <= 4) return graphemes.join('');
+
+    const lineCount = graphemes.length <= 16 ? 2 : 3;
+    const maximumLength = lineCount === 2 ? 16 : 30;
+    const visible = graphemes.length > maximumLength
+      ? [...graphemes.slice(0, maximumLength - 1), '…']
+      : graphemes;
+    const lineLength = Math.ceil(visible.length / lineCount);
+    const lines: string[] = [];
+
+    for (let index = 0; index < visible.length; index += lineLength) {
+      lines.push(visible.slice(index, index + lineLength).join(''));
+    }
+
+    return lines.join('\n');
+  };
+
+  const formatPhysicalFaceLabel = (face: string): string => {
+    const value = face.trim();
+    if (!value) return '';
+
+    const graphemes = splitIntoGraphemes(value);
+    if (graphemes.length === 1) return value;
+
+    const parts = value.split(',').map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const groupedParts = Array.from(parts.reduce((counts, part) => {
+        counts.set(part, (counts.get(part) ?? 0) + 1);
+        return counts;
+      }, new Map<string, number>())).map(([part, count]) => (
+        count === 2
+          ? `${truncateGraphemes(part, 4)}${truncateGraphemes(part, 4)}`
+          : count >= 3
+            ? `${truncateGraphemes(part, 7)}×${count}`
+            : truncateGraphemes(part, 9)
+      ));
+      const visibleParts = groupedParts.slice(0, 3);
+      if (groupedParts.length > 3) visibleParts[2] = `+${groupedParts.length - 2}`;
+      return visibleParts.join('\n');
+    }
+
+    const repeatedSymbol = graphemes.length <= 3 && graphemes.every((grapheme) => grapheme === graphemes[0]);
+    return repeatedSymbol ? value : balanceLabelLines(value);
   };
 
   // Check if a string is made up of repeated identical graphemes
@@ -165,132 +223,144 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
     setResult(null);
   };
 
-  const rollDice = () => {
-    if (dicePool.length === 0) return;
-    
-    setIsRolling(true);
-    
-    setTimeout(() => {
-      const rolls: RollResultItem[] = [];
-      const allRolls: (number | string)[] = [];
-      
-      for (const die of dicePool) {
-        if (Array.isArray(die.faces)) {
-          // Custom die - roll from faces array
-          const faceIndex = Math.floor(Math.random() * die.faces.length);
-          const roll = die.faces[faceIndex];
-          rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
-          allRolls.push(roll);
-        } else {
-          // Standard die - roll 1 to faces
-          const roll = Math.floor(Math.random() * die.faces) + 1;
-          rolls.push({ faces: die.faces, roll, id: die.id });
-          allRolls.push(roll);
-        }
+  const rollPool = async (pool: DiceInPool[]) => {
+    const physicalDice: PhysicalDieRequest[] = pool.flatMap((die) => {
+      if (!Array.isArray(die.faces) && die.faces === 100) {
+        return [{ faces: 10 }, { faces: 100, notation: 'd100' }];
       }
-      
-      const aggregated = aggregateResults(allRolls);
-      const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-      
-      setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
-      setIsRolling(false);
-      setLastRolledPool([...dicePool]);
-      setDicePool([]);
-      setNextId(1);
 
-      // Timeline event
-      const desc = total !== null ? `Rolled ${buildPoolNotation()} = ${total}` : `Rolled ${buildPoolNotation()}`;
-      addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
-    }, 300);
+      const faces = Array.isArray(die.faces) ? die.faces.length : die.faces;
+      if (!isPhysicalDieSupported(faces)) return [];
+
+      return [{
+        faces,
+        labels: Array.isArray(die.faces)
+          ? die.faces.map(formatPhysicalFaceLabel)
+          : undefined,
+      }];
+    });
+
+    const physicalValues = physicalDice.length > 0
+      ? await rollPhysicalDice(physicalDice)
+      : await new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 300));
+
+    let physicalValueIndex = 0;
+    const rolls: RollResultItem[] = [];
+    const allRolls: (number | string)[] = [];
+
+    for (const die of pool) {
+      const faceCount = Array.isArray(die.faces) ? die.faces.length : die.faces;
+      const isPercentileDie = !Array.isArray(die.faces) && die.faces === 100;
+      const usesPhysicalDie = isPercentileDie || isPhysicalDieSupported(faceCount);
+      let physicalValue: number | undefined;
+
+      if (isPercentileDie) {
+        const units = physicalValues?.[physicalValueIndex];
+        const tens = physicalValues?.[physicalValueIndex + 1];
+        if (units !== undefined && tens !== undefined) {
+          physicalValue = (tens % 100) + (units % 10) || 100;
+        }
+        physicalValueIndex += 2;
+      } else if (usesPhysicalDie) {
+        physicalValue = physicalValues?.[physicalValueIndex];
+        physicalValueIndex += 1;
+      }
+
+      const faceIndex = physicalValue !== undefined
+        ? physicalValue - 1
+        : Math.floor(Math.random() * faceCount);
+      const roll = Array.isArray(die.faces)
+        ? (die.faces[faceIndex] ?? '')
+        : faceIndex + 1;
+
+      rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
+      allRolls.push(roll);
+    }
+
+    return { rolls, allRolls };
   };
 
-  const rerollDice = () => {
-    if (lastRolledPool.length === 0 || isRolling) return;
-    setDicePool([...lastRolledPool]);
-    // Use setTimeout to ensure state is updated before rolling
-    setTimeout(() => {
-      setIsRolling(true);
-      setTimeout(() => {
-        const rolls: RollResultItem[] = [];
-        const allRolls: (number | string)[] = [];
-        
-        for (const die of lastRolledPool) {
-          if (Array.isArray(die.faces)) {
-            const faceIndex = Math.floor(Math.random() * die.faces.length);
-            const roll = die.faces[faceIndex];
-            rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
-            allRolls.push(roll);
-          } else {
-            const roll = Math.floor(Math.random() * die.faces) + 1;
-            rolls.push({ faces: die.faces, roll, id: die.id });
-            allRolls.push(roll);
-          }
-        }
-        
-        const aggregated = aggregateResults(allRolls);
-        const numericResult = aggregated.find(r => r.isNumeric);
-        const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-        
-        setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
-        setIsRolling(false);
-        setDicePool([]);
+  const rollDice = async () => {
+    if (dicePool.length === 0 || isRolling) return;
 
-        // Timeline event
-        const rerollNotation = buildPoolNotation(lastRolledPool, modifier);
-        const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
-        addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
-      }, 300);
-    }, 0);
+    const pool = [...dicePool];
+    setIsRolling(true);
+    const { rolls, allRolls } = await rollPool(pool);
+
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
+
+    setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
+    setIsRolling(false);
+    setLastRolledPool(pool);
+    setDicePool([]);
+    setNextId(1);
+
+    const notation = buildPoolNotation(pool, modifier);
+    const desc = total !== null ? `Rolled ${notation} = ${total}` : `Rolled ${notation}`;
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
+  };
+
+  const rerollDice = async () => {
+    if (lastRolledPool.length === 0 || isRolling) return;
+
+    const pool = [...lastRolledPool];
+    setDicePool(pool);
+    setIsRolling(true);
+    const { rolls, allRolls } = await rollPool(pool);
+
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
+
+    setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
+    setIsRolling(false);
+    setDicePool([]);
+
+    const rerollNotation = buildPoolNotation(pool, modifier);
+    const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
   };
 
   // Re-roll a single die by its index in the result
-  const rerollSingleDie = (dieIndex: number) => {
+  const rerollSingleDie = async (dieIndex: number) => {
     if (!result || isRolling || rerollingDieId !== null) return;
     
     const dieToReroll = result.dice[dieIndex];
     setRerollingDieId(dieToReroll.id);
-    
-    setTimeout(() => {
-      let newRoll: number | string;
-      
-      if (Array.isArray(dieToReroll.faces)) {
-        // Custom die
-        const faceIndex = Math.floor(Math.random() * dieToReroll.faces.length);
-        newRoll = dieToReroll.faces[faceIndex];
-      } else {
-        // Standard die
-        newRoll = Math.floor(Math.random() * dieToReroll.faces) + 1;
-      }
-      
-      // Update the result with the new roll
-      const newDice = result.dice.map((d, i) => 
-        i === dieIndex ? { ...d, roll: newRoll } : d
-      );
-      
-      const allRolls = newDice.map(d => d.roll);
-      const aggregated = aggregateResults(allRolls);
-      const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
-      
-      setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
-      
-      // Timeline event for single die reroll
-      const dieFacesLabel = Array.isArray(dieToReroll.faces)
-        ? (dieToReroll.customDieName || 'custom')
-        : `d${dieToReroll.faces}`;
-      const desc = total !== null
-        ? `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll} (total: ${total})`
-        : `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll}`;
-      addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '\ud83c\udfb2');
 
-      // Also update lastRolledPool to reflect the new die configuration
-      setLastRolledPool(prev => prev.map((d, i) => 
-        i === dieIndex ? { ...d } : d
-      ));
-      
-      setRerollingDieId(null);
-    }, 200);
+    const { rolls } = await rollPool([{
+      faces: dieToReroll.faces,
+      id: dieToReroll.id,
+      customDieName: dieToReroll.customDieName,
+    }]);
+    const newRoll = rolls[0].roll;
+
+    const newDice = result.dice.map((die, index) =>
+      index === dieIndex ? { ...die, roll: newRoll } : die
+    );
+
+    const allRolls = newDice.map(die => die.roll);
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
+
+    setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
+
+    const dieFacesLabel = Array.isArray(dieToReroll.faces)
+      ? (dieToReroll.customDieName || 'custom')
+      : `d${dieToReroll.faces}`;
+    const desc = total !== null
+      ? `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll} (total: ${total})`
+      : `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll}`;
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '\ud83c\udfb2');
+
+    setLastRolledPool(prev => prev.map((die, index) =>
+      index === dieIndex ? { ...die } : die
+    ));
+
+    setRerollingDieId(null);
   };
 
   // Group dice in pool by type for display

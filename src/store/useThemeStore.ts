@@ -211,6 +211,10 @@ export interface Theme {
   shadowStyle: string;
   cardTexture: string;
   textureOpacity?: number;
+  diceColor?: string;
+  diceTextColor?: string;
+  diceTexture?: string;
+  diceTextureOpacity?: number;
   borderStyle: string;
 }
 
@@ -608,6 +612,10 @@ export function applyTheme(themeId: ThemeId | string) {
   root.style.setProperty('--card-texture-key', textureKey);
   root.style.setProperty('--card-texture-color', '#ffffff');
   root.style.setProperty('--card-texture-opacity', String(theme.textureOpacity ?? 0.15));
+  root.style.setProperty('--dice-color', theme.diceColor || theme.colors.paper);
+  root.style.setProperty('--dice-text-color', theme.diceTextColor || theme.colors.ink);
+  root.style.setProperty('--dice-texture-key', theme.diceTexture || 'none');
+  root.style.setProperty('--dice-texture-opacity', String(theme.diceTextureOpacity ?? 0.25));
   root.style.setProperty('--border-style', theme.borderStyle);
 }
 
@@ -636,6 +644,10 @@ export function applyCustomTheme(theme: {
   textureColor?: string;
   borderStyle?: string;
   textureOpacity?: number;
+  diceColor?: string;
+  diceTextColor?: string;
+  diceTexture?: string;
+  diceTextureOpacity?: number;
 }) {
   const root = document.documentElement;
   
@@ -669,6 +681,10 @@ export function applyCustomTheme(theme: {
   // Store texture metadata for components that render image texture overlays
   root.style.setProperty('--card-texture-color', theme.textureColor || '#ffffff');
   root.style.setProperty('--card-texture-opacity', String(theme.textureOpacity ?? 0.15));
+  root.style.setProperty('--dice-color', theme.diceColor || theme.colors.paper);
+  root.style.setProperty('--dice-text-color', theme.diceTextColor || theme.colors.ink);
+  root.style.setProperty('--dice-texture-key', theme.diceTexture || 'none');
+  root.style.setProperty('--dice-texture-opacity', String(theme.diceTextureOpacity ?? 0.25));
   
   root.style.setProperty('--border-style', theme.borderStyle || 'solid');
 }

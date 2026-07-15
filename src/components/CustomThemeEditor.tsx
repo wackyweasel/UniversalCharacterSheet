@@ -44,6 +44,10 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [cardTexture, setCardTexture] = useState(theme?.cardTexture || defaultTheme.cardTexture);
   const textureColor = '#ffffff'; // Fixed white texture color
   const [textureOpacity, setTextureOpacity] = useState(theme?.textureOpacity ?? defaultTheme.textureOpacity);
+  const [diceColor, setDiceColor] = useState(theme?.diceColor || theme?.colors.paper || defaultTheme.diceColor || '#ffffff');
+  const [diceTextColor, setDiceTextColor] = useState(theme?.diceTextColor || theme?.colors.ink || defaultTheme.diceTextColor || '#000000');
+  const [diceTexture, setDiceTexture] = useState(theme?.diceTexture || defaultTheme.diceTexture || 'none');
+  const [diceTextureOpacity, setDiceTextureOpacity] = useState(theme?.diceTextureOpacity ?? defaultTheme.diceTextureOpacity ?? 0.25);
   const [borderStyle, setBorderStyle] = useState(theme?.borderStyle || defaultTheme.borderStyle);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [hoveredColor, setHoveredColor] = useState<ColorKey | null>(null);
@@ -70,6 +74,10 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
       cardTexture,
       textureColor: '#ffffff',
       textureOpacity,
+      diceColor,
+      diceTextColor,
+      diceTexture,
+      diceTextureOpacity,
       borderStyle,
     };
     onSave(newTheme);
@@ -164,31 +172,56 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
         >
           {description}
         </p>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            className="px-3 py-1.5 text-xs font-bold transition-colors relative"
-            style={{ 
-              backgroundColor: colors.accent,
-              color: colors.paper,
-              borderRadius: buttonRadius,
-              fontFamily: headingFont,
-              ...getHighlightStyle(['accent']),
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              className="px-3 py-1.5 text-xs font-bold transition-colors relative"
+              style={{ 
+                backgroundColor: colors.accent,
+                color: colors.paper,
+                borderRadius: buttonRadius,
+                fontFamily: headingFont,
+                ...getHighlightStyle(['accent']),
+              }}
+            >
+              Primary
+            </button>
+            <button
+              className="px-3 py-1.5 text-xs font-bold transition-colors relative"
+              style={{ 
+                backgroundColor: colors.accentHover,
+                color: colors.paper,
+                borderRadius: buttonRadius,
+                fontFamily: headingFont,
+                ...getHighlightStyle(['accentHover']),
+              }}
+            >
+              Hover
+            </button>
+          </div>
+          <div
+            className="relative w-12 h-12 flex-shrink-0 overflow-hidden flex items-center justify-center"
+            style={{
+              backgroundColor: diceColor,
+              color: diceTextColor,
+              clipPath: 'polygon(50% 0, 94% 24%, 94% 76%, 50% 100%, 6% 76%, 6% 24%)',
+              filter: 'drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))',
             }}
+            aria-label="Dice appearance preview"
           >
-            Primary
-          </button>
-          <button
-            className="px-3 py-1.5 text-xs font-bold transition-colors relative"
-            style={{ 
-              backgroundColor: colors.accentHover,
-              color: colors.paper,
-              borderRadius: buttonRadius,
-              fontFamily: headingFont,
-              ...getHighlightStyle(['accentHover']),
-            }}
-          >
-            Hover
-          </button>
+            {isImageTexture(diceTexture) && (
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                  backgroundImage: `url(${IMAGE_TEXTURES[diceTexture]})`,
+                  backgroundSize: '500%',
+                  backgroundPosition: 'center',
+                  opacity: diceTextureOpacity,
+                }}
+              />
+            )}
+            <span className="relative text-sm font-bold" style={{ fontFamily: headingFont }}>20</span>
+          </div>
         </div>
       </div>
     </div>
@@ -457,6 +490,61 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onChange={(e) => setTextureOpacity(parseFloat(e.target.value))}
                     className="w-full h-2 bg-theme-border rounded-theme appearance-none cursor-pointer"
                     disabled={cardTexture === 'none'}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-[11px] font-bold text-theme-ink mb-2 pb-1.5 border-b border-theme-border uppercase tracking-wider font-heading">Dice</h3>
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+                <div>
+                  <label htmlFor="theme-dice-color" className="block text-xs font-bold text-theme-muted mb-1 font-body">Dice Color</label>
+                  <input
+                    id="theme-dice-color"
+                    type="color"
+                    value={diceColor}
+                    onChange={(e) => setDiceColor(e.target.value)}
+                    className="w-full h-[38px] border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="theme-dice-text-color" className="block text-xs font-bold text-theme-muted mb-1 font-body">Face Text</label>
+                  <input
+                    id="theme-dice-text-color"
+                    type="color"
+                    value={diceTextColor}
+                    onChange={(e) => setDiceTextColor(e.target.value)}
+                    className="w-full h-[38px] border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label htmlFor="theme-dice-texture" className="block text-xs font-bold text-theme-muted mb-1 font-body">Dice Texture</label>
+                  <select
+                    id="theme-dice-texture"
+                    value={diceTexture}
+                    onChange={(e) => setDiceTexture(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {TEXTURE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2 xl:col-span-4">
+                  <label htmlFor="theme-dice-texture-opacity" className="block text-xs font-bold text-theme-muted mb-1 font-body">
+                    Dice Texture Opacity: {Math.round(diceTextureOpacity * 100)}%
+                  </label>
+                  <input
+                    id="theme-dice-texture-opacity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={diceTextureOpacity}
+                    onChange={(e) => setDiceTextureOpacity(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-theme-border rounded-theme appearance-none cursor-pointer"
+                    disabled={diceTexture === 'none'}
                   />
                 </div>
               </div>

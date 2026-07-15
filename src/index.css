@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+.dice-physics-overlay {
+  background: color-mix(in srgb, var(--color-background) 12%, transparent);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 160ms ease-out;
+  visibility: hidden;
+  z-index: 10000;
+}
+
+.dice-physics-overlay--active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.dice-physics-stage,
+.dice-physics-stage canvas {
+  display: block;
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.dice-physics-table-edge {
+  border: 1px solid color-mix(in srgb, var(--color-ink) 22%, transparent);
+  box-shadow: inset 0 0 56px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+  inset: 0;
+  position: absolute;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-physics-overlay {
+    transition: none;
+  }
+}
+
 :root {
   --color-background: #e5e7eb;
   --color-paper: #ffffff;
