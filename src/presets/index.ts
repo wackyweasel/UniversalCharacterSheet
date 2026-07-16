@@ -56,7 +56,7 @@ export const PRESET_DEFINITIONS: PresetDefinition[] = [
   },
   {
     id: 'dcc-level-0',
-    name: 'Dungeon Crawl Classics - Level 0',
+    name: 'Dungeon Crawl Classics',
     accent: '#92400e',
     preset: DCCLvl0Preset as CharacterPreset,
   },
