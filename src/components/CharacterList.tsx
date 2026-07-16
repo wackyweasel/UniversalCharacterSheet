@@ -11,7 +11,7 @@ import GallerySidebar from './GallerySidebar';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { GripVerticalIcon } from './icons';
+import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon } from './icons';
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
@@ -70,6 +70,7 @@ function getThemeStyles(themeId?: string) {
       '--card-texture-key': textureKey,
       '--card-texture-color': customTheme.textureColor || '#ffffff',
       '--card-texture-opacity': String(customTheme.textureOpacity ?? 0.15),
+      '--card-font-heading': customTheme.fonts.heading,
       fontFamily: customTheme.fonts.body,
     } as React.CSSProperties;
   }
@@ -92,6 +93,7 @@ function getThemeStyles(themeId?: string) {
     '--card-texture-key': 'none',
     '--card-texture-color': '#ffffff',
     '--card-texture-opacity': '0.15',
+    '--card-font-heading': theme.fonts.heading,
     fontFamily: theme.fonts.body,
   } as React.CSSProperties;
 }
@@ -1349,6 +1351,7 @@ export default function CharacterList() {
           const customTheme = char.theme ? getCustomTheme(char.theme) : undefined;
           const textureKey = customTheme?.cardTexture || 'none';
           const hasImageTexture = isImageTexture(textureKey);
+          const widgetCount = char.sheets.reduce((sum, s) => sum + s.widgets.length, 0);
           return (
             <div 
               key={char.id}
@@ -1358,7 +1361,7 @@ export default function CharacterList() {
               }}
               data-character-id={char.id}
               style={cardStyles}
-              className={`character-sort-card p-4 relative group ${openDropdown === char.id ? 'z-40' : ''}`}
+              className={`character-sort-card p-3 pl-4 relative group ${openDropdown === char.id ? 'z-40' : ''}`}
               tabIndex={0}
               onClick={(event) => {
                 if (suppressCharacterClickRef.current === char.id) {
@@ -1410,60 +1413,47 @@ export default function CharacterList() {
                     />
                   </div>
                 )}
+                {/* Soft accent wash + accent spine for theme identity */}
+                <div className="character-card-wash" />
+                <div className="character-card-spine" />
               </div>
-              <button
-                type="button"
-                className="character-drag-handle"
-                aria-label={`Reorder ${char.name}`}
-                title="Drag to reorder. Arrow keys also work."
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  startCharacterDrag(char.id, event);
-                }}
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => handleCharacterReorderKey(char.id, event)}
-              >
-                <GripVerticalIcon className="h-5 w-5" />
-              </button>
-              <div className="relative pl-11">
-                <h2 
-                  className="text-xl font-bold mb-2 pr-10"
-                  style={{ color: 'var(--card-ink)' }}
-                >{char.name}</h2>
-                <p 
-                  className="text-sm mb-2"
-                  style={{ color: 'var(--card-muted)' }}
-                >{char.sheets.reduce((sum, s) => sum + s.widgets.length, 0)} Widgets • {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}</p>
-                
-                {/* Dropdown Menu */}
-                <div className={`absolute top-0 right-0 ${openDropdown === char.id ? 'z-50' : 'z-10'}`} ref={openDropdown === char.id ? dropdownRef : undefined}>
-                  <Tooltip content="Options">
+              <div className="relative flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 flex-1 items-center">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenDropdown(openDropdown === char.id ? null : char.id);
+                      type="button"
+                      className="character-drag-handle character-card-icon-btn flex h-7 flex-none items-center justify-center"
+                      aria-label={`Reorder ${char.name}`}
+                      title="Drag to reorder. Arrow keys also work."
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        startCharacterDrag(char.id, event);
                       }}
-                      className="p-1.5 rounded transition-colors"
-                      style={{ 
-                        color: 'var(--card-muted)',
-                        backgroundColor: 'transparent'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                        e.currentTarget.style.color = 'var(--card-background)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--card-muted)';
-                      }}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => handleCharacterReorderKey(char.id, event)}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <circle cx="12" cy="5" r="2" />
-                        <circle cx="12" cy="12" r="2" />
-                        <circle cx="12" cy="19" r="2" />
-                      </svg>
+                      <GripVerticalIcon className="h-4 w-4" />
                     </button>
-                  </Tooltip>
+                    <h2 
+                      className="truncate text-lg font-bold leading-tight"
+                      style={{ color: 'var(--card-ink)', fontFamily: 'var(--card-font-heading)' }}
+                      title={char.name}
+                    >{char.name}</h2>
+                  </div>
+                  <div className="-mr-1 flex items-center">
+                    {/* Dropdown Menu */}
+                    <div className={`relative ${openDropdown === char.id ? 'z-50' : 'z-10'}`} ref={openDropdown === char.id ? dropdownRef : undefined}>
+                      <Tooltip content="Options">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown === char.id ? null : char.id);
+                          }}
+                          className={`character-card-icon-btn flex h-7 w-7 items-center justify-center ${openDropdown === char.id ? 'character-card-icon-btn--active' : ''}`}
+                        >
+                          <DotsVerticalIcon className="h-5 w-5" />
+                        </button>
+                      </Tooltip>
                   
                   {openDropdown === char.id && (
                     <div 
@@ -1642,6 +1632,24 @@ export default function CharacterList() {
                       </Tooltip>
                     </div>
                   )}
+                    </div>
+                  </div>
+                </div>
+                <div className="character-card-divider" aria-hidden="true" />
+                <div className="flex items-center justify-between">
+                  <div className="character-card-stats flex min-w-0 items-center gap-3 text-xs font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      <LayersIcon className="h-3.5 w-3.5 shrink-0" />
+                      {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <LayoutGridIcon className="h-3.5 w-3.5 shrink-0" />
+                      {widgetCount} Widget{widgetCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <span className="character-card-open" aria-hidden="true">
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </span>
                 </div>
               </div>
             </div>

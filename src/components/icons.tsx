@@ -176,3 +176,33 @@ export function ClockIcon(props: IconProps) {
     </Base>
   );
 }
+
+export function LayersIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+      <path d="M2 12l10 5 10-5" />
+      <path d="M2 17l10 5 10-5" />
+    </Base>
+  );
+}
+
+export function LayoutGridIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </Base>
+  );
+}
+
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 12h14" />
+      <path d="M12 5l7 7-7 7" />
+    </Base>
+  );
+}
