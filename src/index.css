@@ -858,13 +858,10 @@
 }
 
 .character-sort-card {
-  cursor: grab;
+  cursor: pointer;
   transform: translate(0, 0);
   transition: filter 180ms ease, opacity 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
-  touch-action: none;
-  user-select: none;
   will-change: transform;
-  -webkit-touch-callout: none;
 }
 
 .character-sort-card:active:not(.character-sort-card--dragging) {
@@ -880,23 +877,53 @@
   cursor: grabbing;
   filter: drop-shadow(0 14px 18px rgb(0 0 0 / 0.22)) saturate(1.08);
   opacity: 0.94;
-  transform: scale(1.025) rotate(0.35deg);
+  transition: none;
   z-index: 35;
 }
 
-.character-sort-card--target::after {
-  border: 2px solid var(--card-accent);
-  border-radius: var(--card-radius);
-  content: '';
-  inset: 3px;
-  opacity: 0.8;
+.character-sort-card--preview-shift {
   pointer-events: none;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 10;
+}
+
+.character-drag-handle {
+  align-items: center;
+  background: color-mix(in srgb, var(--card-muted) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 32%, transparent);
+  border-radius: min(var(--card-radius), 6px);
+  color: var(--card-muted);
+  cursor: grab;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  left: 12px;
   position: absolute;
-  z-index: 25;
+  top: 50%;
+  touch-action: none;
+  transform: translateY(-50%);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+  width: 32px;
+  z-index: 20;
+  -webkit-touch-callout: none;
+}
+
+.character-drag-handle:hover,
+.character-drag-handle:focus-visible {
+  background: var(--card-accent);
+  border-color: var(--card-accent);
+  color: var(--card-background);
+}
+
+.character-drag-handle:active,
+.character-sort-card--dragging .character-drag-handle {
+  cursor: grabbing;
+  transform: translateY(-50%) scale(0.94);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .character-sort-card {
+  .character-sort-card,
+  .character-sort-card--preview-shift {
     transition: none;
   }
 }

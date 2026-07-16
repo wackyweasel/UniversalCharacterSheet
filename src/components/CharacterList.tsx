@@ -11,6 +11,7 @@ import GallerySidebar from './GallerySidebar';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
+import { GripVerticalIcon } from './icons';
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
@@ -169,8 +170,6 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
-  const [draggingCharacterId, setDraggingCharacterId] = useState<string | null>(null);
-  const [dropTargetCharacterId, setDropTargetCharacterId] = useState<string | null>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
@@ -187,9 +186,15 @@ export default function CharacterList() {
   const characterDragRef = useRef<{
     characterId: string;
     pointerId: number;
+    cardElement: HTMLDivElement;
     startX: number;
     startY: number;
-    lastTargetId: string | null;
+    startScrollLeft: number;
+    startScrollTop: number;
+    order: string[];
+    slotRects: DOMRect[];
+    startIndex: number;
+    targetIndex: number;
     didMove: boolean;
   } | null>(null);
 
@@ -197,6 +202,39 @@ export default function CharacterList() {
     previousCharacterRectsRef.current = new Map(
       Array.from(characterCardRefs.current.entries()).map(([id, element]) => [id, element.getBoundingClientRect()])
     );
+  };
+
+  const updateCharacterDragPreview = (drag: NonNullable<typeof characterDragRef.current>, targetIndex: number) => {
+    const previewOrder = drag.order.filter((id) => id !== drag.characterId);
+    previewOrder.splice(targetIndex, 0, drag.characterId);
+
+    previewOrder.forEach((id, previewIndex) => {
+      if (id === drag.characterId) return;
+      const originalIndex = drag.order.indexOf(id);
+      const element = characterCardRefs.current.get(id);
+      const originalRect = drag.slotRects[originalIndex];
+      const previewRect = drag.slotRects[previewIndex];
+      if (!element || !originalRect || !previewRect) return;
+
+      const deltaX = previewRect.left - originalRect.left;
+      const deltaY = previewRect.top - originalRect.top;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+        element.classList.remove('character-sort-card--preview-shift');
+        element.style.removeProperty('transform');
+        return;
+      }
+
+      element.classList.add('character-sort-card--preview-shift');
+      element.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    });
+  };
+
+  const clearCharacterDragPreview = (drag: NonNullable<typeof characterDragRef.current>) => {
+    drag.order.forEach((id) => {
+      const element = characterCardRefs.current.get(id);
+      element?.classList.remove('character-sort-card--preview-shift');
+      element?.style.removeProperty('transform');
+    });
   };
 
   useLayoutEffect(() => {
@@ -215,28 +253,32 @@ export default function CharacterList() {
       if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
 
       element.getAnimations().forEach((animation) => animation.cancel());
-      const isDraggedCard = id === draggingCharacterId;
       element.animate(
         [
-          { transform: `translate(${deltaX}px, ${deltaY}px)${isDraggedCard ? ' scale(1.025) rotate(0.35deg)' : ''}` },
-          { transform: isDraggedCard ? 'translate(0, 0) scale(1.025) rotate(0.35deg)' : 'translate(0, 0)' },
+          { transform: `translate(${deltaX}px, ${deltaY}px)` },
+          { transform: 'translate(0, 0)' },
         ],
         { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
       );
     });
 
     previousCharacterRectsRef.current.clear();
-  }, [characters, draggingCharacterId]);
+  }, [characters]);
 
-  const finishCharacterDrag = (pointerId?: number) => {
+  const finishCharacterDrag = (pointerId?: number, commit = true) => {
     const drag = characterDragRef.current;
     if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
 
     removeCharacterDragListenersRef.current?.();
     removeCharacterDragListenersRef.current = null;
-    const scrollArea = listScrollRef.current;
-    if (drag && scrollArea?.hasPointerCapture(drag.pointerId)) {
-      scrollArea.releasePointerCapture(drag.pointerId);
+    const shouldReorder = Boolean(commit && drag?.didMove && drag.targetIndex !== drag.startIndex);
+    if (drag && shouldReorder) captureCharacterRects();
+    if (drag) {
+      drag.cardElement.classList.remove('character-sort-card--dragging');
+      clearCharacterDragPreview(drag);
+    }
+    if (drag && shouldReorder) {
+      reorderCharacter(drag.characterId, drag.targetIndex);
     }
     if (drag?.didMove) {
       suppressCharacterClickRef.current = drag.characterId;
@@ -247,8 +289,6 @@ export default function CharacterList() {
       }, 0);
     }
     characterDragRef.current = null;
-    setDraggingCharacterId(null);
-    setDropTargetCharacterId(null);
   };
 
   const handleCharacterDragMove = (event: PointerEvent) => {
@@ -256,10 +296,9 @@ export default function CharacterList() {
     if (!drag || drag.pointerId !== event.pointerId) return;
 
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
-    event.preventDefault();
     if (!drag.didMove) {
       drag.didMove = true;
-      listScrollRef.current?.setPointerCapture(event.pointerId);
+      drag.cardElement.classList.add('character-sort-card--dragging');
     }
 
     const scrollArea = listScrollRef.current;
@@ -269,59 +308,75 @@ export default function CharacterList() {
       if (event.clientY > window.innerHeight - edgeSize) scrollArea.scrollBy({ top: 14 });
     }
 
-    const targetCard = document
-      .elementsFromPoint(event.clientX, event.clientY)
-      .map((element) => (element as HTMLElement).closest<HTMLElement>('[data-character-id]'))
-      .find((element): element is HTMLElement => Boolean(element && element.dataset.characterId !== drag.characterId));
-    const targetId = targetCard?.dataset.characterId;
-    if (!targetId) {
-      drag.lastTargetId = null;
-      setDropTargetCharacterId(null);
-      return;
-    }
-    if (targetId === drag.lastTargetId) return;
+    const scrollDeltaX = (scrollArea?.scrollLeft ?? 0) - drag.startScrollLeft;
+    const scrollDeltaY = (scrollArea?.scrollTop ?? 0) - drag.startScrollTop;
+    drag.cardElement.style.transform = `translate3d(${event.clientX - drag.startX + scrollDeltaX}px, ${event.clientY - drag.startY + scrollDeltaY}px, 0) scale(1.025) rotate(0.35deg)`;
 
-    const targetIndex = useStore.getState().characters.findIndex((character) => character.id === targetId);
-    if (targetIndex < 0) return;
+    const targetIndex = drag.slotRects.reduce((closestIndex, rect, index) => {
+      const left = rect.left - scrollDeltaX;
+      const right = rect.right - scrollDeltaX;
+      const top = rect.top - scrollDeltaY;
+      const bottom = rect.bottom - scrollDeltaY;
+      const distanceX = event.clientX < left ? left - event.clientX : event.clientX > right ? event.clientX - right : 0;
+      const distanceY = event.clientY < top ? top - event.clientY : event.clientY > bottom ? event.clientY - bottom : 0;
+      const currentRect = drag.slotRects[closestIndex];
+      const currentLeft = currentRect.left - scrollDeltaX;
+      const currentRight = currentRect.right - scrollDeltaX;
+      const currentTop = currentRect.top - scrollDeltaY;
+      const currentBottom = currentRect.bottom - scrollDeltaY;
+      const currentDistanceX = event.clientX < currentLeft ? currentLeft - event.clientX : event.clientX > currentRight ? event.clientX - currentRight : 0;
+      const currentDistanceY = event.clientY < currentTop ? currentTop - event.clientY : event.clientY > currentBottom ? event.clientY - currentBottom : 0;
+      return Math.hypot(distanceX, distanceY) < Math.hypot(currentDistanceX, currentDistanceY) ? index : closestIndex;
+    }, drag.targetIndex);
+    if (targetIndex === drag.targetIndex) return;
 
-    drag.lastTargetId = targetId;
-    setDropTargetCharacterId(targetId);
-    captureCharacterRects();
-    reorderCharacter(drag.characterId, targetIndex);
+    drag.targetIndex = targetIndex;
+    updateCharacterDragPreview(drag, targetIndex);
   };
 
-  const startCharacterDrag = (characterId: string, event: React.PointerEvent<HTMLDivElement>) => {
+  const startCharacterDrag = (characterId: string, event: React.PointerEvent<HTMLButtonElement>) => {
     if (characters.length < 2 || event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (target.closest('button, a, input, textarea, select, [role="button"]')) return;
+    const cardElement = characterCardRefs.current.get(characterId);
+    if (!cardElement) return;
+    const scrollArea = listScrollRef.current;
+    const order = characters.map((character) => character.id);
+    const startIndex = order.indexOf(characterId);
+    const slotRects = order.map((id) => characterCardRefs.current.get(id)?.getBoundingClientRect()).filter((rect): rect is DOMRect => Boolean(rect));
+    if (startIndex < 0 || slotRects.length !== order.length) return;
 
     removeCharacterDragListenersRef.current?.();
     characterDragRef.current = {
       characterId,
       pointerId: event.pointerId,
+      cardElement,
       startX: event.clientX,
       startY: event.clientY,
-      lastTargetId: null,
+      startScrollLeft: scrollArea?.scrollLeft ?? 0,
+      startScrollTop: scrollArea?.scrollTop ?? 0,
+      order,
+      slotRects,
+      startIndex,
+      targetIndex: startIndex,
       didMove: false,
     };
 
     const handlePointerMove = (pointerEvent: PointerEvent) => handleCharacterDragMove(pointerEvent);
-    const handlePointerEnd = (pointerEvent: PointerEvent) => finishCharacterDrag(pointerEvent.pointerId);
-    const handleWindowBlur = () => finishCharacterDrag();
+    const handlePointerUp = (pointerEvent: PointerEvent) => finishCharacterDrag(pointerEvent.pointerId);
+    const handlePointerCancel = (pointerEvent: PointerEvent) => finishCharacterDrag(pointerEvent.pointerId, false);
+    const handleWindowBlur = () => finishCharacterDrag(undefined, false);
     window.addEventListener('pointermove', handlePointerMove, { passive: false });
-    window.addEventListener('pointerup', handlePointerEnd);
-    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
     window.addEventListener('blur', handleWindowBlur);
     removeCharacterDragListenersRef.current = () => {
       window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerEnd);
-      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
       window.removeEventListener('blur', handleWindowBlur);
     };
 
     event.currentTarget.focus({ preventScroll: true });
     setOpenDropdown(null);
-    setDraggingCharacterId(characterId);
   };
 
   useEffect(() => () => removeCharacterDragListenersRef.current?.(), []);
@@ -1303,9 +1358,8 @@ export default function CharacterList() {
               }}
               data-character-id={char.id}
               style={cardStyles}
-              className={`character-sort-card p-4 relative group ${draggingCharacterId === char.id ? 'character-sort-card--dragging' : ''} ${dropTargetCharacterId === char.id ? 'character-sort-card--target' : ''} ${openDropdown === char.id ? 'z-40' : ''}`}
+              className={`character-sort-card p-4 relative group ${openDropdown === char.id ? 'z-40' : ''}`}
               tabIndex={0}
-              onPointerDown={(event) => startCharacterDrag(char.id, event)}
               onClick={(event) => {
                 if (suppressCharacterClickRef.current === char.id) {
                   suppressCharacterClickRef.current = null;
@@ -1322,7 +1376,6 @@ export default function CharacterList() {
                   selectCharacter(char.id);
                   return;
                 }
-                handleCharacterReorderKey(char.id, event);
               }}
             >
               <div 
@@ -1358,9 +1411,23 @@ export default function CharacterList() {
                   </div>
                 )}
               </div>
-              <div className="relative">
+              <button
+                type="button"
+                className="character-drag-handle"
+                aria-label={`Reorder ${char.name}`}
+                title="Drag to reorder. Arrow keys also work."
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startCharacterDrag(char.id, event);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => handleCharacterReorderKey(char.id, event)}
+              >
+                <GripVerticalIcon className="h-5 w-5" />
+              </button>
+              <div className="relative pl-11">
                 <h2 
-                  className="text-xl font-bold mb-2 pr-12"
+                  className="text-xl font-bold mb-2 pr-10"
                   style={{ color: 'var(--card-ink)' }}
                 >{char.name}</h2>
                 <p 
