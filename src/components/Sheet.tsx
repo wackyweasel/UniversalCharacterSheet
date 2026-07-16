@@ -22,7 +22,7 @@ import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
@@ -885,6 +885,11 @@ export default function Sheet() {
     setVerticalDropIndex(null);
   };
 
+  const setAllVerticalWidgetsCollapsed = (collapsed: boolean) => {
+    activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(collapsed)));
+    window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: collapsed }));
+  };
+
   const handleExitToMenu = useCallback(() => {
     setTimelineOpen(false);
     cleanupTransientCharacters();
@@ -945,14 +950,8 @@ export default function Sheet() {
             addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
             onChangeTheme={workspace === 'build' ? () => handleToggleThemeSidebar() : undefined}
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-            onExpandAll={() => {
-              activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, 'false'));
-              window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
-            }}
-            onCollapseAll={() => {
-              activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, 'true'));
-              window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
-            }}
+            onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
+            onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
           />
           <WorkspaceToggleGroup
             workspace={workspace}
@@ -1000,6 +999,28 @@ export default function Sheet() {
                 </button>
               </Tooltip>
             )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Tooltip content="Collapse all widgets" placement="below">
+              <button
+                type="button"
+                onClick={() => setAllVerticalWidgetsCollapsed(true)}
+                aria-label="Collapse all widgets"
+                className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                <ChevronUpIcon className="w-4 h-4" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Expand all widgets" placement="below">
+              <button
+                type="button"
+                onClick={() => setAllVerticalWidgetsCollapsed(false)}
+                aria-label="Expand all widgets"
+                className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              >
+                <ChevronDownIcon className="w-4 h-4" />
+              </button>
+            </Tooltip>
           </div>
           <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">

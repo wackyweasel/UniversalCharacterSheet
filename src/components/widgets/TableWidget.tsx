@@ -679,7 +679,8 @@ export default function TableWidget({ widget, height }: Props) {
     columns = ['Item', 'Qty', 'Weight'],
     rows = [],
     tableColumnSettings = [],
-    tableRowSettings = []
+    tableRowSettings = [],
+    showTableEditButton = true
   } = widget.data;
   
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
@@ -692,6 +693,7 @@ export default function TableWidget({ widget, height }: Props) {
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
   const [columnPendingRemoval, setColumnPendingRemoval] = useState<number | null>(null);
   const [isTableEditing, setIsTableEditing] = useState(false);
+  const [editingColumnHeader, setEditingColumnHeader] = useState<number | null>(null);
   const showTableControls = isTableEditing && !isPrintMode;
   const dragRowItem = useRef<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -883,6 +885,12 @@ export default function TableWidget({ widget, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
+  const handleColumnNameChange = (colIdx: number, value: string) => {
+    const newColumns = [...columns];
+    newColumns[colIdx] = value;
+    updateWidgetData(widget.id, { columns: newColumns });
+  };
+
   const handleFormatChange = (rowIdx: number, colIdx: number, formatUpdate: Partial<CellFormat>) => {
     const newRows = [...rows];
     const currentCell = newRows[rowIdx].cells[colIdx];
@@ -972,7 +980,9 @@ export default function TableWidget({ widget, height }: Props) {
   };
 
   const handleColumnHeaderClick = (colIdx: number, event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
     setEditingCell(null);
+    setEditingColumnHeader(null);
     setSelectedCell(null);
     setSelectedColumn(colIdx);
     setSelectedRow(null);
@@ -996,6 +1006,7 @@ export default function TableWidget({ widget, height }: Props) {
 
   const closeTableSelection = () => {
     setEditingCell(null);
+    setEditingColumnHeader(null);
     setSelectedCell(null);
     setSelectedColumn(null);
     setSelectedRow(null);
@@ -1407,7 +1418,7 @@ export default function TableWidget({ widget, height }: Props) {
               {label}
             </div>
           )}
-          {!isPrintMode && (
+          {!isPrintMode && showTableEditButton && (
             <button
               type="button"
               aria-pressed={isTableEditing}
@@ -1445,6 +1456,7 @@ export default function TableWidget({ widget, height }: Props) {
                 const columnSetting = getColumnSetting(tableColumnSettings, idx);
                 const columnFormat = columnSetting.format || {};
                 const isSelected = selectedColumn === idx;
+                const isEditingHeader = editingColumnHeader === idx;
                 const needsDarkText = columnFormat.bgColor ? isLightColor(columnFormat.bgColor, columnFormat.bgOpacity ?? 1) : false;
                 const textColorStyle = needsDarkText ? { color: '#1a1a1a' } : {};
 
@@ -1459,8 +1471,30 @@ export default function TableWidget({ widget, height }: Props) {
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <div className="relative flex min-w-0 items-center justify-center">
-                    <span className="min-w-0 truncate text-center">{col}</span>
+                  <div
+                    onClick={() => {
+                      if (showTableControls) setEditingColumnHeader(idx);
+                    }}
+                    className={`relative flex min-w-0 items-center justify-center ${showTableControls ? 'cursor-text' : ''}`}
+                  >
+                    {isEditingHeader ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        aria-label={`Edit ${col} column header`}
+                        value={col}
+                        onChange={(event) => handleColumnNameChange(idx, event.target.value)}
+                        onBlur={() => setEditingColumnHeader(null)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === 'Escape') setEditingColumnHeader(null);
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        className={`w-full min-w-0 bg-transparent p-0 text-center font-heading focus:outline-none ${needsDarkText ? '' : 'text-theme-ink'}`}
+                        style={textColorStyle}
+                      />
+                    ) : (
+                      <span className="min-w-0 truncate text-center">{col}</span>
+                    )}
                     {showTableControls && (
                       <span className={`absolute right-0 top-1/2 flex -translate-y-1/2 items-center rounded border border-theme-border bg-theme-background shadow-sm transition-opacity ${isMobile ? 'opacity-100' : 'opacity-0 group-hover/column:opacity-100 focus-within:opacity-100'}`}>
                         <Tooltip content={`Format ${col} column`}>

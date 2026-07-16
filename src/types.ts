@@ -230,6 +230,7 @@ export interface WidgetData {
   rows?: TableRow[];
   tableColumnSettings?: TableColumnSettings[];
   tableRowSettings?: TableRowSettings[];
+  showTableEditButton?: boolean;
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;
