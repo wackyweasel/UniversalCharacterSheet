@@ -932,10 +932,7 @@ export default function CharacterList() {
       />
       <div className="max-w-4xl mx-auto pb-safe">
       <div className={`flex flex-col gap-3 mb-4 border-b-[length:var(--border-width)] pb-3 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className={`text-2xl font-bold uppercase tracking-wider font-heading ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-            Character Select
-          </h1>
+        <div className="flex justify-end lg:hidden">
           <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
             <button
               type="button"
@@ -943,7 +940,7 @@ export default function CharacterList() {
               aria-checked={darkMode}
               aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
               onClick={toggleDarkMode}
-              className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
+              className={`relative flex h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors ${
                 darkMode
                   ? 'border-white/40 bg-white/15'
                   : 'border-theme-border bg-theme-paper'
@@ -1155,6 +1152,38 @@ export default function CharacterList() {
                 </svg>
                 <span>Donate</span>
               </a>
+            </Tooltip>
+            <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={darkMode}
+                aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+                onClick={toggleDarkMode}
+                className={`relative hidden h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors lg:ml-auto lg:flex ${
+                  darkMode
+                    ? 'border-white/40 bg-white/15'
+                    : 'border-theme-border bg-theme-paper'
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
+                    darkMode
+                      ? 'translate-x-6 bg-white text-black'
+                      : 'translate-x-0 bg-theme-ink text-theme-paper'
+                  }`}
+                >
+                  {darkMode ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  )}
+                </span>
+              </button>
             </Tooltip>
           </div>
           
