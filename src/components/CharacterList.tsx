@@ -135,6 +135,7 @@ export default function CharacterList() {
   const startTemplatesTutorial = useTutorialStore((state) => state.startTemplatesTutorial);
   const startAutomationTutorial = useTutorialStore((state) => state.startAutomationTutorial);
   const startVariousTutorial = useTutorialStore((state) => state.startVariousTutorial);
+  const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -176,6 +177,7 @@ export default function CharacterList() {
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
   const variousLoadHandledRef = useRef(false);
+  const initialTutorialStepRef = useRef(tutorialStep);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -199,6 +201,22 @@ export default function CharacterList() {
     targetIndex: number;
     didMove: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    const initialStepIndex = initialTutorialStepRef.current;
+    if (initialStepIndex === null) return;
+
+    const initialStep = TUTORIAL_STEPS[initialStepIndex];
+    const themeTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === 'themes-open-panel');
+    const isInterruptedBasicSheetTour =
+      initialStep?.page === 'sheet' &&
+      initialStepIndex < themeTutorialStart;
+
+    if (isInterruptedBasicSheetTour) {
+      cleanupTransientCharacters();
+      exitTutorial();
+    }
+  }, [cleanupTransientCharacters, exitTutorial]);
 
   const captureCharacterRects = () => {
     previousCharacterRectsRef.current = new Map(

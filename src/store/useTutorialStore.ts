@@ -14,6 +14,7 @@ export interface TutorialStep {
   message: string;
   targetSelector?: string;
   position: 'left' | 'right' | 'top' | 'bottom' | 'center';
+  dock?: 'top';
   page: 'character-list' | 'sheet';
   requiresManualAdvance?: boolean;
 }
@@ -54,7 +55,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'add-widget',
     title: 'Add Your First Widget',
-    message: 'Click "Add Widget" to open the Add panel. It groups everything you can place on a sheet by what it helps you do.',
+    message: 'Select the highlighted Add button to open the panel. It groups everything you can place on a sheet by what it helps you do.',
     targetSelector: '[data-tutorial="add-widget-button"], [data-tutorial="add-widget-button-mobile"]',
     position: 'bottom',
     page: 'sheet',
@@ -62,7 +63,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'add-image-widget',
     title: 'Add an Image Widget',
-    message: 'Let\'s start with an Image widget! This is perfect for character portraits or reference images. Click on "Image" to add it.',
+    message: 'Select Image to add a place for a character portrait or reference image. You can choose the image from the widget afterward.',
     targetSelector: '[data-tutorial="widget-IMAGE"]',
     position: 'right',
     page: 'sheet',
@@ -94,7 +95,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'close-toolbox',
     title: 'Close the Add Panel',
-    message: 'Great job! You\'ve added some widgets. Now close the Add panel by clicking the X button to see your character sheet.',
+    message: 'Your starter widgets are ready. Use the highlighted X to close the Add panel and see the whole sheet.',
     targetSelector: '[data-tutorial="close-toolbox"]',
     position: 'bottom',
     page: 'sheet',
@@ -102,16 +103,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'pan-camera',
     title: 'Move the Camera',
-    message: 'You can pan around your character sheet by clicking and dragging on the background. Try moving the view around!',
+    message: 'Drag an empty part of the canvas to pan around the sheet. Move it a little, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
   {
     id: 'zoom-camera',
     title: 'Zoom In and Out',
-    message: 'Use the scroll wheel (or pinch on touch devices) to zoom in and out. This helps you see details or get an overview!',
+    message: 'Use the scroll wheel, the zoom controls, or a pinch gesture to change scale. Try it, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
@@ -126,24 +129,27 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'move-widgets',
     title: 'Move Your Widgets',
-    message: 'You can drag widgets around by clicking and holding the top bar (title area) of any widget. Try repositioning your widgets to create your ideal layout!',
+    message: 'Drag a widget by its top edge to reposition it. Give one a move, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
   {
     id: 'resize-widgets',
     title: 'Resize Your Widgets',
-    message: 'Drag the bottom-right corner of any widget to resize it. Make widgets bigger or smaller to fit your needs!',
+    message: 'Drag the bottom-right corner of a widget to resize it. Try a small adjustment, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
   {
     id: 'attach-widgets',
     title: 'Attach Widgets Together',
-    message: 'Move two widget edges close to each other and click the attach button that appears. Attached widgets will move together as a group, making it easy to organize your layout!',
+    message: 'Optional: move two widget edges close together, then use the attach control that appears. Attached widgets move as a group.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
@@ -215,7 +221,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'try-widgets',
     title: 'Try It Out!',
-    message: 'You\'re all set! Try clicking on different widgets - roll dice, track health, check conditions, and more. Have fun building your character sheets! 🎲',
+    message: 'You\'re ready to explore. Roll dice, track health, toggle conditions, and adjust values. This tutorial sheet is temporary, so experiment freely.',
     position: 'center',
     page: 'sheet',
   },
