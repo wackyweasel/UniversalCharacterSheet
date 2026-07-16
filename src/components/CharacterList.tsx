@@ -931,13 +931,46 @@ export default function CharacterList() {
         className="hidden"
       />
       <div className="max-w-4xl mx-auto pb-safe">
-      <div className={`flex justify-between items-center mb-4 border-b-[length:var(--border-width)] pb-2 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
-        <h1 className={`text-2xl font-bold uppercase tracking-wider font-heading ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-          Character Select
-        </h1>
-        <div className="flex items-center gap-2">
-          {/* Desktop buttons - visible on larger screens */}
-          <div className="hidden sm:flex items-center gap-2">
+      <div className={`flex flex-col gap-3 mb-4 border-b-[length:var(--border-width)] pb-3 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className={`text-2xl font-bold uppercase tracking-wider font-heading ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+            Character Select
+          </h1>
+          <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={darkMode}
+              aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+              onClick={toggleDarkMode}
+              className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
+                darkMode
+                  ? 'border-white/40 bg-white/15'
+                  : 'border-theme-border bg-theme-paper'
+              }`}
+            >
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
+                  darkMode
+                    ? 'translate-x-6 bg-white text-black'
+                    : 'translate-x-0 bg-theme-ink text-theme-paper'
+                }`}
+              >
+                {darkMode ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                )}
+              </span>
+            </button>
+          </Tooltip>
+        </div>
+        <div className="w-full">
+          <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
             {/* Gallery Button */}
             <Tooltip content="Discover community content">
               <button
@@ -948,7 +981,7 @@ export default function CharacterList() {
                   }
                 }}
                 data-tutorial="gallery-button"
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -969,7 +1002,7 @@ export default function CharacterList() {
                     setShowHeaderMenu(false);
                     setShowMobileTutorialOptions(false);
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  className={`w-full min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
                     darkMode 
                       ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                       : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -979,14 +1012,11 @@ export default function CharacterList() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                   <span>Tutorials</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showTutorialDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
                 </button>
               </Tooltip>
               {showTutorialDropdown && (
                 <div 
-                  className={`absolute right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
+                  className={`absolute left-0 sm:left-auto sm:right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
                     darkMode 
                       ? 'bg-black border border-white/30' 
                       : 'bg-white border border-gray-300'
@@ -1045,7 +1075,7 @@ export default function CharacterList() {
                   }
                 }}
                 data-tutorial="backup-button"
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -1057,10 +1087,78 @@ export default function CharacterList() {
                 <span>Backup</span>
               </button>
             </Tooltip>
+            <Tooltip content="Share feedback">
+              <a
+                href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordCharacterListEvent({
+                  eventName: 'external_feedback_opened',
+                  category: 'app',
+                  source: 'header_menu',
+                })}
+                data-tutorial="feedback-button"
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  isCurrentTutorialStep('various-feedback')
+                    ? 'bg-blue-500 text-white font-bold'
+                    : darkMode
+                      ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                <span>Feedback</span>
+              </a>
+            </Tooltip>
+            <Tooltip content="Join the UCS community on Reddit">
+              <a
+                href="https://www.reddit.com/r/UniversalCharSheet/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordCharacterListEvent({
+                  eventName: 'external_reddit_opened',
+                  category: 'app',
+                  source: 'header_menu',
+                })}
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  darkMode
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M18 10.1c0-1-.8-1.8-1.8-1.7-.4 0-.9.2-1.2.5-1.4-.9-3-1.5-4.7-1.5l.8-3.8 2.6.6c0 .7.6 1.2 1.3 1.2.7 0 1.2-.6 1.2-1.3 0-.7-.6-1.2-1.3-1.2-.5 0-.9.3-1.1.7L11 2.9h-.2c-.1 0-.1.1-.1.2l-1 4.3C8 7.4 6.4 7.9 5 8.9c-.7-.7-1.8-.7-2.5 0s-.7 1.8 0 2.5c.1.1.3.3.5.3v.5c0 2.7 3.1 4.9 7 4.9s7-2.2 7-4.9v-.5c.6-.3 1-.9 1-1.6zM6 11.4c0-.7.6-1.2 1.2-1.2.7 0 1.2.6 1.2 1.2s-.6 1.2-1.2 1.2c-.7 0-1.2-.5-1.2-1.2zm7 3.3c-.9.6-1.9 1-3 .9-1.1 0-2.1-.3-3-.9-.1-.1-.1-.3 0-.5.1-.1.3-.1.4 0 .7.5 1.6.8 2.5.7.9.1 1.8-.2 2.5-.7.1-.1.3-.1.5 0s.2.3.1.5zm-.3-2.1c-.7 0-1.2-.6-1.2-1.2s.6-1.2 1.2-1.2c.7 0 1.2.6 1.2 1.2.1.7-.5 1.2-1.2 1.2z" />
+                </svg>
+                <span>Reddit</span>
+              </a>
+            </Tooltip>
+            <Tooltip content="Support UCS development">
+              <a
+                href="https://buymeacoffee.com/wackyweasel"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordCharacterListEvent({
+                  eventName: 'external_donate_opened',
+                  category: 'app',
+                  source: 'header_menu',
+                })}
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  darkMode
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <span>Donate</span>
+              </a>
+            </Tooltip>
           </div>
           
-          {/* Menu button - always visible */}
-          <div className="relative" ref={headerMenuRef}>
+          <div className="hidden relative" ref={headerMenuRef}>
             <Tooltip content="Menu">
               <button
                 onClick={() => {
