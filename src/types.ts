@@ -198,8 +198,10 @@ export interface WidgetData {
   modifier?: number;
   diceGroups?: DiceGroup[];
   showRollDetails?: boolean;
+  showRollDetailsButton?: boolean;
   // Dice Tray
   showTrayRollDetails?: boolean;
+  showTrayRollDetailsButton?: boolean;
   // Legacy setting used to initialize details for existing saved widgets.
   showIndividualResults?: boolean;
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice

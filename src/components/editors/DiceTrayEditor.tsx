@@ -11,7 +11,7 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export function DiceTrayEditor({ widget, updateData }: EditorProps) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, fieldLabels = {}, fieldFormulas = {}, showTrayRollDetailsButton = true } = widget.data;
   const [newDiceFaces, setNewDiceFaces] = useState('');
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; faces: string[]; diceName: string; editIndex: number | null }>({ 
     open: false, 
@@ -215,6 +215,19 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
       </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={showTrayRollDetailsButton}
+          onChange={(e) => updateData({
+            showTrayRollDetailsButton: e.target.checked,
+            showTrayRollDetails: e.target.checked ? widget.data.showTrayRollDetails : false,
+          })}
+          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Show roll details control</span>
+      </label>
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Quick Add Common Dice</label>

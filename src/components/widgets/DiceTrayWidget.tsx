@@ -54,6 +54,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0 } = widget.data;
   const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
+  const showTrayRollDetailsButton = widget.data.showTrayRollDetailsButton ?? true;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -512,21 +513,25 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
       >
         {result && !isRolling ? (
           <>
-            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-              {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+            <div className="relative flex min-h-5 items-center justify-center">
+              <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
+                {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+              </div>
+              {controlsVisible && showTrayRollDetailsButton && (
+                <Tooltip content={showTrayRollDetails ? 'Hide roll details' : 'Show roll details'}>
+                  <button
+                    type="button"
+                    onClick={() => updateWidgetData(widget.id, { showTrayRollDetails: !showTrayRollDetails })}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    aria-label={showTrayRollDetails ? 'Hide roll details' : 'Show roll details'}
+                    aria-expanded={showTrayRollDetails}
+                    className="absolute right-0 inline-flex h-5 w-5 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
+                  >
+                    {showTrayRollDetails ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
+                  </button>
+                </Tooltip>
+              )}
             </div>
-            {controlsVisible && (
-              <button
-                type="button"
-                onClick={() => updateWidgetData(widget.id, { showTrayRollDetails: !showTrayRollDetails })}
-                onMouseDown={(event) => event.stopPropagation()}
-                aria-expanded={showTrayRollDetails}
-                className="mx-auto mt-0.5 inline-flex min-h-6 items-center gap-1 rounded-button px-2 text-[10px] font-semibold text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
-              >
-                {showTrayRollDetails ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
-                {showTrayRollDetails ? 'Hide details' : 'Show details'}
-              </button>
-            )}
             {showTrayRollDetails && (
               <div className="mt-1 flex flex-col gap-0.5">
               {result.dice.map((d, i) => {
