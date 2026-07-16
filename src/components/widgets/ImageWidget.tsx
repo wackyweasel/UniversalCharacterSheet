@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseGIF, decompressFrames, ParsedFrame } from 'gifuct-js';
 import { Widget } from '../../types';
+import { useStore } from '../../store/useStore';
+import { ImageUploadButton } from '../ImageUploadButton';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  showUploadControl?: boolean;
 }
 
-export default function ImageWidget({ widget, mode, width, height }: Props) {
+export default function ImageWidget({ widget, mode, width, height, showUploadControl = true }: Props) {
+  const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, imageUrl = '' } = widget.data;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [paused, setPaused] = useState(false);
@@ -23,8 +28,6 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
 
   // Fixed small sizing
   const labelClass = 'text-xs';
-  const placeholderIconClass = 'text-2xl';
-  const placeholderTextClass = 'text-[10px]';
   const gapClass = 'gap-1';
 
   const isVerticalMode = height > 1000;
@@ -140,7 +143,7 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
       )}
 
       <div
-        className={`relative border-[length:var(--border-width)] border-theme-border bg-theme-background flex items-center justify-center overflow-hidden ${isVerticalMode ? '' : 'flex-1'}`}
+        className={`relative border-[length:var(--border-width)] ${imageUrl ? 'border-theme-border' : 'border-dashed border-theme-border'} bg-theme-background flex items-center justify-center overflow-hidden ${isVerticalMode ? '' : 'flex-1'}`}
         style={{ height: `${imageHeight}px`, borderRadius: 'min(var(--button-radius), 16px)' }}
       >
         {imageUrl ? (
@@ -200,11 +203,20 @@ export default function ImageWidget({ widget, mode, width, height }: Props) {
               }}
             />
           )
+        ) : mode !== 'print' && showUploadControl ? (
+          <ImageUploadButton
+            ariaLabel="Add image or GIF"
+            onImageReady={(dataUrl) => updateWidgetData(widget.id, { imageUrl: dataUrl })}
+            className="image-widget__empty-upload widget-empty-state h-full w-full border-0"
+          >
+            <span className="widget-empty-state__title">Add image</span>
+            <span className="widget-empty-state__hint">Choose an image or GIF</span>
+          </ImageUploadButton>
         ) : (
-          <div className={`text-theme-muted text-center p-1`}>
-            <div className={`${placeholderIconClass} mb-1`}>👤</div>
-            <span className={`${placeholderTextClass} font-body`}>No image</span>
-          </div>
+          <WidgetEmptyState
+            title="No image selected"
+            className="border-0"
+          />
         )}
       </div>
     </div>

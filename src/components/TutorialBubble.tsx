@@ -1,13 +1,149 @@
 import { useState, useEffect, useRef } from 'react';
-import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
+import {
+  AUTOMATION_TUTORIAL_START_ID,
+  TEMPLATE_TUTORIAL_START_ID,
+  THEME_TUTORIAL_START_ID,
+  TUTORIAL_STEPS,
+  useTutorialStore,
+  VARIOUS_TUTORIAL_START_ID,
+} from '../store/useTutorialStore';
 import { useStore } from '../store/useStore';
+import { ArrowRightIcon, CheckIcon, XIcon } from './icons';
 
-const BUBBLE_WIDTH = 300; // max-w-[300px]
+const BUBBLE_WIDTH = 320;
 const BUBBLE_PADDING = 16; // padding from screen edge
 const NARROW_BREAKPOINT = 600; // Width below which we use bottom-fixed layout
 
 interface TutorialBubbleProps {
   darkMode?: boolean;
+}
+
+type TutorialStep = NonNullable<typeof TUTORIAL_STEPS[number]>;
+
+const TUTORIAL_SECTIONS = [
+  { name: 'Basic', startId: TUTORIAL_STEPS[0].id },
+  { name: 'Themes', startId: THEME_TUTORIAL_START_ID },
+  { name: 'Templates', startId: TEMPLATE_TUTORIAL_START_ID },
+  { name: 'Automation', startId: AUTOMATION_TUTORIAL_START_ID },
+  { name: 'Various', startId: VARIOUS_TUTORIAL_START_ID },
+];
+
+function getTutorialProgress(stepIndex: number) {
+  const sectionStarts = TUTORIAL_SECTIONS.map((section) => ({
+    ...section,
+    index: TUTORIAL_STEPS.findIndex((step) => step.id === section.startId),
+  })).filter((section) => section.index >= 0);
+  const nextSectionIndex = sectionStarts.findIndex((section) => section.index > stepIndex);
+  const sectionIndex = nextSectionIndex === -1 ? sectionStarts.length - 1 : Math.max(0, nextSectionIndex - 1);
+  const section = sectionStarts[sectionIndex];
+  const nextSection = sectionStarts[sectionIndex + 1];
+  const total = (nextSection?.index ?? TUTORIAL_STEPS.length) - section.index;
+
+  return {
+    name: section.name,
+    current: stepIndex - section.index + 1,
+    total,
+  };
+}
+
+function TutorialCard({
+  step,
+  stepIndex,
+  darkMode,
+  isFinalStep,
+  onAdvance,
+  onExit,
+}: {
+  step: TutorialStep;
+  stepIndex: number;
+  darkMode: boolean;
+  isFinalStep: boolean;
+  onAdvance: () => void;
+  onExit: () => void;
+}) {
+  const progress = getTutorialProgress(stepIndex);
+  const progressPercent = (progress.current / progress.total) * 100;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-lg border shadow-2xl ${
+        darkMode
+          ? 'border-white/20 bg-zinc-950 text-white'
+          : 'border-gray-200 bg-white text-gray-900'
+      }`}
+      role="dialog"
+      aria-live="polite"
+      aria-label={`${progress.name} tutorial, step ${progress.current} of ${progress.total}`}
+    >
+      <div className={darkMode ? 'h-1 bg-white/10' : 'h-1 bg-gray-100'}>
+        <div
+          className="h-full bg-blue-500 transition-[width] duration-300"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      <div className="p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className={`text-[11px] font-semibold uppercase tracking-normal ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+            {progress.name} tour · {progress.current} of {progress.total}
+          </span>
+          <button
+            type="button"
+            onClick={onExit}
+            aria-label="Exit tutorial"
+            title="Exit tutorial"
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors ${
+              darkMode ? 'text-white/60 hover:bg-white/10 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white shadow-sm">
+            {isFinalStep ? (
+              <CheckIcon className="h-5 w-5" />
+            ) : (
+              <span className="text-sm font-bold">{progress.current}</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="mb-1 text-sm font-bold leading-snug">{step.title}</h2>
+            <p className={`text-sm leading-relaxed ${darkMode ? 'text-white/75' : 'text-gray-600'}`}>
+              {step.message}
+            </p>
+          </div>
+        </div>
+
+        {(step.requiresManualAdvance || isFinalStep) && (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={isFinalStep ? onExit : onAdvance}
+              className={`flex min-h-9 items-center justify-center gap-2 rounded px-4 text-xs font-semibold transition-colors ${
+                isFinalStep
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isFinalStep ? (
+                <>
+                  <CheckIcon className="h-4 w-4" />
+                  Finish tutorial
+                </>
+              ) : (
+                <>
+                  Next
+                  <ArrowRightIcon className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps) {
@@ -58,6 +194,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
 
   // Steps that should show at top on narrow screens (e.g., when Done button is at bottom)
   const showAtTopOnNarrow =
+    step.dock === 'top' ||
     step.id === 'form-click-done' ||
     step.id === 'automation-close-number-display' ||
     step.id === 'automation-close-dice-roller' ||
@@ -72,71 +209,34 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
         className="fixed z-[100] left-0 right-0 px-4"
         style={showAtTopOnNarrow ? { top: BUBBLE_PADDING + 50 } : { bottom: BUBBLE_PADDING }}
       >
-        <div
-          className={`mx-auto p-4 rounded-lg shadow-lg max-w-[400px] ${
-            darkMode
-              ? 'bg-black border border-white/30 text-white'
-              : 'bg-white border border-gray-200 text-gray-800'
-          }`}
-          style={{
-            animation: 'subtle-pulse 3s ease-in-out infinite',
-          }}
-        >
-          {/* Content */}
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-blue-500">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h4 className="font-bold text-sm mb-1">{step.title}</h4>
-              <p className={`text-sm ${darkMode ? 'text-white/70' : 'text-gray-600'}`}>
-                {step.message}
-              </p>
-            </div>
-          </div>
-          
-          {/* Buttons */}
-          <div className="mt-3 flex gap-2">
-            {step.requiresManualAdvance && (
-              <button
-                onClick={handleAdvanceTutorial}
-                className="flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                Next →
-              </button>
-            )}
-            <button
-              onClick={handleExitTutorial}
-              className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                isFinalStep
-                  ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
-                  : darkMode
-                    ? 'bg-white/10 hover:bg-white/20 text-white/70'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-              }`}
-            >
-              {isFinalStep ? '🎉 End of Tutorial' : 'Exit Tutorial'}
-            </button>
-          </div>
+        <div className="mx-auto max-w-[400px]">
+          <TutorialCard
+            step={step}
+            stepIndex={tutorialStep!}
+            darkMode={darkMode}
+            isFinalStep={isFinalStep}
+            onAdvance={handleAdvanceTutorial}
+            onExit={handleExitTutorial}
+          />
         </div>
       </div>
     );
   }
 
   // Desktop/wide layout with positioned bubbles
-  return <PositionedBubble step={step} darkMode={darkMode} exitTutorial={handleExitTutorial} advanceTutorial={handleAdvanceTutorial} />;
+  return <PositionedBubble step={step} stepIndex={tutorialStep!} darkMode={darkMode} exitTutorial={handleExitTutorial} advanceTutorial={handleAdvanceTutorial} />;
 }
 
 // Separate component for positioned bubbles (desktop)
 function PositionedBubble({ 
   step, 
+  stepIndex,
   darkMode, 
   exitTutorial, 
   advanceTutorial 
 }: { 
   step: NonNullable<typeof TUTORIAL_STEPS[number]>;
+  stepIndex: number;
   darkMode: boolean;
   exitTutorial: () => void;
   advanceTutorial: () => void;
@@ -148,6 +248,16 @@ function PositionedBubble({
   const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete' || step.id === 'automation-complete' || step.id === 'various-complete';
 
   useEffect(() => {
+    if (step?.dock === 'top' && !step?.targetSelector) {
+      setIsCentered(true);
+      setPosition({
+        top: BUBBLE_PADDING + 48,
+        left: window.innerWidth / 2,
+      });
+      setAdjustedTransform('translateX(-50%)');
+      return;
+    }
+
     // Handle centered position (no target)
     if (step?.position === 'center' || !step?.targetSelector) {
       setIsCentered(true);
@@ -162,7 +272,10 @@ function PositionedBubble({
     setIsCentered(false);
 
     const updatePosition = () => {
-      const target = document.querySelector(step.targetSelector!);
+      const target = Array.from(document.querySelectorAll(step.targetSelector!)).find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
       if (!target) {
         setIsCentered(true);
         setPosition({
@@ -322,58 +435,17 @@ function PositionedBubble({
         transform: adjustedTransform,
       }}
     >
-      <div
-        ref={bubbleRef}
-        className={`relative p-4 rounded-lg shadow-lg max-w-[300px] ${
-          darkMode
-            ? 'bg-black border border-white/30 text-white'
-            : 'bg-white border border-gray-200 text-gray-800'
-        }`}
-        style={{
-          animation: 'subtle-pulse 3s ease-in-out infinite',
-        }}
-      >
+      <div ref={bubbleRef} className="relative w-[320px] max-w-[calc(100vw-32px)]">
         {/* Arrow */}
         {!isCentered && <div style={getArrowStyle()} />}
-        
-        {/* Content */}
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-blue-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h4 className="font-bold text-sm mb-1">{step.title}</h4>
-            <p className={`text-sm ${darkMode ? 'text-white/70' : 'text-gray-600'}`}>
-              {step.message}
-            </p>
-          </div>
-        </div>
-        
-        {/* Buttons */}
-        <div className="mt-3 flex gap-2">
-          {step.requiresManualAdvance && (
-            <button
-              onClick={advanceTutorial}
-              className="flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              Next →
-            </button>
-          )}
-          <button
-            onClick={exitTutorial}
-            className={`${step.requiresManualAdvance ? '' : 'flex-1'} px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-              isFinalStep
-                ? 'bg-green-500 hover:bg-green-600 text-white font-bold'
-                : darkMode
-                  ? 'bg-white/10 hover:bg-white/20 text-white/70'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-            }`}
-          >
-            {isFinalStep ? '🎉 End of Tutorial' : 'Exit Tutorial'}
-          </button>
-        </div>
+        <TutorialCard
+          step={step}
+          stepIndex={stepIndex}
+          darkMode={darkMode}
+          isFinalStep={isFinalStep}
+          onAdvance={advanceTutorial}
+          onExit={exitTutorial}
+        />
       </div>
     </div>
   );

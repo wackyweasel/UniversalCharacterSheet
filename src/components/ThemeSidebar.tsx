@@ -158,6 +158,10 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       }
     } else {
       addCustomTheme(theme);
+      if (activeCharacterId) {
+        updateCharacterTheme(activeCharacterId, theme.id);
+        applyCustomTheme(theme);
+      }
       recordTelemetryEvent({
         eventName: 'custom_theme_created',
         category: 'theme',

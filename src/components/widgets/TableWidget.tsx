@@ -5,6 +5,8 @@ import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
+import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, TrashIcon } from '../icons';
+import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -677,7 +679,8 @@ export default function TableWidget({ widget, height }: Props) {
     columns = ['Item', 'Qty', 'Weight'],
     rows = [],
     tableColumnSettings = [],
-    tableRowSettings = []
+    tableRowSettings = [],
+    showTableEditButton = true
   } = widget.data;
   
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
@@ -688,8 +691,34 @@ export default function TableWidget({ widget, height }: Props) {
   const [toolbarPos, setToolbarPos] = useState<ToolbarPosition>({ x: 0, y: 0 });
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
+  const [columnPendingRemoval, setColumnPendingRemoval] = useState<number | null>(null);
+  const [isTableEditing, setIsTableEditing] = useState(false);
+  const [editingColumnHeader, setEditingColumnHeader] = useState<number | null>(null);
+  const showTableControls = isTableEditing && !isPrintMode;
   const dragRowItem = useRef<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
+  const touchUiSnapshotRef = useRef<{
+    editingCell: { row: number; col: number } | null;
+    selectedCell: { row: number; col: number } | null;
+    selectedColumn: number | null;
+    selectedRow: number | null;
+    showToolbar: boolean;
+    toolbarPos: ToolbarPosition;
+  } | null>(null);
+
+  const captureTouchUiState = () => {
+    if (touchUiSnapshotRef.current) return;
+    touchUiSnapshotRef.current = {
+      editingCell,
+      selectedCell,
+      selectedColumn,
+      selectedRow,
+      showToolbar,
+      toolbarPos: { ...toolbarPos },
+    };
+  };
 
   // Collect all used colors (with opacity) from the character's table widgets
   const usedColors = useMemo(() => {
@@ -856,6 +885,12 @@ export default function TableWidget({ widget, height }: Props) {
     updateWidgetData(widget.id, { rows: newRows });
   };
 
+  const handleColumnNameChange = (colIdx: number, value: string) => {
+    const newColumns = [...columns];
+    newColumns[colIdx] = value;
+    updateWidgetData(widget.id, { columns: newColumns });
+  };
+
   const handleFormatChange = (rowIdx: number, colIdx: number, formatUpdate: Partial<CellFormat>) => {
     const newRows = [...rows];
     const currentCell = newRows[rowIdx].cells[colIdx];
@@ -945,7 +980,9 @@ export default function TableWidget({ widget, height }: Props) {
   };
 
   const handleColumnHeaderClick = (colIdx: number, event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
     setEditingCell(null);
+    setEditingColumnHeader(null);
     setSelectedCell(null);
     setSelectedColumn(colIdx);
     setSelectedRow(null);
@@ -953,8 +990,7 @@ export default function TableWidget({ widget, height }: Props) {
     setShowToolbar(true);
   };
 
-  const handleRowHandleClick = (rowIdx: number, event: React.MouseEvent<HTMLElement>) => {
-    if (draggedRowIndex !== null) return;
+  const handleRowFormatClick = (rowIdx: number, event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     setEditingCell(null);
     setSelectedCell(null);
@@ -968,14 +1004,96 @@ export default function TableWidget({ widget, height }: Props) {
     // No longer needed since single click now enters edit mode
   };
 
-  const clearRow = (index: number) => {
+  const closeTableSelection = () => {
+    setEditingCell(null);
+    setEditingColumnHeader(null);
+    setSelectedCell(null);
+    setSelectedColumn(null);
+    setSelectedRow(null);
+    setShowToolbar(false);
+  };
+
+  const addRow = () => {
+    closeTableSelection();
+    updateWidgetData(widget.id, {
+      rows: [...rows, { cells: columns.map(() => '') }],
+      tableRowSettings: [...rows.map((_, index) => getRowSetting(tableRowSettings, index)), {}],
+    });
+  };
+
+  const addColumn = () => {
+    closeTableSelection();
+    updateWidgetData(widget.id, {
+      columns: [...columns, `Column ${columns.length + 1}`],
+      rows: rows.map((row: TableRow) => ({
+        ...row,
+        cells: [...columns.map((_, index) => row.cells[index] ?? ''), ''],
+      })),
+      tableColumnSettings: [...columns.map((_, index) => getColumnSetting(tableColumnSettings, index)), {}],
+    });
+  };
+
+  const removeRow = (indexToRemove: number) => {
+    closeTableSelection();
+    updateWidgetData(widget.id, {
+      rows: rows.filter((_, index) => index !== indexToRemove),
+      tableRowSettings: rows
+        .map((_, index) => getRowSetting(tableRowSettings, index))
+        .filter((_, index) => index !== indexToRemove),
+    });
+  };
+
+  const requestColumnRemoval = (index: number) => {
+    closeTableSelection();
+    setColumnPendingRemoval(index);
+  };
+
+  const confirmColumnRemoval = () => {
+    if (columnPendingRemoval === null) return;
+
+    if (columns.length > 1) {
+      updateWidgetData(widget.id, {
+        columns: columns.filter((_, index) => index !== columnPendingRemoval),
+        rows: rows.map((row: TableRow) => ({
+          ...row,
+          cells: columns
+            .map((_, index) => row.cells[index] ?? '')
+            .filter((_, index) => index !== columnPendingRemoval),
+        })),
+        tableColumnSettings: columns
+          .map((_, index) => getColumnSetting(tableColumnSettings, index))
+          .filter((_, index) => index !== columnPendingRemoval),
+      });
+    }
+
+    setColumnPendingRemoval(null);
+  };
+
+  useEffect(() => {
+    if (columnPendingRemoval === null) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setColumnPendingRemoval(null);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [columnPendingRemoval]);
+
+  // Row drag handlers
+  const moveRowToInsertion = (fromIndex: number, insertionIndex: number) => {
+    if (insertionIndex === fromIndex || insertionIndex === fromIndex + 1) return;
+
     const newRows = [...rows];
-    newRows[index] = { cells: columns.map(() => '') };
-    const newRowSettings = updateRowSettings(index, { label: undefined, formula: undefined });
+    const newRowSettings = rows.map((_, index) => getRowSetting(tableRowSettings, index));
+    const [movedRow] = newRows.splice(fromIndex, 1);
+    const [movedRowSetting] = newRowSettings.splice(fromIndex, 1);
+    const adjustedIndex = insertionIndex > fromIndex ? insertionIndex - 1 : insertionIndex;
+    newRows.splice(adjustedIndex, 0, movedRow);
+    newRowSettings.splice(adjustedIndex, 0, movedRowSetting);
     updateWidgetData(widget.id, { rows: newRows, tableRowSettings: newRowSettings });
   };
 
-  // Row drag handlers
   const handleRowDragStart = (e: React.DragEvent, index: number) => {
     setShowToolbar(false);
     setSelectedCell(null);
@@ -990,8 +1108,11 @@ export default function TableWidget({ widget, height }: Props) {
   const handleRowDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (dragRowItem.current !== null && dragRowItem.current !== index) {
-      setDragOverRowIndex(index);
+    const fromIndex = dragRowItem.current;
+    if (fromIndex !== null) {
+      const rowRect = e.currentTarget.getBoundingClientRect();
+      const insertionIndex = e.clientY < rowRect.top + rowRect.height / 2 ? index : index + 1;
+      setDragOverRowIndex(insertionIndex === fromIndex || insertionIndex === fromIndex + 1 ? null : insertionIndex);
     }
   };
 
@@ -999,18 +1120,12 @@ export default function TableWidget({ widget, height }: Props) {
     setDragOverRowIndex(null);
   };
 
-  const handleRowDrop = (e: React.DragEvent, toIndex: number) => {
+  const handleRowDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const fromIndex = dragRowItem.current;
-    if (fromIndex !== null && fromIndex !== toIndex) {
-      const newRows = [...rows];
-      const newRowSettings = [...tableRowSettings];
-      const [movedRow] = newRows.splice(fromIndex, 1);
-      const [movedRowSetting] = newRowSettings.splice(fromIndex, 1);
-      newRows.splice(toIndex, 0, movedRow);
-      newRowSettings.splice(toIndex, 0, movedRowSetting || {});
-      updateWidgetData(widget.id, { rows: newRows, tableRowSettings: newRowSettings });
+    if (fromIndex !== null && dragOverRowIndex !== null) {
+      moveRowToInsertion(fromIndex, dragOverRowIndex);
     }
     dragRowItem.current = null;
     setDraggedRowIndex(null);
@@ -1035,6 +1150,7 @@ export default function TableWidget({ widget, height }: Props) {
 
   const handleRowTouchStart = (e: React.TouchEvent, index: number) => {
     e.stopPropagation();
+    captureTouchUiState();
     setShowToolbar(false);
     setSelectedCell(null);
     setSelectedColumn(null);
@@ -1044,7 +1160,7 @@ export default function TableWidget({ widget, height }: Props) {
     const scrollContainer = tableRef.current?.querySelector('.overflow-auto') as HTMLElement | null;
     
     if (tableBody) {
-      const rowElements = Array.from(tableBody.querySelectorAll('tr')) as HTMLTableRowElement[];
+      const rowElements = Array.from(tableBody.querySelectorAll('tr[data-table-row-index]')) as HTMLTableRowElement[];
       const rowHeights = rowElements.map(row => row.getBoundingClientRect().height);
       
       touchDragState.current = {
@@ -1073,34 +1189,19 @@ export default function TableWidget({ widget, height }: Props) {
     const { rowHeights, scrollContainer } = touchDragState.current;
     const fromIndex = dragRowItem.current;
     
-    // Calculate which row we're hovering over based on touch position
-    let accumulatedHeight = 0;
-    let targetIndex = -1;
-    
-    const tableBody = tableRef.current?.querySelector('tbody');
-    if (tableBody) {
-      const tableRect = tableBody.getBoundingClientRect();
-      const relativeY = touch.clientY - tableRect.top + (scrollContainer?.scrollTop || 0);
-      
-      for (let i = 0; i < rowHeights.length; i++) {
-        accumulatedHeight += rowHeights[i];
-        if (relativeY < accumulatedHeight) {
-          targetIndex = i;
-          break;
-        }
+    let insertionIndex = rowHeights.length;
+    let accumulatedHeight = touchDragState.current.rowElements[0]?.getBoundingClientRect().top || 0;
+
+    for (let index = 0; index < rowHeights.length; index++) {
+      const midpoint = accumulatedHeight + rowHeights[index] / 2;
+      if (touch.clientY < midpoint) {
+        insertionIndex = index;
+        break;
       }
-      
-      // If we're past all rows, target the last row
-      if (targetIndex === -1 && rowHeights.length > 0) {
-        targetIndex = rowHeights.length - 1;
-      }
+      accumulatedHeight += rowHeights[index];
     }
-    
-    if (targetIndex !== -1 && targetIndex !== fromIndex) {
-      setDragOverRowIndex(targetIndex);
-    } else {
-      setDragOverRowIndex(null);
-    }
+
+    setDragOverRowIndex(insertionIndex === fromIndex || insertionIndex === fromIndex + 1 ? null : insertionIndex);
     
     // Auto-scroll when near edges
     if (scrollContainer) {
@@ -1122,20 +1223,15 @@ export default function TableWidget({ widget, height }: Props) {
     const fromIndex = dragRowItem.current;
     const toIndex = dragOverRowIndex;
     
-    if (toIndex !== null && fromIndex !== toIndex) {
-      const newRows = [...rows];
-      const newRowSettings = [...tableRowSettings];
-      const [movedRow] = newRows.splice(fromIndex, 1);
-      const [movedRowSetting] = newRowSettings.splice(fromIndex, 1);
-      newRows.splice(toIndex, 0, movedRow);
-      newRowSettings.splice(toIndex, 0, movedRowSetting || {});
-      updateWidgetData(widget.id, { rows: newRows, tableRowSettings: newRowSettings });
+    if (toIndex !== null) {
+      moveRowToInsertion(fromIndex, toIndex);
     }
     
     touchDragState.current = null;
     dragRowItem.current = null;
     setDraggedRowIndex(null);
     setDragOverRowIndex(null);
+    touchUiSnapshotRef.current = null;
   };
 
   // Get cell style based on format
@@ -1212,10 +1308,30 @@ export default function TableWidget({ widget, height }: Props) {
   }, []);
 
   // Touch long press handling
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
+  useTouchCameraPinchCancellation(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    touchDragState.current = null;
+    dragRowItem.current = null;
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+    setTouchStart(null);
+    const snapshot = touchUiSnapshotRef.current;
+    if (snapshot) {
+      setEditingCell(snapshot.editingCell);
+      setSelectedCell(snapshot.selectedCell);
+      setSelectedColumn(snapshot.selectedColumn);
+      setSelectedRow(snapshot.selectedRow);
+      setShowToolbar(snapshot.showToolbar);
+      setToolbarPos(snapshot.toolbarPos);
+      touchUiSnapshotRef.current = null;
+    }
+  });
 
   const handleTouchStart = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
+    captureTouchUiState();
     const targetElement = e.currentTarget;
     setTouchStart({ row: rowIdx, col: colIdx });
     longPressTimer.current = setTimeout(() => {
@@ -1247,6 +1363,7 @@ export default function TableWidget({ widget, height }: Props) {
       }
     }
     setTouchStart(null);
+    touchUiSnapshotRef.current = null;
   };
 
   const handleTouchMove = () => {
@@ -1294,9 +1411,28 @@ export default function TableWidget({ widget, height }: Props) {
 
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
-      {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+      {(label || !isPrintMode) && (
+        <div className="flex flex-shrink-0 items-center justify-between gap-2">
+          {label && (
+            <div className={`min-w-0 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+              {label}
+            </div>
+          )}
+          {!isPrintMode && showTableEditButton && (
+            <button
+              type="button"
+              aria-pressed={isTableEditing}
+              onClick={() => {
+                closeTableSelection();
+                setIsTableEditing((current) => !current);
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className={`widget-control ml-auto h-6 flex-shrink-0 gap-1 px-2 text-[10px] font-semibold ${isTableEditing ? 'bg-theme-accent text-theme-paper' : ''}`}
+            >
+              {isTableEditing ? <CheckIcon className="h-3 w-3" /> : <PencilIcon className="h-3 w-3" />}
+              {isTableEditing ? 'Done' : 'Edit table'}
+            </button>
+          )}
         </div>
       )}
 
@@ -1315,38 +1451,124 @@ export default function TableWidget({ widget, height }: Props) {
         <table className={`w-full ${cellClass}`} style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="sticky top-0 z-10">
             <tr>
-              <th className="w-4 bg-transparent"></th>
+              {showTableControls && <th className="w-5 bg-transparent" />}
               {columns.map((col: string, idx: number) => {
                 const columnSetting = getColumnSetting(tableColumnSettings, idx);
                 const columnFormat = columnSetting.format || {};
                 const isSelected = selectedColumn === idx;
+                const isEditingHeader = editingColumnHeader === idx;
                 const needsDarkText = columnFormat.bgColor ? isLightColor(columnFormat.bgColor, columnFormat.bgOpacity ?? 1) : false;
                 const textColorStyle = needsDarkText ? { color: '#1a1a1a' } : {};
 
                 return (
                 <th
                   key={idx}
-                  className={`border border-theme-border bg-theme-background ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'} font-heading cursor-pointer hover:opacity-80 ${isSelected ? 'ring-2 ring-theme-accent ring-inset' : ''}`}
+                  className={`group/column relative border border-theme-border bg-theme-background ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'} font-heading ${isSelected ? 'ring-2 ring-theme-accent ring-inset' : ''}`}
                   style={{
                     ...getCellStyle(columnFormat),
                     ...textColorStyle,
                     borderLeftWidth: idx === 0 ? 1 : 0
                   }}
-                  onClick={(e) => handleColumnHeaderClick(idx, e)}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  {col}
+                  <div
+                    onClick={() => {
+                      if (showTableControls) setEditingColumnHeader(idx);
+                    }}
+                    className={`relative flex min-w-0 items-center justify-center ${showTableControls ? 'cursor-text' : ''}`}
+                  >
+                    {isEditingHeader ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        aria-label={`Edit ${col} column header`}
+                        value={col}
+                        onChange={(event) => handleColumnNameChange(idx, event.target.value)}
+                        onBlur={() => setEditingColumnHeader(null)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === 'Escape') setEditingColumnHeader(null);
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        className={`w-full min-w-0 bg-transparent p-0 text-center font-heading focus:outline-none ${needsDarkText ? '' : 'text-theme-ink'}`}
+                        style={textColorStyle}
+                      />
+                    ) : (
+                      <span className="min-w-0 truncate text-center">{col}</span>
+                    )}
+                    {showTableControls && (
+                      <span className={`absolute right-0 top-1/2 flex -translate-y-1/2 items-center rounded border border-theme-border bg-theme-background shadow-sm transition-opacity ${isMobile ? 'opacity-100' : 'opacity-0 group-hover/column:opacity-100 focus-within:opacity-100'}`}>
+                        <Tooltip content={`Format ${col} column`}>
+                          <button
+                            type="button"
+                            aria-label={`Format ${col} column`}
+                            onClick={(event) => handleColumnHeaderClick(idx, event)}
+                            className="inline-flex h-4 w-4 items-center justify-center rounded text-theme-muted opacity-55 transition-colors hover:bg-theme-accent hover:text-theme-paper hover:opacity-100 focus-visible:opacity-100"
+                          >
+                            <PencilIcon className="h-2.5 w-2.5" />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content={columns.length > 1 ? `Remove ${col} column` : 'A table needs at least one column'}>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${col} column`}
+                            disabled={columns.length <= 1}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              requestColumnRemoval(idx);
+                            }}
+                            className="inline-flex h-4 w-4 items-center justify-center rounded text-theme-muted opacity-55 transition-colors hover:bg-red-600 hover:text-white hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-20"
+                          >
+                            <TrashIcon className="h-2.5 w-2.5" />
+                          </button>
+                        </Tooltip>
+                      </span>
+                    )}
+                  </div>
                 </th>
                 );
               })}
-              <th className="w-4 bg-transparent"></th>
+              {showTableControls && (
+                <th className="w-9 bg-transparent p-0">
+                  <Tooltip content="Add column">
+                    <button
+                      type="button"
+                      aria-label="Add column"
+                      onClick={addColumn}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      className="widget-control h-5 w-5 p-0"
+                    >
+                      <PlusIcon className="h-3 w-3" />
+                    </button>
+                  </Tooltip>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row: TableRow, rowIdx: number) => (
+            {rows.length === 0 && (
+              <tr>
+                {showTableControls && <td className="w-5 bg-transparent" />}
+                <td colSpan={columns.length} className="px-2 py-1.5 text-center text-[10px] text-theme-muted/80 font-body border border-t-0 border-theme-border">
+                  {isPrintMode ? '' : 'No rows yet.'}
+                </td>
+                {showTableControls && <td className="w-9 bg-transparent" />}
+              </tr>
+            )}
+            {rows.map((row: TableRow, rowIdx: number) => {
+              const showDropBefore = dragOverRowIndex === rowIdx;
+              const showDropAfter = rowIdx === rows.length - 1 && dragOverRowIndex === rows.length;
+              return (
               <tr 
                 key={rowIdx} 
-                className={`group ${draggedRowIndex === rowIdx ? 'opacity-50' : ''} ${dragOverRowIndex === rowIdx && draggedRowIndex !== rowIdx ? 'border-t-2 border-theme-accent' : ''}`}
+                data-table-row-index={rowIdx}
+                className={`group transition-colors ${draggedRowIndex === rowIdx ? 'opacity-40' : ''} ${showDropBefore || showDropAfter ? 'bg-theme-accent/10' : ''}`}
+                style={{
+                  boxShadow: showDropBefore
+                    ? 'inset 0 3px 0 var(--color-accent)'
+                    : showDropAfter
+                      ? 'inset 0 -3px 0 var(--color-accent)'
+                      : undefined,
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -1354,15 +1576,12 @@ export default function TableWidget({ widget, height }: Props) {
                 }}
                 onDragLeave={handleRowDragLeave}
                 onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleRowDrop(e, rowIdx);
+                  handleRowDrop(e);
                 }}
               >
-                <td 
-                  className={`w-4 p-0 cursor-grab active:cursor-grabbing ${selectedRow === rowIdx ? 'bg-theme-accent/10 ring-1 ring-theme-accent ring-inset' : ''}`}
+                {showTableControls && <td
+                  className={`w-5 p-0 cursor-grab active:cursor-grabbing ${selectedRow === rowIdx ? 'bg-theme-accent/10 ring-1 ring-theme-accent ring-inset' : ''}`}
                   draggable
-                  onClick={(e) => handleRowHandleClick(rowIdx, e)}
                   onDragStart={(e) => handleRowDragStart(e, rowIdx)}
                   onDragEnd={handleRowDragEnd}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -1370,10 +1589,14 @@ export default function TableWidget({ widget, height }: Props) {
                   onTouchMove={handleRowTouchMove}
                   onTouchEnd={handleRowTouchEnd}
                 >
-                  <div className={`text-theme-muted hover:text-theme-ink text-[10px] text-center touch-none select-none ${isPrintMode ? 'opacity-0' : ''}`}>
-                    ⠿
+                  <div
+                    aria-label={`Drag row ${rowIdx + 1} to reorder`}
+                    title={`Drag row ${rowIdx + 1} to reorder`}
+                    className={`flex h-full min-h-5 touch-none select-none items-center justify-center text-theme-muted hover:text-theme-ink ${isPrintMode ? 'opacity-0' : ''}`}
+                  >
+                    <GripVerticalIcon className="h-3 w-3" />
                   </div>
-                </td>
+                </td>}
                 {row.cells.map((cell, colIdx: number) => {
                   const cellValue = getCellValue(cell);
                   const columnSetting = getColumnSetting(tableColumnSettings, colIdx);
@@ -1460,20 +1683,111 @@ export default function TableWidget({ widget, height }: Props) {
                     </td>
                   );
                 })}
-                <td className={`w-4 p-0`}>
+                {showTableControls && <td className="w-9 p-0">
+                  <div className="flex h-full min-h-5 items-center justify-center">
+                    <Tooltip content={`Format row ${rowIdx + 1}`}>
+                      <button
+                        type="button"
+                        aria-label={`Format row ${rowIdx + 1}`}
+                        onClick={(event) => handleRowFormatClick(rowIdx, event)}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        className="inline-flex h-5 w-4 items-center justify-center rounded text-theme-muted opacity-55 transition-colors hover:bg-theme-accent hover:text-theme-paper hover:opacity-100 focus-visible:opacity-100"
+                      >
+                        <PencilIcon className="h-2.5 w-2.5" />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={`Remove row ${rowIdx + 1}`}>
+                      <button
+                        type="button"
+                        aria-label={`Remove row ${rowIdx + 1}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeRow(rowIdx);
+                        }}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        className="inline-flex h-5 w-4 items-center justify-center rounded text-theme-muted opacity-55 transition-colors hover:bg-red-600 hover:text-white hover:opacity-100 focus-visible:opacity-100"
+                      >
+                        <TrashIcon className="h-2.5 w-2.5" />
+                      </button>
+                    </Tooltip>
+                  </div>
+                </td>}
+              </tr>
+              );
+            })}
+            {showTableControls && (
+              <tr
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const fromIndex = dragRowItem.current;
+                  setDragOverRowIndex(fromIndex === null || fromIndex === rows.length - 1 ? null : rows.length);
+                }}
+                onDrop={handleRowDrop}
+              >
+                <td className="w-5 bg-transparent" />
+                <td colSpan={columns.length} className="py-0.5 text-center">
                   <button
-                    onClick={() => clearRow(rowIdx)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className={`w-full h-full text-theme-muted hover:text-theme-ink opacity-0 group-hover:opacity-100 ${isPrintMode ? '!opacity-0' : ''}`}
+                    type="button"
+                    aria-label="Add row"
+                    onClick={addRow}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    className="widget-control widget-control--subtle mx-auto h-5 min-h-0 gap-1 px-2 text-[10px] font-medium"
                   >
-                    ×
+                    <PlusIcon className="h-2.5 w-2.5" />
+                    <span>Add row</span>
                   </button>
                 </td>
+                <td className="w-9 bg-transparent" />
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
+
+      {columnPendingRemoval !== null && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={() => setColumnPendingRemoval(null)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`table-remove-title-${widget.id}`}
+            aria-describedby={`table-remove-description-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id={`table-remove-title-${widget.id}`} className="font-heading text-base font-bold">
+              Remove column {columnPendingRemoval + 1}?
+            </h3>
+            <p id={`table-remove-description-${widget.id}`} className="mt-2 text-sm text-theme-muted">
+              This column and all of its values, labels, formulas, and formatting will be removed.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setColumnPendingRemoval(null)}
+                className="widget-control px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmColumnRemoval}
+                className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+              >
+                Remove column
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Formatting Toolbar - rendered via portal to escape transformed container */}
       {showToolbar && selectedCell && createPortal(

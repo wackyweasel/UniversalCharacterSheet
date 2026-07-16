@@ -27,6 +27,10 @@ export interface CustomTheme {
   cardTexture: string;
   textureColor: string;
   textureOpacity: number;
+  diceColor?: string;
+  diceTextColor?: string;
+  diceTexture?: string;
+  diceTextureOpacity?: number;
   borderStyle: string;
 }
 
@@ -163,6 +167,10 @@ export function createDefaultCustomTheme(): Omit<CustomTheme, 'id'> {
     cardTexture: 'none',
     textureColor: '#ffffff',
     textureOpacity: 0.15,
+    diceColor: '#ffffff',
+    diceTextColor: '#000000',
+    diceTexture: 'none',
+    diceTextureOpacity: 0.25,
     borderStyle: 'solid',
   };
 }

@@ -15,6 +15,7 @@ import {
   isImageTexture,
   IMAGE_TEXTURES,
 } from '../store/useThemeStore';
+import { CheckIcon, TrashIcon, XIcon } from './icons';
 
 interface CustomThemeEditorProps {
   theme?: CustomTheme; // If provided, we're editing; otherwise creating new
@@ -43,6 +44,10 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [cardTexture, setCardTexture] = useState(theme?.cardTexture || defaultTheme.cardTexture);
   const textureColor = '#ffffff'; // Fixed white texture color
   const [textureOpacity, setTextureOpacity] = useState(theme?.textureOpacity ?? defaultTheme.textureOpacity);
+  const [diceColor, setDiceColor] = useState(theme?.diceColor || theme?.colors.paper || defaultTheme.diceColor || '#ffffff');
+  const [diceTextColor, setDiceTextColor] = useState(theme?.diceTextColor || theme?.colors.ink || defaultTheme.diceTextColor || '#000000');
+  const [diceTexture, setDiceTexture] = useState(theme?.diceTexture || defaultTheme.diceTexture || 'none');
+  const [diceTextureOpacity, setDiceTextureOpacity] = useState(theme?.diceTextureOpacity ?? defaultTheme.diceTextureOpacity ?? 0.25);
   const [borderStyle, setBorderStyle] = useState(theme?.borderStyle || defaultTheme.borderStyle);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [hoveredColor, setHoveredColor] = useState<ColorKey | null>(null);
@@ -69,6 +74,10 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
       cardTexture,
       textureColor: '#ffffff',
       textureOpacity,
+      diceColor,
+      diceTextColor,
+      diceTexture,
+      diceTextureOpacity,
       borderStyle,
     };
     onSave(newTheme);
@@ -99,16 +108,16 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   // Preview component - reused for both mobile and desktop
   const PreviewCard = () => (
     <div 
-      className="p-6"
+      className="p-3 sm:p-4"
       style={{ 
         backgroundColor: colors.background,
         borderRadius: borderRadius,
-        minHeight: '200px',
+        minHeight: '160px',
         ...getHighlightStyle(['background']),
       }}
     >
       <div 
-        className="p-4 relative overflow-hidden"
+        className="p-3 relative overflow-hidden"
         style={{ 
           backgroundColor: colors.paper,
           backgroundImage: isImageTexture(cardTexture) ? 'none' : getTextureCSS(cardTexture, textureColor, textureOpacity),
@@ -144,7 +153,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           </div>
         )}
         <h4 
-          className="text-lg font-bold mb-2 relative"
+          className="text-base font-bold mb-1.5 relative"
           style={{ 
             color: colors.ink, 
             fontFamily: headingFont,
@@ -154,7 +163,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           {icon} {name}
         </h4>
         <p 
-          className="text-sm mb-4 relative"
+          className="text-xs mb-3 relative line-clamp-2"
           style={{ 
             color: colors.muted, 
             fontFamily: bodyFont,
@@ -163,73 +172,110 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
         >
           {description}
         </p>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            className="px-4 py-2 text-sm font-bold transition-colors relative"
-            style={{ 
-              backgroundColor: colors.accent,
-              color: colors.paper,
-              borderRadius: buttonRadius,
-              fontFamily: headingFont,
-              ...getHighlightStyle(['accent']),
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              className="px-3 py-1.5 text-xs font-bold transition-colors relative"
+              style={{ 
+                backgroundColor: colors.accent,
+                color: colors.paper,
+                borderRadius: buttonRadius,
+                fontFamily: headingFont,
+                ...getHighlightStyle(['accent']),
+              }}
+            >
+              Primary
+            </button>
+            <button
+              className="px-3 py-1.5 text-xs font-bold transition-colors relative"
+              style={{ 
+                backgroundColor: colors.accentHover,
+                color: colors.paper,
+                borderRadius: buttonRadius,
+                fontFamily: headingFont,
+                ...getHighlightStyle(['accentHover']),
+              }}
+            >
+              Hover
+            </button>
+          </div>
+          <div
+            className="relative w-12 h-12 flex-shrink-0 overflow-hidden flex items-center justify-center"
+            style={{
+              backgroundColor: diceColor,
+              color: diceTextColor,
+              clipPath: 'polygon(50% 0, 94% 24%, 94% 76%, 50% 100%, 6% 76%, 6% 24%)',
+              filter: 'drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))',
             }}
+            aria-label="Dice appearance preview"
           >
-            Primary Button
-          </button>
-          <button
-            className="px-4 py-2 text-sm font-bold transition-colors relative"
-            style={{ 
-              backgroundColor: colors.accentHover,
-              color: colors.paper,
-              borderRadius: buttonRadius,
-              fontFamily: headingFont,
-              ...getHighlightStyle(['accentHover']),
-            }}
-          >
-            Hover State
-          </button>
+            {isImageTexture(diceTexture) && (
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                  backgroundImage: `url(${IMAGE_TEXTURES[diceTexture]})`,
+                  backgroundSize: '500%',
+                  backgroundPosition: 'center',
+                  opacity: diceTextureOpacity,
+                }}
+              />
+            )}
+            <span className="relative text-sm font-bold" style={{ fontFamily: headingFont }}>20</span>
+          </div>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2 animate-fade-in">
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2 sm:p-4 animate-fade-in">
       <div 
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-4xl max-h-[95vh] flex flex-col animate-modal-in"
+        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme w-full max-w-5xl max-h-[calc(100dvh-1rem)] sm:max-h-[92vh] flex flex-col overflow-hidden animate-modal-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-3 border-b-[length:var(--border-width)] border-theme-border bg-theme-paper flex-shrink-0">
-          <h2 className="text-lg font-bold text-theme-ink font-heading">
-            {isEditing ? '✏️ Edit Custom Theme' : '🎨 Create Custom Theme'}
-          </h2>
+        <div className="h-12 px-3 sm:px-4 border-b-[length:var(--border-width)] border-theme-border bg-theme-paper flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="min-w-0 flex items-baseline gap-2">
+            <h2 className="text-base font-bold text-theme-ink font-heading whitespace-nowrap">
+              {isEditing ? 'Edit Theme' : 'Create Theme'}
+            </h2>
+            <span className="text-xs text-theme-muted font-body truncate">{name}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-button transition-colors"
+            aria-label="Close theme editor"
+            title="Close"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Content - Column layout */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Preview - at top */}
-          <div className="w-full flex-shrink-0 border-b-[length:var(--border-width)] border-theme-border p-4 bg-theme-background/50">
+        {/* Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] flex-1 min-h-0 overflow-hidden">
+          {/* Preview */}
+          <div className="w-full flex-shrink-0 border-b-[length:var(--border-width)] lg:border-b-0 lg:border-r-[length:var(--border-width)] border-theme-border p-3 sm:p-4 bg-theme-background/50 lg:overflow-y-auto">
             <style>{`
               @keyframes pulse-highlight {
                 0%, 100% { outline-color: #ff6b6b; }
                 50% { outline-color: #ffb347; }
               }
             `}</style>
-            <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Preview</h3>
-            <div>
+            <h3 className="text-[11px] font-bold text-theme-muted mb-2 uppercase tracking-wider font-heading">Live Preview</h3>
+            <div className="max-w-md mx-auto lg:max-w-none">
               <PreviewCard />
             </div>
           </div>
 
           {/* Form - scrollable */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-5">
+          <div className="min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4">
             {/* Basic Info Section */}
             <section>
-              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Basic Info</h3>
-              <div className="grid grid-cols-1 gap-3">
+              <h3 className="text-[11px] font-bold text-theme-ink mb-2 pb-1.5 border-b border-theme-border uppercase tracking-wider font-heading">Identity</h3>
+              <div className="grid grid-cols-[52px_minmax(0,1fr)] gap-2.5">
                 {/* Name */}
-                <div>
+                <div className="col-start-2 row-start-1">
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Theme Name</label>
                   <input
                     type="text"
@@ -241,17 +287,17 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 </div>
 
                 {/* Icon */}
-                <div className="relative">
+                <div className="relative col-start-1 row-start-1">
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Icon</label>
                   <button
                     onClick={() => setShowIconPicker(!showIconPicker)}
-                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body text-left flex items-center gap-2"
+                    className="w-full h-[38px] border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme flex items-center justify-center hover:bg-theme-background transition-colors"
+                    aria-label="Choose theme icon"
                   >
                     <span className="text-xl">{icon}</span>
-                    <span className="text-xs text-theme-muted">Click to change</span>
                   </button>
                   {showIconPicker && (
-                    <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-20 grid grid-cols-10 gap-1 max-h-40 overflow-y-auto">
+                    <div className="absolute top-full left-0 mt-1 p-2 w-64 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-20 grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
                       {ICON_OPTIONS.map((ic) => (
                         <button
                           key={ic}
@@ -269,7 +315,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 </div>
 
                 {/* Description */}
-                <div>
+                <div className="col-span-2">
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Description</label>
                   <input
                     type="text"
@@ -284,8 +330,8 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
 
             {/* Colors Section */}
             <section>
-              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Colors</h3>
-              <div className="grid grid-cols-3 gap-2">
+              <h3 className="text-[11px] font-bold text-theme-ink mb-2 pb-1.5 border-b border-theme-border uppercase tracking-wider font-heading">Palette</h3>
+              <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 gap-2">
                 {colorFields.map(({ key, label }) => (
                   <div 
                     key={key} 
@@ -293,12 +339,12 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onMouseEnter={() => setHoveredColor(key)}
                     onMouseLeave={() => setHoveredColor(null)}
                   >
-                    <label className="block text-[10px] font-bold text-theme-muted mb-1 font-body text-center">{label}</label>
+                    <label className="block text-[10px] font-bold text-theme-muted mb-1 font-body text-center truncate w-full">{label}</label>
                     <input
                       type="color"
                       value={colors[key]}
                       onChange={(e) => handleColorChange(key, e.target.value)}
-                      className="w-10 h-10 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                      className="w-9 h-9 border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
                       style={{
                         outline: hoveredColor === key ? '2px solid var(--color-accent)' : undefined,
                         outlineOffset: hoveredColor === key ? '2px' : undefined,
@@ -311,14 +357,15 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
 
             {/* Fonts Section */}
             <section>
-              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Fonts</h3>
-              <div className="grid grid-cols-1 gap-3">
+              <h3 className="text-[11px] font-bold text-theme-ink mb-2 pb-1.5 border-b border-theme-border uppercase tracking-wider font-heading">Typography</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Heading Font</label>
                   <select
                     value={headingFont}
                     onChange={(e) => setHeadingFont(e.target.value)}
-                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme"
+                    style={{ fontFamily: headingFont }}
                   >
                     {FONT_OPTIONS.map((font) => (
                       <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -326,16 +373,14 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-theme-muted mt-1" style={{ fontFamily: headingFont }}>
-                    Preview: The quick brown fox
-                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Body Font</label>
                   <select
                     value={bodyFont}
                     onChange={(e) => setBodyFont(e.target.value)}
-                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme"
+                    style={{ fontFamily: bodyFont }}
                   >
                     {FONT_OPTIONS.map((font) => (
                       <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
@@ -343,17 +388,14 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-theme-muted mt-1" style={{ fontFamily: bodyFont }}>
-                    Preview: The quick brown fox
-                  </p>
                 </div>
               </div>
             </section>
 
             {/* Style Section */}
             <section>
-              <h3 className="text-sm font-bold text-theme-ink mb-3 uppercase tracking-wider font-heading">Style</h3>
-              <div className="grid grid-cols-1 gap-3">
+              <h3 className="text-[11px] font-bold text-theme-ink mb-2 pb-1.5 border-b border-theme-border uppercase tracking-wider font-heading">Surface</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
                 <div>
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">Card Border Radius</label>
                   <select
@@ -435,7 +477,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="sm:col-span-2 xl:col-span-3">
                   <label className="block text-xs font-bold text-theme-muted mb-1 font-body">
                     Texture Opacity: {Math.round(textureOpacity * 100)}%
                   </label>
@@ -452,11 +494,66 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 </div>
               </div>
             </section>
+
+            <section>
+              <h3 className="text-[11px] font-bold text-theme-ink mb-2 pb-1.5 border-b border-theme-border uppercase tracking-wider font-heading">Dice</h3>
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+                <div>
+                  <label htmlFor="theme-dice-color" className="block text-xs font-bold text-theme-muted mb-1 font-body">Dice Color</label>
+                  <input
+                    id="theme-dice-color"
+                    type="color"
+                    value={diceColor}
+                    onChange={(e) => setDiceColor(e.target.value)}
+                    className="w-full h-[38px] border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="theme-dice-text-color" className="block text-xs font-bold text-theme-muted mb-1 font-body">Face Text</label>
+                  <input
+                    id="theme-dice-text-color"
+                    type="color"
+                    value={diceTextColor}
+                    onChange={(e) => setDiceTextColor(e.target.value)}
+                    className="w-full h-[38px] border-[length:var(--border-width)] border-theme-border rounded-theme cursor-pointer"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label htmlFor="theme-dice-texture" className="block text-xs font-bold text-theme-muted mb-1 font-body">Dice Texture</label>
+                  <select
+                    id="theme-dice-texture"
+                    value={diceTexture}
+                    onChange={(e) => setDiceTexture(e.target.value)}
+                    className="w-full p-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-theme font-body"
+                  >
+                    {TEXTURE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2 xl:col-span-4">
+                  <label htmlFor="theme-dice-texture-opacity" className="block text-xs font-bold text-theme-muted mb-1 font-body">
+                    Dice Texture Opacity: {Math.round(diceTextureOpacity * 100)}%
+                  </label>
+                  <input
+                    id="theme-dice-texture-opacity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={diceTextureOpacity}
+                    onChange={(e) => setDiceTextureOpacity(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-theme-border rounded-theme appearance-none cursor-pointer"
+                    disabled={diceTexture === 'none'}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t-[length:var(--border-width)] border-theme-border bg-theme-paper flex flex-wrap gap-2 justify-between flex-shrink-0">
+        <div className="px-3 sm:px-4 py-2.5 border-t-[length:var(--border-width)] border-theme-border bg-theme-paper flex gap-2 justify-between items-center flex-shrink-0">
           <div>
             {isEditing && onDelete && (
               <button
@@ -465,8 +562,9 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                     onDelete();
                   }
                 }}
-                className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-button hover:bg-red-600 transition-colors font-heading"
+                className="px-2.5 py-2 text-red-600 text-xs font-bold rounded-button hover:bg-red-500 hover:text-white transition-colors font-heading flex items-center gap-1.5"
               >
+                <TrashIcon className="w-4 h-4" />
                 Delete
               </button>
             )}
@@ -474,14 +572,15 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="px-3 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-sm font-bold rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-heading"
+              className="px-3 py-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink text-xs font-bold rounded-button hover:bg-theme-background transition-colors font-heading"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-2 bg-theme-accent text-theme-paper text-sm font-bold rounded-button hover:bg-theme-accent-hover transition-colors font-heading"
+              className="px-3 py-2 bg-theme-accent text-theme-paper text-xs font-bold rounded-button hover:bg-theme-accent-hover transition-colors font-heading flex items-center gap-1.5"
             >
+              <CheckIcon className="w-4 h-4" />
               {isEditing ? 'Save Changes' : 'Create Theme'}
             </button>
           </div>

@@ -147,7 +147,6 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
         { count: 1, faces: 6 },
       ],
       modifier: 3,
-      showIndividualResults: true,
     },
   },
   DICE_TRAY: {
@@ -207,7 +206,7 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
         { name: 'Stress', current: 4, max: 6, style: 'dots' },
         { name: 'Mana', current: 2, max: 4, style: 'squares' },
       ],
-      showPoolCount: true,
+      showPoolCount: false,
     },
   },
   TOGGLE_GROUP: {
@@ -306,7 +305,7 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       label: 'Progress',
       currentValue: 6,
       maxValue: 8,
-      showPercentage: true,
+      showPercentage: false,
       showValues: true,
     },
   },
@@ -466,23 +465,23 @@ function renderWidget(widget: Widget) {
   };
 
   switch (widget.type) {
-    case 'NUMBER': return <NumberWidget {...props} />;
-    case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
-    case 'LIST': return <ListWidget {...props} />;
+    case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
+    case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+    case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
     case 'TEXT': return <TextWidget {...props} />;
-    case 'CHECKBOX': return <CheckboxWidget {...props} />;
-    case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
-    case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
-    case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
+    case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
+    case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
+    case 'DICE_TRAY': return <DiceTrayWidget {...props} interactive={false} />;
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
-    case 'IMAGE': return <ImageWidget {...props} />;
-    case 'POOL': return <PoolWidget {...props} />;
-    case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
+    case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
+    case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'TOGGLE_GROUP': return <ConditionWidget {...props} showFieldControls={false} interactive={false} />;
     case 'TABLE': return <TableWidget {...props} />;
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-    case 'FORM': return <FormWidget {...props} />;
+    case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
-    case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+    case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;

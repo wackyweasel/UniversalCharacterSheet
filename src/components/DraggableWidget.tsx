@@ -35,6 +35,7 @@ import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
+import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -143,7 +144,25 @@ export default function DraggableWidget({ widget, scale }: Props) {
   
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
+  const isResizingRef = useRef(false);
   const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
+  const isDraggingRef = useRef(false);
+  const pinchCanceledDragRef = useRef(false);
+  const widgetTouchActiveRef = useRef(false);
+  const selectedBeforeTouchRef = useRef<string | null>(null);
+
+  useTouchCameraPinchCancellation(() => {
+    if (isDraggingRef.current) pinchCanceledDragRef.current = true;
+    if (isResizingRef.current) {
+      isResizingRef.current = false;
+      updateWidgetSize(widget.id, resizeStartRef.current.width, resizeStartRef.current.height);
+      setIsResizing(false);
+    }
+    if (widgetTouchActiveRef.current) {
+      widgetTouchActiveRef.current = false;
+      setSelectedWidgetId(selectedBeforeTouchRef.current);
+    }
+  });
 
   const isSelected = selectedWidgetId === widget.id;
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
@@ -261,11 +280,17 @@ export default function DraggableWidget({ widget, scale }: Props) {
     }
     
     if (mode === 'edit') {
+      widgetTouchActiveRef.current = true;
+      selectedBeforeTouchRef.current = selectedWidgetId;
       // If this widget is not selected, select it without canceling the native touch sequence
       if (!isSelected) {
         setSelectedWidgetId(widget.id);
       }
     }
+  };
+
+  const handleWidgetTouchEnd = () => {
+    widgetTouchActiveRef.current = false;
   };
 
   // Handle click/tap on widget - in edit mode, first tap shows controls
@@ -337,6 +362,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
       height: currentHeight,
     };
     
+    isResizingRef.current = true;
     setIsResizing(true);
   }, [widget.w, widget.h, widget.groupId, widget.id, detachWidgets]);
 
@@ -356,6 +382,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   }, [isResizing, scale, minDimensions, widget.id, updateWidgetSize]);
 
   const handleResizeEnd = useCallback(() => {
+    isResizingRef.current = false;
     setIsResizing(false);
   }, []);
 
@@ -379,6 +406,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const handleStart = (_e: DraggableEvent, data: DraggableData) => {
     // Store the starting position for calculating delta
     dragStartPos.current = { x: data.x, y: data.y };
+    isDraggingRef.current = true;
+    pinchCanceledDragRef.current = false;
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
@@ -404,6 +433,21 @@ export default function DraggableWidget({ widget, scale }: Props) {
   };
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
+    isDraggingRef.current = false;
+    if (pinchCanceledDragRef.current) {
+      pinchCanceledDragRef.current = false;
+      if (widget.groupId) {
+        const siblings = useStore.getState().getWidgetsInGroup(widget.groupId);
+        document.querySelectorAll(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
+          const sibling = siblings.find(candidate => candidate.id === element.getAttribute('data-widget-id'));
+          if (sibling) {
+            (element as HTMLElement).style.transform = `translate(${sibling.x}px, ${sibling.y}px)`;
+          }
+        });
+      }
+      return;
+    }
+
     const snappedX = snapToGrid(data.x);
     const snappedY = snapToGrid(data.y);
     
@@ -588,7 +632,13 @@ export default function DraggableWidget({ widget, scale }: Props) {
     // Always render in play mode style - the modal handles editing
     // But pass 'print' mode when in print mode for special rendering
     const widgetMode = mode === 'print' ? 'print' : 'play';
-    const props = { widget, mode: widgetMode as 'play' | 'print', width: widgetWidth, height: widgetHeight || 120 };
+    const contentInset = 16;
+    const props = {
+      widget,
+      mode: widgetMode as 'play' | 'print',
+      width: Math.max(20, widgetWidth - contentInset),
+      height: Math.max(20, (widgetHeight || 120) - contentInset),
+    };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
@@ -634,7 +684,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
@@ -647,6 +697,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onTouchStart={handleWidgetTouchStart}
+          onTouchEnd={handleWidgetTouchEnd}
+          onTouchCancel={handleWidgetTouchEnd}
           onClick={handleWidgetClick}
         >
           {/* Image texture overlay - grayscale texture tinted with card color */}
@@ -671,7 +723,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className="drag-handle absolute -top-2 left-8 right-8 h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]">
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
@@ -689,6 +741,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
               <Tooltip content="Widget options">
                 <button
                   data-tutorial={widgetMenuTutorialTarget}
+                  aria-label={`Options for ${widget.data.label || widget.type}`}
+                  aria-expanded={showDropdown}
                   className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1355,7 +1409,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </Tooltip>
           )}
 
-          <div ref={contentRef} className="h-full overflow-hidden relative z-10 pt-1 pl-1">
+          <div ref={contentRef} className={`widget-content ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
             {renderContent()}
           </div>
         </div>

@@ -12,6 +12,11 @@ type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
 type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
 type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view';
 
+interface CharacterCreatorRequest {
+  initialName: string;
+  replaceCharacterId?: string;
+}
+
 interface StoreTelemetryEvent {
   eventName: string;
   category: StoreTelemetryCategory;
@@ -141,19 +146,24 @@ interface StoreState {
   mode: Mode;
   editingWidgetId: string | null;
   selectedWidgetId: string | null; // For showing edit/delete/attach buttons on mobile
+  characterCreatorRequest: CharacterCreatorRequest | null;
   
   // Actions
   createCharacter: (name: string) => void;
   createCharacterFromPreset: (preset: CharacterPreset, name?: string, telemetrySource?: PresetTelemetrySource) => void;
+  replaceBlankCharacterFromPreset: (characterId: string, preset: CharacterPreset, name?: string, telemetrySource?: PresetTelemetrySource) => boolean;
   createTransientCharacter: (name: string) => void;
   createTransientCharacterFromPreset: (preset: CharacterPreset, name?: string) => void;
   cleanupTransientCharacters: () => void;
   importCharacter: (character: Character, telemetrySource?: ImportTelemetrySource) => void;
   duplicateCharacter: (id: string) => void;
+  reorderCharacter: (characterId: string, newIndex: number) => void;
   selectCharacter: (id: string | null) => void;
   deleteCharacter: (id: string) => void;
   updateCharacterName: (id: string, name: string) => void;
   updateCharacterTheme: (id: string, theme: string) => void;
+  requestCharacterCreator: (request: CharacterCreatorRequest) => void;
+  clearCharacterCreatorRequest: () => void;
   setMode: (mode: Mode) => void;
   setEditingWidgetId: (id: string | null) => void;
   setSelectedWidgetId: (id: string | null) => void;
@@ -243,6 +253,7 @@ export const useStore = create<StoreState>((set, get) => {
     mode: initialMode,
     editingWidgetId: null,
     selectedWidgetId: null,
+    characterCreatorRequest: null,
 
     createCharacter: (name) => set((state) => {
       const defaultSheet: Sheet = {
@@ -266,7 +277,7 @@ export const useStore = create<StoreState>((set, get) => {
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
-        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
+        mode: 'edit' as const
       };
     }),
 
@@ -300,6 +311,46 @@ export const useStore = create<StoreState>((set, get) => {
         mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
+
+    replaceBlankCharacterFromPreset: (characterId, preset, name, telemetrySource = 'unknown') => {
+      const state = get();
+      const existingCharacter = state.characters.find((character) => character.id === characterId);
+      if (!existingCharacter || existingCharacter.sheets.some((sheet) => sheet.widgets.length > 0)) {
+        return false;
+      }
+
+      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+      const replacement: Character = {
+        id: existingCharacter.id,
+        name: name || preset.name,
+        theme: preset.theme,
+        sheets: newSheets,
+        activeSheetId,
+      };
+
+      recordStoreEvent(state, {
+        eventName: getPresetCreatedEventName(telemetrySource),
+        category: 'character',
+        characterId: replacement.id,
+        sheetId: activeSheetId,
+        source: telemetrySource,
+        metadata: {
+          presetName: preset.name,
+          replacedBlankCharacter: true,
+          sheetCount: newSheets.length,
+          widgetCount: newSheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
+        },
+      });
+
+      set({
+        characters: state.characters.map((character) => character.id === characterId ? replacement : character),
+        activeCharacterId: characterId,
+        mode: 'play',
+        editingWidgetId: null,
+        selectedWidgetId: null,
+      });
+      return true;
+    },
 
     createTransientCharacter: (name) => set((state) => {
       const transientIds = new Set(state.transientCharacterIds);
@@ -426,6 +477,17 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
+    reorderCharacter: (characterId, newIndex) => set((state) => {
+      const currentIndex = state.characters.findIndex((character) => character.id === characterId);
+      const clampedIndex = Math.max(0, Math.min(newIndex, state.characters.length - 1));
+      if (currentIndex < 0 || currentIndex === clampedIndex) return state;
+
+      const characters = [...state.characters];
+      const [character] = characters.splice(currentIndex, 1);
+      characters.splice(clampedIndex, 0, character);
+      return { characters };
+    }),
+
     selectCharacter: (id) => set((state) => {
       const transientIds = new Set(state.transientCharacterIds);
       const shouldCleanupTransients = id === null && transientIds.size > 0;
@@ -448,11 +510,20 @@ export const useStore = create<StoreState>((set, get) => {
         }
       }
 
+      const selectedCharacter = id ? state.characters.find(c => c.id === id) : undefined;
+      const selectedCharacterIsBlank = selectedCharacter
+        ? selectedCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
+        : false;
+
       return {
         characters: shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters,
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
         activeCharacterId: id,
-        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
+        mode: selectedCharacterIsBlank
+          ? 'edit' as const
+          : state.mode === 'vertical'
+            ? 'vertical' as const
+            : 'play' as const,
         editingWidgetId: null,
         selectedWidgetId: null,
       };
@@ -514,6 +585,10 @@ export const useStore = create<StoreState>((set, get) => {
         characters: state.characters.map(c => c.id === id ? { ...c, theme } : c)
       };
     }),
+
+    requestCharacterCreator: (request) => set({ characterCreatorRequest: request }),
+
+    clearCharacterCreatorRequest: () => set({ characterCreatorRequest: null }),
 
     setMode: (mode) => set((state) => {
       if (state.mode !== mode) {
@@ -788,7 +863,12 @@ export const useStore = create<StoreState>((set, get) => {
             label: getDefaultLabel(type),
             value: 0,
             items: [],
-            text: ''
+            text: '',
+            ...(type === 'PROGRESS_BAR' ? { showPercentage: false } : {}),
+            ...(type === 'POOL' ? {
+              poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
+              showPoolCount: false,
+            } : {})
           }
         };
 
@@ -1911,7 +1991,7 @@ export const useStore = create<StoreState>((set, get) => {
           if (poolResources.length > 0) {
             // Multi-resource mode — match each target by resource index
             const newResources = poolResources.map((r: PoolResource, idx: number) => {
-              const target = targets.find(t => t.resourceIndex === idx);
+              const target = targets.find(t => t.resourceIndex === idx || (idx === 0 && t.resourceIndex === -1));
               if (!target || r.currentFormula) return r; // skip unselected or formula-driven
               const newCurrent = target.mode === 'full'
                 ? r.max

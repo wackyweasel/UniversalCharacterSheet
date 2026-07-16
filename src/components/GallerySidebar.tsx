@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useUserPresetStore, type UserPreset } from '../store/useUserPresetStore';
 import { useCustomThemeStore, type CustomTheme } from '../store/useCustomThemeStore';
 import { useTemplateStore, type AnyTemplate } from '../store/useTemplateStore';
 import { useGallery, submitToGallery, GalleryPreset, GalleryTheme, GalleryTemplate } from '../hooks/useGallery';
-import { IMAGE_TEXTURES, isImageTexture, getShadowStyleCSS } from '../store/useThemeStore';
+import { IMAGE_TEXTURES, getShadowStyleCSS, getTextureCSS, isImageTexture } from '../store/useThemeStore';
 import { v4 as uuidv4 } from 'uuid';
 import GalleryShareModal from './GalleryShareModal';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
@@ -19,8 +19,24 @@ interface GallerySidebarProps {
 }
 
 type TabType = 'presets' | 'themes' | 'templates';
+type GalleryView = 'browse' | 'library';
 type UserDataType = 'preset' | 'theme' | 'template';
 type ImportSource = 'json_file' | 'raw_json';
+
+const categoryDetails: Record<TabType, { label: string; description: string }> = {
+  presets: {
+    label: 'Presets',
+    description: 'Complete character sheets ready to use as a starting point.',
+  },
+  themes: {
+    label: 'Themes',
+    description: 'Visual styles that change colors, type, texture, and borders.',
+  },
+  templates: {
+    label: 'Templates',
+    description: 'Reusable widgets or widget groups you can add while building.',
+  },
+};
 
 const fallbackNames: Record<UserDataType, string> = {
   preset: 'Imported Preset',
@@ -125,8 +141,8 @@ function downloadJsonFile(data: unknown, filename: string) {
 
 export default function GallerySidebar({ collapsed, onToggle, darkMode }: GallerySidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('presets');
-  const [shareExpanded, setShareExpanded] = useState(false);
-  const [browseExpanded, setBrowseExpanded] = useState(true);
+  const [activeView, setActiveView] = useState<GalleryView>('browse');
+  const [searchQuery, setSearchQuery] = useState('');
   const [openImportMenu, setOpenImportMenu] = useState<UserDataType | null>(null);
   const [openActionMenu, setOpenActionMenu] = useState<{ type: UserDataType; id: string } | null>(null);
   const [rawImportTarget, setRawImportTarget] = useState<UserDataType | null>(null);
@@ -134,6 +150,9 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   const conceptsRef = useRef<HTMLDivElement>(null);
   const manageDataRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
@@ -164,10 +183,10 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
 
   useEffect(() => {
     if (isCurrentTutorialStep('various-gallery-manage')) {
-      setShareExpanded(true);
+      setActiveView('library');
     }
-    if (isCurrentTutorialStep('various-gallery-download')) {
-      setBrowseExpanded(true);
+    if (isCurrentTutorialStep('various-gallery-concepts') || isCurrentTutorialStep('various-gallery-download')) {
+      setActiveView('browse');
     }
   }, [tutorialStep]);
 
@@ -189,7 +208,58 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     }, 100);
 
     return () => window.clearTimeout(scrollTimer);
-  }, [tutorialStep, collapsed]);
+  }, [tutorialStep, collapsed, activeView]);
+
+  useEffect(() => {
+    if (collapsed) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (rawImportTarget || deleteTarget || showShareModal) return;
+
+      if (event.key === 'Escape') {
+        onToggle();
+        return;
+      }
+
+      if (event.key === 'Tab' && panelRef.current) {
+        const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        )).filter((element) => element.offsetParent !== null);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (!first || !last) return;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [collapsed, deleteTarget, onToggle, rawImportTarget, showShareModal]);
+
+  useEffect(() => {
+    if (collapsed) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    const focusTimer = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+
+    return () => {
+      window.cancelAnimationFrame(focusTimer);
+      previousFocusRef.current?.focus();
+    };
+  }, [collapsed]);
 
   const currentShareItemName = shareType === 'preset'
     ? userPresets.find(p => p.id === shareItemId)?.name || ''
@@ -465,10 +535,6 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     ? 'bg-black text-white border border-white/30 hover:bg-white/10'
     : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-100';
     
-  const cardClass = darkMode
-    ? 'bg-black/50 border border-white/20'
-    : 'bg-white border border-gray-200';
-
   const menuClass = darkMode
     ? 'bg-gray-950 border border-white/20 text-white'
     : 'bg-white border border-gray-200 text-gray-800';
@@ -591,6 +657,170 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     );
   };
 
+  const activeDataType: UserDataType = activeTab === 'presets'
+    ? 'preset'
+    : activeTab === 'themes'
+      ? 'theme'
+      : 'template';
+  const totalLocalAssets = userPresets.length + customThemes.length + templates.length;
+  const communityItems: Array<GalleryPreset | GalleryTheme | GalleryTemplate> = manifest ? manifest[activeTab] : [];
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredCommunityItems = normalizedSearch
+    ? communityItems.filter((item) => `${item.name} ${item.author} ${item.description}`.toLowerCase().includes(normalizedSearch))
+    : communityItems;
+
+  const getCommunityCount = (tab: TabType) => manifest?.[tab].length || 0;
+  const getLocalCount = (tab: TabType) => tab === 'presets'
+    ? userPresets.length
+    : tab === 'themes'
+      ? customThemes.length
+      : templates.length;
+
+  const selectView = (view: GalleryView) => {
+    setActiveView(view);
+    setOpenImportMenu(null);
+    setOpenActionMenu(null);
+  };
+
+  const selectCategory = (tab: TabType) => {
+    setActiveTab(tab);
+    setSearchQuery('');
+    setOpenImportMenu(null);
+    setOpenActionMenu(null);
+  };
+
+  const handleAddCommunityItem = (item: GalleryPreset | GalleryTheme | GalleryTemplate) => {
+    if (activeTab === 'presets') {
+      void handleDownloadPreset(item as GalleryPreset);
+    } else if (activeTab === 'themes') {
+      void handleDownloadTheme(item as GalleryTheme);
+    } else {
+      void handleDownloadTemplate(item as GalleryTemplate);
+    }
+  };
+
+  const isCommunityItemSaved = (item: GalleryPreset | GalleryTheme | GalleryTemplate) => {
+    if (activeTab === 'presets') {
+      return userPresets.some((preset) => preset.name === item.name || preset.name === `${item.name} (Gallery)`);
+    }
+    if (activeTab === 'themes') {
+      const downloadedThemeName = themeData[item.id]?.name;
+      return customThemes.some((theme) => theme.name === item.name || (downloadedThemeName && theme.name === downloadedThemeName));
+    }
+    return templates.some((template) => template.name === item.name);
+  };
+
+  const renderThemeCard = (
+    key: string,
+    theme: CustomTheme,
+    name: string,
+    subtitle: string,
+    description: string | undefined,
+    action: ReactNode,
+    elevated = false,
+  ) => {
+    const textureKey = theme.cardTexture || 'none';
+    const hasImageTexture = isImageTexture(textureKey);
+    const textureCSS = hasImageTexture
+      ? 'none'
+      : getTextureCSS(textureKey, theme.textureColor, theme.textureOpacity);
+    const shadowCSS = getShadowStyleCSS(theme.shadowStyle || 'hard', theme.colors.glow || 'transparent');
+    const themeVariables = {
+      '--color-shadow': theme.colors.shadow,
+      '--color-border': theme.colors.border,
+    } as CSSProperties;
+
+    return (
+      <article
+        key={key}
+        className={`relative min-h-[84px] ${elevated ? 'z-30' : ''}`}
+        style={{ borderRadius: theme.borderRadius || '8px', ...themeVariables }}
+      >
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            backgroundColor: theme.colors.paper,
+            backgroundImage: textureCSS,
+            border: `${theme.borderWidth || '2px'} ${theme.borderStyle || 'solid'} ${theme.colors.border}`,
+            borderRadius: theme.borderRadius || '8px',
+            boxShadow: shadowCSS,
+          }}
+        >
+          {hasImageTexture && (
+            <div className="absolute inset-0" style={{ backgroundColor: theme.colors.paper }}>
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'grayscale(100%)',
+                  opacity: theme.textureOpacity ?? 0.15,
+                  mixBlendMode: 'overlay',
+                }}
+              />
+            </div>
+          )}
+        </div>
+        <div
+          className="relative p-3"
+          style={{ color: theme.colors.ink, fontFamily: theme.fonts?.body }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h4
+                className="font-bold text-sm truncate"
+                style={{ color: theme.colors.ink, fontFamily: theme.fonts?.heading }}
+              >
+                {name}
+              </h4>
+              <p className="text-[11px] mt-0.5" style={{ color: theme.colors.muted || theme.colors.ink }}>{subtitle}</p>
+            </div>
+            {action}
+          </div>
+          {description && (
+            <p className="text-xs leading-relaxed mt-2 line-clamp-2" style={{ color: theme.colors.ink, opacity: 0.72 }}>
+              {description}
+            </p>
+          )}
+        </div>
+      </article>
+    );
+  };
+
+  const renderLocalAssetRow = (type: UserDataType, id: string, name: string) => (
+    <div
+      key={id}
+      className={`relative flex items-center min-h-14 p-3 rounded-lg border transition-colors ${
+        darkMode ? 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]' : 'bg-white border-gray-200 hover:border-gray-300'
+      } ${openActionMenu?.type === type && openActionMenu.id === id ? 'z-30' : ''}`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-sm truncate">{name}</p>
+        <p className={`text-[11px] capitalize ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Saved {getUserDataTypeLabel(type)}</p>
+      </div>
+      {renderActionMenu(type, id, name)}
+    </div>
+  );
+
+  const renderLocalAssets = () => {
+    if (activeTab === 'presets') {
+      return userPresets.map((preset) => renderLocalAssetRow('preset', preset.id, preset.name));
+    }
+    if (activeTab === 'themes') {
+      return customThemes.map((theme) => renderThemeCard(
+        theme.id,
+        theme,
+        theme.name,
+        'Saved theme',
+        undefined,
+        renderActionMenu('theme', theme.id, theme.name),
+        openActionMenu?.type === 'theme' && openActionMenu.id === theme.id,
+      ));
+    }
+    return templates.map((template) => renderLocalAssetRow('template', template.id, template.name));
+  };
+
   return (
     <>
       <GalleryShareModal
@@ -691,463 +921,287 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
       
       {/* Overlay backdrop */}
       {!collapsed && (
-        <div 
-          className="fixed inset-0 bg-black/30 z-40 animate-fade-in"
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-[1px] z-40 animate-fade-in"
           onClick={onToggle}
         />
       )}
-      
-      <div 
-        className={`fixed right-0 top-0 bottom-0 w-[90vw] max-w-[400px] z-50 flex flex-col overflow-hidden transition-transform duration-300 ease-in-out ${
-          collapsed ? 'translate-x-full' : 'translate-x-0'
-        } ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}
+
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="discover-title"
+        aria-hidden={collapsed}
+        className={`fixed right-0 top-0 bottom-0 w-[94vw] max-w-[520px] z-50 flex flex-col overflow-hidden border-l shadow-2xl transition-transform duration-300 ease-in-out ${
+          collapsed ? 'translate-x-full invisible pointer-events-none' : 'translate-x-0 visible'
+        } ${darkMode ? 'bg-gray-950 text-white border-white/15' : 'bg-gray-50 text-gray-950 border-gray-200'}`}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-white/20' : 'border-gray-200'}`}>
-          <h2 className="text-xl font-bold">Community Gallery</h2>
+        <div className={`flex items-start justify-between gap-4 px-5 pt-5 pb-4 border-b ${darkMode ? 'border-white/15' : 'border-gray-200'}`}>
+          <div className="min-w-0">
+            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>UCS Community</p>
+            <h2 id="discover-title" className="font-heading text-2xl font-bold mt-0.5">Discover</h2>
+            <p className={`font-body text-xs mt-1 ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>Find shared assets or manage the ones saved on this device.</p>
+          </div>
           <button
+            ref={closeButtonRef}
             onClick={onToggle}
-            className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${baseButtonClass}`}
-            aria-label="Close gallery"
+            className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-lg border transition-colors ${
+              darkMode ? 'border-white/20 text-white/70 hover:bg-white/10 hover:text-white' : 'border-gray-300 text-gray-600 hover:bg-white hover:text-gray-950'
+            }`}
+            aria-label="Close Discover"
           >
             <XIcon className="w-5 h-5" />
           </button>
         </div>
-        
+
+        {/* Primary task switcher */}
+        <div className={`grid grid-cols-2 gap-1 p-1 mx-4 mt-4 rounded-xl ${darkMode ? 'bg-white/[0.06]' : 'bg-gray-200/70'}`} role="tablist" aria-label="Discover sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'browse'}
+            onClick={() => selectView('browse')}
+            className={`h-10 rounded-lg font-body text-sm font-semibold transition-colors ${
+              activeView === 'browse'
+                ? darkMode ? 'bg-white text-black shadow-sm' : 'bg-white text-blue-800 shadow-sm'
+                : darkMode ? 'text-white/55 hover:text-white' : 'text-gray-600 hover:text-gray-950'
+            }`}
+          >
+            Browse community
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'library'}
+            onClick={() => selectView('library')}
+            className={`h-10 rounded-lg font-body text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+              activeView === 'library'
+                ? darkMode ? 'bg-white text-black shadow-sm' : 'bg-white text-blue-800 shadow-sm'
+                : darkMode ? 'text-white/55 hover:text-white' : 'text-gray-600 hover:text-gray-950'
+            }`}
+          >
+            My library
+            <span className={`min-w-5 h-5 px-1 rounded-full text-[10px] flex items-center justify-center ${
+              activeView === 'library'
+                ? darkMode ? 'bg-black/10 text-black' : 'bg-blue-100 text-blue-800'
+                : darkMode ? 'bg-white/10 text-white/60' : 'bg-gray-300/70 text-gray-600'
+            }`}>{totalLocalAssets}</span>
+          </button>
+        </div>
+
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div ref={conceptsRef} className={`p-3 rounded-lg ${cardClass}`} data-tutorial="gallery-concepts">
-            <p className={`text-sm mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              Manage your gallery data here, including presets, templates, and themes.
-            </p>
-            <ul className={`text-sm space-y-2 list-disc pl-5 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              <li>
-                <span className="font-semibold">Presets</span> are pre-made character sheets that can be selected as starting points when creating a new character.
-              </li>
-              <li>
-                <span className="font-semibold">Templates</span> are custom widgets that can be made from any widget and added to any character sheet from the Add Widget menu.
-              </li>
-              <li>
-                <span className="font-semibold">Themes</span> are custom themes used to personalize a character sheet.
-              </li>
-            </ul>
-          </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {activeView === 'browse' ? (
+            <div className="space-y-4">
+              <div ref={conceptsRef} data-tutorial="gallery-concepts">
+                <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="Community asset type">
+                  {(Object.keys(categoryDetails) as TabType[]).map((tab) => {
+                    const detail = categoryDetails[tab];
+                    const selected = activeTab === tab;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => selectCategory(tab)}
+                        className={`h-12 px-3 rounded-lg border flex items-center justify-between gap-2 transition-colors ${
+                          selected
+                            ? darkMode ? 'bg-blue-500/15 border-blue-400 text-white' : 'bg-blue-50 border-blue-500 text-blue-950'
+                            : darkMode ? 'bg-white/[0.03] border-white/10 text-white/55 hover:bg-white/[0.06]' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                        }`}
+                      >
+                        <span className="font-body text-xs font-semibold">{detail.label}</span>
+                        <span className={`font-body text-[10px] ${selected ? darkMode ? 'text-blue-200' : 'text-blue-700' : darkMode ? 'text-white/35' : 'text-gray-400'}`}>{getCommunityCount(tab)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className={`font-body text-xs mt-2 ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>{categoryDetails[activeTab].description}</p>
+              </div>
 
-          {/* Share Section */}
-          <div ref={manageDataRef} className={`relative rounded-lg ${cardClass}`} data-tutorial="gallery-manage-data">
-            <button
-              onClick={() => setShareExpanded(!shareExpanded)}
-              className={`w-full flex items-center justify-between p-3 font-bold ${darkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
-            >
-              <span>📤 Manage My Data</span>
-              <span className="text-lg">{shareExpanded ? '−' : '+'}</span>
-            </button>
-            
-            {shareExpanded && (
-              <div className={`p-3 pt-0 space-y-3 border-t ${darkMode ? 'border-white/10' : 'border-gray-100'}`}>
-                <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Import, export, delete, or share your custom-made presets, templates, and themes with the community.
-                </p>
+              <div className="flex gap-2">
+                <label className="relative flex-1">
+                  <span className="sr-only">Search community {activeTab}</span>
+                  <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-white/35' : 'text-gray-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-3.5-3.5" />
+                  </svg>
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={`Search ${activeTab}…`}
+                    className={`w-full h-11 pl-9 pr-3 rounded-lg border font-body text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      darkMode ? 'bg-white/[0.04] border-white/15 text-white placeholder-white/30' : 'bg-white border-gray-300 text-gray-950 placeholder-gray-400'
+                    }`}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={refresh}
+                  aria-label="Refresh community gallery"
+                  className={`w-11 h-11 shrink-0 rounded-lg border flex items-center justify-center text-lg transition-colors ${
+                    darkMode ? 'border-white/15 text-white/55 hover:bg-white/10 hover:text-white' : 'bg-white border-gray-300 text-gray-500 hover:text-gray-950'
+                  }`}
+                >
+                  ↻
+                </button>
+              </div>
 
-                {/* My Presets */}
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h4 className="text-sm font-semibold text-gray-500">My Presets</h4>
-                    {renderImportButton('preset')}
-                  </div>
-                  {userPresets.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No presets saved yet</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {userPresets.map((preset) => (
-                        <div key={preset.id} className={`relative flex items-center justify-between p-2 rounded ${darkMode ? 'bg-white/5' : 'bg-gray-100'} ${openActionMenu?.type === 'preset' && openActionMenu.id === preset.id ? 'z-30' : ''}`}>
-                          <span className="text-sm truncate flex-1">{preset.name}</span>
-                          <div className="ml-2">
-                            {renderActionMenu('preset', preset.id, preset.name)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              <div ref={downloadRef} data-tutorial="gallery-download">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <h3 className="font-heading font-bold">Community {categoryDetails[activeTab].label}</h3>
+                  {!loading && manifest && (
+                    <span className={`font-body text-[11px] ${darkMode ? 'text-white/35' : 'text-gray-500'}`}>
+                      {filteredCommunityItems.length}{normalizedSearch ? ` of ${communityItems.length}` : ''}
+                    </span>
                   )}
                 </div>
-                
-                {/* My Themes */}
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h4 className="text-sm font-semibold text-gray-500">My Themes</h4>
-                    {renderImportButton('theme')}
+
+                {loading && (
+                  <div className={`rounded-xl border text-center py-12 ${darkMode ? 'border-white/10 text-white/45' : 'border-gray-200 text-gray-500'}`}>
+                    <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full mb-2" />
+                    <p className="font-body text-sm">Loading community assets…</p>
                   </div>
-                  {customThemes.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No custom themes created yet</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {customThemes.map((theme) => {
-                        const textureKey = theme.cardTexture || 'none';
-                        const hasImageTexture = isImageTexture(textureKey);
-                        const shadowCSS = getShadowStyleCSS(theme.shadowStyle || 'hard', theme.colors.glow || 'transparent');
-                        return (
-                          <div 
-                            key={theme.id} 
-                            className={`${openActionMenu?.type === 'theme' && openActionMenu.id === theme.id ? 'relative z-30' : 'relative'}`}
+                )}
+
+                {error && !manifest && (
+                  <div className={`rounded-xl border text-center p-6 ${darkMode ? 'border-red-400/25 bg-red-500/5' : 'border-red-200 bg-red-50'}`}>
+                    <p className="font-body text-sm text-red-500">{error}</p>
+                    <button type="button" onClick={refresh} className={`mt-3 px-3 py-2 rounded-lg font-body text-sm ${baseButtonClass}`}>Try again</button>
+                  </div>
+                )}
+
+                {manifest && !loading && filteredCommunityItems.length === 0 && (
+                  <div className={`rounded-xl border text-center p-8 ${darkMode ? 'border-white/10 bg-white/[0.02]' : 'border-gray-200 bg-white'}`}>
+                    <p className="font-heading font-bold">No {activeTab} found</p>
+                    <p className={`font-body text-xs mt-1 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Try a different search.</p>
+                    {normalizedSearch && (
+                      <button type="button" onClick={() => setSearchQuery('')} className={`font-body text-xs font-semibold mt-3 hover:underline ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Clear search</button>
+                    )}
+                  </div>
+                )}
+
+                {manifest && !loading && filteredCommunityItems.length > 0 && (
+                  <div className="space-y-2">
+                    {filteredCommunityItems.map((item) => {
+                      const theme = activeTab === 'themes' ? themeData[item.id] : undefined;
+                      const isSaved = isCommunityItemSaved(item);
+                      const isAdding = downloadingId === item.id;
+                      const actionLabel = isAdding ? 'Adding…' : isSaved || downloadSuccess === item.id ? 'Saved ✓' : 'Add';
+                      const actionAriaLabel = isSaved ? `${item.name} is saved in My Library` : `Add ${item.name} to My Library`;
+
+                      if (activeTab === 'themes' && theme) {
+                        return renderThemeCard(
+                          item.id,
+                          theme,
+                          item.name,
+                          `by ${item.author}`,
+                          item.description,
+                          <button
+                            type="button"
+                            onClick={() => handleAddCommunityItem(item)}
+                            disabled={isSaved || isAdding}
+                            aria-label={actionAriaLabel}
+                            className="min-w-[68px] h-9 px-3 font-body text-xs font-bold transition-opacity hover:opacity-85 disabled:cursor-default"
                             style={{
-                              borderRadius: theme.borderRadius,
+                              backgroundColor: theme.colors.accent,
+                              color: theme.colors.paper,
+                              border: `1px solid ${theme.colors.accent}`,
+                              borderRadius: theme.buttonRadius || '4px',
+                              opacity: isSaved ? 0.72 : 1,
                             }}
                           >
-                            {/* Background layer with texture */}
-                            <div 
-                              className="absolute inset-0"
-                              style={{
-                                backgroundColor: theme.colors.paper,
-                                border: `${theme.borderWidth} ${theme.borderStyle || 'solid'} ${theme.colors.border}`,
-                                borderRadius: theme.borderRadius,
-                                boxShadow: shadowCSS,
-                                overflow: 'hidden',
-                              }}
-                            >
-                              {hasImageTexture && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    backgroundColor: theme.colors.paper,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      inset: 0,
-                                      backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
-                                      backgroundSize: 'cover',
-                                      filter: 'grayscale(100%)',
-                                      opacity: theme.textureOpacity ?? 0.15,
-                                      mixBlendMode: 'overlay',
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                            {/* Content */}
-                            <div className="relative flex items-center justify-between p-2">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <span style={{ color: theme.colors.ink }}>{theme.icon}</span>
-                                <span 
-                                  className="text-sm truncate"
-                                  style={{ color: theme.colors.ink }}
-                                >
-                                  {theme.name}
-                                </span>
-                              </div>
-                              <div className="ml-2">
-                                {renderActionMenu('theme', theme.id, theme.name)}
-                              </div>
-                            </div>
-                          </div>
+                            {actionLabel}
+                          </button>,
                         );
-                      })}
-                    </div>
-                  )}
-                </div>
-                
-                {/* My Templates */}
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h4 className="text-sm font-semibold text-gray-500">My Templates</h4>
-                    {renderImportButton('template')}
-                  </div>
-                  {templates.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No templates saved yet</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {templates.map((template) => (
-                        <div key={template.id} className={`relative flex items-center justify-between p-2 rounded ${darkMode ? 'bg-white/5' : 'bg-gray-100'} ${openActionMenu?.type === 'template' && openActionMenu.id === template.id ? 'z-30' : ''}`}>
-                          <span className="text-sm truncate flex-1">{template.name}</span>
-                          <div className="ml-2">
-                            {renderActionMenu('template', template.id, template.name)}
+                      }
+
+                      return (
+                        <article key={item.id} className={`p-3 rounded-xl border ${darkMode ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-heading font-bold text-sm truncate">{item.name}</h4>
+                              <p className={`font-body text-[11px] mt-0.5 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>by {item.author}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAddCommunityItem(item)}
+                              disabled={isSaved || isAdding}
+                              aria-label={actionAriaLabel}
+                              className={`min-w-[68px] h-9 px-3 rounded-lg font-body text-xs font-bold transition-colors ${
+                                isSaved || downloadSuccess === item.id
+                                  ? darkMode ? 'bg-green-400/10 text-green-300 border border-green-400/25' : 'bg-green-50 text-green-700 border border-green-200'
+                                  : darkMode ? 'bg-white text-black hover:bg-white/85' : 'bg-blue-700 text-white hover:bg-blue-800'
+                              } disabled:cursor-default`}
+                            >
+                              {actionLabel}
+                            </button>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                          {item.description && (
+                            <p className={`font-body text-xs leading-relaxed mt-2 line-clamp-2 ${darkMode ? 'text-white/50' : 'text-gray-600'}`}>{item.description}</p>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          
-          {/* Browse Section */}
-          <div ref={downloadRef} className={`rounded-lg overflow-hidden ${cardClass}`} data-tutorial="gallery-download">
-            <button
-              onClick={() => setBrowseExpanded(!browseExpanded)}
-              className={`w-full flex items-center justify-between p-3 font-bold ${darkMode ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
-            >
-              <span>📥 Community Gallery</span>
-              <span className="text-lg">{browseExpanded ? '−' : '+'}</span>
-            </button>
-            
-            {browseExpanded && (
-              <div className={`border-t ${darkMode ? 'border-white/10' : 'border-gray-100'}`}>
-                {/* Tabs */}
-                <div className={`flex border-b ${darkMode ? 'border-white/10' : 'border-gray-200'}`}>
-                  {(['presets', 'themes', 'templates'] as TabType[]).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`flex-1 py-2 text-sm font-medium capitalize ${
-                        activeTab === tab
-                          ? darkMode ? 'border-b-2 border-white text-white' : 'border-b-2 border-blue-600 text-blue-600'
-                          : darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Tab Content */}
-                <div className="p-3">
-                  {loading && (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full mb-2" />
-                      <p>Loading gallery...</p>
-                    </div>
-                  )}
-                  
-                  {error && !manifest && (
-                    <div className="text-center py-8">
-                      <p className="text-red-500 mb-2">{error}</p>
+            </div>
+          ) : (
+            <div ref={manageDataRef} data-tutorial="gallery-manage-data" className="space-y-5">
+              <div>
+                <div className="grid grid-cols-3 gap-2" role="tablist" aria-label="Local asset type">
+                  {(Object.keys(categoryDetails) as TabType[]).map((tab) => {
+                    const detail = categoryDetails[tab];
+                    const selected = activeTab === tab;
+                    return (
                       <button
-                        onClick={refresh}
-                        className={`px-3 py-1 rounded ${baseButtonClass}`}
+                        key={tab}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => selectCategory(tab)}
+                        className={`h-14 px-3 rounded-lg border flex flex-col items-center justify-center transition-colors ${
+                          selected
+                            ? darkMode ? 'bg-blue-500/15 border-blue-400 text-white' : 'bg-blue-50 border-blue-500 text-blue-950'
+                            : darkMode ? 'bg-white/[0.03] border-white/10 text-white/55 hover:bg-white/[0.06]' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                        }`}
                       >
-                        Retry
+                        <span className="font-heading text-base font-bold leading-none">{getLocalCount(tab)}</span>
+                        <span className="font-body text-[10px] mt-1">{detail.label}</span>
                       </button>
-                    </div>
-                  )}
-                  
-                  {manifest && !loading && (
-                    <>
-                      {/* Refresh button */}
-                      <div className="flex justify-end mb-2">
-                        <button
-                          onClick={refresh}
-                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
-                        >
-                          ↻ Refresh
-                        </button>
-                      </div>
-                      
-                      {/* Presets Tab */}
-                      {activeTab === 'presets' && (
-                        <div className="space-y-2">
-                          {manifest.presets.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic text-center py-4">No presets available yet</p>
-                          ) : (
-                            manifest.presets.map((item) => (
-                              <div key={item.id} className={`p-3 rounded ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <h5 className="font-medium truncate">{item.name}</h5>
-                                    <p className="text-xs text-gray-500">by {item.author}</p>
-                                    {item.description && (
-                                      <p className="text-sm text-gray-400 mt-1 line-clamp-2">{item.description}</p>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => handleDownloadPreset(item)}
-                                    disabled={downloadingId === item.id}
-                                    className={`ml-2 px-3 py-1 rounded text-sm whitespace-nowrap ${
-                                      downloadSuccess === item.id
-                                        ? 'bg-green-600 text-white'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
-                                  >
-                                    {downloadingId === item.id ? '...' : downloadSuccess === item.id ? '✓' : 'Download'}
-                                  </button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Themes Tab */}
-                      {activeTab === 'themes' && (
-                        <div className="space-y-2">
-                          {manifest.themes.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic text-center py-4">No themes available yet</p>
-                          ) : (
-                            manifest.themes.map((item) => {
-                              // Use fetched theme data for full preview
-                              const theme = themeData[item.id];
-                              const hasThemeData = !!theme;
-                              const textureKey = theme?.cardTexture || 'none';
-                              const hasTexture = hasThemeData && textureKey !== 'none' && isImageTexture(textureKey);
-                              const shadowCSS = hasThemeData 
-                                ? getShadowStyleCSS(theme.shadowStyle || 'hard', theme.colors?.glow || 'transparent')
-                                : undefined;
-                              
-                              if (!hasThemeData) {
-                                // Fallback while theme data is loading
-                                return (
-                                  <div 
-                                    key={item.id} 
-                                    className={`p-3 rounded ${darkMode ? 'bg-white/5 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}
-                                  >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1 min-w-0">
-                                        <h5 className="font-medium truncate">{item.name}</h5>
-                                        <p className="text-xs text-gray-500">by {item.author}</p>
-                                        {item.description && (
-                                          <p className="text-sm text-gray-400 mt-1 line-clamp-2">{item.description}</p>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={() => handleDownloadTheme(item)}
-                                        disabled={downloadingId === item.id}
-                                        className={`ml-2 px-3 py-1 rounded text-sm whitespace-nowrap ${
-                                          downloadSuccess === item.id
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        }`}
-                                      >
-                                        {downloadingId === item.id ? '...' : downloadSuccess === item.id ? '✓' : 'Download'}
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                              
-                              // Theme card with full theme styling
-                              return (
-                                <div 
-                                  key={item.id} 
-                                  className="relative overflow-hidden"
-                                  style={{
-                                    borderRadius: theme.borderRadius || '8px',
-                                  }}
-                                >
-                                  {/* Background layer with texture */}
-                                  <div 
-                                    className="absolute inset-0"
-                                    style={{
-                                      backgroundColor: theme.colors.paper,
-                                      border: `${theme.borderWidth || '2px'} ${theme.borderStyle || 'solid'} ${theme.colors.border}`,
-                                      borderRadius: theme.borderRadius || '8px',
-                                      boxShadow: shadowCSS,
-                                    }}
-                                  >
-                                    {hasTexture && (
-                                      <div
-                                        style={{
-                                          position: 'absolute',
-                                          inset: 0,
-                                          backgroundColor: theme.colors.paper,
-                                        }}
-                                      >
-                                        <div
-                                          style={{
-                                            position: 'absolute',
-                                            inset: 0,
-                                            backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
-                                            backgroundSize: 'cover',
-                                            filter: 'grayscale(100%)',
-                                            opacity: theme.textureOpacity ?? 0.15,
-                                            mixBlendMode: 'overlay',
-                                          }}
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                  {/* Content */}
-                                  <div className="relative p-3">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1 min-w-0">
-                                        <h5 
-                                          className="font-medium truncate"
-                                          style={{ color: theme.colors.ink, fontFamily: theme.fonts?.heading }}
-                                        >
-                                          {theme.icon} {item.name}
-                                        </h5>
-                                        <p 
-                                          className="text-xs"
-                                          style={{ color: theme.colors.muted || theme.colors.ink, fontFamily: theme.fonts?.body }}
-                                        >
-                                          by {item.author}
-                                        </p>
-                                        {item.description && (
-                                          <p 
-                                            className="text-sm mt-1 line-clamp-2"
-                                            style={{ color: theme.colors.ink, opacity: 0.7, fontFamily: theme.fonts?.body }}
-                                          >
-                                            {item.description}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={() => handleDownloadTheme(item)}
-                                        disabled={downloadingId === item.id}
-                                        className="ml-2 px-3 py-1 text-sm whitespace-nowrap"
-                                        style={downloadSuccess === item.id ? {
-                                          backgroundColor: '#16a34a',
-                                          color: 'white',
-                                          borderRadius: theme.buttonRadius || '4px',
-                                        } : {
-                                          backgroundColor: theme.colors.accent,
-                                          color: theme.colors.paper,
-                                          borderRadius: theme.buttonRadius || '4px',
-                                        }}
-                                      >
-                                        {downloadingId === item.id ? '...' : downloadSuccess === item.id ? '✓' : 'Download'}
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Templates Tab */}
-                      {activeTab === 'templates' && (
-                        <div className="space-y-2">
-                          {manifest.templates.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic text-center py-4">No templates available yet</p>
-                          ) : (
-                            manifest.templates.map((item) => (
-                              <div key={item.id} className={`p-3 rounded ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <h5 className="font-medium truncate">{item.name}</h5>
-                                    <p className="text-xs text-gray-500">by {item.author}</p>
-                                    {item.description && (
-                                      <p className="text-sm text-gray-400 mt-1 line-clamp-2">{item.description}</p>
-                                    )}
-                                  </div>
-                                  <button
-                                    onClick={() => handleDownloadTemplate(item)}
-                                    disabled={downloadingId === item.id}
-                                    className={`ml-2 px-3 py-1 rounded text-sm whitespace-nowrap ${
-                                      downloadSuccess === item.id
-                                        ? 'bg-green-600 text-white'
-                                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
-                                  >
-                                    {downloadingId === item.id ? '...' : downloadSuccess === item.id ? '✓' : 'Download'}
-                                  </button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
-            )}
-          </div>
+
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <h3 className="font-heading text-lg font-bold">My {categoryDetails[activeTab].label}</h3>
+                    <p className={`font-body text-xs mt-0.5 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Import, share, export, or remove saved {activeTab}.</p>
+                  </div>
+                  {renderImportButton(activeDataType)}
+                </div>
+
+                {getLocalCount(activeTab) === 0 ? (
+                  <div className={`rounded-xl border text-center p-8 ${darkMode ? 'border-white/10 bg-white/[0.02]' : 'border-gray-200 bg-white'}`}>
+                    <p className="font-heading font-bold">No saved {activeTab}</p>
+                    <p className={`font-body text-xs mt-1 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Add one from the community or import your own.</p>
+                    <button type="button" onClick={() => selectView('browse')} className={`font-body text-xs font-semibold mt-3 hover:underline ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Browse community {activeTab}</button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">{renderLocalAssets()}</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </aside>
     </>
   );
 }

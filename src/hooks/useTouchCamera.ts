@@ -1,5 +1,18 @@
 import { useRef, useEffect } from 'react';
 
+const TOUCH_CAMERA_PINCH_START_EVENT = 'ucs:touch-camera-pinch-start';
+
+export function useTouchCameraPinchCancellation(onCancel: () => void) {
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+
+  useEffect(() => {
+    const handlePinchStart = () => onCancelRef.current();
+    window.addEventListener(TOUCH_CAMERA_PINCH_START_EVENT, handlePinchStart);
+    return () => window.removeEventListener(TOUCH_CAMERA_PINCH_START_EVENT, handlePinchStart);
+  }, []);
+}
+
 interface UseTouchCameraOptions {
   mode: 'play' | 'edit' | 'vertical' | 'print';
   onPanChange: (updater: (prev: { x: number; y: number }) => { x: number; y: number }) => void;
@@ -32,6 +45,9 @@ export function useTouchCamera({
   const touchStartTargets = useRef<Map<number, Element | null>>(new Map());
   const isTouchPanning = useRef(false);
   const touchStartedOnScrollable = useRef(false);
+  const pinchSessionActive = useRef(false);
+  const activeTouchPointers = useRef<Map<number, { target: Element | null; x: number; y: number }>>(new Map());
+  const managedScroll = useRef<{ element: HTMLElement; lastX: number; lastY: number } | null>(null);
   
   // Refs to avoid stale closures in global touch handlers
   const modeRef = useRef(mode);
@@ -44,8 +60,161 @@ export function useTouchCamera({
   useEffect(() => { isViewLockedRef.current = isViewLocked; }, [isViewLocked]);
 
   useEffect(() => {
-    // Check if an element or its ancestors have scrollable overflow
-    const isScrollableElement = (el: Element | null): boolean => {
+    const syncActiveTouches = (touches: TouchList) => {
+      activeTouches.current.clear();
+      for (let i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
+      }
+    };
+
+    const stopWidgetTouchHandling = (event: TouchEvent) => {
+      if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+
+    const setPinchGeometry = () => {
+      const touches = Array.from(activeTouches.current.values());
+      if (touches.length < 2) return;
+      const dx = touches[0].x - touches[1].x;
+      const dy = touches[0].y - touches[1].y;
+      lastTouchDistance.current = Math.hypot(dx, dy);
+      lastTouchCenter.current = {
+        x: (touches[0].x + touches[1].x) / 2,
+        y: (touches[0].y + touches[1].y) / 2,
+      };
+    };
+
+    const activatePinchSession = () => {
+      isTouchPanning.current = false;
+      touchStartedOnScrollable.current = false;
+      managedScroll.current = null;
+      if (!pinchSessionActive.current) {
+        pinchSessionActive.current = true;
+        window.dispatchEvent(new CustomEvent(TOUCH_CAMERA_PINCH_START_EVENT));
+      }
+      onPinchingChange(true);
+    };
+
+    const beginPinchSession = (event: TouchEvent) => {
+      stopWidgetTouchHandling(event);
+      activatePinchSession();
+      setPinchGeometry();
+    };
+
+    const stopWidgetPointerHandling = (event: PointerEvent, preventDefault = true) => {
+      if (preventDefault && event.cancelable) event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+
+    const cancelActiveWidgetPointers = (pointerToKeep: number) => {
+      for (const [pointerId, pointer] of activeTouchPointers.current) {
+        if (pointerId === pointerToKeep || !pointer.target) continue;
+        pointer.target.dispatchEvent(new PointerEvent('pointercancel', {
+          bubbles: true,
+          pointerId,
+          pointerType: 'touch',
+          clientX: pointer.x,
+          clientY: pointer.y,
+        }));
+      }
+    };
+
+    const setPinchGeometryFromPointers = () => {
+      const pointers = Array.from(activeTouchPointers.current.values());
+      if (pointers.length < 2) return;
+      const dx = pointers[0].x - pointers[1].x;
+      const dy = pointers[0].y - pointers[1].y;
+      lastTouchDistance.current = Math.hypot(dx, dy);
+      lastTouchCenter.current = {
+        x: (pointers[0].x + pointers[1].x) / 2,
+        y: (pointers[0].y + pointers[1].y) / 2,
+      };
+    };
+
+    const updateCameraForPinch = (newDistance: number, newCenter: { x: number; y: number }) => {
+      if (isViewLockedRef.current?.()) return;
+      if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
+        lastTouchDistance.current = newDistance;
+        lastTouchCenter.current = newCenter;
+        return;
+      }
+
+      const currentScale = getScale();
+      const currentPan = getPan();
+      const zoomFactor = newDistance / lastTouchDistance.current;
+      const newScale = Math.min(Math.max(currentScale * zoomFactor, minScale), maxScale);
+      const canvasX = (lastTouchCenter.current.x - currentPan.x) / currentScale;
+      const canvasY = (lastTouchCenter.current.y - currentPan.y) / currentScale;
+
+      onScaleChange(newScale);
+      onPanChange(() => ({
+        x: newCenter.x - canvasX * newScale,
+        y: newCenter.y - canvasY * newScale,
+      }));
+
+      lastTouchDistance.current = newDistance;
+      lastTouchCenter.current = newCenter;
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch' || !event.isTrusted) return;
+      activeTouchPointers.current.set(event.pointerId, {
+        target: event.target as Element | null,
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      if (activeTouchPointers.current.size >= 2) {
+        setPinchGeometryFromPointers();
+        activatePinchSession();
+        cancelActiveWidgetPointers(event.pointerId);
+        stopWidgetPointerHandling(event, false);
+      }
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch' || !event.isTrusted) return;
+      const pointer = activeTouchPointers.current.get(event.pointerId);
+      if (pointer) {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+      }
+      if (pinchSessionActive.current) {
+        const pointers = Array.from(activeTouchPointers.current.values());
+        if (pointers.length >= 2) {
+          updateCameraForPinch(
+            Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y),
+            {
+              x: (pointers[0].x + pointers[1].x) / 2,
+              y: (pointers[0].y + pointers[1].y) / 2,
+            },
+          );
+        }
+        stopWidgetPointerHandling(event);
+        return;
+      }
+
+      if (activeTouchPointers.current.size === 1 && managedScroll.current) {
+        const scrollState = managedScroll.current;
+        scrollState.element.scrollLeft -= event.clientX - scrollState.lastX;
+        scrollState.element.scrollTop -= event.clientY - scrollState.lastY;
+        scrollState.lastX = event.clientX;
+        scrollState.lastY = event.clientY;
+        stopWidgetPointerHandling(event);
+      }
+    };
+
+    const handlePointerEnd = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch' || !event.isTrusted) return;
+      activeTouchPointers.current.delete(event.pointerId);
+      if (pinchSessionActive.current) stopWidgetPointerHandling(event, false);
+    };
+
+    // Find the nearest scroll owner so canvas scrolling can remain available with touch-action disabled.
+    const findScrollableElement = (el: Element | null): HTMLElement | null => {
       while (el && el !== document.body) {
         const style = window.getComputedStyle(el);
         const overflowY = style.overflowY;
@@ -54,7 +223,24 @@ export function useTouchCamera({
                             overflowX === 'auto' || overflowX === 'scroll';
         if (isScrollable) {
           const hasScrollableContent = el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
-          if (hasScrollableContent) return true;
+          if (hasScrollableContent && el instanceof HTMLElement) return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const isOnDedicatedTouchGesture = (el: Element | null): boolean => {
+      while (el && el !== document.body) {
+        if (
+          el.tagName === 'CANVAS' ||
+          el.classList.contains('touch-none') ||
+          el.classList.contains('drag-handle') ||
+          el.classList.contains('vertical-drag-handle') ||
+          el.classList.contains('print-area-overlay') ||
+          (el as HTMLElement).dataset?.touchCameraIgnore === 'true'
+        ) {
+          return true;
         }
         el = el.parentElement;
       }
@@ -136,46 +322,42 @@ export function useTouchCamera({
         touchStartTargets.current.set(changedTouch.identifier, changedTouch.target as Element || eventTarget);
       }
       
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
-      }
+      syncActiveTouches(e.touches);
       
       const touchStartTarget = getActiveTouchStartTarget();
+
+      // Two or more fingers - always take over for camera control (pinch zoom)
+      if (activeTouches.current.size >= 2) {
+        beginPinchSession(e);
+        return;
+      }
+
+      if (pinchSessionActive.current) {
+        stopWidgetTouchHandling(e);
+        return;
+      }
 
       if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) {
         return;
       }
       
       if (e.touches.length === 1) {
-        touchStartedOnScrollable.current = isScrollableElement(touchStartTarget);
+        const scrollableElement = findScrollableElement(touchStartTarget);
+        touchStartedOnScrollable.current = !!scrollableElement;
+        const touch = activeTouches.current.values().next().value;
+        const isOnCanvasTouchSurface = !!touchStartTarget?.closest('.canvas-touch-surface');
+        if (scrollableElement && touch && isOnCanvasTouchSurface && !isOnDedicatedTouchGesture(touchStartTarget)) {
+          managedScroll.current = {
+            element: scrollableElement,
+            lastX: touch.x,
+            lastY: touch.y,
+          };
+        } else {
+          managedScroll.current = null;
+        }
       }
       
-      // Two or more fingers - always take over for camera control (pinch zoom)
-      if (activeTouches.current.size >= 2) {
-        if (isViewLockedRef.current?.()) {
-          // Block pinch-zoom when view is locked
-          isTouchPanning.current = false;
-          lastTouchDistance.current = null;
-          lastTouchCenter.current = null;
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        
-        onPinchingChange(true);
-        
-        const touches = Array.from(activeTouches.current.values());
-        const dx = touches[0].x - touches[1].x;
-        const dy = touches[0].y - touches[1].y;
-        lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
-        lastTouchCenter.current = {
-          x: (touches[0].x + touches[1].x) / 2,
-          y: (touches[0].y + touches[1].y) / 2
-        };
-        isTouchPanning.current = false;
-      } else if (activeTouches.current.size === 1) {
+      if (activeTouches.current.size === 1) {
         const onWidget = touchStartTarget && isOnWidget(touchStartTarget);
         const onScrollable = touchStartedOnScrollable.current;
         const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
@@ -201,20 +383,18 @@ export function useTouchCamera({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) {
-        return;
-      }
-      
-      for (let i = 0; i < e.touches.length; i++) {
-        const touch = e.touches[i];
-        activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
-      }
+      syncActiveTouches(e.touches);
       
       const touchCount = activeTouches.current.size;
       
       // Two-finger gesture: pinch zoom + pan
       if (touchCount >= 2) {
-        if (isViewLockedRef.current?.()) {
+        stopWidgetTouchHandling(e);
+        if (!pinchSessionActive.current) {
+          activatePinchSession();
+        }
+        // Pointer Events own the gesture when available; this path is a compatibility fallback.
+        if (activeTouchPointers.current.size >= 2) {
           return;
         }
         const touches = Array.from(activeTouches.current.values());
@@ -225,47 +405,27 @@ export function useTouchCamera({
           x: (touches[0].x + touches[1].x) / 2,
           y: (touches[0].y + touches[1].y) / 2
         };
-        
-        if (lastTouchDistance.current === null || lastTouchCenter.current === null) {
-          lastTouchDistance.current = newDistance;
-          lastTouchCenter.current = newCenter;
-          isTouchPanning.current = false;
+        updateCameraForPinch(newDistance, newCenter);
+      }
+      // Keep the remaining finger from falling back to a widget gesture.
+      else if (pinchSessionActive.current) {
+        stopWidgetTouchHandling(e);
+      }
+      // Canvas descendants cannot use native scrolling because the camera owns touch-action.
+      else if (touchCount === 1 && activeTouchPointers.current.size === 0 && managedScroll.current) {
+        const touch = activeTouches.current.values().next().value;
+        if (touch) {
           e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          return;
+          const scrollState = managedScroll.current;
+          scrollState.element.scrollLeft -= touch.x - scrollState.lastX;
+          scrollState.element.scrollTop -= touch.y - scrollState.lastY;
+          scrollState.lastX = touch.x;
+          scrollState.lastY = touch.y;
         }
-        
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        
-        const currentScale = getScale();
-        const currentPan = getPan();
-        
-        // Calculate zoom
-        const zoomFactor = newDistance / lastTouchDistance.current;
-        const newScale = Math.min(Math.max(currentScale * zoomFactor, minScale), maxScale);
-        
-        // Calculate pan to zoom towards center point
-        const canvasX = (newCenter.x - currentPan.x) / currentScale;
-        const canvasY = (newCenter.y - currentPan.y) / currentScale;
-        
-        const newPanX = newCenter.x - canvasX * newScale;
-        const newPanY = newCenter.y - canvasY * newScale;
-        
-        // Also handle pan movement during pinch
-        const panDx = newCenter.x - lastTouchCenter.current.x;
-        const panDy = newCenter.y - lastTouchCenter.current.y;
-        
-        onScaleChange(newScale);
-        onPanChange(() => ({ x: newPanX + panDx, y: newPanY + panDy }));
-        
-        lastTouchDistance.current = newDistance;
-        lastTouchCenter.current = newCenter;
       }
       // Single finger pan
       else if (touchCount === 1 && isTouchPanning.current && lastTouchCenter.current) {
+        if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) return;
         const touch = activeTouches.current.values().next().value;
         if (touch) {
           e.preventDefault();
@@ -280,17 +440,20 @@ export function useTouchCamera({
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      for (let i = 0; i < e.changedTouches.length; i++) {
-        activeTouches.current.delete(e.changedTouches[i].identifier);
-      }
+      syncActiveTouches(e.touches);
       
       if (activeTouches.current.size === 0) {
         lastTouchDistance.current = null;
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
         touchStartedOnScrollable.current = false;
+        managedScroll.current = null;
         touchStartTargets.current.clear();
+        activeTouchPointers.current.clear();
         onPinchingChange(false);
+        if (pinchSessionActive.current) {
+          pinchSessionActive.current = false;
+        }
       }
       else if (activeTouches.current.size === 1) {
         lastTouchDistance.current = null;
@@ -303,16 +466,24 @@ export function useTouchCamera({
       }
     };
 
-    document.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-    document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-    document.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true });
+    window.addEventListener('pointerdown', handlePointerDown, { capture: true });
+    window.addEventListener('pointermove', handlePointerMove, { capture: true });
+    window.addEventListener('pointerup', handlePointerEnd, { capture: true });
+    window.addEventListener('pointercancel', handlePointerEnd, { capture: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: false, capture: true });
     
     return () => {
-      document.removeEventListener('touchstart', handleTouchStart, { capture: true });
-      document.removeEventListener('touchmove', handleTouchMove, { capture: true });
-      document.removeEventListener('touchend', handleTouchEnd, { capture: true });
-      document.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
+      window.removeEventListener('pointerdown', handlePointerDown, { capture: true });
+      window.removeEventListener('pointermove', handlePointerMove, { capture: true });
+      window.removeEventListener('pointerup', handlePointerEnd, { capture: true });
+      window.removeEventListener('pointercancel', handlePointerEnd, { capture: true });
+      window.removeEventListener('touchstart', handleTouchStart, { capture: true });
+      window.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      window.removeEventListener('touchend', handleTouchEnd, { capture: true });
+      window.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
     };
   }, [onPanChange, onScaleChange, onPinchingChange, getScale, getPan, minScale, maxScale]);
 

@@ -61,7 +61,7 @@ const describeExplodeFaces = (group: DiceGroup): string => {
 };
 
 export function DiceRollerEditor({ widget, updateData }: EditorProps) {
-  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
+  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, fieldLabels = {}, fieldFormulas = {}, showRollDetailsButton = true } = widget.data;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
 
@@ -252,6 +252,19 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
       </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={showRollDetailsButton}
+          onChange={(e) => updateData({
+            showRollDetailsButton: e.target.checked,
+            showRollDetails: e.target.checked ? widget.data.showRollDetails : false,
+          })}
+          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Show roll details control</span>
+      </label>
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Dice Groups</label>
@@ -387,19 +400,6 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
           formula={fieldFormulas['modifier']}
           onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="showIndividualResults"
-          checked={widget.data.showIndividualResults || false}
-          onChange={(e) => updateData({ showIndividualResults: e.target.checked })}
-          className="w-4 h-4 border border-theme-border rounded bg-theme-paper text-theme-accent focus:ring-theme-accent"
-        />
-        <label htmlFor="showIndividualResults" className="text-sm font-medium text-theme-ink">
-          Show individual dice results (don't sum)
-        </label>
       </div>
 
       {/* Custom Faces Modal */}

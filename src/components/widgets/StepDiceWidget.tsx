@@ -4,6 +4,7 @@ import { DiceStep, formatDiceRollDetail, formatDiceStep, parseDiceStep, rollDice
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -68,9 +69,7 @@ export default function StepDiceWidget({ widget, mode }: Props) {
         {label && (
           <div className="text-xs font-bold text-theme-ink font-heading truncate mb-1">{label}</div>
         )}
-        <div className="flex-1 flex items-center justify-center text-theme-muted text-xs">
-          No items configured
-        </div>
+        <WidgetEmptyState title="No step dice configured" hint="Add a die track in Build." />
       </div>
     );
   }
@@ -100,7 +99,8 @@ export default function StepDiceWidget({ widget, mode }: Props) {
               <button
                 onClick={() => stepDown(i)}
                 disabled={isAtMin}
-                className="w-6 h-6 flex items-center justify-center text-[10px] rounded-button border border-theme-border text-theme-ink hover:bg-theme-accent hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-theme-ink transition-colors flex-shrink-0"
+                aria-label={`Step ${item.name} down from ${expression}`}
+                className="widget-control w-6 h-6 min-h-0 text-[10px] disabled:opacity-30 flex-shrink-0"
               >
                 ▼
               </button>
@@ -111,6 +111,7 @@ export default function StepDiceWidget({ widget, mode }: Props) {
               <button
                 onClick={() => rollDie(i)}
                 disabled={!isValidExpression}
+                aria-label={`Roll ${item.name}: ${expression}`}
                 className={`min-w-[52px] max-w-[112px] h-6 px-1.5 flex items-center justify-center text-xs font-bold rounded-button border border-theme-border text-theme-ink hover:bg-theme-accent hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-theme-ink transition-colors flex-shrink-0 truncate ${isRolling ? 'animate-pulse bg-theme-accent/20' : ''}`}
               >
                 {expression}
@@ -126,7 +127,8 @@ export default function StepDiceWidget({ widget, mode }: Props) {
               <button
                 onClick={() => stepUp(i)}
                 disabled={isAtMax}
-                className="w-6 h-6 flex items-center justify-center text-[10px] rounded-button border border-theme-border text-theme-ink hover:bg-theme-accent hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-theme-ink transition-colors flex-shrink-0"
+                aria-label={`Step ${item.name} up from ${expression}`}
+                className="widget-control w-6 h-6 min-h-0 text-[10px] disabled:opacity-30 flex-shrink-0"
               >
                 ▲
               </button>

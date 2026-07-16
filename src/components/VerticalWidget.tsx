@@ -1,9 +1,12 @@
 import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { ChevronDownIcon } from './icons';
+import { ChevronDownIcon, PencilIcon, TrashIcon } from './icons';
+import { Tooltip } from './Tooltip';
+import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import ListWidget from './widgets/ListWidget';
@@ -27,6 +30,7 @@ import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -37,8 +41,23 @@ interface Props {
   dropTargetIndex: number | null;
   onDragStart: (index: number) => void;
   onDragOver: (index: number) => void;
-  onDragEnd: () => void;
+  onDragEnd: (canceled?: boolean) => void;
+  isBuildMode: boolean;
 }
+
+const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
+  'FORM',
+  'LIST',
+  'CHECKBOX',
+  'NUMBER',
+  'NUMBER_DISPLAY',
+  'POOL',
+  'TOGGLE_GROUP',
+  'HEALTH_BAR',
+  'PROGRESS_BAR',
+]);
+
+const WIDGETS_WITH_WIDE_HEADER_CONTROLS = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
 
 export default function VerticalWidget({
   widget,
@@ -50,21 +69,41 @@ export default function VerticalWidget({
   onDragStart,
   onDragOver,
   onDragEnd,
+  isBuildMode,
 }: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
+  const removeWidget = useStore((state) => state.removeWidget);
+  const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
+  const hasWideHeaderControls = WIDGETS_WITH_WIDE_HEADER_CONTROLS.has(widget.type);
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && (
+    hasWideHeaderControls
+      ? widget.data.showMaxControl !== false
+      : widget.data.showFieldControls !== false
+  );
 
   // Touch drag state
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [isDragHandle, setIsDragHandle] = useState(false);
+  const touchDragActiveRef = useRef(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useTouchCameraPinchCancellation(() => {
+    if (!touchDragActiveRef.current) return;
+    touchDragActiveRef.current = false;
+    setIsDragHandle(false);
+    setTouchStartY(null);
+    onDragEnd(true);
+  });
   
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -95,6 +134,17 @@ export default function VerticalWidget({
       window.removeEventListener('vertical-collapse-all', handleCollapseAll as EventListener);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowDeleteConfirm(false);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDeleteConfirm]);
   
   // Widget type to display name mapping (same as toolbox)
   const WIDGET_NAMES: Record<WidgetType, string> = {
@@ -127,6 +177,16 @@ export default function VerticalWidget({
   const getWidgetLabel = () => {
     return widget.data.label || WIDGET_NAMES[widget.type] || widget.type;
   };
+
+  const openEditModal = () => {
+    setShowEditModal(true);
+    setEditingWidgetId(widget.id);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingWidgetId(null);
+  };
   
   // Calculate if this widget should show a drop indicator
   // Show indicator above this widget if dropTargetIndex equals this index and we're dragging from below
@@ -144,6 +204,7 @@ export default function VerticalWidget({
     // Check if the touch is on the drag handle
     const target = e.target as HTMLElement;
     if (target.closest('.vertical-drag-handle')) {
+      touchDragActiveRef.current = true;
       setIsDragHandle(true);
       setTouchStartY(e.touches[0].clientY);
       onDragStart(index);
@@ -170,6 +231,7 @@ export default function VerticalWidget({
 
   const handleTouchEnd = () => {
     if (isDragHandle) {
+      touchDragActiveRef.current = false;
       setIsDragHandle(false);
       setTouchStartY(null);
       onDragEnd();
@@ -249,9 +311,7 @@ export default function VerticalWidget({
       )}
       
       {/* Widget Card */}
-      <div 
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme overflow-visible relative"
-      >
+      <div className="vertical-widget-card">
         {/* Image texture overlay */}
         {hasImageTexture && (
           <div
@@ -272,7 +332,7 @@ export default function VerticalWidget({
         )}
 
         {/* Header with drag handle and collapse toggle */}
-        <div className="flex items-center justify-between px-3 py-1.5 relative z-20">
+        <div className={`vertical-widget-header ${isCollapsed ? '' : 'vertical-widget-header--expanded'}`}>
           {/* Drag Handle - positioned at left, only this area is draggable (disabled when locked) */}
           <div 
             className="vertical-drag-handle cursor-grab active:cursor-grabbing flex items-center gap-2 touch-none select-none"
@@ -305,18 +365,43 @@ export default function VerticalWidget({
           )}
           
           {/* Label when collapsed */}
-          {isCollapsed && (
-            <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1 ml-2">{getWidgetLabel()}</span>
+          <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1">{getWidgetLabel()}</span>
+
+          {hasHeaderControls && !isCollapsed && (
+            <div className={`h-6 flex-shrink-0 ${hasWideHeaderControls ? 'w-16' : 'w-[52px]'}`} aria-hidden="true" />
           )}
-          
-          {/* Spacer when not collapsed */}
-          {!isCollapsed && <div className="flex-1" />}
+
+          {isBuildMode && (
+            <div className="flex flex-shrink-0 items-center gap-1">
+              <Tooltip content={`Edit ${getWidgetLabel()}`}>
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  aria-label={`Edit ${getWidgetLabel()}`}
+                  className="widget-control widget-control--subtle h-7 w-7 min-h-0"
+                >
+                  <PencilIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+              <Tooltip content={`Delete ${getWidgetLabel()}`}>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  aria-label={`Delete ${getWidgetLabel()}`}
+                  className="widget-control widget-control--subtle h-7 w-7 min-h-0 text-red-500 hover:border-red-500 hover:bg-red-500 hover:text-white"
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
           
           {/* Collapse Toggle */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-            className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-theme-ink transition-colors"
+            aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${getWidgetLabel()}`}
+            aria-expanded={!isCollapsed}
+            className="widget-control widget-control--subtle w-7 h-7 min-h-0"
           >
             <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
           </button>
@@ -324,7 +409,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`relative px-3 pb-2 ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : widget.data.label && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
@@ -335,9 +420,55 @@ export default function VerticalWidget({
         <div className="absolute -bottom-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
       )}
       
-      {/* Separator between widgets (except last) - always show to prevent layout shift */}
-      {index < totalWidgets - 1 && (
-        <div className="h-px bg-theme-border/30 my-1" />
+      {index < totalWidgets - 1 && <div className="h-2" />}
+
+      {showEditModal && (
+        <WidgetEditModal
+          widget={widget}
+          onClose={closeEditModal}
+        />
+      )}
+
+      {showDeleteConfirm && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`vertical-delete-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={`vertical-delete-title-${widget.id}`} className="font-heading text-base font-bold">
+              Delete {getWidgetLabel()}?
+            </h3>
+            <p className="mt-2 text-sm text-theme-muted">Remove this widget from the sheet?</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowDeleteConfirm(false)}
+                className="widget-control px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  removeWidget(widget.id);
+                }}
+                className="min-h-8 rounded-button border border-red-600 bg-red-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+              >
+                Delete widget
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

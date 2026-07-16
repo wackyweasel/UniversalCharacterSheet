@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
@@ -8,9 +8,11 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { TelemetryEventInput, useTelemetryStore } from '../store/useTelemetryStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
+import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { getPresetNames, getPreset, TUTORIAL_PRESET } from '../presets';
+import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon } from './icons';
+import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 
@@ -21,7 +23,7 @@ const TUTORIAL_DESCRIPTIONS = {
   themes: 'Try built-in themes, create a custom theme, and share it with the community.',
   templates: 'Save widgets and groups as templates, load them later, and share them.',
   automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',
-  various: 'Tour gallery sharing and downloads, backup, feedback, print, vertical view, timeline, and sheets.',
+  various: 'Tour Discover, sharing, backup, feedback, Print Preview, the Play List layout, timeline, and sheets.',
 };
 
 // Get initial dark mode preference from localStorage or OS
@@ -68,6 +70,7 @@ function getThemeStyles(themeId?: string) {
       '--card-texture-key': textureKey,
       '--card-texture-color': customTheme.textureColor || '#ffffff',
       '--card-texture-opacity': String(customTheme.textureOpacity ?? 0.15),
+      '--card-font-heading': customTheme.fonts.heading,
       fontFamily: customTheme.fonts.body,
     } as React.CSSProperties;
   }
@@ -90,6 +93,7 @@ function getThemeStyles(themeId?: string) {
     '--card-texture-key': 'none',
     '--card-texture-color': '#ffffff',
     '--card-texture-opacity': '0.15',
+    '--card-font-heading': theme.fonts.heading,
     fontFamily: theme.fonts.body,
   } as React.CSSProperties;
 }
@@ -107,6 +111,7 @@ export default function CharacterList() {
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
   const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
+  const replaceBlankCharacterFromPreset = useStore((state) => state.replaceBlankCharacterFromPreset);
   const createTransientCharacter = useStore((state) => state.createTransientCharacter);
   const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
   const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
@@ -114,10 +119,13 @@ export default function CharacterList() {
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const importCharacter = useStore((state) => state.importCharacter);
   const duplicateCharacter = useStore((state) => state.duplicateCharacter);
+  const reorderCharacter = useStore((state) => state.reorderCharacter);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
   const transientCharacterIds = useStore((state) => state.transientCharacterIds);
+  const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
+  const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Tutorial state from store
@@ -127,6 +135,7 @@ export default function CharacterList() {
   const startTemplatesTutorial = useTutorialStore((state) => state.startTemplatesTutorial);
   const startAutomationTutorial = useTutorialStore((state) => state.startAutomationTutorial);
   const startVariousTutorial = useTutorialStore((state) => state.startVariousTutorial);
+  const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -139,11 +148,13 @@ export default function CharacterList() {
   
   const [darkMode, setDarkMode] = useState(getInitialDarkMode);
   const [characterToDelete, setCharacterToDelete] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCharacterCreator, setShowCharacterCreator] = useState(false);
+  const [presetsOnly, setPresetsOnly] = useState(false);
+  const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
-  const [selectedTheme, setSelectedTheme] = useState<string>('default');
+  const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [renamingCharacterId, setRenamingCharacterId] = useState<string | null>(null);
@@ -153,7 +164,6 @@ export default function CharacterList() {
   const [presetName, setPresetName] = useState('');
   const [includeThemeInPreset, setIncludeThemeInPreset] = useState(true);
   const [presetToDelete, setPresetToDelete] = useState<UserPreset | null>(null);
-  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [rawDataCharacter, setRawDataCharacter] = useState<Character | null>(null);
   const [rawDataCopied, setRawDataCopied] = useState(false);
@@ -163,17 +173,254 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
-  const presetDropdownRef = useRef<HTMLDivElement>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
   const variousLoadHandledRef = useRef(false);
+  const initialTutorialStepRef = useRef(tutorialStep);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
-  
-  const presetNames = getPresetNames();
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const characterCardRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousCharacterRectsRef = useRef(new Map<string, DOMRect>());
+  const removeCharacterDragListenersRef = useRef<(() => void) | null>(null);
+  const suppressCharacterClickRef = useRef<string | null>(null);
+  const characterDragRef = useRef<{
+    characterId: string;
+    pointerId: number;
+    cardElement: HTMLDivElement;
+    startX: number;
+    startY: number;
+    startScrollLeft: number;
+    startScrollTop: number;
+    order: string[];
+    slotRects: DOMRect[];
+    startIndex: number;
+    targetIndex: number;
+    didMove: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const initialStepIndex = initialTutorialStepRef.current;
+    if (initialStepIndex === null) return;
+
+    const initialStep = TUTORIAL_STEPS[initialStepIndex];
+    const themeTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === 'themes-open-panel');
+    const isInterruptedBasicSheetTour =
+      initialStep?.page === 'sheet' &&
+      initialStepIndex < themeTutorialStart;
+
+    if (isInterruptedBasicSheetTour) {
+      cleanupTransientCharacters();
+      exitTutorial();
+    }
+  }, [cleanupTransientCharacters, exitTutorial]);
+
+  const captureCharacterRects = () => {
+    previousCharacterRectsRef.current = new Map(
+      Array.from(characterCardRefs.current.entries()).map(([id, element]) => [id, element.getBoundingClientRect()])
+    );
+  };
+
+  const updateCharacterDragPreview = (drag: NonNullable<typeof characterDragRef.current>, targetIndex: number) => {
+    const previewOrder = drag.order.filter((id) => id !== drag.characterId);
+    previewOrder.splice(targetIndex, 0, drag.characterId);
+
+    previewOrder.forEach((id, previewIndex) => {
+      if (id === drag.characterId) return;
+      const originalIndex = drag.order.indexOf(id);
+      const element = characterCardRefs.current.get(id);
+      const originalRect = drag.slotRects[originalIndex];
+      const previewRect = drag.slotRects[previewIndex];
+      if (!element || !originalRect || !previewRect) return;
+
+      const deltaX = previewRect.left - originalRect.left;
+      const deltaY = previewRect.top - originalRect.top;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+        element.classList.remove('character-sort-card--preview-shift');
+        element.style.removeProperty('transform');
+        return;
+      }
+
+      element.classList.add('character-sort-card--preview-shift');
+      element.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    });
+  };
+
+  const clearCharacterDragPreview = (drag: NonNullable<typeof characterDragRef.current>) => {
+    drag.order.forEach((id) => {
+      const element = characterCardRefs.current.get(id);
+      element?.classList.remove('character-sort-card--preview-shift');
+      element?.style.removeProperty('transform');
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (previousCharacterRectsRef.current.size === 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      previousCharacterRectsRef.current.clear();
+      return;
+    }
+
+    characterCardRefs.current.forEach((element, id) => {
+      const previousRect = previousCharacterRectsRef.current.get(id);
+      if (!previousRect) return;
+      const nextRect = element.getBoundingClientRect();
+      const deltaX = previousRect.left - nextRect.left;
+      const deltaY = previousRect.top - nextRect.top;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
+
+      element.getAnimations().forEach((animation) => animation.cancel());
+      element.animate(
+        [
+          { transform: `translate(${deltaX}px, ${deltaY}px)` },
+          { transform: 'translate(0, 0)' },
+        ],
+        { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    });
+
+    previousCharacterRectsRef.current.clear();
+  }, [characters]);
+
+  const finishCharacterDrag = (pointerId?: number, commit = true) => {
+    const drag = characterDragRef.current;
+    if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
+
+    removeCharacterDragListenersRef.current?.();
+    removeCharacterDragListenersRef.current = null;
+    const shouldReorder = Boolean(commit && drag?.didMove && drag.targetIndex !== drag.startIndex);
+    if (drag && shouldReorder) captureCharacterRects();
+    if (drag) {
+      drag.cardElement.classList.remove('character-sort-card--dragging');
+      clearCharacterDragPreview(drag);
+    }
+    if (drag && shouldReorder) {
+      reorderCharacter(drag.characterId, drag.targetIndex);
+    }
+    if (drag?.didMove) {
+      suppressCharacterClickRef.current = drag.characterId;
+      window.setTimeout(() => {
+        if (suppressCharacterClickRef.current === drag.characterId) {
+          suppressCharacterClickRef.current = null;
+        }
+      }, 0);
+    }
+    characterDragRef.current = null;
+  };
+
+  const handleCharacterDragMove = (event: PointerEvent) => {
+    const drag = characterDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
+    if (!drag.didMove) {
+      drag.didMove = true;
+      drag.cardElement.classList.add('character-sort-card--dragging');
+    }
+
+    const scrollArea = listScrollRef.current;
+    if (scrollArea) {
+      const edgeSize = 72;
+      if (event.clientY < edgeSize) scrollArea.scrollBy({ top: -14 });
+      if (event.clientY > window.innerHeight - edgeSize) scrollArea.scrollBy({ top: 14 });
+    }
+
+    const scrollDeltaX = (scrollArea?.scrollLeft ?? 0) - drag.startScrollLeft;
+    const scrollDeltaY = (scrollArea?.scrollTop ?? 0) - drag.startScrollTop;
+    drag.cardElement.style.transform = `translate3d(${event.clientX - drag.startX + scrollDeltaX}px, ${event.clientY - drag.startY + scrollDeltaY}px, 0) scale(1.025) rotate(0.35deg)`;
+
+    const targetIndex = drag.slotRects.reduce((closestIndex, rect, index) => {
+      const left = rect.left - scrollDeltaX;
+      const right = rect.right - scrollDeltaX;
+      const top = rect.top - scrollDeltaY;
+      const bottom = rect.bottom - scrollDeltaY;
+      const distanceX = event.clientX < left ? left - event.clientX : event.clientX > right ? event.clientX - right : 0;
+      const distanceY = event.clientY < top ? top - event.clientY : event.clientY > bottom ? event.clientY - bottom : 0;
+      const currentRect = drag.slotRects[closestIndex];
+      const currentLeft = currentRect.left - scrollDeltaX;
+      const currentRight = currentRect.right - scrollDeltaX;
+      const currentTop = currentRect.top - scrollDeltaY;
+      const currentBottom = currentRect.bottom - scrollDeltaY;
+      const currentDistanceX = event.clientX < currentLeft ? currentLeft - event.clientX : event.clientX > currentRight ? event.clientX - currentRight : 0;
+      const currentDistanceY = event.clientY < currentTop ? currentTop - event.clientY : event.clientY > currentBottom ? event.clientY - currentBottom : 0;
+      return Math.hypot(distanceX, distanceY) < Math.hypot(currentDistanceX, currentDistanceY) ? index : closestIndex;
+    }, drag.targetIndex);
+    if (targetIndex === drag.targetIndex) return;
+
+    drag.targetIndex = targetIndex;
+    updateCharacterDragPreview(drag, targetIndex);
+  };
+
+  const startCharacterDrag = (characterId: string, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (characters.length < 2 || event.button !== 0) return;
+    const cardElement = characterCardRefs.current.get(characterId);
+    if (!cardElement) return;
+    const scrollArea = listScrollRef.current;
+    const order = characters.map((character) => character.id);
+    const startIndex = order.indexOf(characterId);
+    const slotRects = order.map((id) => characterCardRefs.current.get(id)?.getBoundingClientRect()).filter((rect): rect is DOMRect => Boolean(rect));
+    if (startIndex < 0 || slotRects.length !== order.length) return;
+
+    removeCharacterDragListenersRef.current?.();
+    characterDragRef.current = {
+      characterId,
+      pointerId: event.pointerId,
+      cardElement,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollLeft: scrollArea?.scrollLeft ?? 0,
+      startScrollTop: scrollArea?.scrollTop ?? 0,
+      order,
+      slotRects,
+      startIndex,
+      targetIndex: startIndex,
+      didMove: false,
+    };
+
+    const handlePointerMove = (pointerEvent: PointerEvent) => handleCharacterDragMove(pointerEvent);
+    const handlePointerUp = (pointerEvent: PointerEvent) => finishCharacterDrag(pointerEvent.pointerId);
+    const handlePointerCancel = (pointerEvent: PointerEvent) => finishCharacterDrag(pointerEvent.pointerId, false);
+    const handleWindowBlur = () => finishCharacterDrag(undefined, false);
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('blur', handleWindowBlur);
+    removeCharacterDragListenersRef.current = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+
+    event.currentTarget.focus({ preventScroll: true });
+    setOpenDropdown(null);
+  };
+
+  useEffect(() => () => removeCharacterDragListenersRef.current?.(), []);
+
+  const handleCharacterReorderKey = (characterId: string, event: React.KeyboardEvent<HTMLElement>) => {
+    const currentIndex = characters.findIndex((character) => character.id === characterId);
+    if (currentIndex < 0) return;
+    const columns = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+    const offset = event.key === 'ArrowLeft'
+      ? -1
+      : event.key === 'ArrowRight'
+        ? 1
+        : event.key === 'ArrowUp'
+          ? -columns
+          : event.key === 'ArrowDown'
+            ? columns
+            : 0;
+    if (offset === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    captureCharacterRects();
+    reorderCharacter(characterId, currentIndex + offset);
+  };
 
   const tutorialOptionClass = (mobile = false) => `w-full px-4 py-3 ${mobile ? 'pl-12 ' : ''}text-left text-sm font-body flex items-center gap-3 transition-colors ${
     mobile ? 'sm:hidden ' : ''
@@ -211,9 +458,6 @@ export default function CharacterList() {
         setShowHeaderMenu(false);
         setShowMobileTutorialOptions(false);
       }
-      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target as Node)) {
-        setShowPresetDropdown(false);
-      }
       if (importDropdownRef.current && !importDropdownRef.current.contains(event.target as Node)) {
         setShowImportDropdown(false);
       }
@@ -222,18 +466,25 @@ export default function CharacterList() {
       }
     };
     
-    if (openDropdown || showHeaderMenu || showPresetDropdown || showImportDropdown || showTutorialDropdown) {
+    if (openDropdown || showHeaderMenu || showImportDropdown || showTutorialDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [openDropdown, showHeaderMenu, showPresetDropdown, showImportDropdown, showTutorialDropdown]);
+  }, [openDropdown, showHeaderMenu, showImportDropdown, showTutorialDropdown]);
 
   const handleStartBasicTutorial = () => {
     cleanupTransientCharacters();
     startTutorial();
+    if (characters.length === 0) {
+      setNewCharName('');
+      setSelectedPreset('');
+      setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+      setShowCharacterCreator(true);
+      advanceTutorial();
+    }
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
     setShowHeaderMenu(false);
@@ -286,6 +537,63 @@ export default function CharacterList() {
     setShowMobileTutorialOptions(false);
     setShowHeaderMenu(false);
   };
+
+  const resetCharacterCreator = () => {
+    setNewCharName('');
+    setSelectedPreset('');
+    setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+  };
+
+  const handleChooseBlank = () => {
+    setSelectedPreset('');
+    setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+  };
+
+  const handleChooseBuiltInPreset = (definition: PresetDefinition) => {
+    setSelectedPreset(definition.name);
+    setSelectedTheme(definition.preset.theme || (darkMode ? 'classic-dark' : 'default'));
+  };
+
+  const handleChooseUserPreset = (preset: UserPreset) => {
+    setSelectedPreset(`user:${preset.id}`);
+    setSelectedTheme(preset.theme || preset.preset.theme || (darkMode ? 'classic-dark' : 'default'));
+  };
+
+  const handleOpenCreation = () => {
+    resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
+    setShowCharacterCreator(true);
+
+    if (isCurrentTutorialStep('create-character')) {
+      advanceTutorial();
+    }
+  };
+
+  const handleStartBasicTutorialFromChooser = () => {
+    cleanupTransientCharacters();
+    startTutorial();
+    advanceTutorial();
+    resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
+    setShowCharacterCreator(true);
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
+  useEffect(() => {
+    if (!characterCreatorRequest) return;
+
+    setNewCharName(characterCreatorRequest.initialName);
+    setSelectedPreset('');
+    setSelectedTheme(darkMode ? 'classic-dark' : 'default');
+    setPresetsOnly(true);
+    setReplaceCharacterId(characterCreatorRequest.replaceCharacterId || null);
+    setShowCharacterCreator(true);
+    clearCharacterCreatorRequest();
+  }, [characterCreatorRequest, clearCharacterCreatorRequest, darkMode]);
 
   useEffect(() => {
     if (tutorialStep === null || TUTORIAL_STEPS[tutorialStep]?.id !== 'automation-load-character') return;
@@ -351,6 +659,8 @@ export default function CharacterList() {
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
     const isBasicTutorialCreateStep = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
+    let createdCharacterId: string | null = null;
+    let creationSucceeded = false;
     
     if (selectedPreset && selectedPreset !== '') {
       // Check if it's a user preset
@@ -358,13 +668,22 @@ export default function CharacterList() {
         const userPresetId = selectedPreset.replace('user:', '');
         const userPreset = userPresets.find(p => p.id === userPresetId);
         if (userPreset) {
-          if (isBasicTutorialCreateStep) {
+          if (replaceCharacterId) {
+            creationSucceeded = replaceBlankCharacterFromPreset(replaceCharacterId, userPreset.preset, name, 'user_preset');
+            if (creationSucceeded) createdCharacterId = replaceCharacterId;
+          } else if (isBasicTutorialCreateStep) {
             createTransientCharacterFromPreset(userPreset.preset, name);
+            creationSucceeded = true;
           } else {
             createCharacterFromPreset(userPreset.preset, name, 'user_preset');
+            creationSucceeded = true;
           }
           const state = useStore.getState();
-          const newChar = state.characters[state.characters.length - 1];
+          const newChar = creationSucceeded
+            ? createdCharacterId
+              ? state.characters.find((character) => character.id === createdCharacterId)
+              : state.characters[state.characters.length - 1]
+            : undefined;
           // Use the preset's stored theme if available, otherwise use the selected theme
           const themeToApply = userPreset.theme || selectedTheme;
           if (newChar && themeToApply !== 'default') {
@@ -375,27 +694,38 @@ export default function CharacterList() {
         // Create from built-in preset
         const preset = getPreset(selectedPreset);
         if (preset) {
-          if (isBasicTutorialCreateStep) {
+          if (replaceCharacterId) {
+            creationSucceeded = replaceBlankCharacterFromPreset(replaceCharacterId, preset, name, 'builtin_preset');
+            if (creationSucceeded) createdCharacterId = replaceCharacterId;
+          } else if (isBasicTutorialCreateStep) {
             createTransientCharacterFromPreset(preset, name);
+            creationSucceeded = true;
           } else {
             createCharacterFromPreset(preset, name, 'builtin_preset');
+            creationSucceeded = true;
           }
           // Get the newly created character and update its theme
           // Since the preset might have its own theme, we override it with the selected one
           const state = useStore.getState();
-          const newChar = state.characters[state.characters.length - 1];
+          const newChar = creationSucceeded
+            ? createdCharacterId
+              ? state.characters.find((character) => character.id === createdCharacterId)
+              : state.characters[state.characters.length - 1]
+            : undefined;
           if (newChar && selectedTheme !== 'default') {
             updateCharacterTheme(newChar.id, selectedTheme);
           }
         }
       }
     } else {
+      if (presetsOnly) return;
       // Create blank character
       if (isBasicTutorialCreateStep) {
         createTransientCharacter(name);
       } else {
         createCharacter(name);
       }
+      creationSucceeded = true;
       // Update theme if not default
       const state = useStore.getState();
       const newChar = state.characters[state.characters.length - 1];
@@ -403,12 +733,36 @@ export default function CharacterList() {
         updateCharacterTheme(newChar.id, selectedTheme);
       }
     }
+
+    if (!creationSucceeded) return;
     
     // Reset form
-    setNewCharName('');
-    setSelectedPreset('');
-    setSelectedTheme('default');
-    setShowCreateModal(false);
+    resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
+    setShowCharacterCreator(false);
+  };
+
+  const handleNewCharacterNameChange = (name: string) => {
+    setNewCharName(name);
+    if (tutorialStep === 1 && TUTORIAL_STEPS[1]?.id === 'name-character' && name.trim().length > 0) {
+      advanceTutorial();
+    }
+  };
+
+  const handleSubmitCharacter = () => {
+    const shouldAdvanceTutorial = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
+    handleCreateCharacter();
+    if (shouldAdvanceTutorial) {
+      advanceTutorial();
+    }
+  };
+
+  const handleCloseCharacterCreator = () => {
+    resetCharacterCreator();
+    setPresetsOnly(false);
+    setReplaceCharacterId(null);
+    setShowCharacterCreator(false);
   };
 
   const handleExport = (char: Character) => {
@@ -457,9 +811,7 @@ export default function CharacterList() {
     reader.readAsText(file);
     
     // Reset file input so the same file can be imported again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    e.target.value = '';
   };
 
   const handleBackup = () => {
@@ -570,17 +922,54 @@ export default function CharacterList() {
   };
 
   return (
-    <div className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+    <div ref={listScrollRef} className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleImport}
+        className="hidden"
+      />
       <div className="max-w-4xl mx-auto pb-safe">
-      <div className={`flex justify-between items-center mb-4 border-b-[length:var(--border-width)] pb-2 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
-        <h1 className={`text-2xl font-bold uppercase tracking-wider font-heading ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-          Character Select
-        </h1>
-        <div className="flex items-center gap-2">
-          {/* Desktop buttons - visible on larger screens */}
-          <div className="hidden sm:flex items-center gap-2">
+      <div className={`flex flex-col gap-3 mb-4 border-b-[length:var(--border-width)] pb-3 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
+        <div className="flex justify-end lg:hidden">
+          <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={darkMode}
+              aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+              onClick={toggleDarkMode}
+              className={`relative flex h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors ${
+                darkMode
+                  ? 'border-white/40 bg-white/15'
+                  : 'border-theme-border bg-theme-paper'
+              }`}
+            >
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
+                  darkMode
+                    ? 'translate-x-6 bg-white text-black'
+                    : 'translate-x-0 bg-theme-ink text-theme-paper'
+                }`}
+              >
+                {darkMode ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                )}
+              </span>
+            </button>
+          </Tooltip>
+        </div>
+        <div className="w-full">
+          <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
             {/* Gallery Button */}
-            <Tooltip content="Community Gallery">
+            <Tooltip content="Discover community content">
               <button
                 onClick={() => {
                   setShowGallery(true);
@@ -589,7 +978,7 @@ export default function CharacterList() {
                   }
                 }}
                 data-tutorial="gallery-button"
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -598,7 +987,7 @@ export default function CharacterList() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
-                <span>Gallery</span>
+                <span>Discover</span>
               </button>
             </Tooltip>
             {/* Tutorial Button */}
@@ -610,7 +999,7 @@ export default function CharacterList() {
                     setShowHeaderMenu(false);
                     setShowMobileTutorialOptions(false);
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  className={`w-full min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
                     darkMode 
                       ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                       : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -620,14 +1009,11 @@ export default function CharacterList() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                   <span>Tutorials</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showTutorialDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
                 </button>
               </Tooltip>
               {showTutorialDropdown && (
                 <div 
-                  className={`absolute right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
+                  className={`absolute left-0 sm:left-auto sm:right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
                     darkMode 
                       ? 'bg-black border border-white/30' 
                       : 'bg-white border border-gray-300'
@@ -686,7 +1072,7 @@ export default function CharacterList() {
                   }
                 }}
                 data-tutorial="backup-button"
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-body rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                  className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -698,10 +1084,110 @@ export default function CharacterList() {
                 <span>Backup</span>
               </button>
             </Tooltip>
+            <Tooltip content="Share feedback">
+              <a
+                href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordCharacterListEvent({
+                  eventName: 'external_feedback_opened',
+                  category: 'app',
+                  source: 'header_menu',
+                })}
+                data-tutorial="feedback-button"
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  isCurrentTutorialStep('various-feedback')
+                    ? 'bg-blue-500 text-white font-bold'
+                    : darkMode
+                      ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                <span>Feedback</span>
+              </a>
+            </Tooltip>
+            <Tooltip content="Join the UCS community on Reddit">
+              <a
+                href="https://www.reddit.com/r/UniversalCharSheet/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordCharacterListEvent({
+                  eventName: 'external_reddit_opened',
+                  category: 'app',
+                  source: 'header_menu',
+                })}
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  darkMode
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M18 10.1c0-1-.8-1.8-1.8-1.7-.4 0-.9.2-1.2.5-1.4-.9-3-1.5-4.7-1.5l.8-3.8 2.6.6c0 .7.6 1.2 1.3 1.2.7 0 1.2-.6 1.2-1.3 0-.7-.6-1.2-1.3-1.2-.5 0-.9.3-1.1.7L11 2.9h-.2c-.1 0-.1.1-.1.2l-1 4.3C8 7.4 6.4 7.9 5 8.9c-.7-.7-1.8-.7-2.5 0s-.7 1.8 0 2.5c.1.1.3.3.5.3v.5c0 2.7 3.1 4.9 7 4.9s7-2.2 7-4.9v-.5c.6-.3 1-.9 1-1.6zM6 11.4c0-.7.6-1.2 1.2-1.2.7 0 1.2.6 1.2 1.2s-.6 1.2-1.2 1.2c-.7 0-1.2-.5-1.2-1.2zm7 3.3c-.9.6-1.9 1-3 .9-1.1 0-2.1-.3-3-.9-.1-.1-.1-.3 0-.5.1-.1.3-.1.4 0 .7.5 1.6.8 2.5.7.9.1 1.8-.2 2.5-.7.1-.1.3-.1.5 0s.2.3.1.5zm-.3-2.1c-.7 0-1.2-.6-1.2-1.2s.6-1.2 1.2-1.2c.7 0 1.2.6 1.2 1.2.1.7-.5 1.2-1.2 1.2z" />
+                </svg>
+                <span>Reddit</span>
+              </a>
+            </Tooltip>
+            <Tooltip content="Support UCS development">
+              <a
+                href="https://buymeacoffee.com/wackyweasel"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordCharacterListEvent({
+                  eventName: 'external_donate_opened',
+                  category: 'app',
+                  source: 'header_menu',
+                })}
+                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  darkMode
+                    ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                <span>Donate</span>
+              </a>
+            </Tooltip>
+            <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={darkMode}
+                aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+                onClick={toggleDarkMode}
+                className={`relative hidden h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors lg:ml-auto lg:flex ${
+                  darkMode
+                    ? 'border-white/40 bg-white/15'
+                    : 'border-theme-border bg-theme-paper'
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
+                    darkMode
+                      ? 'translate-x-6 bg-white text-black'
+                      : 'translate-x-0 bg-theme-ink text-theme-paper'
+                  }`}
+                >
+                  {darkMode ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  )}
+                </span>
+              </button>
+            </Tooltip>
           </div>
           
-          {/* Menu button - always visible */}
-          <div className="relative" ref={headerMenuRef}>
+          <div className="hidden relative" ref={headerMenuRef}>
             <Tooltip content="Menu">
               <button
                 onClick={() => {
@@ -773,7 +1259,7 @@ export default function CharacterList() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
-                  <span>Gallery</span>
+                  <span>Discover</span>
                 </button>
                 {/* Tutorial - only in mobile menu */}
                 <button
@@ -939,18 +1425,10 @@ export default function CharacterList() {
       </div>
 
       {/* Create and Import buttons */}
-      <div className="mb-6 flex gap-2">
+      {characters.length > 0 && <div className="mb-6 flex gap-2">
         <button 
           data-tutorial="create-character"
-          onClick={() => {
-            // Set default theme based on dark mode
-            setSelectedTheme(darkMode ? 'classic-dark' : 'default');
-            setShowCreateModal(true);
-            // If tutorial is on step 0 (create character), advance to next step
-            if (tutorialStep === 0 && TUTORIAL_STEPS[0]?.id === 'create-character') {
-              advanceTutorial();
-            }
-          }}
+          onClick={handleOpenCreation}
           className={`flex-1 px-6 py-4 text-lg font-bold transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none rounded-button font-heading ${
             darkMode 
               ? 'bg-white text-black hover:bg-white/80' 
@@ -976,7 +1454,9 @@ export default function CharacterList() {
                 ? 'bg-black border border-white/30' 
                 : 'bg-white border border-gray-300'
             }`}>
-              <label
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
                 className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors cursor-pointer ${
                   darkMode 
                     ? 'text-white hover:bg-white/10' 
@@ -987,17 +1467,7 @@ export default function CharacterList() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
                 </svg>
                 <span>From File</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => {
-                    handleImport(e);
-                    setShowImportDropdown(false);
-                  }}
-                  className="hidden"
-                />
-              </label>
+              </button>
               <button
                 onClick={() => {
                   setRawImportValue('');
@@ -1018,7 +1488,7 @@ export default function CharacterList() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
         {characters.map((char) => {
@@ -1026,12 +1496,35 @@ export default function CharacterList() {
           const customTheme = char.theme ? getCustomTheme(char.theme) : undefined;
           const textureKey = customTheme?.cardTexture || 'none';
           const hasImageTexture = isImageTexture(textureKey);
+          const widgetCount = char.sheets.reduce((sum, s) => sum + s.widgets.length, 0);
           return (
             <div 
               key={char.id}
+              ref={(element) => {
+                if (element) characterCardRefs.current.set(char.id, element);
+                else characterCardRefs.current.delete(char.id);
+              }}
+              data-character-id={char.id}
               style={cardStyles}
-              className={`p-4 active:translate-x-[2px] active:translate-y-[2px] transition-transform cursor-pointer relative group ${openDropdown === char.id ? 'z-40' : ''}`}
-              onClick={() => selectCharacter(char.id)}
+              className={`character-sort-card p-3 pl-4 relative group ${openDropdown === char.id ? 'z-40' : ''}`}
+              tabIndex={0}
+              onClick={(event) => {
+                if (suppressCharacterClickRef.current === char.id) {
+                  suppressCharacterClickRef.current = null;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return;
+                }
+                selectCharacter(char.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  selectCharacter(char.id);
+                  return;
+                }
+              }}
             >
               <div 
                 className="absolute inset-0 pointer-events-none overflow-hidden"
@@ -1065,46 +1558,46 @@ export default function CharacterList() {
                     />
                   </div>
                 )}
+                {/* Soft accent wash for theme identity */}
+                <div className="character-card-wash" />
               </div>
-              <div className="relative">
-                <h2 
-                  className="text-xl font-bold mb-2 pr-12"
-                  style={{ color: 'var(--card-ink)' }}
-                >{char.name}</h2>
-                <p 
-                  className="text-sm mb-2"
-                  style={{ color: 'var(--card-muted)' }}
-                >{char.sheets.reduce((sum, s) => sum + s.widgets.length, 0)} Widgets • {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}</p>
-                
-                {/* Dropdown Menu */}
-                <div className={`absolute top-0 right-0 ${openDropdown === char.id ? 'z-50' : 'z-10'}`} ref={openDropdown === char.id ? dropdownRef : undefined}>
-                  <Tooltip content="Options">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenDropdown(openDropdown === char.id ? null : char.id);
-                      }}
-                      className="p-1.5 rounded transition-colors"
-                      style={{ 
-                        color: 'var(--card-muted)',
-                        backgroundColor: 'transparent'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--card-accent)';
-                        e.currentTarget.style.color = 'var(--card-background)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--card-muted)';
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <circle cx="12" cy="5" r="2" />
-                        <circle cx="12" cy="12" r="2" />
-                        <circle cx="12" cy="19" r="2" />
-                      </svg>
-                    </button>
-                  </Tooltip>
+              <button
+                type="button"
+                className="character-drag-handle character-card-icon-btn flex h-7 items-center justify-center"
+                aria-label={`Reorder ${char.name}`}
+                title="Drag to reorder. Arrow keys also work."
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startCharacterDrag(char.id, event);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => handleCharacterReorderKey(char.id, event)}
+              >
+                <GripVerticalIcon className="h-4 w-4" />
+              </button>
+              <div className="relative flex flex-col gap-2 pl-9">
+                <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 flex-1 items-center">
+                    <h2 
+                      className="truncate text-lg font-bold leading-tight"
+                      style={{ color: 'var(--card-ink)', fontFamily: 'var(--card-font-heading)' }}
+                      title={char.name}
+                    >{char.name}</h2>
+                  </div>
+                  <div className="-mr-1 flex items-center">
+                    {/* Dropdown Menu */}
+                    <div className={`relative ${openDropdown === char.id ? 'z-50' : 'z-10'}`} ref={openDropdown === char.id ? dropdownRef : undefined}>
+                      <Tooltip content="Options">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown === char.id ? null : char.id);
+                          }}
+                          className={`character-card-icon-btn flex h-7 w-7 items-center justify-center ${openDropdown === char.id ? 'character-card-icon-btn--active' : ''}`}
+                        >
+                          <DotsVerticalIcon className="h-5 w-5" />
+                        </button>
+                      </Tooltip>
                   
                   {openDropdown === char.id && (
                     <div 
@@ -1283,6 +1776,24 @@ export default function CharacterList() {
                       </Tooltip>
                     </div>
                   )}
+                    </div>
+                  </div>
+                </div>
+                <div className="character-card-divider" aria-hidden="true" />
+                <div className="flex items-center justify-between">
+                  <div className="character-card-stats flex min-w-0 items-center gap-3 text-xs font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      <LayersIcon className="h-3.5 w-3.5 shrink-0" />
+                      {char.sheets.length} Sheet{char.sheets.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <LayoutGridIcon className="h-3.5 w-3.5 shrink-0" />
+                      {widgetCount} Widget{widgetCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <span className="character-card-open" aria-hidden="true">
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </span>
                 </div>
               </div>
             </div>
@@ -1290,12 +1801,30 @@ export default function CharacterList() {
         })}
         
         {characters.length === 0 && (
-          <div className={`col-span-full text-center py-8 border-[length:var(--border-width)] border-dashed text-sm rounded-theme font-body ${
-            darkMode 
-              ? 'text-white/50 border-white/30' 
-              : 'text-theme-muted border-theme-border/50'
-          }`}>
-            No characters found. Create one to begin.
+          <div className="col-span-full">
+            <CharacterCreator
+              darkMode={darkMode}
+              firstCharacter
+              presetsOnly={presetsOnly}
+              replacingBlankCharacter={replaceCharacterId !== null}
+              name={newCharName}
+              selectedPreset={selectedPreset}
+              selectedTheme={selectedTheme}
+              customThemes={customThemes}
+              userPresets={userPresets}
+              startingPointLocked={isCurrentTutorialStep('name-character') || isCurrentTutorialStep('click-create')}
+              nameHighlighted={isCurrentTutorialStep('name-character')}
+              createHighlighted={isCurrentTutorialStep('click-create')}
+              onNameChange={handleNewCharacterNameChange}
+              onChooseBlank={handleChooseBlank}
+              onChooseBuiltIn={handleChooseBuiltInPreset}
+              onChooseUser={handleChooseUserPreset}
+              onThemeChange={setSelectedTheme}
+              onCreate={handleSubmitCharacter}
+              onImport={() => fileInputRef.current?.click()}
+              onDiscover={() => setShowGallery(true)}
+              onTour={handleStartBasicTutorialFromChooser}
+            />
           </div>
         )}
       </div>
@@ -1519,10 +2048,10 @@ export default function CharacterList() {
       {presetToDelete && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" 
+            className="fixed inset-0 bg-black/50 z-[70] animate-fade-in"
             onClick={() => setPresetToDelete(null)}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[60] min-w-[280px] animate-fade-in ${
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-4 z-[70] min-w-[280px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -1566,241 +2095,47 @@ export default function CharacterList() {
         </>
       )}
       
-      {/* Create Character Modal */}
-      {showCreateModal && (
+      {/* Single-surface creator for returning users */}
+      {showCharacterCreator && characters.length > 0 && (
         <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
-            onClick={() => setShowCreateModal(false)}
+          <div
+            className="fixed inset-0 bg-black/60 z-50 animate-fade-in"
+            onClick={handleCloseCharacterCreator}
           />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[400px] animate-fade-in ${
-            darkMode 
-              ? 'bg-black border border-white/30' 
-              : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-          }`}>
-            <h3 className={`font-heading font-bold text-xl mb-4 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create New Character</h3>
-            
-            {/* Character Name */}
-            <div className="mb-4" data-tutorial="character-name-input">
-              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Character Name</label>
-              <input
-                type="text"
-                value={newCharName}
-                onChange={(e) => {
-                  setNewCharName(e.target.value);
-                  // If tutorial is on step 1 (name character) and user typed something, advance
-                  if (tutorialStep === 1 && TUTORIAL_STEPS[1]?.id === 'name-character' && e.target.value.trim().length > 0) {
-                    advanceTutorial();
-                  }
-                }}
-                placeholder="Enter character name..."
-                className={`w-full p-3 text-base shadow-theme focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none transition-all rounded-theme font-body ${
-                  darkMode 
-                    ? 'bg-black text-white border border-white/30 placeholder-white/40' 
-                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                } ${tutorialStep === 1 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-                autoFocus
-              />
-            </div>
-            
-            {/* Preset Selection */}
-            <div className="mb-4">
-              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Preset</label>
-              <div className="relative" ref={presetDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowPresetDropdown(!showPresetDropdown)}
-                  className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer text-left flex items-center justify-between ${
-                    darkMode 
-                      ? 'bg-black text-white border border-white/30' 
-                      : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                  }`}
-                >
-                  <span>
-                    {selectedPreset === '' 
-                      ? 'No Preset' 
-                      : selectedPreset.startsWith('user:') 
-                        ? userPresets.find(p => p.id === selectedPreset.replace('user:', ''))?.name || 'No Preset'
-                        : selectedPreset
-                    }
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showPresetDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showPresetDropdown && (
-                  <div className={`absolute z-50 w-full mt-1 rounded-theme shadow-theme max-h-60 overflow-y-auto ${
-                    darkMode 
-                      ? 'bg-black border border-white/30' 
-                      : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-                  }`}>
-                    {/* No Preset option */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPreset('');
-                        setShowPresetDropdown(false);
-                      }}
-                      className={`w-full px-3 py-3 text-left text-base font-body transition-colors ${
-                        selectedPreset === '' 
-                          ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
-                          : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
-                      } ${darkMode ? 'text-white' : 'text-theme-ink'}`}
-                    >
-                      No Preset
-                    </button>
-                    
-                    {/* Built-in Presets */}
-                    {presetNames.length > 0 && (
-                      <>
-                        <div className={`px-3 py-1.5 text-xs font-body font-semibold uppercase tracking-wider ${
-                          darkMode ? 'text-white/40 bg-white/5' : 'text-theme-muted bg-theme-accent/5'
-                        }`}>
-                          Built-in Presets
-                        </div>
-                        {presetNames.map((name) => (
-                          <button
-                            key={name}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPreset(name);
-                              setShowPresetDropdown(false);
-                            }}
-                            className={`w-full px-3 py-3 text-left text-base font-body transition-colors ${
-                              selectedPreset === name 
-                                ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
-                                : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
-                            } ${darkMode ? 'text-white' : 'text-theme-ink'}`}
-                          >
-                            {name}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    
-                    {/* My Presets */}
-                    {userPresets.length > 0 && (
-                      <>
-                        <div className={`px-3 py-1.5 text-xs font-body font-semibold uppercase tracking-wider ${
-                          darkMode ? 'text-white/40 bg-white/5' : 'text-theme-muted bg-theme-accent/5'
-                        }`}>
-                          My Presets
-                        </div>
-                        {userPresets.map((preset) => (
-                          <div
-                            key={`user:${preset.id}`}
-                            className={`flex items-center group ${
-                              selectedPreset === `user:${preset.id}` 
-                                ? darkMode ? 'bg-white/20' : 'bg-theme-accent/20' 
-                                : darkMode ? 'hover:bg-white/10 active:bg-white/20' : 'hover:bg-theme-accent/10 active:bg-theme-accent/20'
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedPreset(`user:${preset.id}`);
-                                if (preset.theme) {
-                                  setSelectedTheme(preset.theme);
-                                }
-                                setShowPresetDropdown(false);
-                              }}
-                              className={`flex-1 px-3 py-3 text-left text-base font-body transition-colors ${
-                                darkMode ? 'text-white' : 'text-theme-ink'
-                              }`}
-                            >
-                              {preset.name}
-                            </button>
-                            <Tooltip content="Delete preset">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPresetToDelete(preset);
-                                  setShowPresetDropdown(false);
-                                }}
-                                className={`px-3 py-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors active:bg-red-500/20 ${
-                                  darkMode 
-                                    ? 'text-white/40 hover:text-red-400' 
-                                    : 'text-theme-muted hover:text-red-500'
-                                }`}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </Tooltip>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Theme Selection */}
-            <div className="mb-6">
-              <label className={`block text-sm font-body mb-1 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>Theme</label>
-              <select
-                value={selectedTheme}
-                onChange={(e) => setSelectedTheme(e.target.value)}
-                className={`w-full p-3 text-base shadow-theme focus:outline-none transition-all rounded-theme font-body cursor-pointer ${
-                  darkMode 
-                    ? 'bg-black text-white border border-white/30' 
-                    : 'bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border'
-                }`}
-              >
-                <optgroup label="Built-in Themes">
-                  {THEMES.map((theme) => (
-                    <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
-                  ))}
-                </optgroup>
-                {Object.keys(customThemes).length > 0 && (
-                  <optgroup label="Custom Themes">
-                    {Object.values(customThemes).map((theme) => (
-                      <option key={theme.id} value={theme.id}>🎨 {theme.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewCharName('');
-                  setSelectedPreset('');
-                  setSelectedTheme('default');
-                }}
-                className={`px-4 py-2 font-body rounded-button transition-colors ${
-                  darkMode 
-                    ? 'text-white border border-white/30 hover:bg-white/10' 
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                data-tutorial="create-button"
-                onClick={() => {
-                  handleCreateCharacter();
-                  // If tutorial is on step 2 (click create), advance
-                  if (tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create') {
-                    advanceTutorial();
-                  }
-                }}
-                className={`px-6 py-2 font-body rounded-button transition-colors font-bold ${
-                  darkMode 
-                    ? 'bg-white text-black hover:bg-white/80' 
-                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-                } ${tutorialStep === 2 ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-              >
-                Create
-              </button>
-            </div>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-creator-title"
+            className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-1.5rem)] sm:w-[calc(100%-4rem)] max-w-lg max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-theme shadow-xl animate-fade-in ${
+              darkMode ? 'bg-black border border-white/30' : 'bg-white border border-gray-300'
+            }`}
+          >
+            <CharacterCreator
+              darkMode={darkMode}
+              presetsOnly={presetsOnly}
+              replacingBlankCharacter={replaceCharacterId !== null}
+              name={newCharName}
+              selectedPreset={selectedPreset}
+              selectedTheme={selectedTheme}
+              customThemes={customThemes}
+              userPresets={userPresets}
+              startingPointLocked={isCurrentTutorialStep('name-character') || isCurrentTutorialStep('click-create')}
+              nameHighlighted={isCurrentTutorialStep('name-character')}
+              createHighlighted={isCurrentTutorialStep('click-create')}
+              onNameChange={handleNewCharacterNameChange}
+              onChooseBlank={handleChooseBlank}
+              onChooseBuiltIn={handleChooseBuiltInPreset}
+              onChooseUser={handleChooseUserPreset}
+              onThemeChange={setSelectedTheme}
+              onCreate={handleSubmitCharacter}
+              onCancel={handleCloseCharacterCreator}
+              onImport={() => fileInputRef.current?.click()}
+              onDiscover={() => {
+                setShowCharacterCreator(false);
+                setShowGallery(true);
+              }}
+              onTour={handleStartBasicTutorialFromChooser}
+            />
           </div>
         </>
       )}

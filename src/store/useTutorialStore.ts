@@ -14,6 +14,7 @@ export interface TutorialStep {
   message: string;
   targetSelector?: string;
   position: 'left' | 'right' | 'top' | 'bottom' | 'center';
+  dock?: 'top';
   page: 'character-list' | 'sheet';
   requiresManualAdvance?: boolean;
 }
@@ -38,7 +39,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'click-create',
     title: 'Create Your Character',
-    message: 'You can also choose a preset to start with pre-made widgets, or pick a theme for different visual styles. For now, let\'s keep the defaults and click Create!',
+    message: 'This tour starts from a blank canvas. Keep the default theme for now and click Create—we\'ll build the sheet together.',
     targetSelector: '[data-tutorial="create-button"]',
     position: 'top',
     page: 'character-list',
@@ -46,7 +47,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'welcome-sheet',
     title: 'Welcome to Your Character Sheet!',
-    message: 'This is where you\'ll build your character sheet. It\'s empty right now, so let\'s add some widgets! First, switch to Edit Mode.',
+    message: 'This is where you\'ll build your character sheet. It\'s empty right now, so let\'s add some widgets! First, switch to Build.',
     targetSelector: '[data-tutorial="edit-mode-button"]',
     position: 'bottom',
     page: 'sheet',
@@ -54,15 +55,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'add-widget',
     title: 'Add Your First Widget',
-    message: 'Click "Add Widget" to open the widget toolbox. You\'ll find different types of widgets to build your character sheet!',
-    targetSelector: '[data-tutorial="add-widget-button"]',
+    message: 'Select the highlighted Add button to open the panel. It groups everything you can place on a sheet by what it helps you do.',
+    targetSelector: '[data-tutorial="add-widget-button"], [data-tutorial="add-widget-button-mobile"]',
     position: 'bottom',
     page: 'sheet',
   },
   {
     id: 'add-image-widget',
     title: 'Add an Image Widget',
-    message: 'Let\'s start with an Image widget! This is perfect for character portraits or reference images. Click on "Image" to add it.',
+    message: 'Select Image to add a place for a character portrait or reference image. You can choose the image from the widget afterward.',
     targetSelector: '[data-tutorial="widget-IMAGE"]',
     position: 'right',
     page: 'sheet',
@@ -93,8 +94,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'close-toolbox',
-    title: 'Close the Toolbox',
-    message: 'Great job! You\'ve added some widgets. Now close the toolbox by clicking the X button to see your character sheet.',
+    title: 'Close the Add Panel',
+    message: 'Your starter widgets are ready. Use the highlighted X to close the Add panel and see the whole sheet.',
     targetSelector: '[data-tutorial="close-toolbox"]',
     position: 'bottom',
     page: 'sheet',
@@ -102,16 +103,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'pan-camera',
     title: 'Move the Camera',
-    message: 'You can pan around your character sheet by clicking and dragging on the background. Try moving the view around!',
+    message: 'Drag an empty part of the canvas to pan around the sheet. Move it a little, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
   {
     id: 'zoom-camera',
     title: 'Zoom In and Out',
-    message: 'Use the scroll wheel (or pinch on touch devices) to zoom in and out. This helps you see details or get an overview!',
+    message: 'Use the scroll wheel, the zoom controls, or a pinch gesture to change scale. Try it, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
@@ -126,24 +129,27 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'move-widgets',
     title: 'Move Your Widgets',
-    message: 'You can drag widgets around by clicking and holding the top bar (title area) of any widget. Try repositioning your widgets to create your ideal layout!',
+    message: 'Drag a widget by its top edge to reposition it. Give one a move, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
   {
     id: 'resize-widgets',
     title: 'Resize Your Widgets',
-    message: 'Drag the bottom-right corner of any widget to resize it. Make widgets bigger or smaller to fit your needs!',
+    message: 'Drag the bottom-right corner of a widget to resize it. Try a small adjustment, then choose Next.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
   {
     id: 'attach-widgets',
     title: 'Attach Widgets Together',
-    message: 'Move two widget edges close to each other and click the attach button that appears. Attached widgets will move together as a group, making it easy to organize your layout!',
+    message: 'Optional: move two widget edges close together, then use the attach control that appears. Attached widgets move as a group.',
     position: 'center',
+    dock: 'top',
     page: 'sheet',
     requiresManualAdvance: true,
   },
@@ -206,8 +212,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'switch-to-play',
-    title: 'Switch to Play Mode',
-    message: 'This sheet has lots of widgets! Now switch to Play Mode to interact with them like you would during a game session.',
+    title: 'Switch to Play',
+    message: 'This sheet has lots of widgets! Now switch to Play to use it at the table without the structural editing controls.',
     targetSelector: '[data-tutorial="edit-mode-button"]',
     position: 'bottom',
     page: 'sheet',
@@ -215,7 +221,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'try-widgets',
     title: 'Try It Out!',
-    message: 'You\'re all set! Try clicking on different widgets - roll dice, track health, check conditions, and more. Have fun building your character sheets! 🎲',
+    message: 'You\'re ready to explore. Roll dice, track health, toggle conditions, and adjust values. This tutorial sheet is temporary, so experiment freely.',
     position: 'center',
     page: 'sheet',
   },
@@ -484,8 +490,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'various-gallery-concepts',
-    title: 'Gallery Concepts',
-    message: 'The gallery works with presets, templates, and themes. Presets are complete starting sheets, templates are reusable widgets or widget groups, and themes are visual styles.',
+    title: 'Browse by Asset Type',
+    message: 'Browse complete Presets, visual Themes, or reusable widget Templates. Use the categories and search to narrow the community library.',
     targetSelector: '[data-tutorial="gallery-concepts"]',
     position: 'left',
     page: 'character-list',
@@ -493,8 +499,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'various-gallery-manage',
-    title: 'Manage Your Data',
-    message: 'This section is where you manage your saved presets, templates, and themes. From here you can share your creations with the community or delete local items you no longer need.',
+    title: 'Manage My Library',
+    message: 'My Library contains assets saved on this device. Import your own, or use each item menu to share, export, or remove it.',
     targetSelector: '[data-tutorial="gallery-manage-data"]',
     position: 'left',
     page: 'character-list',
@@ -502,8 +508,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'various-gallery-download',
-    title: 'Download from the Gallery',
-    message: 'The Community Gallery section lets you browse and download shared presets, themes, and templates made by other users.',
+    title: 'Add from the Community',
+    message: 'Select Add on any community asset to save it to My Library, where it becomes available throughout UCS.',
     targetSelector: '[data-tutorial="gallery-download"]',
     position: 'left',
     page: 'character-list',
@@ -537,8 +543,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'various-print-mode',
-    title: 'Print Mode',
-    message: 'Print Mode lets you prepare a printable version of the current sheet, with print options like paper format and simplified styling.',
+    title: 'Print Preview',
+    message: 'Print Preview prepares the current sheet for paper or PDF, with controls for paper format and simplified styling.',
     targetSelector: '[data-tutorial="print-mode-button-mobile"], [data-tutorial="print-mode-button"]',
     position: 'bottom',
     page: 'sheet',
@@ -546,7 +552,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-print-overview',
     title: 'Print Tools',
-    message: 'In Print Mode you can adjust the print area and use the print controls. This is only a quick stop for this tutorial.',
+    message: 'In Print Preview you can adjust the print area and use the print controls. This is only a quick stop for this tutorial.',
     targetSelector: '[data-tutorial="print-toolbar"]',
     position: 'bottom',
     page: 'sheet',
@@ -554,8 +560,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'various-vertical-view',
-    title: 'Vertical View',
-    message: 'Vertical View presents widgets as a single column. It is especially useful on phones and narrow screens.',
+    title: 'List Layout',
+    message: 'The List layout presents widgets as a single column in Play. It is especially useful on phones and narrow screens.',
     targetSelector: '[data-tutorial="vertical-view-button-mobile"], [data-tutorial="vertical-view-button"]',
     position: 'bottom',
     page: 'sheet',
@@ -579,7 +585,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-timeline-overview',
     title: 'Timeline Panel',
-    message: 'The timeline panel slides in from the side. It keeps recent events organized, and you can filter formula events, change sort order, clear events, or delete individual entries.',
+    message: 'Timeline groups activity by day. Search the log, choose its order, show or hide formula changes, and undo accidental deletes or clears.',
     targetSelector: '[data-tutorial="timeline-panel"]',
     position: 'left',
     page: 'sheet',
@@ -605,7 +611,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-complete',
     title: 'Various Tutorial Complete',
-    message: 'That is the tour of gallery sharing and downloads, backups, feedback, print mode, vertical view, timeline, and multiple sheets.',
+    message: 'That is the tour of gallery sharing and downloads, backups, feedback, Print Preview, the List layout, timeline, and multiple sheets.',
     position: 'center',
     page: 'sheet',
   },

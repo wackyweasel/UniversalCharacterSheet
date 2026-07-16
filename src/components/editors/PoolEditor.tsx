@@ -10,7 +10,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     maxPool = 5, 
     currentPool = 5,
     poolStyle = 'dots', 
-    showPoolCount = true,
+    showPoolCount = false,
     poolResources = [],
     inlineLabels = false,
     poolTooltip,
@@ -18,72 +18,43 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     fieldFormulas = {}
   } = widget.data;
 
-  const hasMultipleResources = poolResources.length > 0;
-
-  const setFieldLabel = (field: string, labelName: string | undefined) => {
-    const updated = { ...fieldLabels };
-    if (labelName) updated[field] = labelName;
-    else delete updated[field];
-    updateData({ fieldLabels: updated });
-  };
-
-  const setFieldFormula = (field: string, formula: string | undefined) => {
-    const updated = { ...fieldFormulas };
-    if (formula) updated[field] = formula;
-    else delete updated[field];
-    updateData({ fieldFormulas: updated });
-  };
+  const resources: PoolResource[] = poolResources.length > 0 ? poolResources : [{
+    name: 'Resource 1',
+    max: maxPool,
+    current: currentPool,
+    style: poolStyle,
+    maxLabel: fieldLabels.maxPool,
+    maxFormula: fieldFormulas.maxPool,
+    currentLabel: fieldLabels.currentPool,
+    currentFormula: fieldFormulas.currentPool,
+    tooltip: poolTooltip,
+  }];
 
   const addResource = () => {
     const newResource = {
-      name: `Resource ${poolResources.length + 1}`,
+      name: `Resource ${resources.length + 1}`,
       max: 5,
       current: 5,
       style: 'dots'
     };
-    updateData({ poolResources: [...poolResources, newResource] });
+    updateData({ poolResources: [...resources, newResource] });
   };
 
   const removeResource = (index: number) => {
-    const updated = [...poolResources];
+    if (resources.length <= 1) return;
+    const updated = [...resources];
     updated.splice(index, 1);
     updateData({ poolResources: updated });
   };
 
   const updateResource = (index: number, field: string, value: string | number) => {
-    const updated = [...poolResources];
+    const updated = [...resources];
     updated[index] = { ...updated[index], [field]: value };
     // Ensure current doesn't exceed max
     if (field === 'max' && updated[index].current > (value as number)) {
       updated[index].current = value as number;
     }
     updateData({ poolResources: updated });
-  };
-
-  // Convert from single to multi-resource mode
-  const convertToMultiple = () => {
-    const firstResource = {
-      name: label || 'Resource 1',
-      max: maxPool,
-      current: maxPool,
-      style: poolStyle
-    };
-    updateData({ poolResources: [firstResource] });
-  };
-
-  // Convert back to single resource mode
-  const convertToSingle = () => {
-    if (poolResources.length > 0) {
-      const first = poolResources[0];
-      updateData({ 
-        poolResources: [],
-        maxPool: first.max,
-        currentPool: first.current,
-        poolStyle: first.style
-      });
-    } else {
-      updateData({ poolResources: [] });
-    }
   };
 
   const styleOptions = (
@@ -136,69 +107,8 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      {!hasMultipleResources ? (
-        // Single resource mode
-        <>
-          <div>
-            <LabeledNumberField
-              displayLabel="Maximum Pool"
-              value={maxPool}
-              onChange={(v) => updateData({ maxPool: Math.max(1, Math.min(1000, v)) })}
-              fieldLabel={fieldLabels['maxPool']}
-              onFieldLabelChange={(l) => setFieldLabel('maxPool', l)}
-              formula={fieldFormulas['maxPool']}
-              onFormulaChange={(f) => setFieldFormula('maxPool', f)}
-              min={1}
-              max={1000}
-            />
-          </div>
-
-          <div>
-            <LabeledNumberField
-              displayLabel="Current Pool"
-              value={typeof currentPool === 'number' ? currentPool : maxPool}
-              onChange={(v) => updateData({ currentPool: Math.max(0, Math.min(maxPool, v)) })}
-              fieldLabel={fieldLabels['currentPool']}
-              onFieldLabelChange={(l) => setFieldLabel('currentPool', l)}
-              formula={fieldFormulas['currentPool']}
-              onFormulaChange={(f) => setFieldFormula('currentPool', f)}
-              min={0}
-              max={maxPool}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-theme-ink mb-1">Style</label>
-            <select
-              value={poolStyle}
-              onChange={(e) => updateData({ poolStyle: e.target.value })}
-              className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            >
-              {styleOptions}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <TooltipEditButton
-              tooltip={poolTooltip}
-              itemName={label || 'pool'}
-              onSave={(t) => updateData({ poolTooltip: t })}
-            />
-            <span className="text-sm text-theme-ink">Tooltip (shown on hover in play mode)</span>
-          </div>
-
-          <button
-            onClick={convertToMultiple}
-            className="w-full px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
-          >
-            + Add Multiple Resources
-          </button>
-        </>
-      ) : (
-        // Multiple resources mode
-        <>
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {poolResources.map((resource: PoolResource, idx: number) => (
+      <div className="space-y-3 max-h-64 overflow-y-auto">
+            {resources.map((resource: PoolResource, idx: number) => (
               <div key={idx} className="border border-theme-border rounded-button p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <input
@@ -211,14 +121,16 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     tooltip={resource.tooltip}
                     itemName={resource.name}
                     onSave={(t) => {
-                      const updated = [...poolResources];
+                      const updated = [...resources];
                       updated[idx] = { ...updated[idx], tooltip: t };
                       updateData({ poolResources: updated });
                     }}
                   />
                   <button
                     onClick={() => removeResource(idx)}
-                    className="ml-2 text-red-500 hover:text-red-700 px-2"
+                    disabled={resources.length <= 1}
+                    aria-label={`Remove ${resource.name || `resource ${idx + 1}`}`}
+                    className="ml-2 px-2 text-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     ×
                   </button>
@@ -231,13 +143,13 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                       onChange={(v) => updateResource(idx, 'max', Math.max(1, Math.min(100, v)))}
                       fieldLabel={resource.maxLabel}
                       onFieldLabelChange={(l) => {
-                        const updated = [...poolResources];
+                        const updated = [...resources];
                         updated[idx] = { ...updated[idx], maxLabel: l };
                         updateData({ poolResources: updated });
                       }}
                       formula={resource.maxFormula}
                       onFormulaChange={(f) => {
-                        const updated = [...poolResources];
+                        const updated = [...resources];
                         updated[idx] = { ...updated[idx], maxFormula: f };
                         updateData({ poolResources: updated });
                       }}
@@ -253,13 +165,13 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                       onChange={(v) => updateResource(idx, 'current', Math.max(0, Math.min(resource.max, v)))}
                       fieldLabel={resource.currentLabel}
                       onFieldLabelChange={(l) => {
-                        const updated = [...poolResources];
+                        const updated = [...resources];
                         updated[idx] = { ...updated[idx], currentLabel: l };
                         updateData({ poolResources: updated });
                       }}
                       formula={resource.currentFormula}
                       onFormulaChange={(f) => {
-                        const updated = [...poolResources];
+                        const updated = [...resources];
                         updated[idx] = { ...updated[idx], currentFormula: f };
                         updateData({ poolResources: updated });
                       }}
@@ -281,24 +193,14 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                 </div>
               </div>
             ))}
-          </div>
+      </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={addResource}
-              className="flex-1 px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              + Add Resource
-            </button>
-            <button
-              onClick={convertToSingle}
-              className="px-3 py-2 border border-theme-border rounded-button text-sm text-theme-muted hover:bg-theme-border hover:text-theme-ink transition-colors"
-            >
-              Single Mode
-            </button>
-          </div>
-        </>
-      )}
+      <button
+        onClick={addResource}
+        className="w-full px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+      >
+        + Add Resource
+      </button>
 
       <label className="flex items-center gap-2 cursor-pointer">
         <input
@@ -310,17 +212,15 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         <span className="text-sm text-theme-ink">Show Counter (e.g., 3 / 5)</span>
       </label>
 
-      {hasMultipleResources && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={inlineLabels}
-            onChange={(e) => updateData({ inlineLabels: e.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Inline labels with icons</span>
-        </label>
-      )}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={inlineLabels}
+          onChange={(e) => updateData({ inlineLabels: e.target.checked })}
+          className="w-4 h-4 accent-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Inline labels with icons</span>
+      </label>
     </div>
   );
 }

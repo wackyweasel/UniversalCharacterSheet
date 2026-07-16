@@ -1,521 +1,91 @@
 {
-  "id": "2e478f30-ed09-423e-9e67-5f76b4935c22",
-  "name": "dcc lvl0 preset",
+  "id": "89c9e821-9b6d-447f-b0ac-6ff0f0cfea03",
+  "name": "DCC",
   "sheets": [
     {
-      "id": "5e628031-65ea-4ed7-958d-eed3715907d1",
+      "id": "1628f6a2-1c20-44bc-affc-5da2f2c10e9c",
       "name": "Main",
       "widgets": [
         {
-          "id": "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
-          "type": "FORM",
-          "x": 960,
-          "y": 360,
-          "w": 360,
-          "h": 100,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "formItems": [
-              {
-                "name": "Name",
-                "value": ""
-              },
-              {
-                "name": "Occupation",
-                "value": ""
-              },
-              {
-                "name": "Alignment",
-                "value": ""
-              }
-            ]
-          },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
-          ]
+          "id": "a94db236-10e0-4360-870f-22ff271a3296", "type": "FORM", "x": -250, "y": -130, "w": 270, "h": 160,
+          "data": { "label": "Character Info", "formItems": [{ "name": "Name", "value": "" }, { "name": "Occupation", "value": "" }, { "name": "Title", "value": "" }, { "name": "Class", "value": "" }, { "name": "Alignment", "value": "" }] },
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["fbd06e2e-0f2a-4249-a670-114e6a9f31a1", "79b482ce-c0fe-4c81-b70b-5fd8131db44c", "52600456-6d84-40cd-a033-120d4470c505"]
         },
         {
-          "id": "88a7db76-54ba-4f26-b480-21261f450e44",
-          "type": "DICE_TRAY",
-          "x": 1550,
-          "y": 360,
-          "w": 270,
-          "h": 220,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "availableDice": [
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              10,
-              12,
-              14,
-              16,
-              20,
-              24,
-              30,
-              100
-            ]
-          }
+          "id": "e67b1a83-c4f3-41a1-ada7-f642c538dec8", "type": "NUMBER_DISPLAY", "x": 170, "y": -130, "w": 80, "h": 70,
+          "data": { "label": "", "displayNumbers": [{ "label": "Level", "value": 0, "valueFormula": "threshold(@xp, @thres)", "valueLabel": "lvl" }], "showFieldControls": false },
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["52600456-6d84-40cd-a033-120d4470c505", "79b482ce-c0fe-4c81-b70b-5fd8131db44c"]
         },
         {
-          "id": "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-          "type": "NUMBER",
-          "x": 960,
-          "y": 460,
-          "w": 160,
-          "h": 150,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "numberItems": [
-              {
-                "name": "STR",
-                "value": 0
-              },
-              {
-                "name": "AGI",
-                "value": 0
-              },
-              {
-                "name": "STA",
-                "value": 0
-              },
-              {
-                "name": "PER",
-                "value": 0
-              },
-              {
-                "name": "INT",
-                "value": 0
-              },
-              {
-                "name": "LCK",
-                "value": 0
-              }
-            ]
-          },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
-            "279766de-d7e7-47b5-8cf2-905b4c266295",
-            "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
-          ]
+          "id": "52600456-6d84-40cd-a033-120d4470c505", "type": "PROGRESS_BAR", "x": 20, "y": -130, "w": 150, "h": 70,
+          "data": { "label": "XP", "showPercentage": false, "currentValue": 0, "fieldLabels": { "currentValue": "xp" }, "fieldFormulas": { "maxValue": "value(@thres, @lvl+1, 0)" }, "maxValue": 10, "allowOutOfRange": true, "verticalBar": true, "showValues": true, "showMaxControl": false },
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["a94db236-10e0-4360-870f-22ff271a3296", "79b482ce-c0fe-4c81-b70b-5fd8131db44c", "e67b1a83-c4f3-41a1-ada7-f642c538dec8"]
         },
         {
-          "id": "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0",
-          "type": "NUMBER",
-          "x": 1120,
-          "y": 460,
-          "w": 200,
-          "h": 90,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "numberItems": [
-              {
-                "name": "Reflex",
-                "value": 0
-              },
-              {
-                "name": "Fortitude",
-                "value": 0
-              },
-              {
-                "name": "Will",
-                "value": 0
-              }
-            ]
-          },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
-            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "279766de-d7e7-47b5-8cf2-905b4c266295",
-            "52dcd513-d13a-4792-a9a2-f230389caf39"
-          ]
+          "id": "fbd06e2e-0f2a-4249-a670-114e6a9f31a1", "type": "NUMBER_DISPLAY", "x": -250, "y": 30, "w": 270, "h": 70,
+          "data": { "label": "", "displayNumbers": [{ "label": "AC", "value": 10 }, { "label": "Speed", "value": 25 }, { "label": "Reflex", "value": 0 }, { "label": "Fortitude", "value": 0 }, { "label": "Will", "value": 0 }], "showFieldControls": false },
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["a94db236-10e0-4360-870f-22ff271a3296", "00336cab-f5ee-42b7-a138-0bc04a917fd6", "79b482ce-c0fe-4c81-b70b-5fd8131db44c"]
         },
         {
-          "id": "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
-          "type": "HEALTH_BAR",
-          "x": 1320,
-          "y": 360,
-          "w": 200,
-          "h": 100,
-          "data": {
-            "label": "Health",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "maxValue": 5,
-            "currentValue": 5
-          },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "3069cc90-b5cd-4b24-8674-7ed8ed6a5ddc",
-            "52dcd513-d13a-4792-a9a2-f230389caf39"
-          ]
+          "id": "00336cab-f5ee-42b7-a138-0bc04a917fd6", "type": "HEALTH_BAR", "x": -250, "y": 100, "w": 270, "h": 100,
+          "data": { "label": "Health" }, "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["fbd06e2e-0f2a-4249-a670-114e6a9f31a1", "79b482ce-c0fe-4c81-b70b-5fd8131db44c", "573fdd12-7531-4e40-a76f-9d9c756e65e9", "efc6491e-55af-44be-8beb-7ea42cb5d811"]
         },
         {
-          "id": "279766de-d7e7-47b5-8cf2-905b4c266295",
-          "type": "TEXT",
-          "x": 1120,
-          "y": 550,
-          "w": 400,
-          "h": 140,
+          "id": "79b482ce-c0fe-4c81-b70b-5fd8131db44c", "type": "TABLE", "x": 20, "y": -60, "w": 230, "h": 190,
           "data": {
-            "label": "Notes",
-            "value": 0,
-            "items": [],
-            "text": ""
+            "label": "", "columns": ["Stat", "Max", "Current", "Modifier"],
+            "rows": [
+              { "cells": [{ "value": "Strength", "format": {} }, { "value": "10", "format": {} }, { "value": "10", "format": {}, "label": "str" }, { "value": "0", "format": {}, "formula": "switch(@str, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)" }] },
+              { "cells": [{ "value": "Agility", "format": {} }, { "value": "10", "format": {} }, { "value": "10", "format": {}, "label": "agi" }, { "value": "0", "format": {}, "formula": "switch(@agi, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)" }] },
+              { "cells": [{ "value": "Stamina", "format": {} }, { "value": "10", "format": {} }, { "value": "10", "format": {}, "label": "sta" }, { "value": "0", "format": {}, "formula": "switch(@sta, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)" }] },
+              { "cells": [{ "value": "Personality", "format": {} }, { "value": "10", "format": {} }, { "value": "10", "format": {}, "label": "per" }, { "value": "0", "format": {}, "formula": "switch(@per, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)" }] },
+              { "cells": [{ "value": "Intelligence", "format": {} }, { "value": "10", "format": {} }, { "value": "10", "format": {}, "label": "int" }, { "value": "0", "format": {}, "formula": "switch(@int, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)" }] },
+              { "cells": [{ "value": "Luck", "format": {} }, { "value": "10", "format": {} }, { "value": "10", "format": {}, "label": "luck" }, { "value": "0", "format": {}, "formula": "switch(@luck, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)" }] }
+            ],
+            "tableColumnSettings": [{}], "tableRowSettings": [{}, {}, {}, {}, {}, {}], "showTableEditButton": false
           },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
-            "52dcd513-d13a-4792-a9a2-f230389caf39",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
-          ]
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["a94db236-10e0-4360-870f-22ff271a3296", "fbd06e2e-0f2a-4249-a670-114e6a9f31a1", "00336cab-f5ee-42b7-a138-0bc04a917fd6", "52600456-6d84-40cd-a033-120d4470c505", "e67b1a83-c4f3-41a1-ada7-f642c538dec8", "573fdd12-7531-4e40-a76f-9d9c756e65e9"]
         },
         {
-          "id": "49a71ab5-cc63-490b-93ba-325cbccb0a8a",
-          "type": "PROGRESS_BAR",
-          "x": 960,
-          "y": 610,
-          "w": 160,
-          "h": 80,
-          "data": {
-            "label": "XP",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "maxValue": 10,
-            "showPercentage": false
-          },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "d1cd80c5-c859-4911-a5dd-1842cbb3f3fc",
-            "279766de-d7e7-47b5-8cf2-905b4c266295"
-          ]
+          "id": "ed2b97f4-9f2b-4417-be32-2efee7874f05", "type": "DICE_TRAY", "x": 270, "y": -130, "w": 360, "h": 200,
+          "data": { "label": "Dice Tray", "availableDice": [3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 30, 100], "showTrayRollDetails": false }
         },
         {
-          "id": "52dcd513-d13a-4792-a9a2-f230389caf39",
-          "type": "NUMBER_DISPLAY",
-          "x": 1320,
-          "y": 460,
-          "w": 200,
-          "h": 90,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "displayNumbers": [
-              {
-                "label": "AC",
-                "value": 10
-              },
-              {
-                "label": "Init",
-                "value": 0
-              },
-              {
-                "label": "Speed",
-                "value": 0
-              }
-            ]
-          },
-          "groupId": "e9587685-3094-4efa-b7db-06139b04b684",
-          "attachedTo": [
-            "0838b4e2-9abc-4e79-97d2-75ab9ca24f30",
-            "279766de-d7e7-47b5-8cf2-905b4c266295",
-            "21f4c3a8-4e21-46c8-a57c-5b34985bf1f0"
-          ]
+          "id": "573fdd12-7531-4e40-a76f-9d9c756e65e9", "type": "FORM", "x": 20, "y": 130, "w": 230, "h": 160,
+          "data": { "label": "Combat", "formItems": [{ "name": "Initiative", "value": "" }, { "name": "Action Dice", "value": "" }, { "name": "Attack", "value": "" }, { "name": "Crit Die", "value": "" }, { "name": "Crit Table", "value": "" }] },
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["00336cab-f5ee-42b7-a138-0bc04a917fd6", "79b482ce-c0fe-4c81-b70b-5fd8131db44c", "0518dae5-af79-4b65-ad59-403714d6a177", "efc6491e-55af-44be-8beb-7ea42cb5d811"]
+        },
+        {
+          "id": "efc6491e-55af-44be-8beb-7ea42cb5d811", "type": "LIST", "x": -250, "y": 200, "w": 270, "h": 270,
+          "data": { "label": "Equipment", "items": ["", "", "", "", "", "", "", ""], "itemCount": 8 },
+          "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["00336cab-f5ee-42b7-a138-0bc04a917fd6", "573fdd12-7531-4e40-a76f-9d9c756e65e9", "0518dae5-af79-4b65-ad59-403714d6a177"]
+        },
+        {
+          "id": "0518dae5-af79-4b65-ad59-403714d6a177", "type": "TIME_TRACKER", "x": 20, "y": 290, "w": 230, "h": 180,
+          "data": { "label": "Temporary Effects" }, "groupId": "3523bf28-f311-4c0d-a042-c918c4886622", "attachedTo": ["573fdd12-7531-4e40-a76f-9d9c756e65e9", "efc6491e-55af-44be-8beb-7ea42cb5d811"]
+        },
+        {
+          "id": "77f03ae4-2d09-4e17-9c17-eec361546d75", "type": "TEXT", "x": 270, "y": 90, "w": 360, "h": 240,
+          "data": { "label": "Notes", "richText": "<p></p>" }
         }
       ]
     },
     {
-      "id": "c43d96bc-78f2-4a13-85c7-40c9e63d13c0",
-      "name": "Tables",
+      "id": "c46090f2-710d-4501-9fef-2521834f9601", "name": "Tables",
       "widgets": [
         {
-          "id": "6e943b4e-f7ec-4f15-ac27-64861120dc55",
-          "type": "TABLE",
-          "x": 400,
-          "y": 300,
-          "w": 510,
-          "h": 400,
+          "id": "39628bb7-b1b6-4e00-9b1e-61a89de63cec", "type": "TABLE", "x": 200, "y": 40, "w": 140, "h": 280,
           "data": {
-            "label": "Ability Score Modifiers",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "columns": [
-              "Ability Score",
-              "Modifier",
-              "Wizard Spells Known",
-              "Max Spell Level**"
-            ],
+            "label": "", "columns": ["XP thresholds"],
             "rows": [
-              {
-                "cells": [
-                  "3",
-                  "-3",
-                  "No spellcasting possible",
-                  "No spellcasting possible"
-                ]
-              },
-              {
-                "cells": [
-                  "4",
-                  "-2",
-                  "-2 spells*",
-                  "1"
-                ]
-              },
-              {
-                "cells": [
-                  "5",
-                  "-2",
-                  "-2 spells*",
-                  "1"
-                ]
-              },
-              {
-                "cells": [
-                  "6",
-                  "-1",
-                  "-1 spell*",
-                  "1"
-                ]
-              },
-              {
-                "cells": [
-                  "7",
-                  "-1",
-                  "-1 spell*",
-                  "1"
-                ]
-              },
-              {
-                "cells": [
-                  "8",
-                  "-1",
-                  "No adjustment",
-                  "2"
-                ]
-              },
-              {
-                "cells": [
-                  "9",
-                  "None",
-                  "No adjustment",
-                  "2"
-                ]
-              },
-              {
-                "cells": [
-                  "10",
-                  "None",
-                  "No adjustment",
-                  "3"
-                ]
-              },
-              {
-                "cells": [
-                  "11",
-                  "None",
-                  "No adjustment",
-                  "3"
-                ]
-              },
-              {
-                "cells": [
-                  "12",
-                  "None",
-                  "No adjustment",
-                  "4"
-                ]
-              },
-              {
-                "cells": [
-                  "13",
-                  "+1",
-                  "No adjustment",
-                  "4"
-                ]
-              },
-              {
-                "cells": [
-                  "14",
-                  "+1",
-                  "+1 spell",
-                  "4"
-                ]
-              },
-              {
-                "cells": [
-                  "15",
-                  "+1",
-                  "\t +1 spell",
-                  "5"
-                ]
-              },
-              {
-                "cells": [
-                  "16",
-                  "+2",
-                  "\t +1 spell",
-                  "5"
-                ]
-              },
-              {
-                "cells": [
-                  "17",
-                  "+2",
-                  "\t +2 spells",
-                  "5"
-                ]
-              },
-              {
-                "cells": [
-                  "18",
-                  "+3",
-                  "+2 spells",
-                  "5"
-                ]
-              }
-            ]
-          },
-          "groupId": "63b0d9e8-fe5e-4d2e-98a9-04cdc74d0792",
-          "attachedTo": [
-            "5f23c535-f23c-4377-bf5a-e73ce686a93d"
-          ]
-        },
-        {
-          "id": "5f23c535-f23c-4377-bf5a-e73ce686a93d",
-          "type": "TEXT",
-          "x": 400,
-          "y": 700,
-          "w": 510,
-          "h": 100,
-          "data": {
-            "label": "",
-            "value": 0,
-            "items": [],
-            "text": "* Minimum of 1 spell.\n** Based on Intelligence for wizards and Personality for clerics."
-          },
-          "groupId": "63b0d9e8-fe5e-4d2e-98a9-04cdc74d0792",
-          "attachedTo": [
-            "6e943b4e-f7ec-4f15-ac27-64861120dc55"
-          ]
-        },
-        {
-          "id": "5a2d16eb-3702-4e7f-b3b5-75efdb1f6a56",
-          "type": "TABLE",
-          "x": 930,
-          "y": 300,
-          "w": 180,
-          "h": 300,
-          "data": {
-            "label": "XP level Thresholds",
-            "value": 0,
-            "items": [],
-            "text": "",
-            "columns": [
-              "Level",
-              "XP Required"
+              { "cells": [{ "value": "10", "format": { "hAlign": "center" } }] }, { "cells": [{ "value": "50", "format": { "hAlign": "center" } }] }, { "cells": [{ "value": "110", "format": { "hAlign": "center" } }] }, { "cells": [{ "value": "190", "format": { "hAlign": "center" } }] }, { "cells": [{ "value": "290", "format": { "hAlign": "center" } }] }, { "cells": [{ "value": "410", "format": {} }] }, { "cells": [{ "value": "550", "format": {} }] }, { "cells": [{ "value": "710", "format": {} }] }, { "cells": [{ "value": "890", "format": {} }] }, { "cells": [{ "value": "1090", "format": {} }] }
             ],
-            "rows": [
-              {
-                "cells": [
-                  "0",
-                  "0"
-                ]
-              },
-              {
-                "cells": [
-                  "1",
-                  "10"
-                ]
-              },
-              {
-                "cells": [
-                  "2",
-                  "50"
-                ]
-              },
-              {
-                "cells": [
-                  "3",
-                  "110"
-                ]
-              },
-              {
-                "cells": [
-                  "4",
-                  "190"
-                ]
-              },
-              {
-                "cells": [
-                  "5",
-                  "290"
-                ]
-              },
-              {
-                "cells": [
-                  "6",
-                  "410"
-                ]
-              },
-              {
-                "cells": [
-                  "7",
-                  "550"
-                ]
-              },
-              {
-                "cells": [
-                  "8",
-                  "710"
-                ]
-              },
-              {
-                "cells": [
-                  "9",
-                  "890"
-                ]
-              },
-              {
-                "cells": [
-                  "10",
-                  "1090"
-                ]
-              }
-            ]
+            "tableColumnSettings": [{ "label": "thres", "format": { "hAlign": "center" } }], "tableRowSettings": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]
           }
         }
       ]
     }
   ],
-  "activeSheetId": "5e628031-65ea-4ed7-958d-eed3715907d1",
-  "theme": "default"
+  "activeSheetId": "1628f6a2-1c20-44bc-affc-5da2f2c10e9c",
+  "theme": "classic-dark"
 }

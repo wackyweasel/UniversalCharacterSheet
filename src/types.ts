@@ -174,9 +174,12 @@ export interface InitiativeParticipant {
 export interface WidgetData {
   label?: string;
   value?: number;
+  showFieldControls?: boolean;
+  showMaxControl?: boolean;
   items?: string[];
   itemCount?: number;
   text?: string;
+  richText?: string;
   // Checkbox
   checked?: boolean;
   checkboxItems?: CheckboxItem[];
@@ -194,8 +197,13 @@ export interface WidgetData {
   diceType?: number;
   modifier?: number;
   diceGroups?: DiceGroup[];
-  showIndividualResults?: boolean; // If true, show individual dice results instead of summing
+  showRollDetails?: boolean;
+  showRollDetailsButton?: boolean;
   // Dice Tray
+  showTrayRollDetails?: boolean;
+  showTrayRollDetailsButton?: boolean;
+  // Legacy setting used to initialize details for existing saved widgets.
+  showIndividualResults?: boolean;
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
   spellLevels?: SpellLevel[];
@@ -224,6 +232,7 @@ export interface WidgetData {
   rows?: TableRow[];
   tableColumnSettings?: TableColumnSettings[];
   tableRowSettings?: TableRowSettings[];
+  showTableEditButton?: boolean;
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;

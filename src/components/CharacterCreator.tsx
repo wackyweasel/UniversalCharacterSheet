@@ -1,0 +1,242 @@
+import { useEffect, useRef, type FormEvent } from 'react';
+import { PRESET_DEFINITIONS, type PresetDefinition } from '../presets';
+import { THEMES } from '../store/useThemeStore';
+import type { CustomTheme } from '../store/useCustomThemeStore';
+import type { UserPreset } from '../store/useUserPresetStore';
+
+interface CharacterCreatorProps {
+  darkMode: boolean;
+  firstCharacter?: boolean;
+  name: string;
+  selectedPreset: string;
+  selectedTheme: string;
+  customThemes: CustomTheme[];
+  userPresets: UserPreset[];
+  presetsOnly?: boolean;
+  replacingBlankCharacter?: boolean;
+  startingPointLocked?: boolean;
+  nameHighlighted?: boolean;
+  createHighlighted?: boolean;
+  onNameChange: (name: string) => void;
+  onChooseBlank: () => void;
+  onChooseBuiltIn: (preset: PresetDefinition) => void;
+  onChooseUser: (preset: UserPreset) => void;
+  onThemeChange: (themeId: string) => void;
+  onCreate: () => void;
+  onCancel?: () => void;
+  onImport: () => void;
+  onTour: () => void;
+  onDiscover: () => void;
+}
+
+export default function CharacterCreator({
+  darkMode,
+  firstCharacter = false,
+  name,
+  selectedPreset,
+  selectedTheme,
+  customThemes,
+  userPresets,
+  presetsOnly = false,
+  replacingBlankCharacter = false,
+  startingPointLocked = false,
+  nameHighlighted = false,
+  createHighlighted = false,
+  onNameChange,
+  onChooseBlank,
+  onChooseBuiltIn,
+  onChooseUser,
+  onThemeChange,
+  onCreate,
+  onCancel,
+  onImport,
+  onTour,
+  onDiscover,
+}: CharacterCreatorProps) {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!presetsOnly) return;
+    const frame = window.requestAnimationFrame(() => {
+      const options = Array.from(sectionRef.current?.querySelectorAll<HTMLElement>('[data-starting-point-option]') || []);
+      options.find((option) => option.offsetParent !== null)?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [presetsOnly]);
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (presetsOnly && !selectedPreset) return;
+    onCreate();
+  };
+
+  return (
+    <section
+      ref={sectionRef}
+      aria-labelledby="character-creator-title"
+      className={`${onCancel ? 'p-5 sm:p-7' : `mx-auto w-full max-w-lg p-5 sm:p-7 rounded-theme shadow-theme border ${darkMode ? 'bg-black border-white/25' : 'bg-white border-gray-300'}`}`}
+    >
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={`font-body text-xs font-bold uppercase tracking-[0.18em] ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+              New character
+            </p>
+            <h2 id="character-creator-title" className={`font-heading text-2xl sm:text-3xl font-bold mt-1 ${darkMode ? 'text-white' : 'text-gray-950'}`}>
+              {presetsOnly ? 'Choose a Preset' : firstCharacter ? 'Create your first character' : 'Create a character'}
+            </h2>
+            {presetsOnly && (
+              <p className={`font-body text-xs mt-1.5 ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>
+                {replacingBlankCharacter
+                  ? 'Your empty character will be replaced only after you create from a preset.'
+                  : 'This will create a new character; your current character will stay saved.'}
+              </p>
+            )}
+          </div>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              aria-label="Close character creator"
+              className={`w-9 h-9 shrink-0 rounded-button flex items-center justify-center text-xl transition-colors ${darkMode ? 'text-white/65 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div className="mt-6" data-tutorial="character-name-input">
+          <label htmlFor="new-character-name" className={`block font-body text-sm font-semibold mb-1.5 ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
+            Character name
+          </label>
+          <input
+            id="new-character-name"
+            type="text"
+            value={name}
+            onChange={(event) => onNameChange(event.target.value)}
+            placeholder="New Character"
+            autoFocus={!presetsOnly}
+            className={`w-full h-12 px-4 text-base rounded-button border font-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              darkMode
+                ? 'bg-black text-white border-white/30 placeholder-white/35 focus:ring-offset-black'
+                : 'bg-white text-gray-950 border-gray-400 placeholder-gray-400 focus:ring-offset-white'
+            } ${nameHighlighted ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+          />
+        </div>
+
+        <fieldset className="mt-6">
+          <legend className="sr-only">Starting point</legend>
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+            <span className={`font-heading font-bold ${darkMode ? 'text-white' : 'text-gray-950'}`}>Starting point</span>
+            <p className={`font-body text-xs ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>
+              {presetsOnly ? 'Choose one to open ready to play.' : 'Blank opens in Build. Presets open ready to play.'}
+            </p>
+          </div>
+
+          <select
+            data-starting-point-option
+            id="new-character-preset"
+            aria-label="Starting point"
+            value={selectedPreset}
+            disabled={startingPointLocked}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === '') {
+                onChooseBlank();
+                return;
+              }
+              if (value.startsWith('user:')) {
+                const preset = userPresets.find((item) => `user:${item.id}` === value);
+                if (preset) onChooseUser(preset);
+                return;
+              }
+              const definition = PRESET_DEFINITIONS.find((item) => item.name === value);
+              if (definition) onChooseBuiltIn(definition);
+            }}
+            className={`w-full h-12 px-3 mt-3 rounded-button border font-body text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              darkMode ? 'bg-black text-white border-white/30' : 'bg-white text-gray-950 border-gray-400'
+            } ${startingPointLocked ? 'opacity-50' : ''}`}
+          >
+            {presetsOnly
+              ? <option value="" disabled>Choose a preset…</option>
+              : <option value="">Blank sheet</option>}
+            <optgroup label="Built-in Presets">
+              {PRESET_DEFINITIONS.map((definition) => (
+                <option key={definition.id} value={definition.name}>{definition.name}</option>
+              ))}
+            </optgroup>
+            {userPresets.length > 0 && (
+              <optgroup label="My Presets">
+                {userPresets.map((preset) => (
+                  <option key={preset.id} value={`user:${preset.id}`}>{preset.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+
+          {startingPointLocked && (
+            <p className={`font-body text-xs mt-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>The Quick Tour starts with a blank sheet.</p>
+          )}
+        </fieldset>
+
+        <div className={`mt-6 pt-5 border-t ${darkMode ? 'border-white/15' : 'border-gray-200'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="sm:w-64">
+              <label htmlFor="new-character-theme" className={`block font-body text-xs font-semibold mb-1.5 ${darkMode ? 'text-white/55' : 'text-gray-600'}`}>Theme</label>
+              <select
+                id="new-character-theme"
+                value={selectedTheme}
+                onChange={(event) => onThemeChange(event.target.value)}
+                className={`w-full h-11 px-3 rounded-button border font-body text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  darkMode ? 'bg-black text-white border-white/30' : 'bg-white text-gray-950 border-gray-400'
+                }`}
+              >
+                <optgroup label="Built-in Themes">
+                  {THEMES.map((theme) => (
+                    <option key={theme.id} value={theme.id}>{theme.icon} {theme.name}</option>
+                  ))}
+                </optgroup>
+                {customThemes.length > 0 && (
+                  <optgroup label="Custom Themes">
+                    {customThemes.map((theme) => (
+                      <option key={theme.id} value={theme.id}>🎨 {theme.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+            <div className="flex-1 sm:flex sm:justify-end gap-2">
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className={`w-full sm:w-auto h-11 px-4 rounded-button border font-body text-sm font-semibold transition-colors ${
+                    darkMode ? 'border-white/25 text-white/70 hover:bg-white/10' : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={presetsOnly && !selectedPreset}
+                data-tutorial="create-button"
+                className={`w-full sm:w-auto h-11 px-6 rounded-button font-body text-sm font-semibold transition-colors ${
+                  darkMode ? 'bg-white text-black hover:bg-white/85' : 'bg-blue-700 text-white hover:bg-blue-800'
+                } ${presetsOnly && !selectedPreset ? 'opacity-40' : ''} ${createHighlighted ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+              >
+                {presetsOnly ? 'Create from Preset' : 'Create character'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5">
+            <button type="button" onClick={onImport} className={`font-body text-xs font-semibold underline-offset-4 hover:underline ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>Import instead</button>
+            <button type="button" onClick={onTour} className={`font-body text-xs font-semibold underline-offset-4 hover:underline ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>Take the Quick Tour</button>
+            <button type="button" onClick={onDiscover} className={`font-body text-xs font-semibold underline-offset-4 hover:underline ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Discover community presets</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  );
+}

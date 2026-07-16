@@ -62,6 +62,18 @@ interface Props {
   onClose: () => void;
 }
 
+const FIELD_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
+  'FORM',
+  'LIST',
+  'CHECKBOX',
+  'NUMBER',
+  'NUMBER_DISPLAY',
+  'POOL',
+  'TOGGLE_GROUP',
+]);
+
+const MAX_CONTROL_WIDGET_TYPES = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
+
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
     'NUMBER': 'Number Tracker',
@@ -148,6 +160,38 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     }
   };
 
+  const renderControlVisibilitySetting = () => {
+    if (FIELD_CONTROL_WIDGET_TYPES.has(widget.type)) {
+      return (
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+          <input
+            type="checkbox"
+            checked={localData.showFieldControls !== false}
+            onChange={(event) => handleUpdateData({ showFieldControls: event.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Show add/remove buttons
+        </label>
+      );
+    }
+
+    if (MAX_CONTROL_WIDGET_TYPES.has(widget.type)) {
+      return (
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+          <input
+            type="checkbox"
+            checked={localData.showMaxControl !== false}
+            onChange={(event) => handleUpdateData({ showMaxControl: event.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Show maximum value button
+        </label>
+      );
+    }
+
+    return null;
+  };
+
   // Get actual widget dimensions for preview
   const getPreviewDimensions = () => {
     const actualWidth = localWidth || widget.w || 200;
@@ -165,23 +209,23 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     const props = { widget: previewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
     
     switch (widget.type) {
-      case 'NUMBER': return <NumberWidget {...props} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
-      case 'LIST': return <ListWidget {...props} />;
+      case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+      case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
       case 'TEXT': return <TextWidget {...props} />;
-      case 'CHECKBOX': return <CheckboxWidget {...props} />;
-      case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
-      case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
-      case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
+      case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
+      case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
+      case 'DICE_TRAY': return <DiceTrayWidget {...props} interactive={false} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
-      case 'IMAGE': return <ImageWidget {...props} />;
-      case 'POOL': return <PoolWidget {...props} />;
-      case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
+      case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
+      case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'TOGGLE_GROUP': return <ConditionWidget {...props} showFieldControls={false} interactive={false} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-      case 'FORM': return <FormWidget {...props} />;
+      case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
-      case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
@@ -240,6 +284,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
               {renderEditor()}
+              {renderControlVisibilitySetting()}
             </div>
 
             {/* Preview Section */}

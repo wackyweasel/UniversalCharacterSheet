@@ -7,7 +7,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     label, 
     maxValue = 100, 
     currentValue = 0,
-    showPercentage = true,
+    showPercentage = false,
     showValues = true,
     allowOutOfRange = false,
     fieldLabels = {},

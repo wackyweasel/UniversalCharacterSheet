@@ -7,7 +7,7 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
-import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets } from '../hooks';
+import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation } from '../hooks';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
@@ -19,8 +19,12 @@ import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
+import ShareExportMenu from './ShareExportMenu';
+import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, ClockIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon } from './icons';
+const MIN_CANVAS_SCALE = 0.1;
+const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -31,6 +35,104 @@ function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widge
   return sheet?.widgets || [];
 }
 
+interface UndoRedoControlsProps {
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+}
+
+function UndoRedoControls({ canUndo, canRedo, onUndo, onRedo }: UndoRedoControlsProps) {
+  const buttonClass = (enabled: boolean) => `w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
+    enabled
+      ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+      : 'text-theme-muted opacity-50 cursor-not-allowed'
+  }`;
+
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <Tooltip content="Undo (Ctrl+Z)" placement="below">
+        <button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" className={buttonClass(canUndo)}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <path d="M3 7v6h6" />
+            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+          </svg>
+        </button>
+      </Tooltip>
+      <Tooltip content="Redo (Ctrl+Y)" placement="below">
+        <button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" className={buttonClass(canRedo)}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <path d="M21 7v6h-6" />
+            <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+          </svg>
+        </button>
+      </Tooltip>
+    </div>
+  );
+}
+
+interface CharacterNameControlProps {
+  name: string;
+  editable: boolean;
+  onSave: (name: string) => void;
+  className: string;
+}
+
+function CharacterNameControl({ name, editable, onSave, className }: CharacterNameControlProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  useEffect(() => {
+    if (!editing) setDraft(name);
+  }, [editing, name]);
+
+  const commit = () => {
+    const nextName = draft.trim();
+    if (nextName && nextName !== name) onSave(nextName);
+    if (!nextName) setDraft(name);
+    setEditing(false);
+  };
+
+  return (
+    <div className={className}>
+      {editable && editing ? (
+        <input
+          type="text"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commit();
+            if (event.key === 'Escape') {
+              setDraft(name);
+              setEditing(false);
+            }
+          }}
+          aria-label="Character name"
+          autoFocus
+          className="h-8 w-full bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button px-2 text-center font-heading text-sm font-bold text-theme-ink outline-none focus:border-theme-accent"
+        />
+      ) : (
+        <h1 className="min-w-0 font-heading text-sm font-bold text-theme-ink">
+          {editable ? (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Edit character name"
+              className="mx-auto flex max-w-full items-center justify-center gap-1.5 text-theme-ink hover:text-theme-accent transition-colors"
+            >
+              <span className="truncate">{name}</span>
+              <PencilIcon className="h-3.5 w-3.5 shrink-0" />
+            </button>
+          ) : (
+            <span className="block truncate text-center">{name}</span>
+          )}
+        </h1>
+      )}
+    </div>
+  );
+}
+
 export default function Sheet() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -38,6 +140,7 @@ export default function Sheet() {
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
+  const { workspace, playLayout, enterBuild, enterPlay, setPlayLayout } = useWorkspaceNavigation();
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
@@ -61,6 +164,13 @@ export default function Sheet() {
   const timelineIsOpen = useTimelineStore((state) => state.isOpen);
   const toggleTimeline = useTimelineStore((state) => state.toggleOpen);
   const setTimelineOpen = useTimelineStore((state) => state.setOpen);
+  const requestCharacterCreator = useStore((state) => state.requestCharacterCreator);
+
+  useEffect(() => {
+    if ((mode === 'edit' || mode === 'print') && timelineIsOpen) {
+      setTimelineOpen(false);
+    }
+  }, [mode, setTimelineOpen, timelineIsOpen]);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -130,12 +240,11 @@ export default function Sheet() {
   // Default sidebar collapsed (toolbox hidden until user clicks "Add Widget")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editedName, setEditedName] = useState('');
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editedSheetName, setEditedSheetName] = useState('');
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
+  const [zoomValueVisible, setZoomValueVisible] = useState(false);
   
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
@@ -175,11 +284,22 @@ export default function Sheet() {
     viewLocked,
     toggleViewLock,
   } = usePanZoom({
+    minScale: MIN_CANVAS_SCALE,
+    maxScale: MAX_CANVAS_SCALE,
     editingWidgetId,
     mode,
     characterId: activeCharacterId,
     onBackgroundClick: handleBackgroundInteraction,
   });
+
+  const previousScaleRef = useRef(scale);
+  useEffect(() => {
+    if (previousScaleRef.current === scale) return;
+    previousScaleRef.current = scale;
+    setZoomValueVisible(true);
+    const timer = window.setTimeout(() => setZoomValueVisible(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [scale]);
 
   // Touch camera controls hook
   const scaleRef = useRef(scale);
@@ -192,6 +312,29 @@ export default function Sheet() {
   const viewLockedRef = useRef(viewLocked);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
+
+    const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
+      if (viewLockedRef.current) return;
+      const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(MIN_CANVAS_SCALE, requestedScale));
+      const currentScale = scaleRef.current;
+      if (nextScale === currentScale) return;
+
+      const viewport = containerRef.current;
+      const centerX = (viewport?.clientWidth ?? window.innerWidth) / 2;
+      const centerY = (viewport?.clientHeight ?? window.innerHeight) / 2;
+      const currentPan = panRef.current;
+      const canvasX = (centerX - currentPan.x) / currentScale;
+      const canvasY = (centerY - currentPan.y) / currentScale;
+      const nextPan = {
+        x: centerX - canvasX * nextScale,
+        y: centerY - canvasY * nextScale,
+      };
+
+      scaleRef.current = nextScale;
+      panRef.current = nextPan;
+      setScale(nextScale);
+      setPan(() => nextPan);
+    }, [setPan, setScale]);
   
   const { isTouchPanning } = useTouchCamera({
     mode,
@@ -202,6 +345,8 @@ export default function Sheet() {
     getPan,
     onBackgroundTouch: handleBackgroundInteraction,
     isViewLocked: getViewLocked,
+    minScale: MIN_CANVAS_SCALE,
+    maxScale: MAX_CANVAS_SCALE,
   });
 
   // Auto-stack hook
@@ -263,6 +408,27 @@ export default function Sheet() {
       wasCollapsed &&
       (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox'))
     ) {
+      advanceTutorial();
+    }
+  };
+
+  const handleEnterBuildWorkspace = () => {
+    enterBuild();
+    if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') {
+      advanceTutorial();
+    }
+  };
+
+  const handleEnterPlayWorkspace = () => {
+    enterPlay();
+    if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
+      advanceTutorial();
+    }
+  };
+
+  const handleSelectPlayLayout = (layout: 'canvas' | 'list') => {
+    setPlayLayout(layout);
+    if (layout === 'list' && isCurrentTutorialStep('various-vertical-view')) {
       advanceTutorial();
     }
   };
@@ -623,29 +789,24 @@ export default function Sheet() {
     }
   }, [tutorialStep, mode, exitPrintMode, setMode, setTimelineOpen]);
 
-  // Auto-open mobile menu when tutorial step requires the Edit/Play Mode button or Add Widget (hidden on mobile)
+  // Open the hamburger when the current tutorial target lives inside it.
   useEffect(() => {
-    const isNarrowScreen = window.innerWidth < 640; // sm breakpoint
-    const needsEditModeButton = 
-      (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') ||
-      (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play');
     const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
     const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
     const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
-    
-    if (isNarrowScreen && (needsEditModeButton || needsAddWidgetButton || needsThemeButton || needsTemplateToolboxButton)) {
+    const needsAddButtonInMenu = window.innerWidth < 320 && (needsAddWidgetButton || needsTemplateToolboxButton);
+
+    if (needsAddButtonInMenu || needsThemeButton || isCurrentTutorialStep('various-print-mode')) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
 
   useEffect(() => {
-    const isNarrowToolbar = window.innerWidth < 1024;
     const needsGridMenuButton =
-      isCurrentTutorialStep('various-print-mode') ||
-      isCurrentTutorialStep('various-vertical-view') ||
-      isCurrentTutorialStep('various-timeline');
+      (window.innerWidth < 380 && isCurrentTutorialStep('various-vertical-view')) ||
+      (window.innerWidth < 560 && isCurrentTutorialStep('various-timeline'));
 
-    if (isNarrowToolbar && needsGridMenuButton) {
+    if (needsGridMenuButton) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
@@ -713,8 +874,8 @@ export default function Sheet() {
     setVerticalDropIndex(index);
   };
 
-  const handleVerticalDragEnd = () => {
-    if (verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
+  const handleVerticalDragEnd = (canceled = false) => {
+    if (!canceled && verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
       const widget = activeSheetWidgets[verticalDragIndex];
       if (widget) {
         reorderWidget(widget.id, verticalDropIndex);
@@ -724,114 +885,148 @@ export default function Sheet() {
     setVerticalDropIndex(null);
   };
 
+  const setAllVerticalWidgetsCollapsed = (collapsed: boolean) => {
+    activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(collapsed)));
+    window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: collapsed }));
+  };
+
   const handleExitToMenu = useCallback(() => {
+    setTimelineOpen(false);
     cleanupTransientCharacters();
     selectCharacter(null);
     if (tutorialStep !== null) {
       exitTutorial();
     }
-  }, [cleanupTransientCharacters, exitTutorial, selectCharacter, tutorialStep]);
+  }, [cleanupTransientCharacters, exitTutorial, selectCharacter, setTimelineOpen, tutorialStep]);
+
+  const handleChoosePresetInstead = useCallback(() => {
+    if (!activeCharacter) return;
+    const characterIsBlank = activeCharacter.sheets.every((sheet) => sheet.widgets.length === 0);
+    const canReplaceBlankCharacter = characterIsBlank && !transientCharacterIds.includes(activeCharacter.id);
+    requestCharacterCreator({
+      initialName: characterIsBlank ? activeCharacter.name : '',
+      replaceCharacterId: canReplaceBlankCharacter ? activeCharacter.id : undefined,
+    });
+    handleExitToMenu();
+  }, [activeCharacter, handleExitToMenu, requestCharacterCreator, transientCharacterIds]);
 
   if (!activeCharacter) return null;
 
-  // Vertical mode menu state
-  const [verticalMenuOpen, setVerticalMenuOpen] = useState(false);
-
-  // Render Vertical Mode
-  if (mode === 'vertical') {
+  // Render list layout in either Play or Build.
+  if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
     return (
       <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
+        {workspace === 'build' && (
+          <>
+            <Sidebar
+              collapsed={sidebarCollapsed}
+              onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+            />
+            <ThemeSidebar
+              collapsed={themeSidebarCollapsed}
+              onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
+            />
+          </>
+        )}
+
         {/* Compact header bar */}
         <div className="bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 shrink-0">
-          {/* Mobile: Menu button */}
-          <button
-            onClick={() => setVerticalMenuOpen(!verticalMenuOpen)}
-            aria-label="Menu"
-            className="sm:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
-          >
-            <MenuIcon className="w-4 h-4" />
-          </button>
-          
-          {/* Desktop: Inline menu buttons */}
-          <div className="hidden sm:flex items-center gap-1">
-            <Tooltip content="Exit to character select" placement="below">
+          <ShareExportMenu
+            character={activeCharacter}
+            open={gridMenuOpen}
+            onOpenChange={setGridMenuOpen}
+            onPrintPreview={enterPrintMode}
+            onExit={handleExitToMenu}
+            workspace={workspace}
+            playLayout={playLayout}
+            onSelectLayout={handleSelectPlayLayout}
+            timelineOpen={timelineIsOpen}
+            onToggleTimeline={toggleTimeline}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            onAddWidget={workspace === 'build' ? () => handleToggleWidgetSidebar() : undefined}
+            addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+            onChangeTheme={workspace === 'build' ? () => handleToggleThemeSidebar() : undefined}
+            changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+            onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
+            onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
+          />
+          <WorkspaceToggleGroup
+            workspace={workspace}
+            playLayout={playLayout}
+            onBuild={handleEnterBuildWorkspace}
+            onPlay={handleEnterPlayWorkspace}
+            onCanvas={() => handleSelectPlayLayout('canvas')}
+            onList={() => handleSelectPlayLayout('list')}
+            workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
+            listHighlighted={isCurrentTutorialStep('various-vertical-view')}
+            layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
+          />
+          {workspace === 'build' && (
+            <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
               <button
-                onClick={handleExitToMenu}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
+                type="button"
+                data-tutorial="add-widget-button"
+                onClick={() => handleToggleWidgetSidebar()}
+                className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
               >
-                Exit
+                {sidebarCollapsed ? 'Add' : 'Hide Add'}
               </button>
             </Tooltip>
-            <Tooltip content="Switch to Edit Mode" placement="below">
+          )}
+          <CharacterNameControl
+            name={activeCharacter.name}
+            editable={workspace === 'build'}
+            onSave={(name) => updateCharacterName(activeCharacter.id, name)}
+            className={`hidden absolute left-1/2 -translate-x-1/2 text-center ${workspace === 'build' ? 'min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]' : 'min-[720px]:block w-[120px] min-[760px]:w-[160px] min-[900px]:w-[240px]'}`}
+          />
+          <div className="flex-1 min-w-0" />
+
+          <div className={`hidden ${workspace === 'build' ? 'min-[540px]:flex' : 'min-[480px]:flex'} items-center gap-2 shrink-0`}>
+            <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+            {workspace === 'play' && (
+              <Tooltip content="Open event timeline" placement="below">
+                <button
+                  onClick={toggleTimeline}
+                  aria-controls="timeline-panel"
+                  aria-expanded={timelineIsOpen}
+                  aria-pressed={timelineIsOpen}
+                  className={`hidden min-[560px]:flex w-20 h-8 items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                >
+                  Timeline
+                </button>
+              </Tooltip>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Tooltip content="Collapse all widgets" placement="below">
               <button
-                onClick={() => setMode('edit')}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                type="button"
+                onClick={() => setAllVerticalWidgetsCollapsed(true)}
+                aria-label="Collapse all widgets"
+                className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Edit Mode
+                <ChevronUpIcon className="w-4 h-4" />
               </button>
             </Tooltip>
-            <Tooltip content="Switch to Grid View" placement="below">
+            <Tooltip content="Expand all widgets" placement="below">
               <button
-                onClick={() => setMode('play')}
-                className="h-8 px-3 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                type="button"
+                onClick={() => setAllVerticalWidgetsCollapsed(false)}
+                aria-label="Expand all widgets"
+                className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Grid View
-              </button>
-            </Tooltip>
-            <Tooltip content="Open event timeline" placement="below">
-              <button
-                onClick={toggleTimeline}
-                className={`h-8 px-3 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              >
-                Timeline
-              </button>
-            </Tooltip>
-            {/* Undo/Redo buttons */}
-            <Tooltip content="Undo (Ctrl+Z)" placement="below">
-              <button
-                onClick={undo}
-                disabled={!canUndo}
-                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  canUndo 
-                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                    : 'text-theme-muted opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                  <path d="M3 7v6h6"/>
-                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-                </svg>
-              </button>
-            </Tooltip>
-            <Tooltip content="Redo (Ctrl+Y)" placement="below">
-              <button
-                onClick={redo}
-                disabled={!canRedo}
-                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  canRedo 
-                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                    : 'text-theme-muted opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                  <path d="M21 7v6h-6"/>
-                  <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-                </svg>
+                <ChevronDownIcon className="w-4 h-4" />
               </button>
             </Tooltip>
           </div>
-          
-          {/* Character name - truncated */}
-          <h1 className="font-bold text-sm text-theme-ink font-heading truncate flex-1 min-w-0">
-            {activeCharacter.name}
-          </h1>
-          
-          {/* Sheet selector */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button
                 onClick={() => setSheetDropdownOpen(!sheetDropdownOpen)}
-                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-2 flex items-center gap-1 text-xs hover:bg-theme-accent/10 transition-colors"
+                className="h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body hover:bg-theme-accent/10 transition-colors"
               >
                 <span className="text-theme-ink truncate max-w-[60px]">
                   {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
@@ -839,11 +1034,11 @@ export default function Sheet() {
                 <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
               </button>
             </Tooltip>
-            
+
             {sheetDropdownOpen && (
               <>
-                <div 
-                  className="fixed inset-0 z-40" 
+                <div
+                  className="fixed inset-0 z-40"
                   onClick={() => setSheetDropdownOpen(false)}
                 />
                 <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[120px] animate-dropdown-in">
@@ -867,133 +1062,11 @@ export default function Sheet() {
               </>
             )}
           </div>
-          
-          {/* Expand/Collapse buttons */}
-          <Tooltip content="Expand All" placement="below">
-            <button
-              onClick={() => {
-                activeSheetWidgets.forEach(w => {
-                  localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'false');
-                });
-                window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: false }));
-              }}
-              aria-label="Expand all"
-              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              <ChevronDownIcon className="w-4 h-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Collapse All" placement="below">
-            <button
-              onClick={() => {
-                activeSheetWidgets.forEach(w => {
-                  localStorage.setItem(`ucs:vertical-collapsed:${w.id}`, 'true');
-                });
-                window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: true }));
-              }}
-              aria-label="Collapse all"
-              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs hover:bg-theme-accent hover:text-theme-paper transition-colors"
-            >
-              <ChevronUpIcon className="w-4 h-4" />
-            </button>
-          </Tooltip>
-          {/* Undo/Redo buttons for mobile */}
-          <div className="sm:hidden flex items-center gap-1">
-            <Tooltip content="Timeline" placement="below">
-              <button
-                onClick={toggleTimeline}
-                aria-label="Timeline"
-                className={`w-8 h-8 flex items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              >
-                <ClockIcon className="w-4 h-4" />
-              </button>
-            </Tooltip>
-            <Tooltip content="Undo" placement="below">
-              <button
-                onClick={undo}
-                disabled={!canUndo}
-                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  canUndo 
-                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                    : 'text-theme-muted opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                  <path d="M3 7v6h6"/>
-                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-                </svg>
-              </button>
-            </Tooltip>
-            <Tooltip content="Redo" placement="below">
-              <button
-                onClick={redo}
-                disabled={!canRedo}
-                className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  canRedo 
-                    ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                    : 'text-theme-muted opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                  <path d="M21 7v6h-6"/>
-                  <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-                </svg>
-              </button>
-            </Tooltip>
-          </div>
         </div>
-
-        {/* Mobile: Dropdown menu */}
-        {verticalMenuOpen && (
-          <div className="sm:hidden">
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={() => setVerticalMenuOpen(false)}
-            />
-            <div className="absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
-              <button
-                onClick={() => {
-                  setMode('play');
-                  setVerticalMenuOpen(false);
-                }}
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-              >
-                Grid View
-              </button>
-              <button
-                onClick={() => {
-                  setMode('edit');
-                  setVerticalMenuOpen(false);
-                }}
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-              >
-                Edit Mode
-              </button>
-              <button
-                onClick={() => {
-                  toggleTimeline();
-                  setVerticalMenuOpen(false);
-                }}
-                className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-              >
-                Timeline
-              </button>
-              <button
-                onClick={() => {
-                  handleExitToMenu();
-                  setVerticalMenuOpen(false);
-                }}
-                className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
-              >
-                Exit to Menu
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Vertical Mode Container - scrollable */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-md mx-auto px-3 py-4 pb-24">
+          <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6 pb-24">
             {/* Widgets in vertical layout */}
             {activeSheetWidgets.map((widget, index) => (
               <VerticalWidget
@@ -1007,20 +1080,31 @@ export default function Sheet() {
                 onDragStart={handleVerticalDragStart}
                 onDragOver={handleVerticalDragOver}
                 onDragEnd={handleVerticalDragEnd}
+                isBuildMode={workspace === 'build'}
               />
             ))}
             
             {activeSheetWidgets.length === 0 && (
               <div className="text-center text-theme-muted py-12">
                 <p className="font-body">No widgets on this sheet</p>
-                <p className="text-sm mt-2">Switch to Edit mode to add widgets</p>
+                {workspace === 'build' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleToggleWidgetSidebar()}
+                    className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
+                  >
+                    Add widget
+                  </button>
+                ) : (
+                  <p className="text-sm mt-2">Switch to Build to add widgets</p>
+                )}
               </div>
             )}
           </div>
         </div>
 
         {/* Timeline Sidebar */}
-        <TimelineSidebar />
+        {workspace === 'play' && <TimelineSidebar />}
 
         {/* Tutorial Bubble */}
         {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
@@ -1030,7 +1114,7 @@ export default function Sheet() {
 
   // Render Grid Mode (Edit, Play, or Print)
   return (
-    <div ref={containerRef} className="w-full h-screen overflow-hidden relative bg-theme-background">
+    <div ref={containerRef} className="canvas-workspace w-full overflow-hidden relative bg-theme-background">
       {mode === 'edit' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 
@@ -1049,7 +1133,7 @@ export default function Sheet() {
       
       {/* Canvas Container - touch events handled globally */}
       <div 
-        className={`absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'} ${isPinching ? 'pinch-active' : ''}`}
+        className={`canvas-touch-surface absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'} ${isPinching ? 'pinch-active' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1057,6 +1141,32 @@ export default function Sheet() {
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}
       >
+        {mode === 'edit' && activeSheetWidgets.length === 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
+            <div className="pointer-events-auto flex flex-col items-center gap-3 text-center">
+              <p className="font-heading text-sm font-bold text-theme-ink">Empty sheet</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="h-9 px-3 bg-theme-accent text-theme-paper rounded-button font-body font-semibold text-sm hover:bg-theme-accent-hover transition-colors"
+                >
+                  Add widget
+                </button>
+                <button
+                  type="button"
+                  onClick={handleChoosePresetInstead}
+                  className="h-9 px-3 bg-theme-background text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-button font-body font-semibold text-sm hover:bg-theme-accent/10 transition-colors"
+                >
+                  {activeCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
+                    ? 'Use preset'
+                    : 'New from preset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Transformed Content */}
         <div 
           ref={printAreaRef}
@@ -1135,34 +1245,32 @@ export default function Sheet() {
               </button>
             </Tooltip>
             
-            {/* Mode switch buttons */}
-            <Tooltip content="Exit print mode, go to Play Mode" placement="below">
+            {/* Return to a primary workspace */}
+            <Tooltip content="Exit print preview and return to Play" placement="below">
               <button
                 onClick={() => exitPrintMode('play')}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Play Mode
+                Play
               </button>
             </Tooltip>
-            <Tooltip content="Exit print mode, go to Edit Mode" placement="below">
+            <Tooltip content="Exit print preview and return to Build" placement="below">
               <button
                 onClick={() => exitPrintMode('edit')}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Edit Mode
+                Build
               </button>
             </Tooltip>
-            
-            {/* Separator */}
+
             <div className="w-px h-6 bg-theme-border" />
-            
-            {/* Print options */}
+
             <Tooltip content="Use printer-friendly colors (black &amp; white)" placement="below">
               <button
                 onClick={() => setPrinterFriendly(!printerFriendly)}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  printerFriendly 
-                    ? 'bg-theme-accent text-theme-paper' 
+                  printerFriendly
+                    ? 'bg-theme-accent text-theme-paper'
                     : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
@@ -1173,8 +1281,8 @@ export default function Sheet() {
               <button
                 onClick={() => setBordersDisabled(!bordersDisabled)}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  bordersDisabled 
-                    ? 'bg-theme-accent text-theme-paper' 
+                  bordersDisabled
+                    ? 'bg-theme-accent text-theme-paper'
                     : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
@@ -1392,76 +1500,73 @@ export default function Sheet() {
       {/* Compact header bar for grid/edit mode (hidden in print mode) */}
       {mode !== 'print' && (
       <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 relative">
-        {/* Menu button - only on narrow screens */}
-        <button
-          onClick={() => setGridMenuOpen(!gridMenuOpen)}
-          aria-label="Menu"
-          className="lg:hidden w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink shrink-0 hover:bg-theme-accent hover:text-theme-paper transition-colors"
-        >
-          <MenuIcon className="w-4 h-4" />
-        </button>
+        <ShareExportMenu
+          character={activeCharacter}
+          open={gridMenuOpen}
+          onOpenChange={setGridMenuOpen}
+          onPrintPreview={() => {
+            enterPrintMode();
+            if (isCurrentTutorialStep('various-print-mode')) {
+              advanceTutorial();
+            }
+          }}
+          onExit={handleExitToMenu}
+          workspace={workspace}
+          playLayout={playLayout}
+          onSelectLayout={handleSelectPlayLayout}
+          timelineOpen={timelineIsOpen}
+          onToggleTimeline={() => {
+            if (isCurrentTutorialStep('various-timeline')) {
+              setTimelineOpen(true);
+              advanceTutorial();
+            } else {
+              toggleTimeline();
+            }
+          }}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          onAddWidget={workspace === 'build' ? () => handleToggleWidgetSidebar() : undefined}
+          addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+          onChangeTheme={workspace === 'build' ? () => handleToggleThemeSidebar() : undefined}
+          changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+          onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+        />
+        <WorkspaceToggleGroup
+          workspace={workspace}
+          playLayout={playLayout}
+          onBuild={handleEnterBuildWorkspace}
+          onPlay={handleEnterPlayWorkspace}
+          onCanvas={() => handleSelectPlayLayout('canvas')}
+          onList={() => handleSelectPlayLayout('list')}
+          workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
+          listHighlighted={isCurrentTutorialStep('various-vertical-view')}
+          layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
+        />
+        {workspace === 'build' && (
+          <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+            <button
+              type="button"
+              data-tutorial="add-widget-button"
+              onClick={() => handleToggleWidgetSidebar()}
+              className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            >
+              {sidebarCollapsed ? 'Add' : 'Hide Add'}
+            </button>
+          </Tooltip>
+        )}
+        <CharacterNameControl
+          name={activeCharacter.name}
+          editable={workspace === 'build'}
+          onSave={(name) => updateCharacterName(activeCharacter.id, name)}
+          className={`hidden absolute left-1/2 -translate-x-1/2 text-center ${workspace === 'build' ? 'min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]' : 'min-[720px]:block w-[120px] min-[760px]:w-[160px] min-[900px]:w-[240px]'}`}
+        />
+        <div className="flex-1 min-w-0" />
 
-        {/* Wide screen: inline buttons */}
-        <div className="hidden lg:flex items-center gap-1 shrink-0">
-          <Tooltip content="Exit to character select" placement="below">
-            <button
-              onClick={handleExitToMenu}
-              className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-red-500 text-xs font-body hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors"
-            >
-              Exit
-            </button>
-          </Tooltip>
-          <Tooltip content={mode === 'play' ? 'Switch to Edit Mode' : 'Switch to Play Mode'} placement="below">
-            <button
-              data-tutorial="edit-mode-button"
-              onClick={() => {
-                const newMode = mode === 'play' ? 'edit' : 'play';
-                setMode(newMode);
-                // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
-                if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
-                  advanceTutorial();
-                }
-                // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
-                if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
-                  advanceTutorial();
-                }
-              }}
-              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-            >
-              {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
-            </button>
-          </Tooltip>
-          <Tooltip content="Enter print mode to print your character sheet" placement="below">
-            <button
-              data-tutorial="print-mode-button"
-              onClick={() => {
-                enterPrintMode();
-                if (isCurrentTutorialStep('various-print-mode')) {
-                  advanceTutorial();
-                }
-              }}
-              className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-print-mode') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-            >
-              Print Mode
-            </button>
-          </Tooltip>
-          {mode === 'play' && (
-            <Tooltip content="Switch to single-column Vertical View" placement="below">
-              <button
-                data-tutorial="vertical-view-button"
-                onClick={() => {
-                  setMode('vertical');
-                  if (isCurrentTutorialStep('various-vertical-view')) {
-                    advanceTutorial();
-                  }
-                }}
-                className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('various-vertical-view') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-              >
-                Vertical View
-              </button>
-            </Tooltip>
-          )}
-          {mode === 'play' && (
+        <div className={`hidden ${workspace === 'build' ? 'min-[540px]:flex' : 'min-[480px]:flex'} items-center gap-2 shrink-0`}>
+          <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+          {workspace === 'play' && (
             <Tooltip content="Open event timeline" placement="below">
               <button
                 data-tutorial="timeline-button"
@@ -1473,351 +1578,37 @@ export default function Sheet() {
                     toggleTimeline();
                   }
                 }}
-                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'} ${isCurrentTutorialStep('various-timeline') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                aria-controls="timeline-panel"
+                aria-expanded={timelineIsOpen}
+                aria-pressed={timelineIsOpen}
+                className={`hidden min-[560px]:block w-20 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${timelineIsOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'} ${isCurrentTutorialStep('various-timeline') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 Timeline
               </button>
             </Tooltip>
           )}
-          {mode === 'edit' && (
-            <>
-              <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
-                <button
-                  data-tutorial="add-widget-button"
-                  onClick={() => handleToggleWidgetSidebar()}
-                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-                >
-                  {sidebarCollapsed ? 'Add Widget' : 'Hide Widgets'}
-                </button>
-              </Tooltip>
-              <Tooltip content="Open theme editor" placement="below">
-                <button
-                  data-tutorial="theme-button"
-                  onClick={() => handleToggleThemeSidebar()}
-                  className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-                >
-                  Change Theme
-                </button>
-              </Tooltip>
-              <Tooltip content="Auto-arrange all widgets into a neat stack" placement="below">
-                <button
-                  onClick={() => setShowAutoStackConfirm(true)}
-                  className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-                >
-                  Auto Stack
-                </button>
-              </Tooltip>
-            </>
-          )}
-          {/* Undo/Redo buttons */}
-          <Tooltip content="Undo (Ctrl+Z)" placement="below">
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canUndo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M3 7v6h6"/>
-                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-              </svg>
-            </button>
-          </Tooltip>
-          <Tooltip content="Redo (Ctrl+Y)" placement="below">
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canRedo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M21 7v6h-6"/>
-                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-              </svg>
-            </button>
-          </Tooltip>
         </div>
-        
-        {/* Character name - stays in flow until 2xl breakpoint when there's room to center */}
-        <div className="flex-1 min-w-0 2xl:absolute 2xl:left-1/2 2xl:top-1/2 2xl:-translate-x-1/2 2xl:-translate-y-1/2 2xl:max-w-[30%] 2xl:flex-none pointer-events-auto">
-          {isEditingName ? (
-            <input
-              type="text"
-              value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
-              onBlur={() => {
-                if (editedName.trim()) {
-                  updateCharacterName(activeCharacter.id, editedName.trim());
-                }
-                setIsEditingName(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  if (editedName.trim()) {
-                    updateCharacterName(activeCharacter.id, editedName.trim());
-                  }
-                  setIsEditingName(false);
-                } else if (e.key === 'Escape') {
-                  setIsEditingName(false);
-                }
-              }}
-              autoFocus
-              className="font-bold text-sm bg-transparent border-b-[length:var(--border-width)] border-theme-border outline-none w-full text-theme-ink font-heading 2xl:text-center"
-            />
-          ) : (
-            <h1 
-              className={`font-bold text-sm text-theme-ink font-heading truncate 2xl:text-center ${mode === 'edit' ? 'cursor-pointer' : ''}`}
-              onClick={() => {
-                if (mode === 'edit') {
-                  setEditedName(activeCharacter.name);
-                  setIsEditingName(true);
-                }
-              }}
-            >
-              {activeCharacter.name}
-            </h1>
-          )}
-        </div>
-        
-        {/* Spacer to push right-side elements - only needed when character name is centered */}
-        <div className="hidden 2xl:block 2xl:flex-1 2xl:min-w-0"></div>
-        
-        {/* Sheet selector */}
         <div className="relative shrink-0">
-          <Tooltip content="Switch sheet" placement="left">
-            <button
-              data-tutorial="sheet-selector"
-              onClick={() => {
-                setSheetDropdownOpen(!sheetDropdownOpen);
-                if (isCurrentTutorialStep('various-add-sheets')) {
-                  advanceTutorial();
-                }
-              }}
-              className={`h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body hover:bg-theme-accent/10 transition-colors ${isCurrentTutorialStep('various-add-sheets') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-            >
-              <span className="text-theme-ink truncate max-w-[60px]">
-                {activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
-              </span>
-              <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
-            </button>
-          </Tooltip>
+            <Tooltip content="Switch sheet" placement="left">
+              <button
+                data-tutorial="sheet-selector"
+                onClick={() => {
+                  setSheetDropdownOpen(!sheetDropdownOpen);
+                  if (isCurrentTutorialStep('various-add-sheets')) {
+                    advanceTutorial();
+                  }
+                }}
+                className={`h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-theme px-3 flex items-center gap-1 text-xs font-body hover:bg-theme-accent/10 transition-colors ${isCurrentTutorialStep('various-add-sheets') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+              >
+                <span className="text-theme-ink truncate max-w-[60px]">
+                  {activeCharacter.sheets.find((sheet) => sheet.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+                </span>
+                <ChevronDownIcon className="w-3 h-3 text-theme-muted" />
+              </button>
+            </Tooltip>
         </div>
-        
-        {/* Fit button */}
-        <Tooltip content="Fit all widgets on screen" placement="left">
-          <button
-            data-tutorial="fit-button"
-            onClick={() => {
-              if (viewLocked) return;
-              handleFitAllWidgets();
-              recordSheetWorkflowEvent('view_fit_used', 'view', { widgetCount: activeSheetWidgets.length });
-              // If tutorial is on step 12 (fit-button), advance
-              if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
-                advanceTutorial();
-              }
-            }}
-            disabled={viewLocked}
-            className={`px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button text-theme-ink shrink-0 ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''} ${viewLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            Fit
-          </button>
-        </Tooltip>
 
-        {/* Lock View button */}
-        <Tooltip content={viewLocked ? 'Unlock view (allow pan & zoom)' : 'Lock view (disable pan & zoom)'} placement="left">
-          <button
-            onClick={() => {
-              recordSheetWorkflowEvent('view_lock_changed', 'view', { locked: !viewLocked });
-              toggleViewLock();
-            }}
-            aria-pressed={viewLocked}
-            className={`w-8 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border text-xs font-body flex items-center justify-center rounded-button shrink-0 ${
-              viewLocked
-                ? 'bg-theme-accent text-theme-paper'
-                : 'text-theme-ink'
-            }`}
-          >
-            {viewLocked ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <rect x="4" y="11" width="16" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <rect x="4" y="11" width="16" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0" />
-              </svg>
-            )}
-          </button>
-        </Tooltip>
-        
-        {/* Undo/Redo buttons - visible on mobile and desktop */}
-        <div className="flex items-center gap-1 shrink-0 lg:hidden">
-          <Tooltip content="Undo" placement="below">
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canUndo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M3 7v6h6"/>
-                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-              </svg>
-            </button>
-          </Tooltip>
-          <Tooltip content="Redo" placement="below">
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className={`w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                canRedo 
-                  ? 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper' 
-                  : 'text-theme-muted opacity-50 cursor-not-allowed'
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                <path d="M21 7v6h-6"/>
-                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
-              </svg>
-            </button>
-          </Tooltip>
-        </div>
       </div>
-      )}
-
-      {/* Grid menu dropdown - only on narrow screens */}
-      {gridMenuOpen && mode !== 'print' && (
-        <>
-          <div 
-            className="lg:hidden fixed inset-0 z-40" 
-            onClick={() => setGridMenuOpen(false)}
-          />
-          <div className="lg:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 flex flex-col animate-dropdown-in">
-            {/* Mode toggle */}
-            <button
-              data-tutorial="edit-mode-button-mobile"
-              onClick={() => {
-                const newMode = mode === 'play' ? 'edit' : 'play';
-                setMode(newMode);
-                setGridMenuOpen(false);
-                // If tutorial is on step 3 (welcome-sheet) and user clicked Edit Mode, advance
-                if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet' && newMode === 'edit') {
-                  advanceTutorial();
-                }
-                // If tutorial is on step 23 (switch-to-play) and user clicked Play Mode, advance
-                if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play' && newMode === 'play') {
-                  advanceTutorial();
-                }
-              }}
-              className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${(tutorialStep === 3 && mode === 'play') || (tutorialStep === 23 && mode === 'edit') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-            >
-              {mode === 'play' ? 'Edit Mode' : 'Play Mode'}
-            </button>
-            
-            {/* Print Mode */}
-            <button
-              onClick={() => {
-                enterPrintMode();
-                if (isCurrentTutorialStep('various-print-mode')) {
-                  advanceTutorial();
-                }
-                setGridMenuOpen(false);
-              }}
-              data-tutorial="print-mode-button-mobile"
-              className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-print-mode') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-            >
-              Print Mode
-            </button>
-            
-            {/* Vertical View - only in play mode */}
-            {mode === 'play' && (
-              <button
-                onClick={() => {
-                  setMode('vertical');
-                  if (isCurrentTutorialStep('various-vertical-view')) {
-                    advanceTutorial();
-                  }
-                  setGridMenuOpen(false);
-                }}
-                data-tutorial="vertical-view-button-mobile"
-                className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-vertical-view') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              >
-                Vertical View
-              </button>
-            )}
-            
-            {/* Timeline - only in play mode */}
-            {mode === 'play' && (
-              <button
-                onClick={() => {
-                  if (isCurrentTutorialStep('various-timeline')) {
-                    setTimelineOpen(true);
-                    advanceTutorial();
-                  } else {
-                    toggleTimeline();
-                  }
-                  setGridMenuOpen(false);
-                }}
-                data-tutorial="timeline-button-mobile"
-                className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('various-timeline') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-              >
-                Timeline
-              </button>
-            )}
-            
-            {/* Edit mode specific options */}
-            {mode === 'edit' && (
-              <>
-                <button
-                  data-tutorial="add-widget-button-mobile"
-                  onClick={() => handleToggleWidgetSidebar(true)}
-                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-                >
-                  {sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
-                </button>
-                <button
-                  data-tutorial="theme-button-mobile"
-                  onClick={() => {
-                    handleToggleThemeSidebar(true);
-                  }}
-                  className={`px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
-                >
-                  {themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAutoStackConfirm(true);
-                    setGridMenuOpen(false);
-                  }}
-                  className="px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-                >
-                  Auto Stack
-                </button>
-              </>
-            )}
-            
-            {/* Exit */}
-            <button
-              onClick={() => {
-                handleExitToMenu();
-                setGridMenuOpen(false);
-              }}
-              className="px-4 py-2.5 text-sm text-left font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50 whitespace-nowrap"
-            >
-              Exit to Menu
-            </button>
-          </div>
-        </>
       )}
 
       {/* Sheet dropdown (shared with header) */}
@@ -1987,6 +1778,97 @@ export default function Sheet() {
           </div>
         </>
       )}
+
+      <div
+        className="canvas-zoom-dock"
+        data-touch-camera-ignore="true"
+        role="group"
+        aria-label="Canvas view controls"
+      >
+        <Tooltip content={viewLocked ? 'Unlock view (allow pan & zoom)' : 'Lock view (disable pan & zoom)'}>
+          <button
+            type="button"
+            className={`canvas-zoom-button ${viewLocked ? 'canvas-zoom-button--active' : ''}`}
+            onClick={() => {
+              recordSheetWorkflowEvent('view_lock_changed', 'view', { locked: !viewLocked });
+              toggleViewLock();
+            }}
+            aria-label={viewLocked ? 'Unlock view' : 'Lock view'}
+            aria-pressed={viewLocked}
+          >
+            {viewLocked ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0" />
+              </svg>
+            )}
+          </button>
+        </Tooltip>
+        <button
+          type="button"
+          className="canvas-zoom-button"
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current / 1.25)}
+          disabled={viewLocked || scale <= MIN_CANVAS_SCALE}
+          aria-label="Zoom out"
+        >
+          <MinusIcon className="h-4 w-4" />
+        </button>
+        <div className="canvas-zoom-track">
+          <input
+            type="range"
+            className="canvas-zoom-range"
+            min={MIN_CANVAS_SCALE * 100}
+            max={MAX_CANVAS_SCALE * 100}
+            step="1"
+            value={Math.round(scale * 100)}
+            onChange={(event) => setCanvasScaleAtViewportCenter(Number(event.target.value) / 100)}
+            disabled={viewLocked}
+            aria-label="Canvas zoom"
+            aria-valuetext={`${Math.round(scale * 100)}%`}
+          />
+          {zoomValueVisible && (
+            <output
+              className="canvas-zoom-value"
+              style={{ left: `${((scale - MIN_CANVAS_SCALE) / (MAX_CANVAS_SCALE - MIN_CANVAS_SCALE)) * 100}%` }}
+              aria-live="polite"
+            >
+              {Math.round(scale * 100)}%
+            </output>
+          )}
+        </div>
+        <button
+          type="button"
+          className="canvas-zoom-button"
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current * 1.25)}
+          disabled={viewLocked || scale >= MAX_CANVAS_SCALE}
+          aria-label="Zoom in"
+        >
+          <PlusIcon className="h-4 w-4" />
+        </button>
+        <Tooltip content="Fit all widgets on screen">
+          <button
+            type="button"
+            data-tutorial="fit-button"
+            className={`canvas-zoom-fit ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            onClick={() => {
+              if (viewLocked) return;
+              handleFitAllWidgets();
+              recordSheetWorkflowEvent('view_fit_used', 'view', { widgetCount: activeSheetWidgets.length });
+              if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
+                advanceTutorial();
+              }
+            }}
+            disabled={viewLocked}
+          >
+            Fit
+          </button>
+        </Tooltip>
+      </div>
 
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}

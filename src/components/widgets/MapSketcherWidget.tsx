@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
+import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
@@ -243,6 +244,19 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
   // Eraser state - track shapes erased in current stroke for undo
   const [isErasing, setIsErasing] = useState(false);
   const [erasedInStroke, setErasedInStroke] = useState<Shape[]>([]);
+  const shapesBeforeEraseRef = useRef<Shape[] | null>(null);
+
+  useTouchCameraPinchCancellation(() => {
+    setIsDrawing(false);
+    setCurrentPoints([]);
+    setStartPoint(null);
+    setIsErasing(false);
+    setErasedInStroke([]);
+    if (shapesBeforeEraseRef.current) {
+      setShapes(shapesBeforeEraseRef.current);
+      shapesBeforeEraseRef.current = null;
+    }
+  });
 
   const tools: { tool: Tool; icon: React.ReactNode; label: string }[] = [
     { tool: 'auto', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>, label: 'Auto Detect' },
@@ -525,6 +539,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     }
     
     if (currentTool === 'eraser') {
+      shapesBeforeEraseRef.current = shapes;
       setIsErasing(true);
       setErasedInStroke([]);
       const point = getCanvasPoint(e);
@@ -578,6 +593,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
         setUndoHistory(prev => [...prev, { type: 'erase', shapes: erasedInStroke }]);
       }
       setErasedInStroke([]);
+      shapesBeforeEraseRef.current = null;
       return;
     }
     

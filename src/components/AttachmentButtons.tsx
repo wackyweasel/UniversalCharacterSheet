@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
+import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widgets: Widget[];
@@ -38,6 +39,8 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+
+  useTouchCameraPinchCancellation(() => setHoveredWidgetId(null));
 
   // Use selectedWidgetId (from touch) or hoveredWidgetId (from mouse)
   const activeWidgetId = selectedWidgetId || hoveredWidgetId;

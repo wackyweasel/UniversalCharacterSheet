@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { Widget, CustomDie } from '../../types';
+import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { ChevronDownIcon, ChevronUpIcon } from '../icons';
+import {
+  isPhysicalDieSupported,
+  rollPhysicalDice,
+  type PhysicalDieRequest,
+} from '../DicePhysicsOverlay';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  interactive?: boolean;
 }
 
 interface DiceInPool {
@@ -42,14 +50,18 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
   return typeof die === 'object' && 'faces' in die && Array.isArray(die.faces);
 };
 
-export default function DiceTrayWidget({ widget }: Props) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, showIndividualResults = false } = widget.data;
+export default function DiceTrayWidget({ widget, mode, interactive = true }: Props) {
+  const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0 } = widget.data;
+  const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
+  const showTrayRollDetailsButton = widget.data.showTrayRollDetailsButton ?? true;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [rerollingDieId, setRerollingDieId] = useState<number | null>(null);
   const [nextId, setNextId] = useState(1);
+  const controlsVisible = interactive && mode !== 'print';
 
   // Fixed small sizing
   const labelClass = 'text-xs';
@@ -72,6 +84,59 @@ export default function DiceTrayWidget({ widget }: Props) {
       return Array.from(segmenter.segment(str), (s: any) => s.segment);
     }
     return [...str];
+  };
+
+  const truncateGraphemes = (value: string, maximum: number): string => {
+    const graphemes = splitIntoGraphemes(value.trim());
+    if (graphemes.length <= maximum) return graphemes.join('');
+    return `${graphemes.slice(0, Math.max(1, maximum - 1)).join('')}…`;
+  };
+
+  const balanceLabelLines = (value: string): string => {
+    const graphemes = splitIntoGraphemes(value.trim());
+    if (graphemes.length <= 4) return graphemes.join('');
+
+    const lineCount = graphemes.length <= 16 ? 2 : 3;
+    const maximumLength = lineCount === 2 ? 16 : 30;
+    const visible = graphemes.length > maximumLength
+      ? [...graphemes.slice(0, maximumLength - 1), '…']
+      : graphemes;
+    const lineLength = Math.ceil(visible.length / lineCount);
+    const lines: string[] = [];
+
+    for (let index = 0; index < visible.length; index += lineLength) {
+      lines.push(visible.slice(index, index + lineLength).join(''));
+    }
+
+    return lines.join('\n');
+  };
+
+  const formatPhysicalFaceLabel = (face: string): string => {
+    const value = face.trim();
+    if (!value) return '';
+
+    const graphemes = splitIntoGraphemes(value);
+    if (graphemes.length === 1) return value;
+
+    const parts = value.split(',').map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const groupedParts = Array.from(parts.reduce((counts, part) => {
+        counts.set(part, (counts.get(part) ?? 0) + 1);
+        return counts;
+      }, new Map<string, number>())).map(([part, count]) => (
+        count === 2
+          ? `${truncateGraphemes(part, 4)}${truncateGraphemes(part, 4)}`
+          : count >= 3
+            ? `${truncateGraphemes(part, 7)}×${count}`
+            : truncateGraphemes(part, 9)
+      ));
+      const visibleParts = groupedParts.slice(0, 3);
+      if (groupedParts.length > 3) visibleParts[2] = `+${groupedParts.length - 2}`;
+      return visibleParts.join('\n');
+    }
+
+    const repeatedSymbol = graphemes.length <= 3 && graphemes.every((grapheme) => grapheme === graphemes[0]);
+    return repeatedSymbol ? value : balanceLabelLines(value);
   };
 
   // Check if a string is made up of repeated identical graphemes
@@ -159,132 +224,144 @@ export default function DiceTrayWidget({ widget }: Props) {
     setResult(null);
   };
 
-  const rollDice = () => {
-    if (dicePool.length === 0) return;
-    
-    setIsRolling(true);
-    
-    setTimeout(() => {
-      const rolls: RollResultItem[] = [];
-      const allRolls: (number | string)[] = [];
-      
-      for (const die of dicePool) {
-        if (Array.isArray(die.faces)) {
-          // Custom die - roll from faces array
-          const faceIndex = Math.floor(Math.random() * die.faces.length);
-          const roll = die.faces[faceIndex];
-          rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
-          allRolls.push(roll);
-        } else {
-          // Standard die - roll 1 to faces
-          const roll = Math.floor(Math.random() * die.faces) + 1;
-          rolls.push({ faces: die.faces, roll, id: die.id });
-          allRolls.push(roll);
-        }
+  const rollPool = async (pool: DiceInPool[]) => {
+    const physicalDice: PhysicalDieRequest[] = pool.flatMap((die) => {
+      if (!Array.isArray(die.faces) && die.faces === 100) {
+        return [{ faces: 10 }, { faces: 100, notation: 'd100' }];
       }
-      
-      const aggregated = aggregateResults(allRolls);
-      const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-      
-      setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
-      setIsRolling(false);
-      setLastRolledPool([...dicePool]);
-      setDicePool([]);
-      setNextId(1);
 
-      // Timeline event
-      const desc = total !== null ? `Rolled ${buildPoolNotation()} = ${total}` : `Rolled ${buildPoolNotation()}`;
-      addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
-    }, 300);
+      const faces = Array.isArray(die.faces) ? die.faces.length : die.faces;
+      if (!isPhysicalDieSupported(faces)) return [];
+
+      return [{
+        faces,
+        labels: Array.isArray(die.faces)
+          ? die.faces.map(formatPhysicalFaceLabel)
+          : undefined,
+      }];
+    });
+
+    const physicalValues = physicalDice.length > 0
+      ? await rollPhysicalDice(physicalDice)
+      : await new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 300));
+
+    let physicalValueIndex = 0;
+    const rolls: RollResultItem[] = [];
+    const allRolls: (number | string)[] = [];
+
+    for (const die of pool) {
+      const faceCount = Array.isArray(die.faces) ? die.faces.length : die.faces;
+      const isPercentileDie = !Array.isArray(die.faces) && die.faces === 100;
+      const usesPhysicalDie = isPercentileDie || isPhysicalDieSupported(faceCount);
+      let physicalValue: number | undefined;
+
+      if (isPercentileDie) {
+        const units = physicalValues?.[physicalValueIndex];
+        const tens = physicalValues?.[physicalValueIndex + 1];
+        if (units !== undefined && tens !== undefined) {
+          physicalValue = (tens % 100) + (units % 10) || 100;
+        }
+        physicalValueIndex += 2;
+      } else if (usesPhysicalDie) {
+        physicalValue = physicalValues?.[physicalValueIndex];
+        physicalValueIndex += 1;
+      }
+
+      const faceIndex = physicalValue !== undefined
+        ? physicalValue - 1
+        : Math.floor(Math.random() * faceCount);
+      const roll = Array.isArray(die.faces)
+        ? (die.faces[faceIndex] ?? '')
+        : faceIndex + 1;
+
+      rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
+      allRolls.push(roll);
+    }
+
+    return { rolls, allRolls };
   };
 
-  const rerollDice = () => {
-    if (lastRolledPool.length === 0 || isRolling) return;
-    setDicePool([...lastRolledPool]);
-    // Use setTimeout to ensure state is updated before rolling
-    setTimeout(() => {
-      setIsRolling(true);
-      setTimeout(() => {
-        const rolls: RollResultItem[] = [];
-        const allRolls: (number | string)[] = [];
-        
-        for (const die of lastRolledPool) {
-          if (Array.isArray(die.faces)) {
-            const faceIndex = Math.floor(Math.random() * die.faces.length);
-            const roll = die.faces[faceIndex];
-            rolls.push({ faces: die.faces, roll, customDieName: die.customDieName, id: die.id });
-            allRolls.push(roll);
-          } else {
-            const roll = Math.floor(Math.random() * die.faces) + 1;
-            rolls.push({ faces: die.faces, roll, id: die.id });
-            allRolls.push(roll);
-          }
-        }
-        
-        const aggregated = aggregateResults(allRolls);
-        const numericResult = aggregated.find(r => r.isNumeric);
-        const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-        
-        setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
-        setIsRolling(false);
-        setDicePool([]);
+  const rollDice = async () => {
+    if (dicePool.length === 0 || isRolling) return;
 
-        // Timeline event
-        const rerollNotation = buildPoolNotation(lastRolledPool, modifier);
-        const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
-        addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
-      }, 300);
-    }, 0);
+    const pool = [...dicePool];
+    setIsRolling(true);
+    const { rolls, allRolls } = await rollPool(pool);
+
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
+
+    setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
+    setIsRolling(false);
+    setLastRolledPool(pool);
+    setDicePool([]);
+    setNextId(1);
+
+    const notation = buildPoolNotation(pool, modifier);
+    const desc = total !== null ? `Rolled ${notation} = ${total}` : `Rolled ${notation}`;
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
+  };
+
+  const rerollDice = async () => {
+    if (lastRolledPool.length === 0 || isRolling) return;
+
+    const pool = [...lastRolledPool];
+    setDicePool(pool);
+    setIsRolling(true);
+    const { rolls, allRolls } = await rollPool(pool);
+
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
+
+    setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
+    setIsRolling(false);
+    setDicePool([]);
+
+    const rerollNotation = buildPoolNotation(pool, modifier);
+    const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
   };
 
   // Re-roll a single die by its index in the result
-  const rerollSingleDie = (dieIndex: number) => {
+  const rerollSingleDie = async (dieIndex: number) => {
     if (!result || isRolling || rerollingDieId !== null) return;
     
     const dieToReroll = result.dice[dieIndex];
     setRerollingDieId(dieToReroll.id);
-    
-    setTimeout(() => {
-      let newRoll: number | string;
-      
-      if (Array.isArray(dieToReroll.faces)) {
-        // Custom die
-        const faceIndex = Math.floor(Math.random() * dieToReroll.faces.length);
-        newRoll = dieToReroll.faces[faceIndex];
-      } else {
-        // Standard die
-        newRoll = Math.floor(Math.random() * dieToReroll.faces) + 1;
-      }
-      
-      // Update the result with the new roll
-      const newDice = result.dice.map((d, i) => 
-        i === dieIndex ? { ...d, roll: newRoll } : d
-      );
-      
-      const allRolls = newDice.map(d => d.roll);
-      const aggregated = aggregateResults(allRolls);
-      const numericResult = aggregated.find(r => r.isNumeric);
-      const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
-      
-      setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
-      
-      // Timeline event for single die reroll
-      const dieFacesLabel = Array.isArray(dieToReroll.faces)
-        ? (dieToReroll.customDieName || 'custom')
-        : `d${dieToReroll.faces}`;
-      const desc = total !== null
-        ? `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll} (total: ${total})`
-        : `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll}`;
-      addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '\ud83c\udfb2');
 
-      // Also update lastRolledPool to reflect the new die configuration
-      setLastRolledPool(prev => prev.map((d, i) => 
-        i === dieIndex ? { ...d } : d
-      ));
-      
-      setRerollingDieId(null);
-    }, 200);
+    const { rolls } = await rollPool([{
+      faces: dieToReroll.faces,
+      id: dieToReroll.id,
+      customDieName: dieToReroll.customDieName,
+    }]);
+    const newRoll = rolls[0].roll;
+
+    const newDice = result.dice.map((die, index) =>
+      index === dieIndex ? { ...die, roll: newRoll } : die
+    );
+
+    const allRolls = newDice.map(die => die.roll);
+    const aggregated = aggregateResults(allRolls);
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
+
+    setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
+
+    const dieFacesLabel = Array.isArray(dieToReroll.faces)
+      ? (dieToReroll.customDieName || 'custom')
+      : `d${dieToReroll.faces}`;
+    const desc = total !== null
+      ? `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll} (total: ${total})`
+      : `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll}`;
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '\ud83c\udfb2');
+
+    setLastRolledPool(prev => prev.map((die, index) =>
+      index === dieIndex ? { ...die } : die
+    ));
+
+    setRerollingDieId(null);
   };
 
   // Group dice in pool by type for display
@@ -325,16 +402,7 @@ export default function DiceTrayWidget({ widget }: Props) {
   // Format the aggregated result for display
   const formatAggregatedResult = () => {
     if (!result) return '';
-    
-    // If showing individual results, display all dice separately
-    if (showIndividualResults) {
-      const rolls = result.dice.map(d => String(d.roll));
-      if (result.modifier !== 0) {
-        rolls.push(result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier));
-      }
-      return rolls.join(', ');
-    }
-    
+
     const parts: string[] = [];
     
     for (const agg of result.aggregatedResults) {
@@ -368,6 +436,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                 <button
                   onClick={() => addDieToPool(die)}
                   onMouseDown={(e) => e.stopPropagation()}
+                  disabled={!controlsVisible}
                   className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
                 >
                   {die.name}
@@ -380,6 +449,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                 <button
                   onClick={() => addDieToPool(die)}
                   onMouseDown={(e) => e.stopPropagation()}
+                  disabled={!controlsVisible}
                   className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
                 >
                   d{die}
@@ -403,7 +473,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                     ? 'bg-theme-paper text-theme-ink cursor-not-allowed'
                     : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
               }`}
-              disabled={isRolling || dicePool.length === 0}
+              disabled={isRolling || dicePool.length === 0 || !controlsVisible}
             >
               {dicePool.length > 0 ? `Roll ${buildPoolNotation()}` : 'Roll'}
             </button>
@@ -413,6 +483,7 @@ export default function DiceTrayWidget({ widget }: Props) {
               <button
                 onClick={clearPool}
                 onMouseDown={(e) => e.stopPropagation()}
+                disabled={!controlsVisible}
                 className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500 rounded-button font-body`}
               >
                 Clear
@@ -425,7 +496,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                 onClick={rerollDice}
                 onMouseDown={(e) => e.stopPropagation()}
                 className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper font-body`}
-                disabled={isRolling}
+                disabled={isRolling || !controlsVisible}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -437,12 +508,32 @@ export default function DiceTrayWidget({ widget }: Props) {
 
       {/* Result Display */}
       <div
-        className={`text-center flex-1 min-h-0 overflow-y-auto`}
+        className={`text-center flex-1 flex flex-col min-h-0 overflow-y-auto ${showTrayRollDetails ? 'justify-start' : 'justify-center'}`}
         onWheel={(e) => e.stopPropagation()}
       >
         {result && !isRolling ? (
-          showIndividualResults ? (
-            <div className="flex flex-col gap-0.5">
+          <>
+            <div className="relative flex min-h-5 items-center justify-center">
+              <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
+                {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
+              </div>
+              {controlsVisible && showTrayRollDetailsButton && (
+                <Tooltip content={showTrayRollDetails ? 'Hide roll details' : 'Show roll details'}>
+                  <button
+                    type="button"
+                    onClick={() => updateWidgetData(widget.id, { showTrayRollDetails: !showTrayRollDetails })}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    aria-label={showTrayRollDetails ? 'Hide roll details' : 'Show roll details'}
+                    aria-expanded={showTrayRollDetails}
+                    className="absolute right-0 inline-flex h-5 w-5 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
+                  >
+                    {showTrayRollDetails ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+            {showTrayRollDetails && (
+              <div className="mt-1 flex flex-col gap-0.5">
               {result.dice.map((d, i) => {
                 const dieLabel = Array.isArray(d.faces)
                   ? (d.customDieName || 'custom')
@@ -456,7 +547,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                     <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
                       {String(d.roll)}
                     </span>
-                    <Tooltip content={`Re-roll ${dieLabel}`}>
+                    {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
                       <button
                         onClick={() => rerollSingleDie(i)}
                         onMouseDown={(e) => e.stopPropagation()}
@@ -464,19 +555,19 @@ export default function DiceTrayWidget({ widget }: Props) {
                         className={`p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0 ${
                           rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''
                         }`}
-                        aria-label={`Re-roll ${dieLabel}`}
+                        aria-label={`Re-roll ${dieLabel} ${i + 1}`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       </button>
-                    </Tooltip>
+                    </Tooltip> : <span className="w-4 flex-shrink-0" />}
                   </div>
                 );
               })}
               {result.modifier !== 0 && (
                 <div className="flex items-center justify-between gap-1 px-1 py-0.5">
-                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>mod</span>
+                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>modifier</span>
                   <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center`}>
                     {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
                   </span>
@@ -484,39 +575,7 @@ export default function DiceTrayWidget({ widget }: Props) {
                 </div>
               )}
             </div>
-          ) : (
-          <>
-            {/* Show aggregated result for mixed/custom dice, or just total for standard */}
-            <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-              {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
-            </div>
-            {/* Individual dice - clickable to re-roll */}
-            <div className={`${smallTextClass} text-theme-muted font-body flex flex-wrap justify-center items-center gap-0.5`}>
-              {result.dice.map((d, i) => (
-                <span key={d.id} className="inline-flex items-center">
-                  {i > 0 && <span className="mx-0.5">+</span>}
-                  <Tooltip content={`Click to re-roll this ${Array.isArray(d.faces) ? (d.customDieName || 'custom die') : `d${d.faces}`}`}>
-                    <button
-                      onClick={() => rerollSingleDie(i)}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      disabled={rerollingDieId !== null}
-                      className={`
-                        px-1 py-0.5 rounded transition-all
-                        hover:bg-theme-accent hover:text-theme-paper
-                        focus:outline-none focus:ring-1 focus:ring-theme-accent
-                        ${rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''}
-                        cursor-pointer
-                      `}
-                    >
-                      {d.roll}
-                    </button>
-                  </Tooltip>
-                </span>
-              ))}
-              {result.modifier !== 0 && (
-                <span> {result.modifier >= 0 ? '+' : ''}{result.modifier}</span>
-              )}
-            </div>
+            )}
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.dice.length === 1 && 
              typeof result.dice[0].faces === 'number' && 
@@ -531,7 +590,6 @@ export default function DiceTrayWidget({ widget }: Props) {
               </>
             )}
           </>
-          )
         ) : (
           <>
             <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>
