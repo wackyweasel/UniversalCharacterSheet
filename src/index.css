@@ -34,6 +34,22 @@
   position: absolute;
 }
 
+.dice-theme-preview {
+  flex: none;
+  height: 145px;
+  overflow: hidden;
+  position: relative;
+  width: 160px;
+}
+
+.dice-theme-preview canvas {
+  display: block;
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dice-physics-overlay {
     transition: none;
