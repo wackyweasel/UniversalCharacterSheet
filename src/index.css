@@ -892,36 +892,26 @@
 }
 
 .character-sort-card .character-drag-handle {
+  background: color-mix(in srgb, var(--card-muted) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 24%, transparent);
   cursor: grab;
-  margin-right: 0;
-  opacity: 0;
-  overflow: hidden;
-  touch-action: none;
-  transition: width 200ms cubic-bezier(0.22, 1, 0.36, 1), margin-right 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease, background-color 140ms ease, color 140ms ease;
-  width: 0;
-  -webkit-touch-callout: none;
-}
-
-.character-sort-card:hover .character-drag-handle,
-.character-sort-card:focus-within .character-drag-handle,
-.character-sort-card--dragging .character-drag-handle {
-  margin-right: 6px;
+  left: 12px;
   opacity: 1;
+  overflow: hidden;
+  position: absolute;
+  top: 50%;
+  touch-action: none;
+  transform: translateY(-50%);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
   width: 28px;
-}
-
-/* Touch devices can't hover: keep the handle always available */
-@media (hover: none) {
-  .character-sort-card .character-drag-handle {
-    margin-right: 6px;
-    opacity: 1;
-    width: 28px;
-  }
+  z-index: 20;
+  -webkit-touch-callout: none;
 }
 
 .character-drag-handle:active,
 .character-sort-card--dragging .character-drag-handle {
   cursor: grabbing;
+  transform: translateY(-50%) scale(0.94);
 }
 
 /* Ghost icon buttons in the card's top-right cluster */
@@ -936,22 +926,6 @@
 .character-card-icon-btn--active {
   background: var(--card-accent);
   color: var(--card-background);
-}
-
-/* Accent spine along the card's left edge (lives inside the clipped bg layer) */
-.character-card-spine {
-  background: linear-gradient(180deg, var(--card-accent), color-mix(in srgb, var(--card-accent) 45%, transparent));
-  bottom: 0;
-  left: 0;
-  position: absolute;
-  top: 0;
-  transition: width 180ms ease;
-  width: 4px;
-}
-
-.character-sort-card:hover .character-card-spine,
-.character-sort-card:focus-visible .character-card-spine {
-  width: 6px;
 }
 
 /* Faint accent wash radiating from the top-left corner */
@@ -994,7 +968,6 @@
 @media (prefers-reduced-motion: reduce) {
   .character-sort-card,
   .character-sort-card--preview-shift,
-  .character-card-spine,
   .character-card-open,
   .character-sort-card .character-drag-handle {
     transition: none;

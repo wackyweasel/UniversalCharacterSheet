@@ -1413,27 +1413,26 @@ export default function CharacterList() {
                     />
                   </div>
                 )}
-                {/* Soft accent wash + accent spine for theme identity */}
+                {/* Soft accent wash for theme identity */}
                 <div className="character-card-wash" />
-                <div className="character-card-spine" />
               </div>
-              <div className="relative flex flex-col gap-2">
+              <button
+                type="button"
+                className="character-drag-handle character-card-icon-btn flex h-7 items-center justify-center"
+                aria-label={`Reorder ${char.name}`}
+                title="Drag to reorder. Arrow keys also work."
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startCharacterDrag(char.id, event);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => handleCharacterReorderKey(char.id, event)}
+              >
+                <GripVerticalIcon className="h-4 w-4" />
+              </button>
+              <div className="relative flex flex-col gap-2 pl-9">
                 <div className="flex items-center gap-3">
                   <div className="flex min-w-0 flex-1 items-center">
-                    <button
-                      type="button"
-                      className="character-drag-handle character-card-icon-btn flex h-7 flex-none items-center justify-center"
-                      aria-label={`Reorder ${char.name}`}
-                      title="Drag to reorder. Arrow keys also work."
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                        startCharacterDrag(char.id, event);
-                      }}
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => handleCharacterReorderKey(char.id, event)}
-                    >
-                      <GripVerticalIcon className="h-4 w-4" />
-                    </button>
                     <h2 
                       className="truncate text-lg font-bold leading-tight"
                       style={{ color: 'var(--card-ink)', fontFamily: 'var(--card-font-heading)' }}
