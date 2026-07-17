@@ -124,7 +124,7 @@ export default function ShareExportMenu({
         {open && (
           <div className="absolute left-0 top-full mt-2 w-[min(280px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in">
             <div className={`${workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
-              <div className={`grid grid-cols-2 gap-1 ${workspace === 'play' ? 'min-[380px]:hidden' : 'min-[460px]:hidden'}`}>
+              <div className={`grid grid-cols-2 gap-1 ${workspace === 'build' ? 'min-[460px]:hidden' : 'min-[380px]:hidden'}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -197,7 +197,7 @@ export default function ShareExportMenu({
             {workspace === 'build' && (onAddWidget || onChangeTheme || onAutoStack) && (
               <div className="py-1 border-b border-theme-border/50">
                 {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="min-[320px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{addWidgetLabel}</button>}
-                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{changeThemeLabel}</button>}
+                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="min-[640px]:hidden min-[900px]:block min-[1200px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{changeThemeLabel}</button>}
                 {onAutoStack && <button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Auto Stack</button>}
               </div>
             )}

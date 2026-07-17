@@ -965,16 +965,28 @@ export default function Sheet() {
             layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
           />
           {workspace === 'build' && (
-            <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
-              <button
-                type="button"
-                data-tutorial="add-widget-button"
-                onClick={() => handleToggleWidgetSidebar()}
-                className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-              >
-                {sidebarCollapsed ? 'Add' : 'Hide Add'}
-              </button>
-            </Tooltip>
+            <>
+              <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+                <button
+                  type="button"
+                  data-tutorial="add-widget-button"
+                  onClick={() => handleToggleWidgetSidebar()}
+                  className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                >
+                  {sidebarCollapsed ? 'Add' : 'Hide Add'}
+                </button>
+              </Tooltip>
+              <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
+                <button
+                  type="button"
+                  data-tutorial="theme-button"
+                  onClick={() => handleToggleThemeSidebar()}
+                  className={`hidden min-[640px]:block min-[900px]:hidden min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+                >
+                  Theme
+                </button>
+              </Tooltip>
+            </>
           )}
           <CharacterNameControl
             name={activeCharacter.name}
@@ -1000,7 +1012,7 @@ export default function Sheet() {
               </Tooltip>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="hidden min-[480px]:flex items-center gap-1 shrink-0">
             <Tooltip content="Collapse all widgets" placement="below">
               <button
                 type="button"
@@ -1545,16 +1557,28 @@ export default function Sheet() {
           layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
         />
         {workspace === 'build' && (
-          <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
-            <button
-              type="button"
-              data-tutorial="add-widget-button"
-              onClick={() => handleToggleWidgetSidebar()}
-              className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-            >
-              {sidebarCollapsed ? 'Add' : 'Hide Add'}
-            </button>
-          </Tooltip>
+          <>
+            <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+              <button
+                type="button"
+                data-tutorial="add-widget-button"
+                onClick={() => handleToggleWidgetSidebar()}
+                className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+              >
+                {sidebarCollapsed ? 'Add' : 'Hide Add'}
+              </button>
+            </Tooltip>
+            <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
+              <button
+                type="button"
+                data-tutorial="theme-button"
+                onClick={() => handleToggleThemeSidebar()}
+                className={`hidden min-[640px]:block min-[900px]:hidden min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+              >
+                Theme
+              </button>
+            </Tooltip>
+          </>
         )}
         <CharacterNameControl
           name={activeCharacter.name}
