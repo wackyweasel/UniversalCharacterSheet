@@ -195,14 +195,14 @@ export default function ShareExportMenu({
               </div>
             </div>
             {workspace === 'build' && (onAddWidget || onChangeTheme || onAutoStack) && (
-              <div className="py-1 border-b border-theme-border/50">
+              <div className={`py-1 border-b border-theme-border/50 ${onAutoStack ? '' : 'hidden max-[639px]:block min-[900px]:block min-[1200px]:hidden'}`}>
                 {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="min-[320px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{addWidgetLabel}</button>}
                 {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="min-[640px]:hidden min-[900px]:block min-[1200px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{changeThemeLabel}</button>}
                 {onAutoStack && <button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Auto Stack</button>}
               </div>
             )}
             {(onExpandAll || onCollapseAll) && (
-              <div className="py-1 border-b border-theme-border/50">
+              <div className="min-[480px]:hidden py-1 border-b border-theme-border/50">
                 {onExpandAll && <button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Expand All</button>}
                 {onCollapseAll && <button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Collapse All</button>}
               </div>
