@@ -932,7 +932,15 @@ export default function CharacterList() {
       />
       <div className="max-w-4xl mx-auto pb-safe">
       <div className={`flex flex-col gap-3 mb-4 border-b-[length:var(--border-width)] pb-3 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
-        <div className="flex justify-end lg:hidden">
+        <header className="flex items-start gap-3 sm:items-center">
+          <div className="min-w-0 flex-1 border-l-[3px] border-cyan-500 pl-3 sm:pl-4">
+            <h1 className={`font-heading text-xl font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              Universal Character Sheet
+            </h1>
+            <p className={`mt-1 max-w-2xl font-body text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
+              Design, play, and share flexible character sheets for any tabletop RPG.
+            </p>
+          </div>
           <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
             <button
               type="button"
@@ -940,7 +948,7 @@ export default function CharacterList() {
               aria-checked={darkMode}
               aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
               onClick={toggleDarkMode}
-              className={`relative flex h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors ${
+              className={`relative flex h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors lg:hidden ${
                 darkMode
                   ? 'border-white/40 bg-white/15'
                   : 'border-theme-border bg-theme-paper'
@@ -965,7 +973,7 @@ export default function CharacterList() {
               </span>
             </button>
           </Tooltip>
-        </div>
+        </header>
         <div className="w-full">
           <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
             {/* Gallery Button */}
