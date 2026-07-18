@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -22,6 +23,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
 
   // Fixed small sizing
@@ -63,7 +65,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
       formItems: [...formItems, { name: fieldName, value: '' }],
     });
     setFieldNameDraft('');
-    setFieldDialog(null);
+    if (!addMultiple) setFieldDialog(null);
   };
 
   const removeSelectedFields = () => {
@@ -77,6 +79,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
 
   const openAddFieldDialog = () => {
     setFieldNameDraft('');
+    setAddMultiple(false);
     setFieldDialog('add');
   };
 
@@ -89,6 +92,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const closeFieldDialog = () => {
     setFieldDialog(null);
     setFieldNameDraft('');
+    setAddMultiple(false);
     setSelectedFields(new Set());
   };
 
@@ -218,9 +222,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
                   addField();
                 }}
               >
-                <label htmlFor={`form-field-name-${widget.id}`} className="block text-sm font-medium">
-                  Field name
-                </label>
+                <label htmlFor={`form-field-name-${widget.id}`} className="block text-sm font-medium">Field name</label>
                 <input
                   id={`form-field-name-${widget.id}`}
                   autoFocus
@@ -230,6 +232,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
                   placeholder="e.g. Background"
                   className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                 />
+                <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
                     Cancel
@@ -246,6 +249,10 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
             ) : (
               <div className="mt-3">
                 <p className="text-sm text-theme-muted">Select one or more fields to remove.</p>
+                <SelectionActions
+                  onCheckAll={() => setSelectedFields(new Set(formItems.map((_, index) => index)))}
+                  onUncheckAll={() => setSelectedFields(new Set())}
+                />
                 <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
                   {(formItems as FormItem[]).map((item, index) => (
                     <label

@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -15,10 +16,12 @@ interface Props {
   interactive?: boolean;
 }
 
-function AddConditionModal({ items, onConfirm, onCancel }: { items: ToggleItem[]; onConfirm: (name: string) => void; onCancel: () => void }) {
+function AddConditionModal({ items, onConfirm, onCancel }: { items: ToggleItem[]; onConfirm: (name: string, keepOpen: boolean) => void; onCancel: () => void }) {
   const [name, setName] = useState('');
+  const [addMultiple, setAddMultiple] = useState(false);
+  const itemNames = new Set(items.map((item) => item.name.toLowerCase()));
   const trimmedName = name.trim();
-  const duplicate = items.some((item) => item.name.toLowerCase() === trimmedName.toLowerCase());
+  const duplicate = !!trimmedName && itemNames.has(trimmedName.toLowerCase());
 
   return (
     <div
@@ -35,7 +38,9 @@ function AddConditionModal({ items, onConfirm, onCancel }: { items: ToggleItem[]
         className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
         onSubmit={(event) => {
           event.preventDefault();
-          if (trimmedName && !duplicate) onConfirm(trimmedName);
+          if (!trimmedName || duplicate) return;
+          onConfirm(trimmedName, addMultiple);
+          if (addMultiple) setName('');
         }}
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
@@ -54,6 +59,7 @@ function AddConditionModal({ items, onConfirm, onCancel }: { items: ToggleItem[]
           aria-invalid={duplicate || undefined}
           className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-theme-ink focus:border-theme-accent focus:outline-none"
         />
+        <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
         {duplicate && <p className="mt-1 text-xs text-red-600">That condition already exists.</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
@@ -99,6 +105,10 @@ function RemoveConditionsModal({ items, onConfirm, onCancel }: { items: ToggleIt
       >
         <h3 id="condition-remove-title" className="font-heading text-base font-bold">Remove conditions</h3>
         <p className="mt-2 text-sm text-theme-muted">Select one or more conditions to remove.</p>
+        <SelectionActions
+          onCheckAll={() => setSelected(new Set(items.map((_, index) => index)))}
+          onUncheckAll={() => setSelected(new Set())}
+        />
         <div className="mt-3 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
           {items.map((item, index) => (
             <label key={index} className="flex cursor-pointer items-center gap-3 rounded-button border border-theme-border px-3 py-2 text-sm transition-colors hover:bg-theme-accent hover:text-theme-paper">
@@ -203,9 +213,9 @@ export default function ConditionWidget({ widget, mode, showFieldControls = true
     setInsertionIndex(null);
   };
 
-  const addCondition = (name: string) => {
+  const addCondition = (name: string, keepOpen: boolean) => {
     updateWidgetData(widget.id, { toggleItems: [...toggleItems, { name, active: false }] });
-    setShowAddDialog(false);
+    if (!keepOpen) setShowAddDialog(false);
     addTimelineEvent(label || 'Conditions', 'TOGGLE_GROUP', `Added: ${name}`, '➕');
   };
 

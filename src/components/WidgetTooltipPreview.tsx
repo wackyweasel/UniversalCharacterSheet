@@ -487,7 +487,7 @@ function renderWidget(widget: Widget) {
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
     case 'DECK': return <DeckWidget {...props} />;
     case 'TIMER': return <TimerWidget {...props} />;
-    case 'STEP_DICE': return <StepDiceWidget {...props} />;
+    case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
     default: return null;
   }
 }

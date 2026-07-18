@@ -6,6 +6,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -27,6 +28,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const [editValue, setEditValue] = useState('');
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
 
   const labels = useMemo(() => {
@@ -99,7 +101,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
       numberItems: [...numberItems, { name: fieldName, value: 0 }],
     });
     setFieldNameDraft('');
-    setFieldDialog(null);
+    if (!addMultiple) setFieldDialog(null);
   };
 
   const removeSelectedFields = () => {
@@ -115,6 +117,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const closeFieldDialog = () => {
     setFieldDialog(null);
     setFieldNameDraft('');
+    setAddMultiple(false);
     setSelectedFields(new Set());
   };
 
@@ -172,6 +175,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   type="button"
                   onClick={() => {
                     setFieldNameDraft('');
+                    setAddMultiple(false);
                     setFieldDialog('add');
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -300,9 +304,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   addField();
                 }}
               >
-                <label htmlFor={`number-field-name-${widget.id}`} className="block text-sm font-medium">
-                  Tracker name
-                </label>
+                <label htmlFor={`number-field-name-${widget.id}`} className="block text-sm font-medium">Tracker name</label>
                 <input
                   id={`number-field-name-${widget.id}`}
                   autoFocus
@@ -312,6 +314,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   placeholder="e.g. Luck"
                   className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                 />
+                <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
                     Cancel
@@ -328,6 +331,10 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
             ) : (
               <div className="mt-3">
                 <p className="text-sm text-theme-muted">Select one or more trackers to remove.</p>
+                <SelectionActions
+                  onCheckAll={() => setSelectedFields(new Set(numberItems.map((_, index) => index)))}
+                  onUncheckAll={() => setSelectedFields(new Set())}
+                />
                 <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
                   {(numberItems as NumberItem[]).map((item, index) => (
                     <label

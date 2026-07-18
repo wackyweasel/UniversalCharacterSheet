@@ -4,6 +4,7 @@ import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -18,7 +19,9 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
   const { label, items = [], itemCount = 5 } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [addMultiple, setAddMultiple] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   // Fixed small sizing
@@ -71,11 +74,17 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
     }
   };
 
-  const addItem = () => {
+  const addItems = () => {
     updateWidgetData(widget.id, {
       items: [...normalizedItems, ''],
       itemCount: itemCount + 1,
     });
+    if (!addMultiple) setShowAddDialog(false);
+  };
+
+  const openAddDialog = () => {
+    setAddMultiple(false);
+    setShowAddDialog(true);
   };
 
   const removeSelectedItems = () => {
@@ -144,7 +153,7 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
               <Tooltip content="Add empty item">
                 <button
                   type="button"
-                  onClick={addItem}
+                  onClick={openAddDialog}
                   onMouseDown={(e) => e.stopPropagation()}
                   aria-label="Add empty list item"
                   className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
@@ -193,6 +202,35 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
         ))}
       </div>
 
+      {showAddDialog && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={() => setShowAddDialog(false)}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`list-add-dialog-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addItems();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id={`list-add-dialog-title-${widget.id}`} className="font-heading text-base font-bold">Add list item</h3>
+            <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setShowAddDialog(false)} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
+              <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Add item</button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
+
       {showRemoveDialog && createPortal(
         <div
           data-touch-camera-ignore="true"
@@ -212,6 +250,10 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
               Remove list items
             </h3>
             <p className="mt-3 text-sm text-theme-muted">Select one or more items to remove.</p>
+            <SelectionActions
+              onCheckAll={() => setSelectedItems(new Set(normalizedItems.map((_, index) => index)))}
+              onUncheckAll={() => setSelectedItems(new Set())}
+            />
             <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
               {normalizedItems.map((item, index) => (
                 <label
