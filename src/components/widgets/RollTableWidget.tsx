@@ -18,7 +18,6 @@ export default function RollTableWidget({ widget, height }: Props) {
   const [isRolling, setIsRolling] = useState(false);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const inputClass = 'text-xs py-0.5';
   const buttonClass = 'py-1 px-2 text-xs';
   const gapClass = 'gap-1';
@@ -100,8 +99,8 @@ export default function RollTableWidget({ widget, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
       

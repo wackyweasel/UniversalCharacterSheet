@@ -106,53 +106,55 @@ export default function TimerWidget({ widget, mode }: Props) {
     'px-2 py-1 text-xs font-body rounded-button transition-colors border border-theme-border';
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full gap-1 select-none">
+    <div className="flex h-full w-full flex-col gap-1 select-none">
       {label && (
-        <div className="font-bold text-xs text-theme-ink font-heading flex-shrink-0">
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
 
-      <div
-        className={`font-mono text-2xl font-bold text-theme-ink tabular-nums ${
-          isFinished ? 'text-red-500 animate-pulse' : ''
-        }`}
-        role="timer"
-        aria-live="off"
-        aria-label={`${label || 'Timer'}: ${formatTime(shownMs)}`}
-      >
-        {formatTime(shownMs)}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1">
+        <div
+          className={`font-mono text-2xl font-bold text-theme-ink tabular-nums ${
+            isFinished ? 'text-red-500 animate-pulse' : ''
+          }`}
+          role="timer"
+          aria-live="off"
+          aria-label={`${label || 'Timer'}: ${formatTime(shownMs)}`}
+        >
+          {formatTime(shownMs)}
+        </div>
+
+        {!isPrint && (
+          <div className="mt-1 flex gap-1">
+            {!timerRunning ? (
+              <button
+                onClick={handleStart}
+                disabled={isFinished}
+                aria-label="Start timer"
+                className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80 disabled:opacity-40`}
+              >
+                <PlayIcon className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={handlePause}
+                aria-label="Pause timer"
+                className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80`}
+              >
+                <PauseIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={handleReset}
+              aria-label="Reset timer"
+              className={`${btnBase} text-theme-ink hover:bg-theme-accent/20`}
+            >
+              <ResetIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
-
-      {!isPrint && (
-        <div className="flex gap-1 mt-1">
-          {!timerRunning ? (
-            <button
-              onClick={handleStart}
-              disabled={isFinished}
-              aria-label="Start timer"
-              className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80 disabled:opacity-40`}
-            >
-              <PlayIcon className="w-3.5 h-3.5" />
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              aria-label="Pause timer"
-              className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80`}
-            >
-              <PauseIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={handleReset}
-            aria-label="Reset timer"
-            className={`${btnBase} text-theme-ink hover:bg-theme-accent/20`}
-          >
-            <ResetIcon className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

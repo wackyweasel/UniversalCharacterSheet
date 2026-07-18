@@ -64,7 +64,6 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
   const controlsVisible = interactive && mode !== 'print';
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const buttonClass = 'py-1 px-2 text-xs';
   const resultClass = 'text-xl';
   const smallTextClass = 'text-[10px]';
@@ -422,8 +421,8 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
-        <div className={`font-bold text-center ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
 

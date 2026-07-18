@@ -853,7 +853,6 @@ export default function TableWidget({ widget, height }: Props) {
   }, []);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
   
@@ -1412,9 +1411,9 @@ export default function TableWidget({ widget, height }: Props) {
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || !isPrintMode) && (
-        <div className="flex flex-shrink-0 items-center justify-between gap-2">
+        <div className="widget-header flex-shrink-0">
           {label && (
-            <div className={`min-w-0 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-header-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

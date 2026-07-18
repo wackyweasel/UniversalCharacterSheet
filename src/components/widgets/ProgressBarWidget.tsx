@@ -187,9 +187,9 @@ export default function ProgressBarWidget({ widget, mode, showMaxControl = true,
   return (
     <div className="progress-bar-widget flex h-full w-full flex-col gap-1.5">
       {(label || maxControlVisible) && (
-        <div className="flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
+        <div className="widget-header flex-shrink-0">
           {label && (
-            <div className="min-w-0 flex-1 truncate font-heading text-xs font-bold text-theme-ink">
+            <div className="widget-header-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

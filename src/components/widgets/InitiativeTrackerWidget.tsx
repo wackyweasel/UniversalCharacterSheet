@@ -359,7 +359,6 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
   };
 
   // Fixed sizing classes
-  const labelClass = 'text-xs';
   const itemClass = 'text-xs';
   const buttonClass = 'text-xs px-2 py-1';
 
@@ -367,7 +366,11 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
   if (isPrintMode) {
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        {label && <div className={`font-bold text-theme-ink mb-1 ${labelClass} font-heading truncate`}>{label}</div>}
+        {label && (
+          <div className="widget-header mb-1 flex-shrink-0">
+            <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          </div>
+        )}
         <div className="flex-1 overflow-hidden">
           {initiativeEncounter.length === 0 ? (
             <div className={`text-theme-muted italic ${itemClass}`}>No participants</div>
@@ -398,7 +401,9 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Label */}
       {label && (
-        <div className={`font-bold text-theme-ink mb-1 ${labelClass} font-heading truncate`}>{label}</div>
+        <div className="widget-header mb-1 flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+        </div>
       )}
 
       {/* Controls - Add from pool, Add temporary, Roll Initiative */}

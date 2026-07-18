@@ -76,7 +76,6 @@ export default function TextWidget({ widget, height }: Props) {
     }
   }, []);
 
-  const labelClass = 'text-xs';
   const gapClass = 'gap-1';
   const isAutoHeight = height >= 10000;
 
@@ -93,8 +92,8 @@ export default function TextWidget({ widget, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
       {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
       <div className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}>

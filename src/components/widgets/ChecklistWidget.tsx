@@ -17,7 +17,6 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const itemClass = 'text-xs';
   const checkboxClass = 'w-4 h-4';
   const checkClass = 'text-xs';
@@ -38,8 +37,8 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
       

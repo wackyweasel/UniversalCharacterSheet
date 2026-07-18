@@ -728,8 +728,8 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
   return (
     <div ref={containerRef} className="flex flex-col w-full h-full gap-1 relative">
       {label && (
-        <div className="font-bold text-center text-xs text-theme-ink font-heading flex-shrink-0">
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
 

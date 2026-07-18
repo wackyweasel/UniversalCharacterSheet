@@ -24,7 +24,6 @@ export default function SpellSlotWidget({ widget, height }: Props) {
   const { label, spellLevels = [{ level: 1, max: 4, used: 0 }] } = widget.data;
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const levelLabelClass = 'w-6 text-[10px]';
   const slotSize = 'w-5 h-5';
   const buttonClass = 'text-[10px] px-1 py-0.5';
@@ -65,8 +64,8 @@ export default function SpellSlotWidget({ widget, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
 
