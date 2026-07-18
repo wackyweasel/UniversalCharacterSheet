@@ -127,8 +127,8 @@ export default function ShareExportMenu({
         </button>
         {open && (
           <div className="absolute left-0 top-full mt-2 w-[min(280px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in">
-            <div className={`${workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
-              <div className={`grid grid-cols-2 gap-1 ${workspace === 'build' ? 'min-[460px]:hidden' : 'min-[380px]:hidden'}`}>
+            <div className={`${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
+              <div className={`grid grid-cols-2 gap-1 ${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'build' ? 'min-[460px]:hidden' : 'min-[380px]:hidden'}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -219,15 +219,15 @@ export default function ShareExportMenu({
                 </button>
               </div>
             </div>
-            {workspace === 'build' && (onAddWidget || onChangeTheme || onAutoStack) && (
-              <div className={`py-1 border-b border-theme-border/50 ${onAutoStack ? '' : 'hidden max-[639px]:block min-[900px]:block min-[1200px]:hidden'}`}>
-                {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="min-[320px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{addWidgetLabel}</button>}
-                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="min-[640px]:hidden min-[900px]:block min-[1200px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{changeThemeLabel}</button>}
+            {(onAddWidget || onChangeTheme || onAutoStack) && (
+              <div className={`py-1 border-b border-theme-border/50 ${onAutoStack ? '' : playLayout === 'list' ? 'min-[1200px]:hidden' : workspace === 'build' ? 'hidden max-[639px]:block min-[900px]:block min-[1200px]:hidden' : 'hidden max-[639px]:block min-[720px]:block min-[1200px]:hidden'}`}>
+                {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className={`${playLayout === 'list' ? 'min-[380px]:hidden' : 'min-[320px]:hidden'} w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors`}>{addWidgetLabel}</button>}
+                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className={`${playLayout === 'list' ? 'min-[1200px]:hidden' : workspace === 'build' ? 'min-[640px]:hidden min-[900px]:block min-[1200px]:hidden' : 'min-[640px]:hidden min-[720px]:block min-[1200px]:hidden'} w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors`}>{changeThemeLabel}</button>}
                 {onAutoStack && <button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Auto Stack</button>}
               </div>
             )}
             {(onExpandAll || onCollapseAll) && (
-              <div className="min-[480px]:hidden py-1 border-b border-theme-border/50">
+              <div className={`${playLayout === 'list' ? 'min-[800px]:hidden' : 'min-[480px]:hidden'} py-1 border-b border-theme-border/50`}>
                 {onExpandAll && <button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Expand All</button>}
                 {onCollapseAll && <button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Collapse All</button>}
               </div>
