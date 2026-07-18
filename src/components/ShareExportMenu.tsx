@@ -29,6 +29,8 @@ interface ShareExportMenuProps {
   onAutoStack?: () => void;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  attachmentControlsVisible: boolean;
+  onToggleAttachmentControls: () => void;
 }
 
 function downloadCharacter(character: Character) {
@@ -66,6 +68,8 @@ export default function ShareExportMenu({
   onAutoStack,
   onExpandAll,
   onCollapseAll,
+  attachmentControlsVisible,
+  onToggleAttachmentControls,
 }: ShareExportMenuProps) {
   const addPreset = useUserPresetStore((state) => state.addPreset);
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
@@ -174,6 +178,27 @@ export default function ShareExportMenu({
               )}
             </div>
             <div className="px-3 py-2.5 border-b border-theme-border/50">
+              {workspace === 'build' && (
+                <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-theme-border/50">
+                  <div className="min-w-0">
+                    <span className="block text-sm font-semibold font-body text-theme-ink">Attachment controls</span>
+                    <span className="block text-[11px] font-body text-theme-muted mt-0.5">Show attach and detach buttons</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={attachmentControlsVisible}
+                    aria-label="Show attachment controls"
+                    onClick={onToggleAttachmentControls}
+                    className={`relative w-11 h-6 flex-shrink-0 rounded-full border border-theme-border transition-colors ${attachmentControlsVisible ? 'bg-theme-accent' : 'bg-theme-background'}`}
+                  >
+                    <span
+                      className={`absolute left-0 top-0.5 w-4 h-4 rounded-full bg-white border border-black/25 shadow-sm transition-transform ${attachmentControlsVisible ? 'translate-x-[22px]' : 'translate-x-1'}`}
+                    />
+                    <span className="sr-only">{attachmentControlsVisible ? 'On' : 'Off'}</span>
+                  </button>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>

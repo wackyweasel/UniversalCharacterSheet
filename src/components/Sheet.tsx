@@ -248,6 +248,7 @@ export default function Sheet() {
   
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
+  const [attachmentControlsVisible, setAttachmentControlsVisible] = useState(true);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
   const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
@@ -952,6 +953,8 @@ export default function Sheet() {
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
             onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
             onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
+            attachmentControlsVisible={attachmentControlsVisible}
+            onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           />
           <WorkspaceToggleGroup
             workspace={workspace}
@@ -1212,7 +1215,7 @@ export default function Sheet() {
           ))}
           
           {/* Attachment Buttons - only in edit mode */}
-          {mode === 'edit' && (
+          {mode === 'edit' && attachmentControlsVisible && (
             <AttachmentButtons 
               widgets={activeSheetWidgets} 
               scale={scale}
@@ -1544,6 +1547,8 @@ export default function Sheet() {
           onChangeTheme={workspace === 'build' ? () => handleToggleThemeSidebar() : undefined}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
           onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+          attachmentControlsVisible={attachmentControlsVisible}
+          onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         />
         <WorkspaceToggleGroup
           workspace={workspace}

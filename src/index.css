@@ -691,6 +691,18 @@
   transform-origin: top;
 }
 
+@media (pointer: coarse), (max-width: 640px) {
+  .widget-menu-trigger,
+  .widget-attachment-control {
+    width: 44px;
+    height: 44px;
+  }
+
+  .widget-options-menu button {
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-modal-in,

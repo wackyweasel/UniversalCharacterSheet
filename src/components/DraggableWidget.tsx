@@ -120,6 +120,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
   const [showPrintSettings, setShowPrintSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
@@ -293,9 +294,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
     widgetTouchActiveRef.current = false;
   };
 
-  // Handle click/tap on widget - in edit mode, first tap shows controls
+  // Handle click/tap on widget - in edit mode, select it to show controls
   const handleWidgetClick = (e: React.MouseEvent) => {
-    if (mode === 'edit' && !showControls) {
+    if (mode === 'edit' && !isSelected) {
       e.preventDefault();
       e.stopPropagation();
       setSelectedWidgetId(widget.id);
@@ -733,17 +734,18 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
           
-          {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
+          {/* Menu Button - visible for the selected widget in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
           {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
-            <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
+            <div className="absolute top-1 right-1 z-[200] flex items-center gap-1" ref={dropdownRef}>
               <Tooltip content="Widget options">
                 <button
                   data-tutorial={widgetMenuTutorialTarget}
                   aria-label={`Options for ${widget.data.label || widget.type}`}
                   aria-expanded={showDropdown}
-                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  style={{ transform: `scale(${1 / scale})`, transformOrigin: 'top right' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
@@ -755,6 +757,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
                     }
                     if (shouldShowAutomationTutorialMenu) {
                       advanceTutorial();
+                    }
+                    if (!showDropdown) {
+                      setDropdownAlign(e.currentTarget.getBoundingClientRect().right < 198 ? 'left' : 'right');
                     }
                     setShowDropdown(!showDropdown);
                     if (showDropdown) {
@@ -779,7 +784,10 @@ export default function DraggableWidget({ widget, scale }: Props) {
               
               {/* Dropdown Menu with Tabs */}
               {showDropdown && (
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[200] font-body animate-dropdown-in">
+                <div
+                  className={`widget-options-menu absolute top-full mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[190px] overflow-hidden z-[200] font-body ${dropdownAlign === 'left' ? 'left-0' : 'right-0'}`}
+                  style={{ transform: `scale(${1 / scale})`, transformOrigin: dropdownAlign === 'left' ? 'top left' : 'top right' }}
+                >
                   {/* Tab Header - only show if widget is part of a group */}
                   {widget.groupId && (
                     <div className="flex border-b border-theme-border">

@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
+import { Link2, Unlink2 } from 'lucide-react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
-import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widgets: Widget[];
@@ -39,10 +39,6 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
-
-  useTouchCameraPinchCancellation(() => setHoveredWidgetId(null));
-
-  // Use selectedWidgetId (from touch) or hoveredWidgetId (from mouse)
   const activeWidgetId = selectedWidgetId || hoveredWidgetId;
 
   // Create a key based on widget positions to detect when they change
@@ -66,51 +62,17 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  // Track which widget is being hovered or touched
   useEffect(() => {
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      
-      // Check if hovering an attachment button - keep the current hovered widget
-      const attachButton = target.closest('[data-attach-widget-ids]');
-      if (attachButton) {
-        // Don't change hoveredWidgetId - keep the last hovered widget
-        return;
-      }
-      
-      // Check if hovering a widget
-      const widgetEl = target.closest('[data-widget-id]');
-      if (widgetEl) {
-        setHoveredWidgetId(widgetEl.getAttribute('data-widget-id'));
-      } else {
-        setHoveredWidgetId(null);
-      }
-    };
+      if (target.closest('[data-attach-widget-ids]')) return;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      
-      // Check if touching an attachment button - keep the current hovered widget
-      const attachButton = target.closest('[data-attach-widget-ids]');
-      if (attachButton) {
-        return;
-      }
-      
-      // Check if touching a widget
       const widgetEl = target.closest('[data-widget-id]');
-      if (widgetEl) {
-        setHoveredWidgetId(widgetEl.getAttribute('data-widget-id'));
-      } else {
-        setHoveredWidgetId(null);
-      }
+      setHoveredWidgetId(widgetEl?.getAttribute('data-widget-id') || null);
     };
 
     document.addEventListener('mouseover', handleMouseOver);
-    document.addEventListener('touchstart', handleTouchStart);
-    return () => {
-      document.removeEventListener('mouseover', handleMouseOver);
-      document.removeEventListener('touchstart', handleTouchStart);
-    };
+    return () => document.removeEventListener('mouseover', handleMouseOver);
   }, []);
 
   // Refresh bounds calculation when widgets change position or scale changes
@@ -283,7 +245,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
     return null;
   }
 
-  // Filter edges to only show those connected to the active widget (hovered or selected)
+  // Show attachment actions for the hovered widget or the current touch selection.
   const visibleEdges = activeWidgetId 
     ? touchingEdges.filter(edge => edge.widget1Id === activeWidgetId || edge.widget2Id === activeWidgetId)
     : [];
@@ -291,45 +253,24 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
   return (
     <>
       {visibleEdges.map((edge, index) => {
-        // Determine arrow direction based on which widget is active
-        // Arrow points toward the other widget (the one being attached to)
-        const getArrow = () => {
-          if (edge.isAttached) return '✕';
-          const isWidget1Active = activeWidgetId === edge.widget1Id;
-          // direction is from widget1 to widget2
-          // If widget1 is active, arrow points toward widget2 (same as direction)
-          // If widget2 is active, arrow points toward widget1 (opposite direction)
-          if (isWidget1Active) {
-            switch (edge.direction) {
-              case 'right': return '⇥';
-              case 'left': return '⇤';
-              case 'down': return '⤓';
-              case 'up': return '⤒';
-            }
-          } else {
-            switch (edge.direction) {
-              case 'right': return '⇤';
-              case 'left': return '⇥';
-              case 'down': return '⤒';
-              case 'up': return '⤓';
-            }
-          }
-        };
+        const label = edge.isAttached ? 'Detach widgets' : 'Attach widgets';
         
         return (
-          <Tooltip key={`${edge.widget1Id}-${edge.widget2Id}-${index}`} content={edge.isAttached ? 'Click to detach widgets' : 'Click to attach widgets'}>
+          <Tooltip key={`${edge.widget1Id}-${edge.widget2Id}-${index}`} content={label}>
             <button
               data-attach-widget-ids={`${edge.widget1Id},${edge.widget2Id}`}
               data-touch-camera-ignore="true"
-              className={`absolute w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold transition-all transform -translate-x-1/2 -translate-y-1/2 hover:scale-125 ${
-                edge.isAttached 
-                  ? 'bg-green-500 hover:bg-red-500 text-white' 
-                  : 'bg-blue-500 hover:bg-green-500 text-white'
+              aria-label={label}
+              className={`widget-attachment-control absolute w-8 h-8 rounded-button flex items-center justify-center border shadow-theme transition-colors ${
+                edge.isAttached
+                  ? 'bg-theme-ink text-theme-paper border-theme-ink hover:bg-red-500 hover:text-white hover:border-red-500'
+                  : 'bg-theme-ink text-theme-paper border-theme-ink hover:brightness-125'
               }`}
               style={{
                 left: `${edge.x}px`,
                 top: `${edge.y}px`,
                 zIndex: 100,
+                transform: `translate(-50%, -50%) scale(${1 / scale})`,
               }}
               onClick={() => handleClick(edge)}
               onMouseDown={(e) => e.stopPropagation()}
@@ -343,7 +284,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
                 handleClick(edge);
               }}
             >
-              {getArrow()}
+              {edge.isAttached ? <Unlink2 className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
             </button>
           </Tooltip>
         );
