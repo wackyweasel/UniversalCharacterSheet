@@ -37,7 +37,6 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   }, [characters, activeCharacterId]);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const itemClass = 'text-xs';
   const buttonSize = 'w-5 h-5 text-xs';
   const valueClass = 'text-sm min-w-8 px-1';
@@ -149,7 +148,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
-            <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

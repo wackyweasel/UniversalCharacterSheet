@@ -27,7 +27,6 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const itemClass = 'text-xs';
   const gapClass = 'gap-1';
   
@@ -121,7 +120,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
       {(label || controlsVisible) && (
         <div className={`form-widget__header widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
-            <div className={`form-widget__label min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="form-widget__label widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

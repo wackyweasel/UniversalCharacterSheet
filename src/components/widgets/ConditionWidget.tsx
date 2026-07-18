@@ -152,7 +152,6 @@ export default function ConditionWidget({ widget, mode, showFieldControls = true
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const toggleClass = 'px-1.5 py-0.5 text-[10px]';
   const gapClass = 'gap-1';
 
@@ -232,7 +231,7 @@ export default function ConditionWidget({ widget, mode, showFieldControls = true
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
-            <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

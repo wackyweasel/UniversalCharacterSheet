@@ -148,7 +148,6 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const itemClass = 'text-xs';
   const checkboxClass = 'w-4 h-4';
   const checkClass = 'text-xs';
@@ -187,7 +186,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
-            <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

@@ -178,10 +178,10 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
   };
 
   return (
-    <div className="flex flex-col h-full p-2 gap-1 overflow-auto">
+    <div className="flex h-full flex-col gap-1 overflow-auto">
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className="min-w-0 flex-1 truncate text-xs font-bold text-theme-ink font-heading">{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
           {controlsVisible && (
             <div className="step-dice-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={stepDiceItems.length > 0 ? 'Choose die tracks to remove' : 'No die tracks to remove'}>

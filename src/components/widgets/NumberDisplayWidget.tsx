@@ -134,14 +134,11 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const labelFontSize = Math.max(7, Math.min(10, minDimension * 0.12));
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col gap-1 overflow-hidden">
       {(label || controlsVisible) && (
-        <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 px-1 pr-4">
+        <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
           {label && (
-            <div
-              className="min-w-0 flex-1 truncate font-bold text-theme-ink font-heading"
-              style={{ fontSize: '11px', lineHeight: '16px' }}
-            >
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}

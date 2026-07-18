@@ -249,7 +249,6 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const symbolSize = 'w-6 h-6 text-base';
   const counterClass = 'text-[11px]';
   const gapClass = 'gap-1';
@@ -310,7 +309,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
           {controlsVisible && (
             <div className="pool-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={resources.length > 1 ? 'Choose resources to remove' : 'At least one resource is required'}>

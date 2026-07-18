@@ -177,8 +177,18 @@
   }
 
   .widget-content .widget-structure-header {
+    gap: 8px;
     min-height: 18px;
     padding-right: 0;
+  }
+
+  .widget-content .widget-structure-title {
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 16px;
   }
 
   .widget-content .widget-structure-controls {

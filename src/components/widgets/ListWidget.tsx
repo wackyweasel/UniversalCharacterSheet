@@ -25,7 +25,6 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const inputClass = 'text-xs py-0.5';
   const gapClass = 'gap-1';
   
@@ -129,7 +128,7 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
-            <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}
