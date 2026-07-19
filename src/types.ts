@@ -20,10 +20,31 @@ export type WidgetType =
   | 'PROGRESS_BAR'
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
+  | 'GRID_MAP'
   | 'INITIATIVE_TRACKER'
   | 'DECK'
   | 'TIMER'
   | 'STEP_DICE';
+
+export interface GridMapPoint {
+  column: number;
+  row: number;
+}
+
+export type GridMapTokenSize = 'tiny' | 'medium' | 'large' | 'huge' | 'gargantuan';
+
+export interface GridMapToken extends GridMapPoint {
+  id: string;
+  name: string;
+  color: string;
+  size?: GridMapTokenSize;
+}
+
+export interface GridMapWall {
+  id: string;
+  start: GridMapPoint;
+  end: GridMapPoint;
+}
 
 export interface ToggleItem {
   name: string;
@@ -255,6 +276,17 @@ export interface WidgetData {
   gridEnabled?: boolean;
   gridSize?: number;
   corridorWidth?: number;
+  // Grid Map
+  gridMapTokens?: GridMapToken[];
+  gridMapWalls?: GridMapWall[];
+  gridMapGridType?: 'square' | 'hex';
+  gridMapGridSize?: number;
+  gridMapGridColor?: string;
+  gridMapWallColor?: string;
+  gridMapWallWidth?: number;
+  gridMapDefaultTokenColor?: string;
+  gridMapCellDistance?: number;
+  gridMapDistanceUnit?: string;
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;

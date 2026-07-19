@@ -28,6 +28,7 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
@@ -64,6 +65,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'REST_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
   'MAP_SKETCHER': { width: 100, height: 100 },
+  'GRID_MAP': { width: 260, height: 240 },
   'ROLL_TABLE': { width: 70, height: 30 },
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'DECK': { width: 70, height: 40 },
@@ -658,7 +660,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
-      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
+      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} sheetScale={scale} />;
+      case 'GRID_MAP': return <GridMapWidget {...props} sheetScale={scale} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
@@ -1369,7 +1372,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           )}
 
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
-          {mode === 'edit' && isSelected && (
+          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10"
               style={borderRadiusStyle}

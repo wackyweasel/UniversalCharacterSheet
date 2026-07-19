@@ -750,6 +750,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -776,8 +778,8 @@ export const useStore = create<StoreState>((set, get) => {
           const PADDING = 40;
           const searchLeft = Math.max(0, visibleLeft + PADDING);
           const searchTop = Math.max(0, visibleTop + PADDING);
-          const searchRight = visibleRight - PADDING - DEFAULT_WIDTH;
-          const searchBottom = visibleBottom - PADDING - DEFAULT_HEIGHT;
+          const searchRight = visibleRight - PADDING - newWidgetWidth;
+          const searchBottom = visibleBottom - PADDING - newWidgetHeight;
           
           // Search for first available position in visible area (left to right, top to bottom)
           let found = false;
@@ -788,7 +790,7 @@ export const useStore = create<StoreState>((set, get) => {
               const snappedX = Math.round(testX / GRID_SIZE) * GRID_SIZE;
               const snappedY = Math.round(testY / GRID_SIZE) * GRID_SIZE;
               
-              if (!overlapsWidget(snappedX, snappedY, DEFAULT_WIDTH, DEFAULT_HEIGHT)) {
+              if (!overlapsWidget(snappedX, snappedY, newWidgetWidth, newWidgetHeight)) {
                 finalX = snappedX;
                 finalY = snappedY;
                 found = true;
@@ -798,8 +800,8 @@ export const useStore = create<StoreState>((set, get) => {
           
           // If no space found in visible area, place at center of visible area
           if (!found) {
-            finalX = Math.round((visibleLeft + visibleWidth / 2 - DEFAULT_WIDTH / 2) / GRID_SIZE) * GRID_SIZE;
-            finalY = Math.round((visibleTop + visibleHeight / 2 - DEFAULT_HEIGHT / 2) / GRID_SIZE) * GRID_SIZE;
+            finalX = Math.round((visibleLeft + visibleWidth / 2 - newWidgetWidth / 2) / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((visibleTop + visibleHeight / 2 - newWidgetHeight / 2) / GRID_SIZE) * GRID_SIZE;
           }
         } else if (currentWidgets.length === 0) {
           // No widgets and no viewport - place in center of viewport (roughly)
@@ -843,6 +845,7 @@ export const useStore = create<StoreState>((set, get) => {
             'REST_BUTTON': 'Rest',
             'PROGRESS_BAR': 'Progress',
             'MAP_SKETCHER': 'Map',
+            'GRID_MAP': 'Grid Map',
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'DECK': 'Deck',
@@ -857,8 +860,8 @@ export const useStore = create<StoreState>((set, get) => {
           type,
           x: finalX,
           y: finalY,
-          w: DEFAULT_WIDTH,
-          h: DEFAULT_HEIGHT,
+          w: newWidgetWidth,
+          h: newWidgetHeight,
           data: {
             label: getDefaultLabel(type),
             value: 0,
@@ -868,7 +871,19 @@ export const useStore = create<StoreState>((set, get) => {
             ...(type === 'POOL' ? {
               poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
               showPoolCount: false,
-            } : {})
+            } : {}),
+            ...(type === 'GRID_MAP' ? {
+              gridMapTokens: [],
+              gridMapWalls: [],
+              gridMapGridType: 'square',
+              gridMapGridSize: 32,
+              gridMapGridColor: '#cbd5e1',
+              gridMapWallColor: '#334155',
+              gridMapWallWidth: 4,
+              gridMapDefaultTokenColor: '#2563eb',
+              gridMapCellDistance: 5,
+              gridMapDistanceUnit: 'ft',
+            } : {}),
           }
         };
 

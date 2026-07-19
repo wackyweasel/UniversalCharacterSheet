@@ -158,6 +158,7 @@ export default function VerticalWidget({
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'LIST': 'List',
     'MAP_SKETCHER': 'Map Sketcher',
+    'GRID_MAP': 'Grid Map',
     'NUMBER_DISPLAY': 'Number Display',
     'NUMBER': 'Number Tracker',
     'POOL': 'Resource Pool',

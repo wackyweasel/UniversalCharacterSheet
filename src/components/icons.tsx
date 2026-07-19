@@ -85,6 +85,55 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
+export function PointerIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 3l14 9-6 2-3 6L5 3z" />
+    </Base>
+  );
+}
+
+export function HandIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 11V6a1.5 1.5 0 0 1 3 0v4M10 10V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V11M16 11V8a1.5 1.5 0 0 1 3 0v5c0 5-3 8-7 8-3 0-5-1.5-6.5-4L3 13.5a1.6 1.6 0 0 1 2.5-2L7 13" />
+    </Base>
+  );
+}
+
+export function WallIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M3 6h18v12H3zM3 10h18M3 14h18M8 6v4M16 6v4M6 10v4M14 10v4M10 14v4M18 14v4" />
+    </Base>
+  );
+}
+
+export function RulerIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m4 15 11-11 5 5L9 20H4v-5z" />
+      <path d="m12 7 2 2M9 10l2 2M6 13l2 2M15 10l2 2" />
+    </Base>
+  );
+}
+
+export function EraserIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 21h10M4.5 16.5l9.8-12a2 2 0 0 1 2.9-.2l2.5 2.5a2 2 0 0 1-.2 2.9l-9.7 9.8a2 2 0 0 1-2.8 0l-2.5-2.5a2 2 0 0 1 0-2.5zM12 7l5 5" />
+    </Base>
+  );
+}
+
+export function UndoIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M9 7H3v6M3 13l4-4a8 8 0 1 1 1 11" />
+    </Base>
+  );
+}
+
 export function PlusIcon(props: IconProps) {
   return (
     <Base {...props}>

@@ -1,21 +1,34 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { PointerEvent as ReactPointerEvent, useState, useRef, useEffect, useCallback } from 'react';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
+import { EraserIcon, HandIcon, MinusIcon, PlusIcon, ResetIcon, TrashIcon, UndoIcon } from '../icons';
 
 interface Props {
   widget: Widget;
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  sheetScale?: number;
 }
 
-type Tool = 'free' | 'ellipse' | 'rectangle' | 'corridor' | 'auto' | 'eraser' | 'clearAll';
+type Tool = 'pan' | 'free' | 'ellipse' | 'rectangle' | 'corridor' | 'auto' | 'eraser';
 
 interface Point {
   x: number;
   y: number;
+}
+
+interface CanvasSize {
+  width: number;
+  height: number;
+}
+
+interface PanDrag {
+  pointerId: number;
+  pointerOrigin: Point;
+  panOrigin: Point;
 }
 
 interface Shape {
@@ -34,6 +47,15 @@ interface Shape {
 // Shape detection utilities
 function getDistance(p1: Point, p2: Point): number {
   return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+}
+
+function resolveSketchColor(color: string, themeInk: string) {
+  const normalized = color.trim().toLowerCase();
+  return normalized === '#333' || normalized === '#333333' ? themeInk : color;
+}
+
+function withCanvasAlpha(color: string, alpha: string) {
+  return /^#[0-9a-f]{6}$/i.test(color) ? `${color}${alpha}` : color;
 }
 
 // Draw an angled corridor (rectangle) given start and end center points
@@ -219,9 +241,13 @@ function detectShape(points: Point[]): 'ellipse' | 'rectangle' | 'corridor' | 'f
   return ellipseScore < rectScore * 2 ? 'ellipse' : 'rectangle';
 }
 
-export default function MapSketcherWidget({ widget, mode, width, height }: Props) {
+const MIN_MAP_ZOOM = 0.2;
+const MAX_MAP_ZOOM = 3;
+
+export default function MapSketcherWidget({ widget, mode, sheetScale = 1 }: Props) {
   const { label, mapShapes = [], strokeColor = '#333333', strokeWidth = 2, gridEnabled = true, gridSize = 20, corridorWidth = 10 } = widget.data;
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const [themeRevision, setThemeRevision] = useState(0);
   
   const [shapes, setShapes] = useState<Shape[]>(mapShapes as Shape[]);
   const [currentTool, setCurrentTool] = useState<Tool>('auto');
@@ -229,11 +255,13 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
   const [currentPoints, setCurrentPoints] = useState<Point[]>([]);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasShellRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState<CanvasSize>({ width: 1, height: 1 });
   
   // Pan and zoom state
   const [panOffset, setPanOffset] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [panDrag, setPanDrag] = useState<PanDrag | null>(null);
   
   // Clear all confirmation state
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -243,40 +271,93 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
   
   // Eraser state - track shapes erased in current stroke for undo
   const [isErasing, setIsErasing] = useState(false);
-  const [erasedInStroke, setErasedInStroke] = useState<Shape[]>([]);
+  const erasedInStrokeRef = useRef<Shape[]>([]);
   const shapesBeforeEraseRef = useRef<Shape[] | null>(null);
+  const activePointerRef = useRef<number | null>(null);
+
+  const releaseActivePointer = useCallback(() => {
+    const canvas = canvasRef.current;
+    const pointerId = activePointerRef.current;
+    if (canvas && pointerId !== null && canvas.hasPointerCapture(pointerId)) {
+      canvas.releasePointerCapture(pointerId);
+    }
+    activePointerRef.current = null;
+  }, []);
 
   useTouchCameraPinchCancellation(() => {
+    if (panDrag) setPanOffset(panDrag.panOrigin);
+    releaseActivePointer();
     setIsDrawing(false);
     setCurrentPoints([]);
     setStartPoint(null);
     setIsErasing(false);
-    setErasedInStroke([]);
+    erasedInStrokeRef.current = [];
     if (shapesBeforeEraseRef.current) {
       setShapes(shapesBeforeEraseRef.current);
       shapesBeforeEraseRef.current = null;
     }
+    setPanDrag(null);
   });
 
+  useEffect(() => {
+    const observer = new MutationObserver(() => setThemeRevision((revision) => revision + 1));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    return () => observer.disconnect();
+  }, []);
+
   const tools: { tool: Tool; icon: React.ReactNode; label: string }[] = [
+    { tool: 'pan', icon: <HandIcon className="w-4 h-4" />, label: 'Pan map' },
     { tool: 'auto', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>, label: 'Auto Detect' },
     { tool: 'free', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>, label: 'Free Draw' },
     { tool: 'rectangle', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>, label: 'Rectangle' },
     { tool: 'ellipse', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="12" rx="10" ry="8"/></svg>, label: 'Ellipse' },
     { tool: 'corridor', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h16v6H4z"/></svg>, label: 'Corridor' },
-    { tool: 'eraser', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>, label: 'Eraser' },
-    { tool: 'clearAll', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>, label: 'Clear All' },
+    { tool: 'eraser', icon: <EraserIcon className="w-4 h-4" />, label: 'Erase shape' },
   ];
   
   // Navigation functions
-  const panAmount = 50;
-  const panLeft = () => setPanOffset(p => ({ ...p, x: p.x + panAmount }));
-  const panRight = () => setPanOffset(p => ({ ...p, x: p.x - panAmount }));
-  const panUp = () => setPanOffset(p => ({ ...p, y: p.y + panAmount }));
-  const panDown = () => setPanOffset(p => ({ ...p, y: p.y - panAmount }));
-  const zoomIn = () => setZoom(z => Math.min(z * 1.25, 4));
-  const zoomOut = () => setZoom(z => Math.max(z / 1.25, 0.25));
+  const screenToWorld = useCallback((point: Point): Point => ({
+    x: (point.x - panOffset.x) / zoom,
+    y: (point.y - panOffset.y) / zoom,
+  }), [panOffset.x, panOffset.y, zoom]);
+
+  const setZoomAroundPoint = useCallback((nextZoom: number, anchor: Point) => {
+    const clampedZoom = Math.max(MIN_MAP_ZOOM, Math.min(MAX_MAP_ZOOM, nextZoom));
+    const worldAnchor = screenToWorld(anchor);
+    setZoom(clampedZoom);
+    setPanOffset({
+      x: anchor.x - worldAnchor.x * clampedZoom,
+      y: anchor.y - worldAnchor.y * clampedZoom,
+    });
+  }, [screenToWorld]);
+
+  const zoomBy = (factor: number) => {
+    setZoomAroundPoint(zoom * factor, { x: canvasSize.width / 2, y: canvasSize.height / 2 });
+  };
+  const zoomIn = () => zoomBy(1.2);
+  const zoomOut = () => zoomBy(1 / 1.2);
   const resetView = () => { setPanOffset({ x: 0, y: 0 }); setZoom(1); };
+
+  const handleWheel = useCallback((event: WheelEvent) => {
+    if (mode === 'edit' || mode === 'print') return;
+    event.preventDefault();
+    event.stopPropagation();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const point = {
+      x: (event.clientX - rect.left) * (canvasSize.width / rect.width),
+      y: (event.clientY - rect.top) * (canvasSize.height / rect.height),
+    };
+    setZoomAroundPoint(zoom * Math.exp(-event.deltaY * 0.0015), point);
+  }, [canvasSize.height, canvasSize.width, mode, setZoomAroundPoint, zoom]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   // Save shapes to widget data when they change
   useEffect(() => {
@@ -291,8 +372,22 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const physicalScale = Math.max(1, window.devicePixelRatio * sheetScale);
+    const backingWidth = Math.max(1, Math.round(canvasSize.width * physicalScale));
+    const backingHeight = Math.max(1, Math.round(canvasSize.height * physicalScale));
+    if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+      canvas.width = backingWidth;
+      canvas.height = backingHeight;
+    }
+    canvas.style.width = `${canvasSize.width}px`;
+    canvas.style.height = `${canvasSize.height}px`;
+    ctx.setTransform(physicalScale, 0, 0, physicalScale, 0, 0);
+    ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
+
+    const styles = getComputedStyle(canvas);
+    const themeInk = styles.getPropertyValue('--color-ink').trim() || '#111827';
+    ctx.fillStyle = styles.getPropertyValue('--color-paper').trim() || '#ffffff';
+    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
     
     // Apply pan and zoom transform
     ctx.save();
@@ -301,13 +396,14 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
 
     // Draw grid if enabled
     if (gridEnabled) {
-      ctx.strokeStyle = '#ddd';
+      ctx.strokeStyle = styles.getPropertyValue('--color-border').trim() || '#cbd5e1';
+      ctx.globalAlpha = 0.58;
       ctx.lineWidth = 0.5 / zoom;
       // Extend grid to cover panned/zoomed area
       const startX = Math.floor(-panOffset.x / zoom / gridSize) * gridSize;
       const startY = Math.floor(-panOffset.y / zoom / gridSize) * gridSize;
-      const endX = startX + canvas.width / zoom + gridSize * 2;
-      const endY = startY + canvas.height / zoom + gridSize * 2;
+      const endX = startX + canvasSize.width / zoom + gridSize * 2;
+      const endY = startY + canvasSize.height / zoom + gridSize * 2;
       
       for (let x = startX; x <= endX; x += gridSize) {
         ctx.beginPath();
@@ -321,13 +417,15 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
         ctx.lineTo(endX, y);
         ctx.stroke();
       }
+      ctx.globalAlpha = 1;
     }
 
     // Draw all shapes
     for (const shape of shapes) {
-      ctx.strokeStyle = shape.color;
+      const shapeColor = resolveSketchColor(shape.color, themeInk);
+      ctx.strokeStyle = shapeColor;
       ctx.lineWidth = shape.strokeWidth;
-      ctx.fillStyle = shape.color + '20'; // Semi-transparent fill
+      ctx.fillStyle = withCanvasAlpha(shapeColor, '20');
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -364,7 +462,8 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
 
     // Draw current drawing in progress
     if (isDrawing && currentPoints.length > 0) {
-      ctx.strokeStyle = strokeColor;
+      const activeStrokeColor = resolveSketchColor(strokeColor, themeInk);
+      ctx.strokeStyle = activeStrokeColor;
       ctx.lineWidth = strokeWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -382,7 +481,7 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
         const y = Math.min(startPoint.y, lastPoint.y);
         const w = Math.abs(lastPoint.x - startPoint.x);
         const h = Math.abs(lastPoint.y - startPoint.y);
-        ctx.fillStyle = strokeColor + '20';
+        ctx.fillStyle = withCanvasAlpha(activeStrokeColor, '20');
         ctx.beginPath();
         ctx.rect(x, y, w, h);
         ctx.fill();
@@ -393,14 +492,14 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
         const y = Math.min(startPoint.y, lastPoint.y);
         const w = Math.abs(lastPoint.x - startPoint.x);
         const h = Math.abs(lastPoint.y - startPoint.y);
-        ctx.fillStyle = strokeColor + '20';
+        ctx.fillStyle = withCanvasAlpha(activeStrokeColor, '20');
         ctx.beginPath();
         ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       } else if (currentTool === 'corridor' && startPoint && currentPoints.length > 0) {
         const lastPoint = currentPoints[currentPoints.length - 1];
-        ctx.fillStyle = strokeColor + '20';
+        ctx.fillStyle = withCanvasAlpha(activeStrokeColor, '20');
         drawCorridor(ctx, startPoint, lastPoint, corridorWidth);
         ctx.fill();
         ctx.stroke();
@@ -409,62 +508,38 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     
     // Restore context after transforms
     ctx.restore();
-  }, [shapes, currentPoints, isDrawing, currentTool, strokeColor, strokeWidth, gridEnabled, gridSize, startPoint, corridorWidth, panOffset, zoom]);
+  }, [canvasSize.height, canvasSize.width, shapes, currentPoints, isDrawing, currentTool, strokeColor, strokeWidth, gridEnabled, gridSize, startPoint, corridorWidth, panOffset, sheetScale, themeRevision, zoom]);
 
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
 
-  // Resize canvas when widget size changes
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (canvas && container) {
-      // Toolbar is hidden in print mode, so no height reservation needed
-      const toolbarHeight = mode === 'print' ? 0 : 32;
-      const labelHeight = label ? 20 : 0;
-      // Use container's actual width for responsive sizing
-      const containerWidth = container.clientWidth;
-      const canvasWidth = Math.max(containerWidth - 8, 100);
-      const canvasHeight = Math.max(height - toolbarHeight - labelHeight - 12, 100);
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
-      // Also set CSS size to match internal size for 1:1 pixel mapping
-      canvas.style.width = `${canvasWidth}px`;
-      canvas.style.height = `${canvasHeight}px`;
-      drawCanvas();
-    }
-  }, [width, height, label, drawCanvas, mode]);
+    const shell = canvasShellRef.current;
+    if (!shell) return;
+    const updateSize = () => setCanvasSize({
+      width: Math.max(1, shell.clientWidth),
+      height: Math.max(1, shell.clientHeight),
+    });
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
 
-  const getCanvasPoint = (e: React.MouseEvent | React.TouchEvent): Point => {
+  const getCanvasScreenPoint = useCallback((event: ReactPointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    
     const rect = canvas.getBoundingClientRect();
-    let clientX: number, clientY: number;
-    
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    // Account for any scaling difference between canvas internal size and display size
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    // Convert screen coordinates to canvas coordinates, then to world coordinates (accounting for pan/zoom)
-    const canvasX = (clientX - rect.left) * scaleX;
-    const canvasY = (clientY - rect.top) * scaleY;
-    
-    // Convert to world coordinates by reversing the pan and zoom transforms
     return {
-      x: (canvasX - panOffset.x) / zoom,
-      y: (canvasY - panOffset.y) / zoom
+      x: (event.clientX - rect.left) * (canvasSize.width / rect.width),
+      y: (event.clientY - rect.top) * (canvasSize.height / rect.height),
     };
-  };
+  }, [canvasSize.height, canvasSize.width]);
+
+  const getCanvasPoint = useCallback((event: ReactPointerEvent<HTMLCanvasElement>): Point => (
+    screenToWorld(getCanvasScreenPoint(event))
+  ), [getCanvasScreenPoint, screenToWorld]);
 
   // Hit detection for eraser tool
   const findShapeAtPoint = (point: Point): string | null => {
@@ -527,50 +602,65 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     return null;
   };
 
-  const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
-    if (mode === 'edit') return; // Don't draw in edit mode
-    e.stopPropagation();
-    
-    if (currentTool === 'clearAll') {
-      if (shapes.length > 0) {
-        setShowClearConfirm(true);
-      }
+  const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (mode !== 'play' || (event.button !== 0 && event.button !== 1)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    activePointerRef.current = event.pointerId;
+
+    const screenPoint = getCanvasScreenPoint(event);
+    if (currentTool === 'pan' || event.button === 1) {
+      setPanDrag({ pointerId: event.pointerId, pointerOrigin: screenPoint, panOrigin: panOffset });
       return;
     }
     
     if (currentTool === 'eraser') {
       shapesBeforeEraseRef.current = shapes;
       setIsErasing(true);
-      setErasedInStroke([]);
-      const point = getCanvasPoint(e);
+      erasedInStrokeRef.current = [];
+      const point = getCanvasPoint(event);
       const shapeId = findShapeAtPoint(point);
       if (shapeId) {
         const erasedShape = shapes.find(s => s.id === shapeId);
         if (erasedShape) {
-          setErasedInStroke([erasedShape]);
+          erasedInStrokeRef.current = [erasedShape];
           setShapes(prev => prev.filter(s => s.id !== shapeId));
         }
       }
       return;
     }
     
-    const point = getCanvasPoint(e);
+    const point = getCanvasPoint(event);
     setIsDrawing(true);
     setStartPoint(point);
     setCurrentPoints([point]);
   };
 
-  const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
+  const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (mode !== 'play') return;
+
+    if (panDrag?.pointerId === event.pointerId) {
+      event.preventDefault();
+      event.stopPropagation();
+      const point = getCanvasScreenPoint(event);
+      setPanOffset({
+        x: panDrag.panOrigin.x + point.x - panDrag.pointerOrigin.x,
+        y: panDrag.panOrigin.y + point.y - panDrag.pointerOrigin.y,
+      });
+      return;
+    }
+
+    event.stopPropagation();
     
     // Handle eraser dragging
     if (isErasing && currentTool === 'eraser') {
-      const point = getCanvasPoint(e);
+      const point = getCanvasPoint(event);
       const shapeId = findShapeAtPoint(point);
       if (shapeId) {
         const erasedShape = shapes.find(s => s.id === shapeId);
-        if (erasedShape) {
-          setErasedInStroke(prev => [...prev, erasedShape]);
+        if (erasedShape && !erasedInStrokeRef.current.some((shape) => shape.id === shapeId)) {
+          erasedInStrokeRef.current.push(erasedShape);
           setShapes(prev => prev.filter(s => s.id !== shapeId));
         }
       }
@@ -579,31 +669,42 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     
     if (!isDrawing) return;
     
-    const point = getCanvasPoint(e);
+    const point = getCanvasPoint(event);
     setCurrentPoints(prev => [...prev, point]);
   };
 
-  const handlePointerUp = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
+  const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    event.stopPropagation();
+
+    if (panDrag?.pointerId === event.pointerId) {
+      setPanDrag(null);
+      releaseActivePointer();
+      return;
+    }
     
     // Finish erasing - add to undo history
     if (isErasing) {
       setIsErasing(false);
-      if (erasedInStroke.length > 0) {
-        setUndoHistory(prev => [...prev, { type: 'erase', shapes: erasedInStroke }]);
+      if (erasedInStrokeRef.current.length > 0) {
+        setUndoHistory(prev => [...prev, { type: 'erase', shapes: [...erasedInStrokeRef.current] }]);
       }
-      setErasedInStroke([]);
+      erasedInStrokeRef.current = [];
       shapesBeforeEraseRef.current = null;
+      releaseActivePointer();
       return;
     }
     
-    if (!isDrawing) return;
+    if (!isDrawing) {
+      releaseActivePointer();
+      return;
+    }
     
     setIsDrawing(false);
     
     if (currentPoints.length < 2) {
       setCurrentPoints([]);
       setStartPoint(null);
+      releaseActivePointer();
       return;
     }
 
@@ -689,16 +790,24 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     setUndoHistory(prev => [...prev, { type: 'add', shapes: [newShape] }]);
     setCurrentPoints([]);
     setStartPoint(null);
+    releaseActivePointer();
+  };
+
+  const cancelPointerGesture = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (panDrag?.pointerId === event.pointerId) setPanOffset(panDrag.panOrigin);
+    if (shapesBeforeEraseRef.current) setShapes(shapesBeforeEraseRef.current);
+    setPanDrag(null);
+    setIsDrawing(false);
+    setCurrentPoints([]);
+    setStartPoint(null);
+    setIsErasing(false);
+    erasedInStrokeRef.current = [];
+    shapesBeforeEraseRef.current = null;
+    releaseActivePointer();
   };
 
   const handleToolSelect = (tool: Tool) => {
-    if (tool === 'clearAll') {
-      if (shapes.length > 0) {
-        setShowClearConfirm(true);
-      }
-    } else {
-      setCurrentTool(tool);
-    }
+    setCurrentTool(tool);
   };
   
   const confirmClearAll = () => {
@@ -725,8 +834,12 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
     }
   };
 
+  const toolButtonClass = (active: boolean, disabled = false) => `w-7 h-7 flex items-center justify-center border border-theme-border rounded-button transition-colors ${
+    active ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper text-theme-ink hover:bg-theme-background'
+  } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`;
+
   return (
-    <div ref={containerRef} className="flex flex-col w-full h-full gap-1 relative">
+    <div className="flex flex-col w-full h-full min-h-0 gap-1 relative">
       {label && (
         <div className="widget-header flex-shrink-0">
           <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
@@ -760,71 +873,67 @@ export default function MapSketcherWidget({ widget, mode, width, height }: Props
 
       {/* Toolbar - hidden in print mode */}
       {mode !== 'print' && (
-        <div className="flex gap-1 justify-center flex-wrap flex-shrink-0 px-1">
+        <div role="toolbar" aria-label="Map sketcher tools" className="mx-1 flex flex-shrink-0 flex-wrap items-center justify-center gap-1 rounded-button border border-theme-border bg-theme-background/80 p-1 shadow-sm">
           {tools.map(({ tool, icon, label: toolLabel }) => (
             <Tooltip key={tool} content={toolLabel}>
               <button
+                type="button"
+                aria-label={toolLabel}
+                aria-pressed={currentTool === tool}
                 onClick={() => handleToolSelect(tool)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className={`p-1 text-xs border border-theme-border rounded-button transition-all ${
-                  currentTool === tool && tool !== 'clearAll'
-                    ? 'bg-theme-accent text-theme-paper'
-                    : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-                }`}
+                onPointerDown={(event) => event.stopPropagation()}
+                className={toolButtonClass(currentTool === tool)}
               >
                 {icon}
               </button>
             </Tooltip>
           ))}
-          {undoHistory.length > 0 && (
-            <Tooltip content="Undo">
-              <button
-                onClick={undoLastShape}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip content="Undo last shape">
+            <button type="button" aria-label="Undo last shape" disabled={undoHistory.length === 0} onClick={undoLastShape} onPointerDown={(event) => event.stopPropagation()} className={toolButtonClass(false, undoHistory.length === 0)}>
+              <UndoIcon className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Clear sketch">
+            <button type="button" aria-label="Clear sketch" disabled={shapes.length === 0} onClick={() => setShowClearConfirm(true)} onPointerDown={(event) => event.stopPropagation()} className={toolButtonClass(false, shapes.length === 0)}>
+              <TrashIcon className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       )}
 
       {/* Canvas */}
-      <div className="flex-1 border border-theme-border rounded-theme overflow-hidden bg-white mx-1 mb-1 relative">
+      <div ref={canvasShellRef} className="relative min-h-0 flex-1 overflow-hidden rounded-theme border border-theme-border bg-theme-paper mx-1 mb-1">
         <canvas
           ref={canvasRef}
-          onMouseDown={handlePointerDown}
-          onMouseMove={handlePointerMove}
-          onMouseUp={handlePointerUp}
-          onMouseLeave={handlePointerUp}
-          onTouchStart={handlePointerDown}
-          onTouchMove={handlePointerMove}
-          onTouchEnd={handlePointerUp}
-          className="touch-none cursor-crosshair"
-          style={{ display: 'block' }}
+          tabIndex={mode === 'play' ? 0 : -1}
+          aria-label={`Map sketcher with ${shapes.length} shape${shapes.length === 1 ? '' : 's'}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={cancelPointerGesture}
+          onContextMenu={(event) => event.preventDefault()}
+          className={`block touch-none outline-none focus-visible:ring-2 focus-visible:ring-theme-accent focus-visible:ring-inset ${
+            mode !== 'play' ? 'cursor-default' : currentTool === 'pan' || panDrag ? 'cursor-grab active:cursor-grabbing' : currentTool === 'eraser' ? 'cursor-cell' : 'cursor-crosshair'
+          }`}
         />
         
         {/* Navigation controls - bottom right - hidden in print mode */}
         {mode !== 'print' && (
-          <div className="absolute bottom-2 right-2 flex gap-1 items-end">
-            {/* Arrow cross */}
-            <div className="grid grid-cols-3 gap-0.5">
-              <div />
-              <Tooltip content="Pan Up"><button onClick={panUp} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">▲</button></Tooltip>
-              <div />
-              <Tooltip content="Pan Left"><button onClick={panLeft} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">◀</button></Tooltip>
-              <Tooltip content="Reset View"><button onClick={resetView} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">⟲</button></Tooltip>
-              <Tooltip content="Pan Right"><button onClick={panRight} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">▶</button></Tooltip>
-              <div />
-              <Tooltip content="Pan Down"><button onClick={panDown} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">▼</button></Tooltip>
-              <div />
-            </div>
-            {/* Zoom vertical */}
-            <div className="flex flex-col gap-0.5">
-              <Tooltip content="Zoom In"><button onClick={zoomIn} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">+</button></Tooltip>
-              <Tooltip content="Zoom Out"><button onClick={zoomOut} onMouseDown={(e) => e.stopPropagation()} className="p-1 text-xs border border-theme-border rounded-button bg-theme-paper/90 text-theme-ink hover:bg-theme-accent hover:text-theme-paper">−</button></Tooltip>
-            </div>
+          <div className="absolute bottom-2 right-2 z-10 flex h-8 items-center overflow-hidden rounded-button border border-theme-border bg-theme-paper/95 shadow-theme backdrop-blur-sm" onPointerDown={(event) => event.stopPropagation()}>
+            <Tooltip content="Zoom out">
+              <button type="button" aria-label="Zoom sketch out" onClick={zoomOut} className="flex h-8 w-8 items-center justify-center text-theme-ink hover:bg-theme-background">
+                <MinusIcon className="h-4 w-4" />
+              </button>
+            </Tooltip>
+            <button type="button" aria-label="Reset sketch view" onClick={resetView} className="flex h-8 min-w-12 items-center justify-center gap-1 border-x border-theme-border px-1.5 text-[10px] font-semibold tabular-nums text-theme-ink hover:bg-theme-background">
+              <ResetIcon className="h-3.5 w-3.5" />
+              {Math.round(zoom * 100)}%
+            </button>
+            <Tooltip content="Zoom in">
+              <button type="button" aria-label="Zoom sketch in" onClick={zoomIn} className="flex h-8 w-8 items-center justify-center text-theme-ink hover:bg-theme-background">
+                <PlusIcon className="h-4 w-4" />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>

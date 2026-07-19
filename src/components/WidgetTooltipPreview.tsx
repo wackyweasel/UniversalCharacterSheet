@@ -18,6 +18,7 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
@@ -354,6 +355,31 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       ],
     },
   },
+  GRID_MAP: {
+    id: 'preview-grid-map',
+    type: 'GRID_MAP',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 180,
+    locked: true,
+    data: {
+      label: 'Grid Map',
+      gridMapGridSize: 28,
+      gridMapGridColor: '#cbd5e1',
+      gridMapWallColor: '#334155',
+      gridMapWallWidth: 4,
+      gridMapDefaultTokenColor: '#2563eb',
+      gridMapTokens: [
+        { id: 'token-1', name: 'Hero', column: 2, row: 2, color: '#2563eb' },
+        { id: 'token-2', name: 'Guard', column: 5, row: 3, color: '#dc2626' },
+      ],
+      gridMapWalls: [
+        { id: 'wall-1', start: { column: 1, row: 1 }, end: { column: 6, row: 1 } },
+        { id: 'wall-2', start: { column: 6, row: 1 }, end: { column: 6, row: 5 } },
+      ],
+    },
+  },
   ROLL_TABLE: {
     id: 'preview-roll-table',
     type: 'ROLL_TABLE',
@@ -483,6 +509,7 @@ function renderWidget(widget: Widget) {
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
     case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
+    case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
     case 'DECK': return <DeckWidget {...props} />;

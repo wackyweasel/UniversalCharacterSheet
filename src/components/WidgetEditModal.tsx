@@ -25,6 +25,7 @@ import {
   TableEditor,
   RestButtonEditor,
   MapSketcherEditor,
+  GridMapEditor,
   RollTableEditor,
   InitiativeTrackerEditor,
   DeckEditor,
@@ -51,6 +52,7 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
@@ -94,6 +96,7 @@ function getWidgetTitle(type: WidgetType): string {
     'REST_BUTTON': 'Rest Button',
     'PROGRESS_BAR': 'Progress Bar',
     'MAP_SKETCHER': 'Map Sketcher',
+    'GRID_MAP': 'Grid Map',
     'ROLL_TABLE': 'Roll Table',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'DECK': 'Deck of Cards',
@@ -151,6 +154,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
+      case 'GRID_MAP': return <GridMapEditor {...editorProps} />;
       case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
       case 'DECK': return <DeckEditor {...editorProps} />;
@@ -227,6 +231,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
+      case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;

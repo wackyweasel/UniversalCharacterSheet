@@ -17,6 +17,7 @@ export { TimeTrackerEditor } from './TimeTrackerEditor';
 export { TableEditor } from './TableEditor';
 export { RestButtonEditor } from './RestButtonEditor';
 export { MapSketcherEditor } from './MapSketcherEditor';
+export { GridMapEditor } from './GridMapEditor';
 export { RollTableEditor } from './RollTableEditor';
 export { InitiativeTrackerEditor } from './InitiativeTrackerEditor';
 export { DeckEditor } from './DeckEditor';

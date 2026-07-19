@@ -38,6 +38,7 @@ const WIDGET_OPTIONS: { type: WidgetType; label: string; category: WidgetCategor
   { type: 'NUMBER_DISPLAY', label: 'Number display', category: 'Reference & utilities', keywords: 'formula calculated total' },
   { type: 'TABLE', label: 'Table', category: 'Reference & utilities', keywords: 'grid reference data' },
   { type: 'MAP_SKETCHER', label: 'Map sketcher', category: 'Reference & utilities', keywords: 'draw map diagram' },
+  { type: 'GRID_MAP', label: 'Grid map', category: 'Reference & utilities', keywords: 'battle vtt tokens walls tactical' },
 ];
 
 const WIDGET_CATEGORIES: WidgetCategory[] = ['Essentials', 'Track & manage', 'Roll & resolve', 'Reference & utilities'];

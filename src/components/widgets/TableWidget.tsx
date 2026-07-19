@@ -855,10 +855,11 @@ export default function TableWidget({ widget, height }: Props) {
   // Fixed small sizing
   const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
+  const showHeader = !!label || (!isPrintMode && showTableEditButton);
   
   // Calculate table area height
-  const labelHeight = 16;
-  const gapSize = 4;
+  const labelHeight = showHeader ? 16 : 0;
+  const gapSize = showHeader ? 4 : 0;
   const padding = 0;
   const tableHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
@@ -1410,7 +1411,7 @@ export default function TableWidget({ widget, height }: Props) {
 
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
-      {(label || !isPrintMode) && (
+      {showHeader && (
         <div className="widget-header flex-shrink-0">
           {label && (
             <div className="widget-header-title min-w-0 flex-1 truncate">
@@ -1644,6 +1645,10 @@ export default function TableWidget({ widget, height }: Props) {
                             autoFocus
                             rows={1}
                             value={cellValue}
+                            onFocus={(event) => {
+                              const end = event.currentTarget.value.length;
+                              event.currentTarget.setSelectionRange(end, end);
+                            }}
                             onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
                             readOnly={!!cellFml}
                             onBlur={() => setEditingCell(null)}
@@ -1676,6 +1681,9 @@ export default function TableWidget({ widget, height }: Props) {
                             className={`absolute inset-0 block w-full min-w-0 h-full bg-transparent border-0 p-0 resize-none overflow-hidden focus:outline-none text-[10px] leading-[1.5] whitespace-pre-wrap break-words ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
                             style={{ textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
                             onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
                           />
                         )}
                       </div>
