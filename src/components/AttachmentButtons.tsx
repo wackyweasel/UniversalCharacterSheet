@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 import { Link2, Unlink2 } from 'lucide-react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
@@ -36,13 +36,12 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
   const attachWidgets = useStore((state) => state.attachWidgets);
   const detachWidgets = useStore((state) => state.detachWidgets);
   const selectedWidgetId = useStore((state) => state.selectedWidgetId);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+  const [widgetSizes, setWidgetSizes] = useState<Record<string, { width: number; height: number }>>({});
   const activeWidgetId = selectedWidgetId || hoveredWidgetId;
 
-  // Create a key based on widget positions to detect when they change
-  const positionKey = widgets.map(w => `${w.id}:${w.x}:${w.y}:${w.groupId || ''}`).join('|');
+  const widgetIdsKey = widgets.map(widget => widget.id).join('|');
 
   // Detect when dragging starts/stops by watching for react-draggable-dragging class
   useEffect(() => {
@@ -75,40 +74,54 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
     return () => document.removeEventListener('mouseover', handleMouseOver);
   }, []);
 
-  // Refresh bounds calculation when widgets change position or scale changes
-  useEffect(() => {
-    // Small delay to allow DOM to update after widget movement
-    const timer = setTimeout(() => {
-      setRefreshKey(k => k + 1);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [positionKey, scale]);
+  useLayoutEffect(() => {
+    const elements = widgets
+      .map(widget => document.querySelector(`[data-widget-id="${widget.id}"]`) as HTMLElement | null)
+      .filter((element): element is HTMLElement => element !== null);
 
-  // Calculate widget bounds from DOM
+    const measureWidgets = () => {
+      const nextSizes: Record<string, { width: number; height: number }> = {};
+      for (const element of elements) {
+        const id = element.dataset.widgetId;
+        if (id) nextSizes[id] = { width: element.offsetWidth, height: element.offsetHeight };
+      }
+
+      setWidgetSizes(currentSizes => {
+        const ids = Object.keys(nextSizes);
+        const unchanged = ids.length === Object.keys(currentSizes).length && ids.every(id =>
+          currentSizes[id]?.width === nextSizes[id].width && currentSizes[id]?.height === nextSizes[id].height
+        );
+        return unchanged ? currentSizes : nextSizes;
+      });
+    };
+
+    measureWidgets();
+    const observer = new ResizeObserver(measureWidgets);
+    elements.forEach(element => observer.observe(element));
+    return () => observer.disconnect();
+  }, [widgetIdsKey]);
+
+  // Calculate widget bounds in the same logical coordinate space as stored positions.
   const widgetBounds = useMemo(() => {
     const bounds: WidgetBounds[] = [];
     
     widgets.forEach(widget => {
-      const el = document.querySelector(`[data-widget-id="${widget.id}"]`) as HTMLElement;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        // Convert screen coordinates to canvas coordinates
-        // Note: The positions are stored in canvas space already
+      const size = widgetSizes[widget.id];
+      if (size) {
         bounds.push({
           id: widget.id,
           groupId: widget.groupId,
           attachedTo: widget.attachedTo,
           left: widget.x,
-          right: widget.x + rect.width / scale,
+          right: widget.x + size.width,
           top: widget.y,
-          bottom: widget.y + rect.height / scale,
+          bottom: widget.y + size.height,
         });
       }
     });
     
     return bounds;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgets, scale, refreshKey]);
+  }, [widgets, widgetSizes]);
 
   // Find all touching edges
   const touchingEdges = useMemo(() => {
@@ -219,6 +232,34 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
           : edge.widget1Id;
       const targetWidgetId = sourceWidgetId === edge.widget1Id ? edge.widget2Id : edge.widget1Id;
 
+      const attachEdge = (edgeToAttach: TouchingEdge, alignTarget: boolean) => {
+        const edgeSourceId = sourceIds.has(edgeToAttach.widget1Id)
+          ? edgeToAttach.widget1Id
+          : edgeToAttach.widget2Id;
+        const edgeTargetId = edgeSourceId === edgeToAttach.widget1Id
+          ? edgeToAttach.widget2Id
+          : edgeToAttach.widget1Id;
+
+        let widget2Delta = { x: 0, y: 0 };
+        if (alignTarget) {
+          const widget1 = widgetBounds.find(widget => widget.id === edgeToAttach.widget1Id);
+          const widget2 = widgetBounds.find(widget => widget.id === edgeToAttach.widget2Id);
+          if (widget1 && widget2) {
+            switch (edgeToAttach.direction) {
+              case 'right': widget2Delta.x = widget1.right - widget2.left; break;
+              case 'left': widget2Delta.x = widget1.left - widget2.right; break;
+              case 'down': widget2Delta.y = widget1.bottom - widget2.top; break;
+              case 'up': widget2Delta.y = widget1.top - widget2.bottom; break;
+            }
+          }
+        }
+
+        const targetDelta = edgeTargetId === edgeToAttach.widget2Id
+          ? widget2Delta
+          : { x: -widget2Delta.x, y: -widget2Delta.y };
+        attachWidgets(edgeSourceId, edgeTargetId, targetDelta);
+      };
+
       const sourceIds = new Set(getClusterIds(sourceWidgetId));
       const targetIds = new Set(getClusterIds(targetWidgetId));
 
@@ -230,12 +271,14 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
       });
 
       if (edgesToAttach.length === 0) {
-        attachWidgets(edge.widget1Id, edge.widget2Id);
+        attachEdge(edge, true);
         return;
       }
 
-      for (const e of edgesToAttach) {
-        attachWidgets(e.widget1Id, e.widget2Id);
+      attachEdge(edge, true);
+      for (const edgeToAttach of edgesToAttach) {
+        const isSelectedEdge = edgeToAttach.widget1Id === edge.widget1Id && edgeToAttach.widget2Id === edge.widget2Id;
+        if (!isSelectedEdge) attachEdge(edgeToAttach, false);
       }
     }
   };

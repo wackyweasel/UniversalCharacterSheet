@@ -354,9 +354,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
-    // Get current width and height
-    const currentWidth = widget.w || 200;
-    const currentHeight = widget.h || 120;
+    // Start from the rendered logical size so auto-sized widgets do not jump on first resize.
+    const currentWidth = nodeRef.current?.offsetWidth || widget.w || 200;
+    const currentHeight = nodeRef.current?.offsetHeight || widget.h || 120;
     
     resizeStartRef.current = {
       mouseX: clientX,

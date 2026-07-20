@@ -189,7 +189,7 @@ interface StoreState {
   moveWidgetToSheet: (widgetId: string, targetSheetId: string) => void;
   
   // Widget Group Actions (for snap+attach)
-  attachWidgets: (widgetId1: string, widgetId2: string) => void;
+  attachWidgets: (widgetId1: string, widgetId2: string, targetDelta?: { x: number; y: number }) => void;
   detachWidgets: (widgetId1: string, widgetId2: string) => void;
   getWidgetsInGroup: (groupId: string) => Widget[];
   moveWidgetGroup: (widgetId: string, deltaX: number, deltaY: number) => void;
@@ -1457,7 +1457,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     // Attach two widgets together (create or merge groups)
-    attachWidgets: (widgetId1, widgetId2) => {
+    attachWidgets: (widgetId1, widgetId2, targetDelta = { x: 0, y: 0 }) => {
       // Take snapshot before attaching
       get()._takeSnapshot('Attach widgets');
       
@@ -1474,8 +1474,8 @@ export const useStore = create<StoreState>((set, get) => {
             
             if (!widget1 || !widget2) return c;
             
-            // Check if already attached
-            if (widget1.attachedTo?.includes(widgetId2)) return c;
+            // Check if already attached in both directions
+            if (widget1.attachedTo?.includes(widgetId2) && widget2.attachedTo?.includes(widgetId1)) return c;
 
             recordStoreEvent(state, {
               eventName: 'widgets_attached',
@@ -1491,24 +1491,11 @@ export const useStore = create<StoreState>((set, get) => {
             
             // Determine the group ID to use
             let newGroupId: string;
+            let oldGroupId: string | undefined;
             if (widget1.groupId && widget2.groupId && widget1.groupId !== widget2.groupId) {
               // Both have different groups - merge widget2's group into widget1's
               newGroupId = widget1.groupId;
-              const oldGroupId = widget2.groupId;
-              return updateActiveSheetWidgets(c, widgets => 
-                widgets.map(w => {
-                  if (w.groupId === oldGroupId) {
-                    return { ...w, groupId: newGroupId };
-                  }
-                  if (w.id === widgetId1) {
-                    return { ...w, attachedTo: [...(w.attachedTo || []), widgetId2] };
-                  }
-                  if (w.id === widgetId2) {
-                    return { ...w, attachedTo: [...(w.attachedTo || []), widgetId1] };
-                  }
-                  return w;
-                })
-              );
+              oldGroupId = widget2.groupId;
             } else if (widget1.groupId) {
               newGroupId = widget1.groupId;
             } else if (widget2.groupId) {
@@ -1517,23 +1504,36 @@ export const useStore = create<StoreState>((set, get) => {
               newGroupId = uuidv4();
             }
             
-            return updateActiveSheetWidgets(c, widgets => 
+            const targetGroupId = widget2.groupId;
+            const alreadyShareGroup = !!widget1.groupId && widget1.groupId === targetGroupId;
+            const shouldAlignTarget = !alreadyShareGroup && (targetDelta.x !== 0 || targetDelta.y !== 0);
+
+            return updateActiveSheetWidgets(c, widgets =>
               widgets.map(w => {
-                if (w.id === widgetId1) {
-                  return { 
-                    ...w, 
-                    groupId: newGroupId,
-                    attachedTo: [...(w.attachedTo || []), widgetId2]
+                const isTargetWidget = targetGroupId ? w.groupId === targetGroupId : w.id === widgetId2;
+                let updatedWidget = shouldAlignTarget && isTargetWidget
+                  ? { ...w, x: w.x + targetDelta.x, y: w.y + targetDelta.y }
+                  : w;
+
+                if (oldGroupId && updatedWidget.groupId === oldGroupId) {
+                  updatedWidget = { ...updatedWidget, groupId: newGroupId };
+                } else if (updatedWidget.id === widgetId1 || updatedWidget.id === widgetId2) {
+                  updatedWidget = { ...updatedWidget, groupId: newGroupId };
+                }
+
+                if (updatedWidget.id === widgetId1) {
+                  return {
+                    ...updatedWidget,
+                    attachedTo: Array.from(new Set([...(updatedWidget.attachedTo || []), widgetId2])),
                   };
                 }
-                if (w.id === widgetId2) {
-                  return { 
-                    ...w, 
-                    groupId: newGroupId,
-                    attachedTo: [...(w.attachedTo || []), widgetId1]
+                if (updatedWidget.id === widgetId2) {
+                  return {
+                    ...updatedWidget,
+                    attachedTo: Array.from(new Set([...(updatedWidget.attachedTo || []), widgetId1])),
                   };
                 }
-                return w;
+                return updatedWidget;
               })
             );
           })
