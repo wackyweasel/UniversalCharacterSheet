@@ -1427,7 +1427,7 @@ export default function TableWidget({ widget, height }: Props) {
                 setIsTableEditing((current) => !current);
               }}
               onMouseDown={(event) => event.stopPropagation()}
-              className={`widget-control ml-auto h-6 flex-shrink-0 gap-1 px-2 text-[10px] font-semibold ${isTableEditing ? 'bg-theme-accent text-theme-paper' : ''}`}
+              className={`widget-control ml-auto h-[18px] min-h-[18px] flex-shrink-0 gap-1 px-1.5 text-[10px] font-semibold ${isTableEditing ? 'bg-theme-accent text-theme-paper' : ''}`}
             >
               {isTableEditing ? <CheckIcon className="h-3 w-3" /> : <PencilIcon className="h-3 w-3" />}
               {isTableEditing ? 'Done' : 'Edit table'}
@@ -1472,10 +1472,11 @@ export default function TableWidget({ widget, height }: Props) {
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <div
-                    onClick={() => {
+                    onClick={(event) => {
+                      handleColumnHeaderClick(idx, event);
                       if (showTableControls) setEditingColumnHeader(idx);
                     }}
-                    className={`relative flex min-w-0 items-center justify-center ${showTableControls ? 'cursor-text' : ''}`}
+                    className={`relative flex min-w-0 cursor-pointer items-center justify-center ${showTableControls ? 'cursor-text' : ''}`}
                   >
                     {isEditingHeader ? (
                       <input
