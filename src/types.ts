@@ -208,10 +208,12 @@ export interface WidgetData {
   // Health Bar & Progress Bar
   currentValue?: number;
   maxValue?: number;
+  verticalBar?: boolean;
   increment?: number;
   // Progress Bar
   showPercentage?: boolean;
   showValues?: boolean;
+  inlineLabel?: boolean;
   allowOutOfRange?: boolean;
   // Dice Roller
   diceCount?: number;

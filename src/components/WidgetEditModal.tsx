@@ -74,7 +74,7 @@ const FIELD_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
   'TOGGLE_GROUP',
 ]);
 
-const MAX_CONTROL_WIDGET_TYPES = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
+const MAX_CONTROL_WIDGET_TYPES = new Set<WidgetType>(['HEALTH_BAR']);
 
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
@@ -229,7 +229,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
-      case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
+      case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;

@@ -277,6 +277,20 @@
     z-index: 70;
   }
 
+  .progress-bar__main {
+    gap: 8px;
+  }
+
+  .progress-bar__inline-label {
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 16px;
+    text-align: left;
+  }
+
   .health-bar__track,
   .progress-bar__track {
     background: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
@@ -310,6 +324,31 @@
 
   .health-bar__fill--scrubbing,
   .progress-bar__fill--scrubbing {
+    transition: none;
+  }
+
+  .progress-bar-widget--vertical .progress-bar__main {
+    align-items: stretch;
+    justify-content: center;
+  }
+
+  .progress-bar-widget--vertical .progress-bar__track {
+    cursor: ns-resize;
+    flex: 0 1 44px;
+    height: auto;
+    min-height: 44px;
+    min-width: 24px;
+    width: 44px;
+  }
+
+  .progress-bar-widget--vertical .progress-bar__fill {
+    right: 0;
+    top: auto;
+    transition: height 180ms ease-out;
+    width: 100%;
+  }
+
+  .progress-bar-widget--vertical .progress-bar__fill--scrubbing {
     transition: none;
   }
 
@@ -639,6 +678,10 @@
   .vertical-widget-body .progress-bar-widget {
     container-type: normal;
     height: auto;
+  }
+
+  .vertical-widget-body .progress-bar-widget--inline-label .progress-bar__inline-label {
+    display: none;
   }
 
   .vertical-widget-body--header-label > div:not(.form-widget) > :first-child {

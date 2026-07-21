@@ -54,10 +54,9 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'POOL',
   'TOGGLE_GROUP',
   'HEALTH_BAR',
-  'PROGRESS_BAR',
 ]);
 
-const WIDGETS_WITH_WIDE_HEADER_CONTROLS = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
+const WIDGETS_WITH_WIDE_HEADER_CONTROLS = new Set<WidgetType>(['HEALTH_BAR']);
 
 export default function VerticalWidget({
   widget,
@@ -89,6 +88,7 @@ export default function VerticalWidget({
       ? widget.data.showMaxControl !== false
       : widget.data.showFieldControls !== false
   );
+  const hasInternalHeaderLabel = widget.data.label && !(widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel);
 
   // Touch drag state
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
@@ -410,7 +410,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`vertical-widget-body ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : widget.data.label && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : hasInternalHeaderLabel && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
