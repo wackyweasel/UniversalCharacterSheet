@@ -150,6 +150,14 @@ export function MinusIcon(props: IconProps) {
   );
 }
 
+export function ArrowUpDownIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m8 7 4-4 4 4M12 3v18M16 17l-4 4-4-4" />
+    </Base>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <Base {...props}>

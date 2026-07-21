@@ -44,6 +44,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   const [pan, setPan] = useState(initial.pan);
   const [scale, setScale] = useState(initial.scale);
   const [viewLocked, setViewLockedState] = useState(initial.locked);
+  const [wheelPanEnabled, setWheelPanEnabled] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const viewLockedRef = useRef(viewLocked);
@@ -119,10 +120,15 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Disable zoom when editing a widget
+    // Disable camera wheel controls when editing a widget
     if (editingWidgetId) return;
-    // Disable zoom when view is locked
+    // Disable camera wheel controls when view is locked
     if (viewLockedRef.current) return;
+
+    if (wheelPanEnabled) {
+      setPan(currentPan => ({ x: currentPan.x, y: currentPan.y - e.deltaY }));
+      return;
+    }
     
     // Zoom with scroll wheel relative to mouse cursor
     const zoomFactor = Math.exp(-e.deltaY * 0.001);
@@ -142,7 +148,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     
     setScale(newScale);
     setPan({ x: newPanX, y: newPanY });
-  }, [editingWidgetId, mode, scale, pan, minScale, maxScale]);
+  }, [editingWidgetId, scale, pan, minScale, maxScale, wheelPanEnabled]);
 
   const zoomIn = useCallback(() => {
     setScale(s => Math.min(maxScale, s * 1.3));
@@ -207,8 +213,10 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     scale,
     isPanning,
     viewLocked,
+    wheelPanEnabled,
     setPan,
     setScale,
+    setWheelPanEnabled,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,

@@ -22,7 +22,7 @@ import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
@@ -298,6 +298,8 @@ export default function Sheet() {
     handleMouseUp,
     handleWheel,
     viewLocked,
+    wheelPanEnabled,
+    setWheelPanEnabled,
     toggleViewLock,
   } = usePanZoom({
     minScale: MIN_CANVAS_SCALE,
@@ -1992,6 +1994,18 @@ export default function Sheet() {
                 <path d="M8 11V7a4 4 0 0 1 8 0" />
               </svg>
             )}
+          </button>
+        </Tooltip>
+        <Tooltip content={wheelPanEnabled ? 'Use mouse wheel to zoom' : 'Use mouse wheel to pan up and down'}>
+          <button
+            type="button"
+            className={`canvas-zoom-button canvas-wheel-pan-toggle ${wheelPanEnabled ? 'canvas-zoom-button--active' : ''}`}
+            onClick={() => setWheelPanEnabled(!wheelPanEnabled)}
+            disabled={viewLocked}
+            aria-label={wheelPanEnabled ? 'Use mouse wheel to zoom' : 'Use mouse wheel to pan up and down'}
+            aria-pressed={wheelPanEnabled}
+          >
+            <ArrowUpDownIcon className="h-4 w-4" />
           </button>
         </Tooltip>
         <button

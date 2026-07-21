@@ -826,6 +826,16 @@
   opacity: 0.38;
 }
 
+.canvas-wheel-pan-toggle {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .canvas-wheel-pan-toggle {
+    display: flex;
+  }
+}
+
 .canvas-zoom-track {
   align-items: center;
   display: flex;
