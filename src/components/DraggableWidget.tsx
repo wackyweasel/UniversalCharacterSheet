@@ -741,7 +741,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
           {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
-            <div className="absolute top-1 right-1 z-[200] flex items-center gap-1" ref={dropdownRef}>
+            <div className={`absolute right-1 z-[200] flex items-center gap-1 ${widget.type === 'TABLE' ? '-top-9' : 'top-1'}`} ref={dropdownRef}>
               <Tooltip content="Widget options">
                 <button
                   data-tutorial={widgetMenuTutorialTarget}
