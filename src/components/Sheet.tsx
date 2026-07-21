@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -254,9 +254,24 @@ export default function Sheet() {
   const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
   
-  // Vertical mode drag state
-  const [verticalDragIndex, setVerticalDragIndex] = useState<number | null>(null);
-  const [verticalDropIndex, setVerticalDropIndex] = useState<number | null>(null);
+  const verticalListScrollRef = useRef<HTMLDivElement>(null);
+  const verticalWidgetRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousVerticalRectsRef = useRef(new Map<string, DOMRect>());
+  const removeVerticalDragListenersRef = useRef<(() => void) | null>(null);
+  const verticalDragRef = useRef<{
+    widgetId: string;
+    pointerId: number;
+    cardElement: HTMLDivElement;
+    startX: number;
+    startY: number;
+    startScrollTop: number;
+    order: string[];
+    slotRects: DOMRect[];
+    startIndex: number;
+    targetIndex: number;
+    dragExtent: number;
+    didMove: boolean;
+  } | null>(null);
 
   // Pan/Zoom camera hook
   const [isPinching, setIsPinching] = useState(false);
@@ -865,26 +880,182 @@ export default function Sheet() {
     }
   };
 
-  // Vertical mode drag handlers
-  const handleVerticalDragStart = (index: number) => {
-    setVerticalDragIndex(index);
-    setVerticalDropIndex(index);
+  const registerVerticalWidget = useCallback((widgetId: string, element: HTMLDivElement | null) => {
+    if (element) verticalWidgetRefs.current.set(widgetId, element);
+    else verticalWidgetRefs.current.delete(widgetId);
+  }, []);
+
+  const captureVerticalWidgetRects = () => {
+    previousVerticalRectsRef.current = new Map(
+      Array.from(verticalWidgetRefs.current.entries()).map(([id, element]) => [id, element.getBoundingClientRect()])
+    );
   };
 
-  const handleVerticalDragOver = (index: number) => {
-    setVerticalDropIndex(index);
-  };
+  const updateVerticalDragPreview = (drag: NonNullable<typeof verticalDragRef.current>, targetIndex: number) => {
+    drag.order.forEach((id, index) => {
+      if (id === drag.widgetId) return;
+      const element = verticalWidgetRefs.current.get(id);
+      if (!element) return;
 
-  const handleVerticalDragEnd = (canceled = false) => {
-    if (!canceled && verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
-      const widget = activeSheetWidgets[verticalDragIndex];
-      if (widget) {
-        reorderWidget(widget.id, verticalDropIndex);
+      const shiftsUp = targetIndex > drag.startIndex && index > drag.startIndex && index <= targetIndex;
+      const shiftsDown = targetIndex < drag.startIndex && index >= targetIndex && index < drag.startIndex;
+      const deltaY = shiftsUp ? -drag.dragExtent : shiftsDown ? drag.dragExtent : 0;
+      if (deltaY === 0) {
+        element.classList.remove('vertical-widget-sort-item--preview-shift');
+        element.style.removeProperty('transform');
+        return;
       }
-    }
-    setVerticalDragIndex(null);
-    setVerticalDropIndex(null);
+
+      element.classList.add('vertical-widget-sort-item--preview-shift');
+      element.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+    });
   };
+
+  const clearVerticalDragPreview = (drag: NonNullable<typeof verticalDragRef.current>) => {
+    drag.order.forEach((id) => {
+      const element = verticalWidgetRefs.current.get(id);
+      element?.classList.remove('vertical-widget-sort-item--preview-shift');
+      element?.style.removeProperty('transform');
+    });
+  };
+
+  const finishVerticalDrag = (pointerId?: number, commit = true) => {
+    const drag = verticalDragRef.current;
+    if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
+
+    removeVerticalDragListenersRef.current?.();
+    removeVerticalDragListenersRef.current = null;
+    const shouldReorder = Boolean(commit && drag?.didMove && drag.targetIndex !== drag.startIndex);
+    if (drag && shouldReorder) captureVerticalWidgetRects();
+    if (drag) {
+      drag.cardElement.classList.remove('vertical-widget-sort-item--dragging');
+      clearVerticalDragPreview(drag);
+    }
+    if (drag && shouldReorder) {
+      reorderWidget(drag.widgetId, drag.targetIndex);
+    }
+    verticalDragRef.current = null;
+  };
+
+  const handleVerticalDragMove = (event: PointerEvent) => {
+    const drag = verticalDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
+
+    event.preventDefault();
+    if (!drag.didMove) {
+      drag.didMove = true;
+      drag.cardElement.classList.add('vertical-widget-sort-item--dragging');
+    }
+
+    const scrollArea = verticalListScrollRef.current;
+    if (scrollArea) {
+      const bounds = scrollArea.getBoundingClientRect();
+      const edgeSize = 72;
+      if (event.clientY < bounds.top + edgeSize) scrollArea.scrollBy({ top: -14 });
+      if (event.clientY > bounds.bottom - edgeSize) scrollArea.scrollBy({ top: 14 });
+    }
+
+    const scrollDeltaY = (scrollArea?.scrollTop ?? 0) - drag.startScrollTop;
+    drag.cardElement.style.transform = `translate3d(${event.clientX - drag.startX}px, ${event.clientY - drag.startY + scrollDeltaY}px, 0) scale(1.018) rotate(0.2deg)`;
+
+    const targetIndex = drag.slotRects.reduce((closestIndex, rect, index) => {
+      const centerY = rect.top - scrollDeltaY + rect.height / 2;
+      const closestRect = drag.slotRects[closestIndex];
+      const closestCenterY = closestRect.top - scrollDeltaY + closestRect.height / 2;
+      return Math.abs(event.clientY - centerY) < Math.abs(event.clientY - closestCenterY) ? index : closestIndex;
+    }, drag.targetIndex);
+    if (targetIndex === drag.targetIndex) return;
+
+    drag.targetIndex = targetIndex;
+    updateVerticalDragPreview(drag, targetIndex);
+  };
+
+  const startVerticalDrag = (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (activeSheetWidgets.length < 2 || event.button !== 0) return;
+    const cardElement = verticalWidgetRefs.current.get(widgetId);
+    if (!cardElement) return;
+    const order = activeSheetWidgets.map((widget) => widget.id);
+    const startIndex = order.indexOf(widgetId);
+    const slotRects = order.map((id) => verticalWidgetRefs.current.get(id)?.getBoundingClientRect()).filter((rect): rect is DOMRect => Boolean(rect));
+    if (startIndex < 0 || slotRects.length !== order.length) return;
+
+    removeVerticalDragListenersRef.current?.();
+    const sourceRect = slotRects[startIndex];
+    verticalDragRef.current = {
+      widgetId,
+      pointerId: event.pointerId,
+      cardElement,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollTop: verticalListScrollRef.current?.scrollTop ?? 0,
+      order,
+      slotRects,
+      startIndex,
+      targetIndex: startIndex,
+      dragExtent: sourceRect.height + (startIndex === order.length - 1 ? 8 : 0),
+      didMove: false,
+    };
+
+    const handlePointerMove = (pointerEvent: PointerEvent) => handleVerticalDragMove(pointerEvent);
+    const handlePointerUp = (pointerEvent: PointerEvent) => finishVerticalDrag(pointerEvent.pointerId);
+    const handlePointerCancel = (pointerEvent: PointerEvent) => finishVerticalDrag(pointerEvent.pointerId, false);
+    const handleWindowBlur = () => finishVerticalDrag(undefined, false);
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('blur', handleWindowBlur);
+    removeVerticalDragListenersRef.current = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+
+    event.currentTarget.focus({ preventScroll: true });
+  };
+
+  const handleVerticalReorderKey = (widgetId: string, event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = activeSheetWidgets.findIndex((widget) => widget.id === widgetId);
+    const offset = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (currentIndex < 0 || offset === 0) return;
+
+    const nextIndex = Math.max(0, Math.min(activeSheetWidgets.length - 1, currentIndex + offset));
+    if (nextIndex === currentIndex) return;
+    event.preventDefault();
+    event.stopPropagation();
+    captureVerticalWidgetRects();
+    reorderWidget(widgetId, nextIndex);
+  };
+
+  useEffect(() => () => removeVerticalDragListenersRef.current?.(), []);
+
+  useLayoutEffect(() => {
+    if (previousVerticalRectsRef.current.size === 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      previousVerticalRectsRef.current.clear();
+      return;
+    }
+
+    verticalWidgetRefs.current.forEach((element, id) => {
+      const previousRect = previousVerticalRectsRef.current.get(id);
+      if (!previousRect) return;
+      const nextRect = element.getBoundingClientRect();
+      const deltaY = previousRect.top - nextRect.top;
+      if (Math.abs(deltaY) < 1) return;
+
+      element.getAnimations().forEach((animation) => animation.cancel());
+      element.animate(
+        [
+          { transform: `translateY(${deltaY}px)` },
+          { transform: 'translateY(0)' },
+        ],
+        { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    });
+
+    previousVerticalRectsRef.current.clear();
+  }, [activeCharacter]);
 
   const setAllVerticalWidgetsCollapsed = (collapsed: boolean) => {
     activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(collapsed)));
@@ -1072,7 +1243,7 @@ export default function Sheet() {
         </div>
 
         {/* Vertical Mode Container - scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6 pb-24">
             {/* Widgets in vertical layout */}
             {activeSheetWidgets.map((widget, index) => (
@@ -1081,12 +1252,9 @@ export default function Sheet() {
                 widget={widget}
                 index={index}
                 totalWidgets={activeSheetWidgets.length}
-                isDragging={verticalDragIndex !== null}
-                draggedIndex={verticalDragIndex}
-                dropTargetIndex={verticalDropIndex}
-                onDragStart={handleVerticalDragStart}
-                onDragOver={handleVerticalDragOver}
-                onDragEnd={handleVerticalDragEnd}
+                registerElement={registerVerticalWidget}
+                onDragStart={startVerticalDrag}
+                onReorderKey={handleVerticalReorderKey}
                 isBuildMode={workspace === 'build'}
               />
             ))}

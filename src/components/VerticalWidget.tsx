@@ -1,10 +1,10 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { ChevronDownIcon, PencilIcon, TrashIcon } from './icons';
+import { ChevronDownIcon, GripVerticalIcon, PencilIcon, TrashIcon } from './icons';
 import { Tooltip } from './Tooltip';
 import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
@@ -30,18 +30,14 @@ import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
-import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
   index: number;
   totalWidgets: number;
-  isDragging: boolean;
-  draggedIndex: number | null;
-  dropTargetIndex: number | null;
-  onDragStart: (index: number) => void;
-  onDragOver: (index: number) => void;
-  onDragEnd: (canceled?: boolean) => void;
+  registerElement: (widgetId: string, element: HTMLDivElement | null) => void;
+  onDragStart: (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => void;
+  onReorderKey: (widgetId: string, event: React.KeyboardEvent<HTMLButtonElement>) => void;
   isBuildMode: boolean;
 }
 
@@ -62,16 +58,11 @@ export default function VerticalWidget({
   widget,
   index,
   totalWidgets,
-  isDragging,
-  draggedIndex,
-  dropTargetIndex,
+  registerElement,
   onDragStart,
-  onDragOver,
-  onDragEnd,
+  onReorderKey,
   isBuildMode,
 }: Props) {
-  const nodeRef = useRef<HTMLDivElement>(null);
-  
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -90,20 +81,8 @@ export default function VerticalWidget({
   );
   const hasInternalHeaderLabel = widget.data.label && !(widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel);
 
-  // Touch drag state
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [isDragHandle, setIsDragHandle] = useState(false);
-  const touchDragActiveRef = useRef(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  useTouchCameraPinchCancellation(() => {
-    if (!touchDragActiveRef.current) return;
-    touchDragActiveRef.current = false;
-    setIsDragHandle(false);
-    setTouchStartY(null);
-    onDragEnd(true);
-  });
   
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -189,78 +168,6 @@ export default function VerticalWidget({
     setEditingWidgetId(null);
   };
   
-  // Calculate if this widget should show a drop indicator
-  // Show indicator above this widget if dropTargetIndex equals this index and we're dragging from below
-  const showDropBefore = isDragging && 
-    draggedIndex !== null && 
-    dropTargetIndex === index && 
-    draggedIndex > index;
-  // Show indicator below this widget if dropTargetIndex equals this index and we're dragging from above
-  const showDropAfter = isDragging && 
-    draggedIndex !== null && 
-    dropTargetIndex === index && 
-    draggedIndex < index;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Check if the touch is on the drag handle
-    const target = e.target as HTMLElement;
-    if (target.closest('.vertical-drag-handle')) {
-      touchDragActiveRef.current = true;
-      setIsDragHandle(true);
-      setTouchStartY(e.touches[0].clientY);
-      onDragStart(index);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragHandle || touchStartY === null) return;
-    
-    const touch = e.touches[0];
-    const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-    
-    for (const el of elements) {
-      const widgetEl = el.closest('[data-vertical-index]');
-      if (widgetEl) {
-        const overIndex = parseInt(widgetEl.getAttribute('data-vertical-index') || '0', 10);
-        if (overIndex !== index) {
-          onDragOver(overIndex);
-        }
-        break;
-      }
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (isDragHandle) {
-      touchDragActiveRef.current = false;
-      setIsDragHandle(false);
-      setTouchStartY(null);
-      onDragEnd();
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent) => {
-    // Only allow drag from the handle
-    const target = e.target as HTMLElement;
-    if (!target.closest('.vertical-drag-handle')) {
-      e.preventDefault();
-      return;
-    }
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-    onDragStart(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    onDragOver(index);
-  };
-
-  const handleDragEnd = () => {
-    onDragEnd();
-  };
-
   const renderContent = () => {
     // Use a fixed width for internal widget calculations
     // Pass a very large height to disable maxHeight constraints so content shows fully
@@ -295,22 +202,11 @@ export default function VerticalWidget({
 
   return (
     <div
-      ref={nodeRef}
+      ref={(element) => registerElement(widget.id, element)}
       data-vertical-index={index}
-      className={`vertical-widget relative transition-all duration-200 ${
-        isDragging && draggedIndex === index ? 'opacity-50 scale-95' : ''
-      }`}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      data-widget-id={widget.id}
+      className="vertical-widget vertical-widget-sort-item relative"
     >
-      {/* Drop indicator before */}
-      {showDropBefore && (
-        <div className="absolute -top-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
-      )}
-      
       {/* Widget Card */}
       <div className="vertical-widget-card">
         {/* Image texture overlay */}
@@ -335,27 +231,20 @@ export default function VerticalWidget({
         {/* Header with drag handle and collapse toggle */}
         <div className={`vertical-widget-header ${isCollapsed ? '' : 'vertical-widget-header--expanded'}`}>
           {/* Drag Handle - positioned at left, only this area is draggable (disabled when locked) */}
-          <div 
-            className="vertical-drag-handle cursor-grab active:cursor-grabbing flex items-center gap-2 touch-none select-none"
-            draggable
-            onDragStart={handleDragStart}
+          <button
+            type="button"
+            className="vertical-drag-handle widget-control widget-control--subtle flex h-7 w-7 min-h-0 flex-shrink-0 items-center justify-center"
+            aria-label={`Reorder ${getWidgetLabel()}`}
+            title="Drag to reorder. Arrow keys also work."
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onDragStart(widget.id, event);
+            }}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => onReorderKey(widget.id, event)}
           >
-            {/* Grip icon (6 dots in 2 columns) */}
-            <svg 
-              width="10" 
-              height="16" 
-              viewBox="0 0 10 16" 
-              className="text-theme-muted flex-shrink-0"
-              fill="currentColor"
-            >
-              <circle cx="2" cy="2" r="1.5" />
-              <circle cx="8" cy="2" r="1.5" />
-              <circle cx="2" cy="8" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="2" cy="14" r="1.5" />
-              <circle cx="8" cy="14" r="1.5" />
-            </svg>
-          </div>
+            <GripVerticalIcon className="h-4 w-4 text-theme-muted" />
+          </button>
           
           {/* Lock indicator */}
           {widget.locked && (
@@ -415,11 +304,6 @@ export default function VerticalWidget({
           </div>
         )}
       </div>
-      
-      {/* Drop indicator after */}
-      {showDropAfter && (
-        <div className="absolute -bottom-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
-      )}
       
       {index < totalWidgets - 1 && <div className="h-2" />}
 
