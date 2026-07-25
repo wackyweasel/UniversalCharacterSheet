@@ -1,9 +1,10 @@
 interface AddMultipleToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
+  label?: string;
 }
 
-export function AddMultipleToggle({ checked, onChange }: AddMultipleToggleProps) {
+export function AddMultipleToggle({ checked, onChange, label = 'Add multiple items' }: AddMultipleToggleProps) {
   return (
     <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-theme-muted">
       <input
@@ -12,7 +13,7 @@ export function AddMultipleToggle({ checked, onChange }: AddMultipleToggleProps)
         onChange={(event) => onChange(event.target.checked)}
         className="h-4 w-4 accent-theme-accent"
       />
-      Add multiple items
+      {label}
     </label>
   );
 }

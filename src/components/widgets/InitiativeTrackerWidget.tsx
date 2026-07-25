@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, InitiativeParticipant, InitiativeEncounterEntry } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
+import { GripVerticalIcon, MinusIcon, PlusIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { AddMultipleToggle } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -17,24 +19,42 @@ function generateId(): string {
   return Math.random().toString(36).substr(2, 9);
 }
 
-// Modal component for adding temporary participants
-interface AddTempModalProps {
-  showRollButton: boolean;
-  onClose: () => void;
-  onAdd: (name: string, diceFaces: number, flatBonus: number) => void;
+function formatInitiativeDice(entry: InitiativeEncounterEntry): string {
+  return entry.flatBonus === 0
+    ? `d${entry.diceFaces}`
+    : `d${entry.diceFaces}${entry.flatBonus > 0 ? '+' : ''}${entry.flatBonus}`;
 }
 
-function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
+interface AddParticipantModalProps {
+  showRollButton: boolean;
+  onClose: () => void;
+  onAddPermanent: (name: string, diceFaces: number, flatBonus: number) => void;
+  onAddTemporary: (name: string, diceFaces: number, flatBonus: number) => void;
+}
+
+function AddParticipantModal({
+  showRollButton,
+  onClose,
+  onAddPermanent,
+  onAddTemporary,
+}: AddParticipantModalProps) {
+  const [participantType, setParticipantType] = useState<'permanent' | 'temporary'>('permanent');
   const [name, setName] = useState('');
   const [diceFaces, setDiceFaces] = useState(20);
   const [flatBonus, setFlatBonus] = useState(0);
+  const [addMultiple, setAddMultiple] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
-      onAdd(name.trim(), diceFaces, flatBonus);
-      onClose();
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    if (participantType === 'permanent') {
+      onAddPermanent(trimmedName, diceFaces, flatBonus);
+    } else {
+      onAddTemporary(trimmedName, diceFaces, flatBonus);
     }
+    if (addMultiple) setName('');
+    else onClose();
   };
 
   return createPortal(
@@ -46,12 +66,12 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
       <div 
         role="dialog"
         aria-modal="true"
-        aria-label="Add temporary participant"
+        aria-labelledby="initiative-add-participant-title"
         className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-theme-ink font-heading">Add Temporary Participant</h3>
+          <h3 id="initiative-add-participant-title" className="font-bold text-theme-ink font-heading">Add participant</h3>
           <button
             onClick={onClose}
             aria-label="Close participant form"
@@ -61,9 +81,27 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-2 rounded-button border border-theme-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setParticipantType('permanent')}
+              className={`rounded px-3 py-1.5 text-sm transition-colors ${participantType === 'permanent' ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink hover:bg-theme-background'}`}
+            >
+              Permanent
+            </button>
+            <button
+              type="button"
+              onClick={() => setParticipantType('temporary')}
+              className={`rounded px-3 py-1.5 text-sm transition-colors ${participantType === 'temporary' ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink hover:bg-theme-background'}`}
+            >
+              Temporary
+            </button>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-theme-ink mb-1">Name</label>
+            <label htmlFor="initiative-participant-name" className="block text-sm font-medium text-theme-ink mb-1">Name</label>
             <input
+              id="initiative-participant-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -72,10 +110,11 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
             />
           </div>
           {showRollButton && (
-            <>
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-sm font-medium text-theme-ink mb-1">Dice Faces (e.g., 20 for d20)</label>
+                <label htmlFor="initiative-participant-dice" className="block text-sm font-medium text-theme-ink mb-1">Dice faces</label>
                 <input
+                  id="initiative-participant-dice"
                   type="number"
                   min={1}
                   value={diceFaces}
@@ -84,16 +123,22 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-theme-ink mb-1">Flat Bonus</label>
+                <label htmlFor="initiative-participant-bonus" className="block text-sm font-medium text-theme-ink mb-1">Flat bonus</label>
                 <input
+                  id="initiative-participant-bonus"
                   type="number"
                   value={flatBonus}
                   onChange={(e) => setFlatBonus(parseInt(e.target.value) || 0)}
                   className="w-full px-2 py-1 border border-theme-border rounded bg-theme-paper text-theme-ink"
                 />
               </div>
-            </>
+            </div>
           )}
+          <AddMultipleToggle
+            checked={addMultiple}
+            onChange={setAddMultiple}
+            label="Add multiple participants"
+          />
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -104,12 +149,81 @@ function AddTempModal({ showRollButton, onClose, onAdd }: AddTempModalProps) {
             </button>
             <button
               type="submit"
+              disabled={!name.trim()}
               className="px-3 py-1 text-sm bg-theme-accent text-theme-paper rounded hover:opacity-90 font-body"
             >
               Add
             </button>
           </div>
         </form>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+interface RemoveParticipantsModalProps {
+  participants: InitiativeEncounterEntry[];
+  onClose: () => void;
+  onRemove: (ids: Set<string>) => void;
+}
+
+function RemoveParticipantsModal({ participants, onClose, onRemove }: RemoveParticipantsModalProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleParticipant = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  return createPortal(
+    <div
+      data-touch-camera-ignore="true"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+      onClick={onClose}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="initiative-remove-participants-title"
+        className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id="initiative-remove-participants-title" className="font-heading text-base font-bold">Remove participants</h3>
+        <p className="mt-3 text-sm text-theme-muted">Select one or more participants to remove.</p>
+        <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
+          {participants.map((participant) => (
+            <label
+              key={participant.id}
+              className="flex cursor-pointer items-center gap-3 rounded-button border border-theme-border px-3 py-2 text-sm transition-colors hover:bg-theme-accent hover:text-theme-paper"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(participant.id)}
+                onChange={() => toggleParticipant(participant.id)}
+                className="h-4 w-4 flex-shrink-0 accent-theme-accent"
+              />
+              <span className="min-w-0 flex-1 truncate">{participant.name}</span>
+              {participant.isTemporary && <span className="text-[10px] italic opacity-60">temporary</span>}
+            </label>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" autoFocus onClick={onClose} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
+          <button
+            type="button"
+            onClick={() => onRemove(selectedIds)}
+            disabled={selectedIds.size === 0}
+            className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Remove{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+          </button>
+        </div>
       </div>
     </div>,
     document.body
@@ -135,10 +249,27 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     initiativeAdvanceTimeUnit = 'seconds'
   } = widget.data;
 
-  const [showAddTempModal, setShowAddTempModal] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [showAddParticipantModal, setShowAddParticipantModal] = useState(false);
+  const [showRemoveParticipantsModal, setShowRemoveParticipantsModal] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
+  const encounterListRef = useRef<HTMLDivElement>(null);
+  const encounterEntryRefs = useRef(new Map<string, HTMLDivElement>());
+  const removeDragListenersRef = useRef<(() => void) | null>(null);
+  const encounterDragRef = useRef<{
+    participantId: string;
+    pointerId: number;
+    cardElement: HTMLDivElement;
+    startX: number;
+    startY: number;
+    startScrollTop: number;
+    order: string[];
+    slotRects: DOMRect[];
+    startIndex: number;
+    targetIndex: number;
+    didMove: boolean;
+    scaleX: number;
+    scaleY: number;
+  } | null>(null);
 
   // Convert time units to seconds
   const timeToSeconds = (amount: number, unit: string): number => {
@@ -203,24 +334,47 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     });
   };
 
-  // Remove a participant from the encounter
-  const removeFromEncounter = (id: string) => {
-    const updated = initiativeEncounter.filter((e: InitiativeEncounterEntry) => e.id !== id);
-    // Adjust current index if needed
-    let newIndex = initiativeCurrentIndex;
-    const removedIndex = initiativeEncounter.findIndex((e: InitiativeEncounterEntry) => e.id === id);
-    if (removedIndex !== -1 && removedIndex <= initiativeCurrentIndex && initiativeCurrentIndex > 0) {
-      newIndex = Math.max(0, initiativeCurrentIndex - 1);
-    }
-    if (updated.length === 0) {
-      newIndex = 0;
-    } else if (newIndex >= updated.length) {
-      newIndex = updated.length - 1;
-    }
+  const addPermanent = (name: string, diceFaces: number, flatBonus: number) => {
+    const newParticipant: InitiativeParticipant = {
+      name,
+      diceFaces,
+      flatBonus,
+    };
+    const newEntry: InitiativeEncounterEntry = {
+      id: generateId(),
+      name,
+      diceFaces,
+      flatBonus,
+      isTemporary: false,
+    };
+    updateWidgetData(widget.id, {
+      initiativePool: [...initiativePool, newParticipant],
+      initiativeEncounter: [...initiativeEncounter, newEntry]
+    });
+  };
+
+  const clearTemporaryParticipants = () => {
+    const activeParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
+    const updated = initiativeEncounter.filter((entry: InitiativeEncounterEntry) => !entry.isTemporary);
+    const activeParticipantIndex = updated.findIndex((entry: InitiativeEncounterEntry) => entry.id === activeParticipantId);
     updateWidgetData(widget.id, {
       initiativeEncounter: updated,
-      initiativeCurrentIndex: newIndex
+      initiativeCurrentIndex: activeParticipantIndex >= 0
+        ? activeParticipantIndex
+        : Math.min(initiativeCurrentIndex, Math.max(0, updated.length - 1)),
     });
+  };
+
+  const removeParticipants = (ids: Set<string>) => {
+    if (ids.size === 0) return;
+    const activeParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
+    const updated = initiativeEncounter.filter((entry: InitiativeEncounterEntry) => !ids.has(entry.id));
+    const activeParticipantIndex = updated.findIndex((entry: InitiativeEncounterEntry) => entry.id === activeParticipantId);
+    updateWidgetData(widget.id, {
+      initiativeEncounter: updated,
+      initiativeCurrentIndex: activeParticipantIndex >= 0 ? activeParticipantIndex : Math.min(initiativeCurrentIndex, Math.max(0, updated.length - 1)),
+    });
+    setShowRemoveParticipantsModal(false);
   };
 
   // Roll initiative for all participants
@@ -283,53 +437,8 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     updateWidgetData(widget.id, { initiativeCurrentIndex: newIndex });
   };
 
-  // Reset encounter to all pool participants with no rolled values
-  const newEncounter = () => {
-    const poolEntries: InitiativeEncounterEntry[] = initiativePool.map((p: InitiativeParticipant) => ({
-      id: generateId(),
-      name: p.name,
-      diceFaces: p.diceFaces,
-      flatBonus: p.flatBonus,
-      isTemporary: false
-    }));
-    updateWidgetData(widget.id, {
-      initiativeEncounter: poolEntries,
-      initiativeCurrentIndex: 0
-    });
-  };
-
-  // Drag and drop handlers for manual reordering
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.stopPropagation();
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.stopPropagation();
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const dragIdx = draggedIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
-    if (isNaN(dragIdx) || dragIdx === dropIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
+  const reorderEncounter = (dragIdx: number, dropIndex: number) => {
+    if (dragIdx === dropIndex || dragIdx < 0 || dropIndex < 0 || dropIndex >= initiativeEncounter.length) return;
     const updated = [...initiativeEncounter];
     const [draggedItem] = updated.splice(dragIdx, 1);
     updated.splice(dropIndex, 0, draggedItem);
@@ -348,19 +457,138 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       initiativeEncounter: updated,
       initiativeCurrentIndex: newCurrentIndex
     });
-    
-    setDraggedIndex(null);
-    setDragOverIndex(null);
   };
 
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
+  const updateDragPreview = (drag: NonNullable<typeof encounterDragRef.current>, targetIndex: number) => {
+    const previewOrder = drag.order.filter((id) => id !== drag.participantId);
+    previewOrder.splice(targetIndex, 0, drag.participantId);
+
+    previewOrder.forEach((id, previewIndex) => {
+      if (id === drag.participantId) return;
+      const originalIndex = drag.order.indexOf(id);
+      const element = encounterEntryRefs.current.get(id);
+      const originalRect = drag.slotRects[originalIndex];
+      const previewRect = drag.slotRects[previewIndex];
+      if (!element || !originalRect || !previewRect) return;
+      const offsetY = (previewRect.top - originalRect.top) / drag.scaleY;
+      if (Math.abs(offsetY) < 0.5) {
+        element.classList.remove('initiative-entry--preview-shift');
+        element.style.removeProperty('transform');
+        return;
+      }
+      element.classList.add('initiative-entry--preview-shift');
+      element.style.transform = `translate3d(0, ${offsetY}px, 0)`;
+    });
+  };
+
+  const clearDragPreview = (drag: NonNullable<typeof encounterDragRef.current>) => {
+    drag.order.forEach((id) => {
+      const element = encounterEntryRefs.current.get(id);
+      element?.classList.remove('initiative-entry--preview-shift');
+      if (id !== drag.participantId) element?.style.removeProperty('transform');
+    });
+  };
+
+  const finishEncounterDrag = (pointerId?: number, commit = true) => {
+    const drag = encounterDragRef.current;
+    if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
+    removeDragListenersRef.current?.();
+    removeDragListenersRef.current = null;
+    if (drag) {
+      drag.cardElement.classList.remove('initiative-entry--dragging');
+      drag.cardElement.style.removeProperty('transform');
+      clearDragPreview(drag);
+      if (commit && drag.didMove) reorderEncounter(drag.startIndex, drag.targetIndex);
+    }
+    encounterDragRef.current = null;
+  };
+
+  const handleEncounterDragMove = (event: PointerEvent) => {
+    const drag = encounterDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
+    event.preventDefault();
+    if (!drag.didMove) {
+      drag.didMove = true;
+      drag.cardElement.classList.add('initiative-entry--dragging');
+    }
+
+    const list = encounterListRef.current;
+    const scrollDelta = (list?.scrollTop ?? 0) - drag.startScrollTop;
+    drag.cardElement.style.transform = `translate3d(${(event.clientX - drag.startX) / drag.scaleX}px, ${(event.clientY - drag.startY) / drag.scaleY + scrollDelta}px, 0) scale(1.025)`;
+
+    const targetIndex = drag.slotRects.reduce((closestIndex, rect, index) => {
+      const viewportScrollDelta = scrollDelta * drag.scaleY;
+      const center = rect.top - viewportScrollDelta + rect.height / 2;
+      const closestRect = drag.slotRects[closestIndex];
+      const closestCenter = closestRect.top - viewportScrollDelta + closestRect.height / 2;
+      return Math.abs(event.clientY - center) < Math.abs(event.clientY - closestCenter) ? index : closestIndex;
+    }, drag.targetIndex);
+    if (targetIndex === drag.targetIndex) return;
+    drag.targetIndex = targetIndex;
+    updateDragPreview(drag, targetIndex);
+  };
+
+  const startEncounterDrag = (participantId: string, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (initiativeEncounter.length < 2 || event.button !== 0) return;
+    const cardElement = encounterEntryRefs.current.get(participantId);
+    if (!cardElement) return;
+    const order = initiativeEncounter.map((entry: InitiativeEncounterEntry) => entry.id);
+    const startIndex = order.indexOf(participantId);
+    const slotRects = order.map((id) => encounterEntryRefs.current.get(id)?.getBoundingClientRect()).filter((rect): rect is DOMRect => Boolean(rect));
+    if (startIndex < 0 || slotRects.length !== order.length) return;
+    const cardRect = cardElement.getBoundingClientRect();
+    const scaleX = cardElement.offsetWidth > 0 ? cardRect.width / cardElement.offsetWidth : 1;
+    const scaleY = cardElement.offsetHeight > 0 ? cardRect.height / cardElement.offsetHeight : 1;
+
+    removeDragListenersRef.current?.();
+    encounterDragRef.current = {
+      participantId,
+      pointerId: event.pointerId,
+      cardElement,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollTop: encounterListRef.current?.scrollTop ?? 0,
+      order,
+      slotRects,
+      startIndex,
+      targetIndex: startIndex,
+      didMove: false,
+      scaleX,
+      scaleY,
+    };
+
+    const handlePointerMove = (pointerEvent: PointerEvent) => handleEncounterDragMove(pointerEvent);
+    const handlePointerUp = (pointerEvent: PointerEvent) => finishEncounterDrag(pointerEvent.pointerId);
+    const handlePointerCancel = (pointerEvent: PointerEvent) => finishEncounterDrag(pointerEvent.pointerId, false);
+    const handleWindowBlur = () => finishEncounterDrag(undefined, false);
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('blur', handleWindowBlur);
+    removeDragListenersRef.current = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+    event.currentTarget.focus({ preventScroll: true });
+  };
+
+  useEffect(() => () => removeDragListenersRef.current?.(), []);
+
+  const handleReorderKey = (index: number, event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const offset = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (offset === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    reorderEncounter(index, Math.max(0, Math.min(initiativeEncounter.length - 1, index + offset)));
   };
 
   // Fixed sizing classes
   const itemClass = 'text-xs';
   const buttonClass = 'text-xs px-2 py-1';
+  const hasTemporaryParticipants = initiativeEncounter.some((entry: InitiativeEncounterEntry) => entry.isTemporary);
 
   // Print mode: show only the ordered list
   if (isPrintMode) {
@@ -385,9 +613,9 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                 >
                   <span className={`${itemClass} text-theme-muted w-4 font-body`}>{index + 1}.</span>
                   <span className={`${itemClass} text-theme-ink flex-1 truncate font-body`}>{entry.name}</span>
-                  {entry.rollResult !== undefined && (
-                    <span className={`${itemClass} text-theme-accent font-mono font-body`}>{entry.rollResult}</span>
-                  )}
+                  <span className={`${itemClass} mr-1 text-theme-accent font-mono font-body`}>
+                    {entry.rollResult ?? formatInitiativeDice(entry)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -399,35 +627,50 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Label */}
-      {label && (
-        <div className="widget-header mb-1 flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+      <div className="widget-structure-header mb-1 flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
+        {label && (
+          <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>
+        )}
+        <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
+          <Tooltip content={initiativeEncounter.length > 0 ? 'Choose participants to remove' : 'No participants to remove'}>
+            <button
+              type="button"
+              onClick={() => setShowRemoveParticipantsModal(true)}
+              onMouseDown={(event) => event.stopPropagation()}
+              disabled={initiativeEncounter.length === 0}
+              className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center disabled:opacity-35"
+              aria-label="Choose initiative participants to remove"
+            >
+              <MinusIcon className="h-3.5 w-3.5" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Add a permanent or temporary participant">
+            <button
+              type="button"
+              onClick={() => setShowAddParticipantModal(true)}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
+              aria-label="Add initiative participant"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+            </button>
+          </Tooltip>
         </div>
-      )}
+      </div>
 
-      {/* Controls - Add from pool, Add temporary, Roll Initiative */}
-      <div className="flex flex-wrap gap-1 mb-2">
-        {/* New Encounter - resets to all pool participants */}
-        <Tooltip content="Reset to all pool participants with no roll values">
-          <button
-            onClick={newEncounter}
-            disabled={initiativePool.length === 0}
-            className={`${buttonClass} widget-control widget-control--subtle disabled:opacity-35`}
-          >
-            Reset
-          </button>
-        </Tooltip>
-
-        {/* Add Temporary */}
-        <Tooltip content="Add a one-off temporary participant">
-          <button
-            onClick={() => setShowAddTempModal(true)}
-            className={`${buttonClass} widget-control`}
-          >
-            Add
-          </button>
-        </Tooltip>
+      {/* Encounter controls */}
+      <div className="flex min-h-6 flex-wrap items-center gap-1 mb-2">
+        {hasTemporaryParticipants && (
+          <Tooltip content="Remove all temporary participants">
+            <button
+              type="button"
+              onClick={clearTemporaryParticipants}
+              className={`${buttonClass} widget-control widget-control--subtle`}
+            >
+              Clear temporary
+            </button>
+          </Tooltip>
+        )}
 
         {/* Roll Initiative */}
         {initiativeShowRollButton && initiativeEncounter.length > 0 && (
@@ -446,7 +689,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       </div>
 
       {/* Encounter List */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div ref={encounterListRef} className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto">
         {initiativeEncounter.length === 0 ? (
           <WidgetEmptyState
             title="No encounter yet"
@@ -462,54 +705,49 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
             {initiativeEncounter.map((entry: InitiativeEncounterEntry, index: number) => (
               <div
                 key={entry.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={(e) => handleDragLeave(e)}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`flex items-center gap-1 px-1 py-0.5 rounded transition-colors ${
+                ref={(element) => {
+                  if (element) encounterEntryRefs.current.set(entry.id, element);
+                  else encounterEntryRefs.current.delete(entry.id);
+                }}
+                className={`initiative-entry relative flex min-h-7 items-center gap-1 px-1 py-0.5 rounded ${
                   index === initiativeCurrentIndex 
                     ? 'bg-theme-accent text-theme-paper' 
                     : 'bg-theme-background text-theme-ink hover:bg-theme-border/30'
-                } ${
-                  dragOverIndex === index ? 'ring-2 ring-theme-accent' : ''
-                } ${
-                  draggedIndex === index ? 'opacity-50' : ''
                 }`}
               >
                 {/* Drag Handle */}
-                <span 
-                  className={`${itemClass} cursor-grab active:cursor-grabbing select-none px-0.5 ${
+                <button
+                  type="button"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startEncounterDrag(entry.id, event);
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => handleReorderKey(index, event)}
+                  className={`initiative-entry__drag-handle flex h-6 w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded cursor-grab active:cursor-grabbing ${
                     index === initiativeCurrentIndex ? 'text-theme-paper/70' : 'text-theme-muted'
                   }`}
-                >⠿</span>
+                  aria-label={`Reorder ${entry.name}`}
+                  title="Drag to reorder. Arrow keys also work."
+                >
+                  <GripVerticalIcon className="h-3.5 w-3.5" />
+                </button>
                 
                 {/* Name */}
-                <span className={`${itemClass} flex-1 truncate font-body ${entry.isTemporary ? 'italic' : ''}`}>
+                <span className={`${itemClass} min-w-0 flex-1 truncate font-body`}>
                   {entry.name}
                 </span>
 
-                {/* Roll Result */}
-                {entry.rollResult !== undefined && (
-                  <span className={`${itemClass} font-mono font-bold min-w-[24px] text-center font-body`}>
-                    {entry.rollResult}
+                {entry.isTemporary && (
+                  <span className="text-[9px] italic leading-none opacity-60" title="Temporary participant">
+                    temporary
                   </span>
                 )}
 
-                {/* Remove Button */}
-                <Tooltip content="Remove from encounter">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFromEncounter(entry.id);
-                    }}
-                    className={`${itemClass} hover:text-red-500 transition-colors px-1 font-body`}
-                    aria-label={`Remove ${entry.name} from encounter`}
-                  >
-                    ×
-                  </button>
-                </Tooltip>
+                <span className={`${itemClass} mr-1 min-w-[42px] text-right font-mono font-bold tabular-nums font-body`}>
+                  {entry.rollResult ?? formatInitiativeDice(entry)}
+                </span>
+
               </div>
             ))}
           </div>
@@ -538,12 +776,19 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         </div>
       )}
 
-      {/* Add Temporary Modal */}
-      {showAddTempModal && (
-        <AddTempModal
+      {showAddParticipantModal && (
+        <AddParticipantModal
           showRollButton={initiativeShowRollButton}
-          onClose={() => setShowAddTempModal(false)}
-          onAdd={addTemporary}
+          onClose={() => setShowAddParticipantModal(false)}
+          onAddPermanent={addPermanent}
+          onAddTemporary={addTemporary}
+        />
+      )}
+      {showRemoveParticipantsModal && (
+        <RemoveParticipantsModal
+          participants={initiativeEncounter as InitiativeEncounterEntry[]}
+          onClose={() => setShowRemoveParticipantsModal(false)}
+          onRemove={removeParticipants}
         />
       )}
     </div>
