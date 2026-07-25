@@ -6,6 +6,7 @@ import { stripImages } from '../utils/stripImages';
 import GalleryShareModal from './GalleryShareModal';
 import { MenuIcon } from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface ShareExportMenuProps {
   character: Character;
@@ -74,6 +75,7 @@ export default function ShareExportMenu({
   const addPreset = useUserPresetStore((state) => state.addPreset);
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
   const setThreeDDiceEnabled = useDiceSettingsStore((state) => state.setThreeDDiceEnabled);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
   const [includeTheme, setIncludeTheme] = useState(true);
@@ -279,6 +281,24 @@ export default function ShareExportMenu({
               <span className="block font-semibold">Print Preview</span>
               <span className="block text-[11px] opacity-65 mt-0.5">Prepare this sheet for paper or PDF</span>
             </button>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tutorial="feedback-button"
+              onClick={() => {
+                recordTelemetryEvent({
+                  eventName: 'external_feedback_opened',
+                  category: 'app',
+                  source: 'sheet_menu',
+                });
+                onOpenChange(false);
+              }}
+              className="block w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors border-t border-theme-border/50"
+            >
+              <span className="block font-semibold">Feedback</span>
+              <span className="block text-[11px] opacity-65 mt-0.5">Report a bug or request a feature</span>
+            </a>
             <button
               type="button"
               onClick={() => {
