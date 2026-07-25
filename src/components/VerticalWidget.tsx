@@ -49,10 +49,8 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'NUMBER_DISPLAY',
   'POOL',
   'TOGGLE_GROUP',
-  'HEALTH_BAR',
+  'INITIATIVE_TRACKER',
 ]);
-
-const WIDGETS_WITH_WIDE_HEADER_CONTROLS = new Set<WidgetType>(['HEALTH_BAR']);
 
 export default function VerticalWidget({
   widget,
@@ -73,12 +71,7 @@ export default function VerticalWidget({
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
-  const hasWideHeaderControls = WIDGETS_WITH_WIDE_HEADER_CONTROLS.has(widget.type);
-  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && (
-    hasWideHeaderControls
-      ? widget.data.showMaxControl !== false
-      : widget.data.showFieldControls !== false
-  );
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && widget.data.showFieldControls !== false;
   const hasInternalHeaderLabel = widget.data.label && !(widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -258,7 +251,7 @@ export default function VerticalWidget({
           <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1">{getWidgetLabel()}</span>
 
           {hasHeaderControls && !isCollapsed && (
-            <div className={`h-6 flex-shrink-0 ${hasWideHeaderControls ? 'w-16' : 'w-[52px]'}`} aria-hidden="true" />
+            <div className="h-6 w-[52px] flex-shrink-0" aria-hidden="true" />
           )}
 
           {isBuildMode && (

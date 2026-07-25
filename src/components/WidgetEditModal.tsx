@@ -74,8 +74,6 @@ const FIELD_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
   'TOGGLE_GROUP',
 ]);
 
-const MAX_CONTROL_WIDGET_TYPES = new Set<WidgetType>(['HEALTH_BAR']);
-
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
     'NUMBER': 'Number Tracker',
@@ -179,20 +177,6 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       );
     }
 
-    if (MAX_CONTROL_WIDGET_TYPES.has(widget.type)) {
-      return (
-        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
-          <input
-            type="checkbox"
-            checked={localData.showMaxControl !== false}
-            onChange={(event) => handleUpdateData({ showMaxControl: event.target.checked })}
-            className="h-4 w-4 accent-theme-accent"
-          />
-          Show maximum value button
-        </label>
-      );
-    }
-
     return null;
   };
 
@@ -218,7 +202,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
-      case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
+      case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
       case 'DICE_TRAY': return <DiceTrayWidget {...props} interactive={false} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
