@@ -355,13 +355,18 @@
   .health-bar__readout,
   .progress-bar__readout {
     align-items: center;
-    color: var(--color-ink);
+    background: #18181b;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    border-radius: calc(var(--button-radius) * 0.72);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.32);
+    color: #fff;
     display: flex;
     font-family: var(--font-body);
     left: 50%;
     line-height: 1;
+    max-width: calc(100% - 6px);
+    padding: 2px 5px;
     position: absolute;
-    text-shadow: 0 0 3px var(--color-paper), 0 0 3px var(--color-paper), 0 0 3px var(--color-paper);
     top: 50%;
     transform: translate(-50%, -50%);
     white-space: nowrap;
@@ -370,6 +375,7 @@
   .health-bar__readout strong,
   .progress-bar__readout strong {
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
   }
 
   .health-bar__actions {
