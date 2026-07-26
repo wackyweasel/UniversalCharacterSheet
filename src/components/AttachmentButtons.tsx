@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect, useLayoutEffect } from 'react';
-import { Link2, Unlink2 } from 'lucide-react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
+import { LinkIcon, UnlinkIcon } from './icons';
 
 interface Props {
   widgets: Widget[];
@@ -327,7 +327,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
                 handleClick(edge);
               }}
             >
-              {edge.isAttached ? <Unlink2 className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+              {edge.isAttached ? <UnlinkIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
             </button>
           </Tooltip>
         );

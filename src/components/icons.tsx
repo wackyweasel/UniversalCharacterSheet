@@ -263,3 +263,106 @@ export function ArrowRightIcon(props: IconProps) {
     </Base>
   );
 }
+
+export function LinkIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+      <path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" />
+    </Base>
+  );
+}
+
+export function UnlinkIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0 .4-6.6M14 11a5 5 0 0 0-7.1-.1l-2 2a5 5 0 0 0-.4 6.6M3 3l18 18" />
+    </Base>
+  );
+}
+
+export function BoldIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z" />
+    </Base>
+  );
+}
+
+export function ItalicIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M10 4h8M6 20h8M14 4 10 20" />
+    </Base>
+  );
+}
+
+export function UnderlineIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 3v7a6 6 0 0 0 12 0V3M4 21h16" />
+    </Base>
+  );
+}
+
+export function StrikethroughIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M17 5.5A6.5 6.5 0 0 0 12 3c-3 0-5 1.5-5 4 0 1.2.5 2 1.4 2.7M7 18.5A6.5 6.5 0 0 0 12 21c3 0 5-1.5 5-4 0-1.2-.5-2-1.4-2.7M4 12h16" />
+    </Base>
+  );
+}
+
+export function PaletteIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 3a9 9 0 0 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h5a4 4 0 0 0 4-4c0-3.3-4-6-9-6z" />
+      <circle cx="7.5" cy="9" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </Base>
+  );
+}
+
+export function ListIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M9 6h12M9 12h12M9 18h12" />
+      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
+    </Base>
+  );
+}
+
+export function ListOrderedIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M10 6h11M10 12h11M10 18h11M4 4h1v4M4 11h2l-2 3h2M4 17h2l-2 3h2" />
+    </Base>
+  );
+}
+
+export function OutdentIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M11 6h10M11 12h10M11 18h10M8 9l-3 3 3 3" />
+    </Base>
+  );
+}
+
+export function IndentIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M11 6h10M11 12h10M11 18h10M5 9l3 3-3 3" />
+    </Base>
+  );
+}
+
+export function ClearFormattingIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 7V4h13v3M10.5 4 8 18M5 20h14M3 3l18 18" />
+    </Base>
+  );
+}
