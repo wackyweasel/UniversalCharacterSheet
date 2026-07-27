@@ -434,6 +434,7 @@ export default function InventoryWidget({
               {canInteract && (
                 <button
                   type="button"
+                  data-touch-camera-ignore="true"
                   onPointerDown={(event) => startDrag(item, event)}
                   onKeyDown={(event) => handleReorderKey(index, event)}
                   onClick={(event) => event.stopPropagation()}
