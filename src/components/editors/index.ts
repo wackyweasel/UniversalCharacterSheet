@@ -20,6 +20,7 @@ export { MapSketcherEditor } from './MapSketcherEditor';
 export { GridMapEditor } from './GridMapEditor';
 export { RollTableEditor } from './RollTableEditor';
 export { InitiativeTrackerEditor } from './InitiativeTrackerEditor';
+export { InventoryEditor } from './InventoryEditor';
 export { DeckEditor } from './DeckEditor';
 export { TimerEditor } from './TimerEditor';
 export { StepDiceEditor } from './StepDiceEditor';

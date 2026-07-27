@@ -27,6 +27,7 @@ import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
@@ -50,6 +51,7 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'POOL',
   'TOGGLE_GROUP',
   'INITIATIVE_TRACKER',
+  'INVENTORY',
 ]);
 
 export default function VerticalWidget({
@@ -128,6 +130,7 @@ export default function VerticalWidget({
     'HEALTH_BAR': 'Health Bar',
     'IMAGE': 'Image',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
+    'INVENTORY': 'Inventory',
     'LIST': 'List',
     'MAP_SKETCHER': 'Map Sketcher',
     'GRID_MAP': 'Grid Map',
@@ -186,6 +189,7 @@ export default function VerticalWidget({
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;

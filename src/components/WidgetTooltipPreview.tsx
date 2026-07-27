@@ -21,6 +21,7 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
@@ -424,6 +425,44 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       initiativeAdvanceTimeUnit: 'rounds',
     },
   },
+  INVENTORY: {
+    id: 'preview-inventory',
+    type: 'INVENTORY',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 150,
+    locked: true,
+    data: {
+      label: 'Backpack',
+      inventoryItems: [
+        {
+          id: 'item-rope',
+          name: 'Silk rope',
+          fields: [
+            { id: 'field-rope-weight', name: 'Weight', type: 'number', value: 5, reserved: 'weight' },
+            { id: 'field-rope-notes', name: 'Notes', type: 'textarea', value: '50 feet' },
+          ],
+        },
+        {
+          id: 'item-potion',
+          name: 'Healing potion',
+          fields: [
+            { id: 'field-potion-weight', name: 'Weight', type: 'number', value: 0.5, reserved: 'weight' },
+            { id: 'field-potion-value', name: 'Value', type: 'number', value: 50 },
+          ],
+        },
+      ],
+      inventoryDefaultFields: [],
+      inventoryEncumbrance: {
+        enabled: true,
+        unit: 'kg',
+        localCapacity: 30,
+        includeInGlobalLoad: true,
+        showGlobalCounter: false,
+      },
+    },
+  },
   DECK: {
     id: 'preview-deck',
     type: 'DECK',
@@ -512,6 +551,7 @@ function renderWidget(widget: Widget) {
     case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+    case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
     case 'DECK': return <DeckWidget {...props} />;
     case 'TIMER': return <TimerWidget {...props} />;
     case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;

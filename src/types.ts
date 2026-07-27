@@ -22,6 +22,7 @@ export type WidgetType =
   | 'ROLL_TABLE'
   | 'GRID_MAP'
   | 'INITIATIVE_TRACKER'
+  | 'INVENTORY'
   | 'DECK'
   | 'TIMER'
   | 'STEP_DICE';
@@ -65,6 +66,42 @@ export interface DeckCard {
 export interface DeckState {
   remaining: string[];
   discarded: string[];
+}
+
+export type InventoryFieldType = 'text' | 'number' | 'checkbox' | 'textarea';
+
+export type InventoryFieldValue = string | number | boolean;
+
+export interface InventoryFieldTemplate {
+  id: string;
+  name: string;
+  type: InventoryFieldType;
+  defaultValue: InventoryFieldValue;
+  reserved?: 'weight';
+}
+
+export interface InventoryItemField {
+  id: string;
+  name: string;
+  type: InventoryFieldType;
+  value: InventoryFieldValue;
+  reserved?: 'weight';
+  templateId?: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  fields: InventoryItemField[];
+}
+
+export interface InventoryEncumbranceSettings {
+  enabled: boolean;
+  unit: string;
+  localCapacity?: number;
+  includeInGlobalLoad: boolean;
+  showGlobalCounter: boolean;
+  globalCapacity?: number;
 }
 
 export interface CellFormat {
@@ -305,6 +342,10 @@ export interface WidgetData {
   initiativeAdvanceByRound?: boolean;               // Advance by 1 round (for round-mode Time Trackers)
   initiativeAdvanceTimeAmount?: number;             // Amount of time to advance
   initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
+  // Inventory
+  inventoryItems?: InventoryItem[];
+  inventoryDefaultFields?: InventoryFieldTemplate[];
+  inventoryEncumbrance?: InventoryEncumbranceSettings;
   // Timer
   timerElapsed?: number;       // Elapsed time in milliseconds
   timerRunning?: boolean;      // Whether the timer is currently running

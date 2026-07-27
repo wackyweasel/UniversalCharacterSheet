@@ -28,6 +28,7 @@ import {
   GridMapEditor,
   RollTableEditor,
   InitiativeTrackerEditor,
+  InventoryEditor,
   DeckEditor,
   TimerEditor,
   StepDiceEditor,
@@ -55,6 +56,7 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
@@ -72,6 +74,7 @@ const FIELD_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
   'NUMBER_DISPLAY',
   'POOL',
   'TOGGLE_GROUP',
+  'INVENTORY',
 ]);
 
 function getWidgetTitle(type: WidgetType): string {
@@ -97,6 +100,7 @@ function getWidgetTitle(type: WidgetType): string {
     'GRID_MAP': 'Grid Map',
     'ROLL_TABLE': 'Roll Table',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
+    'INVENTORY': 'Inventory',
     'DECK': 'Deck of Cards',
     'TIMER': 'Timer',
     'STEP_DICE': 'Step Dice',
@@ -155,6 +159,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'GRID_MAP': return <GridMapEditor {...editorProps} />;
       case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
+      case 'INVENTORY': return <InventoryEditor {...editorProps} />;
       case 'DECK': return <DeckEditor {...editorProps} />;
       case 'TIMER': return <TimerEditor {...editorProps} />;
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
@@ -218,6 +223,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
@@ -253,8 +259,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     >
       <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-theme-border">
-          <h2 className="text-lg font-bold text-theme-ink font-heading">
+        <div className={`flex items-center justify-between border-b border-theme-border ${widget.type === 'INVENTORY' ? 'px-3 py-2' : 'px-4 py-3'}`}>
+          <h2 className={`${widget.type === 'INVENTORY' ? 'text-base' : 'text-lg'} font-bold text-theme-ink font-heading`}>
             Edit {getWidgetTitle(widget.type)}
           </h2>
           <button
@@ -267,11 +273,11 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-4">
-          <div className="flex flex-col gap-6">
+        <div className={`flex-1 overflow-auto ${widget.type === 'INVENTORY' ? 'p-3' : 'p-4'}`}>
+          <div className={`flex flex-col ${widget.type === 'INVENTORY' ? 'gap-3' : 'gap-6'}`}>
             {/* Editor Section */}
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>
+              {widget.type !== 'INVENTORY' && <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>}
               {renderEditor()}
               {renderControlVisibilitySetting()}
             </div>
@@ -293,7 +299,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-theme-border flex justify-end">
+        <div className={`border-t border-theme-border flex justify-end ${widget.type === 'INVENTORY' ? 'px-3 py-2' : 'px-4 py-3'}`}>
           <button
             data-tutorial="edit-done-button"
             disabled={tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21}

@@ -6,6 +6,7 @@ import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
+import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -183,6 +184,17 @@ interface StoreState {
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
+  moveInventoryItem: (options: {
+    sourceWidgetId: string;
+    targetWidgetId: string;
+    itemId: string;
+    targetIndex: number;
+  }) => void;
+  saveInventoryItem: (options: {
+    sourceWidgetId: string;
+    targetWidgetId: string;
+    item: import('../types').InventoryItem;
+  }) => void;
   removeWidget: (id: string) => void;
   toggleWidgetLock: (id: string) => void;
   reorderWidget: (widgetId: string, newIndex: number) => void;
@@ -750,8 +762,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : DEFAULT_HEIGHT;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -848,6 +860,7 @@ export const useStore = create<StoreState>((set, get) => {
             'GRID_MAP': 'Grid Map',
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
+            'INVENTORY': 'Inventory',
             'DECK': 'Deck',
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
@@ -884,6 +897,7 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapCellDistance: 5,
               gridMapDistanceUnit: 'ft',
             } : {}),
+            ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
           }
         };
 
@@ -1302,6 +1316,124 @@ export const useStore = create<StoreState>((set, get) => {
         });
 
         return { characters: updatedCharacters };
+      });
+    },
+
+    moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'INVENTORY' || targetWidget.type !== 'INVENTORY') return;
+
+      const sourceItems = sourceWidget.data.inventoryItems || [];
+      const targetItems = sourceWidgetId === targetWidgetId
+        ? sourceItems
+        : targetWidget.data.inventoryItems || [];
+      const result = moveInventoryItemBetweenLists(
+        sourceItems,
+        targetItems,
+        itemId,
+        targetIndex,
+        targetWidget.data.inventoryEncumbrance?.enabled === true,
+      );
+      if (!result) return;
+
+      get()._takeSnapshot(sourceWidgetId === targetWidgetId ? 'Reorder inventory item' : 'Move inventory item');
+      set((currentState) => {
+        recordStoreEvent(currentState, {
+          eventName: sourceWidgetId === targetWidgetId ? 'inventory_item_reordered' : 'inventory_item_moved',
+          category: 'widget',
+          widgetType: 'INVENTORY',
+          source: 'inventory',
+          metadata: { sourceWidgetId, targetWidgetId },
+        });
+
+        return {
+          characters: currentState.characters.map((entry) => {
+            if (entry.id !== currentState.activeCharacterId) return entry;
+            return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+              if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: result.sourceItems } };
+              }
+              if (widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: result.sourceItems } };
+              }
+              if (widget.id === targetWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: result.targetItems } };
+              }
+              return widget;
+            }));
+          }),
+        };
+      });
+    },
+
+    saveInventoryItem: ({ sourceWidgetId, targetWidgetId, item }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'INVENTORY' || targetWidget.type !== 'INVENTORY') return;
+
+      const sourceItems = sourceWidget.data.inventoryItems || [];
+      const sourceIndex = sourceItems.findIndex((entry) => entry.id === item.id);
+      const savedItem = targetWidget.data.inventoryEncumbrance?.enabled ? ensureItemWeight(item) : item;
+      let nextSourceItems: typeof sourceItems;
+      let nextTargetItems: typeof sourceItems;
+
+      if (sourceWidgetId === targetWidgetId) {
+        nextSourceItems = [...sourceItems];
+        if (sourceIndex >= 0) nextSourceItems[sourceIndex] = savedItem;
+        else nextSourceItems.push(savedItem);
+        nextTargetItems = nextSourceItems;
+      } else {
+        const targetItems = targetWidget.data.inventoryItems || [];
+        if (targetItems.some((entry) => entry.id === item.id)) return;
+        nextSourceItems = sourceIndex >= 0
+          ? sourceItems.filter((entry) => entry.id !== item.id)
+          : sourceItems;
+        nextTargetItems = [...targetItems, savedItem];
+      }
+
+      const action = sourceIndex < 0
+        ? 'Add inventory item'
+        : sourceWidgetId === targetWidgetId
+          ? 'Edit inventory item'
+          : 'Move inventory item';
+      get()._takeSnapshot(action);
+      set((currentState) => {
+        recordStoreEvent(currentState, {
+          eventName: sourceIndex < 0
+            ? 'inventory_item_added'
+            : sourceWidgetId === targetWidgetId
+              ? 'inventory_item_edited'
+              : 'inventory_item_moved',
+          category: 'widget',
+          widgetType: 'INVENTORY',
+          source: 'inventory_dialog',
+          metadata: { sourceWidgetId, targetWidgetId },
+        });
+
+        return {
+          characters: currentState.characters.map((entry) => {
+            if (entry.id !== currentState.activeCharacterId) return entry;
+            return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+              if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: nextSourceItems } };
+              }
+              if (widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: nextSourceItems } };
+              }
+              if (widget.id === targetWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: nextTargetItems } };
+              }
+              return widget;
+            }));
+          }),
+        };
       });
     },
 
