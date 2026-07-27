@@ -39,6 +39,35 @@ interface UsePanZoomOptions {
   onBackgroundClick?: () => void;
 }
 
+const INTERACTIVE_CANVAS_SELECTOR = [
+  'a[href]',
+  'button',
+  'canvas',
+  'input',
+  'label',
+  'select',
+  'summary',
+  'textarea',
+  '[contenteditable="true"]',
+  '[tabindex]:not([tabindex="-1"])',
+  '[role="button"]',
+  '[role="checkbox"]',
+  '[role="slider"]',
+  '[role="spinbutton"]',
+  '[role="switch"]',
+  '[role="textbox"]',
+  '[data-canvas-interactive]',
+  '.drag-handle',
+].join(', ');
+
+function isInteractiveCanvasTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest(INTERACTIVE_CANVAS_SELECTOR)) return true;
+
+  const cursor = window.getComputedStyle(target).cursor;
+  return !['auto', 'default', 'grab', 'grabbing'].includes(cursor);
+}
+
 export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, onBackgroundClick }: UsePanZoomOptions) {
   const initial = useRef(readInitialLock(characterId)).current;
   const [pan, setPan] = useState(initial.pan);
@@ -82,8 +111,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
       return;
     }
     
-    // Ignore if clicking on a widget
-    if ((e.target as HTMLElement).closest('.react-draggable')) return;
+    // Preserve controls and widget manipulation while allowing inert widget space to pan.
+    if (isInteractiveCanvasTarget(e.target)) return;
 
     // Clear selected widget when clicking on the background
     onBackgroundClick?.();
