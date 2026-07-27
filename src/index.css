@@ -159,8 +159,11 @@
 
 @layer components {
   .widget-surface {
+    border: var(--border-width) var(--border-style) transparent;
     color: var(--color-ink);
     isolation: isolate;
+    outline: var(--border-width) var(--border-style) var(--color-border);
+    outline-offset: calc(var(--border-width) / -2);
   }
 
   .widget-content {
@@ -650,9 +653,11 @@
 
   .vertical-widget-card {
     background: var(--color-paper);
-    border: var(--border-width) var(--border-style) var(--color-border);
+    border: var(--border-width) var(--border-style) transparent;
     border-radius: var(--border-radius);
     box-shadow: 0 1px 0 color-mix(in srgb, var(--color-shadow) 22%, transparent);
+    outline: var(--border-width) var(--border-style) var(--color-border);
+    outline-offset: calc(var(--border-width) / -2);
     overflow: hidden;
     position: relative;
   }

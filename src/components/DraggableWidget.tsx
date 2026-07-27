@@ -692,7 +692,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border cursor-default group ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper cursor-default group ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
@@ -700,7 +700,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
             zIndex: showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
             ...borderRadiusStyle,
-            ...(bordersDisabled ? { borderWidth: '0px' } : {}),
+            ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
