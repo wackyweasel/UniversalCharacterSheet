@@ -787,6 +787,24 @@
   height: 100dvh;
 }
 
+.widget-search-target {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 4px;
+  animation: widget-search-pulse 650ms ease-out 2;
+}
+
+@keyframes widget-search-pulse {
+  0% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--color-accent) 0%, transparent)); }
+  45% { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--color-accent) 75%, transparent)); }
+  100% { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-search-target {
+    animation: none;
+  }
+}
+
 .canvas-zoom-dock {
   align-items: center;
   background: color-mix(in srgb, var(--color-paper) 94%, transparent);

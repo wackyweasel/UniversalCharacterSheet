@@ -35,6 +35,15 @@ export function XIcon(props: IconProps) {
   );
 }
 
+export function SearchIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </Base>
+  );
+}
+
 export function CheckIcon(props: IconProps) {
   return (
     <Base {...props}>

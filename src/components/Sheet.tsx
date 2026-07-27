@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -20,6 +20,7 @@ import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
+import SheetSearch from './SheetSearch';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
 import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon } from './icons';
@@ -28,6 +29,7 @@ const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
 
 // Helper to get active sheet widgets
 function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
@@ -245,6 +247,10 @@ export default function Sheet() {
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
   const [zoomValueVisible, setZoomValueVisible] = useState(false);
+  const [sheetSearchOpen, setSheetSearchOpen] = useState(false);
+  const [sheetSearchQuery, setSheetSearchQuery] = useState('');
+  const [searchReveal, setSearchReveal] = useState<{ sheetId: string; widgetId: string; key: number } | null>(null);
+  const searchRevealSequenceRef = useRef(0);
   
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
@@ -253,6 +259,29 @@ export default function Sheet() {
   const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
   const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
+
+  const sheetSearchIndex = useMemo(
+    () => activeCharacter ? buildSheetSearchIndex(activeCharacter) : [],
+    [activeCharacter],
+  );
+  const sheetSearchResults = useMemo(
+    () => activeCharacter ? searchSheetIndex(sheetSearchIndex, sheetSearchQuery, activeCharacter.activeSheetId) : [],
+    [activeCharacter, sheetSearchIndex, sheetSearchQuery],
+  );
+
+  useEffect(() => {
+    setSheetSearchQuery('');
+    setSheetSearchOpen(false);
+  }, [activeCharacterId]);
+
+  const handleSearchResult = useCallback((result: SheetSearchResult) => {
+    setSearchReveal({
+      sheetId: result.sheetId,
+      widgetId: result.widgetId,
+      key: ++searchRevealSequenceRef.current,
+    });
+    if (activeCharacter?.activeSheetId !== result.sheetId) selectSheet(result.sheetId);
+  }, [activeCharacter?.activeSheetId, selectSheet]);
   
   const verticalListScrollRef = useRef<HTMLDivElement>(null);
   const verticalWidgetRefs = useRef(new Map<string, HTMLDivElement>());
@@ -310,6 +339,71 @@ export default function Sheet() {
     onBackgroundClick: handleBackgroundInteraction,
   });
 
+  const scaleRef = useRef(scale);
+  const panRef = useRef(pan);
+  const viewLockedRef = useRef(viewLocked);
+  const wheelPanEnabledRef = useRef(wheelPanEnabled);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+  useEffect(() => { wheelPanEnabledRef.current = wheelPanEnabled; }, [wheelPanEnabled]);
+
+  useEffect(() => {
+    if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
+
+    let frame = 0;
+    const usesVerticalLayout = mode === 'vertical' || (mode === 'edit' && playLayout === 'list');
+    if (!usesVerticalLayout) {
+      frame = window.requestAnimationFrame(() => {
+        const viewport = containerRef.current;
+        const target = printAreaRef.current?.querySelector<HTMLElement>(`[data-widget-id="${searchReveal.widgetId}"]`);
+        if (!viewport || !target) return;
+        if (viewLockedRef.current) return;
+
+        const viewportRect = viewport.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const currentScale = scaleRef.current;
+        const currentPan = panRef.current;
+        const targetCanvasX = (targetRect.left + targetRect.width / 2 - viewportRect.left - currentPan.x) / currentScale;
+        const targetCanvasY = (targetRect.top + targetRect.height / 2 - viewportRect.top - currentPan.y) / currentScale;
+
+        if (wheelPanEnabledRef.current) {
+          const nextPan = {
+            x: currentPan.x,
+            y: viewportRect.height / 2 - targetCanvasY * currentScale,
+          };
+          panRef.current = nextPan;
+          setPan(nextPan);
+          return;
+        }
+
+        const framingScale = currentScale * Math.min(
+          viewportRect.width * 0.7 / targetRect.width,
+          viewportRect.height * 0.7 / targetRect.height,
+        );
+        const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(currentScale, Math.min(framingScale, 2)));
+        const nextPan = {
+          x: viewportRect.width / 2 - targetCanvasX * nextScale,
+          y: viewportRect.height / 2 - targetCanvasY * nextScale,
+        };
+
+        scaleRef.current = nextScale;
+        panRef.current = nextPan;
+        setScale(nextScale);
+        setPan(nextPan);
+      });
+    }
+
+    const timeout = window.setTimeout(() => {
+      setSearchReveal((current) => current?.key === searchReveal.key ? null : current);
+    }, 1800);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [activeCharacter?.activeSheetId, mode, playLayout, searchReveal, setPan, setScale]);
+
   const previousScaleRef = useRef(scale);
   useEffect(() => {
     if (previousScaleRef.current === scale) return;
@@ -320,15 +414,8 @@ export default function Sheet() {
   }, [scale]);
 
   // Touch camera controls hook
-  const scaleRef = useRef(scale);
-  const panRef = useRef(pan);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
-  
   const getScale = useCallback(() => scaleRef.current, []);
   const getPan = useCallback(() => panRef.current, []);
-  const viewLockedRef = useRef(viewLocked);
-  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
 
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
@@ -463,11 +550,22 @@ export default function Sheet() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [paperFormatDropdownOpen]);
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo and character search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input/textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      const target = e.target as HTMLElement | null;
+      const isEditing = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target?.isContentEditable
+        || Boolean(target?.closest('[role="dialog"]'));
+      if (isEditing) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSheetSearchOpen(true);
         return;
       }
       
@@ -832,6 +930,7 @@ export default function Sheet() {
   // Fit all widgets when character sheet is opened or sheet is changed
   useEffect(() => {
     if (viewLocked) return;
+    if (searchReveal?.sheetId === activeCharacter?.activeSheetId) return;
     if (activeCharacterId && activeSheetWidgets.length > 0) {
       // Small delay to ensure DOM elements are rendered
       const timer = setTimeout(() => {
@@ -1122,6 +1221,7 @@ export default function Sheet() {
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
             onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
             onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
+            onSearch={() => setSheetSearchOpen(true)}
             attachmentControlsVisible={attachmentControlsVisible}
             onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           />
@@ -1202,6 +1302,15 @@ export default function Sheet() {
               </button>
             </Tooltip>
           </div>
+          <SheetSearch
+            open={sheetSearchOpen}
+            query={sheetSearchQuery}
+            results={sheetSearchResults}
+            onOpenChange={setSheetSearchOpen}
+            onQueryChange={setSheetSearchQuery}
+            onSelect={handleSearchResult}
+            triggerClassName="hidden min-[640px]:flex"
+          />
           <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button
@@ -1258,6 +1367,7 @@ export default function Sheet() {
                 onDragStart={startVerticalDrag}
                 onReorderKey={handleVerticalReorderKey}
                 isBuildMode={workspace === 'build'}
+                searchRevealKey={searchReveal?.widgetId === widget.id ? searchReveal.key : undefined}
               />
             ))}
             
@@ -1373,6 +1483,7 @@ export default function Sheet() {
               key={widget.id} 
               widget={widget} 
               scale={scale}
+              isSearchTarget={searchReveal?.widgetId === widget.id}
             />
           ))}
           
@@ -1711,6 +1822,7 @@ export default function Sheet() {
           onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
+          onSearch={() => setSheetSearchOpen(true)}
         />
         <WorkspaceToggleGroup
           workspace={workspace}
@@ -1775,6 +1887,15 @@ export default function Sheet() {
             </Tooltip>
           )}
         </div>
+        <SheetSearch
+          open={sheetSearchOpen}
+          query={sheetSearchQuery}
+          results={sheetSearchResults}
+          onOpenChange={setSheetSearchOpen}
+          onQueryChange={setSheetSearchQuery}
+          onSelect={handleSearchResult}
+          triggerClassName="hidden min-[640px]:flex"
+        />
         <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button

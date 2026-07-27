@@ -30,6 +30,7 @@ interface ShareExportMenuProps {
   onAutoStack?: () => void;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  onSearch?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
 }
@@ -69,6 +70,7 @@ export default function ShareExportMenu({
   onAutoStack,
   onExpandAll,
   onCollapseAll,
+  onSearch,
   attachmentControlsVisible,
   onToggleAttachmentControls,
 }: ShareExportMenuProps) {
@@ -129,6 +131,11 @@ export default function ShareExportMenu({
         </button>
         {open && (
           <div className="absolute left-0 top-full mt-2 w-[min(280px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in">
+            {onSearch && (
+              <button type="button" onClick={() => { onSearch(); onOpenChange(false); }} className="min-[640px]:hidden w-full px-3 py-2.5 text-left text-sm font-semibold font-body text-theme-ink border-b border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper transition-colors">
+                Search character
+              </button>
+            )}
             <div className={`${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
               <div className={`grid grid-cols-2 gap-1 ${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'build' ? 'min-[460px]:hidden' : 'min-[380px]:hidden'}`}>
                 <button

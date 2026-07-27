@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
@@ -6,6 +6,7 @@ import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThe
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { ChevronDownIcon, GripVerticalIcon, PencilIcon, TrashIcon } from './icons';
 import { Tooltip } from './Tooltip';
+import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
@@ -40,6 +41,7 @@ interface Props {
   onDragStart: (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => void;
   onReorderKey: (widgetId: string, event: React.KeyboardEvent<HTMLButtonElement>) => void;
   isBuildMode: boolean;
+  searchRevealKey?: number;
 }
 
 const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
@@ -62,7 +64,9 @@ export default function VerticalWidget({
   onDragStart,
   onReorderKey,
   isBuildMode,
+  searchRevealKey,
 }: Props) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -119,39 +123,24 @@ export default function VerticalWidget({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showDeleteConfirm]);
-  
-  // Widget type to display name mapping (same as toolbox)
-  const WIDGET_NAMES: Record<WidgetType, string> = {
-    'CHECKBOX': 'Checklist',
-    'TOGGLE_GROUP': 'Conditions',
-    'DICE_ROLLER': 'Dice Roller',
-    'DICE_TRAY': 'Dice Tray',
-    'FORM': 'Form',
-    'HEALTH_BAR': 'Health Bar',
-    'IMAGE': 'Image',
-    'INITIATIVE_TRACKER': 'Initiative Tracker',
-    'INVENTORY': 'Inventory',
-    'LIST': 'List',
-    'MAP_SKETCHER': 'Map Sketcher',
-    'GRID_MAP': 'Grid Map',
-    'NUMBER_DISPLAY': 'Number Display',
-    'NUMBER': 'Number Tracker',
-    'POOL': 'Resource Pool',
-    'PROGRESS_BAR': 'Progress Bar',
-    'REST_BUTTON': 'Rest Button',
-    'SPELL_SLOT': 'Spell Slots',
-    'TABLE': 'Table',
-    'TEXT': 'Text Area',
-    'TIME_TRACKER': 'Temporary Effects',
-    'ROLL_TABLE': 'Roll Table',
-    'DECK': 'Deck of Cards',
-    'TIMER': 'Timer',
-    'STEP_DICE': 'Step Dice',
-  };
+
+  useEffect(() => {
+    if (searchRevealKey === undefined) return;
+    setIsCollapsed(false);
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        rootRef.current?.scrollIntoView({
+          block: 'center',
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        });
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [searchRevealKey]);
   
   // Get widget label for collapsed header
   const getWidgetLabel = () => {
-    return widget.data.label || WIDGET_NAMES[widget.type] || widget.type;
+    return widget.data.label || getWidgetTypeLabel(widget.type);
   };
 
   const openEditModal = () => {
@@ -199,10 +188,13 @@ export default function VerticalWidget({
 
   return (
     <div
-      ref={(element) => registerElement(widget.id, element)}
+      ref={(element) => {
+        rootRef.current = element;
+        registerElement(widget.id, element);
+      }}
       data-vertical-index={index}
       data-widget-id={widget.id}
-      className="vertical-widget vertical-widget-sort-item relative"
+      className={`vertical-widget vertical-widget-sort-item relative ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
     >
       {/* Widget Card */}
       <div className="vertical-widget-card">

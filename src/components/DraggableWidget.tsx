@@ -42,6 +42,7 @@ import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 interface Props {
   widget: Widget;
   scale: number;
+  isSearchTarget?: boolean;
 }
 
 const GRID_SIZE = 10;
@@ -75,7 +76,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'STEP_DICE': { width: 70, height: 40 },
 };
 
-export default function DraggableWidget({ widget, scale }: Props) {
+export default function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
@@ -691,7 +692,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border cursor-default group ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
