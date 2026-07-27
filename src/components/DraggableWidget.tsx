@@ -151,7 +151,15 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
   const isResizingRef = useRef(false);
-  const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
+  const resizeStartRef = useRef({
+    mouseX: 0,
+    mouseY: 0,
+    width: 0,
+    height: 0,
+    x: 0,
+    y: 0,
+    corner: 'bottom-right' as 'top-left' | 'bottom-right',
+  });
   const isDraggingRef = useRef(false);
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
@@ -162,6 +170,9 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     if (isResizingRef.current) {
       isResizingRef.current = false;
       updateWidgetSize(widget.id, resizeStartRef.current.width, resizeStartRef.current.height);
+      if (resizeStartRef.current.corner === 'top-left') {
+        updateWidgetPosition(widget.id, resizeStartRef.current.x, resizeStartRef.current.y);
+      }
       setIsResizing(false);
     }
     if (widgetTouchActiveRef.current) {
@@ -345,7 +356,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const widgetWidth = getWidgetWidth();
 
   // Resize handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: 'top-left' | 'bottom-right') => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -366,11 +377,14 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       mouseY: clientY,
       width: currentWidth,
       height: currentHeight,
+      x: widget.x,
+      y: widget.y,
+      corner,
     };
     
     isResizingRef.current = true;
     setIsResizing(true);
-  }, [widget.w, widget.h, widget.groupId, widget.id, detachWidgets]);
+  }, [widget.w, widget.h, widget.x, widget.y, widget.groupId, widget.id, detachWidgets]);
 
   const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isResizing) return;
@@ -381,11 +395,20 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     const deltaX = (clientX - resizeStartRef.current.mouseX) / scale;
     const deltaY = (clientY - resizeStartRef.current.mouseY) / scale;
     
-    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + deltaX));
-    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + deltaY));
+    const isTopLeft = resizeStartRef.current.corner === 'top-left';
+    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + (isTopLeft ? -deltaX : deltaX)));
+    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + (isTopLeft ? -deltaY : deltaY)));
+
+    if (isTopLeft) {
+      updateWidgetPosition(
+        widget.id,
+        resizeStartRef.current.x + resizeStartRef.current.width - newWidth,
+        resizeStartRef.current.y + resizeStartRef.current.height - newHeight,
+      );
+    }
     
     updateWidgetSize(widget.id, newWidth, newHeight);
-  }, [isResizing, scale, minDimensions, widget.id, updateWidgetSize]);
+  }, [isResizing, scale, minDimensions, widget.id, updateWidgetPosition, updateWidgetSize]);
 
   const handleResizeEnd = useCallback(() => {
     isResizingRef.current = false;
@@ -1401,27 +1424,50 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
           {/* Resize Handle - only visible in edit mode when hovered/selected */}
           {mode === 'edit' && showControls && (
-            <Tooltip content="Drag to resize">
-              <div
-                className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
-                onMouseDown={handleResizeStart}
-                onTouchStart={handleResizeStart}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  className="text-theme-muted hover:text-theme-ink transition-colors"
+            <>
+              <Tooltip content="Drag to resize">
+                <div
+                  className="absolute -top-1 -left-1 w-6 h-6 cursor-nw-resize z-50 flex items-center justify-center"
+                  onMouseDown={(event) => handleResizeStart(event, 'top-left')}
+                  onTouchStart={(event) => handleResizeStart(event, 'top-left')}
                 >
-                  <path
-                    d="M10 2L2 10M10 6L6 10M10 10L10 10"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-            </Tooltip>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    className="text-theme-muted hover:text-theme-ink transition-colors"
+                  >
+                    <path
+                      d="M2 10L10 2M2 6L6 2M2 2L2 2"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </Tooltip>
+              <Tooltip content="Drag to resize">
+                <div
+                  className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+                  onMouseDown={(event) => handleResizeStart(event, 'bottom-right')}
+                  onTouchStart={(event) => handleResizeStart(event, 'bottom-right')}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    className="text-theme-muted hover:text-theme-ink transition-colors"
+                  >
+                    <path
+                      d="M10 2L2 10M10 6L6 10M10 10L10 10"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </Tooltip>
+            </>
           )}
 
           <div ref={contentRef} className={`widget-content ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
