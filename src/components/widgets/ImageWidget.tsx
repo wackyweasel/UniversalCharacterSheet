@@ -202,7 +202,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
               }}
             />
           )
-        ) : mode !== 'print' && showUploadControl ? (
+        ) : mode === 'print' ? null : showUploadControl ? (
           <ImageUploadButton
             ariaLabel="Add image or GIF"
             onImageReady={(dataUrl) => updateWidgetData(widget.id, { imageUrl: dataUrl })}

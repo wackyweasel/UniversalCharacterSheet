@@ -313,13 +313,21 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
           >
             <div
               className={`progress-bar__fill ${scrubValue !== null ? 'progress-bar__fill--scrubbing' : ''}`}
-              style={verticalBar ? { height: `${progressPercent}%` } : { width: `${progressPercent}%` }}
+              style={verticalBar
+                ? { height: isPrintMode ? '0%' : `${progressPercent}%` }
+                : { width: isPrintMode ? '0%' : `${progressPercent}%` }}
             />
-            {(showValues || showPercentage) && (
-              <div className="progress-bar__readout">
-                {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
-                <strong>{getBarText()}</strong>
-                {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
+            {(showValues || (showPercentage && !isPrintMode)) && (
+              <div className={`progress-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>
+                {isPrintMode ? (
+                  <><span className="invisible" data-print-hide="true">{safeMaxValue}</span>{` / ${safeMaxValue}`}</>
+                ) : (
+                  <>
+                    {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
+                    <strong>{getBarText()}</strong>
+                    {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
+                  </>
+                )}
               </div>
             )}
           </div>

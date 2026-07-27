@@ -406,7 +406,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
               className={`health-bar__fill ${scrubValue !== null ? 'health-bar__fill--scrubbing' : ''}`}
               style={{ width: isPrintMode ? '0%' : `${healthPercent}%` }}
             />
-            <div className="health-bar__readout">
+            <div className={`health-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>
               {isPrintMode ? (
                 <><span className="invisible" data-print-hide="true">{safeMaxValue}</span>{` / ${safeMaxValue}`}</>
               ) : (

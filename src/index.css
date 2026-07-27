@@ -381,6 +381,13 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .bar-readout--print {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--color-ink);
+  }
+
   .health-bar__actions {
     justify-content: flex-end;
   }
