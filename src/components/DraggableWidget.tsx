@@ -126,6 +126,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [showPrintSettings, setShowPrintSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
@@ -319,7 +320,31 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     }
   };
 
+  const handleWidgetContextMenu = (e: React.MouseEvent) => {
+    if (mode !== 'edit' && mode !== 'play') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    const widgetRect = e.currentTarget.getBoundingClientRect();
+    setContextMenuPosition({
+      x: (e.clientX - widgetRect.left) / scale,
+      y: (e.clientY - widgetRect.top) / scale,
+    });
+    setDropdownAlign(e.clientX < window.innerWidth - 198 ? 'left' : 'right');
+    setShowDeleteConfirm(false);
+    setShowTemplateNameInput(false);
+    setTemplateName('');
+    setShowMoveToSheet(false);
+    setShowGroupDeleteConfirm(false);
+    setShowGroupTemplateNameInput(false);
+    setGroupTemplateName('');
+    setShowGroupMoveToSheet(false);
+    setDropdownTab('widget');
+    setShowDropdown(true);
+  };
+
   const showControls = isHovered || isSelected;
+  const isContextMenuOpen = showDropdown && contextMenuPosition !== null;
 
   const openEditModal = () => {
     setShowEditModal(true);
@@ -731,6 +756,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           onTouchEnd={handleWidgetTouchEnd}
           onTouchCancel={handleWidgetTouchEnd}
           onClick={handleWidgetClick}
+          onContextMenu={handleWidgetContextMenu}
         >
           {/* Image texture overlay - grayscale texture tinted with card color */}
           {/* When widgets are attached together, the texture stretches to cover the whole group */}
@@ -767,55 +793,62 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           {/* Menu Button - visible for the selected widget in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
-          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
-            <div className="absolute right-1 top-1 z-[200] flex items-center gap-1" ref={dropdownRef}>
-              <Tooltip content="Widget options">
-                <button
-                  data-tutorial={widgetMenuTutorialTarget}
-                  aria-label={`Options for ${widget.data.label || widget.type}`}
-                  aria-expanded={showDropdown}
-                  className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                  style={{ transform: `scale(${1 / scale})`, transformOrigin: 'top right' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
-                    if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
-                      advanceTutorial();
-                    }
-                    if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
-                      advanceTutorial();
-                    }
-                    if (shouldShowAutomationTutorialMenu) {
-                      advanceTutorial();
-                    }
-                    if (!showDropdown) {
-                      setDropdownAlign(e.currentTarget.getBoundingClientRect().right < 198 ? 'left' : 'right');
-                    }
-                    setShowDropdown(!showDropdown);
-                    if (showDropdown) {
-                      setShowDeleteConfirm(false);
-                      setShowTemplateNameInput(false);
-                      setTemplateName('');
-                      setShowMoveToSheet(false);
-                      // Reset group action states
-                      setShowGroupDeleteConfirm(false);
-                      setShowGroupTemplateNameInput(false);
-                      setGroupTemplateName('');
-                      setShowGroupMoveToSheet(false);
-                      setDropdownTab('widget');
-                    }
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                >
-                  <DotsVerticalIcon className="w-4 h-4" />
-                </button>
-              </Tooltip>
+          {((mode === 'edit' && (showControls || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu)) || ((mode === 'edit' || mode === 'play') && showDropdown)) && (tutorialStep === null || tutorialStep >= 16) && (
+            <div
+              className={`${isContextMenuOpen ? '' : 'right-1 top-1'} absolute z-[200] flex items-center gap-1`}
+              style={isContextMenuOpen ? { left: contextMenuPosition.x, top: contextMenuPosition.y } : undefined}
+              ref={dropdownRef}
+            >
+              {!isContextMenuOpen && (
+                <Tooltip content="Widget options">
+                  <button
+                    data-tutorial={widgetMenuTutorialTarget}
+                    aria-label={`Options for ${widget.data.label || widget.type}`}
+                    aria-expanded={showDropdown}
+                    className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                    style={{ transform: `scale(${1 / scale})`, transformOrigin: 'top right' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
+                      if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
+                        advanceTutorial();
+                      }
+                      if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
+                        advanceTutorial();
+                      }
+                      if (shouldShowAutomationTutorialMenu) {
+                        advanceTutorial();
+                      }
+                      if (!showDropdown) {
+                        setContextMenuPosition(null);
+                        setDropdownAlign(e.currentTarget.getBoundingClientRect().right < 198 ? 'left' : 'right');
+                      }
+                      setShowDropdown(!showDropdown);
+                      if (showDropdown) {
+                        setShowDeleteConfirm(false);
+                        setShowTemplateNameInput(false);
+                        setTemplateName('');
+                        setShowMoveToSheet(false);
+                        // Reset group action states
+                        setShowGroupDeleteConfirm(false);
+                        setShowGroupTemplateNameInput(false);
+                        setGroupTemplateName('');
+                        setShowGroupMoveToSheet(false);
+                        setDropdownTab('widget');
+                      }
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    <DotsVerticalIcon className="w-4 h-4" />
+                  </button>
+                </Tooltip>
+              )}
               
               {/* Dropdown Menu with Tabs */}
               {showDropdown && (
                 <div
-                  className={`widget-options-menu absolute top-full mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[190px] overflow-hidden z-[200] font-body ${dropdownAlign === 'left' ? 'left-0' : 'right-0'}`}
+                  className={`widget-options-menu absolute ${isContextMenuOpen ? 'top-0' : 'top-full mt-1'} bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[190px] overflow-hidden z-[200] font-body ${dropdownAlign === 'left' ? 'left-0' : 'right-0'}`}
                   style={{ transform: `scale(${1 / scale})`, transformOrigin: dropdownAlign === 'left' ? 'top left' : 'top right' }}
                 >
                   {/* Tab Header - only show if widget is part of a group */}
