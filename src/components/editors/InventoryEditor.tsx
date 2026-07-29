@@ -9,6 +9,7 @@ import {
 } from '../../utils/inventory';
 import { GripVerticalIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
+import { LabeledNumberField } from './LabeledNumberField';
 import { EditorProps } from './types';
 
 const FIELD_TYPES: { value: InventoryFieldType; label: string }[] = [
@@ -20,7 +21,13 @@ const FIELD_TYPES: { value: InventoryFieldType; label: string }[] = [
 const inputClass = 'h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-xs text-theme-ink focus:border-theme-accent focus:outline-none';
 
 export function InventoryEditor({ widget, updateData }: EditorProps) {
-  const { label, inventoryItems = [], inventoryDefaultFields = [] } = widget.data;
+  const {
+    label,
+    inventoryItems = [],
+    inventoryDefaultFields = [],
+    fieldLabels = {},
+    fieldFormulas = {},
+  } = widget.data;
   const encumbrance = widget.data.inventoryEncumbrance || DEFAULT_INVENTORY_ENCUMBRANCE;
   const {
     setRowRef: setAttributeRowRef,
@@ -58,6 +65,25 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
 
   const updateEncumbrance = (update: Partial<typeof encumbrance>) => {
     updateData({ inventoryEncumbrance: { ...encumbrance, ...update } });
+  };
+
+  const setFieldLabel = (field: string, labelName: string | undefined) => {
+    const updated = { ...fieldLabels };
+    if (labelName) updated[field] = labelName;
+    else delete updated[field];
+    updateData({
+      fieldLabels: updated,
+      ...(labelName && encumbrance[field as 'localCapacity' | 'globalCapacity'] === undefined
+        ? { inventoryEncumbrance: { ...encumbrance, [field]: 0 } }
+        : {}),
+    });
+  };
+
+  const setFieldFormula = (field: string, formula: string | undefined) => {
+    const updated = { ...fieldFormulas };
+    if (formula) updated[field] = formula;
+    else delete updated[field];
+    updateData({ fieldFormulas: updated });
   };
 
   const renderDefaultValue = (field: InventoryFieldTemplate) => {
@@ -210,20 +236,25 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
                 </p>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_82px] gap-2">
-                <label>
-                  <span className="mb-0.5 block text-[11px] font-medium text-theme-ink">Capacity</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={encumbrance.localCapacity ?? ''}
-                    onChange={(event) => updateEncumbrance({
-                      localCapacity: event.target.value === '' ? undefined : Math.max(0, Number(event.target.value) || 0),
-                    })}
-                    placeholder="No limit"
-                    className={inputClass}
-                  />
-                </label>
+                <LabeledNumberField
+                  value={encumbrance.localCapacity}
+                  onChange={(value) => updateEncumbrance({ localCapacity: Math.max(0, value) })}
+                  onClear={() => updateEncumbrance({ localCapacity: undefined })}
+                  fieldLabel={fieldLabels.localCapacity}
+                  onFieldLabelChange={(labelName) => setFieldLabel('localCapacity', labelName)}
+                  formula={fieldFormulas.localCapacity}
+                  onFormulaChange={(formula) => setFieldFormula('localCapacity', formula)}
+                  min={0}
+                  step={0.1}
+                  placeholder="No limit"
+                  hideStepperButtons
+                  renderRow={({ controls }) => (
+                    <div>
+                      <span className="mb-0.5 block text-[11px] font-medium text-theme-ink">Capacity</span>
+                      {controls}
+                    </div>
+                  )}
+                />
                 <label>
                   <span className="mb-0.5 block text-[11px] font-medium text-theme-ink">Unit</span>
                   <input
@@ -270,20 +301,26 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
                 </label>
 
                 {encumbrance.showGlobalCounter && (
-                  <label className="grid gap-1 pl-6 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center sm:gap-2">
-                    <span className="text-[11px] font-medium text-theme-ink">Global capacity</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={encumbrance.globalCapacity ?? ''}
-                      onChange={(event) => updateEncumbrance({
-                        globalCapacity: event.target.value === '' ? undefined : Math.max(0, Number(event.target.value) || 0),
-                      })}
-                      placeholder="No limit"
-                      className={inputClass}
-                    />
-                  </label>
+                  <LabeledNumberField
+                    value={encumbrance.globalCapacity}
+                    onChange={(value) => updateEncumbrance({ globalCapacity: Math.max(0, value) })}
+                    onClear={() => updateEncumbrance({ globalCapacity: undefined })}
+                    fieldLabel={fieldLabels.globalCapacity}
+                    onFieldLabelChange={(labelName) => setFieldLabel('globalCapacity', labelName)}
+                    formula={fieldFormulas.globalCapacity}
+                    onFormulaChange={(formula) => setFieldFormula('globalCapacity', formula)}
+                    min={0}
+                    step={0.1}
+                    placeholder="No limit"
+                    hideStepperButtons
+                    className="pl-6"
+                    renderRow={({ controls }) => (
+                      <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center sm:gap-2">
+                        <span className="text-[11px] font-medium text-theme-ink">Global capacity</span>
+                        {controls}
+                      </div>
+                    )}
+                  />
                 )}
               </div>
             </div>
