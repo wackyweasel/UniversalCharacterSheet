@@ -76,8 +76,17 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   const [wheelPanEnabled, setWheelPanEnabled] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const lastTouchStartTime = useRef(0);
   const viewLockedRef = useRef(viewLocked);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+
+  useEffect(() => {
+    const handleTouchStart = () => {
+      lastTouchStartTime.current = performance.now();
+    };
+    window.addEventListener('touchstart', handleTouchStart, { capture: true });
+    return () => window.removeEventListener('touchstart', handleTouchStart, { capture: true });
+  }, []);
 
   // Global mouse handlers for panning outside window
   useEffect(() => {
@@ -100,6 +109,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   }, [isPanning]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (performance.now() - lastTouchStartTime.current < 750) return;
     // Disable panning when editing a widget
     if (editingWidgetId) return;
     // Disable panning when view is locked

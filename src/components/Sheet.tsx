@@ -307,8 +307,15 @@ export default function Sheet() {
   const containerRef = useRef<HTMLDivElement>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
   
-  // Callback to clear selection and blur active element when clicking/touching background
-  const handleBackgroundInteraction = useCallback(() => {
+  // Clear mobile widget controls unless the touch stays on their selected widget controls.
+  const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {
+    if (touchTarget) {
+      const selectedWidgetId = useStore.getState().selectedWidgetId;
+      const touchedWidgetId = touchTarget.closest('[data-widget-id]')?.getAttribute('data-widget-id');
+      const touchedAttachmentControl = touchTarget.closest('[data-attach-widget-ids]');
+      if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
+    }
+
     setSelectedWidgetId(null);
     // Blur any focused input/textarea element
     if (document.activeElement instanceof HTMLElement) {
