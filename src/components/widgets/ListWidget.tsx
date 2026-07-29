@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { ChangeEvent, FocusEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -14,9 +14,49 @@ interface Props {
   showFieldControls?: boolean;
 }
 
-export default function ListWidget({ widget, mode, height, showFieldControls = true }: Props) {
+interface WrappingListInputProps {
+  value: string;
+  width: number;
+  className: string;
+  placeholder: string;
+  ariaLabel: string;
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  onFocus: (event: FocusEvent<HTMLTextAreaElement>) => void;
+  onBlur: (event: FocusEvent<HTMLTextAreaElement>) => void;
+}
+
+function WrappingListInput({ value, width, className, placeholder, ariaLabel, onChange, onFocus, onBlur }: WrappingListInputProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value, width]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      rows={1}
+      className={`${className} resize-none overflow-hidden whitespace-pre-wrap break-words`}
+      value={value}
+      onChange={onChange}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onKeyDown={(event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === 'Enter') event.preventDefault();
+      }}
+      placeholder={placeholder}
+      onMouseDown={(event) => event.stopPropagation()}
+      aria-label={ariaLabel}
+    />
+  );
+}
+
+export default function ListWidget({ widget, mode, width, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, items = [], itemCount = 5 } = widget.data;
+  const { label, items = [], itemCount = 5, wrapText = true } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -177,16 +217,29 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
         {normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>
-            <input
-              className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
-              value={item}
-              onChange={(e) => updateItem(idx, e.target.value)}
-              onFocus={() => handleFocus(idx)}
-              onBlur={() => handleBlur(idx)}
-              placeholder={mode === 'print' ? '' : '...'}
-              onMouseDown={(e) => e.stopPropagation()}
-              aria-label={`${label || 'List'} item ${idx + 1}`}
-            />
+            {wrapText ? (
+              <WrappingListInput
+                className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
+                value={item}
+                width={width}
+                onChange={(e) => updateItem(idx, e.target.value)}
+                onFocus={() => handleFocus(idx)}
+                onBlur={() => handleBlur(idx)}
+                placeholder={mode === 'print' ? '' : '...'}
+                ariaLabel={`${label || 'List'} item ${idx + 1}`}
+              />
+            ) : (
+              <input
+                className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
+                value={item}
+                onChange={(e) => updateItem(idx, e.target.value)}
+                onFocus={() => handleFocus(idx)}
+                onBlur={() => handleBlur(idx)}
+                placeholder={mode === 'print' ? '' : '...'}
+                onMouseDown={(e) => e.stopPropagation()}
+                aria-label={`${label || 'List'} item ${idx + 1}`}
+              />
+            )}
             <Tooltip content="Clear this item">
               <button 
                 onClick={() => clearItem(idx)}

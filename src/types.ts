@@ -236,6 +236,7 @@ export interface WidgetData {
   showMaxControl?: boolean;
   items?: string[];
   itemCount?: number;
+  wrapText?: boolean;
   text?: string;
   richText?: string;
   // Checkbox
