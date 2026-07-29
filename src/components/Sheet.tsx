@@ -779,6 +779,7 @@ export default function Sheet() {
   useEffect(() => {
     if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
       // We just advanced to step 23, load the tutorial preset as a transient character.
+      setPlayLayout('canvas');
       createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
       // If in dark mode, set theme to classic-dark
       // We need to get the new character ID after creation
@@ -795,7 +796,7 @@ export default function Sheet() {
         handleFitAllWidgets();
       }, 200);
     }
-  }, [tutorialStep]);
+  }, [tutorialStep, createTransientCharacterFromPreset, darkMode, handleFitAllWidgets, setMode, setPlayLayout, updateCharacterTheme]);
 
   // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
   useEffect(() => {

@@ -15,6 +15,7 @@ import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRi
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
+import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -123,6 +124,7 @@ export default function CharacterList() {
   const selectCharacter = useStore((state) => state.selectCharacter);
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
+  const { setPlayLayout } = useWorkspaceNavigation();
   const transientCharacterIds = useStore((state) => state.transientCharacterIds);
   const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
   const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
@@ -491,6 +493,7 @@ export default function CharacterList() {
   };
 
   const handleStartThemesTutorial = () => {
+    setPlayLayout('canvas');
     createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
@@ -506,6 +509,7 @@ export default function CharacterList() {
   };
 
   const handleStartTemplatesTutorial = () => {
+    setPlayLayout('canvas');
     createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
@@ -601,6 +605,7 @@ export default function CharacterList() {
 
     automationLoadHandledRef.current = true;
 
+  setPlayLayout('canvas');
     createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
@@ -610,7 +615,7 @@ export default function CharacterList() {
 
     setMode('edit');
     advanceTutorial();
-  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, advanceTutorial]);
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, setPlayLayout, advanceTutorial]);
 
   useEffect(() => {
     if (isCurrentTutorialStep('various-open-gallery')) {
@@ -645,6 +650,7 @@ export default function CharacterList() {
     if (variousLoadHandledRef.current) return;
 
     variousLoadHandledRef.current = true;
+  setPlayLayout('canvas');
     createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
@@ -654,13 +660,17 @@ export default function CharacterList() {
 
     setMode('play');
     setShowHeaderMenu(false);
-  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode]);
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, setPlayLayout]);
 
   const handleCreateCharacter = () => {
     const name = newCharName.trim() || 'New Character';
     const isBasicTutorialCreateStep = tutorialStep === 2 && TUTORIAL_STEPS[2]?.id === 'click-create';
     let createdCharacterId: string | null = null;
     let creationSucceeded = false;
+
+    if (isBasicTutorialCreateStep) {
+      setPlayLayout('canvas');
+    }
     
     if (selectedPreset && selectedPreset !== '') {
       // Check if it's a user preset
