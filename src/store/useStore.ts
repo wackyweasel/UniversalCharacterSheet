@@ -841,7 +841,7 @@ export const useStore = create<StoreState>((set, get) => {
           const defaultLabels: Record<WidgetType, string> = {
             'NUMBER': 'Trackers',
             'NUMBER_DISPLAY': 'Stats',
-            'LIST': 'Inventory',
+            'LIST': 'List',
             'TEXT': 'Notes',
             'CHECKBOX': 'Checklist',
             'HEALTH_BAR': 'Health',
