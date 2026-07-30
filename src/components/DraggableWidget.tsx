@@ -7,7 +7,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { DotsVerticalIcon } from './icons';
+import { DotsVerticalIcon, PencilIcon } from './icons';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
@@ -183,6 +183,17 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   });
 
   const isSelected = selectedWidgetId === widget.id;
+  const isWidgetHeaderHidden = widget.data.hideWidgetHeader === true;
+  const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel === true;
+  const renderedWidget = {
+    ...widget,
+    data: {
+      ...widget.data,
+      label: isWidgetHeaderHidden ? undefined : widget.data.label,
+      showFieldControls: !isWidgetHeaderHidden,
+      showTableEditButton: !isWidgetHeaderHidden,
+    },
+  };
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
@@ -349,6 +360,17 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const openEditModal = () => {
     setShowEditModal(true);
     setEditingWidgetId(widget.id);
+  };
+
+  const handleEditWidget = () => {
+    if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
+      advanceTutorial();
+    }
+    if (shouldShowAutomationTutorialEdit) {
+      advanceTutorial();
+    }
+    setShowDropdown(false);
+    openEditModal();
   };
 
   const closeEditModal = () => {
@@ -688,7 +710,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     const widgetMode = mode === 'print' ? 'print' : 'play';
     const contentInset = 16;
     const props = {
-      widget,
+      widget: renderedWidget,
       mode: widgetMode as 'play' | 'print',
       width: Math.max(20, widgetWidth - contentInset),
       height: Math.max(20, (widgetHeight || 120) - contentInset),
@@ -907,14 +929,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
                           className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${(tutorialStep === 17 && widget.type === 'FORM') || shouldShowAutomationTutorialEdit ? 'bg-blue-500 text-white' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
-                              advanceTutorial();
-                            }
-                            if (shouldShowAutomationTutorialEdit) {
-                              advanceTutorial();
-                            }
-                            setShowDropdown(false);
-                            openEditModal();
+                            handleEditWidget();
                           }}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -1503,7 +1518,24 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && !isWidgetHeaderHidden ? 'widget-content--editable-header' : ''} ${mode !== 'print' && !isWidgetHeaderHidden && hasInlineProgressHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+            {mode !== 'print' && !isWidgetHeaderHidden && (
+              <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleEditWidget();
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onTouchStart={(event) => event.stopPropagation()}
+                  aria-label={`Edit ${widget.data.label || 'widget'}`}
+                  className="widget-header-edit-button widget-control widget-control--subtle"
+                >
+                  <PencilIcon className="h-3 w-3" />
+                </button>
+              </Tooltip>
+            )}
             {renderContent()}
           </div>
         </div>

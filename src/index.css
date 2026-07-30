@@ -179,6 +179,32 @@
     z-index: auto;
   }
 
+  .widget-content .widget-header-edit-button {
+    height: 18px;
+    line-height: 18px;
+    min-height: 18px;
+    padding: 0;
+    position: absolute;
+    right: 8px;
+    top: 6px;
+    width: 18px;
+    z-index: 20;
+  }
+
+  .widget-content--editable-header:not(:has(.widget-header, .widget-structure-header)) {
+    padding-top: 28px;
+  }
+
+  .widget-content.widget-content--editable-header.widget-content--progress-inline-edit {
+    padding-right: 30px;
+    padding-top: 6px;
+  }
+
+  .widget-content.widget-content--progress-inline-edit .widget-header-edit-button {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
   .widget-content .widget-header,
   .widget-content .widget-structure-header {
     align-items: center;
@@ -210,6 +236,20 @@
     min-height: 18px;
     padding: 0;
     width: 18px;
+  }
+
+  .widget-content.widget-content--editable-header .widget-header,
+  .widget-content.widget-content--editable-header .widget-structure-header {
+    padding-right: 20px;
+  }
+
+  .widget-content--header-hidden.widget-content--header-hidden .widget-header,
+  .widget-content--header-hidden.widget-content--header-hidden .widget-structure-header {
+    display: none;
+  }
+
+  .widget-editor--hide-label-setting > :first-child > :first-child {
+    display: none;
   }
 
   .form-widget__controls,
@@ -714,8 +754,8 @@
     min-height: 24px;
     padding-right: 0;
     position: absolute;
-    right: 44px;
-    top: -30px;
+    right: 72px;
+    top: -32px;
     z-index: 30;
   }
 
@@ -727,8 +767,14 @@
     justify-content: flex-end;
   }
 
+  .vertical-widget-body--header-controls > div > :first-child > .ml-auto .widget-control {
+    height: 28px;
+    min-height: 0;
+    width: 28px;
+  }
+
   .vertical-widget-body--header-controls.vertical-widget-body--build-actions > div > :first-child {
-    right: 112px;
+    right: 104px;
   }
 }
 

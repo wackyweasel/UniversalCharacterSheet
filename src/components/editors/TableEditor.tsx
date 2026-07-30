@@ -4,7 +4,7 @@ import { TableRow } from '../../types';
 import { Tooltip } from '../Tooltip';
 
 export function TableEditor({ widget, updateData }: EditorProps) {
-  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [], showTableEditButton = true } = widget.data;
+  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [] } = widget.data;
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragItem = React.useRef<number | null>(null);
@@ -139,18 +139,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showTableEditButton}
-            onChange={(e) => updateData({ showTableEditButton: e.target.checked })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show Edit Table button</span>
-        </label>
-      </div>
-      
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Columns</label>
         <div 

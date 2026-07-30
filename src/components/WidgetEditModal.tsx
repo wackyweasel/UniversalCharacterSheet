@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
-import { XIcon } from './icons';
+import { PencilIcon, XIcon } from './icons';
 
 // Import all editors
 import {
@@ -66,15 +66,31 @@ interface Props {
   onClose: () => void;
 }
 
-const FIELD_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
-  'FORM',
-  'LIST',
+const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
   'CHECKBOX',
+  'DECK',
+  'DICE_ROLLER',
+  'DICE_TRAY',
+  'FORM',
+  'GRID_MAP',
+  'HEALTH_BAR',
+  'IMAGE',
+  'INITIATIVE_TRACKER',
+  'INVENTORY',
+  'LIST',
+  'MAP_SKETCHER',
   'NUMBER',
   'NUMBER_DISPLAY',
   'POOL',
+  'PROGRESS_BAR',
+  'ROLL_TABLE',
+  'SPELL_SLOT',
+  'STEP_DICE',
+  'TABLE',
+  'TEXT',
+  'TIME_TRACKER',
+  'TIMER',
   'TOGGLE_GROUP',
-  'INVENTORY',
 ]);
 
 function getWidgetTitle(type: WidgetType): string {
@@ -115,6 +131,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
+  const isWidgetHeaderHidden = localData.hideWidgetHeader === true;
+  const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && localData.inlineLabel === true;
   const isAutomationCloseStep =
     tutorialStep !== null &&
     (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
@@ -133,6 +151,15 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
   // Create a preview widget with the current data and width
   const previewWidget = { ...widget, data: localData, w: localWidth };
+  const renderedPreviewWidget = {
+    ...previewWidget,
+    data: {
+      ...previewWidget.data,
+      label: isWidgetHeaderHidden ? undefined : previewWidget.data.label,
+      showFieldControls: !isWidgetHeaderHidden,
+      showTableEditButton: !isWidgetHeaderHidden,
+    },
+  };
 
   const renderEditor = () => {
     const editorProps = { widget: previewWidget, updateData: handleUpdateData, updateWidth: handleUpdateWidth };
@@ -167,23 +194,17 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     }
   };
 
-  const renderControlVisibilitySetting = () => {
-    if (FIELD_CONTROL_WIDGET_TYPES.has(widget.type)) {
-      return (
-        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
-          <input
-            type="checkbox"
-            checked={localData.showFieldControls !== false}
-            onChange={(event) => handleUpdateData({ showFieldControls: event.target.checked })}
-            className="h-4 w-4 accent-theme-accent"
-          />
-          Show add/remove buttons
-        </label>
-      );
-    }
-
-    return null;
-  };
+  const renderHeaderVisibilitySetting = () => (
+    <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+      <input
+        type="checkbox"
+        checked={isWidgetHeaderHidden}
+        onChange={(event) => handleUpdateData({ hideWidgetHeader: event.target.checked })}
+        className="h-4 w-4 accent-theme-accent"
+      />
+      Hide header (Canvas view)
+    </label>
+  );
 
   // Get actual widget dimensions for preview
   const getPreviewDimensions = () => {
@@ -199,34 +220,34 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const renderPreview = () => {
     const { width: previewWidth, height: previewHeight } = getPreviewDimensions();
     
-    const props = { widget: previewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
+    const props = { widget: renderedPreviewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
     
     switch (widget.type) {
-      case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
-      case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
+      case 'NUMBER': return <NumberWidget {...props} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
+      case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
-      case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
       case 'DICE_TRAY': return <DiceTrayWidget {...props} interactive={false} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
-      case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;
-      case 'TOGGLE_GROUP': return <ConditionWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'POOL': return <PoolWidget {...props} />;
+      case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-      case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
+      case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
-      case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
-      case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
     }
   };
@@ -277,9 +298,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           <div className={`flex flex-col ${widget.type === 'INVENTORY' ? 'gap-3' : 'gap-6'}`}>
             {/* Editor Section */}
             <div className="flex-1 min-w-0">
-              {widget.type !== 'INVENTORY' && <h3 className="text-sm font-medium text-theme-muted mb-3">Settings</h3>}
-              {renderEditor()}
-              {renderControlVisibilitySetting()}
+              {renderHeaderVisibilitySetting()}
+              <div className={isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : undefined}>
+                {renderEditor()}
+              </div>
             </div>
 
             {/* Preview Section */}
@@ -292,7 +314,14 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
                   height: `${getPreviewDimensions().height + 16}px`
                 }}
               >
-                {renderPreview()}
+                <div className={`widget-content pointer-events-none ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : `widget-content--editable-header ${hasInlineProgressHeader ? 'widget-content--progress-inline-edit' : ''}`}`}>
+                  {!isWidgetHeaderHidden && (
+                    <span className="widget-header-edit-button widget-control widget-control--subtle" aria-hidden="true">
+                      <PencilIcon className="h-3 w-3" />
+                    </span>
+                  )}
+                  {renderPreview()}
+                </div>
               </div>
             </div>
           </div>

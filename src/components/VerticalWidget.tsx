@@ -77,7 +77,17 @@ export default function VerticalWidget({
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
-  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && widget.data.showFieldControls !== false;
+  const isWidgetHeaderHidden = widget.data.hideWidgetHeader === true;
+  const renderedWidget = {
+    ...widget,
+    data: {
+      ...widget.data,
+      label: isWidgetHeaderHidden ? undefined : widget.data.label,
+      showFieldControls: !isWidgetHeaderHidden,
+      showTableEditButton: !isWidgetHeaderHidden,
+    },
+  };
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && !isWidgetHeaderHidden;
   const hasInternalHeaderLabel = widget.data.label && !(widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -156,7 +166,7 @@ export default function VerticalWidget({
   const renderContent = () => {
     // Use a fixed width for internal widget calculations
     // Pass a very large height to disable maxHeight constraints so content shows fully
-    const props = { widget, mode: 'play' as const, width: 320, height: 10000 };
+    const props = { widget: renderedWidget, mode: 'play' as const, width: 320, height: 10000 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
@@ -247,21 +257,21 @@ export default function VerticalWidget({
           <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1">{getWidgetLabel()}</span>
 
           {hasHeaderControls && !isCollapsed && (
-            <div className="h-6 w-[52px] flex-shrink-0" aria-hidden="true" />
+            <div className="h-7 w-[60px] flex-shrink-0" aria-hidden="true" />
           )}
 
-          {isBuildMode && (
-            <div className="flex flex-shrink-0 items-center gap-1">
-              <Tooltip content={`Edit ${getWidgetLabel()}`}>
-                <button
-                  type="button"
-                  onClick={openEditModal}
-                  aria-label={`Edit ${getWidgetLabel()}`}
-                  className="widget-control widget-control--subtle h-7 w-7 min-h-0"
-                >
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </button>
-              </Tooltip>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Tooltip content={`Edit ${getWidgetLabel()}`}>
+              <button
+                type="button"
+                onClick={openEditModal}
+                aria-label={`Edit ${getWidgetLabel()}`}
+                className="widget-control widget-control--subtle h-7 w-7 min-h-0"
+              >
+                <PencilIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+            {isBuildMode && (
               <Tooltip content={`Delete ${getWidgetLabel()}`}>
                 <button
                   type="button"
@@ -272,23 +282,23 @@ export default function VerticalWidget({
                   <TrashIcon className="h-3.5 w-3.5" />
                 </button>
               </Tooltip>
-            </div>
-          )}
-          
-          {/* Collapse Toggle */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${getWidgetLabel()}`}
-            aria-expanded={!isCollapsed}
-            className="widget-control widget-control--subtle w-7 h-7 min-h-0"
-          >
-            <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
-          </button>
+            )}
+
+            {/* Collapse Toggle */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${getWidgetLabel()}`}
+              aria-expanded={!isCollapsed}
+              className="widget-control widget-control--subtle w-7 h-7 min-h-0"
+            >
+              <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
+            </button>
+          </div>
         </div>
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`vertical-widget-body ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : hasInternalHeaderLabel && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : hasInternalHeaderLabel && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}

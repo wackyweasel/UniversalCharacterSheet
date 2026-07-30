@@ -232,6 +232,7 @@ export interface InitiativeParticipant {
 export interface WidgetData {
   label?: string;
   value?: number;
+  hideWidgetHeader?: boolean;
   showFieldControls?: boolean;
   showMaxControl?: boolean;
   items?: string[];

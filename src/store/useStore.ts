@@ -46,6 +46,26 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
   };
 }
 
+function migrateLegacyWidgetHeader(widget: Widget): Widget {
+  const label = widget.data?.label;
+  const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
+  const hidLegacyHeaderControls =
+    widget.data?.showFieldControls === false ||
+    (widget.type === 'TABLE' && widget.data?.showTableEditButton === false);
+  if (
+    widget.data?.hideWidgetHeader === undefined &&
+    hidLegacyHeaderControls &&
+    hasNoLabel
+  ) {
+    return {
+      ...widget,
+      data: { ...widget.data, hideWidgetHeader: true },
+    };
+  }
+
+  return widget;
+}
+
 // Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
 function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): {
   sheets: Sheet[];
@@ -70,12 +90,15 @@ function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): 
   const newSheets = source.sheets.map(sheet => ({
     ...sheet,
     id: sheetIdMap.get(sheet.id)!,
-    widgets: sheet.widgets.map(widget => ({
-      ...widget,
-      id: widgetIdMap.get(widget.id)!,
-      groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
-      attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
-    }))
+    widgets: sheet.widgets.map(widget => {
+      const migratedWidget = migrateLegacyWidgetHeader(widget);
+      return {
+        ...migratedWidget,
+        id: widgetIdMap.get(widget.id)!,
+        groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
+        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
+      };
+    })
   }));
 
   return {
@@ -86,16 +109,22 @@ function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): 
 
 // Migration helper: convert old character format to new sheets format
 function migrateCharacter(char: any): Character {
-  // If character already has sheets, return as-is
+  // Existing sheet-based characters still need widget-level migrations.
   if (char.sheets && char.sheets.length > 0) {
-    return char as Character;
+    return {
+      ...char,
+      sheets: char.sheets.map((sheet: Sheet) => ({
+        ...sheet,
+        widgets: sheet.widgets.map(migrateLegacyWidgetHeader),
+      })),
+    } as Character;
   }
   
   // Migrate: create a default sheet with the old widgets
   const defaultSheet: Sheet = {
     id: uuidv4(),
     name: 'Main',
-    widgets: char.widgets || []
+    widgets: (char.widgets || []).map(migrateLegacyWidgetHeader)
   };
   
   return {
