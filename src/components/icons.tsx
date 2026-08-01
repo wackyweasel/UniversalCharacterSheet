@@ -273,6 +273,102 @@ export function ArrowRightIcon(props: IconProps) {
   );
 }
 
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M19 12H5" />
+      <path d="M12 19l-7-7 7-7" />
+    </Base>
+  );
+}
+
+export function PrintIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 14h12v8H6z" />
+    </Base>
+  );
+}
+
+export function PaperIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6 2h8l4 4v16H6z" />
+      <path d="M14 2v5h5M9 12h6M9 16h6" />
+    </Base>
+  );
+}
+
+export function BorderIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="1" />
+      <path d="M8 8h8v8H8z" strokeDasharray="2 2" />
+    </Base>
+  );
+}
+
+export function ShadowIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="3" width="14" height="14" rx="2" />
+      <path d="M7 21h11a3 3 0 0 0 3-3V7" />
+    </Base>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 21h14" />
+    </Base>
+  );
+}
+
+export function SaveIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 3h12l4 4v14H3V3h2z" />
+      <path d="M7 3v6h10V3M7 21v-8h10v8" />
+    </Base>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M5 20h14" />
+    </Base>
+  );
+}
+
+export function DiceIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="8" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="16" r="1" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="16" r="1" fill="currentColor" stroke="none" />
+    </Base>
+  );
+}
+
+export function MessageIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+      <path d="M8 9h8M8 13h5" />
+    </Base>
+  );
+}
+
 export function LinkIcon(props: IconProps) {
   return (
     <Base {...props}>
