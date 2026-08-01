@@ -853,13 +853,13 @@ export default function TableWidget({ widget, height }: Props) {
   }, []);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
+  const showHeader = !!label || (!isPrintMode && showTableEditButton);
   
   // Calculate table area height
-  const labelHeight = 16;
-  const gapSize = 4;
+  const labelHeight = showHeader ? 16 : 0;
+  const gapSize = showHeader ? 4 : 0;
   const padding = 0;
   const tableHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
 
@@ -1411,10 +1411,10 @@ export default function TableWidget({ widget, height }: Props) {
 
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
-      {(label || !isPrintMode) && (
-        <div className="flex flex-shrink-0 items-center justify-between gap-2">
+      {showHeader && (
+        <div className="widget-header flex-shrink-0">
           {label && (
-            <div className={`min-w-0 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-header-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}
@@ -1427,7 +1427,7 @@ export default function TableWidget({ widget, height }: Props) {
                 setIsTableEditing((current) => !current);
               }}
               onMouseDown={(event) => event.stopPropagation()}
-              className={`widget-control ml-auto h-6 flex-shrink-0 gap-1 px-2 text-[10px] font-semibold ${isTableEditing ? 'bg-theme-accent text-theme-paper' : ''}`}
+              className={`widget-control ml-auto h-[18px] min-h-[18px] flex-shrink-0 gap-1 px-1.5 text-[10px] font-semibold ${isTableEditing ? 'bg-theme-accent text-theme-paper' : ''}`}
             >
               {isTableEditing ? <CheckIcon className="h-3 w-3" /> : <PencilIcon className="h-3 w-3" />}
               {isTableEditing ? 'Done' : 'Edit table'}
@@ -1472,10 +1472,11 @@ export default function TableWidget({ widget, height }: Props) {
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <div
-                    onClick={() => {
+                    onClick={(event) => {
+                      handleColumnHeaderClick(idx, event);
                       if (showTableControls) setEditingColumnHeader(idx);
                     }}
-                    className={`relative flex min-w-0 items-center justify-center ${showTableControls ? 'cursor-text' : ''}`}
+                    className={`relative flex min-w-0 cursor-pointer items-center justify-center ${showTableControls ? 'cursor-text' : ''}`}
                   >
                     {isEditingHeader ? (
                       <input
@@ -1645,6 +1646,10 @@ export default function TableWidget({ widget, height }: Props) {
                             autoFocus
                             rows={1}
                             value={cellValue}
+                            onFocus={(event) => {
+                              const end = event.currentTarget.value.length;
+                              event.currentTarget.setSelectionRange(end, end);
+                            }}
                             onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
                             readOnly={!!cellFml}
                             onBlur={() => setEditingCell(null)}
@@ -1677,6 +1682,9 @@ export default function TableWidget({ widget, height }: Props) {
                             className={`absolute inset-0 block w-full min-w-0 h-full bg-transparent border-0 p-0 resize-none overflow-hidden focus:outline-none text-[10px] leading-[1.5] whitespace-pre-wrap break-words ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
                             style={{ textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
                             onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
                           />
                         )}
                       </div>

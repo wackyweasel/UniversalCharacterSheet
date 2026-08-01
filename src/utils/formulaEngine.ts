@@ -127,6 +127,8 @@ function getFieldValue(data: WidgetData, field: string): number | undefined {
     case 'currentPool': return typeof data.currentPool === 'number' ? data.currentPool : undefined;
     case 'modifier': return typeof data.modifier === 'number' ? data.modifier : undefined;
     case 'healFlatAmount': return typeof data.healFlatAmount === 'number' ? data.healFlatAmount : undefined;
+    case 'localCapacity': return typeof data.inventoryEncumbrance?.localCapacity === 'number' ? data.inventoryEncumbrance.localCapacity : undefined;
+    case 'globalCapacity': return typeof data.inventoryEncumbrance?.globalCapacity === 'number' ? data.inventoryEncumbrance.globalCapacity : undefined;
     default: return undefined;
   }
 }
@@ -763,7 +765,9 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
           }
 
           const currentVal = getFieldValue(widget.data, field);
-          const resolvedValue = computed;
+          const resolvedValue = field === 'localCapacity' || field === 'globalCapacity'
+            ? Math.max(0, computed)
+            : computed;
           if (currentVal !== resolvedValue) {
             changed = true;
             switch (field) {
@@ -774,6 +778,16 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
               case 'currentPool': updates.currentPool = resolvedValue; break;
               case 'modifier': updates.modifier = resolvedValue; break;
               case 'healFlatAmount': updates.healFlatAmount = resolvedValue; break;
+              case 'localCapacity':
+              case 'globalCapacity':
+                if (widget.data.inventoryEncumbrance) {
+                  updates.inventoryEncumbrance = {
+                    ...widget.data.inventoryEncumbrance,
+                    ...updates.inventoryEncumbrance,
+                    [field]: resolvedValue,
+                  };
+                }
+                break;
             }
           }
         }

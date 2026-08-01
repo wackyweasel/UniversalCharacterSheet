@@ -6,6 +6,7 @@ import { stripImages } from '../utils/stripImages';
 import GalleryShareModal from './GalleryShareModal';
 import { MenuIcon } from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface ShareExportMenuProps {
   character: Character;
@@ -29,6 +30,9 @@ interface ShareExportMenuProps {
   onAutoStack?: () => void;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  onSearch?: () => void;
+  attachmentControlsVisible: boolean;
+  onToggleAttachmentControls: () => void;
 }
 
 function downloadCharacter(character: Character) {
@@ -66,10 +70,14 @@ export default function ShareExportMenu({
   onAutoStack,
   onExpandAll,
   onCollapseAll,
+  onSearch,
+  attachmentControlsVisible,
+  onToggleAttachmentControls,
 }: ShareExportMenuProps) {
   const addPreset = useUserPresetStore((state) => state.addPreset);
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
   const setThreeDDiceEnabled = useDiceSettingsStore((state) => state.setThreeDDiceEnabled);
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
   const [includeTheme, setIncludeTheme] = useState(true);
@@ -123,8 +131,13 @@ export default function ShareExportMenu({
         </button>
         {open && (
           <div className="absolute left-0 top-full mt-2 w-[min(280px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in">
-            <div className={`${workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
-              <div className={`grid grid-cols-2 gap-1 ${workspace === 'play' ? 'min-[380px]:hidden' : 'min-[460px]:hidden'}`}>
+            {onSearch && (
+              <button type="button" onClick={() => { onSearch(); onOpenChange(false); }} className="min-[640px]:hidden w-full px-3 py-2.5 text-left text-sm font-semibold font-body text-theme-ink border-b border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper transition-colors">
+                Search character
+              </button>
+            )}
+            <div className={`${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
+              <div className={`grid grid-cols-2 gap-1 ${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'build' ? 'min-[460px]:hidden' : 'min-[380px]:hidden'}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -174,6 +187,27 @@ export default function ShareExportMenu({
               )}
             </div>
             <div className="px-3 py-2.5 border-b border-theme-border/50">
+              {workspace === 'build' && (
+                <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-theme-border/50">
+                  <div className="min-w-0">
+                    <span className="block text-sm font-semibold font-body text-theme-ink">Attachment controls</span>
+                    <span className="block text-[11px] font-body text-theme-muted mt-0.5">Show attach and detach buttons</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={attachmentControlsVisible}
+                    aria-label="Show attachment controls"
+                    onClick={onToggleAttachmentControls}
+                    className={`relative w-11 h-6 flex-shrink-0 rounded-full border border-theme-border transition-colors ${attachmentControlsVisible ? 'bg-theme-accent' : 'bg-theme-background'}`}
+                  >
+                    <span
+                      className={`absolute left-0 top-0.5 w-4 h-4 rounded-full bg-white border border-black/25 shadow-sm transition-transform ${attachmentControlsVisible ? 'translate-x-[22px]' : 'translate-x-1'}`}
+                    />
+                    <span className="sr-only">{attachmentControlsVisible ? 'On' : 'Off'}</span>
+                  </button>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>
@@ -194,15 +228,15 @@ export default function ShareExportMenu({
                 </button>
               </div>
             </div>
-            {workspace === 'build' && (onAddWidget || onChangeTheme || onAutoStack) && (
-              <div className="py-1 border-b border-theme-border/50">
-                {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="min-[320px]:hidden w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{addWidgetLabel}</button>}
-                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">{changeThemeLabel}</button>}
+            {(onAddWidget || onChangeTheme || onAutoStack) && (
+              <div className={`py-1 border-b border-theme-border/50 ${onAutoStack ? '' : playLayout === 'list' ? 'min-[1200px]:hidden' : workspace === 'build' ? 'hidden max-[639px]:block min-[900px]:block min-[1200px]:hidden' : 'hidden max-[639px]:block min-[720px]:block min-[1200px]:hidden'}`}>
+                {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className={`${playLayout === 'list' ? 'min-[380px]:hidden' : 'min-[320px]:hidden'} w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors`}>{addWidgetLabel}</button>}
+                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className={`${playLayout === 'list' ? 'min-[1200px]:hidden' : workspace === 'build' ? 'min-[640px]:hidden min-[900px]:block min-[1200px]:hidden' : 'min-[640px]:hidden min-[720px]:block min-[1200px]:hidden'} w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors`}>{changeThemeLabel}</button>}
                 {onAutoStack && <button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Auto Stack</button>}
               </div>
             )}
             {(onExpandAll || onCollapseAll) && (
-              <div className="py-1 border-b border-theme-border/50">
+              <div className={`${playLayout === 'list' ? 'min-[800px]:hidden' : 'min-[480px]:hidden'} py-1 border-b border-theme-border/50`}>
                 {onExpandAll && <button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Expand All</button>}
                 {onCollapseAll && <button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Collapse All</button>}
               </div>
@@ -254,6 +288,24 @@ export default function ShareExportMenu({
               <span className="block font-semibold">Print Preview</span>
               <span className="block text-[11px] opacity-65 mt-0.5">Prepare this sheet for paper or PDF</span>
             </button>
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tutorial="feedback-button"
+              onClick={() => {
+                recordTelemetryEvent({
+                  eventName: 'external_feedback_opened',
+                  category: 'app',
+                  source: 'sheet_menu',
+                });
+                onOpenChange(false);
+              }}
+              className="block w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors border-t border-theme-border/50"
+            >
+              <span className="block font-semibold">Feedback</span>
+              <span className="block text-[11px] opacity-65 mt-0.5">Report a bug or request a feature</span>
+            </a>
             <button
               type="button"
               onClick={() => {

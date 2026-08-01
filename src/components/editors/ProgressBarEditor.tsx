@@ -9,6 +9,8 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     currentValue = 0,
     showPercentage = false,
     showValues = true,
+    verticalBar = false,
+    inlineLabel = false,
     allowOutOfRange = false,
     fieldLabels = {},
     fieldFormulas = {}
@@ -91,6 +93,26 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
 
       <div className="border border-theme-border rounded-button p-3">
         <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
+
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={verticalBar}
+            onChange={(e) => updateData({ verticalBar: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Vertical progress bar</span>
+        </label>
+
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={inlineLabel}
+            onChange={(e) => updateData({ inlineLabel: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show label inline with bar</span>
+        </label>
 
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input

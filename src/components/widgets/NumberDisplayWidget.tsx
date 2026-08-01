@@ -7,6 +7,7 @@ import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -28,6 +29,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const [editValue, setEditValue] = useState('');
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
@@ -83,7 +85,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
       displayNumbers: [...displayNumbers, { label: fieldName, value: 0 }],
     });
     setFieldNameDraft('');
-    setFieldDialog(null);
+    if (!addMultiple) setFieldDialog(null);
   };
 
   const removeSelectedFields = () => {
@@ -99,6 +101,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const closeFieldDialog = () => {
     setFieldDialog(null);
     setFieldNameDraft('');
+    setAddMultiple(false);
     setSelectedFields(new Set());
   };
 
@@ -131,14 +134,11 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const labelFontSize = Math.max(7, Math.min(10, minDimension * 0.12));
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col gap-1 overflow-hidden">
       {(label || controlsVisible) && (
-        <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 px-1 pr-4">
+        <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
           {label && (
-            <div
-              className="min-w-0 flex-1 truncate font-bold text-theme-ink font-heading"
-              style={{ fontSize: '11px', lineHeight: '16px' }}
-            >
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}
@@ -164,6 +164,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   type="button"
                   onClick={() => {
                     setFieldNameDraft('');
+                    setAddMultiple(false);
                     setFieldDialog('add');
                   }}
                   onMouseDown={(event) => event.stopPropagation()}
@@ -275,9 +276,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   addField();
                 }}
               >
-                <label htmlFor={`number-display-field-name-${widget.id}`} className="block text-sm font-medium">
-                  Label
-                </label>
+                <label htmlFor={`number-display-field-name-${widget.id}`} className="block text-sm font-medium">Label</label>
                 <input
                   id={`number-display-field-name-${widget.id}`}
                   autoFocus
@@ -287,6 +286,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   placeholder="e.g. Luck"
                   className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                 />
+                <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
                     Cancel
@@ -303,6 +303,10 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             ) : (
               <div className="mt-3">
                 <p className="text-sm text-theme-muted">Select one or more displayed numbers to remove.</p>
+                <SelectionActions
+                  onCheckAll={() => setSelectedFields(new Set(displayNumbers.map((_, index) => index)))}
+                  onUncheckAll={() => setSelectedFields(new Set())}
+                />
                 <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
                   {(displayNumbers as DisplayNumber[]).map((item, index) => (
                     <label

@@ -2,7 +2,7 @@ import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 
 export function ListEditor({ widget, updateData }: EditorProps) {
-  const { label, itemCount = 5 } = widget.data;
+  const { label, itemCount = 5, wrapText = true } = widget.data;
 
   return (
     <div className="space-y-4">
@@ -42,6 +42,16 @@ export function ListEditor({ widget, updateData }: EditorProps) {
         />
         <p className="text-xs text-theme-muted mt-1">Items can be filled in during play mode</p>
       </div>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-theme-ink">
+        <input
+          type="checkbox"
+          checked={wrapText}
+          onChange={(e) => updateData({ wrapText: e.target.checked })}
+          className="h-4 w-4 accent-theme-accent"
+        />
+        Wrap text
+      </label>
     </div>
   );
 }

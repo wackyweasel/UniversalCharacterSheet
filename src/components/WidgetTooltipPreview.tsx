@@ -18,8 +18,10 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
@@ -354,6 +356,31 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       ],
     },
   },
+  GRID_MAP: {
+    id: 'preview-grid-map',
+    type: 'GRID_MAP',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 180,
+    locked: true,
+    data: {
+      label: 'Grid Map',
+      gridMapGridSize: 28,
+      gridMapGridColor: '#cbd5e1',
+      gridMapWallColor: '#334155',
+      gridMapWallWidth: 4,
+      gridMapDefaultTokenColor: '#2563eb',
+      gridMapTokens: [
+        { id: 'token-1', name: 'Hero', column: 2, row: 2, color: '#2563eb' },
+        { id: 'token-2', name: 'Guard', column: 5, row: 3, color: '#dc2626' },
+      ],
+      gridMapWalls: [
+        { id: 'wall-1', start: { column: 1, row: 1 }, end: { column: 6, row: 1 } },
+        { id: 'wall-2', start: { column: 6, row: 1 }, end: { column: 6, row: 5 } },
+      ],
+    },
+  },
   ROLL_TABLE: {
     id: 'preview-roll-table',
     type: 'ROLL_TABLE',
@@ -396,6 +423,44 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       initiativeAdvanceByRound: true,
       initiativeAdvanceTimeAmount: 1,
       initiativeAdvanceTimeUnit: 'rounds',
+    },
+  },
+  INVENTORY: {
+    id: 'preview-inventory',
+    type: 'INVENTORY',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 150,
+    locked: true,
+    data: {
+      label: 'Backpack',
+      inventoryItems: [
+        {
+          id: 'item-rope',
+          name: 'Silk rope',
+          fields: [
+            { id: 'field-rope-weight', name: 'Weight', type: 'number', value: 5, reserved: 'weight' },
+            { id: 'field-rope-notes', name: 'Notes', type: 'textarea', value: '50 feet' },
+          ],
+        },
+        {
+          id: 'item-potion',
+          name: 'Healing potion',
+          fields: [
+            { id: 'field-potion-weight', name: 'Weight', type: 'number', value: 0.5, reserved: 'weight' },
+            { id: 'field-potion-value', name: 'Value', type: 'number', value: 50 },
+          ],
+        },
+      ],
+      inventoryDefaultFields: [],
+      inventoryEncumbrance: {
+        enabled: true,
+        unit: 'kg',
+        localCapacity: 30,
+        includeInGlobalLoad: true,
+        showGlobalCounter: false,
+      },
     },
   },
   DECK: {
@@ -470,7 +535,7 @@ function renderWidget(widget: Widget) {
     case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
     case 'TEXT': return <TextWidget {...props} />;
     case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
-    case 'HEALTH_BAR': return <HealthBarWidget {...props} showMaxControl={false} interactive={false} />;
+    case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
     case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;
     case 'DICE_TRAY': return <DiceTrayWidget {...props} interactive={false} />;
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
@@ -481,13 +546,15 @@ function renderWidget(widget: Widget) {
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
     case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
-    case 'PROGRESS_BAR': return <ProgressBarWidget {...props} showMaxControl={false} interactive={false} />;
+    case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
+    case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+    case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
     case 'DECK': return <DeckWidget {...props} />;
     case 'TIMER': return <TimerWidget {...props} />;
-    case 'STEP_DICE': return <StepDiceWidget {...props} />;
+    case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
     default: return null;
   }
 }

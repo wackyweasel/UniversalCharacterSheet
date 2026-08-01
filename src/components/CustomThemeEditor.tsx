@@ -15,7 +15,11 @@ import {
   isImageTexture,
   IMAGE_TEXTURES,
 } from '../store/useThemeStore';
-import { CheckIcon, TrashIcon, XIcon } from './icons';
+import DiceThemePreview from './DiceThemePreview';
+import { rollPhysicalDice, type DiceRenderTheme } from './DicePhysicsOverlay';
+import { CheckIcon, PlayIcon, TrashIcon, XIcon } from './icons';
+
+const THEME_TEST_DICE = [4, 6, 8, 10, 12, 20].map((faces) => ({ faces }));
 
 interface CustomThemeEditorProps {
   theme?: CustomTheme; // If provided, we're editing; otherwise creating new
@@ -51,6 +55,14 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
   const [borderStyle, setBorderStyle] = useState(theme?.borderStyle || defaultTheme.borderStyle);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [hoveredColor, setHoveredColor] = useState<ColorKey | null>(null);
+  const [isTestingDice, setIsTestingDice] = useState(false);
+
+  const diceRenderTheme: DiceRenderTheme = {
+    diceColor,
+    textColor: diceTextColor,
+    textureKey: diceTexture,
+    textureOpacity: diceTextureOpacity,
+  };
 
   const handleColorChange = (key: keyof typeof colors, value: string) => {
     setColors(prev => ({ ...prev, [key]: value }));
@@ -83,6 +95,20 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
     onSave(newTheme);
   };
 
+  const handleTestDice = async () => {
+    if (isTestingDice) return;
+
+    setIsTestingDice(true);
+    try {
+      await rollPhysicalDice(THEME_TEST_DICE, {
+        force3D: true,
+        theme: diceRenderTheme,
+      });
+    } finally {
+      setIsTestingDice(false);
+    }
+  };
+
   const colorFields: { key: keyof typeof colors; label: string }[] = [
     { key: 'background', label: 'Background' },
     { key: 'paper', label: 'Paper/Card' },
@@ -105,8 +131,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
     };
   };
 
-  // Preview component - reused for both mobile and desktop
-  const PreviewCard = () => (
+  const renderPreviewCard = () => (
     <div 
       className="p-3 sm:p-4"
       style={{ 
@@ -172,7 +197,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
         >
           {description}
         </p>
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col items-center gap-3">
           <div className="flex gap-2 flex-wrap">
             <button
               className="px-3 py-1.5 text-xs font-bold transition-colors relative"
@@ -199,29 +224,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
               Hover
             </button>
           </div>
-          <div
-            className="relative w-12 h-12 flex-shrink-0 overflow-hidden flex items-center justify-center"
-            style={{
-              backgroundColor: diceColor,
-              color: diceTextColor,
-              clipPath: 'polygon(50% 0, 94% 24%, 94% 76%, 50% 100%, 6% 76%, 6% 24%)',
-              filter: 'drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))',
-            }}
-            aria-label="Dice appearance preview"
-          >
-            {isImageTexture(diceTexture) && (
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${IMAGE_TEXTURES[diceTexture]})`,
-                  backgroundSize: '500%',
-                  backgroundPosition: 'center',
-                  opacity: diceTextureOpacity,
-                }}
-              />
-            )}
-            <span className="relative text-sm font-bold" style={{ fontFamily: headingFont }}>20</span>
-          </div>
+          <DiceThemePreview theme={diceRenderTheme} />
         </div>
       </div>
     </div>
@@ -264,7 +267,16 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
             `}</style>
             <h3 className="text-[11px] font-bold text-theme-muted mb-2 uppercase tracking-wider font-heading">Live Preview</h3>
             <div className="max-w-md mx-auto lg:max-w-none">
-              <PreviewCard />
+              {renderPreviewCard()}
+              <button
+                type="button"
+                onClick={handleTestDice}
+                disabled={isTestingDice}
+                className="mt-3 w-full min-h-9 px-3 py-2 flex items-center justify-center gap-2 border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink rounded-button font-body text-xs font-bold hover:bg-theme-accent hover:text-theme-paper transition-colors disabled:opacity-60"
+              >
+                <PlayIcon className="w-3.5 h-3.5" />
+                {isTestingDice ? 'Throwing Dice...' : 'Throw Dice Set'}
+              </button>
             </div>
           </div>
 

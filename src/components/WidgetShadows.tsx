@@ -149,13 +149,12 @@ export default function WidgetShadows({ widgets, scale }: Props) {
       widgets.forEach(widget => {
         const el = document.querySelector(`[data-widget-id="${widget.id}"]`) as HTMLElement;
         if (el) {
-          const rect = el.getBoundingClientRect();
           newRects.push({
             id: widget.id,
             x: widget.x,
             y: widget.y,
-            width: rect.width / scale,
-            height: rect.height / scale,
+            width: el.offsetWidth,
+            height: el.offsetHeight,
             attachedTo: widget.attachedTo,
           });
         }

@@ -6,17 +6,17 @@ import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import {
-  Bold,
-  IndentDecrease,
-  IndentIncrease,
-  Italic,
-  List,
-  ListOrdered,
-  Palette,
-  RemoveFormatting,
-  Strikethrough,
-  Underline,
-} from 'lucide-react';
+  BoldIcon,
+  ClearFormattingIcon,
+  IndentIcon,
+  ItalicIcon,
+  ListIcon,
+  ListOrderedIcon,
+  OutdentIcon,
+  PaletteIcon,
+  StrikethroughIcon,
+  UnderlineIcon,
+} from '../icons';
 import { Tooltip } from '../Tooltip';
 
 interface Props {
@@ -76,7 +76,6 @@ export default function TextWidget({ widget, height }: Props) {
     }
   }, []);
 
-  const labelClass = 'text-xs';
   const gapClass = 'gap-1';
   const isAutoHeight = height >= 10000;
 
@@ -93,29 +92,29 @@ export default function TextWidget({ widget, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
       {label && (
-        <div className={`font-bold ${labelClass} text-theme-ink font-heading flex-shrink-0`}>
-          {label}
+        <div className="widget-header flex-shrink-0">
+          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
       <div className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}>
         {!isPrintMode && editor && (
           <div className="notes-rich-text__toolbar" role="toolbar" aria-label="Text formatting">
             <ToolbarButton label="Bold" active={toolbarState?.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
-              <Bold />
+              <BoldIcon />
             </ToolbarButton>
             <ToolbarButton label="Italic" active={toolbarState?.italic} onClick={() => editor.chain().focus().toggleItalic().run()}>
-              <Italic />
+              <ItalicIcon />
             </ToolbarButton>
             <ToolbarButton label="Underline" active={toolbarState?.underline} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-              <Underline />
+              <UnderlineIcon />
             </ToolbarButton>
             <ToolbarButton label="Strikethrough" active={toolbarState?.strike} onClick={() => editor.chain().focus().toggleStrike().run()}>
-              <Strikethrough />
+              <StrikethroughIcon />
             </ToolbarButton>
             <div className="notes-rich-text__divider" />
             <Tooltip content="Text color">
               <label className="notes-rich-text__color" aria-label="Text color">
-                <Palette />
+                <PaletteIcon />
                 <span style={{ backgroundColor: toolbarState?.color ?? 'var(--color-ink)' }} />
                 <input
                   type="color"
@@ -126,20 +125,20 @@ export default function TextWidget({ widget, height }: Props) {
             </Tooltip>
             <div className="notes-rich-text__divider" />
             <ToolbarButton label="Bullet list" active={toolbarState?.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-              <List />
+              <ListIcon />
             </ToolbarButton>
             <ToolbarButton label="Numbered list" active={toolbarState?.orderedList} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-              <ListOrdered />
+              <ListOrderedIcon />
             </ToolbarButton>
             <ToolbarButton label="Decrease indent" disabled={!toolbarState?.canOutdent} onClick={() => editor.chain().focus().liftListItem('listItem').run()}>
-              <IndentDecrease />
+              <OutdentIcon />
             </ToolbarButton>
             <ToolbarButton label="Increase indent" disabled={!toolbarState?.canIndent} onClick={() => editor.chain().focus().sinkListItem('listItem').run()}>
-              <IndentIncrease />
+              <IndentIcon />
             </ToolbarButton>
             <div className="notes-rich-text__divider" />
             <ToolbarButton label="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
-              <RemoveFormatting />
+              <ClearFormattingIcon />
             </ToolbarButton>
           </div>
         )}

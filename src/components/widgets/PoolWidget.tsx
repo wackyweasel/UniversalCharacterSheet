@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -83,14 +84,16 @@ const getClassNameForStyle = (filled: boolean, style: string, symbolSize: string
   return `${base} ${filled ? 'text-theme-ink' : 'text-theme-muted'}`;
 };
 
-function AddResourceModal({ resourceNumber, onConfirm, onCancel }: { resourceNumber: number; onConfirm: (resource: PoolResource) => void; onCancel: () => void }) {
+function AddResourceModal({ resourceNumber, onConfirm, onCancel }: { resourceNumber: number; onConfirm: (resource: PoolResource, keepOpen: boolean) => void; onCancel: () => void }) {
   const [name, setName] = useState(`Resource ${resourceNumber}`);
   const [amount, setAmount] = useState('5');
   const [style, setStyle] = useState('dots');
+  const [addMultiple, setAddMultiple] = useState(false);
 
   const submit = () => {
     const boundedAmount = Math.max(1, Math.min(100, parseInt(amount, 10) || 1));
-    onConfirm({ name: name.trim() || `Resource ${resourceNumber}`, current: boundedAmount, max: boundedAmount, style });
+    onConfirm({ name: name.trim() || `Resource ${resourceNumber}`, current: boundedAmount, max: boundedAmount, style }, addMultiple);
+    if (addMultiple) setName('');
   };
 
   return (
@@ -127,6 +130,7 @@ function AddResourceModal({ resourceNumber, onConfirm, onCancel }: { resourceNum
           onChange={(event) => setName(event.target.value)}
           className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-theme-ink focus:border-theme-accent focus:outline-none"
         />
+        <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
         <label className="mt-3 block text-sm font-medium" htmlFor="pool-resource-amount">Amount</label>
         <input
           id="pool-resource-amount"
@@ -191,6 +195,10 @@ function RemoveResourcesModal({ resources, onConfirm, onCancel }: { resources: P
       >
         <h3 id="pool-remove-resources-title" className="font-heading text-base font-bold">Remove resources</h3>
         <p className="mt-2 text-sm text-theme-muted">Select resources to remove. At least one resource must remain.</p>
+        <SelectionActions
+          onCheckAll={() => setSelected(new Set(resources.slice(0, -1).map((_, index) => index)))}
+          onUncheckAll={() => setSelected(new Set())}
+        />
         <div className="mt-3 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
           {resources.map((resource, index) => (
             <label key={index} className="flex cursor-pointer items-center gap-3 rounded-button border border-theme-border px-3 py-2 text-sm transition-colors hover:bg-theme-accent hover:text-theme-paper">
@@ -241,7 +249,6 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const symbolSize = 'w-6 h-6 text-base';
   const counterClass = 'text-[11px]';
   const gapClass = 'gap-1';
@@ -279,10 +286,10 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     }
   };
 
-  const addResource = (resource: PoolResource) => {
+  const addResource = (resource: PoolResource, keepOpen: boolean) => {
     updateWidgetData(widget.id, { poolResources: [...resources, resource] });
-    setShowAddDialog(false);
-    addTimelineEvent(label || 'Resource Pool', 'POOL', `Added ${resource.name} (${resource.current}/${resource.max})`, '➕');
+    if (!keepOpen) setShowAddDialog(false);
+    addTimelineEvent(label || 'Resource Pool', 'POOL', `Added ${resource.name}`, '➕');
   };
 
   const removeResources = (indexes: Set<number>) => {
@@ -302,7 +309,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
           {controlsVisible && (
             <div className="pool-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={resources.length > 1 ? 'Choose resources to remove' : 'At least one resource is required'}>

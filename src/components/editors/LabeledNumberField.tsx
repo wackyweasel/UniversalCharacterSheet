@@ -7,9 +7,11 @@ import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
 
 interface LabeledNumberFieldProps {
   /** Current numeric value */
-  value: number;
+  value?: number;
   /** Callback when value changes (manual edit or +/- buttons) */
   onChange: (value: number) => void;
+  /** Callback when an optional field is cleared */
+  onClear?: () => void;
   /** The variable label assigned to this field (e.g. "str") */
   fieldLabel?: string;
   /** Callback to set/clear the variable label */
@@ -45,6 +47,7 @@ interface LabeledNumberFieldProps {
 export function LabeledNumberField({
   value,
   onChange,
+  onClear,
   fieldLabel,
   onFieldLabelChange,
   formula,
@@ -116,25 +119,30 @@ export function LabeledNumberField({
 
   const handleIncrement = () => {
     if (hasFormula) return;
-    const newVal = value + step;
+    const newVal = (value ?? 0) + step;
     onChange(max !== undefined ? Math.min(max, newVal) : newVal);
   };
 
   const handleDecrement = () => {
     if (hasFormula) return;
-    const newVal = value - step;
+    const newVal = (value ?? 0) - step;
     onChange(min !== undefined ? Math.max(min, newVal) : newVal);
   };
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (hasFormula) return;
-    const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+    if (e.target.value === '' && onClear) {
+      onClear();
+      return;
+    }
+    const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
     onChange(val);
   };
 
   const handleValueBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     if (hasFormula) return;
-    let val = parseInt(e.target.value) || 0;
+    if (e.target.value === '' && onClear) return;
+    let val = parseFloat(e.target.value) || 0;
     if (min !== undefined) val = Math.max(min, val);
     if (max !== undefined) val = Math.min(max, val);
     onChange(val);
@@ -209,12 +217,13 @@ export function LabeledNumberField({
 
         <input
           type="number"
-          value={value}
+          value={value ?? ''}
           onChange={handleValueChange}
           onBlur={handleValueBlur}
           readOnly={hasFormula}
           min={min}
           max={max}
+          step={step}
           placeholder={placeholder}
           className={`px-2 py-1 border border-theme-border rounded-button text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
             compact ? (hideStepperButtons ? 'w-14' : 'w-[6rem]') : 'flex-1 min-w-[60px]'

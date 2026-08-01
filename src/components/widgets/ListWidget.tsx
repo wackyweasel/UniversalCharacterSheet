@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { ChangeEvent, FocusEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -13,16 +14,57 @@ interface Props {
   showFieldControls?: boolean;
 }
 
-export default function ListWidget({ widget, mode, height, showFieldControls = true }: Props) {
+interface WrappingListInputProps {
+  value: string;
+  width: number;
+  className: string;
+  placeholder: string;
+  ariaLabel: string;
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  onFocus: (event: FocusEvent<HTMLTextAreaElement>) => void;
+  onBlur: (event: FocusEvent<HTMLTextAreaElement>) => void;
+}
+
+function WrappingListInput({ value, width, className, placeholder, ariaLabel, onChange, onFocus, onBlur }: WrappingListInputProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value, width]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      rows={1}
+      className={`${className} resize-none overflow-hidden whitespace-pre-wrap break-words`}
+      value={value}
+      onChange={onChange}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onKeyDown={(event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === 'Enter') event.preventDefault();
+      }}
+      placeholder={placeholder}
+      onMouseDown={(event) => event.stopPropagation()}
+      aria-label={ariaLabel}
+    />
+  );
+}
+
+export default function ListWidget({ widget, mode, width, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, items = [], itemCount = 5 } = widget.data;
+  const { label, items = [], itemCount = 5, wrapText = true } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [addMultiple, setAddMultiple] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   // Fixed small sizing
-  const labelClass = 'text-xs';
   const inputClass = 'text-xs py-0.5';
   const gapClass = 'gap-1';
   
@@ -71,11 +113,17 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
     }
   };
 
-  const addItem = () => {
+  const addItems = () => {
     updateWidgetData(widget.id, {
       items: [...normalizedItems, ''],
       itemCount: itemCount + 1,
     });
+    if (!addMultiple) setShowAddDialog(false);
+  };
+
+  const openAddDialog = () => {
+    setAddMultiple(false);
+    setShowAddDialog(true);
   };
 
   const removeSelectedItems = () => {
@@ -120,7 +168,7 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
-            <div className={`min-w-0 flex-1 truncate font-bold ${labelClass} text-theme-ink font-heading`}>
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
               {label}
             </div>
           )}
@@ -144,7 +192,7 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
               <Tooltip content="Add empty item">
                 <button
                   type="button"
-                  onClick={addItem}
+                  onClick={openAddDialog}
                   onMouseDown={(e) => e.stopPropagation()}
                   aria-label="Add empty list item"
                   className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
@@ -169,16 +217,29 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
         {normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>
-            <input
-              className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
-              value={item}
-              onChange={(e) => updateItem(idx, e.target.value)}
-              onFocus={() => handleFocus(idx)}
-              onBlur={() => handleBlur(idx)}
-              placeholder={mode === 'print' ? '' : '...'}
-              onMouseDown={(e) => e.stopPropagation()}
-              aria-label={`${label || 'List'} item ${idx + 1}`}
-            />
+            {wrapText ? (
+              <WrappingListInput
+                className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
+                value={item}
+                width={width}
+                onChange={(e) => updateItem(idx, e.target.value)}
+                onFocus={() => handleFocus(idx)}
+                onBlur={() => handleBlur(idx)}
+                placeholder={mode === 'print' ? '' : '...'}
+                ariaLabel={`${label || 'List'} item ${idx + 1}`}
+              />
+            ) : (
+              <input
+                className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
+                value={item}
+                onChange={(e) => updateItem(idx, e.target.value)}
+                onFocus={() => handleFocus(idx)}
+                onBlur={() => handleBlur(idx)}
+                placeholder={mode === 'print' ? '' : '...'}
+                onMouseDown={(e) => e.stopPropagation()}
+                aria-label={`${label || 'List'} item ${idx + 1}`}
+              />
+            )}
             <Tooltip content="Clear this item">
               <button 
                 onClick={() => clearItem(idx)}
@@ -192,6 +253,35 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
           </div>
         ))}
       </div>
+
+      {showAddDialog && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={() => setShowAddDialog(false)}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`list-add-dialog-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addItems();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id={`list-add-dialog-title-${widget.id}`} className="font-heading text-base font-bold">Add list item</h3>
+            <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setShowAddDialog(false)} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
+              <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Add item</button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
 
       {showRemoveDialog && createPortal(
         <div
@@ -212,6 +302,10 @@ export default function ListWidget({ widget, mode, height, showFieldControls = t
               Remove list items
             </h3>
             <p className="mt-3 text-sm text-theme-muted">Select one or more items to remove.</p>
+            <SelectionActions
+              onCheckAll={() => setSelectedItems(new Set(normalizedItems.map((_, index) => index)))}
+              onUncheckAll={() => setSelectedItems(new Set())}
+            />
             <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
               {normalizedItems.map((item, index) => (
                 <label

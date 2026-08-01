@@ -22,7 +22,7 @@ interface UseTouchCameraOptions {
   getPan: () => { x: number; y: number };
   minScale?: number;
   maxScale?: number;
-  onBackgroundTouch?: () => void;
+  onBackgroundTouch?: (target: Element | null) => void;
   isViewLocked?: () => boolean;
 }
 
@@ -337,6 +337,8 @@ export function useTouchCamera({
         return;
       }
 
+      onBackgroundTouchRef.current?.(touchStartTarget);
+
       if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) {
         return;
       }
@@ -363,11 +365,6 @@ export function useTouchCamera({
         const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
         const onPrintArea = touchStartTarget && isOnPrintAreaOverlay(touchStartTarget);
         const onIgnoredControl = touchStartTarget && isOnTouchCameraIgnoredControl(touchStartTarget);
-        
-        // Clear selected widget when touching the background (not on widget, sidebar, canvas, etc.)
-        if (!onWidget && !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl) {
-          onBackgroundTouchRef.current?.();
-        }
         
         // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
         const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && !isViewLockedRef.current?.() && (modeRef.current === 'play' ? true : !onWidget);

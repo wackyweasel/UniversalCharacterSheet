@@ -1,11 +1,12 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { ChevronDownIcon, PencilIcon, TrashIcon } from './icons';
+import { ChevronDownIcon, GripVerticalIcon, PencilIcon, TrashIcon } from './icons';
 import { Tooltip } from './Tooltip';
+import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
@@ -27,22 +28,20 @@ import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
-import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 
 interface Props {
   widget: Widget;
   index: number;
   totalWidgets: number;
-  isDragging: boolean;
-  draggedIndex: number | null;
-  dropTargetIndex: number | null;
-  onDragStart: (index: number) => void;
-  onDragOver: (index: number) => void;
-  onDragEnd: (canceled?: boolean) => void;
+  registerElement: (widgetId: string, element: HTMLDivElement | null) => void;
+  onDragStart: (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => void;
+  onReorderKey: (widgetId: string, event: React.KeyboardEvent<HTMLButtonElement>) => void;
   isBuildMode: boolean;
+  searchRevealKey?: number;
 }
 
 const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
@@ -53,26 +52,21 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'NUMBER_DISPLAY',
   'POOL',
   'TOGGLE_GROUP',
-  'HEALTH_BAR',
-  'PROGRESS_BAR',
+  'INITIATIVE_TRACKER',
+  'INVENTORY',
 ]);
-
-const WIDGETS_WITH_WIDE_HEADER_CONTROLS = new Set<WidgetType>(['HEALTH_BAR', 'PROGRESS_BAR']);
 
 export default function VerticalWidget({
   widget,
   index,
   totalWidgets,
-  isDragging,
-  draggedIndex,
-  dropTargetIndex,
+  registerElement,
   onDragStart,
-  onDragOver,
-  onDragEnd,
+  onReorderKey,
   isBuildMode,
+  searchRevealKey,
 }: Props) {
-  const nodeRef = useRef<HTMLDivElement>(null);
-  
+  const rootRef = useRef<HTMLDivElement | null>(null);
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -83,27 +77,21 @@ export default function VerticalWidget({
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
-  const hasWideHeaderControls = WIDGETS_WITH_WIDE_HEADER_CONTROLS.has(widget.type);
-  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && (
-    hasWideHeaderControls
-      ? widget.data.showMaxControl !== false
-      : widget.data.showFieldControls !== false
-  );
+  const isWidgetHeaderHidden = widget.data.hideWidgetHeader === true;
+  const renderedWidget = {
+    ...widget,
+    data: {
+      ...widget.data,
+      label: isWidgetHeaderHidden ? undefined : widget.data.label,
+      showFieldControls: !isWidgetHeaderHidden,
+      showTableEditButton: !isWidgetHeaderHidden,
+    },
+  };
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && !isWidgetHeaderHidden;
+  const hasInternalHeaderLabel = widget.data.label && !(widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel);
 
-  // Touch drag state
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [isDragHandle, setIsDragHandle] = useState(false);
-  const touchDragActiveRef = useRef(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  useTouchCameraPinchCancellation(() => {
-    if (!touchDragActiveRef.current) return;
-    touchDragActiveRef.current = false;
-    setIsDragHandle(false);
-    setTouchStartY(null);
-    onDragEnd(true);
-  });
   
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -145,37 +133,24 @@ export default function VerticalWidget({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showDeleteConfirm]);
-  
-  // Widget type to display name mapping (same as toolbox)
-  const WIDGET_NAMES: Record<WidgetType, string> = {
-    'CHECKBOX': 'Checklist',
-    'TOGGLE_GROUP': 'Conditions',
-    'DICE_ROLLER': 'Dice Roller',
-    'DICE_TRAY': 'Dice Tray',
-    'FORM': 'Form',
-    'HEALTH_BAR': 'Health Bar',
-    'IMAGE': 'Image',
-    'INITIATIVE_TRACKER': 'Initiative Tracker',
-    'LIST': 'List',
-    'MAP_SKETCHER': 'Map Sketcher',
-    'NUMBER_DISPLAY': 'Number Display',
-    'NUMBER': 'Number Tracker',
-    'POOL': 'Resource Pool',
-    'PROGRESS_BAR': 'Progress Bar',
-    'REST_BUTTON': 'Rest Button',
-    'SPELL_SLOT': 'Spell Slots',
-    'TABLE': 'Table',
-    'TEXT': 'Text Area',
-    'TIME_TRACKER': 'Temporary Effects',
-    'ROLL_TABLE': 'Roll Table',
-    'DECK': 'Deck of Cards',
-    'TIMER': 'Timer',
-    'STEP_DICE': 'Step Dice',
-  };
+
+  useEffect(() => {
+    if (searchRevealKey === undefined) return;
+    setIsCollapsed(false);
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        rootRef.current?.scrollIntoView({
+          block: 'center',
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        });
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [searchRevealKey]);
   
   // Get widget label for collapsed header
   const getWidgetLabel = () => {
-    return widget.data.label || WIDGET_NAMES[widget.type] || widget.type;
+    return widget.data.label || getWidgetTypeLabel(widget.type);
   };
 
   const openEditModal = () => {
@@ -188,82 +163,10 @@ export default function VerticalWidget({
     setEditingWidgetId(null);
   };
   
-  // Calculate if this widget should show a drop indicator
-  // Show indicator above this widget if dropTargetIndex equals this index and we're dragging from below
-  const showDropBefore = isDragging && 
-    draggedIndex !== null && 
-    dropTargetIndex === index && 
-    draggedIndex > index;
-  // Show indicator below this widget if dropTargetIndex equals this index and we're dragging from above
-  const showDropAfter = isDragging && 
-    draggedIndex !== null && 
-    dropTargetIndex === index && 
-    draggedIndex < index;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Check if the touch is on the drag handle
-    const target = e.target as HTMLElement;
-    if (target.closest('.vertical-drag-handle')) {
-      touchDragActiveRef.current = true;
-      setIsDragHandle(true);
-      setTouchStartY(e.touches[0].clientY);
-      onDragStart(index);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragHandle || touchStartY === null) return;
-    
-    const touch = e.touches[0];
-    const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-    
-    for (const el of elements) {
-      const widgetEl = el.closest('[data-vertical-index]');
-      if (widgetEl) {
-        const overIndex = parseInt(widgetEl.getAttribute('data-vertical-index') || '0', 10);
-        if (overIndex !== index) {
-          onDragOver(overIndex);
-        }
-        break;
-      }
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (isDragHandle) {
-      touchDragActiveRef.current = false;
-      setIsDragHandle(false);
-      setTouchStartY(null);
-      onDragEnd();
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent) => {
-    // Only allow drag from the handle
-    const target = e.target as HTMLElement;
-    if (!target.closest('.vertical-drag-handle')) {
-      e.preventDefault();
-      return;
-    }
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-    onDragStart(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    onDragOver(index);
-  };
-
-  const handleDragEnd = () => {
-    onDragEnd();
-  };
-
   const renderContent = () => {
     // Use a fixed width for internal widget calculations
     // Pass a very large height to disable maxHeight constraints so content shows fully
-    const props = { widget, mode: 'play' as const, width: 320, height: 10000 };
+    const props = { widget: renderedWidget, mode: 'play' as const, width: 320, height: 10000 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
@@ -285,6 +188,7 @@ export default function VerticalWidget({
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
@@ -294,22 +198,14 @@ export default function VerticalWidget({
 
   return (
     <div
-      ref={nodeRef}
+      ref={(element) => {
+        rootRef.current = element;
+        registerElement(widget.id, element);
+      }}
       data-vertical-index={index}
-      className={`vertical-widget relative transition-all duration-200 ${
-        isDragging && draggedIndex === index ? 'opacity-50 scale-95' : ''
-      }`}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      data-widget-id={widget.id}
+      className={`vertical-widget vertical-widget-sort-item relative ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
     >
-      {/* Drop indicator before */}
-      {showDropBefore && (
-        <div className="absolute -top-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
-      )}
-      
       {/* Widget Card */}
       <div className="vertical-widget-card">
         {/* Image texture overlay */}
@@ -334,27 +230,20 @@ export default function VerticalWidget({
         {/* Header with drag handle and collapse toggle */}
         <div className={`vertical-widget-header ${isCollapsed ? '' : 'vertical-widget-header--expanded'}`}>
           {/* Drag Handle - positioned at left, only this area is draggable (disabled when locked) */}
-          <div 
-            className="vertical-drag-handle cursor-grab active:cursor-grabbing flex items-center gap-2 touch-none select-none"
-            draggable
-            onDragStart={handleDragStart}
+          <button
+            type="button"
+            className="vertical-drag-handle widget-control widget-control--subtle flex h-7 w-7 min-h-0 flex-shrink-0 items-center justify-center"
+            aria-label={`Reorder ${getWidgetLabel()}`}
+            title="Drag to reorder. Arrow keys also work."
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onDragStart(widget.id, event);
+            }}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => onReorderKey(widget.id, event)}
           >
-            {/* Grip icon (6 dots in 2 columns) */}
-            <svg 
-              width="10" 
-              height="16" 
-              viewBox="0 0 10 16" 
-              className="text-theme-muted flex-shrink-0"
-              fill="currentColor"
-            >
-              <circle cx="2" cy="2" r="1.5" />
-              <circle cx="8" cy="2" r="1.5" />
-              <circle cx="2" cy="8" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="2" cy="14" r="1.5" />
-              <circle cx="8" cy="14" r="1.5" />
-            </svg>
-          </div>
+            <GripVerticalIcon className="h-4 w-4 text-theme-muted" />
+          </button>
           
           {/* Lock indicator */}
           {widget.locked && (
@@ -368,21 +257,21 @@ export default function VerticalWidget({
           <span className="text-xs font-bold text-theme-ink font-heading truncate flex-1">{getWidgetLabel()}</span>
 
           {hasHeaderControls && !isCollapsed && (
-            <div className={`h-6 flex-shrink-0 ${hasWideHeaderControls ? 'w-16' : 'w-[52px]'}`} aria-hidden="true" />
+            <div className="h-7 w-[60px] flex-shrink-0" aria-hidden="true" />
           )}
 
-          {isBuildMode && (
-            <div className="flex flex-shrink-0 items-center gap-1">
-              <Tooltip content={`Edit ${getWidgetLabel()}`}>
-                <button
-                  type="button"
-                  onClick={openEditModal}
-                  aria-label={`Edit ${getWidgetLabel()}`}
-                  className="widget-control widget-control--subtle h-7 w-7 min-h-0"
-                >
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </button>
-              </Tooltip>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Tooltip content={`Edit ${getWidgetLabel()}`}>
+              <button
+                type="button"
+                onClick={openEditModal}
+                aria-label={`Edit ${getWidgetLabel()}`}
+                className="widget-control widget-control--subtle h-7 w-7 min-h-0"
+              >
+                <PencilIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+            {isBuildMode && (
               <Tooltip content={`Delete ${getWidgetLabel()}`}>
                 <button
                   type="button"
@@ -393,32 +282,27 @@ export default function VerticalWidget({
                   <TrashIcon className="h-3.5 w-3.5" />
                 </button>
               </Tooltip>
-            </div>
-          )}
-          
-          {/* Collapse Toggle */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${getWidgetLabel()}`}
-            aria-expanded={!isCollapsed}
-            className="widget-control widget-control--subtle w-7 h-7 min-h-0"
-          >
-            <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
-          </button>
+            )}
+
+            {/* Collapse Toggle */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${getWidgetLabel()}`}
+              aria-expanded={!isCollapsed}
+              className="widget-control widget-control--subtle w-7 h-7 min-h-0"
+            >
+              <ChevronDownIcon className={`w-4 h-4 transform transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />
+            </button>
+          </div>
         </div>
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`vertical-widget-body ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : widget.data.label && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : hasInternalHeaderLabel && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
       </div>
-      
-      {/* Drop indicator after */}
-      {showDropAfter && (
-        <div className="absolute -bottom-2 left-0 right-0 h-1 bg-theme-accent rounded-full z-50" />
-      )}
       
       {index < totalWidgets - 1 && <div className="h-2" />}
 

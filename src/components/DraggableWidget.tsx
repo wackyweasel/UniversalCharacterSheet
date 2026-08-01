@@ -7,7 +7,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { DotsVerticalIcon } from './icons';
+import { DotsVerticalIcon, PencilIcon } from './icons';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
@@ -28,8 +28,10 @@ import FormWidget from './widgets/FormWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
+import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
+import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
@@ -40,6 +42,7 @@ import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 interface Props {
   widget: Widget;
   scale: number;
+  isSearchTarget?: boolean;
 }
 
 const GRID_SIZE = 10;
@@ -64,14 +67,16 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'REST_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
   'MAP_SKETCHER': { width: 100, height: 100 },
+  'GRID_MAP': { width: 260, height: 240 },
   'ROLL_TABLE': { width: 70, height: 30 },
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
+  'INVENTORY': { width: 150, height: 80 },
   'DECK': { width: 70, height: 40 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
 };
 
-export default function DraggableWidget({ widget, scale }: Props) {
+export default function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
@@ -120,6 +125,8 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [showPrintSettings, setShowPrintSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
@@ -145,7 +152,15 @@ export default function DraggableWidget({ widget, scale }: Props) {
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
   const isResizingRef = useRef(false);
-  const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 });
+  const resizeStartRef = useRef({
+    mouseX: 0,
+    mouseY: 0,
+    width: 0,
+    height: 0,
+    x: 0,
+    y: 0,
+    corner: 'bottom-right' as 'top-left' | 'bottom-right',
+  });
   const isDraggingRef = useRef(false);
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
@@ -156,6 +171,9 @@ export default function DraggableWidget({ widget, scale }: Props) {
     if (isResizingRef.current) {
       isResizingRef.current = false;
       updateWidgetSize(widget.id, resizeStartRef.current.width, resizeStartRef.current.height);
+      if (resizeStartRef.current.corner === 'top-left') {
+        updateWidgetPosition(widget.id, resizeStartRef.current.x, resizeStartRef.current.y);
+      }
       setIsResizing(false);
     }
     if (widgetTouchActiveRef.current) {
@@ -165,6 +183,17 @@ export default function DraggableWidget({ widget, scale }: Props) {
   });
 
   const isSelected = selectedWidgetId === widget.id;
+  const isWidgetHeaderHidden = widget.data.hideWidgetHeader === true;
+  const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel === true;
+  const renderedWidget = {
+    ...widget,
+    data: {
+      ...widget.data,
+      label: isWidgetHeaderHidden ? undefined : widget.data.label,
+      showFieldControls: !isWidgetHeaderHidden,
+      showTableEditButton: !isWidgetHeaderHidden,
+    },
+  };
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
@@ -293,20 +322,55 @@ export default function DraggableWidget({ widget, scale }: Props) {
     widgetTouchActiveRef.current = false;
   };
 
-  // Handle click/tap on widget - in edit mode, first tap shows controls
+  // Handle click/tap on widget - in edit mode, select it to show controls
   const handleWidgetClick = (e: React.MouseEvent) => {
-    if (mode === 'edit' && !showControls) {
+    if (mode === 'edit' && !isSelected) {
       e.preventDefault();
       e.stopPropagation();
       setSelectedWidgetId(widget.id);
     }
   };
 
+  const handleWidgetContextMenu = (e: React.MouseEvent) => {
+    if (mode !== 'edit' && mode !== 'play') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    const widgetRect = e.currentTarget.getBoundingClientRect();
+    setContextMenuPosition({
+      x: (e.clientX - widgetRect.left) / scale,
+      y: (e.clientY - widgetRect.top) / scale,
+    });
+    setDropdownAlign(e.clientX < window.innerWidth - 198 ? 'left' : 'right');
+    setShowDeleteConfirm(false);
+    setShowTemplateNameInput(false);
+    setTemplateName('');
+    setShowMoveToSheet(false);
+    setShowGroupDeleteConfirm(false);
+    setShowGroupTemplateNameInput(false);
+    setGroupTemplateName('');
+    setShowGroupMoveToSheet(false);
+    setDropdownTab('widget');
+    setShowDropdown(true);
+  };
+
   const showControls = isHovered || isSelected;
+  const isContextMenuOpen = showDropdown && contextMenuPosition !== null;
 
   const openEditModal = () => {
     setShowEditModal(true);
     setEditingWidgetId(widget.id);
+  };
+
+  const handleEditWidget = () => {
+    if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
+      advanceTutorial();
+    }
+    if (shouldShowAutomationTutorialEdit) {
+      advanceTutorial();
+    }
+    setShowDropdown(false);
+    openEditModal();
   };
 
   const closeEditModal = () => {
@@ -339,7 +403,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
   const widgetWidth = getWidgetWidth();
 
   // Resize handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: 'top-left' | 'bottom-right') => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -351,20 +415,23 @@ export default function DraggableWidget({ widget, scale }: Props) {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
-    // Get current width and height
-    const currentWidth = widget.w || 200;
-    const currentHeight = widget.h || 120;
+    // Start from the rendered logical size so auto-sized widgets do not jump on first resize.
+    const currentWidth = nodeRef.current?.offsetWidth || widget.w || 200;
+    const currentHeight = nodeRef.current?.offsetHeight || widget.h || 120;
     
     resizeStartRef.current = {
       mouseX: clientX,
       mouseY: clientY,
       width: currentWidth,
       height: currentHeight,
+      x: widget.x,
+      y: widget.y,
+      corner,
     };
     
     isResizingRef.current = true;
     setIsResizing(true);
-  }, [widget.w, widget.h, widget.groupId, widget.id, detachWidgets]);
+  }, [widget.w, widget.h, widget.x, widget.y, widget.groupId, widget.id, detachWidgets]);
 
   const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isResizing) return;
@@ -375,11 +442,20 @@ export default function DraggableWidget({ widget, scale }: Props) {
     const deltaX = (clientX - resizeStartRef.current.mouseX) / scale;
     const deltaY = (clientY - resizeStartRef.current.mouseY) / scale;
     
-    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + deltaX));
-    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + deltaY));
+    const isTopLeft = resizeStartRef.current.corner === 'top-left';
+    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + (isTopLeft ? -deltaX : deltaX)));
+    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + (isTopLeft ? -deltaY : deltaY)));
+
+    if (isTopLeft) {
+      updateWidgetPosition(
+        widget.id,
+        resizeStartRef.current.x + resizeStartRef.current.width - newWidth,
+        resizeStartRef.current.y + resizeStartRef.current.height - newHeight,
+      );
+    }
     
     updateWidgetSize(widget.id, newWidth, newHeight);
-  }, [isResizing, scale, minDimensions, widget.id, updateWidgetSize]);
+  }, [isResizing, scale, minDimensions, widget.id, updateWidgetPosition, updateWidgetSize]);
 
   const handleResizeEnd = useCallback(() => {
     isResizingRef.current = false;
@@ -634,7 +710,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
     const widgetMode = mode === 'print' ? 'print' : 'play';
     const contentInset = 16;
     const props = {
-      widget,
+      widget: renderedWidget,
       mode: widgetMode as 'play' | 'print',
       width: Math.max(20, widgetWidth - contentInset),
       height: Math.max(20, (widgetHeight || 120) - contentInset),
@@ -657,9 +733,11 @@ export default function DraggableWidget({ widget, scale }: Props) {
       case 'FORM': return <FormWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
-      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
+      case 'MAP_SKETCHER': return <MapSketcherWidget {...props} sheetScale={scale} />;
+      case 'GRID_MAP': return <GridMapWidget {...props} sheetScale={scale} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
+      case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
@@ -684,7 +762,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper border-[length:var(--border-width)] border-theme-border cursor-default group ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper group ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
@@ -692,7 +770,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
             zIndex: showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
             ...borderRadiusStyle,
-            ...(bordersDisabled ? { borderWidth: '0px' } : {}),
+            ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -700,6 +778,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           onTouchEnd={handleWidgetTouchEnd}
           onTouchCancel={handleWidgetTouchEnd}
           onClick={handleWidgetClick}
+          onContextMenu={handleWidgetContextMenu}
         >
           {/* Image texture overlay - grayscale texture tinted with card color */}
           {/* When widgets are attached together, the texture stretches to cover the whole group */}
@@ -723,7 +802,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]`}>
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
@@ -733,53 +812,67 @@ export default function DraggableWidget({ widget, scale }: Props) {
             </div>
           )}
           
-          {/* Menu Button - visible on hover/touch in edit mode, hidden during early tutorial steps */}
+          {/* Menu Button - visible for the selected widget in edit mode, hidden during early tutorial steps */}
           {/* For Form widget during tutorial step 16, always show the button */}
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
-          {mode === 'edit' && (showControls || showDropdown || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu) && (tutorialStep === null || tutorialStep >= 16) && (
-            <div className="absolute -top-3 -right-3 z-[200] flex items-center gap-1" ref={dropdownRef}>
-              <Tooltip content="Widget options">
-                <button
-                  data-tutorial={widgetMenuTutorialTarget}
-                  aria-label={`Options for ${widget.data.label || widget.type}`}
-                  aria-expanded={showDropdown}
-                  className={`w-8 h-8 bg-theme-accent text-theme-paper rounded-full flex items-center justify-center transition-opacity hover:bg-theme-accent/80 text-lg ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
-                    if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
-                      advanceTutorial();
-                    }
-                    if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
-                      advanceTutorial();
-                    }
-                    if (shouldShowAutomationTutorialMenu) {
-                      advanceTutorial();
-                    }
-                    setShowDropdown(!showDropdown);
-                    if (showDropdown) {
-                      setShowDeleteConfirm(false);
-                      setShowTemplateNameInput(false);
-                      setTemplateName('');
-                      setShowMoveToSheet(false);
-                      // Reset group action states
-                      setShowGroupDeleteConfirm(false);
-                      setShowGroupTemplateNameInput(false);
-                      setGroupTemplateName('');
-                      setShowGroupMoveToSheet(false);
-                      setDropdownTab('widget');
-                    }
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                >
-                  <DotsVerticalIcon className="w-4 h-4" />
-                </button>
-              </Tooltip>
+          {((mode === 'edit' && (showControls || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu)) || ((mode === 'edit' || mode === 'play') && showDropdown)) && (tutorialStep === null || tutorialStep >= 16) && (
+            <div
+              className={`${isContextMenuOpen ? '' : 'right-1 top-1'} absolute z-[200] flex items-center gap-1`}
+              style={isContextMenuOpen ? { left: contextMenuPosition.x, top: contextMenuPosition.y } : undefined}
+              ref={dropdownRef}
+            >
+              {!isContextMenuOpen && (
+                <Tooltip content="Widget options">
+                  <button
+                    data-tutorial={widgetMenuTutorialTarget}
+                    aria-label={`Options for ${widget.data.label || widget.type}`}
+                    aria-expanded={showDropdown}
+                    className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                    style={{ transform: `scale(${1 / scale})`, transformOrigin: 'top right' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
+                      if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
+                        advanceTutorial();
+                      }
+                      if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
+                        advanceTutorial();
+                      }
+                      if (shouldShowAutomationTutorialMenu) {
+                        advanceTutorial();
+                      }
+                      if (!showDropdown) {
+                        setContextMenuPosition(null);
+                        setDropdownAlign(e.currentTarget.getBoundingClientRect().right < 198 ? 'left' : 'right');
+                      }
+                      setShowDropdown(!showDropdown);
+                      if (showDropdown) {
+                        setShowDeleteConfirm(false);
+                        setShowTemplateNameInput(false);
+                        setTemplateName('');
+                        setShowMoveToSheet(false);
+                        // Reset group action states
+                        setShowGroupDeleteConfirm(false);
+                        setShowGroupTemplateNameInput(false);
+                        setGroupTemplateName('');
+                        setShowGroupMoveToSheet(false);
+                        setDropdownTab('widget');
+                      }
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    <DotsVerticalIcon className="w-4 h-4" />
+                  </button>
+                </Tooltip>
+              )}
               
               {/* Dropdown Menu with Tabs */}
               {showDropdown && (
-                <div className="absolute top-full right-0 mt-1 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[160px] overflow-hidden z-[200] font-body animate-dropdown-in">
+                <div
+                  className={`widget-options-menu absolute ${isContextMenuOpen ? 'top-0' : 'top-full mt-1'} bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[190px] overflow-hidden z-[200] font-body ${dropdownAlign === 'left' ? 'left-0' : 'right-0'}`}
+                  style={{ transform: `scale(${1 / scale})`, transformOrigin: dropdownAlign === 'left' ? 'top left' : 'top right' }}
+                >
                   {/* Tab Header - only show if widget is part of a group */}
                   {widget.groupId && (
                     <div className="flex border-b border-theme-border">
@@ -836,14 +929,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
                           className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${(tutorialStep === 17 && widget.type === 'FORM') || shouldShowAutomationTutorialEdit ? 'bg-blue-500 text-white' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
-                              advanceTutorial();
-                            }
-                            if (shouldShowAutomationTutorialEdit) {
-                              advanceTutorial();
-                            }
-                            setShowDropdown(false);
-                            openEditModal();
+                            handleEditWidget();
                           }}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
@@ -1361,7 +1447,7 @@ export default function DraggableWidget({ widget, scale }: Props) {
           )}
 
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
-          {mode === 'edit' && isSelected && (
+          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10"
               style={borderRadiusStyle}
@@ -1386,30 +1472,70 @@ export default function DraggableWidget({ widget, scale }: Props) {
 
           {/* Resize Handle - only visible in edit mode when hovered/selected */}
           {mode === 'edit' && showControls && (
-            <Tooltip content="Drag to resize">
-              <div
-                className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
-                onMouseDown={handleResizeStart}
-                onTouchStart={handleResizeStart}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  className="text-theme-muted hover:text-theme-ink transition-colors"
+            <>
+              <Tooltip content="Drag to resize">
+                <div
+                  className="absolute -top-1 -left-1 w-6 h-6 cursor-nw-resize z-50 flex items-center justify-center"
+                  onMouseDown={(event) => handleResizeStart(event, 'top-left')}
+                  onTouchStart={(event) => handleResizeStart(event, 'top-left')}
                 >
-                  <path
-                    d="M10 2L2 10M10 6L6 10M10 10L10 10"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-            </Tooltip>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    className="text-theme-muted hover:text-theme-ink transition-colors"
+                  >
+                    <path
+                      d="M2 10L10 2M2 6L6 2M2 2L2 2"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </Tooltip>
+              <Tooltip content="Drag to resize">
+                <div
+                  className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+                  onMouseDown={(event) => handleResizeStart(event, 'bottom-right')}
+                  onTouchStart={(event) => handleResizeStart(event, 'bottom-right')}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    className="text-theme-muted hover:text-theme-ink transition-colors"
+                  >
+                    <path
+                      d="M10 2L2 10M10 6L6 10M10 10L10 10"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </Tooltip>
+            </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && !isWidgetHeaderHidden ? 'widget-content--editable-header' : ''} ${mode !== 'print' && !isWidgetHeaderHidden && hasInlineProgressHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+            {mode !== 'print' && !isWidgetHeaderHidden && (
+              <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleEditWidget();
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onTouchStart={(event) => event.stopPropagation()}
+                  aria-label={`Edit ${widget.data.label || 'widget'}`}
+                  className="widget-header-edit-button widget-control widget-control--subtle"
+                >
+                  <PencilIcon className="h-3 w-3" />
+                </button>
+              </Tooltip>
+            )}
             {renderContent()}
           </div>
         </div>

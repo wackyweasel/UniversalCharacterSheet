@@ -20,10 +20,32 @@ export type WidgetType =
   | 'PROGRESS_BAR'
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
+  | 'GRID_MAP'
   | 'INITIATIVE_TRACKER'
+  | 'INVENTORY'
   | 'DECK'
   | 'TIMER'
   | 'STEP_DICE';
+
+export interface GridMapPoint {
+  column: number;
+  row: number;
+}
+
+export type GridMapTokenSize = 'tiny' | 'medium' | 'large' | 'huge' | 'gargantuan';
+
+export interface GridMapToken extends GridMapPoint {
+  id: string;
+  name: string;
+  color: string;
+  size?: GridMapTokenSize;
+}
+
+export interface GridMapWall {
+  id: string;
+  start: GridMapPoint;
+  end: GridMapPoint;
+}
 
 export interface ToggleItem {
   name: string;
@@ -44,6 +66,42 @@ export interface DeckCard {
 export interface DeckState {
   remaining: string[];
   discarded: string[];
+}
+
+export type InventoryFieldType = 'text' | 'number' | 'checkbox' | 'textarea';
+
+export type InventoryFieldValue = string | number | boolean;
+
+export interface InventoryFieldTemplate {
+  id: string;
+  name: string;
+  type: InventoryFieldType;
+  defaultValue: InventoryFieldValue;
+  reserved?: 'weight';
+}
+
+export interface InventoryItemField {
+  id: string;
+  name: string;
+  type: InventoryFieldType;
+  value: InventoryFieldValue;
+  reserved?: 'weight';
+  templateId?: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  fields: InventoryItemField[];
+}
+
+export interface InventoryEncumbranceSettings {
+  enabled: boolean;
+  unit: string;
+  localCapacity?: number;
+  includeInGlobalLoad: boolean;
+  showGlobalCounter: boolean;
+  globalCapacity?: number;
 }
 
 export interface CellFormat {
@@ -174,10 +232,12 @@ export interface InitiativeParticipant {
 export interface WidgetData {
   label?: string;
   value?: number;
+  hideWidgetHeader?: boolean;
   showFieldControls?: boolean;
   showMaxControl?: boolean;
   items?: string[];
   itemCount?: number;
+  wrapText?: boolean;
   text?: string;
   richText?: string;
   // Checkbox
@@ -187,10 +247,12 @@ export interface WidgetData {
   // Health Bar & Progress Bar
   currentValue?: number;
   maxValue?: number;
+  verticalBar?: boolean;
   increment?: number;
   // Progress Bar
   showPercentage?: boolean;
   showValues?: boolean;
+  inlineLabel?: boolean;
   allowOutOfRange?: boolean;
   // Dice Roller
   diceCount?: number;
@@ -255,6 +317,17 @@ export interface WidgetData {
   gridEnabled?: boolean;
   gridSize?: number;
   corridorWidth?: number;
+  // Grid Map
+  gridMapTokens?: GridMapToken[];
+  gridMapWalls?: GridMapWall[];
+  gridMapGridType?: 'square' | 'hex';
+  gridMapGridSize?: number;
+  gridMapGridColor?: string;
+  gridMapWallColor?: string;
+  gridMapWallWidth?: number;
+  gridMapDefaultTokenColor?: string;
+  gridMapCellDistance?: number;
+  gridMapDistanceUnit?: string;
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
@@ -271,6 +344,10 @@ export interface WidgetData {
   initiativeAdvanceByRound?: boolean;               // Advance by 1 round (for round-mode Time Trackers)
   initiativeAdvanceTimeAmount?: number;             // Amount of time to advance
   initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
+  // Inventory
+  inventoryItems?: InventoryItem[];
+  inventoryDefaultFields?: InventoryFieldTemplate[];
+  inventoryEncumbrance?: InventoryEncumbranceSettings;
   // Timer
   timerElapsed?: number;       // Elapsed time in milliseconds
   timerRunning?: boolean;      // Whether the timer is currently running

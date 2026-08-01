@@ -10,9 +10,22 @@ export interface PhysicalDieRequest {
   notation?: 'd100';
 }
 
+export interface DiceRenderTheme {
+  diceColor: string;
+  textColor: string;
+  textureKey: string;
+  textureOpacity: number;
+}
+
+interface PhysicalDiceRollOptions {
+  force3D?: boolean;
+  theme?: DiceRenderTheme;
+}
+
 interface QueuedPhysicsRoll {
   id: number;
   dice: PhysicalDieRequest[];
+  theme?: DiceRenderTheme;
   resolve: (values: number[] | null) => void;
 }
 
@@ -47,9 +60,12 @@ const subscribeToQueue = (subscriber: () => void) => {
 
 const getCurrentRoll = () => queuedRolls[0] ?? null;
 
-export const rollPhysicalDice = (dice: PhysicalDieRequest[]): Promise<number[] | null> => {
+export const rollPhysicalDice = (
+  dice: PhysicalDieRequest[],
+  options: PhysicalDiceRollOptions = {},
+): Promise<number[] | null> => {
   if (
-    !useDiceSettingsStore.getState().threeDDiceEnabled
+    (!options.force3D && !useDiceSettingsStore.getState().threeDDiceEnabled)
     || dice.length === 0
     || dice.some((die) => !isPhysicalRequestSupported(die))
   ) {
@@ -60,6 +76,7 @@ export const rollPhysicalDice = (dice: PhysicalDieRequest[]): Promise<number[] |
     queuedRolls.push({
       id: nextRollId,
       dice: dice.map((die) => ({ ...die })),
+      theme: options.theme ? { ...options.theme } : undefined,
       resolve,
     });
     nextRollId += 1;
@@ -124,18 +141,21 @@ const getDiceTexture = (textureKey: string, opacity: number): Promise<HTMLCanvas
   return texturePromise;
 };
 
-const applyDiceTheme = async (diceBox: DiceBox) => {
+export const applyDiceTheme = async (diceBox: DiceBox, theme?: DiceRenderTheme) => {
   const styles = getComputedStyle(document.documentElement);
-  const diceColor = styles.getPropertyValue('--dice-color').trim() || '#ffffff';
-  const textColor = styles.getPropertyValue('--dice-text-color').trim() || '#000000';
-  const textureKey = styles.getPropertyValue('--dice-texture-key').trim() || 'none';
   const configuredOpacity = Number.parseFloat(styles.getPropertyValue('--dice-texture-opacity'));
-  const textureOpacity = Number.isFinite(configuredOpacity)
-    ? Math.min(1, Math.max(0, configuredOpacity))
-    : 0.25;
+  const rootTheme: DiceRenderTheme = {
+    diceColor: styles.getPropertyValue('--dice-color').trim() || '#ffffff',
+    textColor: styles.getPropertyValue('--dice-text-color').trim() || '#000000',
+    textureKey: styles.getPropertyValue('--dice-texture-key').trim() || 'none',
+    textureOpacity: Number.isFinite(configuredOpacity)
+      ? Math.min(1, Math.max(0, configuredOpacity))
+      : 0.25,
+  };
+  const { diceColor, textColor, textureKey, textureOpacity } = theme ?? rootTheme;
   const textureCanvas = await getDiceTexture(textureKey, textureOpacity);
 
-  diceBox.DiceFactory.applyColorSet({
+  const colorSet = {
     foreground: textColor,
     background: diceColor,
     outline: 'none',
@@ -147,7 +167,9 @@ const applyDiceTheme = async (diceBox: DiceBox) => {
       bump: textureCanvas,
       material: 'none',
     },
-  });
+  };
+  diceBox.DiceFactory.applyColorSet(colorSet);
+  return colorSet;
 };
 
 const getDieType = (diceBox: DiceBox, die: PhysicalDieRequest) => {
@@ -215,7 +237,7 @@ export default function DicePhysicsOverlay() {
         await new Promise((resolve) => window.requestAnimationFrame(resolve));
         if (cancelled) return;
 
-        await applyDiceTheme(diceBox);
+        await applyDiceTheme(diceBox, activeRoll.theme);
         if (cancelled) return;
 
         const notation = activeRoll.dice.map((die) => `1${getDieType(diceBox, die)}`).join('+');

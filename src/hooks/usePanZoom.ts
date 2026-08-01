@@ -39,15 +39,54 @@ interface UsePanZoomOptions {
   onBackgroundClick?: () => void;
 }
 
+const INTERACTIVE_CANVAS_SELECTOR = [
+  'a[href]',
+  'button',
+  'canvas',
+  'input',
+  'label',
+  'select',
+  'summary',
+  'textarea',
+  '[contenteditable="true"]',
+  '[tabindex]:not([tabindex="-1"])',
+  '[role="button"]',
+  '[role="checkbox"]',
+  '[role="slider"]',
+  '[role="spinbutton"]',
+  '[role="switch"]',
+  '[role="textbox"]',
+  '[data-canvas-interactive]',
+  '.drag-handle',
+].join(', ');
+
+function isInteractiveCanvasTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest(INTERACTIVE_CANVAS_SELECTOR)) return true;
+
+  const cursor = window.getComputedStyle(target).cursor;
+  return !['auto', 'default', 'grab', 'grabbing'].includes(cursor);
+}
+
 export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, onBackgroundClick }: UsePanZoomOptions) {
   const initial = useRef(readInitialLock(characterId)).current;
   const [pan, setPan] = useState(initial.pan);
   const [scale, setScale] = useState(initial.scale);
   const [viewLocked, setViewLockedState] = useState(initial.locked);
+  const [wheelPanEnabled, setWheelPanEnabled] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const lastTouchStartTime = useRef(0);
   const viewLockedRef = useRef(viewLocked);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+
+  useEffect(() => {
+    const handleTouchStart = () => {
+      lastTouchStartTime.current = performance.now();
+    };
+    window.addEventListener('touchstart', handleTouchStart, { capture: true });
+    return () => window.removeEventListener('touchstart', handleTouchStart, { capture: true });
+  }, []);
 
   // Global mouse handlers for panning outside window
   useEffect(() => {
@@ -70,6 +109,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   }, [isPanning]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (performance.now() - lastTouchStartTime.current < 750) return;
     // Disable panning when editing a widget
     if (editingWidgetId) return;
     // Disable panning when view is locked
@@ -81,8 +121,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
       return;
     }
     
-    // Ignore if clicking on a widget
-    if ((e.target as HTMLElement).closest('.react-draggable')) return;
+    // Preserve controls and widget manipulation while allowing inert widget space to pan.
+    if (isInteractiveCanvasTarget(e.target)) return;
 
     // Clear selected widget when clicking on the background
     onBackgroundClick?.();
@@ -119,10 +159,15 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Disable zoom when editing a widget
+    // Disable camera wheel controls when editing a widget
     if (editingWidgetId) return;
-    // Disable zoom when view is locked
+    // Disable camera wheel controls when view is locked
     if (viewLockedRef.current) return;
+
+    if (wheelPanEnabled) {
+      setPan(currentPan => ({ x: currentPan.x, y: currentPan.y - e.deltaY }));
+      return;
+    }
     
     // Zoom with scroll wheel relative to mouse cursor
     const zoomFactor = Math.exp(-e.deltaY * 0.001);
@@ -142,7 +187,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     
     setScale(newScale);
     setPan({ x: newPanX, y: newPanY });
-  }, [editingWidgetId, mode, scale, pan, minScale, maxScale]);
+  }, [editingWidgetId, scale, pan, minScale, maxScale, wheelPanEnabled]);
 
   const zoomIn = useCallback(() => {
     setScale(s => Math.min(maxScale, s * 1.3));
@@ -207,8 +252,10 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     scale,
     isPanning,
     viewLocked,
+    wheelPanEnabled,
     setPan,
     setScale,
+    setWheelPanEnabled,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,

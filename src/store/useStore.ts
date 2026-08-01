@@ -6,6 +6,7 @@ import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
+import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -45,6 +46,26 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
   };
 }
 
+function migrateLegacyWidgetHeader(widget: Widget): Widget {
+  const label = widget.data?.label;
+  const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
+  const hidLegacyHeaderControls =
+    widget.data?.showFieldControls === false ||
+    (widget.type === 'TABLE' && widget.data?.showTableEditButton === false);
+  if (
+    widget.data?.hideWidgetHeader === undefined &&
+    hidLegacyHeaderControls &&
+    hasNoLabel
+  ) {
+    return {
+      ...widget,
+      data: { ...widget.data, hideWidgetHeader: true },
+    };
+  }
+
+  return widget;
+}
+
 // Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
 function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): {
   sheets: Sheet[];
@@ -69,12 +90,15 @@ function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): 
   const newSheets = source.sheets.map(sheet => ({
     ...sheet,
     id: sheetIdMap.get(sheet.id)!,
-    widgets: sheet.widgets.map(widget => ({
-      ...widget,
-      id: widgetIdMap.get(widget.id)!,
-      groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
-      attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
-    }))
+    widgets: sheet.widgets.map(widget => {
+      const migratedWidget = migrateLegacyWidgetHeader(widget);
+      return {
+        ...migratedWidget,
+        id: widgetIdMap.get(widget.id)!,
+        groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
+        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
+      };
+    })
   }));
 
   return {
@@ -85,16 +109,22 @@ function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): 
 
 // Migration helper: convert old character format to new sheets format
 function migrateCharacter(char: any): Character {
-  // If character already has sheets, return as-is
+  // Existing sheet-based characters still need widget-level migrations.
   if (char.sheets && char.sheets.length > 0) {
-    return char as Character;
+    return {
+      ...char,
+      sheets: char.sheets.map((sheet: Sheet) => ({
+        ...sheet,
+        widgets: sheet.widgets.map(migrateLegacyWidgetHeader),
+      })),
+    } as Character;
   }
   
   // Migrate: create a default sheet with the old widgets
   const defaultSheet: Sheet = {
     id: uuidv4(),
     name: 'Main',
-    widgets: char.widgets || []
+    widgets: (char.widgets || []).map(migrateLegacyWidgetHeader)
   };
   
   return {
@@ -183,13 +213,24 @@ interface StoreState {
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
+  moveInventoryItem: (options: {
+    sourceWidgetId: string;
+    targetWidgetId: string;
+    itemId: string;
+    targetIndex: number;
+  }) => void;
+  saveInventoryItem: (options: {
+    sourceWidgetId: string;
+    targetWidgetId: string;
+    item: import('../types').InventoryItem;
+  }) => void;
   removeWidget: (id: string) => void;
   toggleWidgetLock: (id: string) => void;
   reorderWidget: (widgetId: string, newIndex: number) => void;
   moveWidgetToSheet: (widgetId: string, targetSheetId: string) => void;
   
   // Widget Group Actions (for snap+attach)
-  attachWidgets: (widgetId1: string, widgetId2: string) => void;
+  attachWidgets: (widgetId1: string, widgetId2: string, targetDelta?: { x: number; y: number }) => void;
   detachWidgets: (widgetId1: string, widgetId2: string) => void;
   getWidgetsInGroup: (groupId: string) => Widget[];
   moveWidgetGroup: (widgetId: string, deltaX: number, deltaY: number) => void;
@@ -750,6 +791,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -776,8 +819,8 @@ export const useStore = create<StoreState>((set, get) => {
           const PADDING = 40;
           const searchLeft = Math.max(0, visibleLeft + PADDING);
           const searchTop = Math.max(0, visibleTop + PADDING);
-          const searchRight = visibleRight - PADDING - DEFAULT_WIDTH;
-          const searchBottom = visibleBottom - PADDING - DEFAULT_HEIGHT;
+          const searchRight = visibleRight - PADDING - newWidgetWidth;
+          const searchBottom = visibleBottom - PADDING - newWidgetHeight;
           
           // Search for first available position in visible area (left to right, top to bottom)
           let found = false;
@@ -788,7 +831,7 @@ export const useStore = create<StoreState>((set, get) => {
               const snappedX = Math.round(testX / GRID_SIZE) * GRID_SIZE;
               const snappedY = Math.round(testY / GRID_SIZE) * GRID_SIZE;
               
-              if (!overlapsWidget(snappedX, snappedY, DEFAULT_WIDTH, DEFAULT_HEIGHT)) {
+              if (!overlapsWidget(snappedX, snappedY, newWidgetWidth, newWidgetHeight)) {
                 finalX = snappedX;
                 finalY = snappedY;
                 found = true;
@@ -798,8 +841,8 @@ export const useStore = create<StoreState>((set, get) => {
           
           // If no space found in visible area, place at center of visible area
           if (!found) {
-            finalX = Math.round((visibleLeft + visibleWidth / 2 - DEFAULT_WIDTH / 2) / GRID_SIZE) * GRID_SIZE;
-            finalY = Math.round((visibleTop + visibleHeight / 2 - DEFAULT_HEIGHT / 2) / GRID_SIZE) * GRID_SIZE;
+            finalX = Math.round((visibleLeft + visibleWidth / 2 - newWidgetWidth / 2) / GRID_SIZE) * GRID_SIZE;
+            finalY = Math.round((visibleTop + visibleHeight / 2 - newWidgetHeight / 2) / GRID_SIZE) * GRID_SIZE;
           }
         } else if (currentWidgets.length === 0) {
           // No widgets and no viewport - place in center of viewport (roughly)
@@ -827,7 +870,7 @@ export const useStore = create<StoreState>((set, get) => {
           const defaultLabels: Record<WidgetType, string> = {
             'NUMBER': 'Trackers',
             'NUMBER_DISPLAY': 'Stats',
-            'LIST': 'Inventory',
+            'LIST': 'List',
             'TEXT': 'Notes',
             'CHECKBOX': 'Checklist',
             'HEALTH_BAR': 'Health',
@@ -843,8 +886,10 @@ export const useStore = create<StoreState>((set, get) => {
             'REST_BUTTON': 'Rest',
             'PROGRESS_BAR': 'Progress',
             'MAP_SKETCHER': 'Map',
+            'GRID_MAP': 'Grid Map',
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
+            'INVENTORY': 'Inventory',
             'DECK': 'Deck',
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
@@ -857,8 +902,8 @@ export const useStore = create<StoreState>((set, get) => {
           type,
           x: finalX,
           y: finalY,
-          w: DEFAULT_WIDTH,
-          h: DEFAULT_HEIGHT,
+          w: newWidgetWidth,
+          h: newWidgetHeight,
           data: {
             label: getDefaultLabel(type),
             value: 0,
@@ -868,7 +913,20 @@ export const useStore = create<StoreState>((set, get) => {
             ...(type === 'POOL' ? {
               poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
               showPoolCount: false,
-            } : {})
+            } : {}),
+            ...(type === 'GRID_MAP' ? {
+              gridMapTokens: [],
+              gridMapWalls: [],
+              gridMapGridType: 'square',
+              gridMapGridSize: 32,
+              gridMapGridColor: '#cbd5e1',
+              gridMapWallColor: '#334155',
+              gridMapWallWidth: 4,
+              gridMapDefaultTokenColor: '#2563eb',
+              gridMapCellDistance: 5,
+              gridMapDistanceUnit: 'ft',
+            } : {}),
+            ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
           }
         };
 
@@ -1290,6 +1348,124 @@ export const useStore = create<StoreState>((set, get) => {
       });
     },
 
+    moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'INVENTORY' || targetWidget.type !== 'INVENTORY') return;
+
+      const sourceItems = sourceWidget.data.inventoryItems || [];
+      const targetItems = sourceWidgetId === targetWidgetId
+        ? sourceItems
+        : targetWidget.data.inventoryItems || [];
+      const result = moveInventoryItemBetweenLists(
+        sourceItems,
+        targetItems,
+        itemId,
+        targetIndex,
+        targetWidget.data.inventoryEncumbrance?.enabled === true,
+      );
+      if (!result) return;
+
+      get()._takeSnapshot(sourceWidgetId === targetWidgetId ? 'Reorder inventory item' : 'Move inventory item');
+      set((currentState) => {
+        recordStoreEvent(currentState, {
+          eventName: sourceWidgetId === targetWidgetId ? 'inventory_item_reordered' : 'inventory_item_moved',
+          category: 'widget',
+          widgetType: 'INVENTORY',
+          source: 'inventory',
+          metadata: { sourceWidgetId, targetWidgetId },
+        });
+
+        return {
+          characters: currentState.characters.map((entry) => {
+            if (entry.id !== currentState.activeCharacterId) return entry;
+            return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+              if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: result.sourceItems } };
+              }
+              if (widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: result.sourceItems } };
+              }
+              if (widget.id === targetWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: result.targetItems } };
+              }
+              return widget;
+            }));
+          }),
+        };
+      });
+    },
+
+    saveInventoryItem: ({ sourceWidgetId, targetWidgetId, item }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'INVENTORY' || targetWidget.type !== 'INVENTORY') return;
+
+      const sourceItems = sourceWidget.data.inventoryItems || [];
+      const sourceIndex = sourceItems.findIndex((entry) => entry.id === item.id);
+      const savedItem = targetWidget.data.inventoryEncumbrance?.enabled ? ensureItemWeight(item) : item;
+      let nextSourceItems: typeof sourceItems;
+      let nextTargetItems: typeof sourceItems;
+
+      if (sourceWidgetId === targetWidgetId) {
+        nextSourceItems = [...sourceItems];
+        if (sourceIndex >= 0) nextSourceItems[sourceIndex] = savedItem;
+        else nextSourceItems.push(savedItem);
+        nextTargetItems = nextSourceItems;
+      } else {
+        const targetItems = targetWidget.data.inventoryItems || [];
+        if (targetItems.some((entry) => entry.id === item.id)) return;
+        nextSourceItems = sourceIndex >= 0
+          ? sourceItems.filter((entry) => entry.id !== item.id)
+          : sourceItems;
+        nextTargetItems = [...targetItems, savedItem];
+      }
+
+      const action = sourceIndex < 0
+        ? 'Add inventory item'
+        : sourceWidgetId === targetWidgetId
+          ? 'Edit inventory item'
+          : 'Move inventory item';
+      get()._takeSnapshot(action);
+      set((currentState) => {
+        recordStoreEvent(currentState, {
+          eventName: sourceIndex < 0
+            ? 'inventory_item_added'
+            : sourceWidgetId === targetWidgetId
+              ? 'inventory_item_edited'
+              : 'inventory_item_moved',
+          category: 'widget',
+          widgetType: 'INVENTORY',
+          source: 'inventory_dialog',
+          metadata: { sourceWidgetId, targetWidgetId },
+        });
+
+        return {
+          characters: currentState.characters.map((entry) => {
+            if (entry.id !== currentState.activeCharacterId) return entry;
+            return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+              if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: nextSourceItems } };
+              }
+              if (widget.id === sourceWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: nextSourceItems } };
+              }
+              if (widget.id === targetWidgetId) {
+                return { ...widget, data: { ...widget.data, inventoryItems: nextTargetItems } };
+              }
+              return widget;
+            }));
+          }),
+        };
+      });
+    },
+
     removeWidget: (id) => {
       // Take snapshot before deleting widget
       get()._takeSnapshot('Delete widget');
@@ -1442,7 +1618,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     // Attach two widgets together (create or merge groups)
-    attachWidgets: (widgetId1, widgetId2) => {
+    attachWidgets: (widgetId1, widgetId2, targetDelta = { x: 0, y: 0 }) => {
       // Take snapshot before attaching
       get()._takeSnapshot('Attach widgets');
       
@@ -1459,8 +1635,8 @@ export const useStore = create<StoreState>((set, get) => {
             
             if (!widget1 || !widget2) return c;
             
-            // Check if already attached
-            if (widget1.attachedTo?.includes(widgetId2)) return c;
+            // Check if already attached in both directions
+            if (widget1.attachedTo?.includes(widgetId2) && widget2.attachedTo?.includes(widgetId1)) return c;
 
             recordStoreEvent(state, {
               eventName: 'widgets_attached',
@@ -1476,24 +1652,11 @@ export const useStore = create<StoreState>((set, get) => {
             
             // Determine the group ID to use
             let newGroupId: string;
+            let oldGroupId: string | undefined;
             if (widget1.groupId && widget2.groupId && widget1.groupId !== widget2.groupId) {
               // Both have different groups - merge widget2's group into widget1's
               newGroupId = widget1.groupId;
-              const oldGroupId = widget2.groupId;
-              return updateActiveSheetWidgets(c, widgets => 
-                widgets.map(w => {
-                  if (w.groupId === oldGroupId) {
-                    return { ...w, groupId: newGroupId };
-                  }
-                  if (w.id === widgetId1) {
-                    return { ...w, attachedTo: [...(w.attachedTo || []), widgetId2] };
-                  }
-                  if (w.id === widgetId2) {
-                    return { ...w, attachedTo: [...(w.attachedTo || []), widgetId1] };
-                  }
-                  return w;
-                })
-              );
+              oldGroupId = widget2.groupId;
             } else if (widget1.groupId) {
               newGroupId = widget1.groupId;
             } else if (widget2.groupId) {
@@ -1502,23 +1665,36 @@ export const useStore = create<StoreState>((set, get) => {
               newGroupId = uuidv4();
             }
             
-            return updateActiveSheetWidgets(c, widgets => 
+            const targetGroupId = widget2.groupId;
+            const alreadyShareGroup = !!widget1.groupId && widget1.groupId === targetGroupId;
+            const shouldAlignTarget = !alreadyShareGroup && (targetDelta.x !== 0 || targetDelta.y !== 0);
+
+            return updateActiveSheetWidgets(c, widgets =>
               widgets.map(w => {
-                if (w.id === widgetId1) {
-                  return { 
-                    ...w, 
-                    groupId: newGroupId,
-                    attachedTo: [...(w.attachedTo || []), widgetId2]
+                const isTargetWidget = targetGroupId ? w.groupId === targetGroupId : w.id === widgetId2;
+                let updatedWidget = shouldAlignTarget && isTargetWidget
+                  ? { ...w, x: w.x + targetDelta.x, y: w.y + targetDelta.y }
+                  : w;
+
+                if (oldGroupId && updatedWidget.groupId === oldGroupId) {
+                  updatedWidget = { ...updatedWidget, groupId: newGroupId };
+                } else if (updatedWidget.id === widgetId1 || updatedWidget.id === widgetId2) {
+                  updatedWidget = { ...updatedWidget, groupId: newGroupId };
+                }
+
+                if (updatedWidget.id === widgetId1) {
+                  return {
+                    ...updatedWidget,
+                    attachedTo: Array.from(new Set([...(updatedWidget.attachedTo || []), widgetId2])),
                   };
                 }
-                if (w.id === widgetId2) {
-                  return { 
-                    ...w, 
-                    groupId: newGroupId,
-                    attachedTo: [...(w.attachedTo || []), widgetId1]
+                if (updatedWidget.id === widgetId2) {
+                  return {
+                    ...updatedWidget,
+                    attachedTo: Array.from(new Set([...(updatedWidget.attachedTo || []), widgetId1])),
                   };
                 }
-                return w;
+                return updatedWidget;
               })
             );
           })

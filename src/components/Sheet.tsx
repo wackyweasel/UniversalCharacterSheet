@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -20,14 +20,16 @@ import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
+import SheetSearch from './SheetSearch';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
 
 // Helper to get active sheet widgets
 function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
@@ -245,25 +247,75 @@ export default function Sheet() {
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
   const [zoomValueVisible, setZoomValueVisible] = useState(false);
+  const [sheetSearchOpen, setSheetSearchOpen] = useState(false);
+  const [sheetSearchQuery, setSheetSearchQuery] = useState('');
+  const [searchReveal, setSearchReveal] = useState<{ sheetId: string; widgetId: string; key: number } | null>(null);
+  const searchRevealSequenceRef = useRef(0);
   
   // Mobile menu state for grid mode
   const [gridMenuOpen, setGridMenuOpen] = useState(false);
+  const [attachmentControlsVisible, setAttachmentControlsVisible] = useState(true);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
   const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
+
+  const sheetSearchIndex = useMemo(
+    () => activeCharacter ? buildSheetSearchIndex(activeCharacter) : [],
+    [activeCharacter],
+  );
+  const sheetSearchResults = useMemo(
+    () => activeCharacter ? searchSheetIndex(sheetSearchIndex, sheetSearchQuery, activeCharacter.activeSheetId) : [],
+    [activeCharacter, sheetSearchIndex, sheetSearchQuery],
+  );
+
+  useEffect(() => {
+    setSheetSearchQuery('');
+    setSheetSearchOpen(false);
+  }, [activeCharacterId]);
+
+  const handleSearchResult = useCallback((result: SheetSearchResult) => {
+    setSearchReveal({
+      sheetId: result.sheetId,
+      widgetId: result.widgetId,
+      key: ++searchRevealSequenceRef.current,
+    });
+    if (activeCharacter?.activeSheetId !== result.sheetId) selectSheet(result.sheetId);
+  }, [activeCharacter?.activeSheetId, selectSheet]);
   
-  // Vertical mode drag state
-  const [verticalDragIndex, setVerticalDragIndex] = useState<number | null>(null);
-  const [verticalDropIndex, setVerticalDropIndex] = useState<number | null>(null);
+  const verticalListScrollRef = useRef<HTMLDivElement>(null);
+  const verticalWidgetRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousVerticalRectsRef = useRef(new Map<string, DOMRect>());
+  const removeVerticalDragListenersRef = useRef<(() => void) | null>(null);
+  const verticalDragRef = useRef<{
+    widgetId: string;
+    pointerId: number;
+    cardElement: HTMLDivElement;
+    startX: number;
+    startY: number;
+    startScrollTop: number;
+    order: string[];
+    slotRects: DOMRect[];
+    startIndex: number;
+    targetIndex: number;
+    dragExtent: number;
+    didMove: boolean;
+  } | null>(null);
 
   // Pan/Zoom camera hook
   const [isPinching, setIsPinching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
   
-  // Callback to clear selection and blur active element when clicking/touching background
-  const handleBackgroundInteraction = useCallback(() => {
+  // Clear mobile widget controls unless the touch stays on their selected widget controls.
+  const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {
+    if (touchTarget) {
+      const selectedWidgetId = useStore.getState().selectedWidgetId;
+      const touchedWidgetId = touchTarget.closest('[data-widget-id]')?.getAttribute('data-widget-id');
+      const touchedAttachmentControl = touchTarget.closest('[data-attach-widget-ids]');
+      if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
+    }
+
     setSelectedWidgetId(null);
     // Blur any focused input/textarea element
     if (document.activeElement instanceof HTMLElement) {
@@ -282,6 +334,8 @@ export default function Sheet() {
     handleMouseUp,
     handleWheel,
     viewLocked,
+    wheelPanEnabled,
+    setWheelPanEnabled,
     toggleViewLock,
   } = usePanZoom({
     minScale: MIN_CANVAS_SCALE,
@@ -291,6 +345,71 @@ export default function Sheet() {
     characterId: activeCharacterId,
     onBackgroundClick: handleBackgroundInteraction,
   });
+
+  const scaleRef = useRef(scale);
+  const panRef = useRef(pan);
+  const viewLockedRef = useRef(viewLocked);
+  const wheelPanEnabledRef = useRef(wheelPanEnabled);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+  useEffect(() => { wheelPanEnabledRef.current = wheelPanEnabled; }, [wheelPanEnabled]);
+
+  useEffect(() => {
+    if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
+
+    let frame = 0;
+    const usesVerticalLayout = mode === 'vertical' || (mode === 'edit' && playLayout === 'list');
+    if (!usesVerticalLayout) {
+      frame = window.requestAnimationFrame(() => {
+        const viewport = containerRef.current;
+        const target = printAreaRef.current?.querySelector<HTMLElement>(`[data-widget-id="${searchReveal.widgetId}"]`);
+        if (!viewport || !target) return;
+        if (viewLockedRef.current) return;
+
+        const viewportRect = viewport.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const currentScale = scaleRef.current;
+        const currentPan = panRef.current;
+        const targetCanvasX = (targetRect.left + targetRect.width / 2 - viewportRect.left - currentPan.x) / currentScale;
+        const targetCanvasY = (targetRect.top + targetRect.height / 2 - viewportRect.top - currentPan.y) / currentScale;
+
+        if (wheelPanEnabledRef.current) {
+          const nextPan = {
+            x: currentPan.x,
+            y: viewportRect.height / 2 - targetCanvasY * currentScale,
+          };
+          panRef.current = nextPan;
+          setPan(nextPan);
+          return;
+        }
+
+        const framingScale = currentScale * Math.min(
+          viewportRect.width * 0.7 / targetRect.width,
+          viewportRect.height * 0.7 / targetRect.height,
+        );
+        const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(currentScale, Math.min(framingScale, 2)));
+        const nextPan = {
+          x: viewportRect.width / 2 - targetCanvasX * nextScale,
+          y: viewportRect.height / 2 - targetCanvasY * nextScale,
+        };
+
+        scaleRef.current = nextScale;
+        panRef.current = nextPan;
+        setScale(nextScale);
+        setPan(nextPan);
+      });
+    }
+
+    const timeout = window.setTimeout(() => {
+      setSearchReveal((current) => current?.key === searchReveal.key ? null : current);
+    }, 1800);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [activeCharacter?.activeSheetId, mode, playLayout, searchReveal, setPan, setScale]);
 
   const previousScaleRef = useRef(scale);
   useEffect(() => {
@@ -302,15 +421,8 @@ export default function Sheet() {
   }, [scale]);
 
   // Touch camera controls hook
-  const scaleRef = useRef(scale);
-  const panRef = useRef(pan);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
-  
   const getScale = useCallback(() => scaleRef.current, []);
   const getPan = useCallback(() => panRef.current, []);
-  const viewLockedRef = useRef(viewLocked);
-  useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
 
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
@@ -445,11 +557,22 @@ export default function Sheet() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [paperFormatDropdownOpen]);
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo and character search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input/textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      const target = e.target as HTMLElement | null;
+      const isEditing = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target?.isContentEditable
+        || Boolean(target?.closest('[role="dialog"]'));
+      if (isEditing) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSheetSearchOpen(true);
         return;
       }
       
@@ -663,6 +786,7 @@ export default function Sheet() {
   useEffect(() => {
     if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
       // We just advanced to step 23, load the tutorial preset as a transient character.
+      setPlayLayout('canvas');
       createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
       // If in dark mode, set theme to classic-dark
       // We need to get the new character ID after creation
@@ -679,7 +803,7 @@ export default function Sheet() {
         handleFitAllWidgets();
       }, 200);
     }
-  }, [tutorialStep]);
+  }, [tutorialStep, createTransientCharacterFromPreset, darkMode, handleFitAllWidgets, setMode, setPlayLayout, updateCharacterTheme]);
 
   // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
   useEffect(() => {
@@ -814,6 +938,7 @@ export default function Sheet() {
   // Fit all widgets when character sheet is opened or sheet is changed
   useEffect(() => {
     if (viewLocked) return;
+    if (searchReveal?.sheetId === activeCharacter?.activeSheetId) return;
     if (activeCharacterId && activeSheetWidgets.length > 0) {
       // Small delay to ensure DOM elements are rendered
       const timer = setTimeout(() => {
@@ -864,26 +989,182 @@ export default function Sheet() {
     }
   };
 
-  // Vertical mode drag handlers
-  const handleVerticalDragStart = (index: number) => {
-    setVerticalDragIndex(index);
-    setVerticalDropIndex(index);
+  const registerVerticalWidget = useCallback((widgetId: string, element: HTMLDivElement | null) => {
+    if (element) verticalWidgetRefs.current.set(widgetId, element);
+    else verticalWidgetRefs.current.delete(widgetId);
+  }, []);
+
+  const captureVerticalWidgetRects = () => {
+    previousVerticalRectsRef.current = new Map(
+      Array.from(verticalWidgetRefs.current.entries()).map(([id, element]) => [id, element.getBoundingClientRect()])
+    );
   };
 
-  const handleVerticalDragOver = (index: number) => {
-    setVerticalDropIndex(index);
-  };
+  const updateVerticalDragPreview = (drag: NonNullable<typeof verticalDragRef.current>, targetIndex: number) => {
+    drag.order.forEach((id, index) => {
+      if (id === drag.widgetId) return;
+      const element = verticalWidgetRefs.current.get(id);
+      if (!element) return;
 
-  const handleVerticalDragEnd = (canceled = false) => {
-    if (!canceled && verticalDragIndex !== null && verticalDropIndex !== null && verticalDragIndex !== verticalDropIndex) {
-      const widget = activeSheetWidgets[verticalDragIndex];
-      if (widget) {
-        reorderWidget(widget.id, verticalDropIndex);
+      const shiftsUp = targetIndex > drag.startIndex && index > drag.startIndex && index <= targetIndex;
+      const shiftsDown = targetIndex < drag.startIndex && index >= targetIndex && index < drag.startIndex;
+      const deltaY = shiftsUp ? -drag.dragExtent : shiftsDown ? drag.dragExtent : 0;
+      if (deltaY === 0) {
+        element.classList.remove('vertical-widget-sort-item--preview-shift');
+        element.style.removeProperty('transform');
+        return;
       }
-    }
-    setVerticalDragIndex(null);
-    setVerticalDropIndex(null);
+
+      element.classList.add('vertical-widget-sort-item--preview-shift');
+      element.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+    });
   };
+
+  const clearVerticalDragPreview = (drag: NonNullable<typeof verticalDragRef.current>) => {
+    drag.order.forEach((id) => {
+      const element = verticalWidgetRefs.current.get(id);
+      element?.classList.remove('vertical-widget-sort-item--preview-shift');
+      element?.style.removeProperty('transform');
+    });
+  };
+
+  const finishVerticalDrag = (pointerId?: number, commit = true) => {
+    const drag = verticalDragRef.current;
+    if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
+
+    removeVerticalDragListenersRef.current?.();
+    removeVerticalDragListenersRef.current = null;
+    const shouldReorder = Boolean(commit && drag?.didMove && drag.targetIndex !== drag.startIndex);
+    if (drag && shouldReorder) captureVerticalWidgetRects();
+    if (drag) {
+      drag.cardElement.classList.remove('vertical-widget-sort-item--dragging');
+      clearVerticalDragPreview(drag);
+    }
+    if (drag && shouldReorder) {
+      reorderWidget(drag.widgetId, drag.targetIndex);
+    }
+    verticalDragRef.current = null;
+  };
+
+  const handleVerticalDragMove = (event: PointerEvent) => {
+    const drag = verticalDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
+
+    event.preventDefault();
+    if (!drag.didMove) {
+      drag.didMove = true;
+      drag.cardElement.classList.add('vertical-widget-sort-item--dragging');
+    }
+
+    const scrollArea = verticalListScrollRef.current;
+    if (scrollArea) {
+      const bounds = scrollArea.getBoundingClientRect();
+      const edgeSize = 72;
+      if (event.clientY < bounds.top + edgeSize) scrollArea.scrollBy({ top: -14 });
+      if (event.clientY > bounds.bottom - edgeSize) scrollArea.scrollBy({ top: 14 });
+    }
+
+    const scrollDeltaY = (scrollArea?.scrollTop ?? 0) - drag.startScrollTop;
+    drag.cardElement.style.transform = `translate3d(${event.clientX - drag.startX}px, ${event.clientY - drag.startY + scrollDeltaY}px, 0) scale(1.018) rotate(0.2deg)`;
+
+    const targetIndex = drag.slotRects.reduce((closestIndex, rect, index) => {
+      const centerY = rect.top - scrollDeltaY + rect.height / 2;
+      const closestRect = drag.slotRects[closestIndex];
+      const closestCenterY = closestRect.top - scrollDeltaY + closestRect.height / 2;
+      return Math.abs(event.clientY - centerY) < Math.abs(event.clientY - closestCenterY) ? index : closestIndex;
+    }, drag.targetIndex);
+    if (targetIndex === drag.targetIndex) return;
+
+    drag.targetIndex = targetIndex;
+    updateVerticalDragPreview(drag, targetIndex);
+  };
+
+  const startVerticalDrag = (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (activeSheetWidgets.length < 2 || event.button !== 0) return;
+    const cardElement = verticalWidgetRefs.current.get(widgetId);
+    if (!cardElement) return;
+    const order = activeSheetWidgets.map((widget) => widget.id);
+    const startIndex = order.indexOf(widgetId);
+    const slotRects = order.map((id) => verticalWidgetRefs.current.get(id)?.getBoundingClientRect()).filter((rect): rect is DOMRect => Boolean(rect));
+    if (startIndex < 0 || slotRects.length !== order.length) return;
+
+    removeVerticalDragListenersRef.current?.();
+    const sourceRect = slotRects[startIndex];
+    verticalDragRef.current = {
+      widgetId,
+      pointerId: event.pointerId,
+      cardElement,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollTop: verticalListScrollRef.current?.scrollTop ?? 0,
+      order,
+      slotRects,
+      startIndex,
+      targetIndex: startIndex,
+      dragExtent: sourceRect.height + (startIndex === order.length - 1 ? 8 : 0),
+      didMove: false,
+    };
+
+    const handlePointerMove = (pointerEvent: PointerEvent) => handleVerticalDragMove(pointerEvent);
+    const handlePointerUp = (pointerEvent: PointerEvent) => finishVerticalDrag(pointerEvent.pointerId);
+    const handlePointerCancel = (pointerEvent: PointerEvent) => finishVerticalDrag(pointerEvent.pointerId, false);
+    const handleWindowBlur = () => finishVerticalDrag(undefined, false);
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('blur', handleWindowBlur);
+    removeVerticalDragListenersRef.current = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+
+    event.currentTarget.focus({ preventScroll: true });
+  };
+
+  const handleVerticalReorderKey = (widgetId: string, event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const currentIndex = activeSheetWidgets.findIndex((widget) => widget.id === widgetId);
+    const offset = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (currentIndex < 0 || offset === 0) return;
+
+    const nextIndex = Math.max(0, Math.min(activeSheetWidgets.length - 1, currentIndex + offset));
+    if (nextIndex === currentIndex) return;
+    event.preventDefault();
+    event.stopPropagation();
+    captureVerticalWidgetRects();
+    reorderWidget(widgetId, nextIndex);
+  };
+
+  useEffect(() => () => removeVerticalDragListenersRef.current?.(), []);
+
+  useLayoutEffect(() => {
+    if (previousVerticalRectsRef.current.size === 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      previousVerticalRectsRef.current.clear();
+      return;
+    }
+
+    verticalWidgetRefs.current.forEach((element, id) => {
+      const previousRect = previousVerticalRectsRef.current.get(id);
+      if (!previousRect) return;
+      const nextRect = element.getBoundingClientRect();
+      const deltaY = previousRect.top - nextRect.top;
+      if (Math.abs(deltaY) < 1) return;
+
+      element.getAnimations().forEach((animation) => animation.cancel());
+      element.animate(
+        [
+          { transform: `translateY(${deltaY}px)` },
+          { transform: 'translateY(0)' },
+        ],
+        { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+      );
+    });
+
+    previousVerticalRectsRef.current.clear();
+  }, [activeCharacter]);
 
   const setAllVerticalWidgetsCollapsed = (collapsed: boolean) => {
     activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(collapsed)));
@@ -916,18 +1197,14 @@ export default function Sheet() {
   if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
     return (
       <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
-        {workspace === 'build' && (
-          <>
-            <Sidebar
-              collapsed={sidebarCollapsed}
-              onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-            />
-            <ThemeSidebar
-              collapsed={themeSidebarCollapsed}
-              onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
-            />
-          </>
-        )}
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <ThemeSidebar
+          collapsed={themeSidebarCollapsed}
+          onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
+        />
 
         {/* Compact header bar */}
         <div className="bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 shrink-0">
@@ -946,12 +1223,15 @@ export default function Sheet() {
             canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
-            onAddWidget={workspace === 'build' ? () => handleToggleWidgetSidebar() : undefined}
+            onAddWidget={() => handleToggleWidgetSidebar()}
             addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
-            onChangeTheme={workspace === 'build' ? () => handleToggleThemeSidebar() : undefined}
+            onChangeTheme={() => handleToggleThemeSidebar()}
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
             onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
             onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
+            onSearch={() => setSheetSearchOpen(true)}
+            attachmentControlsVisible={attachmentControlsVisible}
+            onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           />
           <WorkspaceToggleGroup
             workspace={workspace}
@@ -962,25 +1242,33 @@ export default function Sheet() {
             onList={() => handleSelectPlayLayout('list')}
             workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
             listHighlighted={isCurrentTutorialStep('various-vertical-view')}
-            layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
+            layoutClassName="min-[720px]:flex"
           />
-          {workspace === 'build' && (
-            <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
-              <button
-                type="button"
-                data-tutorial="add-widget-button"
-                onClick={() => handleToggleWidgetSidebar()}
-                className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-              >
-                {sidebarCollapsed ? 'Add' : 'Hide Add'}
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+            <button
+              type="button"
+              data-tutorial="add-widget-button"
+              onClick={() => handleToggleWidgetSidebar()}
+              className={`hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            >
+              {sidebarCollapsed ? 'Add' : 'Hide Add'}
+            </button>
+          </Tooltip>
+          <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
+            <button
+              type="button"
+              data-tutorial="theme-button"
+              onClick={() => handleToggleThemeSidebar()}
+              className={`hidden min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            >
+              Theme
+            </button>
+          </Tooltip>
           <CharacterNameControl
             name={activeCharacter.name}
             editable={workspace === 'build'}
             onSave={(name) => updateCharacterName(activeCharacter.id, name)}
-            className={`hidden absolute left-1/2 -translate-x-1/2 text-center ${workspace === 'build' ? 'min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]' : 'min-[720px]:block w-[120px] min-[760px]:w-[160px] min-[900px]:w-[240px]'}`}
+            className="hidden absolute left-1/2 -translate-x-1/2 text-center min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]"
           />
           <div className="flex-1 min-w-0" />
 
@@ -1000,7 +1288,7 @@ export default function Sheet() {
               </Tooltip>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="hidden min-[800px]:flex items-center gap-1 shrink-0">
             <Tooltip content="Collapse all widgets" placement="below">
               <button
                 type="button"
@@ -1022,6 +1310,15 @@ export default function Sheet() {
               </button>
             </Tooltip>
           </div>
+          <SheetSearch
+            open={sheetSearchOpen}
+            query={sheetSearchQuery}
+            results={sheetSearchResults}
+            onOpenChange={setSheetSearchOpen}
+            onQueryChange={setSheetSearchQuery}
+            onSelect={handleSearchResult}
+            triggerClassName="hidden min-[640px]:flex"
+          />
           <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button
@@ -1065,7 +1362,7 @@ export default function Sheet() {
         </div>
 
         {/* Vertical Mode Container - scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6 pb-24">
             {/* Widgets in vertical layout */}
             {activeSheetWidgets.map((widget, index) => (
@@ -1074,13 +1371,11 @@ export default function Sheet() {
                 widget={widget}
                 index={index}
                 totalWidgets={activeSheetWidgets.length}
-                isDragging={verticalDragIndex !== null}
-                draggedIndex={verticalDragIndex}
-                dropTargetIndex={verticalDropIndex}
-                onDragStart={handleVerticalDragStart}
-                onDragOver={handleVerticalDragOver}
-                onDragEnd={handleVerticalDragEnd}
+                registerElement={registerVerticalWidget}
+                onDragStart={startVerticalDrag}
+                onReorderKey={handleVerticalReorderKey}
                 isBuildMode={workspace === 'build'}
+                searchRevealKey={searchReveal?.widgetId === widget.id ? searchReveal.key : undefined}
               />
             ))}
             
@@ -1115,7 +1410,7 @@ export default function Sheet() {
   // Render Grid Mode (Edit, Play, or Print)
   return (
     <div ref={containerRef} className="canvas-workspace w-full overflow-hidden relative bg-theme-background">
-      {mode === 'edit' && (
+      {mode !== 'print' && (
         <Sidebar 
           collapsed={sidebarCollapsed} 
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -1124,7 +1419,7 @@ export default function Sheet() {
       )}
       
       {/* Theme Sidebar - available in edit mode */}
-      {mode === 'edit' && (
+      {mode !== 'print' && (
         <ThemeSidebar
           collapsed={themeSidebarCollapsed}
           onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
@@ -1133,7 +1428,7 @@ export default function Sheet() {
       
       {/* Canvas Container - touch events handled globally */}
       <div 
-        className={`canvas-touch-surface absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : 'cursor-default'} ${isPinching ? 'pinch-active' : ''}`}
+        className={`canvas-touch-surface absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : viewLocked || editingWidgetId ? 'cursor-default' : 'cursor-grab'} ${isPinching ? 'pinch-active' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1196,11 +1491,12 @@ export default function Sheet() {
               key={widget.id} 
               widget={widget} 
               scale={scale}
+              isSearchTarget={searchReveal?.widgetId === widget.id}
             />
           ))}
           
           {/* Attachment Buttons - only in edit mode */}
-          {mode === 'edit' && (
+          {mode === 'edit' && attachmentControlsVisible && (
             <AttachmentButtons 
               widgets={activeSheetWidgets} 
               scale={scale}
@@ -1527,11 +1823,14 @@ export default function Sheet() {
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
-          onAddWidget={workspace === 'build' ? () => handleToggleWidgetSidebar() : undefined}
+          onAddWidget={() => handleToggleWidgetSidebar()}
           addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
-          onChangeTheme={workspace === 'build' ? () => handleToggleThemeSidebar() : undefined}
+          onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
           onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+          attachmentControlsVisible={attachmentControlsVisible}
+          onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
+          onSearch={() => setSheetSearchOpen(true)}
         />
         <WorkspaceToggleGroup
           workspace={workspace}
@@ -1544,23 +1843,31 @@ export default function Sheet() {
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
           layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
         />
-        {workspace === 'build' && (
-          <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
-            <button
-              type="button"
-              data-tutorial="add-widget-button"
-              onClick={() => handleToggleWidgetSidebar()}
-              className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-            >
-              {sidebarCollapsed ? 'Add' : 'Hide Add'}
-            </button>
-          </Tooltip>
-        )}
+        <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+          <button
+            type="button"
+            data-tutorial="add-widget-button"
+            onClick={() => handleToggleWidgetSidebar()}
+            className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+          >
+            {sidebarCollapsed ? 'Add' : 'Hide Add'}
+          </button>
+        </Tooltip>
+        <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
+          <button
+            type="button"
+            data-tutorial="theme-button"
+            onClick={() => handleToggleThemeSidebar()}
+            className={`hidden min-[640px]:block ${workspace === 'build' ? 'min-[900px]:hidden' : 'min-[720px]:hidden'} min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+          >
+            Theme
+          </button>
+        </Tooltip>
         <CharacterNameControl
           name={activeCharacter.name}
           editable={workspace === 'build'}
           onSave={(name) => updateCharacterName(activeCharacter.id, name)}
-          className={`hidden absolute left-1/2 -translate-x-1/2 text-center ${workspace === 'build' ? 'min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]' : 'min-[720px]:block w-[120px] min-[760px]:w-[160px] min-[900px]:w-[240px]'}`}
+          className="hidden absolute left-1/2 -translate-x-1/2 text-center min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]"
         />
         <div className="flex-1 min-w-0" />
 
@@ -1588,6 +1895,15 @@ export default function Sheet() {
             </Tooltip>
           )}
         </div>
+        <SheetSearch
+          open={sheetSearchOpen}
+          query={sheetSearchQuery}
+          results={sheetSearchResults}
+          onOpenChange={setSheetSearchOpen}
+          onQueryChange={setSheetSearchQuery}
+          onSelect={handleSearchResult}
+          triggerClassName="hidden min-[640px]:flex"
+        />
         <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button
@@ -1807,6 +2123,18 @@ export default function Sheet() {
                 <path d="M8 11V7a4 4 0 0 1 8 0" />
               </svg>
             )}
+          </button>
+        </Tooltip>
+        <Tooltip content={wheelPanEnabled ? 'Use mouse wheel to zoom' : 'Use mouse wheel to pan up and down'}>
+          <button
+            type="button"
+            className={`canvas-zoom-button canvas-wheel-pan-toggle ${wheelPanEnabled ? 'canvas-zoom-button--active' : ''}`}
+            onClick={() => setWheelPanEnabled(!wheelPanEnabled)}
+            disabled={viewLocked}
+            aria-label={wheelPanEnabled ? 'Use mouse wheel to zoom' : 'Use mouse wheel to pan up and down'}
+            aria-pressed={wheelPanEnabled}
+          >
+            <ArrowUpDownIcon className="h-4 w-4" />
           </button>
         </Tooltip>
         <button

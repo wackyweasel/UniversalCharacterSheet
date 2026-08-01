@@ -6,6 +6,7 @@ declare module '@3d-dice/dice-box-threejs' {
     theme_material?: 'none' | 'metal' | 'wood' | 'glass' | 'plastic';
     theme_texture?: string;
     light_intensity?: number;
+    baseScale?: number;
     strength?: number;
   }
 
@@ -63,11 +64,32 @@ declare module '@3d-dice/dice-box-threejs' {
   export interface DiceFactory {
     constructor: DiceFactoryConstructor;
     get(type: string): DiceDefinition | null;
+    create(type: string): DiceMesh | null;
     applyColorSet(colors: DiceColorSet): void;
+  }
+
+  export interface DiceMesh {
+    castShadow: boolean;
+    receiveShadow: boolean;
+    position: { set(x: number, y: number, z: number): void };
+    quaternion: { set(x: number, y: number, z: number, w: number): void };
+    rotation: { set(x: number, y: number, z: number): void };
+  }
+
+  export interface DiceScene {
+    add(object: DiceMesh): void;
+    remove(object: DiceMesh): void;
+  }
+
+  export interface DiceRenderer {
+    render(scene: DiceScene, camera: unknown): void;
   }
 
   export default class DiceBox {
     DiceFactory: DiceFactory;
+    camera: unknown;
+    renderer: DiceRenderer;
+    scene: DiceScene;
     constructor(container: string, config?: DiceBoxConfig);
     initialize(): Promise<void>;
     roll(notation: string): Promise<DiceBoxRollResult>;
