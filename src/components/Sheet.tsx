@@ -1242,7 +1242,6 @@ export default function Sheet() {
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
-          timelineHighlighted={isCurrentTutorialStep('various-timeline')}
         />
 
         <SheetSearch
@@ -1321,7 +1320,7 @@ export default function Sheet() {
               type="button"
               data-tutorial="add-widget-button"
               onClick={() => handleToggleWidgetSidebar()}
-              className={`hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+              className="hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               {sidebarCollapsed ? 'Add' : 'Hide Add'}
             </button>
@@ -1903,7 +1902,6 @@ export default function Sheet() {
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
-        timelineHighlighted={isCurrentTutorialStep('various-timeline')}
       />
       )}
 
@@ -1973,7 +1971,7 @@ export default function Sheet() {
             type="button"
             data-tutorial="add-widget-button"
             onClick={() => handleToggleWidgetSidebar()}
-            className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            className="hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
             {sidebarCollapsed ? 'Add' : 'Hide Add'}
           </button>

@@ -54,7 +54,6 @@ interface SheetToolbarProps {
   onToggleAttachmentControls: () => void;
   workspaceHighlighted?: boolean;
   listHighlighted?: boolean;
-  timelineHighlighted?: boolean;
   overlay?: boolean;
 }
 
@@ -152,7 +151,6 @@ export default function SheetToolbar({
   onToggleAttachmentControls,
   workspaceHighlighted = false,
   listHighlighted = false,
-  timelineHighlighted = false,
   overlay = false,
 }: SheetToolbarProps) {
   const actions = useMemo(() => {
@@ -168,7 +166,7 @@ export default function SheetToolbar({
   }, [onAutoStack, playLayout, workspace]);
   const { containerRef, inlineActionIds, labeledActionIds } = useToolbarOverflow({
     actions,
-    coreWidth: (width) => 40 + (width >= 640 ? 304 : width >= 480 ? 104 : 44) + (width >= 640 ? 204 : 172),
+    coreWidth: (width) => width >= 640 ? 548 : width >= 480 ? 364 : 256,
     minimumExpandedWidth: 0,
   });
   const showLabel = (id: string) => labeledActionIds.has(id);
@@ -181,36 +179,39 @@ export default function SheetToolbar({
   }`;
 
   const content = (
-    <>
-      <ShareExportMenu
-        character={character}
-        open={menuOpen}
-        onOpenChange={onMenuOpenChange}
-        onPrintPreview={onPrintPreview}
-        onExit={onExit}
-        workspace={workspace}
-        playLayout={playLayout}
-        onSelectLayout={onSelectLayout}
-        timelineOpen={timelineOpen}
-        onToggleTimeline={onToggleTimeline}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={onUndo}
-        onRedo={onRedo}
-        onAddWidget={onAddWidget}
-        addWidgetLabel={addWidgetLabel}
-        onChangeTheme={onChangeTheme}
-        changeThemeLabel={changeThemeLabel}
-        onAutoStack={onAutoStack}
-        onExpandAll={onExpandAll}
-        onCollapseAll={onCollapseAll}
-        attachmentControlsVisible={attachmentControlsVisible}
-        onToggleAttachmentControls={onToggleAttachmentControls}
-        inlineActionIds={inlineActionIds}
-      />
-      <div className="hidden shrink-0 sm:block">
-        <ToolbarCharacterName name={character.name} editable={workspace === 'build'} onSave={onRenameCharacter} />
+    <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 justify-self-start">
+        <ShareExportMenu
+          character={character}
+          open={menuOpen}
+          onOpenChange={onMenuOpenChange}
+          onPrintPreview={onPrintPreview}
+          onExit={onExit}
+          workspace={workspace}
+          playLayout={playLayout}
+          onSelectLayout={onSelectLayout}
+          timelineOpen={timelineOpen}
+          onToggleTimeline={onToggleTimeline}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          onAddWidget={onAddWidget}
+          addWidgetLabel={addWidgetLabel}
+          onChangeTheme={onChangeTheme}
+          changeThemeLabel={changeThemeLabel}
+          onAutoStack={onAutoStack}
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
+          attachmentControlsVisible={attachmentControlsVisible}
+          onToggleAttachmentControls={onToggleAttachmentControls}
+          inlineActionIds={inlineActionIds}
+        />
+        <div className="hidden shrink-0 sm:block">
+          <ToolbarCharacterName name={character.name} editable={workspace === 'build'} onSave={onRenameCharacter} />
+        </div>
       </div>
+      <div className="flex min-w-0 items-center gap-2 justify-self-center">
       <div
         data-tutorial="edit-mode-button"
         className={`flex h-8 w-20 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background sm:w-32 ${workspaceHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
@@ -245,7 +246,7 @@ export default function SheetToolbar({
             data-tutorial="add-widget-button"
             onClick={onAddWidget}
             aria-label={addWidgetLabel}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-button bg-theme-accent px-2 text-xs font-body font-bold text-theme-paper shadow-sm transition-colors hover:bg-theme-accent-hover"
+            className={utilityButtonClass}
           >
             <PlusIcon className="h-4 w-4" /> {showLabel('add-widget') && <span>{addWidgetLabel}</span>}
           </button>
@@ -258,7 +259,7 @@ export default function SheetToolbar({
             onClick={onToggleTimeline}
             aria-pressed={timelineOpen}
             aria-label="Timeline"
-            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-button px-2 text-xs font-body font-bold shadow-sm transition-colors ${timelineOpen ? 'bg-theme-ink text-theme-paper' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'} ${timelineHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={utilityButtonClass}
           >
             <ClockIcon className="h-4 w-4" /> {showLabel('timeline') && <span>Timeline</span>}
           </button>
@@ -282,27 +283,29 @@ export default function SheetToolbar({
       {inlineActionIds.has('auto-stack') && (
         <Tooltip content="Auto Stack" placement="below"><button type="button" onClick={onAutoStack} aria-label="Auto Stack" className={utilityButtonClass}><RowsIcon className="h-4 w-4" /> {showLabel('auto-stack') && <span>Auto Stack</span>}</button></Tooltip>
       )}
-      <div className="min-w-0 flex-1" />
-      <Tooltip content={`Switch sheet (current: ${activeSheetName})`} placement="below">
-        <button
-          type="button"
-          data-tutorial="sheet-selector"
-          onClick={onToggleSheetSwitcher}
-          aria-label={`Switch sheet: ${activeSheetName}`}
-          aria-expanded={sheetSwitcherOpen}
-          className="group flex h-8 w-9 shrink-0 items-center justify-center gap-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-1.5 text-left text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper min-[480px]:w-24 min-[480px]:justify-start sm:w-32"
-        >
-          <LayersIcon className="h-4 w-4 shrink-0" />
-          <span className="hidden min-w-0 flex-1 truncate min-[480px]:block">{activeSheetName}</span>
-          <ChevronDownIcon className="hidden h-3.5 w-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180 min-[480px]:block" />
-        </button>
-      </Tooltip>
-      <Tooltip content="Search character (Ctrl+F)" placement="below">
-        <button type="button" onClick={onSearch} aria-label="Search character" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper">
-          <SearchIcon className="h-4 w-4" />
-        </button>
-      </Tooltip>
-    </>
+      </div>
+      <div className="flex min-w-0 items-center gap-2 justify-self-end">
+        <Tooltip content={`Switch sheet (current: ${activeSheetName})`} placement="below">
+          <button
+            type="button"
+            data-tutorial="sheet-selector"
+            onClick={onToggleSheetSwitcher}
+            aria-label={`Switch sheet: ${activeSheetName}`}
+            aria-expanded={sheetSwitcherOpen}
+            className="group flex h-8 w-9 shrink-0 items-center justify-center gap-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-1.5 text-left text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper min-[480px]:w-24 min-[480px]:justify-start sm:w-32"
+          >
+            <LayersIcon className="h-4 w-4 shrink-0" />
+            <span className="hidden min-w-0 flex-1 truncate min-[480px]:block">{activeSheetName}</span>
+            <ChevronDownIcon className="hidden h-3.5 w-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180 min-[480px]:block" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Search character (Ctrl+F)" placement="below">
+          <button type="button" onClick={onSearch} aria-label="Search character" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper">
+            <SearchIcon className="h-4 w-4" />
+          </button>
+        </Tooltip>
+      </div>
+    </div>
   );
 
   return (
