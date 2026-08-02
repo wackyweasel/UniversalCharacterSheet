@@ -4,7 +4,27 @@ import { useUserPresetStore } from '../store/useUserPresetStore';
 import { submitToGallery } from '../hooks/useGallery';
 import { stripImages } from '../utils/stripImages';
 import GalleryShareModal from './GalleryShareModal';
-import { MenuIcon } from './icons';
+import { Tooltip } from './Tooltip';
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ClockIcon,
+  DiceIcon,
+  DownloadIcon,
+  LayoutGridIcon,
+  LinkIcon,
+  ListIcon,
+  MenuIcon,
+  MessageIcon,
+  PaletteIcon,
+  PlusIcon,
+  PrintIcon,
+  RowsIcon,
+  SaveIcon,
+  UndoIcon,
+  UploadIcon,
+  XIcon,
+} from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
@@ -30,12 +50,12 @@ interface ShareExportMenuProps {
   onAutoStack?: () => void;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
-  onSearch?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
+  inlineActionIds?: ReadonlySet<string>;
 }
 
-function downloadCharacter(character: Character) {
+export function downloadCharacter(character: Character) {
   const data = JSON.stringify(character, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -70,9 +90,9 @@ export default function ShareExportMenu({
   onAutoStack,
   onExpandAll,
   onCollapseAll,
-  onSearch,
   attachmentControlsVisible,
   onToggleAttachmentControls,
+  inlineActionIds = new Set(),
 }: ShareExportMenuProps) {
   const addPreset = useUserPresetStore((state) => state.addPreset);
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
@@ -84,6 +104,7 @@ export default function ShareExportMenu({
   const [showPublish, setShowPublish] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -92,8 +113,18 @@ export default function ShareExportMenu({
         onOpenChange(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onOpenChange(false);
+      triggerRef.current?.focus();
+    };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onOpenChange, open]);
 
   useEffect(() => {
@@ -117,39 +148,52 @@ export default function ShareExportMenu({
     return submitToGallery('Presets', name, author, description, preset);
   };
 
+  const hasOverflowNavigation =
+    !inlineActionIds.has('layout') ||
+    !inlineActionIds.has('undo-redo') ||
+    (workspace === 'play' && !inlineActionIds.has('timeline'));
+  const hasOverflowWorkspaceActions =
+    Boolean(onAddWidget && !inlineActionIds.has('add-widget')) ||
+    Boolean(onChangeTheme && !inlineActionIds.has('theme')) ||
+    Boolean(onAutoStack && !inlineActionIds.has('auto-stack')) ||
+    Boolean((onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand'));
+
   return (
     <>
       <div ref={menuRef} className="relative shrink-0">
-        <button
-          type="button"
-          onClick={() => onOpenChange(!open)}
-          aria-label="Menu"
-          aria-expanded={open}
-          className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
-        >
-          <MenuIcon className="w-4 h-4" />
-        </button>
+        <Tooltip content="Open application menu" placement="below">
+          <span className="inline-flex">
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={() => onOpenChange(!open)}
+              aria-label="Menu"
+              aria-expanded={open}
+              className="w-8 h-8 flex items-center justify-center bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              <MenuIcon className="w-4 h-4" />
+            </button>
+          </span>
+        </Tooltip>
         {open && (
-          <div className="absolute left-0 top-full mt-2 w-[min(280px,calc(100vw-1rem))] max-h-[calc(100dvh-7.5rem)] overflow-y-auto bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in">
-            {onSearch && (
-              <button type="button" onClick={() => { onSearch(); onOpenChange(false); }} className="min-[640px]:hidden w-full px-3 py-2.5 text-left text-sm font-semibold font-body text-theme-ink border-b border-theme-border/50 hover:bg-theme-accent hover:text-theme-paper transition-colors">
-                Search character
-              </button>
-            )}
-            <div className={`${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'play' ? 'min-[560px]:hidden' : 'min-[540px]:hidden'} p-2 border-b border-theme-border/50 space-y-2`}>
-              <div className={`grid grid-cols-2 gap-1 ${playLayout === 'list' ? 'min-[720px]:hidden' : workspace === 'build' ? 'min-[460px]:hidden' : 'min-[380px]:hidden'}`}>
-                <button
+          <div className="absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(300px,calc(100vw-1rem))] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
+            {hasOverflowNavigation && <div className="border-b border-theme-border/50 py-1">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Quick actions</p>
+            {(!inlineActionIds.has('layout') || !inlineActionIds.has('undo-redo') || (workspace === 'play' && !inlineActionIds.has('timeline'))) && (
+            <div className="space-y-2 px-2 pb-2">
+              {!inlineActionIds.has('layout') && <div className="grid grid-cols-2 gap-1">
+                <Tooltip content="Use the freeform canvas layout" placement="below"><button
                   type="button"
                   onClick={() => {
                     onSelectLayout('canvas');
                     onOpenChange(false);
                   }}
                   aria-pressed={playLayout === 'canvas'}
-                  className={`h-8 rounded-button text-xs font-body transition-colors ${playLayout === 'canvas' ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
+                  className={`flex h-8 items-center justify-center gap-1.5 rounded-button text-xs font-body transition-colors ${playLayout === 'canvas' ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
                 >
-                  Canvas
-                </button>
-                <button
+                  <LayoutGridIcon className="h-4 w-4" /> Canvas
+                </button></Tooltip>
+                <Tooltip content="Use the structured list layout" placement="below"><button
                   type="button"
                   data-tutorial="vertical-view-button-mobile"
                   onClick={() => {
@@ -157,21 +201,21 @@ export default function ShareExportMenu({
                     onOpenChange(false);
                   }}
                   aria-pressed={playLayout === 'list'}
-                  className={`h-8 rounded-button text-xs font-body transition-colors ${playLayout === 'list' ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
+                  className={`flex h-8 items-center justify-center gap-1.5 rounded-button text-xs font-body transition-colors ${playLayout === 'list' ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
                 >
-                  List
-                </button>
-              </div>
-              <div className={`grid grid-cols-2 gap-1 ${workspace === 'play' ? 'min-[480px]:hidden' : 'min-[540px]:hidden'}`}>
-                <button type="button" onClick={() => { onUndo(); onOpenChange(false); }} disabled={!canUndo} className="h-8 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
-                  Undo
-                </button>
-                <button type="button" onClick={() => { onRedo(); onOpenChange(false); }} disabled={!canRedo} className="h-8 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
-                  Redo
-                </button>
-              </div>
-              {workspace === 'play' && (
-                <button
+                  <ListIcon className="h-4 w-4" /> List
+                </button></Tooltip>
+              </div>}
+              {!inlineActionIds.has('undo-redo') && <div className="grid grid-cols-2 gap-1">
+                <Tooltip content="Undo the last change (Ctrl+Z)" placement="below"><span className="inline-flex w-full"><button type="button" onClick={() => { onUndo(); onOpenChange(false); }} disabled={!canUndo} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
+                  <UndoIcon className="h-4 w-4" /> Undo
+                </button></span></Tooltip>
+                <Tooltip content="Redo the last undone change (Ctrl+Y)" placement="below"><span className="inline-flex w-full"><button type="button" onClick={() => { onRedo(); onOpenChange(false); }} disabled={!canRedo} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
+                  <UndoIcon className="h-4 w-4 scale-x-[-1]" /> Redo
+                </button></span></Tooltip>
+              </div>}
+              {workspace === 'play' && !inlineActionIds.has('timeline') && (
+                <Tooltip content={timelineOpen ? 'Close the event timeline' : 'Open the event timeline'} placement="below"><button
                   type="button"
                   data-tutorial="timeline-button-mobile"
                   onClick={() => {
@@ -180,115 +224,120 @@ export default function ShareExportMenu({
                   }}
                   aria-controls="timeline-panel"
                   aria-expanded={timelineOpen}
-                  className={`min-[560px]:hidden w-full h-8 rounded-button text-xs font-body transition-colors ${timelineOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
+                  className={`flex h-8 w-full items-center justify-center gap-1.5 rounded-button text-xs font-body transition-colors ${timelineOpen ? 'bg-theme-accent text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'}`}
                 >
-                  Timeline
-                </button>
+                  <ClockIcon className="h-4 w-4" /> Timeline
+                </button></Tooltip>
               )}
             </div>
-            <div className="px-3 py-2.5 border-b border-theme-border/50">
-              {workspace === 'build' && (
-                <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-theme-border/50">
-                  <div className="min-w-0">
-                    <span className="block text-sm font-semibold font-body text-theme-ink">Attachment controls</span>
-                    <span className="block text-[11px] font-body text-theme-muted mt-0.5">Show attach and detach buttons</span>
+            )}
+            </div>}
+            <div className="border-b border-theme-border/50 px-3 py-2.5">
+              <p className="mb-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Settings</p>
+              <div>
+                <div className="flex min-h-12 items-center justify-between gap-3 py-1.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <DiceIcon className="h-4 w-4 shrink-0 text-theme-muted" />
+                    <div className="min-w-0">
+                      <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>
+                      <span className="block truncate text-[11px] font-body text-theme-muted">Physics dice simulation</span>
+                    </div>
                   </div>
-                  <button
+                  <Tooltip content={threeDDiceEnabled ? 'Disable physics-based 3D dice' : 'Enable physics-based 3D dice'} placement="below"><button
+                    type="button"
+                    role="switch"
+                    aria-checked={threeDDiceEnabled}
+                    aria-label="Enable 3D dice"
+                    onClick={() => setThreeDDiceEnabled(!threeDDiceEnabled)}
+                    className={`relative h-6 w-11 shrink-0 rounded-full border border-theme-border transition-colors ${threeDDiceEnabled ? 'bg-theme-accent' : 'bg-theme-background'}`}
+                  >
+                    <span className={`absolute left-0 top-0.5 h-4 w-4 rounded-full border border-black/25 bg-white shadow-sm transition-transform ${threeDDiceEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+                    <span className="sr-only">{threeDDiceEnabled ? 'On' : 'Off'}</span>
+                  </button></Tooltip>
+                </div>
+                <div className="flex min-h-12 items-center justify-between gap-3 py-1.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <LinkIcon className="h-4 w-4 shrink-0 text-theme-muted" />
+                    <div className="min-w-0">
+                      <span className="block text-sm font-semibold font-body text-theme-ink">Attachment controls</span>
+                      <span className="block truncate text-[11px] font-body text-theme-muted">Show attach and detach buttons</span>
+                    </div>
+                  </div>
+                  <Tooltip content={attachmentControlsVisible ? 'Hide attach and detach controls' : 'Show attach and detach controls'} placement="below"><button
                     type="button"
                     role="switch"
                     aria-checked={attachmentControlsVisible}
                     aria-label="Show attachment controls"
                     onClick={onToggleAttachmentControls}
-                    className={`relative w-11 h-6 flex-shrink-0 rounded-full border border-theme-border transition-colors ${attachmentControlsVisible ? 'bg-theme-accent' : 'bg-theme-background'}`}
+                    className={`relative h-6 w-11 shrink-0 rounded-full border border-theme-border transition-colors ${attachmentControlsVisible ? 'bg-theme-accent' : 'bg-theme-background'}`}
                   >
-                    <span
-                      className={`absolute left-0 top-0.5 w-4 h-4 rounded-full bg-white border border-black/25 shadow-sm transition-transform ${attachmentControlsVisible ? 'translate-x-[22px]' : 'translate-x-1'}`}
-                    />
+                    <span className={`absolute left-0 top-0.5 h-4 w-4 rounded-full border border-black/25 bg-white shadow-sm transition-transform ${attachmentControlsVisible ? 'translate-x-[22px]' : 'translate-x-1'}`} />
                     <span className="sr-only">{attachmentControlsVisible ? 'On' : 'Off'}</span>
-                  </button>
+                  </button></Tooltip>
                 </div>
-              )}
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>
-                  <span className="block text-[11px] font-body text-theme-muted mt-0.5">Physics simulation for supported dice</span>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={threeDDiceEnabled}
-                  aria-label="Enable 3D dice"
-                  onClick={() => setThreeDDiceEnabled(!threeDDiceEnabled)}
-                  className={`relative w-11 h-6 flex-shrink-0 rounded-full border border-theme-border transition-colors ${threeDDiceEnabled ? 'bg-theme-accent' : 'bg-theme-background'}`}
-                >
-                  <span
-                    className={`absolute left-0 top-0.5 w-4 h-4 rounded-full bg-white border border-black/25 shadow-sm transition-transform ${threeDDiceEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`}
-                  />
-                  <span className="sr-only">{threeDDiceEnabled ? 'On' : 'Off'}</span>
-                </button>
               </div>
             </div>
-            {(onAddWidget || onChangeTheme || onAutoStack) && (
-              <div className={`py-1 border-b border-theme-border/50 ${onAutoStack ? '' : playLayout === 'list' ? 'min-[1200px]:hidden' : workspace === 'build' ? 'hidden max-[639px]:block min-[900px]:block min-[1200px]:hidden' : 'hidden max-[639px]:block min-[720px]:block min-[1200px]:hidden'}`}>
-                {onAddWidget && <button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className={`${playLayout === 'list' ? 'min-[380px]:hidden' : 'min-[320px]:hidden'} w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors`}>{addWidgetLabel}</button>}
-                {onChangeTheme && <button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className={`${playLayout === 'list' ? 'min-[1200px]:hidden' : workspace === 'build' ? 'min-[640px]:hidden min-[900px]:block min-[1200px]:hidden' : 'min-[640px]:hidden min-[720px]:block min-[1200px]:hidden'} w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors`}>{changeThemeLabel}</button>}
-                {onAutoStack && <button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Auto Stack</button>}
+            {hasOverflowWorkspaceActions && (
+              <div className="border-b border-theme-border/50 py-1">
+                <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">{workspace === 'build' ? 'Build tools' : 'View tools'}</p>
+                {onAddWidget && !inlineActionIds.has('add-widget') && <Tooltip content={addWidgetLabel === 'Add Widget' ? 'Open the widget toolbox' : 'Close the widget toolbox'} placement="below"><button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PlusIcon className="h-4 w-4" />{addWidgetLabel}</button></Tooltip>}
+                {onChangeTheme && !inlineActionIds.has('theme') && <Tooltip content={changeThemeLabel === 'Change Theme' ? 'Open theme customization' : 'Close theme customization'} placement="below"><button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PaletteIcon className="h-4 w-4" />{changeThemeLabel}</button></Tooltip>}
+                {onAutoStack && !inlineActionIds.has('auto-stack') && <Tooltip content="Arrange canvas widgets into columns automatically" placement="below"><button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><RowsIcon className="h-4 w-4" />Auto Stack</button></Tooltip>}
+                {(onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand') && <>
+                  {onExpandAll && <Tooltip content="Expand every widget in the list" placement="below"><button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronDownIcon className="h-4 w-4" />Expand All</button></Tooltip>}
+                  {onCollapseAll && <Tooltip content="Collapse every widget in the list" placement="below"><button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronUpIcon className="h-4 w-4" />Collapse All</button></Tooltip>}
+                </>}
               </div>
             )}
-            {(onExpandAll || onCollapseAll) && (
-              <div className={`${playLayout === 'list' ? 'min-[800px]:hidden' : 'min-[480px]:hidden'} py-1 border-b border-theme-border/50`}>
-                {onExpandAll && <button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Expand All</button>}
-                {onCollapseAll && <button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors">Collapse All</button>}
-              </div>
-            )}
-            <button
+            <div className="border-b border-theme-border/50 py-1">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Character</p>
+            {!inlineActionIds.has('save-preset') && <Tooltip content="Save this character sheet as a reusable preset" placement="below"><button
               type="button"
               onClick={() => {
                 setPresetName(`${character.name} Preset`);
                 setShowSavePreset(true);
                 onOpenChange(false);
               }}
-              className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="block font-semibold">Save as Preset</span>
-              <span className="block text-[11px] opacity-65 mt-0.5">Reuse this sheet for another character</span>
-            </button>
-            <button
+              <span className="flex items-center gap-2 font-semibold"><SaveIcon className="h-4 w-4" />Save as Preset</span>
+            </button></Tooltip>}
+            {!inlineActionIds.has('export-character') && <Tooltip content="Download this character as a JSON file" placement="below"><button
               type="button"
               onClick={() => {
                 downloadCharacter(character);
                 onOpenChange(false);
                 showNotice('Character exported');
               }}
-              className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="block font-semibold">Export Character</span>
-              <span className="block text-[11px] opacity-65 mt-0.5">Download a portable JSON file</span>
-            </button>
-            <button
+              <span className="flex items-center gap-2 font-semibold"><DownloadIcon className="h-4 w-4" />Export Character</span>
+            </button></Tooltip>}
+            {!inlineActionIds.has('publish') && <Tooltip content="Submit an image-free preset to the community gallery" placement="below"><button
               type="button"
               onClick={() => {
                 setShowPublish(true);
                 onOpenChange(false);
               }}
-              className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+              className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="block font-semibold">Publish to Community</span>
-              <span className="block text-[11px] opacity-65 mt-0.5">Submit an image-free preset for review</span>
-            </button>
-            <button
+              <span className="flex items-center gap-2 font-semibold"><UploadIcon className="h-4 w-4" />Publish to Community</span>
+            </button></Tooltip>}
+            {!inlineActionIds.has('print-preview') && <Tooltip content="Prepare this sheet for paper or PDF" placement="below"><button
               type="button"
               data-tutorial="print-mode-button"
               onClick={() => {
                 onPrintPreview();
                 onOpenChange(false);
               }}
-              className="w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors border-t border-theme-border/50"
+              className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="block font-semibold">Print Preview</span>
-              <span className="block text-[11px] opacity-65 mt-0.5">Prepare this sheet for paper or PDF</span>
-            </button>
-            <a
+              <span className="flex items-center gap-2 font-semibold"><PrintIcon className="h-4 w-4" />Print Preview</span>
+            </button></Tooltip>}
+            </div>
+            <div className="py-1">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Application</p>
+            <Tooltip content="Report a bug or request a feature" placement="below"><a
               href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
               target="_blank"
               rel="noopener noreferrer"
@@ -301,22 +350,21 @@ export default function ShareExportMenu({
                 });
                 onOpenChange(false);
               }}
-              className="block w-full px-3 py-2.5 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors border-t border-theme-border/50"
+              className="block w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="block font-semibold">Feedback</span>
-              <span className="block text-[11px] opacity-65 mt-0.5">Report a bug or request a feature</span>
-            </a>
-            <button
+              <span className="flex items-center gap-2 font-semibold"><MessageIcon className="h-4 w-4" />Feedback</span>
+            </a></Tooltip>
+            <Tooltip content="Return to character selection" placement="below"><button
               type="button"
               onClick={() => {
                 onExit();
                 onOpenChange(false);
               }}
-              className="w-full px-3 py-2.5 text-left text-sm font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors border-t border-theme-border/50"
+              className="w-full px-3 py-2 text-left text-sm font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors"
             >
-              <span className="block font-semibold">Exit</span>
-              <span className="block text-[11px] opacity-65 mt-0.5">Go back to character selection</span>
-            </button>
+              <span className="flex items-center gap-2 font-semibold"><XIcon className="h-4 w-4" />Exit</span>
+            </button></Tooltip>
+            </div>
           </div>
         )}
       </div>

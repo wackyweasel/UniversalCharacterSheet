@@ -11,6 +11,7 @@ interface SheetSearchProps {
   onQueryChange: (query: string) => void;
   onSelect: (result: SheetSearchResult) => void;
   triggerClassName?: string;
+  showTrigger?: boolean;
 }
 
 export default function SheetSearch({
@@ -21,6 +22,7 @@ export default function SheetSearch({
   onQueryChange,
   onSelect,
   triggerClassName = '',
+  showTrigger = true,
 }: SheetSearchProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +51,7 @@ export default function SheetSearch({
 
   return (
     <div ref={rootRef} className="relative shrink-0">
-      <Tooltip content="Search character (Ctrl+F)" placement="below">
+      {showTrigger && <Tooltip content="Search character (Ctrl+F)" placement="below">
         <button
           type="button"
           onClick={() => onOpenChange(!open)}
@@ -59,13 +61,13 @@ export default function SheetSearch({
         >
           <SearchIcon className="w-4 h-4" />
         </button>
-      </Tooltip>
+      </Tooltip>}
 
       {open && (
         <div
           role="dialog"
           aria-label="Search character sheets"
-          className="fixed left-2 right-2 top-12 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] max-h-[min(70dvh,520px)] overflow-hidden bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme z-50 animate-dropdown-in"
+          className="fixed left-2 right-2 top-12 z-50 max-h-[min(70dvh,520px)] overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in sm:left-auto sm:w-[360px]"
           onMouseDown={(event) => event.stopPropagation()}
         >
           <div className="p-2 border-b border-theme-border">

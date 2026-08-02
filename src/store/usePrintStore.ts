@@ -94,7 +94,10 @@ export const usePrintStore = create<PrintState>((set) => ({
   
   setPrinterFriendly: (enabled) => {
     recordPrintSettingChanged('printerFriendly', enabled);
-    set({ printerFriendly: enabled });
+    if (enabled) recordPrintSettingChanged('shadowsDisabled', true);
+    set(enabled
+      ? { printerFriendly: true, shadowsDisabled: true }
+      : { printerFriendly: false });
   },
   setTextureDisabled: (disabled) => {
     recordPrintSettingChanged('textureDisabled', disabled);

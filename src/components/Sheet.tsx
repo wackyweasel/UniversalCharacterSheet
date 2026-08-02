@@ -22,6 +22,8 @@ import TimelineSidebar from './TimelineSidebar';
 import ShareExportMenu from './ShareExportMenu';
 import SheetSearch from './SheetSearch';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
+import SheetToolbar from './SheetToolbar';
+import PrintToolbar from './PrintToolbar';
 import { Tooltip } from './Tooltip';
 import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
@@ -189,7 +191,6 @@ export default function Sheet() {
   const previousMode = usePrintStore((state) => state.previousMode);
   const setPrinterFriendly = usePrintStore((state) => state.setPrinterFriendly);
   const setBordersDisabled = usePrintStore((state) => state.setBordersDisabled);
-  const setShadowsDisabled = usePrintStore((state) => state.setShadowsDisabled);
   const setPrintArea = usePrintStore((state) => state.setPrintArea);
   const setPreviousMode = usePrintStore((state) => state.setPreviousMode);
   const calculatePrintAreaFromWidgets = usePrintStore((state) => state.calculatePrintAreaFromWidgets);
@@ -918,17 +919,20 @@ export default function Sheet() {
     const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
     const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
     const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
-    const needsAddButtonInMenu = window.innerWidth < 320 && (needsAddWidgetButton || needsTemplateToolboxButton);
+    const compactToolbar = window.innerWidth < 480;
+    const needsAddButtonInMenu = compactToolbar && (needsAddWidgetButton || needsTemplateToolboxButton);
 
-    if (needsAddButtonInMenu || needsThemeButton || isCurrentTutorialStep('various-print-mode')) {
+    if (needsAddButtonInMenu || (compactToolbar && needsThemeButton) || (window.innerWidth < 1024 && isCurrentTutorialStep('various-print-mode'))) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
 
   useEffect(() => {
     const needsGridMenuButton =
-      (window.innerWidth < 380 && isCurrentTutorialStep('various-vertical-view')) ||
-      (window.innerWidth < 560 && isCurrentTutorialStep('various-timeline'));
+      window.innerWidth < 480 && (
+        isCurrentTutorialStep('various-vertical-view') ||
+        isCurrentTutorialStep('various-timeline')
+      );
 
     if (needsGridMenuButton) {
       setGridMenuOpen(true);
@@ -1206,11 +1210,79 @@ export default function Sheet() {
           onToggle={() => setThemeSidebarCollapsed(!themeSidebarCollapsed)}
         />
 
-        {/* Compact header bar */}
-        <div className="bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 shrink-0">
+        <SheetToolbar
+          character={activeCharacter}
+          workspace={workspace}
+          playLayout={playLayout}
+          menuOpen={gridMenuOpen}
+          onMenuOpenChange={setGridMenuOpen}
+          onBuild={handleEnterBuildWorkspace}
+          onPlay={handleEnterPlayWorkspace}
+          onSelectLayout={handleSelectPlayLayout}
+          onPrintPreview={enterPrintMode}
+          onExit={handleExitToMenu}
+          onRenameCharacter={(name) => updateCharacterName(activeCharacter.id, name)}
+          activeSheetName={activeCharacter.sheets.find((sheet) => sheet.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+          sheetSwitcherOpen={sheetDropdownOpen}
+          onToggleSheetSwitcher={() => setSheetDropdownOpen((open) => !open)}
+          timelineOpen={timelineIsOpen}
+          onToggleTimeline={toggleTimeline}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          onAddWidget={() => handleToggleWidgetSidebar()}
+          addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+          onChangeTheme={() => handleToggleThemeSidebar()}
+          changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+          onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
+          onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
+          onSearch={() => setSheetSearchOpen(true)}
+          attachmentControlsVisible={attachmentControlsVisible}
+          onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
+          workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
+          listHighlighted={isCurrentTutorialStep('various-vertical-view')}
+        />
+
+        <SheetSearch
+          open={sheetSearchOpen}
+          query={sheetSearchQuery}
+          results={sheetSearchResults}
+          onOpenChange={setSheetSearchOpen}
+          onQueryChange={setSheetSearchQuery}
+          onSelect={handleSearchResult}
+          showTrigger={false}
+        />
+
+        {sheetDropdownOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setSheetDropdownOpen(false)} />
+            <div className="absolute right-2 top-12 z-50 max-h-[calc(100dvh-4rem)] min-w-[160px] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
+              <div className="border-b border-theme-border/50 px-3 py-2">
+                <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
+              </div>
+              {activeCharacter.sheets.map((sheet) => (
+                <button
+                  key={sheet.id}
+                  type="button"
+                  onClick={() => {
+                    selectSheet(sheet.id);
+                    setSheetDropdownOpen(false);
+                  }}
+                  className={`block w-full px-3 py-2 text-left text-xs font-body transition-colors ${sheet.id === activeCharacter.activeSheetId ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink hover:bg-theme-accent/20'}`}
+                >
+                  {sheet.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Legacy header retained during toolbar migration. */}
+        <div className="hidden bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 items-center gap-2 z-30 shrink-0">
           <ShareExportMenu
             character={activeCharacter}
-            open={gridMenuOpen}
+            open={false}
             onOpenChange={setGridMenuOpen}
             onPrintPreview={enterPrintMode}
             onExit={handleExitToMenu}
@@ -1229,7 +1301,6 @@ export default function Sheet() {
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
             onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
             onCollapseAll={() => setAllVerticalWidgetsCollapsed(true)}
-            onSearch={() => setSheetSearchOpen(true)}
             attachmentControlsVisible={attachmentControlsVisible}
             onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           />
@@ -1249,7 +1320,7 @@ export default function Sheet() {
               type="button"
               data-tutorial="add-widget-button"
               onClick={() => handleToggleWidgetSidebar()}
-              className={`hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+              className="hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
               {sidebarCollapsed ? 'Add' : 'Hide Add'}
             </button>
@@ -1310,15 +1381,6 @@ export default function Sheet() {
               </button>
             </Tooltip>
           </div>
-          <SheetSearch
-            open={sheetSearchOpen}
-            query={sheetSearchQuery}
-            results={sheetSearchResults}
-            onOpenChange={setSheetSearchOpen}
-            onQueryChange={setSheetSearchQuery}
-            onSelect={handleSearchResult}
-            triggerClassName="hidden min-[640px]:flex"
-          />
           <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button
@@ -1516,7 +1578,32 @@ export default function Sheet() {
 
       {/* Print Mode Header */}
       {mode === 'print' && (
-        <div data-tutorial="print-toolbar" className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30">
+        <PrintToolbar
+          menuOpen={printMenuOpen}
+          onMenuOpenChange={setPrintMenuOpen}
+          onBack={() => exitPrintMode()}
+          onExit={() => {
+            resetPrintSettings();
+            handleExitToMenu();
+          }}
+          onPlay={() => exitPrintMode('play')}
+          onBuild={() => exitPrintMode('edit')}
+          onPrint={handlePrint}
+          printerFriendly={printerFriendly}
+          onTogglePrinterFriendly={() => setPrinterFriendly(!printerFriendly)}
+          bordersDisabled={bordersDisabled}
+          onToggleBorders={() => setBordersDisabled(!bordersDisabled)}
+          paperFormat={paperFormat}
+          isLandscape={isLandscape}
+          onPaperFormatChange={handlePaperFormatChange}
+          showInEditMode={showInEditMode}
+          onToggleShowInEditMode={() => setShowInEditMode(!showInEditMode)}
+        />
+      )}
+
+      {/* Legacy print header retained during toolbar migration. */}
+      {mode === 'print' && (
+        <div className="hidden absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 items-center gap-2 z-30">
           {/* Menu button - only on narrow screens */}
           <button
             onClick={() => setPrintMenuOpen(!printMenuOpen)}
@@ -1583,18 +1670,6 @@ export default function Sheet() {
                 }`}
               >
                 No Borders
-              </button>
-            </Tooltip>
-            <Tooltip content="Hide widget shadows" placement="below">
-              <button
-                onClick={() => setShadowsDisabled(!shadowsDisabled)}
-                className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
-                  shadowsDisabled 
-                    ? 'bg-theme-accent text-theme-paper' 
-                    : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-                }`}
-              >
-                No Shadows
               </button>
             </Tooltip>
             {/* Paper Format dropdown */}
@@ -1678,7 +1753,7 @@ export default function Sheet() {
       )}
 
       {/* Print Mode Mobile Menu Dropdown */}
-      {printMenuOpen && mode === 'print' && (
+      {false && printMenuOpen && mode === 'print' && (
         <div className="sm:hidden absolute top-12 left-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme z-40 overflow-hidden animate-dropdown-in">
           <button
             onClick={() => {
@@ -1736,19 +1811,6 @@ export default function Sheet() {
           >
             No Borders {bordersDisabled && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
-          <button
-            onClick={() => {
-              setShadowsDisabled(!shadowsDisabled);
-              setPrintMenuOpen(false);
-            }}
-            className={`w-full px-4 py-2.5 text-sm text-left font-body transition-colors whitespace-nowrap flex items-center justify-between gap-3 ${
-              shadowsDisabled 
-                ? 'bg-theme-accent text-theme-paper' 
-                : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-            }`}
-          >
-            No Shadows {shadowsDisabled && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
-          </button>
           <div className="border-t border-theme-border" />
           <div className="px-4 py-1.5 text-xs font-body text-theme-ink opacity-60">Paper Format</div>
           {([
@@ -1795,10 +1857,72 @@ export default function Sheet() {
 
       {/* Compact header bar for grid/edit mode (hidden in print mode) */}
       {mode !== 'print' && (
-      <div className="absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 flex items-center gap-2 z-30 relative">
+      <SheetToolbar
+        overlay
+        character={activeCharacter}
+        workspace={workspace}
+        playLayout={playLayout}
+        menuOpen={gridMenuOpen}
+        onMenuOpenChange={setGridMenuOpen}
+        onBuild={handleEnterBuildWorkspace}
+        onPlay={handleEnterPlayWorkspace}
+        onSelectLayout={handleSelectPlayLayout}
+        onPrintPreview={() => {
+          enterPrintMode();
+          if (isCurrentTutorialStep('various-print-mode')) advanceTutorial();
+        }}
+        onExit={handleExitToMenu}
+        onRenameCharacter={(name) => updateCharacterName(activeCharacter.id, name)}
+        activeSheetName={activeCharacter.sheets.find((sheet) => sheet.id === activeCharacter.activeSheetId)?.name || 'Sheet'}
+        sheetSwitcherOpen={sheetDropdownOpen}
+        onToggleSheetSwitcher={() => {
+          setSheetDropdownOpen((open) => !open);
+          if (isCurrentTutorialStep('various-add-sheets')) advanceTutorial();
+        }}
+        timelineOpen={timelineIsOpen}
+        onToggleTimeline={() => {
+          if (isCurrentTutorialStep('various-timeline')) {
+            setTimelineOpen(true);
+            advanceTutorial();
+          } else {
+            toggleTimeline();
+          }
+        }}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        onAddWidget={() => handleToggleWidgetSidebar()}
+        addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+        onChangeTheme={() => handleToggleThemeSidebar()}
+        changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
+        onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+        onSearch={() => setSheetSearchOpen(true)}
+        attachmentControlsVisible={attachmentControlsVisible}
+        onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
+        workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
+        listHighlighted={isCurrentTutorialStep('various-vertical-view')}
+      />
+      )}
+
+      {mode !== 'print' && (
+        <SheetSearch
+          open={sheetSearchOpen}
+          query={sheetSearchQuery}
+          results={sheetSearchResults}
+          onOpenChange={setSheetSearchOpen}
+          onQueryChange={setSheetSearchQuery}
+          onSelect={handleSearchResult}
+          showTrigger={false}
+        />
+      )}
+
+      {/* Legacy canvas header retained during toolbar migration. */}
+      {mode !== 'print' && (
+      <div className="hidden absolute top-0 left-0 right-0 bg-theme-paper border-b-[length:var(--border-width)] border-theme-border px-2 py-2 items-center gap-2 z-30 relative">
         <ShareExportMenu
           character={activeCharacter}
-          open={gridMenuOpen}
+          open={false}
           onOpenChange={setGridMenuOpen}
           onPrintPreview={() => {
             enterPrintMode();
@@ -1830,7 +1954,6 @@ export default function Sheet() {
           onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
-          onSearch={() => setSheetSearchOpen(true)}
         />
         <WorkspaceToggleGroup
           workspace={workspace}
@@ -1848,7 +1971,7 @@ export default function Sheet() {
             type="button"
             data-tutorial="add-widget-button"
             onClick={() => handleToggleWidgetSidebar()}
-            className={`hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox') ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            className="hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
             {sidebarCollapsed ? 'Add' : 'Hide Add'}
           </button>
@@ -1895,15 +2018,6 @@ export default function Sheet() {
             </Tooltip>
           )}
         </div>
-        <SheetSearch
-          open={sheetSearchOpen}
-          query={sheetSearchQuery}
-          results={sheetSearchResults}
-          onOpenChange={setSheetSearchOpen}
-          onQueryChange={setSheetSearchQuery}
-          onSelect={handleSearchResult}
-          triggerClassName="hidden min-[640px]:flex"
-        />
         <div className="relative shrink-0">
             <Tooltip content="Switch sheet" placement="left">
               <button
@@ -1935,6 +2049,9 @@ export default function Sheet() {
             onClick={() => setSheetDropdownOpen(false)}
           />
           <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px] animate-dropdown-in">
+            <div className="border-b border-theme-border/50 px-3 py-2">
+              <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
+            </div>
             {activeCharacter.sheets.map((sheet) => (
               <div key={sheet.id} className="group relative">
                 {editingSheetId === sheet.id ? (

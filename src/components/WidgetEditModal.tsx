@@ -223,9 +223,9 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     const props = { widget: renderedPreviewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
     
     switch (widget.type) {
-      case 'NUMBER': return <NumberWidget {...props} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
-      case 'LIST': return <ListWidget {...props} />;
+      case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+      case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
@@ -237,7 +237,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-      case 'FORM': return <FormWidget {...props} />;
+      case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
