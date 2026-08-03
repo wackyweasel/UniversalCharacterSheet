@@ -158,6 +158,7 @@ export default function CharacterList() {
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownOpensUp, setDropdownOpensUp] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [renamingCharacterId, setRenamingCharacterId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -183,6 +184,7 @@ export default function CharacterList() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
   const characterCardRefs = useRef(new Map<string, HTMLDivElement>());
@@ -402,6 +404,31 @@ export default function CharacterList() {
   };
 
   useEffect(() => () => removeCharacterDragListenersRef.current?.(), []);
+
+  useLayoutEffect(() => {
+    if (!openDropdown || !dropdownRef.current || !dropdownMenuRef.current) {
+      setDropdownOpensUp(false);
+      return;
+    }
+
+    const updateDropdownPlacement = () => {
+      const triggerRect = dropdownRef.current?.getBoundingClientRect();
+      const menuHeight = dropdownMenuRef.current?.offsetHeight;
+      if (!triggerRect || !menuHeight) return;
+
+      setDropdownOpensUp(triggerRect.bottom + 4 + menuHeight > window.innerHeight);
+    };
+
+    updateDropdownPlacement();
+    window.addEventListener('resize', updateDropdownPlacement);
+    const scrollArea = listScrollRef.current;
+    scrollArea?.addEventListener('scroll', updateDropdownPlacement);
+
+    return () => {
+      window.removeEventListener('resize', updateDropdownPlacement);
+      scrollArea?.removeEventListener('scroll', updateDropdownPlacement);
+    };
+  }, [openDropdown]);
 
   const handleCharacterReorderKey = (characterId: string, event: React.KeyboardEvent<HTMLElement>) => {
     const currentIndex = characters.findIndex((character) => character.id === characterId);
@@ -1619,7 +1646,8 @@ export default function CharacterList() {
                   
                   {openDropdown === char.id && (
                     <div 
-                      className="absolute right-0 top-full mt-1 min-w-[120px] rounded shadow-lg overflow-hidden z-50 animate-dropdown-in"
+                      ref={dropdownMenuRef}
+                      className={`absolute right-0 ${dropdownOpensUp ? 'bottom-full mb-1' : 'top-full mt-1'} min-w-[120px] rounded shadow-lg overflow-hidden z-50 animate-dropdown-in`}
                       style={{ 
                         backgroundColor: 'var(--card-background)',
                         border: '1px solid var(--card-border)'
