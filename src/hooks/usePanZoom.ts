@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 
 const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
 const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
@@ -236,10 +236,11 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
 
   // Re-apply the lock state (and locked view) for the active character when it changes.
   const prevCharacterIdRef = useRef(characterId);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (prevCharacterIdRef.current === characterId) return;
     prevCharacterIdRef.current = characterId;
     const next = readInitialLock(characterId);
+    viewLockedRef.current = next.locked;
     setViewLockedState(next.locked);
     if (next.locked) {
       setPan(next.pan);

@@ -354,7 +354,7 @@ export default function SheetToolbar({
           onToggleAttachmentControls={onToggleAttachmentControls}
           inlineActionIds={inlineActionIds}
         />
-        <div className="hidden shrink-0 sm:block">
+        <div className="shrink-0">
           <ToolbarCharacterName
             name={character.name}
             editable={workspace === 'build'}

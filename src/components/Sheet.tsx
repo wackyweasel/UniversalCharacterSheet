@@ -951,6 +951,7 @@ export default function Sheet() {
     if (activeCharacterId && activeSheetWidgets.length > 0) {
       // Small delay to ensure DOM elements are rendered
       const timer = setTimeout(() => {
+        if (viewLockedRef.current) return;
         handleFitAllWidgets();
       }, 100);
       return () => clearTimeout(timer);
