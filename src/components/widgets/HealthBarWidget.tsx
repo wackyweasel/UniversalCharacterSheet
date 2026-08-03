@@ -198,7 +198,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, currentValue = 10, maxValue = 10, increment = 1 } = widget.data;
+  const { label, currentValue = 10, maxValue = 10, increment = 1, showIncrementButtons = true, fillColor } = widget.data;
   const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
   
   const [showDamageModal, setShowDamageModal] = useState(false);
@@ -349,7 +349,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
       )}
 
       <div className="health-bar__main flex min-h-0 flex-1 items-center gap-1.5">
-        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Decrease by ${increment}`}>
+        {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Decrease by ${increment}`}>
           <button
             onClick={() => {
               if (hasCurrentFormula) return;
@@ -364,7 +364,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
           >
             −
           </button>
-        </Tooltip>
+        </Tooltip>}
 
         <Tooltip content={hasCurrentFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit maximum' : 'Click to edit; hold and drag to change health'}>
           <div
@@ -402,10 +402,15 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
               }
             }}
           >
-            <div
-              className={`health-bar__fill ${scrubValue !== null ? 'health-bar__fill--scrubbing' : ''}`}
-              style={{ width: isPrintMode ? '0%' : `${healthPercent}%` }}
-            />
+            <div className="health-bar__fill-clip">
+              <div
+                className={`health-bar__fill ${scrubValue !== null ? 'health-bar__fill--scrubbing' : ''}`}
+                style={{
+                  width: isPrintMode ? '0%' : `${healthPercent}%`,
+                  ...(fillColor ? { backgroundColor: fillColor } : {}),
+                }}
+              />
+            </div>
             <div className={`health-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>
               {isPrintMode ? (
                 <><span className="invisible" data-print-hide="true">{safeMaxValue}</span>{` / ${safeMaxValue}`}</>
@@ -420,7 +425,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
           </div>
         </Tooltip>
 
-        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Increase by ${increment}`}>
+        {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Increase by ${increment}`}>
           <button
             onClick={() => {
               if (hasCurrentFormula) return;
@@ -435,7 +440,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
           >
             +
           </button>
-        </Tooltip>
+        </Tooltip>}
       </div>
 
       <div className={`health-bar__actions flex flex-shrink-0 items-center gap-1 ${isPrintMode ? 'invisible' : ''}`}>

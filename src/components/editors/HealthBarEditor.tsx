@@ -3,7 +3,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 
 export function HealthBarEditor({ widget, updateData }: EditorProps) {
-  const { label, maxValue = 10, currentValue = 0, fieldLabels = {}, fieldFormulas = {} } = widget.data;
+  const { label, maxValue = 10, currentValue = 0, showIncrementButtons = true, fillColor, fieldLabels = {}, fieldFormulas = {} } = widget.data;
 
   const setFieldLabel = (field: string, labelName: string | undefined) => {
     const updated = { ...fieldLabels };
@@ -66,17 +66,65 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
         min={1}
       />
 
-      <LabeledNumberField
-        displayLabel="Button Increment"
-        value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
-        onChange={(v) => updateData({ increment: Math.max(1, v) })}
-        fieldLabel={fieldLabels['increment']}
-        onFieldLabelChange={(l) => setFieldLabel('increment', l)}
-        formula={fieldFormulas['increment']}
-        onFormulaChange={(f) => setFieldFormula('increment', f)}
-        min={1}
-      />
-      <p className="text-xs text-theme-muted -mt-3">Amount changed by +/− buttons</p>
+      <div>
+        <label htmlFor={`health-fill-color-${widget.id}`} className="block text-sm font-medium text-theme-ink mb-1">
+          Filled Bar Color
+        </label>
+        <div className="flex items-center gap-2">
+          <div
+            className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-button border border-theme-border bg-theme-accent"
+            style={fillColor ? { backgroundColor: fillColor } : undefined}
+          >
+            <input
+              id={`health-fill-color-${widget.id}`}
+              type="color"
+              value={fillColor || '#2563eb'}
+              onChange={(e) => updateData({ fillColor: e.target.value })}
+              className="absolute -inset-1 h-12 w-12 cursor-pointer opacity-0"
+            />
+          </div>
+          {fillColor ? (
+            <>
+              <span className="flex-1 text-sm text-theme-ink">{fillColor.toUpperCase()}</span>
+              <button
+                type="button"
+                onClick={() => updateData({ fillColor: undefined })}
+                className="widget-control px-3 py-2 text-sm"
+              >
+                Use theme color
+              </button>
+            </>
+          ) : (
+            <span className="text-sm text-theme-muted">Theme color</span>
+          )}
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={showIncrementButtons}
+          onChange={(e) => updateData({ showIncrementButtons: e.target.checked })}
+          className="w-4 h-4 accent-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Show +/− buttons</span>
+      </label>
+
+      {showIncrementButtons && (
+        <>
+          <LabeledNumberField
+            displayLabel="Button Increment"
+            value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
+            onChange={(v) => updateData({ increment: Math.max(1, v) })}
+            fieldLabel={fieldLabels['increment']}
+            onFieldLabelChange={(l) => setFieldLabel('increment', l)}
+            formula={fieldFormulas['increment']}
+            onFormulaChange={(f) => setFieldFormula('increment', f)}
+            min={1}
+          />
+          <p className="text-xs text-theme-muted -mt-3">Amount changed by +/− buttons</p>
+        </>
+      )}
     </div>
   );
 }

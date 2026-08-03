@@ -344,7 +344,7 @@
     flex: 1 1 auto;
     height: 24px;
     min-width: 44px;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     touch-action: none;
   }
@@ -352,6 +352,15 @@
   .health-bar__track--disabled,
   .progress-bar__track--disabled {
     cursor: default;
+  }
+
+  .health-bar__fill-clip,
+  .progress-bar__fill-clip {
+    border-radius: inherit;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
   }
 
   .health-bar__fill,
@@ -371,17 +380,37 @@
   }
 
   .progress-bar-widget--vertical .progress-bar__main {
-    align-items: stretch;
-    justify-content: center;
+    align-items: center;
+    container-name: vertical-progress-controls;
+    container-type: size;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .progress-bar-widget--vertical .progress-bar__increment-control {
+    order: 1;
   }
 
   .progress-bar-widget--vertical .progress-bar__track {
     cursor: ns-resize;
-    flex: 0 1 44px;
+    flex: 1 1 0;
     height: auto;
-    min-height: 44px;
+    min-height: 0;
     min-width: 24px;
+    order: 2;
     width: 44px;
+  }
+
+  .progress-bar-widget--vertical .progress-bar__decrement-control {
+    order: 3;
+  }
+
+  @container vertical-progress-controls (max-height: 88px) {
+    .progress-bar__increment-control,
+    .progress-bar__decrement-control {
+      display: none;
+    }
   }
 
   .progress-bar-widget--vertical .progress-bar__fill {
@@ -407,7 +436,6 @@
     font-family: var(--font-body);
     left: 50%;
     line-height: 1;
-    max-width: calc(100% - 6px);
     padding: 2px 5px;
     position: absolute;
     top: 50%;
@@ -740,6 +768,16 @@
 
   .vertical-widget-body .progress-bar-widget--inline-label .progress-bar__inline-label {
     display: none;
+  }
+
+  .vertical-widget-body .progress-bar-widget--vertical .progress-bar__main {
+    container-type: normal;
+    overflow: visible;
+  }
+
+  .vertical-widget-body .progress-bar-widget--vertical .progress-bar__track {
+    flex: 0 0 44px;
+    min-height: 44px;
   }
 
   .vertical-widget-body--header-label > div:not(.form-widget) > :first-child {

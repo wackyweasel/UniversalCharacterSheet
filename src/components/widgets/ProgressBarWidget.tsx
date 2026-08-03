@@ -122,7 +122,10 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
     showValues = true,
     verticalBar = false,
     inlineLabel = false,
-    allowOutOfRange = false
+    allowOutOfRange = false,
+    increment = 1,
+    showIncrementButtons = false,
+    fillColor
   } = widget.data;
   const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
 
@@ -269,12 +272,26 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
         </div>
       )}
 
-      <div className="progress-bar__main flex min-h-0 flex-1 items-center">
+      <div className="progress-bar__main flex min-h-0 flex-1 items-center gap-1.5">
         {label && inlineLabel && (
           <div className="progress-bar__inline-label min-w-0 max-w-[40%] flex-shrink-0 truncate">
             {label}
           </div>
         )}
+        {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Decrease by ${increment}`}>
+          <button
+            onClick={() => {
+              if (hasCurrentFormula) return;
+              setFromKeyboard(currentValue - increment);
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            disabled={hasCurrentFormula}
+            aria-label={`Decrease ${label || 'progress'} by ${increment}`}
+            className={`progress-bar__decrement-control widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            −
+          </button>
+        </Tooltip>}
         <Tooltip content={hasCurrentFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit maximum' : 'Click to edit; hold and drag to change progress'}>
           <div
             className={`progress-bar__track ${!valuesEditable ? 'progress-bar__track--disabled' : ''}`}
@@ -298,10 +315,10 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
                 setShowValueModal(true);
               } else if (!hasCurrentFormula && (event.key === 'ArrowLeft' || event.key === 'ArrowDown')) {
                 event.preventDefault();
-                setFromKeyboard(currentValue - 1);
+                setFromKeyboard(currentValue - increment);
               } else if (!hasCurrentFormula && (event.key === 'ArrowRight' || event.key === 'ArrowUp')) {
                 event.preventDefault();
-                setFromKeyboard(currentValue + 1);
+                setFromKeyboard(currentValue + increment);
               } else if (!hasCurrentFormula && event.key === 'Home') {
                 event.preventDefault();
                 setFromKeyboard(0);
@@ -311,12 +328,14 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
               }
             }}
           >
-            <div
-              className={`progress-bar__fill ${scrubValue !== null ? 'progress-bar__fill--scrubbing' : ''}`}
-              style={verticalBar
-                ? { height: isPrintMode ? '0%' : `${progressPercent}%` }
-                : { width: isPrintMode ? '0%' : `${progressPercent}%` }}
-            />
+            <div className="progress-bar__fill-clip">
+              <div
+                className={`progress-bar__fill ${scrubValue !== null ? 'progress-bar__fill--scrubbing' : ''}`}
+                style={verticalBar
+                  ? { height: isPrintMode ? '0%' : `${progressPercent}%`, ...(fillColor ? { backgroundColor: fillColor } : {}) }
+                  : { width: isPrintMode ? '0%' : `${progressPercent}%`, ...(fillColor ? { backgroundColor: fillColor } : {}) }}
+              />
+            </div>
             {(showValues || (showPercentage && !isPrintMode)) && (
               <div className={`progress-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>
                 {isPrintMode ? (
@@ -332,6 +351,20 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
             )}
           </div>
         </Tooltip>
+        {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Increase by ${increment}`}>
+          <button
+            onClick={() => {
+              if (hasCurrentFormula) return;
+              setFromKeyboard(currentValue + increment);
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            disabled={hasCurrentFormula}
+            aria-label={`Increase ${label || 'progress'} by ${increment}`}
+            className={`progress-bar__increment-control widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            +
+          </button>
+        </Tooltip>}
       </div>
 
       {showValueModal && createPortal(

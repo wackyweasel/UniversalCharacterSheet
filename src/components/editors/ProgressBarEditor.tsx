@@ -12,6 +12,8 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     verticalBar = false,
     inlineLabel = false,
     allowOutOfRange = false,
+    showIncrementButtons = false,
+    fillColor,
     fieldLabels = {},
     fieldFormulas = {}
   } = widget.data;
@@ -91,28 +93,93 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
+      <div>
+        <label htmlFor={`progress-fill-color-${widget.id}`} className="block text-sm font-medium text-theme-ink mb-1">
+          Filled Bar Color
+        </label>
+        <div className="flex items-center gap-2">
+          <div
+            className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-button border border-theme-border bg-theme-accent"
+            style={fillColor ? { backgroundColor: fillColor } : undefined}
+          >
+            <input
+              id={`progress-fill-color-${widget.id}`}
+              type="color"
+              value={fillColor || '#2563eb'}
+              onChange={(e) => updateData({ fillColor: e.target.value })}
+              className="absolute -inset-1 h-12 w-12 cursor-pointer opacity-0"
+            />
+          </div>
+          {fillColor ? (
+            <>
+              <span className="flex-1 text-sm text-theme-ink">{fillColor.toUpperCase()}</span>
+              <button
+                type="button"
+                onClick={() => updateData({ fillColor: undefined })}
+                className="widget-control px-3 py-2 text-sm"
+              >
+                Use theme color
+              </button>
+            </>
+          ) : (
+            <span className="text-sm text-theme-muted">Theme color</span>
+          )}
+        </div>
+      </div>
+
+      {showIncrementButtons && (
+        <>
+          <LabeledNumberField
+            displayLabel="Button Increment"
+            value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
+            onChange={(v) => updateData({ increment: Math.max(1, v) })}
+            fieldLabel={fieldLabels['increment']}
+            onFieldLabelChange={(l) => setFieldLabel('increment', l)}
+            formula={fieldFormulas['increment']}
+            onFormulaChange={(f) => setFieldFormula('increment', f)}
+            min={1}
+          />
+          <p className="text-xs text-theme-muted -mt-3">Amount changed by +/− buttons and arrow keys</p>
+        </>
+      )}
+
       <div className="border border-theme-border rounded-button p-3">
         <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
 
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
             type="checkbox"
-            checked={verticalBar}
-            onChange={(e) => updateData({ verticalBar: e.target.checked })}
+            checked={showIncrementButtons}
+            onChange={(e) => updateData({ showIncrementButtons: e.target.checked })}
             className="w-4 h-4 accent-theme-accent"
           />
-          <span className="text-sm text-theme-ink">Vertical progress bar</span>
+          <span className="text-sm text-theme-ink">Show +/− buttons</span>
         </label>
 
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
             type="checkbox"
-            checked={inlineLabel}
-            onChange={(e) => updateData({ inlineLabel: e.target.checked })}
+            checked={verticalBar}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              updateData({ verticalBar: enabled, ...(enabled ? { inlineLabel: false } : {}) });
+            }}
             className="w-4 h-4 accent-theme-accent"
           />
-          <span className="text-sm text-theme-ink">Show label inline with bar</span>
+          <span className="text-sm text-theme-ink">Vertical progress bar</span>
         </label>
+
+        {!verticalBar && (
+          <label className="flex items-center gap-2 cursor-pointer mb-2">
+            <input
+              type="checkbox"
+              checked={inlineLabel}
+              onChange={(e) => updateData({ inlineLabel: e.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show label inline with bar</span>
+          </label>
+        )}
 
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input

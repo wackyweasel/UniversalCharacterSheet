@@ -249,6 +249,8 @@ export interface WidgetData {
   maxValue?: number;
   verticalBar?: boolean;
   increment?: number;
+  showIncrementButtons?: boolean;
+  fillColor?: string;
   // Progress Bar
   showPercentage?: boolean;
   showValues?: boolean;

@@ -910,7 +910,8 @@ export const useStore = create<StoreState>((set, get) => {
             value: 0,
             items: [],
             text: '',
-            ...(type === 'PROGRESS_BAR' ? { showPercentage: false } : {}),
+            ...(type === 'HEALTH_BAR' ? { showIncrementButtons: true } : {}),
+            ...(type === 'PROGRESS_BAR' ? { showPercentage: false, showIncrementButtons: false } : {}),
             ...(type === 'POOL' ? {
               poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
               showPoolCount: false,
