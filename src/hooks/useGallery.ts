@@ -3,14 +3,15 @@ import { CharacterPreset } from '../presets';
 import { CustomTheme } from '../store/useCustomThemeStore';
 import { AnyTemplate } from '../store/useTemplateStore';
 
-const GALLERY_BASE_URL = 'https://wackyweasel.github.io/ucs-community-gallery';
-const CACHE_KEY = 'ucs:gallery-cache';
+const GALLERY_BASE_URL = `${import.meta.env.BASE_URL}community-gallery`;
+const CACHE_KEY = 'ucs:gallery-cache:v2';
 const THEME_DATA_CACHE_KEY = 'ucs:gallery-theme-data';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export interface GalleryPreset {
   id: string;
   name: string;
+  gameSystem: string;
   author: string;
   description: string;
   file: string;
@@ -97,26 +98,6 @@ export function useGallery() {
   }, []);
 
   const fetchManifest = useCallback(async (forceRefresh = false) => {
-    // Check cache first
-    if (!forceRefresh) {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-          const data: CachedData = JSON.parse(cached);
-          if (Date.now() - data.timestamp < CACHE_TTL_MS) {
-            setManifest(data.manifest);
-            // Also load cached theme data
-            if (data.manifest.themes.length > 0) {
-              fetchThemeData(data.manifest.themes, false);
-            }
-            return;
-          }
-        }
-      } catch (e) {
-        console.error('Failed to read gallery cache:', e);
-      }
-    }
-
     setLoading(true);
     setError(null);
 
@@ -148,7 +129,7 @@ export function useGallery() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load gallery');
-      // Try to use cached data even if expired
+      // Keep the gallery usable offline with the last successful manifest.
       try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
@@ -226,7 +207,8 @@ export async function submitToGallery(
   name: string,
   author: string,
   description: string,
-  data: any
+  data: any,
+  gameSystem?: string,
 ): Promise<boolean> {
   try {
     await fetch(SUBMISSION_ENDPOINT, {
@@ -240,7 +222,8 @@ export async function submitToGallery(
         name,
         author,
         description,
-        data,
+        gameSystem,
+        data: sheet === 'Presets' && gameSystem ? { ...data, gameSystem } : data,
       }),
     });
     // With no-cors mode, we can't check the response, so assume success

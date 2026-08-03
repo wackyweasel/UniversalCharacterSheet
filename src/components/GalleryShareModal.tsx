@@ -5,7 +5,8 @@ interface GalleryShareModalProps {
   open: boolean;
   initialName: string;
   onClose: () => void;
-  onSubmit: (name: string, author: string, description: string) => Promise<boolean>;
+  onSubmit: (name: string, author: string, description: string, gameSystem?: string) => Promise<boolean>;
+  requestGameSystem?: boolean;
   variant?: 'gallery' | 'theme';
   darkMode?: boolean;
 }
@@ -15,10 +16,12 @@ export default function GalleryShareModal({
   initialName,
   onClose,
   onSubmit,
+  requestGameSystem = false,
   variant = 'theme',
   darkMode = false,
 }: GalleryShareModalProps) {
   const [name, setName] = useState('');
+  const [gameSystem, setGameSystem] = useState('');
   const [author, setAuthor] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -27,6 +30,7 @@ export default function GalleryShareModal({
   useEffect(() => {
     if (!open) return;
     setName(initialName);
+    setGameSystem('');
     setAuthor('');
     setDescription('');
     setSubmitting(false);
@@ -69,12 +73,12 @@ export default function GalleryShareModal({
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !author.trim() || !description.trim() || submitting) {
+    if (!name.trim() || (requestGameSystem && !gameSystem.trim()) || !author.trim() || !description.trim() || submitting) {
       return;
     }
 
     setSubmitting(true);
-    const submitted = await onSubmit(name.trim(), author.trim(), description.trim());
+    const submitted = await onSubmit(name.trim(), author.trim(), description.trim(), gameSystem.trim() || undefined);
     if (submitted) {
       setSuccess(true);
     }
@@ -114,6 +118,19 @@ export default function GalleryShareModal({
                 autoFocus
               />
             </div>
+            {requestGameSystem && (
+              <div className="mb-4">
+                <label htmlFor="gallery-game-system" className="block text-sm font-medium mb-1">Game System</label>
+                <input
+                  id="gallery-game-system"
+                  type="text"
+                  value={gameSystem}
+                  onChange={(e) => setGameSystem(e.target.value)}
+                  placeholder="e.g. Traveller"
+                  className={inputClassName}
+                />
+              </div>
+            )}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Your Name / Handle</label>
               <input
@@ -140,7 +157,7 @@ export default function GalleryShareModal({
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!name.trim() || !author.trim() || !description.trim() || submitting}
+                disabled={!name.trim() || (requestGameSystem && !gameSystem.trim()) || !author.trim() || !description.trim() || submitting}
                 className="px-4 py-2 rounded-button font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
               >
                 {submitting ? 'Submitting…' : 'Submit'}

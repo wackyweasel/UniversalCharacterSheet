@@ -7,7 +7,7 @@ import { IMAGE_TEXTURES, getShadowStyleCSS, getTextureCSS, isImageTexture } from
 import { v4 as uuidv4 } from 'uuid';
 import GalleryShareModal from './GalleryShareModal';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
-import { DotsVerticalIcon, XIcon } from './icons';
+import { ChevronDownIcon, DotsVerticalIcon, XIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import type { Character } from '../types';
 import type { CharacterPreset } from '../presets';
@@ -137,6 +137,61 @@ function downloadJsonFile(data: unknown, filename: string) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+interface ExpandableDescriptionProps {
+  description: string;
+  className: string;
+  style?: CSSProperties;
+}
+
+function ExpandableDescription({ description, className, style }: ExpandableDescriptionProps) {
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+
+  useEffect(() => {
+    if (expanded) return;
+
+    const descriptionElement = descriptionRef.current;
+    if (!descriptionElement) return;
+
+    const updateCanExpand = () => {
+      setCanExpand(descriptionElement.scrollHeight > descriptionElement.clientHeight + 1);
+    };
+
+    updateCanExpand();
+    const resizeObserver = new ResizeObserver(updateCanExpand);
+    resizeObserver.observe(descriptionElement);
+    return () => resizeObserver.disconnect();
+  }, [description, expanded]);
+
+  const toggleExpanded = () => {
+    if (canExpand) setExpanded((current) => !current);
+  };
+
+  return (
+    <div
+      role={canExpand ? 'button' : undefined}
+      tabIndex={canExpand ? 0 : undefined}
+      aria-expanded={canExpand ? expanded : undefined}
+      onClick={toggleExpanded}
+      onKeyDown={(event) => {
+        if (!canExpand || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        toggleExpanded();
+      }}
+      className={`${className} ${canExpand ? 'cursor-pointer rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500' : ''}`}
+      style={style}
+    >
+      <p ref={descriptionRef} className={expanded ? undefined : 'line-clamp-2'}>{description}</p>
+      {canExpand && (
+        <span className="block mt-1 text-[11px] font-semibold underline underline-offset-2">
+          {expanded ? 'Show less' : 'Read more'}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export default function GallerySidebar({ collapsed, onToggle, darkMode }: GallerySidebarProps) {
@@ -298,7 +353,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     setDeleteTarget(null);
   };
   
-  const handleSubmitShare = async (name: string, author: string, description: string) => {
+  const handleSubmitShare = async (name: string, author: string, description: string, gameSystem?: string) => {
     let data: any = null;
     let sheet: 'Presets' | 'Themes' | 'Templates' = 'Presets';
     
@@ -339,7 +394,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
     }
     
     if (data) {
-      const success = await submitToGallery(sheet, name, author, description, data);
+      const success = await submitToGallery(sheet, name, author, description, data, gameSystem);
       if (success) {
         recordTelemetryEvent({
           eventName: `gallery_shared_${shareType}`,
@@ -666,8 +721,15 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
   const communityItems: Array<GalleryPreset | GalleryTheme | GalleryTemplate> = manifest ? manifest[activeTab] : [];
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredCommunityItems = normalizedSearch
-    ? communityItems.filter((item) => `${item.name} ${item.author} ${item.description}`.toLowerCase().includes(normalizedSearch))
+    ? communityItems.filter((item) => `${item.name} ${'gameSystem' in item ? item.gameSystem : ''} ${item.author} ${item.description}`.toLowerCase().includes(normalizedSearch))
     : communityItems;
+  const groupedCommunityPresets = activeTab === 'presets'
+    ? Object.entries((filteredCommunityItems as GalleryPreset[]).reduce<Record<string, GalleryPreset[]>>((groups, preset) => {
+        const gameSystem = preset.gameSystem || 'Other';
+        (groups[gameSystem] ||= []).push(preset);
+        return groups;
+      }, {})).sort(([left], [right]) => left.localeCompare(right))
+    : [];
 
   const getCommunityCount = (tab: TabType) => manifest?.[tab].length || 0;
   const getLocalCount = (tab: TabType) => tab === 'presets'
@@ -779,11 +841,77 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
             {action}
           </div>
           {description && (
-            <p className="text-xs leading-relaxed mt-2 line-clamp-2" style={{ color: theme.colors.ink, opacity: 0.72 }}>
-              {description}
-            </p>
+            <ExpandableDescription
+              description={description}
+              className="text-xs leading-relaxed mt-2"
+              style={{ color: theme.colors.ink, opacity: 0.72 }}
+            />
           )}
         </div>
+      </article>
+    );
+  };
+
+  const renderCommunityItem = (item: GalleryPreset | GalleryTheme | GalleryTemplate) => {
+    const theme = activeTab === 'themes' ? themeData[item.id] : undefined;
+    const isSaved = isCommunityItemSaved(item);
+    const isAdding = downloadingId === item.id;
+    const actionLabel = isAdding ? 'Adding…' : isSaved || downloadSuccess === item.id ? 'Saved ✓' : 'Add';
+    const actionAriaLabel = isSaved ? `${item.name} is saved in My Library` : `Add ${item.name} to My Library`;
+
+    if (activeTab === 'themes' && theme) {
+      return renderThemeCard(
+        item.id,
+        theme,
+        item.name,
+        `by ${item.author}`,
+        item.description,
+        <button
+          type="button"
+          onClick={() => handleAddCommunityItem(item)}
+          disabled={isSaved || isAdding}
+          aria-label={actionAriaLabel}
+          className="min-w-[68px] h-9 px-3 font-body text-xs font-bold transition-opacity hover:opacity-85 disabled:cursor-default"
+          style={{
+            backgroundColor: theme.colors.accent,
+            color: theme.colors.paper,
+            border: `1px solid ${theme.colors.accent}`,
+            borderRadius: theme.buttonRadius || '4px',
+            opacity: isSaved ? 0.72 : 1,
+          }}
+        >
+          {actionLabel}
+        </button>,
+      );
+    }
+
+    return (
+      <article key={item.id} className={`p-3 rounded-xl border ${darkMode ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h4 className="font-heading font-bold text-sm truncate">{item.name}</h4>
+            <p className={`font-body text-[11px] mt-0.5 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>by {item.author}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleAddCommunityItem(item)}
+            disabled={isSaved || isAdding}
+            aria-label={actionAriaLabel}
+            className={`min-w-[68px] h-9 px-3 rounded-lg font-body text-xs font-bold transition-colors ${
+              isSaved || downloadSuccess === item.id
+                ? darkMode ? 'bg-green-400/10 text-green-300 border border-green-400/25' : 'bg-green-50 text-green-700 border border-green-200'
+                : darkMode ? 'bg-white text-black hover:bg-white/85' : 'bg-blue-700 text-white hover:bg-blue-800'
+            } disabled:cursor-default`}
+          >
+            {actionLabel}
+          </button>
+        </div>
+        {item.description && (
+          <ExpandableDescription
+            description={item.description}
+            className={`font-body text-xs leading-relaxed mt-2 ${darkMode ? 'text-white/50' : 'text-gray-600'}`}
+          />
+        )}
       </article>
     );
   };
@@ -828,6 +956,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
         initialName={currentShareItemName}
         onClose={() => setShowShareModal(false)}
         onSubmit={handleSubmitShare}
+        requestGameSystem={shareType === 'preset'}
         variant="gallery"
         darkMode={darkMode}
       />
@@ -1087,66 +1216,26 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
 
                 {manifest && !loading && filteredCommunityItems.length > 0 && (
                   <div className="space-y-2">
-                    {filteredCommunityItems.map((item) => {
-                      const theme = activeTab === 'themes' ? themeData[item.id] : undefined;
-                      const isSaved = isCommunityItemSaved(item);
-                      const isAdding = downloadingId === item.id;
-                      const actionLabel = isAdding ? 'Adding…' : isSaved || downloadSuccess === item.id ? 'Saved ✓' : 'Add';
-                      const actionAriaLabel = isSaved ? `${item.name} is saved in My Library` : `Add ${item.name} to My Library`;
-
-                      if (activeTab === 'themes' && theme) {
-                        return renderThemeCard(
-                          item.id,
-                          theme,
-                          item.name,
-                          `by ${item.author}`,
-                          item.description,
-                          <button
-                            type="button"
-                            onClick={() => handleAddCommunityItem(item)}
-                            disabled={isSaved || isAdding}
-                            aria-label={actionAriaLabel}
-                            className="min-w-[68px] h-9 px-3 font-body text-xs font-bold transition-opacity hover:opacity-85 disabled:cursor-default"
-                            style={{
-                              backgroundColor: theme.colors.accent,
-                              color: theme.colors.paper,
-                              border: `1px solid ${theme.colors.accent}`,
-                              borderRadius: theme.buttonRadius || '4px',
-                              opacity: isSaved ? 0.72 : 1,
-                            }}
+                    {activeTab === 'presets'
+                      ? groupedCommunityPresets.map(([gameSystem, presets]) => (
+                          <details
+                            key={gameSystem}
+                            open={normalizedSearch ? true : undefined}
+                            className={`group rounded-xl border overflow-hidden ${darkMode ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-200'}`}
                           >
-                            {actionLabel}
-                          </button>,
-                        );
-                      }
-
-                      return (
-                        <article key={item.id} className={`p-3 rounded-xl border ${darkMode ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
-                          <div className="flex items-start gap-3">
-                            <div className="min-w-0 flex-1">
-                              <h4 className="font-heading font-bold text-sm truncate">{item.name}</h4>
-                              <p className={`font-body text-[11px] mt-0.5 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>by {item.author}</p>
+                            <summary className={`h-12 px-3 flex items-center justify-between gap-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden ${darkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}>
+                              <span className="font-heading font-bold text-sm">{gameSystem}</span>
+                              <span className="flex items-center gap-2">
+                                <span className={`font-body text-[11px] ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>{presets.length}</span>
+                                <ChevronDownIcon className="w-4 h-4 transition-transform group-open:rotate-180" />
+                              </span>
+                            </summary>
+                            <div className={`space-y-2 p-2 border-t ${darkMode ? 'border-white/10' : 'border-gray-200 bg-gray-50/60'}`}>
+                              {presets.map(renderCommunityItem)}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleAddCommunityItem(item)}
-                              disabled={isSaved || isAdding}
-                              aria-label={actionAriaLabel}
-                              className={`min-w-[68px] h-9 px-3 rounded-lg font-body text-xs font-bold transition-colors ${
-                                isSaved || downloadSuccess === item.id
-                                  ? darkMode ? 'bg-green-400/10 text-green-300 border border-green-400/25' : 'bg-green-50 text-green-700 border border-green-200'
-                                  : darkMode ? 'bg-white text-black hover:bg-white/85' : 'bg-blue-700 text-white hover:bg-blue-800'
-                              } disabled:cursor-default`}
-                            >
-                              {actionLabel}
-                            </button>
-                          </div>
-                          {item.description && (
-                            <p className={`font-body text-xs leading-relaxed mt-2 line-clamp-2 ${darkMode ? 'text-white/50' : 'text-gray-600'}`}>{item.description}</p>
-                          )}
-                        </article>
-                      );
-                    })}
+                          </details>
+                        ))
+                      : filteredCommunityItems.map(renderCommunityItem)}
                   </div>
                 )}
               </div>

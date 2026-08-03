@@ -142,10 +142,10 @@ export default function ShareExportMenu({
     showNotice('Preset saved to My Presets');
   };
 
-  const handlePublish = async (name: string, author: string, description: string) => {
+  const handlePublish = async (name: string, author: string, description: string, gameSystem?: string) => {
     const strippedCharacter = stripImages(character);
     const { id: _, ...preset } = strippedCharacter;
-    return submitToGallery('Presets', name, author, description, preset);
+    return submitToGallery('Presets', name, author, description, preset, gameSystem);
   };
 
   const hasOverflowNavigation =
@@ -408,6 +408,7 @@ export default function ShareExportMenu({
         initialName={character.name}
         onClose={() => setShowPublish(false)}
         onSubmit={handlePublish}
+        requestGameSystem
       />
     </>
   );
