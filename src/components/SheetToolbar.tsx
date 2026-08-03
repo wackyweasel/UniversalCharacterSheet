@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Character } from '../types';
 import type { PlayLayout, SheetWorkspace } from '../hooks/useWorkspaceNavigation';
 import { useToolbarOverflow } from '../hooks/useToolbarOverflow';
@@ -23,6 +23,8 @@ import {
 
 interface SheetToolbarProps {
   character: Character;
+  switchableCharacters: Character[];
+  onSelectCharacter: (characterId: string) => void;
   workspace: SheetWorkspace;
   playLayout: PlayLayout;
   menuOpen: boolean;
@@ -62,16 +64,67 @@ const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.
 interface ToolbarCharacterNameProps {
   name: string;
   editable: boolean;
+  switchableCharacters: Character[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectCharacter: (characterId: string) => void;
   onSave: (name: string) => void;
 }
 
-function ToolbarCharacterName({ name, editable, onSave }: ToolbarCharacterNameProps) {
+function ToolbarCharacterName({
+  name,
+  editable,
+  switchableCharacters,
+  open,
+  onOpenChange,
+  onSelectCharacter,
+  onSave,
+}: ToolbarCharacterNameProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const focusLastOnOpenRef = useRef(false);
+  const restoreFocusOnCloseRef = useRef(false);
+  const menuId = useId();
 
   useEffect(() => {
     if (!editing) setDraft(name);
   }, [editing, name]);
+
+  useEffect(() => {
+    if (open || !restoreFocusOnCloseRef.current) return;
+    restoreFocusOnCloseRef.current = false;
+    triggerRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      const targetIndex = focusLastOnOpenRef.current ? switchableCharacters.length - 1 : 0;
+      itemRefs.current[targetIndex]?.focus();
+      focusLastOnOpenRef.current = false;
+    });
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      restoreFocusOnCloseRef.current = true;
+      onOpenChange(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onOpenChange, open, switchableCharacters.length]);
 
   const commit = () => {
     const nextName = draft.trim();
@@ -101,7 +154,7 @@ function ToolbarCharacterName({ name, editable, onSave }: ToolbarCharacterNamePr
     );
   }
 
-  return editable ? (
+  if (editable) return (
     <Tooltip content="Edit character name" placement="below">
       <button
         type="button"
@@ -113,13 +166,88 @@ function ToolbarCharacterName({ name, editable, onSave }: ToolbarCharacterNamePr
         <PencilIcon className="h-3.5 w-3.5 shrink-0" />
       </button>
     </Tooltip>
-  ) : (
-    <div className="w-20 shrink-0 truncate px-2 font-heading text-sm font-bold text-theme-ink min-[480px]:w-32 sm:w-40">{name}</div>
+  );
+
+  if (switchableCharacters.length === 0) {
+    return <div className="w-12 shrink-0 truncate px-1 font-heading text-sm font-bold text-theme-ink min-[480px]:w-32 min-[480px]:px-2 sm:w-40">{name}</div>;
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative shrink-0"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onOpenChange(false);
+      }}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+          event.preventDefault();
+          focusLastOnOpenRef.current = event.key === 'ArrowUp';
+          onOpenChange(true);
+        }}
+        aria-label={`Switch character: ${name}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        className="group flex h-8 w-12 shrink-0 items-center gap-1 rounded-button px-1 text-left font-heading text-sm font-bold text-theme-ink transition-colors hover:bg-theme-background hover:text-theme-accent min-[480px]:w-32 min-[480px]:px-2 sm:w-40"
+      >
+        <span className="min-w-0 flex-1 truncate">{name}</span>
+        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180" />
+      </button>
+      {open && (
+        <div
+          id={menuId}
+          role="menu"
+          aria-label="Switch character"
+          className="absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(240px,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in"
+          onKeyDown={(event) => {
+            const items = itemRefs.current.slice(0, switchableCharacters.length).filter((item): item is HTMLButtonElement => Boolean(item));
+            const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+            let nextIndex: number | null = null;
+            if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+            if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+            if (event.key === 'Home') nextIndex = 0;
+            if (event.key === 'End') nextIndex = items.length - 1;
+            if (nextIndex === null) return;
+            event.preventDefault();
+            items[nextIndex]?.focus();
+          }}
+        >
+          <div className="border-b border-theme-border/50 px-3 py-2">
+            <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Switch Character</p>
+          </div>
+          <div className="py-1">
+            {switchableCharacters.map((option, index) => (
+              <button
+                key={option.id}
+                ref={(element) => { itemRefs.current[index] = element; }}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onOpenChange(false);
+                  onSelectCharacter(option.id);
+                }}
+                className="block w-full truncate px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper focus:bg-theme-accent focus:text-theme-paper focus:outline-none"
+              >
+                {option.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function SheetToolbar({
   character,
+  switchableCharacters,
+  onSelectCharacter,
   workspace,
   playLayout,
   menuOpen,
@@ -153,6 +281,22 @@ export default function SheetToolbar({
   listHighlighted = false,
   overlay = false,
 }: SheetToolbarProps) {
+  const [characterSwitcherOpen, setCharacterSwitcherOpen] = useState(false);
+
+  useEffect(() => {
+    if (workspace !== 'play' || menuOpen || sheetSwitcherOpen || switchableCharacters.length === 0) {
+      setCharacterSwitcherOpen(false);
+    }
+  }, [menuOpen, sheetSwitcherOpen, switchableCharacters.length, workspace]);
+
+  const handleCharacterSwitcherOpenChange = (open: boolean) => {
+    if (open) {
+      onMenuOpenChange(false);
+      if (sheetSwitcherOpen) onToggleSheetSwitcher();
+    }
+    setCharacterSwitcherOpen(open);
+  };
+
   const actions = useMemo(() => {
     const candidates = [
       ...(playLayout === 'list' ? [{ id: 'collapse-expand', labeledWidth: 188, iconWidth: 80 }] : []),
@@ -184,7 +328,10 @@ export default function SheetToolbar({
         <ShareExportMenu
           character={character}
           open={menuOpen}
-          onOpenChange={onMenuOpenChange}
+          onOpenChange={(open) => {
+            if (open) setCharacterSwitcherOpen(false);
+            onMenuOpenChange(open);
+          }}
           onPrintPreview={onPrintPreview}
           onExit={onExit}
           workspace={workspace}
@@ -208,7 +355,15 @@ export default function SheetToolbar({
           inlineActionIds={inlineActionIds}
         />
         <div className="hidden shrink-0 sm:block">
-          <ToolbarCharacterName name={character.name} editable={workspace === 'build'} onSave={onRenameCharacter} />
+          <ToolbarCharacterName
+            name={character.name}
+            editable={workspace === 'build'}
+            switchableCharacters={switchableCharacters}
+            open={characterSwitcherOpen}
+            onOpenChange={handleCharacterSwitcherOpenChange}
+            onSelectCharacter={onSelectCharacter}
+            onSave={onRenameCharacter}
+          />
         </div>
       </div>
       <div className="flex min-w-0 items-center gap-2 justify-self-center">
@@ -289,7 +444,10 @@ export default function SheetToolbar({
           <button
             type="button"
             data-tutorial="sheet-selector"
-            onClick={onToggleSheetSwitcher}
+            onClick={() => {
+              setCharacterSwitcherOpen(false);
+              onToggleSheetSwitcher();
+            }}
             aria-label={`Switch sheet: ${activeSheetName}`}
             aria-expanded={sheetSwitcherOpen}
             className="group flex h-8 w-9 shrink-0 items-center justify-center gap-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-1.5 text-left text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper min-[480px]:w-24 min-[480px]:justify-start sm:w-32"

@@ -11,6 +11,7 @@ import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenList
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
 type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
+type CharacterOpenTelemetrySource = 'character_list' | 'character_switcher';
 type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view';
 
 interface CharacterCreatorRequest {
@@ -188,7 +189,7 @@ interface StoreState {
   importCharacter: (character: Character, telemetrySource?: ImportTelemetrySource) => void;
   duplicateCharacter: (id: string) => void;
   reorderCharacter: (characterId: string, newIndex: number) => void;
-  selectCharacter: (id: string | null) => void;
+  selectCharacter: (id: string | null, telemetrySource?: CharacterOpenTelemetrySource) => void;
   deleteCharacter: (id: string) => void;
   updateCharacterName: (id: string, name: string) => void;
   updateCharacterTheme: (id: string, theme: string) => void;
@@ -529,7 +530,7 @@ export const useStore = create<StoreState>((set, get) => {
       return { characters };
     }),
 
-    selectCharacter: (id) => set((state) => {
+    selectCharacter: (id, telemetrySource = 'character_list') => set((state) => {
       const transientIds = new Set(state.transientCharacterIds);
       const shouldCleanupTransients = id === null && transientIds.size > 0;
       if (shouldCleanupTransients) {
@@ -546,7 +547,7 @@ export const useStore = create<StoreState>((set, get) => {
             category: 'character',
             characterId: id,
             sheetId: character.activeSheetId,
-            source: 'character_list',
+            source: telemetrySource,
           });
         }
       }

@@ -162,6 +162,11 @@ export default function Sheet() {
   const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const switchableCharacters = useMemo(() => {
+    if (!activeCharacterId || transientCharacterIds.includes(activeCharacterId)) return [];
+    const transientIds = new Set(transientCharacterIds);
+    return characters.filter((character) => character.id !== activeCharacterId && !transientIds.has(character.id));
+  }, [activeCharacterId, characters, transientCharacterIds]);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
   // Timeline state
@@ -1212,6 +1217,8 @@ export default function Sheet() {
 
         <SheetToolbar
           character={activeCharacter}
+          switchableCharacters={switchableCharacters}
+          onSelectCharacter={(characterId) => selectCharacter(characterId, 'character_switcher')}
           workspace={workspace}
           playLayout={playLayout}
           menuOpen={gridMenuOpen}
@@ -1860,6 +1867,8 @@ export default function Sheet() {
       <SheetToolbar
         overlay
         character={activeCharacter}
+        switchableCharacters={switchableCharacters}
+        onSelectCharacter={(characterId) => selectCharacter(characterId, 'character_switcher')}
         workspace={workspace}
         playLayout={playLayout}
         menuOpen={gridMenuOpen}
