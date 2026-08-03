@@ -130,6 +130,7 @@ export interface TableColumnSettings {
   format?: CellFormat;
   label?: string;
   formula?: string;
+  width?: number;
 }
 
 export interface TableRowSettings {

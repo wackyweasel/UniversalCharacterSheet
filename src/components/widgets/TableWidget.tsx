@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
-import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, TrashIcon } from '../icons';
+import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, ResetIcon, TrashIcon } from '../icons';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 
 interface Props {
@@ -694,8 +694,10 @@ export default function TableWidget({ widget, height }: Props) {
   const [columnPendingRemoval, setColumnPendingRemoval] = useState<number | null>(null);
   const [isTableEditing, setIsTableEditing] = useState(false);
   const [editingColumnHeader, setEditingColumnHeader] = useState<number | null>(null);
+  const [columnWidthDraft, setColumnWidthDraft] = useState<{ column: number; width: number } | null>(null);
   const showTableControls = isTableEditing && !isPrintMode;
   const dragRowItem = useRef<number | null>(null);
+  const columnResizeRef = useRef<{ column: number; pointerId: number; startX: number; startWidth: number } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
@@ -797,6 +799,7 @@ export default function TableWidget({ widget, height }: Props) {
     if (!nextSetting.format || Object.keys(nextSetting.format).length === 0) delete nextSetting.format;
     if (!nextSetting.label) delete nextSetting.label;
     if (!nextSetting.formula) delete nextSetting.formula;
+    if (!Number.isFinite(nextSetting.width) || !nextSetting.width || nextSetting.width < 1) delete nextSetting.width;
     newColumnSettings[colIdx] = nextSetting;
     return newColumnSettings;
   };
@@ -889,6 +892,56 @@ export default function TableWidget({ widget, height }: Props) {
     const newColumns = [...columns];
     newColumns[colIdx] = value;
     updateWidgetData(widget.id, { columns: newColumns });
+  };
+
+  const handleColumnWidthChange = (colIdx: number, width: number | undefined) => {
+    const newColumnSettings = updateColumnSettings(colIdx, { width });
+    updateWidgetData(widget.id, { tableColumnSettings: newColumnSettings });
+  };
+
+  const getColumnWidth = (colIdx: number): number | undefined => {
+    if (columnWidthDraft?.column === colIdx) return columnWidthDraft.width;
+    return getColumnSetting(tableColumnSettings, colIdx).width;
+  };
+
+  const getColumnWidthStyle = (colIdx: number): React.CSSProperties => {
+    const columnWidth = getColumnWidth(colIdx);
+    return columnWidth === undefined
+      ? {}
+      : { width: `${columnWidth}px`, minWidth: `${columnWidth}px`, maxWidth: `${columnWidth}px` };
+  };
+
+  const handleColumnResizeStart = (event: React.PointerEvent<HTMLSpanElement>, colIdx: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const header = event.currentTarget.closest('th');
+    if (!header) return;
+
+    const startWidth = Math.round(header.getBoundingClientRect().width);
+    columnResizeRef.current = { column: colIdx, pointerId: event.pointerId, startX: event.clientX, startWidth };
+    setColumnWidthDraft({ column: colIdx, width: startWidth });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleColumnResizeMove = (event: React.PointerEvent<HTMLSpanElement>) => {
+    const resize = columnResizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) return;
+
+    setColumnWidthDraft({
+      column: resize.column,
+      width: Math.max(48, Math.round(resize.startWidth + event.clientX - resize.startX)),
+    });
+  };
+
+  const finishColumnResize = (event: React.PointerEvent<HTMLSpanElement>, saveWidth: boolean) => {
+    const resize = columnResizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) return;
+
+    const width = Math.max(48, Math.round(resize.startWidth + event.clientX - resize.startX));
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    columnResizeRef.current = null;
+    setColumnWidthDraft(null);
+    if (saveWidth) handleColumnWidthChange(resize.column, width);
   };
 
   const handleFormatChange = (rowIdx: number, colIdx: number, formatUpdate: Partial<CellFormat>) => {
@@ -1408,6 +1461,7 @@ export default function TableWidget({ widget, height }: Props) {
     const value = getCellValue(cell);
     return value === '' || !isNaN(Number(value));
   });
+  const hasDynamicColumn = columns.some((_, index) => getColumnWidth(index) === undefined);
 
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -1448,7 +1502,23 @@ export default function TableWidget({ widget, height }: Props) {
         }}
         onDragOver={(e) => e.preventDefault()}
       >
-        <table className={`w-full ${cellClass}`} style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table
+          className={`${hasDynamicColumn ? 'w-full' : ''} ${cellClass}`}
+          style={{
+            borderCollapse: 'separate',
+            borderSpacing: 0,
+            tableLayout: 'auto',
+            width: hasDynamicColumn ? undefined : 'max-content',
+          }}
+        >
+          <colgroup>
+            {showTableControls && <col style={{ width: '20px' }} />}
+            {columns.map((_, idx) => {
+              const columnWidth = getColumnWidth(idx);
+              return <col key={idx} style={columnWidth === undefined ? undefined : { width: `${columnWidth}px` }} />;
+            })}
+            {showTableControls && <col style={{ width: '36px' }} />}
+          </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
               {showTableControls && <th className="w-5 bg-transparent" />}
@@ -1467,6 +1537,7 @@ export default function TableWidget({ widget, height }: Props) {
                   style={{
                     ...getCellStyle(columnFormat),
                     ...textColorStyle,
+                    ...getColumnWidthStyle(idx),
                     borderLeftWidth: idx === 0 ? 1 : 0
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -1508,6 +1579,21 @@ export default function TableWidget({ widget, height }: Props) {
                             <PencilIcon className="h-2.5 w-2.5" />
                           </button>
                         </Tooltip>
+                        {columnSetting.width !== undefined && (
+                          <Tooltip content={`Use dynamic width for ${col} column`}>
+                            <button
+                              type="button"
+                              aria-label={`Use dynamic width for ${col} column`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleColumnWidthChange(idx, undefined);
+                              }}
+                              className="inline-flex h-4 w-4 items-center justify-center rounded text-theme-muted opacity-55 transition-colors hover:bg-theme-accent hover:text-theme-paper hover:opacity-100 focus-visible:opacity-100"
+                            >
+                              <ResetIcon className="h-2.5 w-2.5" />
+                            </button>
+                          </Tooltip>
+                        )}
                         <Tooltip content={columns.length > 1 ? `Remove ${col} column` : 'A table needs at least one column'}>
                           <button
                             type="button"
@@ -1525,6 +1611,20 @@ export default function TableWidget({ widget, height }: Props) {
                       </span>
                     )}
                   </div>
+                  {showTableControls && (
+                    <span
+                      role="separator"
+                      aria-label={`Resize ${col} column`}
+                      aria-orientation="vertical"
+                      title={`Drag to resize ${col} column`}
+                      onClick={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => handleColumnResizeStart(event, idx)}
+                      onPointerMove={handleColumnResizeMove}
+                      onPointerUp={(event) => finishColumnResize(event, true)}
+                      onPointerCancel={(event) => finishColumnResize(event, false)}
+                      className="absolute -right-1 top-0 z-20 h-full w-2 cursor-col-resize touch-none"
+                    />
+                  )}
                 </th>
                 );
               })}
@@ -1617,6 +1717,7 @@ export default function TableWidget({ widget, height }: Props) {
                       style={{ 
                         ...getCellStyle(cellFormat),
                         ...textColorStyle,
+                        ...getColumnWidthStyle(colIdx),
                         borderTopWidth: 0,
                         borderLeftWidth: colIdx === 0 ? 1 : 0,
                       }}
