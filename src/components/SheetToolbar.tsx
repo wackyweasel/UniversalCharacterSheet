@@ -177,7 +177,7 @@ function ToolbarCharacterName({
       ref={rootRef}
       className="relative shrink-0"
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onOpenChange(false);
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) onOpenChange(false);
       }}
     >
       <button
