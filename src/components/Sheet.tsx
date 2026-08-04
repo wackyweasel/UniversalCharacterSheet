@@ -144,7 +144,7 @@ export default function Sheet() {
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
-  const { workspace, playLayout, enterBuild, enterPlay, setPlayLayout } = useWorkspaceNavigation();
+  const { workspace, playLayout, listColumns, enterBuild, enterPlay, setPlayLayout, setListColumns } = useWorkspaceNavigation();
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
@@ -265,6 +265,7 @@ export default function Sheet() {
   const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
   const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
+  const [wideListLayout, setWideListLayout] = useState(() => window.innerWidth >= 900);
 
   const sheetSearchIndex = useMemo(
     () => activeCharacter ? buildSheetSearchIndex(activeCharacter) : [],
@@ -279,6 +280,12 @@ export default function Sheet() {
     setSheetSearchQuery('');
     setSheetSearchOpen(false);
   }, [activeCharacterId]);
+
+  useEffect(() => {
+    const updateWideListLayout = () => setWideListLayout(window.innerWidth >= 900);
+    window.addEventListener('resize', updateWideListLayout);
+    return () => window.removeEventListener('resize', updateWideListLayout);
+  }, []);
 
   const handleSearchResult = useCallback((result: SheetSearchResult) => {
     setSearchReveal({
@@ -304,7 +311,7 @@ export default function Sheet() {
     slotRects: DOMRect[];
     startIndex: number;
     targetIndex: number;
-    dragExtent: number;
+    targetColumn: number;
     didMove: boolean;
   } | null>(null);
 
@@ -1010,23 +1017,66 @@ export default function Sheet() {
     );
   };
 
-  const updateVerticalDragPreview = (drag: NonNullable<typeof verticalDragRef.current>, targetIndex: number) => {
-    drag.order.forEach((id, index) => {
-      if (id === drag.widgetId) return;
-      const element = verticalWidgetRefs.current.get(id);
-      if (!element) return;
+  const updateVerticalDragPreview = (
+    drag: NonNullable<typeof verticalDragRef.current>,
+    targetIndex: number,
+    targetColumn: number,
+    scrollDeltaY: number,
+  ) => {
+    const previewOrder = drag.order.filter((id) => id !== drag.widgetId);
+    previewOrder.splice(targetIndex, 0, drag.widgetId);
+    const previewColumns = { ...listColumnAssignments, [drag.widgetId]: targetColumn };
+    const getCurrentColumn = (widgetId: string) => Math.min(
+      listColumnAssignments[widgetId] ?? 0,
+      renderedListColumnCount - 1,
+    );
+    const getPreviewColumn = (widgetId: string) => Math.min(
+      previewColumns[widgetId] ?? 0,
+      renderedListColumnCount - 1,
+    );
+    const columnOrigins = new Map<number, { left: number; top: number }>();
 
-      const shiftsUp = targetIndex > drag.startIndex && index > drag.startIndex && index <= targetIndex;
-      const shiftsDown = targetIndex < drag.startIndex && index >= targetIndex && index < drag.startIndex;
-      const deltaY = shiftsUp ? -drag.dragExtent : shiftsDown ? drag.dragExtent : 0;
-      if (deltaY === 0) {
+    drag.order.forEach((widgetId, index) => {
+      const rect = drag.slotRects[index];
+      const column = getCurrentColumn(widgetId);
+      const current = columnOrigins.get(column);
+      if (!current || rect.top < current.top) {
+        columnOrigins.set(column, { left: rect.left, top: rect.top });
+      }
+    });
+
+    const nextTops = new Map(
+      Array.from(columnOrigins.entries()).map(([column, origin]) => [column, origin.top - scrollDeltaY]),
+    );
+    const previewRects = new Map<string, { left: number; top: number }>();
+    previewOrder.forEach((widgetId) => {
+      const originalIndex = drag.order.indexOf(widgetId);
+      const originalRect = drag.slotRects[originalIndex];
+      const column = getPreviewColumn(widgetId);
+      const origin = columnOrigins.get(column);
+      const top = nextTops.get(column);
+      if (!originalRect || !origin || top === undefined) return;
+      previewRects.set(widgetId, { left: origin.left, top });
+      nextTops.set(column, top + originalRect.height);
+    });
+
+    drag.order.forEach((widgetId, originalIndex) => {
+      if (widgetId === drag.widgetId) return;
+      const element = verticalWidgetRefs.current.get(widgetId);
+      const originalRect = drag.slotRects[originalIndex];
+      const previewRect = previewRects.get(widgetId);
+      if (!element || !originalRect || !previewRect) return;
+
+      const deltaX = previewRect.left - originalRect.left;
+      const deltaY = previewRect.top - (originalRect.top - scrollDeltaY);
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
         element.classList.remove('vertical-widget-sort-item--preview-shift');
         element.style.removeProperty('transform');
         return;
       }
 
       element.classList.add('vertical-widget-sort-item--preview-shift');
-      element.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+      element.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
     });
   };
 
@@ -1044,14 +1094,20 @@ export default function Sheet() {
 
     removeVerticalDragListenersRef.current?.();
     removeVerticalDragListenersRef.current = null;
-    const shouldReorder = Boolean(commit && drag?.didMove && drag.targetIndex !== drag.startIndex);
+    const shouldReorder = Boolean(
+      commit && drag?.didMove && (
+        drag.targetIndex !== drag.startIndex ||
+        drag.targetColumn !== (listColumnAssignments[drag.widgetId] ?? 0)
+      )
+    );
     if (drag && shouldReorder) captureVerticalWidgetRects();
     if (drag) {
       drag.cardElement.classList.remove('vertical-widget-sort-item--dragging');
       clearVerticalDragPreview(drag);
     }
     if (drag && shouldReorder) {
-      reorderWidget(drag.widgetId, drag.targetIndex);
+      const nextListColumns = { ...listColumnAssignments, [drag.widgetId]: drag.targetColumn };
+      reorderWidget(drag.widgetId, drag.targetIndex, nextListColumns);
     }
     verticalDragRef.current = null;
   };
@@ -1078,16 +1134,32 @@ export default function Sheet() {
     const scrollDeltaY = (scrollArea?.scrollTop ?? 0) - drag.startScrollTop;
     drag.cardElement.style.transform = `translate3d(${event.clientX - drag.startX}px, ${event.clientY - drag.startY + scrollDeltaY}px, 0) scale(1.018) rotate(0.2deg)`;
 
-    const targetIndex = drag.slotRects.reduce((closestIndex, rect, index) => {
-      const centerY = rect.top - scrollDeltaY + rect.height / 2;
-      const closestRect = drag.slotRects[closestIndex];
-      const closestCenterY = closestRect.top - scrollDeltaY + closestRect.height / 2;
-      return Math.abs(event.clientY - centerY) < Math.abs(event.clientY - closestCenterY) ? index : closestIndex;
-    }, drag.targetIndex);
-    if (targetIndex === drag.targetIndex) return;
+    const columnElements = Array.from(
+      verticalListScrollRef.current?.querySelectorAll<HTMLElement>('[data-list-column]') ?? [],
+    );
+    const targetColumn = columnElements.find((element) => {
+      const bounds = element.getBoundingClientRect();
+      return event.clientX >= bounds.left && event.clientX <= bounds.right;
+    })?.dataset.listColumn;
+    const parsedTargetColumn = targetColumn === undefined ? null : Number(targetColumn);
+    if (parsedTargetColumn === null || !Number.isFinite(parsedTargetColumn)) return;
+    const targetIndexes = drag.order
+      .map((widgetId, index) => ({ widgetId, index }))
+      .filter(({ widgetId }) => widgetId !== drag.widgetId && listColumnAssignments[widgetId] === parsedTargetColumn);
+    const targetIndex = targetIndexes.length > 0
+      ? targetIndexes.reduce((closest, candidate) => {
+        const candidateRect = drag.slotRects[candidate.index];
+        const closestRect = drag.slotRects[closest.index];
+        const candidateDistance = Math.abs(event.clientY - (candidateRect.top - scrollDeltaY + candidateRect.height / 2));
+        const closestDistance = Math.abs(event.clientY - (closestRect.top - scrollDeltaY + closestRect.height / 2));
+        return candidateDistance < closestDistance ? candidate : closest;
+      }).index
+      : drag.order.length;
+    if (targetIndex === drag.targetIndex && parsedTargetColumn === drag.targetColumn) return;
 
     drag.targetIndex = targetIndex;
-    updateVerticalDragPreview(drag, targetIndex);
+    drag.targetColumn = parsedTargetColumn;
+    updateVerticalDragPreview(drag, targetIndex, parsedTargetColumn, scrollDeltaY);
   };
 
   const startVerticalDrag = (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => {
@@ -1100,7 +1172,6 @@ export default function Sheet() {
     if (startIndex < 0 || slotRects.length !== order.length) return;
 
     removeVerticalDragListenersRef.current?.();
-    const sourceRect = slotRects[startIndex];
     verticalDragRef.current = {
       widgetId,
       pointerId: event.pointerId,
@@ -1112,7 +1183,7 @@ export default function Sheet() {
       slotRects,
       startIndex,
       targetIndex: startIndex,
-      dragExtent: sourceRect.height + (startIndex === order.length - 1 ? 8 : 0),
+      targetColumn: listColumnAssignments[widgetId] ?? 0,
       didMove: false,
     };
 
@@ -1160,14 +1231,15 @@ export default function Sheet() {
       const previousRect = previousVerticalRectsRef.current.get(id);
       if (!previousRect) return;
       const nextRect = element.getBoundingClientRect();
+      const deltaX = previousRect.left - nextRect.left;
       const deltaY = previousRect.top - nextRect.top;
-      if (Math.abs(deltaY) < 1) return;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
 
       element.getAnimations().forEach((animation) => animation.cancel());
       element.animate(
         [
-          { transform: `translateY(${deltaY}px)` },
-          { transform: 'translateY(0)' },
+          { transform: `translate(${deltaX}px, ${deltaY}px)` },
+          { transform: 'translate(0, 0)' },
         ],
         { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
       );
@@ -1203,6 +1275,24 @@ export default function Sheet() {
 
   if (!activeCharacter) return null;
 
+  const renderedListColumnCount = wideListLayout && listColumns > 1
+    ? Math.min(listColumns, Math.max(activeSheetWidgets.length, 1))
+    : 1;
+  const widgetsPerListColumn = Math.ceil(activeSheetWidgets.length / renderedListColumnCount);
+  const hasStoredListColumns = activeSheetWidgets.some((widget) => widget.listColumn !== undefined);
+  const listColumnForWidget = (widget: Widget, index: number) => {
+    if (widget.listColumn !== undefined) return Math.min(widget.listColumn, renderedListColumnCount - 1);
+    if (hasStoredListColumns) return 0;
+    return Math.min(Math.floor(index / widgetsPerListColumn), renderedListColumnCount - 1);
+  };
+  const listColumnAssignments = Object.fromEntries(
+    activeSheetWidgets.map((widget, index) => [widget.id, listColumnForWidget(widget, index)]),
+  );
+  const listWidgetColumns = Array.from({ length: renderedListColumnCount }, () => [] as Widget[]);
+  activeSheetWidgets.forEach((widget) => {
+    listWidgetColumns[listColumnAssignments[widget.id]].push(widget);
+  });
+
   // Render list layout in either Play or Build.
   if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
     return (
@@ -1222,11 +1312,13 @@ export default function Sheet() {
           onSelectCharacter={(characterId) => selectCharacter(characterId, 'character_switcher')}
           workspace={workspace}
           playLayout={playLayout}
+          listColumns={listColumns}
           menuOpen={gridMenuOpen}
           onMenuOpenChange={setGridMenuOpen}
           onBuild={handleEnterBuildWorkspace}
           onPlay={handleEnterPlayWorkspace}
           onSelectLayout={handleSelectPlayLayout}
+          onListColumnsChange={setListColumns}
           onPrintPreview={enterPrintMode}
           onExit={handleExitToMenu}
           onRenameCharacter={(name) => updateCharacterName(activeCharacter.id, name)}
@@ -1433,21 +1525,35 @@ export default function Sheet() {
 
         {/* Vertical Mode Container - scrollable */}
         <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6 pb-24">
+          <div className={`mx-auto px-3 py-4 pb-24 sm:px-5 sm:py-6 ${renderedListColumnCount > 1 ? 'max-w-6xl' : 'max-w-2xl'}`}>
             {/* Widgets in vertical layout */}
-            {activeSheetWidgets.map((widget, index) => (
-              <VerticalWidget
-                key={widget.id}
-                widget={widget}
-                index={index}
-                totalWidgets={activeSheetWidgets.length}
-                registerElement={registerVerticalWidget}
-                onDragStart={startVerticalDrag}
-                onReorderKey={handleVerticalReorderKey}
-                isBuildMode={workspace === 'build'}
-                searchRevealKey={searchReveal?.widgetId === widget.id ? searchReveal.key : undefined}
-              />
-            ))}
+            <div
+              className={renderedListColumnCount > 1 ? 'grid gap-x-5' : undefined}
+              style={renderedListColumnCount > 1 ? {
+                gridTemplateColumns: `repeat(${renderedListColumnCount}, minmax(0, 1fr))`,
+              } : undefined}
+            >
+              {listWidgetColumns.map((columnWidgets, columnIndex) => (
+                <div key={columnIndex} data-list-column={columnIndex} className="min-h-12 min-w-0">
+                  {columnWidgets.map((widget) => {
+                    const index = activeSheetWidgets.findIndex((item) => item.id === widget.id);
+                    return (
+                      <VerticalWidget
+                        key={widget.id}
+                        widget={widget}
+                        index={index}
+                        totalWidgets={activeSheetWidgets.length}
+                        registerElement={registerVerticalWidget}
+                        onDragStart={startVerticalDrag}
+                        onReorderKey={handleVerticalReorderKey}
+                        isBuildMode={workspace === 'build'}
+                        searchRevealKey={searchReveal?.widgetId === widget.id ? searchReveal.key : undefined}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
             
             {activeSheetWidgets.length === 0 && (
               <div className="text-center text-theme-muted py-12">
@@ -1872,11 +1978,13 @@ export default function Sheet() {
         onSelectCharacter={(characterId) => selectCharacter(characterId, 'character_switcher')}
         workspace={workspace}
         playLayout={playLayout}
+        listColumns={listColumns}
         menuOpen={gridMenuOpen}
         onMenuOpenChange={setGridMenuOpen}
         onBuild={handleEnterBuildWorkspace}
         onPlay={handleEnterPlayWorkspace}
         onSelectLayout={handleSelectPlayLayout}
+        onListColumnsChange={setListColumns}
         onPrintPreview={() => {
           enterPrintMode();
           if (isCurrentTutorialStep('various-print-mode')) advanceTutorial();

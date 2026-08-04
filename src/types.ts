@@ -386,6 +386,7 @@ export interface Widget {
   type: WidgetType;
   x: number;
   y: number;
+  listColumn?: number; // Persisted column membership for the multi-column list layout
   w?: number; // width
   h?: number; // height
   groupId?: string; // ID of the group this widget belongs to (for snap+attach)

@@ -227,7 +227,7 @@ interface StoreState {
   }) => void;
   removeWidget: (id: string) => void;
   toggleWidgetLock: (id: string) => void;
-  reorderWidget: (widgetId: string, newIndex: number) => void;
+  reorderWidget: (widgetId: string, newIndex: number, listColumns?: Record<string, number>) => void;
   moveWidgetToSheet: (widgetId: string, targetSheetId: string) => void;
   
   // Widget Group Actions (for snap+attach)
@@ -1594,7 +1594,7 @@ export const useStore = create<StoreState>((set, get) => {
       });
     },
 
-    reorderWidget: (widgetId, newIndex) => {
+    reorderWidget: (widgetId, newIndex, listColumns) => {
       // Take snapshot before reordering (vertical view)
       get()._takeSnapshot('Reorder widget');
       
@@ -1612,7 +1612,11 @@ export const useStore = create<StoreState>((set, get) => {
               const newWidgets = [...widgets];
               const [removed] = newWidgets.splice(widgetIndex, 1);
               newWidgets.splice(newIndex, 0, removed);
-              return newWidgets;
+              if (!listColumns) return newWidgets;
+              return newWidgets.map((widget) => ({
+                ...widget,
+                listColumn: listColumns[widget.id] ?? widget.listColumn,
+              }));
             });
           })
         };

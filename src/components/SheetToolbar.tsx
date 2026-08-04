@@ -12,6 +12,7 @@ import {
   LayersIcon,
   LayoutGridIcon,
   ListIcon,
+  MinusIcon,
   PaletteIcon,
   PencilIcon,
   PlayIcon,
@@ -27,11 +28,13 @@ interface SheetToolbarProps {
   onSelectCharacter: (characterId: string) => void;
   workspace: SheetWorkspace;
   playLayout: PlayLayout;
+  listColumns: number;
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
   onBuild: () => void;
   onPlay: () => void;
   onSelectLayout: (layout: PlayLayout) => void;
+  onListColumnsChange: (columns: number) => void;
   onPrintPreview: () => void;
   onExit: () => void;
   onRenameCharacter: (name: string) => void;
@@ -250,11 +253,13 @@ export default function SheetToolbar({
   onSelectCharacter,
   workspace,
   playLayout,
+  listColumns,
   menuOpen,
   onMenuOpenChange,
   onBuild,
   onPlay,
   onSelectLayout,
+  onListColumnsChange,
   onPrintPreview,
   onExit,
   onRenameCharacter,
@@ -300,7 +305,7 @@ export default function SheetToolbar({
   const actions = useMemo(() => {
     const candidates = [
       ...(playLayout === 'list' ? [{ id: 'collapse-expand', labeledWidth: 188, iconWidth: 80 }] : []),
-      { id: 'layout', labeledWidth: 152, iconWidth: 80 },
+      { id: 'layout', labeledWidth: 176, iconWidth: 80 },
       { id: workspace === 'build' ? 'add-widget' : 'timeline', labeledWidth: 116, iconWidth: 42 },
       { id: 'undo-redo', labeledWidth: 152, iconWidth: 80 },
     ];
@@ -393,6 +398,34 @@ export default function SheetToolbar({
             <ListIcon className="h-4 w-4" /> {showLabel('layout') && <span>List</span>}
           </button>
         </Tooltip>
+        {playLayout === 'list' && (
+          <div className="hidden h-full items-center gap-0.5 border-l border-theme-border px-1 min-[900px]:flex">
+            <Tooltip content="Remove list column" placement="below">
+              <span className="inline-flex">
+                <button
+                  type="button"
+                  onClick={() => onListColumnsChange(listColumns - 1)}
+                  disabled={listColumns <= 1}
+                  aria-label="Remove list column"
+                  className="flex h-6 w-6 items-center justify-center rounded text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:opacity-35"
+                >
+                  <MinusIcon className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            </Tooltip>
+            <span aria-label={`${listColumns} list columns`} className="min-w-4 text-center text-xs font-body tabular-nums text-theme-ink">{listColumns}</span>
+            <Tooltip content="Add list column" placement="below">
+              <button
+                type="button"
+                onClick={() => onListColumnsChange(listColumns + 1)}
+                aria-label="Add list column"
+                className="flex h-6 w-6 items-center justify-center rounded text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </div>}
       {workspace === 'build' && inlineActionIds.has('add-widget') ? (
         <Tooltip content={addWidgetLabel} placement="below">

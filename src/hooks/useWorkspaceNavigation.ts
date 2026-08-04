@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 
 const PLAY_LAYOUT_STORAGE_KEY = 'ucs:play-layout';
+const LIST_COLUMNS_STORAGE_KEY = 'ucs:list-columns';
 
 export type SheetWorkspace = 'build' | 'play' | 'print';
 export type PlayLayout = 'canvas' | 'list';
@@ -16,6 +17,15 @@ function getInitialPlayLayout(mode: string): PlayLayout {
   }
 }
 
+function getInitialListColumns(): number {
+  try {
+    const storedValue = Number(localStorage.getItem(LIST_COLUMNS_STORAGE_KEY));
+    return Number.isFinite(storedValue) ? Math.max(1, Math.floor(storedValue)) : 1;
+  } catch {
+    return 1;
+  }
+}
+
 /**
  * User-facing navigation for the sheet. The persisted store still uses the
  * legacy mode values internally so existing characters and print behavior stay
@@ -25,6 +35,7 @@ export function useWorkspaceNavigation() {
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
   const [playLayout, setPlayLayoutState] = useState<PlayLayout>(() => getInitialPlayLayout(mode));
+  const [listColumns, setListColumnsState] = useState(getInitialListColumns);
 
   useEffect(() => {
     if (mode === 'vertical') {
@@ -60,11 +71,23 @@ export function useWorkspaceNavigation() {
     }
   }, [mode, persistPlayLayout, setMode]);
 
+  const setListColumns = useCallback((columns: number) => {
+    const nextColumns = Math.max(1, Math.floor(columns));
+    setListColumnsState(nextColumns);
+    try {
+      localStorage.setItem(LIST_COLUMNS_STORAGE_KEY, String(nextColumns));
+    } catch {
+      // A view preference should never block the sheet when storage is unavailable.
+    }
+  }, []);
+
   return {
     workspace,
     playLayout,
+    listColumns,
     enterBuild,
     enterPlay,
     setPlayLayout,
+    setListColumns,
   };
 }
