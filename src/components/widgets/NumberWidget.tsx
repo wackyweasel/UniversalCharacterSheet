@@ -21,15 +21,23 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, numberItems = [], printSettings } = widget.data;
+  const { label, numberItems = [], printSettings, showNumberItemMax = false } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [rangeIssue, setRangeIssue] = useState<string | null>(null);
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [minimumDraft, setMinimumDraft] = useState('');
+  const [maximumDraft, setMaximumDraft] = useState('');
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
+
+  const minimumDraftValue = minimumDraft.trim() === '' ? undefined : Number(minimumDraft);
+  const maximumDraftValue = maximumDraft.trim() === '' ? undefined : Number(maximumDraft);
+  const hasInvalidBounds = Number.isNaN(minimumDraftValue) || Number.isNaN(maximumDraftValue)
+    || (minimumDraftValue !== undefined && maximumDraftValue !== undefined && minimumDraftValue > maximumDraftValue);
 
   const labels = useMemo(() => {
     const char = characters.find(c => c.id === activeCharacterId);
@@ -39,7 +47,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   // Fixed small sizing
   const itemClass = 'text-xs';
   const buttonSize = 'w-5 h-5 text-xs';
-  const valueClass = 'text-sm min-w-8 px-1';
+  const valueClass = `text-sm ${showNumberItemMax ? 'min-w-[4.5rem]' : 'min-w-8'} px-1`;
   const gapClass = 'gap-1';
   
   // Calculate items area height
@@ -48,25 +56,48 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const padding = 0;
   const itemsHeight = Math.max(30, height - labelHeight - gapSize - padding * 2);
 
+  const constrainItemValue = (value: number, item: NumberItem) => {
+    const { minValue, maxValue } = item;
+    if (minValue !== undefined && maxValue !== undefined && minValue > maxValue) return value;
+    if (minValue !== undefined) value = Math.max(minValue, value);
+    if (maxValue !== undefined) value = Math.min(maxValue, value);
+    return value;
+  };
+
+  const getRangeIssueMessage = (item: NumberItem) => {
+    if (item.minValue !== undefined && item.maxValue !== undefined) {
+      return `Value must be between ${item.minValue} and ${item.maxValue}.`;
+    }
+    if (item.minValue !== undefined) return `Value must be at least ${item.minValue}.`;
+    return `Value must be at most ${item.maxValue}.`;
+  };
+
   const adjustItemValue = (index: number, delta: number) => {
     const item = (numberItems as NumberItem[])[index];
     if (item.valueFormula) return;
     const updated = [...numberItems] as NumberItem[];
     const oldVal = updated[index].value;
-    updated[index] = { ...updated[index], value: oldVal + delta };
+    const newValue = constrainItemValue(oldVal + delta, updated[index]);
+    if (newValue === oldVal) return;
+    updated[index] = { ...updated[index], value: newValue };
     updateWidgetData(widget.id, { numberItems: updated });
-    addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${oldVal + delta}`, '🔢');
+    addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${newValue}`, '🔢');
   };
 
   const handleValueClick = (index: number, currentValue: number) => {
     const item = (numberItems as NumberItem[])[index];
     if (item.valueFormula) return;
+    setRangeIssue(null);
     setEditingIndex(index);
     setEditValue(String(currentValue));
   };
 
-  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value);
+  const handleValueChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const nextValue = event.target.value;
+    const parsedValue = parseInt(nextValue, 10);
+    const item = (numberItems as NumberItem[])[index];
+    setEditValue(nextValue);
+    setRangeIssue(!isNaN(parsedValue) && parsedValue !== constrainItemValue(parsedValue, item) ? getRangeIssueMessage(item) : null);
   };
 
   const handleValueBlur = (index: number) => {
@@ -74,14 +105,16 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
     if (!isNaN(newValue)) {
       const updated = [...numberItems] as NumberItem[];
       const oldVal = updated[index].value;
-      updated[index] = { ...updated[index], value: newValue };
+      const constrainedValue = constrainItemValue(newValue, updated[index]);
+      updated[index] = { ...updated[index], value: constrainedValue };
       updateWidgetData(widget.id, { numberItems: updated });
-      if (oldVal !== newValue) {
-        addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${newValue}`, '🔢');
+      if (oldVal !== constrainedValue) {
+        addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${constrainedValue}`, '🔢');
       }
     }
     setEditingIndex(null);
     setEditValue('');
+    setRangeIssue(null);
   };
 
   const handleValueKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -90,14 +123,23 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
     } else if (e.key === 'Escape') {
       setEditingIndex(null);
       setEditValue('');
+      setRangeIssue(null);
     }
   };
 
   const addField = () => {
     const fieldName = fieldNameDraft.trim();
     if (!fieldName) return;
+    if (hasInvalidBounds) return;
+    const newItem: NumberItem = {
+      name: fieldName,
+      value: 0,
+      ...(minimumDraftValue !== undefined ? { minValue: minimumDraftValue } : {}),
+      ...(maximumDraftValue !== undefined ? { maxValue: maximumDraftValue } : {}),
+    };
+    newItem.value = constrainItemValue(newItem.value, newItem);
     updateWidgetData(widget.id, {
-      numberItems: [...numberItems, { name: fieldName, value: 0 }],
+      numberItems: [...numberItems, newItem],
     });
     setFieldNameDraft('');
     if (!addMultiple) setFieldDialog(null);
@@ -116,6 +158,8 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const closeFieldDialog = () => {
     setFieldDialog(null);
     setFieldNameDraft('');
+    setMinimumDraft('');
+    setMaximumDraft('');
     setAddMultiple(false);
     setSelectedFields(new Set());
   };
@@ -174,6 +218,8 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   type="button"
                   onClick={() => {
                     setFieldNameDraft('');
+                    setMinimumDraft('');
+                    setMaximumDraft('');
                     setAddMultiple(false);
                     setFieldDialog('add');
                   }}
@@ -200,40 +246,60 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           }
         }}
       >
-        {(numberItems as NumberItem[]).map((item, idx) => (
-          <div key={idx} className={`flex items-center ${gapClass}`}>
-            {/* Item Name */}
-            <span className={`flex-1 ${itemClass} text-theme-ink font-body truncate`}>
-              {mode === 'play' && item.tooltip ? (
-                <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
-              ) : item.name}
-            </span>
+        {(numberItems as NumberItem[]).map((item, idx) => {
+          const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
+          const atMaximum = item.maxValue !== undefined && item.value >= item.maxValue;
+          const displayedValue = showNumberItemMax && item.maxValue !== undefined ? `${item.value}/${item.maxValue}` : item.value;
 
-            {/* Value Controls - fixed width container for alignment */}
-            <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${controlsSectionWidth}`}>
+          return (
+          <div key={idx} className="relative">
+            <div className={`flex items-center ${gapClass}`}>
+              {/* Item Name */}
+              <span className={`flex-1 ${itemClass} text-theme-ink font-body truncate`}>
+                {mode === 'play' && item.tooltip ? (
+                  <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
+                ) : item.name}
+              </span>
+
+              {/* Value Controls - fixed width container for alignment */}
+              <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${controlsSectionWidth}`}>
               <Tooltip content="Decrease value">
                 <button
                   onClick={() => adjustItemValue(idx, -1)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  disabled={!!item.valueFormula}
+                  disabled={!!item.valueFormula || atMinimum}
                   aria-label={`Decrease ${item.name || 'value'}`}
-                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula || atMinimum ? 'opacity-30 cursor-not-allowed' : ''}`}
                 >
                   -
                 </button>
               </Tooltip>
               {editingIndex === idx ? (
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={editValue}
-                  onChange={handleValueChange}
-                  onBlur={() => handleValueBlur(idx)}
-                  onKeyDown={(e) => handleValueKeyDown(e, idx)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  autoFocus
-                  className={`${valueClass} text-center font-bold text-theme-ink bg-theme-paper border border-theme-border rounded-button flex-shrink-0 outline-none focus:border-theme-accent`}
-                />
+                <div className={`relative flex-shrink-0 ${showNumberItemMax ? 'w-[5.5rem]' : 'w-[4.5rem]'}`}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editValue}
+                    onChange={(event) => handleValueChange(event, idx)}
+                    onBlur={() => handleValueBlur(idx)}
+                    onKeyDown={(e) => handleValueKeyDown(e, idx)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    autoFocus
+                    aria-invalid={rangeIssue ? true : undefined}
+                    className={`w-full ${valueClass} ${rangeIssue ? 'pr-5 border-red-500 focus:border-red-500' : ''} text-center font-bold text-theme-ink bg-theme-paper border border-theme-border rounded-button outline-none focus:border-theme-accent`}
+                  />
+                  {rangeIssue && (
+                    <Tooltip content={rangeIssue}>
+                      <span
+                        role="img"
+                        aria-label={rangeIssue}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-xs font-bold leading-none text-red-500"
+                      >
+                        !
+                      </span>
+                    </Tooltip>
+                  )}
+                </div>
               ) : (
                 <span 
                   className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 rounded-button font-body whitespace-nowrap ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:bg-theme-accent/20'}`}
@@ -251,7 +317,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                     }
                   }}
                 >
-                  {item.value}
+                  {displayedValue}
                   {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
                     <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
                   )}
@@ -261,16 +327,18 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                 <button
                   onClick={() => adjustItemValue(idx, 1)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  disabled={!!item.valueFormula}
+                  disabled={!!item.valueFormula || atMaximum}
                   aria-label={`Increase ${item.name || 'value'}`}
-                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula || atMaximum ? 'opacity-30 cursor-not-allowed' : ''}`}
                 >
                   +
                 </button>
               </Tooltip>
+              </div>
             </div>
           </div>
-        ))}
+          );
+        })}
         {numberItems.length === 0 && (
           <WidgetEmptyState title="No trackers yet" hint={controlsVisible ? 'Use + to add a tracker.' : undefined} compact />
         )}
@@ -313,6 +381,36 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   placeholder="e.g. Luck"
                   className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                 />
+                <div className="mt-3 border-t border-theme-border pt-3">
+                  <p className="text-sm font-medium">Starting bounds <span className="font-normal text-theme-muted">(optional)</span></p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <label className="text-sm">
+                      <span className="mb-1 block">Minimum</span>
+                      <input
+                        type="number"
+                        value={minimumDraft}
+                        onChange={(event) => setMinimumDraft(event.target.value)}
+                        placeholder="No minimum"
+                        className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                        aria-label="Minimum value"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      <span className="mb-1 block">Maximum</span>
+                      <input
+                        type="number"
+                        value={maximumDraft}
+                        onChange={(event) => setMaximumDraft(event.target.value)}
+                        placeholder="No maximum"
+                        className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                        aria-label="Maximum value"
+                      />
+                    </label>
+                  </div>
+                  {hasInvalidBounds && (
+                    <p className="mt-2 text-xs text-red-500">Minimum cannot exceed maximum.</p>
+                  )}
+                </div>
                 <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
@@ -320,7 +418,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   </button>
                   <button
                     type="submit"
-                    disabled={!fieldNameDraft.trim()}
+                    disabled={!fieldNameDraft.trim() || hasInvalidBounds}
                     className="widget-control widget-control--primary px-3 py-1.5 text-sm"
                   >
                     Add tracker

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NumberItem } from '../../types';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
@@ -8,6 +8,7 @@ import { Tooltip } from '../Tooltip';
 export function NumberEditor({ widget, updateData }: EditorProps) {
   const { label, numberItems = [] } = widget.data;
   const [newItemName, setNewItemName] = useState('');
+  const [boundEditorIndex, setBoundEditorIndex] = useState<number | null>(null);
   
   // Drag state for reordering
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -16,6 +17,14 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
   const dragStartY = useRef<number>(0);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (boundEditorIndex === null || !containerRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      containerRef.current?.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [boundEditorIndex]);
 
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +38,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
     const updated = [...numberItems];
     updated.splice(index, 1);
     updateData({ numberItems: updated });
+    setBoundEditorIndex(null);
   };
 
   const updateItemName = (index: number, name: string) => {
@@ -41,6 +51,37 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
     const updated = [...numberItems] as NumberItem[];
     updated[index] = { ...updated[index], value };
     updateData({ numberItems: updated });
+  };
+
+  const updateItem = (index: number, changes: Partial<NumberItem>) => {
+    const updated = [...numberItems] as NumberItem[];
+    updated[index] = { ...updated[index], ...changes };
+    updateData({ numberItems: updated });
+  };
+
+  const setBounds = (index: number) => {
+    setBoundEditorIndex(index);
+  };
+
+  const clearBound = (index: number, bound: 'min' | 'max') => {
+    const updated = [...numberItems] as NumberItem[];
+    const item = updated[index];
+    if (bound === 'min') {
+      const { minValue, minValueLabel, minValueFormula, ...withoutMinimum } = item;
+      updated[index] = withoutMinimum;
+    } else {
+      const { maxValue, maxValueLabel, maxValueFormula, ...withoutMaximum } = item;
+      updated[index] = withoutMaximum;
+    }
+    updateData({ numberItems: updated });
+  };
+
+  const removeBounds = (index: number) => {
+    const updated = [...numberItems] as NumberItem[];
+    const { minValue, minValueLabel, minValueFormula, maxValue, maxValueLabel, maxValueFormula, ...withoutBounds } = updated[index];
+    updated[index] = withoutBounds;
+    updateData({ numberItems: updated });
+    setBoundEditorIndex(null);
   };
 
   // Drag handlers for reordering (works with both mouse and touch via pointer events)
@@ -189,81 +230,139 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
       </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={widget.data.showNumberItemMax ?? false}
+          onChange={(event) => updateData({ showNumberItemMax: event.target.checked })}
+          className="w-4 h-4 accent-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Show maximums in tracker (e.g. 5/10)</span>
+      </label>
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Items</label>
-        <div ref={containerRef} className="space-y-2 max-h-48 overflow-y-auto">
-          {(numberItems as NumberItem[]).map((item, idx) => (
+        <div ref={containerRef} className="max-h-72 space-y-2 overflow-y-auto">
+          {(numberItems as NumberItem[]).map((item, idx) => {
+            const boundsVisible = item.minValue !== undefined || item.maxValue !== undefined || boundEditorIndex === idx;
+
+            return (
             <div 
               key={idx} 
               ref={(el) => { itemRefs.current[idx] = el; }}
-              className={`rounded px-1 transition-colors ${
+              className={`rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors ${
                 dragOverIndex === idx ? 'border-t-2 border-theme-accent' : ''
               } ${draggedIndex === idx ? 'opacity-50 bg-theme-accent/10' : ''}`}
               onDragOver={(e) => handleNativeDragOver(e, idx)}
               onDragLeave={handleNativeDragLeave}
               onDrop={(e) => handleNativeDrop(e, idx)}
             >
-              <LabeledNumberField
-                value={item.value}
-                onChange={(v) => updateItemValue(idx, v)}
-                fieldLabel={item.valueLabel}
-                onFieldLabelChange={(l) => {
-                  const updated = [...numberItems] as NumberItem[];
-                  updated[idx] = { ...updated[idx], valueLabel: l };
-                  updateData({ numberItems: updated });
-                }}
-                formula={item.valueFormula}
-                onFormulaChange={(f) => {
-                  const updated = [...numberItems] as NumberItem[];
-                  updated[idx] = { ...updated[idx], valueFormula: f };
-                  updateData({ numberItems: updated });
-                }}
-                compact
-                renderRow={({ controls }) => (
-                  <div className="flex items-center gap-2">
-                    {/* Drag Handle - works with both touch and mouse */}
-                    <Tooltip content="Drag to reorder">
-                      <div 
-                        className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
-                        draggable
-                        onDragStart={(e) => handleNativeDragStart(e, idx)}
-                        onDragEnd={handleNativeDragEnd}
-                        onPointerDown={(e) => handlePointerDown(e, idx)}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
-                        onPointerCancel={handlePointerUp}
-                      >
-                        ⋮⋮
-                      </div>
-                    </Tooltip>
-                    <input
-                      className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
-                      value={item.name}
-                      onChange={(e) => updateItemName(idx, e.target.value)}
-                      placeholder="Name"
-                    />
-                    {controls}
-                    <TooltipEditButton
-                      tooltip={item.tooltip}
-                      itemName={item.name}
-                      onSave={(t) => {
-                        const updated = [...numberItems] as NumberItem[];
-                        updated[idx] = { ...updated[idx], tooltip: t };
-                        updateData({ numberItems: updated });
-                      }}
-                    />
-                    <button
-                      onClick={() => removeItem(idx)}
-                      className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"
-                    >
-                      ×
-                    </button>
+              <div className="flex items-center gap-2">
+                <Tooltip content="Drag to reorder">
+                  <div 
+                    className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
+                    draggable
+                    onDragStart={(e) => handleNativeDragStart(e, idx)}
+                    onDragEnd={handleNativeDragEnd}
+                    onPointerDown={(e) => handlePointerDown(e, idx)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                  >
+                    ⋮⋮
                   </div>
+                </Tooltip>
+                <input
+                  className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                  value={item.name}
+                  onChange={(e) => updateItemName(idx, e.target.value)}
+                  placeholder="Name"
+                />
+                <TooltipEditButton
+                  tooltip={item.tooltip}
+                  itemName={item.name}
+                  onSave={(tooltip) => updateItem(idx, { tooltip })}
+                />
+                <button
+                  onClick={() => removeItem(idx)}
+                  className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-2 flex items-center gap-2">
+                <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Current</span>
+                <LabeledNumberField
+                  value={item.value}
+                  onChange={(value) => updateItemValue(idx, value)}
+                  fieldLabel={item.valueLabel}
+                  onFieldLabelChange={(valueLabel) => updateItem(idx, { valueLabel })}
+                  formula={item.valueFormula}
+                  onFormulaChange={(valueFormula) => updateItem(idx, { valueFormula })}
+                  min={item.minValue}
+                  max={item.maxValue}
+                  compact
+                  hideStepperButtons
+                />
+                {!boundsVisible ? (
+                  <button
+                    type="button"
+                    onClick={() => setBounds(idx)}
+                    className="ml-auto text-xs text-theme-accent hover:underline"
+                  >
+                    Set min or max values
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => removeBounds(idx)}
+                    className="ml-auto text-xs text-red-500 hover:text-red-700"
+                  >
+                    Remove min and max values
+                  </button>
                 )}
-              />
+              </div>
+
+              {boundsVisible && (
+                <div className="mt-2 space-y-2 border-t border-theme-border pt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Minimum</span>
+                    <LabeledNumberField
+                      value={item.minValue}
+                      onChange={(minValue) => updateItem(idx, { minValue })}
+                      onClear={() => clearBound(idx, 'min')}
+                      fieldLabel={item.minValueLabel}
+                      onFieldLabelChange={(minValueLabel) => updateItem(idx, { minValueLabel })}
+                      formula={item.minValueFormula}
+                      onFormulaChange={(minValueFormula) => updateItem(idx, { minValueFormula })}
+                      max={item.maxValue}
+                      compact
+                      hideStepperButtons
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Maximum</span>
+                    <LabeledNumberField
+                      value={item.maxValue}
+                      onChange={(maxValue) => updateItem(idx, { maxValue })}
+                      onClear={() => clearBound(idx, 'max')}
+                      fieldLabel={item.maxValueLabel}
+                      onFieldLabelChange={(maxValueLabel) => updateItem(idx, { maxValueLabel })}
+                      formula={item.maxValueFormula}
+                      onFormulaChange={(maxValueFormula) => updateItem(idx, { maxValueFormula })}
+                      min={item.minValue}
+                      compact
+                      hideStepperButtons
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
         <form onSubmit={addItem} className="flex gap-2 mt-2">
           <input

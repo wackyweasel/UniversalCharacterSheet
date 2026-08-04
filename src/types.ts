@@ -160,6 +160,12 @@ export interface NumberItem {
   value: number;
   valueLabel?: string;
   valueFormula?: string;
+  minValue?: number;
+  minValueLabel?: string;
+  minValueFormula?: string;
+  maxValue?: number;
+  maxValueLabel?: string;
+  maxValueFormula?: string;
   tooltip?: string;
 }
 
@@ -235,6 +241,7 @@ export interface WidgetData {
   value?: number;
   hideWidgetHeader?: boolean;
   showFieldControls?: boolean;
+  showNumberItemMax?: boolean;
   showMaxControl?: boolean;
   items?: string[];
   itemCount?: number;
