@@ -9,6 +9,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
     label, 
     initiativePool = [], 
     initiativeShowRollButton = true,
+    initiativeShowTimer = false,
     initiativeAdvanceTimeTrackers = false,
     initiativeAdvanceByRound = true,
     initiativeAdvanceTimeAmount = 6,
@@ -174,6 +175,19 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
         />
         <label htmlFor="showRollButton" className="text-sm text-theme-ink">
           Include "Roll Initiative" button
+        </label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="showInitiativeTimer"
+          checked={initiativeShowTimer}
+          onChange={(e) => updateData({ initiativeShowTimer: e.target.checked })}
+          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+        />
+        <label htmlFor="showInitiativeTimer" className="text-sm text-theme-ink">
+          Include turn timer
         </label>
       </div>
 

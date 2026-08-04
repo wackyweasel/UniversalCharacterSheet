@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, InitiativeParticipant, InitiativeEncounterEntry } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
-import { GripVerticalIcon, MinusIcon, PlusIcon } from '../icons';
+import { GripVerticalIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle } from './StructureDialogControls';
 
@@ -242,6 +242,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     initiativePool = [],
     initiativeEncounter = [],
     initiativeShowRollButton = true,
+    initiativeShowTimer = false,
     initiativeCurrentIndex = 0,
     initiativeAdvanceTimeTrackers = false,
     initiativeAdvanceByRound = true,
@@ -252,6 +253,8 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
   const [showAddParticipantModal, setShowAddParticipantModal] = useState(false);
   const [showRemoveParticipantsModal, setShowRemoveParticipantsModal] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
+  const [timerSecondsByParticipant, setTimerSecondsByParticipant] = useState<Record<string, number>>({});
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const encounterListRef = useRef<HTMLDivElement>(null);
   const encounterEntryRefs = useRef(new Map<string, HTMLDivElement>());
   const removeDragListenersRef = useRef<(() => void) | null>(null);
@@ -270,6 +273,48 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     scaleX: number;
     scaleY: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (!initiativeShowTimer || !isTimerRunning) return;
+    const activeParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
+    if (!activeParticipantId) return;
+    const intervalId = window.setInterval(() => {
+      setTimerSecondsByParticipant((secondsByParticipant) => ({
+        ...secondsByParticipant,
+        [activeParticipantId]: (secondsByParticipant[activeParticipantId] ?? 0) + 1,
+      }));
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [initiativeShowTimer, isTimerRunning, initiativeEncounter, initiativeCurrentIndex]);
+
+  useEffect(() => {
+    if (!initiativeShowTimer) {
+      setTimerSecondsByParticipant({});
+      setIsTimerRunning(false);
+    }
+  }, [initiativeShowTimer]);
+
+  const formatTimer = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const moveToParticipant = (newIndex: number) => {
+    const currentParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
+    const nextParticipantId = initiativeEncounter[newIndex]?.id;
+    setTimerSecondsByParticipant((secondsByParticipant) => ({
+      ...secondsByParticipant,
+      ...(currentParticipantId && secondsByParticipant[currentParticipantId] === undefined
+        ? { [currentParticipantId]: 0 }
+        : {}),
+      ...(nextParticipantId && secondsByParticipant[nextParticipantId] === undefined
+        ? { [nextParticipantId]: 0 }
+        : {}),
+    }));
+    setIsTimerRunning(initiativeShowTimer);
+    updateWidgetData(widget.id, { initiativeCurrentIndex: newIndex });
+  };
 
   // Convert time units to seconds
   const timeToSeconds = (amount: number, unit: string): number => {
@@ -420,12 +465,15 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     if (initiativeEncounter.length === 0) return;
     const newIndex = (initiativeCurrentIndex + 1) % initiativeEncounter.length;
     
-    // If wrapping back to first participant, it's a new round - advance time trackers
-    if (newIndex === 0 && initiativeAdvanceTimeTrackers) {
-      advanceTimeTrackers();
+    // If wrapping back to first participant, reset turn timers and advance time trackers.
+    if (newIndex === 0) {
+      setTimerSecondsByParticipant({});
+      if (initiativeAdvanceTimeTrackers) {
+        advanceTimeTrackers();
+      }
     }
     
-    updateWidgetData(widget.id, { initiativeCurrentIndex: newIndex });
+    moveToParticipant(newIndex);
   };
 
   // Navigate to previous participant
@@ -434,7 +482,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     const newIndex = initiativeCurrentIndex === 0 
       ? initiativeEncounter.length - 1 
       : initiativeCurrentIndex - 1;
-    updateWidgetData(widget.id, { initiativeCurrentIndex: newIndex });
+    moveToParticipant(newIndex);
   };
 
   const reorderEncounter = (dragIdx: number, dropIndex: number) => {
@@ -686,6 +734,19 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
             </button>
           </Tooltip>
         )}
+
+        {initiativeShowTimer && initiativeEncounter.length > 0 && (
+          <Tooltip content={isTimerRunning ? 'Pause turn timer' : 'Start turn timer'}>
+            <button
+              type="button"
+              onClick={() => setIsTimerRunning((isRunning) => !isRunning)}
+              className={`${buttonClass} flex h-[26px] w-7 items-center justify-center border border-theme-border text-theme-ink rounded-button hover:bg-theme-border/30 transition-colors font-body`}
+              aria-label={isTimerRunning ? 'Pause turn timer' : 'Start turn timer'}
+            >
+              {isTimerRunning ? <PauseIcon className="h-3.5 w-3.5" /> : <PlayIcon className="h-3.5 w-3.5" />}
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       {/* Encounter List */}
@@ -737,6 +798,17 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                 <span className={`${itemClass} min-w-0 flex-1 truncate font-body`}>
                   {entry.name}
                 </span>
+
+                {initiativeShowTimer && (index === initiativeCurrentIndex || timerSecondsByParticipant[entry.id] !== undefined) && (
+                  <span
+                    className={`text-[10px] font-mono font-body tabular-nums ${
+                      index === initiativeCurrentIndex ? 'text-theme-paper/65' : 'text-theme-muted'
+                    }`}
+                    aria-label={`Turn time ${formatTimer(timerSecondsByParticipant[entry.id] ?? 0)}`}
+                  >
+                    {formatTimer(timerSecondsByParticipant[entry.id] ?? 0)}
+                  </span>
+                )}
 
                 {entry.isTemporary && (
                   <span className="text-[9px] italic leading-none opacity-60" title="Temporary participant">

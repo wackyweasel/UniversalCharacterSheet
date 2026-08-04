@@ -342,6 +342,7 @@ export interface WidgetData {
   initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
   initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants
   initiativeShowRollButton?: boolean;               // Whether to show the Roll Initiative button
+  initiativeShowTimer?: boolean;                    // Whether to show the active turn timer
   initiativeCurrentIndex?: number;                  // Index of the currently highlighted participant
   initiativeAdvanceTimeTrackers?: boolean;          // Whether to advance Time Tracker widgets on new round
   initiativeAdvanceByRound?: boolean;               // Advance by 1 round (for round-mode Time Trackers)
