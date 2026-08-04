@@ -23,32 +23,61 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
-  const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings } = widget.data;
+  const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings, showDisplayNumberMax = false } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [rangeIssue, setRangeIssue] = useState<string | null>(null);
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [minimumDraft, setMinimumDraft] = useState('');
+  const [maximumDraft, setMaximumDraft] = useState('');
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
 
+  const minimumDraftValue = minimumDraft.trim() === '' ? undefined : Number(minimumDraft);
+  const maximumDraftValue = maximumDraft.trim() === '' ? undefined : Number(maximumDraft);
+  const hasInvalidBounds = Number.isNaN(minimumDraftValue) || Number.isNaN(maximumDraftValue)
+    || (minimumDraftValue !== undefined && maximumDraftValue !== undefined && minimumDraftValue > maximumDraftValue);
+
   const labels = useMemo(() => {
     const char = characters.find(c => c.id === activeCharacterId);
     return char ? collectLabels(char) : {};
   }, [characters, activeCharacterId]);
 
+  const constrainItemValue = (value: number, item: DisplayNumber) => {
+    const { minValue, maxValue } = item;
+    if (minValue !== undefined && maxValue !== undefined && minValue > maxValue) return value;
+    if (minValue !== undefined) value = Math.max(minValue, value);
+    if (maxValue !== undefined) value = Math.min(maxValue, value);
+    return value;
+  };
+
+  const getRangeIssueMessage = (item: DisplayNumber) => {
+    if (item.minValue !== undefined && item.maxValue !== undefined) {
+      return `Value must be between ${item.minValue} and ${item.maxValue}.`;
+    }
+    if (item.minValue !== undefined) return `Value must be at least ${item.minValue}.`;
+    return `Value must be at most ${item.maxValue}.`;
+  };
+
   const handleValueClick = (index: number, currentValue: number) => {
     const item = (displayNumbers as DisplayNumber[])[index];
     if (item.valueFormula) return;
+    setRangeIssue(null);
     setEditingIndex(index);
     setEditValue(String(currentValue));
   };
 
-  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value);
+  const handleValueChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const nextValue = event.target.value;
+    const parsedValue = parseInt(nextValue, 10);
+    const item = (displayNumbers as DisplayNumber[])[index];
+    setEditValue(nextValue);
+    setRangeIssue(!isNaN(parsedValue) && parsedValue !== constrainItemValue(parsedValue, item) ? getRangeIssueMessage(item) : null);
   };
 
   const handleValueBlur = (index: number) => {
@@ -56,10 +85,11 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     if (!isNaN(newValue)) {
       const updated = [...displayNumbers] as DisplayNumber[];
       const oldVal = updated[index].value;
-      updated[index] = { ...updated[index], value: newValue };
+      const constrainedValue = constrainItemValue(newValue, updated[index]);
+      updated[index] = { ...updated[index], value: constrainedValue };
       updateWidgetData(widget.id, { displayNumbers: updated });
-      if (oldVal !== newValue) {
-        addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${updated[index].label}: ${oldVal} → ${newValue}`, '🔢');
+      if (oldVal !== constrainedValue) {
+        addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${updated[index].label}: ${oldVal} → ${constrainedValue}`, '🔢');
         if (updated[index].label === 'Strength' && isCurrentTutorialStep('automation-change-strength')) {
           advanceTutorial();
         }
@@ -67,6 +97,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     }
     setEditingIndex(null);
     setEditValue('');
+    setRangeIssue(null);
   };
 
   const handleValueKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -75,14 +106,22 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     } else if (e.key === 'Escape') {
       setEditingIndex(null);
       setEditValue('');
+      setRangeIssue(null);
     }
   };
 
   const addField = () => {
     const fieldName = fieldNameDraft.trim();
-    if (!fieldName) return;
+    if (!fieldName || hasInvalidBounds) return;
+    const newItem: DisplayNumber = {
+      label: fieldName,
+      value: 0,
+      ...(minimumDraftValue !== undefined ? { minValue: minimumDraftValue } : {}),
+      ...(maximumDraftValue !== undefined ? { maxValue: maximumDraftValue } : {}),
+    };
+    newItem.value = constrainItemValue(newItem.value, newItem);
     updateWidgetData(widget.id, {
-      displayNumbers: [...displayNumbers, { label: fieldName, value: 0 }],
+      displayNumbers: [...displayNumbers, newItem],
     });
     setFieldNameDraft('');
     if (!addMultiple) setFieldDialog(null);
@@ -101,6 +140,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const closeFieldDialog = () => {
     setFieldDialog(null);
     setFieldNameDraft('');
+    setMinimumDraft('');
+    setMaximumDraft('');
     setAddMultiple(false);
     setSelectedFields(new Set());
   };
@@ -164,6 +205,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   type="button"
                   onClick={() => {
                     setFieldNameDraft('');
+                    setMinimumDraft('');
+                    setMaximumDraft('');
                     setAddMultiple(false);
                     setFieldDialog('add');
                   }}
@@ -183,7 +226,10 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
       <div 
         className={`flex-1 flex ${isHorizontal ? 'flex-row' : 'flex-col'} items-stretch justify-center gap-1 p-1 min-h-0 min-w-0 overflow-hidden`}
       >
-        {(displayNumbers as DisplayNumber[]).map((item, idx) => (
+        {(displayNumbers as DisplayNumber[]).map((item, idx) => {
+          const displayedValue = showDisplayNumberMax && item.maxValue !== undefined ? `${item.value}/${item.maxValue}` : item.value;
+
+          return (
           <div 
             key={idx} 
             className={`flex flex-col items-center justify-center border-2 border-theme-border rounded-button bg-theme-paper/50 overflow-hidden ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
@@ -194,19 +240,27 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
           >
             {/* Value - editable on click */}
             {editingIndex === idx ? (
-              <input
-                data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
-                type="text"
-                inputMode="numeric"
-                value={editValue}
-                onChange={handleValueChange}
-                onBlur={() => handleValueBlur(idx)}
-                onKeyDown={(e) => handleValueKeyDown(e, idx)}
-                onMouseDown={(e) => e.stopPropagation()}
-                autoFocus
-                className="text-center font-bold text-theme-ink bg-transparent border-none outline-none w-full"
-                style={{ fontSize: `${numberFontSize}px` }}
-              />
+              <div className="relative w-full">
+                <input
+                  data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
+                  type="text"
+                  inputMode="numeric"
+                  value={editValue}
+                  onChange={(event) => handleValueChange(event, idx)}
+                  onBlur={() => handleValueBlur(idx)}
+                  onKeyDown={(e) => handleValueKeyDown(e, idx)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  autoFocus
+                  aria-invalid={rangeIssue ? true : undefined}
+                  className={`w-full border-none bg-transparent text-center font-bold text-theme-ink outline-none ${rangeIssue ? 'pr-4 text-red-500' : ''}`}
+                  style={{ fontSize: `${numberFontSize}px` }}
+                />
+                {rangeIssue && (
+                  <Tooltip content={rangeIssue}>
+                    <span role="img" aria-label={rangeIssue} className="absolute right-1 top-1/2 -translate-y-1/2 text-xs font-bold leading-none text-red-500">!</span>
+                  </Tooltip>
+                )}
+              </div>
             ) : (
               <span 
                 data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
@@ -225,7 +279,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   }
                 }}
               >
-                {item.value}
+                {displayedValue}
                 {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
                   <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
                 )}
@@ -242,7 +296,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               ) : item.label}
             </span>
           </div>
-        ))}
+          );
+        })}
         
         {displayNumbers.length === 0 && (
           <WidgetEmptyState title="No stats configured" hint={controlsVisible ? 'Use + to add a displayed number.' : undefined} compact />
@@ -286,6 +341,36 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   placeholder="e.g. Luck"
                   className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                 />
+                <div className="mt-3 border-t border-theme-border pt-3">
+                  <p className="text-sm font-medium">Starting bounds <span className="font-normal text-theme-muted">(optional)</span></p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <label className="text-sm">
+                      <span className="mb-1 block">Minimum</span>
+                      <input
+                        type="number"
+                        value={minimumDraft}
+                        onChange={(event) => setMinimumDraft(event.target.value)}
+                        placeholder="No minimum"
+                        className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                        aria-label="Minimum value"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      <span className="mb-1 block">Maximum</span>
+                      <input
+                        type="number"
+                        value={maximumDraft}
+                        onChange={(event) => setMaximumDraft(event.target.value)}
+                        placeholder="No maximum"
+                        className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                        aria-label="Maximum value"
+                      />
+                    </label>
+                  </div>
+                  {hasInvalidBounds && (
+                    <p className="mt-2 text-xs text-red-500">Minimum cannot exceed maximum.</p>
+                  )}
+                </div>
                 <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={closeFieldDialog} className="widget-control px-3 py-1.5 text-sm">
@@ -293,7 +378,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   </button>
                   <button
                     type="submit"
-                    disabled={!fieldNameDraft.trim()}
+                    disabled={!fieldNameDraft.trim() || hasInvalidBounds}
                     className="widget-control widget-control--primary px-3 py-1.5 text-sm"
                   >
                     Add displayed number

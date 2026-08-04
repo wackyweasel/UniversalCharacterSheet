@@ -44,6 +44,12 @@ export function collectLabels(character: Character): Record<string, number> {
           if (item.valueLabel) {
             labels[item.valueLabel] = item.value ?? 0;
           }
+          if (item.minValueLabel) {
+            labels[item.minValueLabel] = item.minValue ?? 0;
+          }
+          if (item.maxValueLabel) {
+            labels[item.maxValueLabel] = item.maxValue ?? 0;
+          }
         }
       }
 
@@ -694,6 +700,8 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'minValue', 'minValueFormula', 'name');
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'maxValue', 'maxValueFormula', 'name');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'value', 'valueFormula', 'label');
+  checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'minValue', 'minValueFormula', 'label');
+  checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'maxValue', 'maxValueFormula', 'label');
   checkArrayChanges(oldWidget.data.diceGroups, newWidget.data.diceGroups, 'count', 'countFormula', 'customDiceName');
 
   // Pool resources: check max and current separately
@@ -860,11 +868,35 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
   if (widget.data.displayNumbers) {
     let itemsChanged = false;
     const updatedItems = (widget.data.displayNumbers as DisplayNumber[]).map(item => {
-      if (!item.valueFormula) return item;
-      const computed = evaluateFormula(item.valueFormula, labels);
-      if (computed !== null && computed !== item.value) {
+      let updatedItem = item;
+      if (item.minValueFormula) {
+        const computed = evaluateFormula(item.minValueFormula, labels);
+        if (computed !== null && computed !== item.minValue) {
+          updatedItem = { ...updatedItem, minValue: computed };
+        }
+      }
+      if (item.maxValueFormula) {
+        const computed = evaluateFormula(item.maxValueFormula, labels);
+        if (computed !== null && computed !== item.maxValue) {
+          updatedItem = { ...updatedItem, maxValue: computed };
+        }
+      }
+      if (item.valueFormula) {
+        const computed = evaluateFormula(item.valueFormula, labels);
+        if (computed !== null && computed !== item.value) {
+          updatedItem = { ...updatedItem, value: computed };
+        }
+      }
+      const { minValue, maxValue } = updatedItem;
+      if (minValue === undefined || maxValue === undefined || minValue <= maxValue) {
+        const clampedValue = Math.max(minValue ?? -Infinity, Math.min(maxValue ?? Infinity, updatedItem.value));
+        if (clampedValue !== updatedItem.value) {
+          updatedItem = { ...updatedItem, value: clampedValue };
+        }
+      }
+      if (updatedItem !== item) {
         itemsChanged = true;
-        return { ...item, value: computed };
+        return updatedItem;
       }
       return item;
     });
@@ -1021,6 +1053,12 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (item.valueLabel) {
             result.push({ label: item.valueLabel, value: item.value, widgetLabel, sheetName: sheet.name });
           }
+          if (item.minValueLabel) {
+            result.push({ label: item.minValueLabel, value: item.minValue ?? 0, widgetLabel, sheetName: sheet.name });
+          }
+          if (item.maxValueLabel) {
+            result.push({ label: item.maxValueLabel, value: item.maxValue ?? 0, widgetLabel, sheetName: sheet.name });
+          }
         }
       }
 
@@ -1163,6 +1201,12 @@ export function buildDependencyGraph(character: Character): Record<string, strin
         for (const item of data.displayNumbers as DisplayNumber[]) {
           if (item.valueLabel && item.valueFormula) {
             graph[item.valueLabel] = extractFormulaRefs(item.valueFormula, labels);
+          }
+          if (item.minValueLabel && item.minValueFormula) {
+            graph[item.minValueLabel] = extractFormulaRefs(item.minValueFormula, labels);
+          }
+          if (item.maxValueLabel && item.maxValueFormula) {
+            graph[item.maxValueLabel] = extractFormulaRefs(item.maxValueFormula, labels);
           }
         }
       }

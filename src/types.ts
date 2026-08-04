@@ -174,6 +174,12 @@ export interface DisplayNumber {
   value: number;
   valueLabel?: string;
   valueFormula?: string;
+  minValue?: number;
+  minValueLabel?: string;
+  minValueFormula?: string;
+  maxValue?: number;
+  maxValueLabel?: string;
+  maxValueFormula?: string;
   tooltip?: string;
 }
 
@@ -284,6 +290,7 @@ export interface WidgetData {
   // Number Display
   displayNumbers?: DisplayNumber[];
   displayLayout?: 'horizontal' | 'vertical';
+  showDisplayNumberMax?: boolean;
   // Form
   formItems?: FormItem[];
   labelWidth?: number;
