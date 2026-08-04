@@ -1,6 +1,6 @@
 import type { WidgetType } from '../types';
 
-export type WidgetCategory = 'Essentials' | 'Track & manage' | 'Roll & resolve' | 'Reference & utilities';
+export type WidgetCategory = 'Character Info' | 'Ressources and Status' | 'Organization' | 'Randomize' | 'Time Management' | 'Mapping';
 
 export interface WidgetOption {
   type: WidgetType;
@@ -10,37 +10,37 @@ export interface WidgetOption {
 }
 
 export const WIDGET_OPTIONS: WidgetOption[] = [
-  { type: 'FORM', label: 'Fields & stats', category: 'Essentials', keywords: 'form attributes scores details' },
-  { type: 'MIXED_FIELDS', label: 'Mixed fields', category: 'Essentials', keywords: 'form text number progress resource dice menu dropdown combined' },
-  { type: 'LABEL', label: 'Label', category: 'Essentials', keywords: 'header heading title section' },
-  { type: 'TEXT', label: 'Notes', category: 'Essentials', keywords: 'text biography description' },
-  { type: 'NUMBER', label: 'Number tracker', category: 'Essentials', keywords: 'counter value resource' },
-  { type: 'LIST', label: 'List', category: 'Essentials', keywords: 'abilities equipment simple entries' },
-  { type: 'IMAGE', label: 'Image', category: 'Essentials', keywords: 'portrait picture artwork' },
-  { type: 'HEALTH_BAR', label: 'Health bar', category: 'Track & manage', keywords: 'hp wounds damage' },
-  { type: 'POOL', label: 'Resource pool', category: 'Track & manage', keywords: 'tokens points mana' },
-  { type: 'PROGRESS_BAR', label: 'Progress bar', category: 'Track & manage', keywords: 'clock advancement track' },
-  { type: 'TOGGLE', label: 'Switch', category: 'Track & manage', keywords: 'toggle on off boolean state flag' },
-  { type: 'CHECKBOX', label: 'Checklist', category: 'Track & manage', keywords: 'check marks tasks' },
-  { type: 'TOGGLE_GROUP', label: 'Conditions', category: 'Track & manage', keywords: 'status toggle effects' },
-  { type: 'SPELL_SLOT', label: 'Spell slots', category: 'Track & manage', keywords: 'magic casting' },
-  { type: 'TIME_TRACKER', label: 'Temporary effects', category: 'Track & manage', keywords: 'duration rounds conditions' },
-  { type: 'TIMER', label: 'Timer', category: 'Track & manage', keywords: 'countdown time' },
-  { type: 'REST_BUTTON', label: 'Rest button', category: 'Track & manage', keywords: 'reset recover refresh' },
-  { type: 'INVENTORY', label: 'Inventory', category: 'Track & manage', keywords: 'items equipment backpack hands horse encumbrance weight' },
-  { type: 'DICE_ROLLER', label: 'Dice roller', category: 'Roll & resolve', keywords: 'roll formula check' },
-  { type: 'DICE_TRAY', label: 'Dice tray', category: 'Roll & resolve', keywords: 'roll dice' },
-  { type: 'STEP_DICE', label: 'Step dice', category: 'Roll & resolve', keywords: 'die rating savage' },
-  { type: 'ROLL_TABLE', label: 'Roll table', category: 'Roll & resolve', keywords: 'random result generator' },
-  { type: 'DECK', label: 'Deck of cards', category: 'Roll & resolve', keywords: 'draw shuffle cards' },
-  { type: 'INITIATIVE_TRACKER', label: 'Initiative tracker', category: 'Roll & resolve', keywords: 'combat turn order' },
-  { type: 'NUMBER_DISPLAY', label: 'Number display', category: 'Reference & utilities', keywords: 'formula calculated total' },
-  { type: 'TABLE', label: 'Table', category: 'Reference & utilities', keywords: 'grid reference data' },
-  { type: 'MAP_SKETCHER', label: 'Map sketcher', category: 'Reference & utilities', keywords: 'draw map diagram' },
-  { type: 'GRID_MAP', label: 'Grid map', category: 'Reference & utilities', keywords: 'battle vtt tokens walls tactical' },
+  { type: 'IMAGE', label: 'Image', category: 'Character Info', keywords: 'portrait picture artwork' },
+  { type: 'FORM', label: 'Fields & stats', category: 'Character Info', keywords: 'form attributes scores details' },
+  { type: 'MIXED_FIELDS', label: 'Mixed fields', category: 'Character Info', keywords: 'form text number progress resource dice menu dropdown combined' },
+  { type: 'NUMBER', label: 'Number tracker', category: 'Character Info', keywords: 'counter value resource' },
+  { type: 'NUMBER_DISPLAY', label: 'Number display', category: 'Character Info', keywords: 'formula calculated total' },
+  { type: 'PROGRESS_BAR', label: 'Progress bar', category: 'Character Info', keywords: 'clock advancement track' },
+  { type: 'REST_BUTTON', label: 'Rest button', category: 'Ressources and Status', keywords: 'reset recover refresh' },
+  { type: 'HEALTH_BAR', label: 'Health bar', category: 'Ressources and Status', keywords: 'hp wounds damage' },
+  { type: 'POOL', label: 'Resource pool', category: 'Ressources and Status', keywords: 'tokens points mana' },
+  { type: 'TOGGLE_GROUP', label: 'Conditions', category: 'Ressources and Status', keywords: 'status toggle effects' },
+  { type: 'SPELL_SLOT', label: 'Spell slots', category: 'Ressources and Status', keywords: 'magic casting' },
+  { type: 'CHECKBOX', label: 'Checklist', category: 'Ressources and Status', keywords: 'check marks tasks' },
+  { type: 'TOGGLE', label: 'Switch', category: 'Ressources and Status', keywords: 'toggle on off boolean state flag' },
+  { type: 'TABLE', label: 'Table', category: 'Organization', keywords: 'grid reference data' },
+  { type: 'INVENTORY', label: 'Inventory', category: 'Organization', keywords: 'items equipment backpack hands horse encumbrance weight' },
+  { type: 'LIST', label: 'List', category: 'Organization', keywords: 'abilities equipment simple entries' },
+  { type: 'TEXT', label: 'Notes', category: 'Organization', keywords: 'text biography description' },
+  { type: 'LABEL', label: 'Label', category: 'Organization', keywords: 'header heading title section' },
+  { type: 'DICE_ROLLER', label: 'Dice roller', category: 'Randomize', keywords: 'roll formula check' },
+  { type: 'DICE_TRAY', label: 'Dice tray', category: 'Randomize', keywords: 'roll dice' },
+  { type: 'STEP_DICE', label: 'Step dice', category: 'Randomize', keywords: 'die rating savage' },
+  { type: 'ROLL_TABLE', label: 'Roll table', category: 'Randomize', keywords: 'random result generator' },
+  { type: 'DECK', label: 'Deck of cards', category: 'Randomize', keywords: 'draw shuffle cards' },
+  { type: 'INITIATIVE_TRACKER', label: 'Initiative tracker', category: 'Time Management', keywords: 'combat turn order' },
+  { type: 'TIMER', label: 'Timer', category: 'Time Management', keywords: 'countdown time' },
+  { type: 'TIME_TRACKER', label: 'Temporary effects', category: 'Time Management', keywords: 'duration rounds conditions' },
+  { type: 'GRID_MAP', label: 'Grid map', category: 'Mapping', keywords: 'battle vtt tokens walls tactical' },
+  { type: 'MAP_SKETCHER', label: 'Map sketcher', category: 'Mapping', keywords: 'draw map diagram' },
 ];
 
-export const WIDGET_CATEGORIES: WidgetCategory[] = ['Essentials', 'Track & manage', 'Roll & resolve', 'Reference & utilities'];
+export const WIDGET_CATEGORIES: WidgetCategory[] = ['Character Info', 'Ressources and Status', 'Organization', 'Randomize', 'Time Management', 'Mapping'];
 
 const WIDGET_LABELS = Object.fromEntries(
   WIDGET_OPTIONS.map(({ type, label }) => [type, label]),
