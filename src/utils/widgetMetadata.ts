@@ -20,6 +20,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'HEALTH_BAR', label: 'Health bar', category: 'Track & manage', keywords: 'hp wounds damage' },
   { type: 'POOL', label: 'Resource pool', category: 'Track & manage', keywords: 'tokens points mana' },
   { type: 'PROGRESS_BAR', label: 'Progress bar', category: 'Track & manage', keywords: 'clock advancement track' },
+  { type: 'TOGGLE', label: 'Switch', category: 'Track & manage', keywords: 'toggle on off boolean state flag' },
   { type: 'CHECKBOX', label: 'Checklist', category: 'Track & manage', keywords: 'check marks tasks' },
   { type: 'TOGGLE_GROUP', label: 'Conditions', category: 'Track & manage', keywords: 'status toggle effects' },
   { type: 'SPELL_SLOT', label: 'Spell slots', category: 'Track & manage', keywords: 'magic casting' },

@@ -11,6 +11,7 @@ import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import LabelWidget from './widgets/LabelWidget';
+import ToggleWidget from './widgets/ToggleWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -91,7 +92,7 @@ export default function VerticalWidget({
     },
   };
   const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && !isWidgetHeaderHidden;
-  const hasInternalHeaderLabel = widget.data.label && !(widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel);
+  const hasInternalHeaderLabel = widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -183,6 +184,7 @@ export default function VerticalWidget({
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
+      case 'TOGGLE': return <ToggleWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;

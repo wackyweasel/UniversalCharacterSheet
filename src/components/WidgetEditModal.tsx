@@ -21,6 +21,7 @@ import {
   SpellSlotEditor,
   ImageEditor,
   PoolEditor,
+  ToggleEditor,
   ConditionEditor,
   TimeTrackerEditor,
   TableEditor,
@@ -39,6 +40,7 @@ import {
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import LabelWidget from './widgets/LabelWidget';
+import ToggleWidget from './widgets/ToggleWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -94,6 +96,7 @@ const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
   'TEXT',
   'TIME_TRACKER',
   'TIMER',
+  'TOGGLE',
   'TOGGLE_GROUP',
 ]);
 
@@ -111,6 +114,7 @@ function getWidgetTitle(type: WidgetType): string {
     'SPELL_SLOT': 'Spell Slots',
     'IMAGE': 'Image',
     'POOL': 'Resource Pool',
+    'TOGGLE': 'Switch',
     'TOGGLE_GROUP': 'Conditions',
     'TABLE': 'Table',
     'TIME_TRACKER': 'Temporary Effects',
@@ -138,7 +142,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && localData.hideWidgetHeader === true;
-  const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && localData.inlineLabel === true;
+  const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && localData.inlineLabel === true;
   const isAutomationCloseStep =
     tutorialStep !== null &&
     (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
@@ -183,6 +187,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'SPELL_SLOT': return <SpellSlotEditor {...editorProps} />;
       case 'IMAGE': return <ImageEditor {...editorProps} />;
       case 'POOL': return <PoolEditor {...editorProps} />;
+      case 'TOGGLE': return <ToggleEditor {...editorProps} />;
       case 'TOGGLE_GROUP': return <ConditionEditor {...editorProps} />;
       case 'TABLE': return <TableEditor {...editorProps} />;
       case 'TIME_TRACKER': return <TimeTrackerEditor {...editorProps} />;
@@ -243,6 +248,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
       case 'POOL': return <PoolWidget {...props} />;
+      case 'TOGGLE': return <ToggleWidget {...props} interactive={false} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
@@ -324,7 +330,13 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
                   height: `${getPreviewDimensions().height + 16}px`
                 }}
               >
-                <div className={`widget-content pointer-events-none ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : `widget-content--editable-header ${hasInlineProgressHeader ? 'widget-content--progress-inline-edit' : ''}`}`}>
+                <div
+                  className={`widget-content pointer-events-none ${
+                    isWidgetHeaderHidden
+                      ? 'widget-content--header-hidden'
+                      : `widget-content--editable-header ${hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''}`
+                  }`}
+                >
                   {!isWidgetHeaderHidden && (
                     <span className="widget-header-edit-button widget-control widget-control--subtle" aria-hidden="true">
                       <PencilIcon className="h-3 w-3" />

@@ -13,6 +13,7 @@ const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import LabelWidget from './widgets/LabelWidget';
+import ToggleWidget from './widgets/ToggleWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -63,6 +64,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'SPELL_SLOT': { width: 80, height: 40 },
   'IMAGE': { width: 40, height: 40 },
   'POOL': { width: 60, height: 40 },
+  'TOGGLE': { width: 60, height: 30 },
   'TOGGLE_GROUP': { width: 60, height: 30 },
   'TABLE': { width: 80, height: 40 },
   'TIME_TRACKER': { width: 90, height: 70 },
@@ -188,7 +190,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
   const isSelected = selectedWidgetId === widget.id;
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.data.hideWidgetHeader === true;
-  const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel === true;
+  const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
   const renderedWidget = {
     ...widget,
     data: {
@@ -732,6 +734,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
+      case 'TOGGLE': return <ToggleWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
@@ -1524,7 +1527,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode !== 'print' && !isWidgetHeaderHidden ? 'widget-content--editable-header' : ''} ${mode !== 'print' && !isWidgetHeaderHidden && hasInlineProgressHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && !isWidgetHeaderHidden ? 'widget-content--editable-header' : ''} ${mode !== 'print' && !isWidgetHeaderHidden && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
             {mode !== 'print' && !isWidgetHeaderHidden && (widget.type !== 'LABEL' || mode === 'edit') && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button

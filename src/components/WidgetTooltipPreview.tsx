@@ -3,6 +3,7 @@ import { Widget, WidgetType } from '../types';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import LabelWidget from './widgets/LabelWidget';
+import ToggleWidget from './widgets/ToggleWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -223,6 +224,21 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
         { name: 'Mana', current: 2, max: 4, style: 'squares' },
       ],
       showPoolCount: false,
+    },
+  },
+  TOGGLE: {
+    id: 'preview-toggle',
+    type: 'TOGGLE',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 52,
+    locked: true,
+    data: {
+      label: 'Torch Lit',
+      toggleState: true,
+      inlineLabel: true,
+      toggleColor: '#d97706',
     },
   },
   TOGGLE_GROUP: {
@@ -576,6 +592,7 @@ function renderWidget(widget: Widget) {
     case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
     case 'IMAGE': return <ImageWidget {...props} showUploadControl={false} />;
     case 'POOL': return <PoolWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'TOGGLE': return <ToggleWidget {...props} interactive={false} />;
     case 'TOGGLE_GROUP': return <ConditionWidget {...props} showFieldControls={false} interactive={false} />;
     case 'TABLE': return <TableWidget {...props} />;
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;

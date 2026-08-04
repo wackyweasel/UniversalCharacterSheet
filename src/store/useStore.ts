@@ -792,8 +792,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'LABEL' ? 160 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'LABEL' ? 32 : DEFAULT_HEIGHT;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -881,6 +881,7 @@ export const useStore = create<StoreState>((set, get) => {
             'SPELL_SLOT': 'Spell Slots',
             'IMAGE': '',
             'POOL': 'Resources',
+            'TOGGLE': 'Switch',
             'TOGGLE_GROUP': 'Conditions',
             'TABLE': 'Table',
             'TIME_TRACKER': 'Temporary Effects',
@@ -918,6 +919,7 @@ export const useStore = create<StoreState>((set, get) => {
               poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
               showPoolCount: false,
             } : {}),
+            ...(type === 'TOGGLE' ? { toggleState: false, inlineLabel: true } : {}),
             ...(type === 'MIXED_FIELDS' ? { mixedFields: [], labelWidth: 33 } : {}),
             ...(type === 'GRID_MAP' ? {
               gridMapTokens: [],

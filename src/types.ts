@@ -13,6 +13,7 @@ export type WidgetType =
   | 'SPELL_SLOT'
   | 'IMAGE'
   | 'POOL'
+  | 'TOGGLE'
   | 'TOGGLE_GROUP'
   | 'TABLE'
   | 'TIME_TRACKER'
@@ -326,6 +327,9 @@ export interface WidgetData {
   poolResources?: PoolResource[];
   inlineLabels?: boolean;
   poolTooltip?: string;
+  // Toggle
+  toggleState?: boolean;
+  toggleColor?: string;
   // Toggle Group
   toggleItems?: ToggleItem[];
   // Table

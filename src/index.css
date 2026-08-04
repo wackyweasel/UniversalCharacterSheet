@@ -196,13 +196,18 @@
   }
 
   .widget-content.widget-content--editable-header.widget-content--progress-inline-edit {
+    padding-bottom: 0;
     padding-right: 30px;
-    padding-top: 6px;
+    padding-top: 0;
   }
 
   .widget-content.widget-content--progress-inline-edit .widget-header-edit-button {
     top: 50%;
     transform: translateY(-50%);
+  }
+
+  .widget-content.widget-content--progress-inline-edit .widget-header-edit-button:active:not(:disabled) {
+    transform: translateY(calc(-50% + 1px));
   }
 
   .widget-content .widget-header,

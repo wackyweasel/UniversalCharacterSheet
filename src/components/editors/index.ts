@@ -13,6 +13,7 @@ export { DiceTrayEditor } from './DiceTrayEditor';
 export { SpellSlotEditor } from './SpellSlotEditor';
 export { ImageEditor } from './ImageEditor';
 export { PoolEditor } from './PoolEditor';
+export { ToggleEditor } from './ToggleEditor';
 export { ConditionEditor } from './ConditionEditor';
 export { TimeTrackerEditor } from './TimeTrackerEditor';
 export { TableEditor } from './TableEditor';

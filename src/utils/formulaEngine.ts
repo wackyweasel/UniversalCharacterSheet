@@ -153,6 +153,7 @@ function getFieldValue(data: WidgetData, field: string): number | undefined {
     case 'currentPool': return typeof data.currentPool === 'number' ? data.currentPool : undefined;
     case 'modifier': return typeof data.modifier === 'number' ? data.modifier : undefined;
     case 'healFlatAmount': return typeof data.healFlatAmount === 'number' ? data.healFlatAmount : undefined;
+    case 'state': return typeof data.toggleState === 'boolean' ? Number(data.toggleState) : undefined;
     case 'localCapacity': return typeof data.inventoryEncumbrance?.localCapacity === 'number' ? data.inventoryEncumbrance.localCapacity : undefined;
     case 'globalCapacity': return typeof data.inventoryEncumbrance?.globalCapacity === 'number' ? data.inventoryEncumbrance.globalCapacity : undefined;
     default: return undefined;
