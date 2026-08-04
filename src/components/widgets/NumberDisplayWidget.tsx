@@ -23,7 +23,14 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
-  const { label, displayNumbers = [], displayLayout = 'horizontal', printSettings, showDisplayNumberMax = false } = widget.data;
+  const {
+    label,
+    displayNumbers = [],
+    displayLayout = 'horizontal',
+    printSettings,
+    showDisplayNumberMax = false,
+    showDisplayNumberLabels = true,
+  } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -286,15 +293,16 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               </span>
             )}
             
-            {/* Label */}
-            <span 
-              className="text-theme-muted font-body truncate w-full text-center px-1 leading-tight"
-              style={{ fontSize: `${labelFontSize}px` }}
-            >
-              {mode === 'play' && item.tooltip ? (
-                <Tooltip content={item.tooltip}><span>{item.label}</span></Tooltip>
-              ) : item.label}
-            </span>
+            {showDisplayNumberLabels && (
+              <span 
+                className="text-theme-muted font-body truncate w-full text-center px-1 leading-tight"
+                style={{ fontSize: `${labelFontSize}px` }}
+              >
+                {mode === 'play' && item.tooltip ? (
+                  <Tooltip content={item.tooltip}><span>{item.label}</span></Tooltip>
+                ) : item.label}
+              </span>
+            )}
           </div>
           );
         })}

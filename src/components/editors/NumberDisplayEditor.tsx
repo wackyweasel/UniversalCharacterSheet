@@ -268,6 +268,16 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
         />
         <span className="text-sm text-theme-ink">Show maximums in display (e.g. 5/10)</span>
       </label>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={widget.data.showDisplayNumberLabels ?? true}
+          onChange={(event) => updateData({ showDisplayNumberLabels: event.target.checked })}
+          className="w-4 h-4 accent-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Show names under numbers</span>
+      </label>
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Numbers</label>

@@ -291,6 +291,7 @@ export interface WidgetData {
   displayNumbers?: DisplayNumber[];
   displayLayout?: 'horizontal' | 'vertical';
   showDisplayNumberMax?: boolean;
+  showDisplayNumberLabels?: boolean;
   // Form
   formItems?: FormItem[];
   labelWidth?: number;
