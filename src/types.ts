@@ -3,6 +3,7 @@ import type { DiceStep } from './utils/diceExpression';
 export type WidgetType = 
   | 'NUMBER' 
   | 'NUMBER_DISPLAY'
+  | 'LABEL'
   | 'LIST' 
   | 'TEXT' 
   | 'CHECKBOX'

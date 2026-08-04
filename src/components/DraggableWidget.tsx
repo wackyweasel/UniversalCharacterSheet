@@ -12,6 +12,7 @@ import { DotsVerticalIcon, PencilIcon } from './icons';
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
+import LabelWidget from './widgets/LabelWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -52,6 +53,7 @@ const GRID_SIZE = 10;
 const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'NUMBER': { width: 60, height: 30 },
   'NUMBER_DISPLAY': { width: 50, height: 40 },
+  'LABEL': { width: 50, height: 20 },
   'LIST': { width: 60, height: 40 },
   'TEXT': { width: 50, height: 30 },
   'CHECKBOX': { width: 60, height: 30 },
@@ -185,7 +187,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   });
 
   const isSelected = selectedWidgetId === widget.id;
-  const isWidgetHeaderHidden = widget.data.hideWidgetHeader === true;
+  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.data.hideWidgetHeader === true;
   const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && widget.data.inlineLabel === true;
   const renderedWidget = {
     ...widget,
@@ -720,6 +722,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
+      case 'LABEL': return <LabelWidget widget={renderedWidget} />;
       case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
@@ -1522,7 +1525,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           )}
 
           <div ref={contentRef} className={`widget-content ${mode !== 'print' && !isWidgetHeaderHidden ? 'widget-content--editable-header' : ''} ${mode !== 'print' && !isWidgetHeaderHidden && hasInlineProgressHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
-            {mode !== 'print' && !isWidgetHeaderHidden && (
+            {mode !== 'print' && !isWidgetHeaderHidden && (widget.type !== 'LABEL' || mode === 'edit') && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button
                   type="button"

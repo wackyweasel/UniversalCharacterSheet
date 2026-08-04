@@ -2,6 +2,7 @@ import { Widget, WidgetType } from '../types';
 
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
+import LabelWidget from './widgets/LabelWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -74,6 +75,18 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
         { label: 'DEX', value: 12 },
         { label: 'WIL', value: 16 },
       ],
+    },
+  },
+  LABEL: {
+    id: 'preview-label',
+    type: 'LABEL',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 32,
+    locked: true,
+    data: {
+      label: 'Section Label',
     },
   },
   LIST: {
@@ -553,6 +566,7 @@ function renderWidget(widget: Widget) {
   switch (widget.type) {
     case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
     case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+    case 'LABEL': return <LabelWidget widget={widget} />;
     case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
     case 'TEXT': return <TextWidget {...props} />;
     case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;

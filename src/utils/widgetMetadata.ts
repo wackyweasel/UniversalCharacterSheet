@@ -12,6 +12,7 @@ export interface WidgetOption {
 export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'FORM', label: 'Fields & stats', category: 'Essentials', keywords: 'form attributes scores details' },
   { type: 'MIXED_FIELDS', label: 'Mixed fields', category: 'Essentials', keywords: 'form text number progress resource dice menu dropdown combined' },
+  { type: 'LABEL', label: 'Label', category: 'Essentials', keywords: 'header heading title section' },
   { type: 'TEXT', label: 'Notes', category: 'Essentials', keywords: 'text biography description' },
   { type: 'NUMBER', label: 'Number tracker', category: 'Essentials', keywords: 'counter value resource' },
   { type: 'LIST', label: 'List', category: 'Essentials', keywords: 'abilities equipment simple entries' },

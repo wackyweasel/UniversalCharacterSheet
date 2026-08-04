@@ -10,6 +10,7 @@ import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
+import LabelWidget from './widgets/LabelWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -79,7 +80,7 @@ export default function VerticalWidget({
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
-  const isWidgetHeaderHidden = widget.data.hideWidgetHeader === true;
+  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.data.hideWidgetHeader === true;
   const renderedWidget = {
     ...widget,
     data: {
@@ -172,6 +173,7 @@ export default function VerticalWidget({
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
+      case 'LABEL': return <LabelWidget widget={renderedWidget} />;
       case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
@@ -264,16 +266,18 @@ export default function VerticalWidget({
           )}
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            <Tooltip content={`Edit ${getWidgetLabel()}`}>
-              <button
-                type="button"
-                onClick={openEditModal}
-                aria-label={`Edit ${getWidgetLabel()}`}
-                className="widget-control widget-control--subtle h-7 w-7 min-h-0"
-              >
-                <PencilIcon className="h-3.5 w-3.5" />
-              </button>
-            </Tooltip>
+            {(widget.type !== 'LABEL' || isBuildMode) && (
+              <Tooltip content={`Edit ${getWidgetLabel()}`}>
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  aria-label={`Edit ${getWidgetLabel()}`}
+                  className="widget-control widget-control--subtle h-7 w-7 min-h-0"
+                >
+                  <PencilIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+            )}
             {isBuildMode && (
               <Tooltip content={`Delete ${getWidgetLabel()}`}>
                 <button

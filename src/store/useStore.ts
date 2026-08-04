@@ -792,8 +792,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : DEFAULT_HEIGHT;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'LABEL' ? 160 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'LABEL' ? 32 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -871,6 +871,7 @@ export const useStore = create<StoreState>((set, get) => {
           const defaultLabels: Record<WidgetType, string> = {
             'NUMBER': 'Trackers',
             'NUMBER_DISPLAY': 'Stats',
+            'LABEL': 'Label',
             'LIST': 'List',
             'TEXT': 'Notes',
             'CHECKBOX': 'Checklist',

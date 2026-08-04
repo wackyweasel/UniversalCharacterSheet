@@ -38,6 +38,7 @@ import {
 // Widget preview components (play mode view)
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
+import LabelWidget from './widgets/LabelWidget';
 import ListWidget from './widgets/ListWidget';
 import TextWidget from './widgets/TextWidget';
 import CheckboxWidget from './widgets/CheckboxWidget';
@@ -100,6 +101,7 @@ function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
     'NUMBER': 'Number Tracker',
     'NUMBER_DISPLAY': 'Number Display',
+    'LABEL': 'Label',
     'LIST': 'List',
     'TEXT': 'Text',
     'CHECKBOX': 'Checklist',
@@ -135,7 +137,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
-  const isWidgetHeaderHidden = localData.hideWidgetHeader === true;
+  const isWidgetHeaderHidden = widget.type !== 'LABEL' && localData.hideWidgetHeader === true;
   const hasInlineProgressHeader = widget.type === 'PROGRESS_BAR' && localData.inlineLabel === true;
   const isAutomationCloseStep =
     tutorialStep !== null &&
@@ -171,6 +173,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     switch (widget.type) {
       case 'NUMBER': return <NumberEditor {...editorProps} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayEditor {...editorProps} />;
+      case 'LABEL': return <TextEditor {...editorProps} />;
       case 'LIST': return <ListEditor {...editorProps} />;
       case 'TEXT': return <TextEditor {...editorProps} />;
       case 'CHECKBOX': return <CheckboxEditor {...editorProps} />;
@@ -230,6 +233,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+      case 'LABEL': return <LabelWidget widget={renderedPreviewWidget} />;
       case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
@@ -304,7 +308,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           <div className={`flex flex-col ${widget.type === 'INVENTORY' ? 'gap-3' : 'gap-6'}`}>
             {/* Editor Section */}
             <div className="flex-1 min-w-0">
-              {renderHeaderVisibilitySetting()}
+              {widget.type !== 'LABEL' && renderHeaderVisibilitySetting()}
               <div className={isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : undefined}>
                 {renderEditor()}
               </div>
