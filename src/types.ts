@@ -313,6 +313,7 @@ export interface WidgetData {
   rows?: TableRow[];
   tableColumnSettings?: TableColumnSettings[];
   tableRowSettings?: TableRowSettings[];
+  hideTableHeader?: boolean;
   showTableEditButton?: boolean;
   // Time Tracker
   timedEffects?: TimedEffect[];

@@ -745,6 +745,7 @@ export default function TableWidget({ widget, height }: Props) {
     rows = [],
     tableColumnSettings = [],
     tableRowSettings = [],
+    hideTableHeader = false,
     showTableEditButton = true
   } = widget.data;
   
@@ -924,6 +925,7 @@ export default function TableWidget({ widget, height }: Props) {
   const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
   const showHeader = !!label || (!isPrintMode && showTableEditButton);
+  const showTableHeader = !hideTableHeader || showTableControls;
   
   // Calculate table area height
   const labelHeight = showHeader ? 16 : 0;
@@ -1588,7 +1590,7 @@ export default function TableWidget({ widget, height }: Props) {
             })}
             {showTableControls && <col style={{ width: '36px' }} />}
           </colgroup>
-          <thead className="sticky top-0 z-10">
+          {showTableHeader && <thead className="sticky top-0 z-10">
             <tr>
               {showTableControls && <th className="w-5 bg-transparent" />}
               {columns.map((col: string, idx: number) => {
@@ -1713,7 +1715,7 @@ export default function TableWidget({ widget, height }: Props) {
                 </th>
               )}
             </tr>
-          </thead>
+          </thead>}
           <tbody>
             {rows.length === 0 && (
               <tr>
@@ -1787,7 +1789,7 @@ export default function TableWidget({ widget, height }: Props) {
                         ...getCellStyle(cellFormat),
                         ...textColorStyle,
                         ...getColumnWidthStyle(colIdx),
-                        borderTopWidth: 0,
+                        borderTopWidth: rowIdx === 0 && !showTableHeader ? 1 : 0,
                         borderLeftWidth: colIdx === 0 ? 1 : 0,
                       }}
                     >
