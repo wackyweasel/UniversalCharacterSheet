@@ -111,6 +111,7 @@ export interface CellFormat {
   strikethrough?: boolean;
   bgColor?: string;
   bgOpacity?: number;
+  textColor?: string;
   hAlign?: 'left' | 'center' | 'right';
   vAlign?: 'top' | 'middle' | 'bottom';
 }

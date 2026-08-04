@@ -132,6 +132,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   const [adjustedPosition, setAdjustedPosition] = useState({ x: position.x, y: position.y });
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const [showTextColorPicker, setShowTextColorPicker] = useState(false);
+  const textColorInputRef = useRef<HTMLInputElement>(null);
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(cellLabel || '');
@@ -225,7 +227,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
     setAdjustedPosition(current => (
       current.x === nextPosition.x && current.y === nextPosition.y ? current : nextPosition
     ));
-  }, [position, isMobile, showColorPicker, showLabelInput, showFormulaInput]);
+  }, [position, isMobile, showColorPicker, showTextColorPicker, showLabelInput, showFormulaInput]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
@@ -300,7 +302,10 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           <Tooltip content="Background Color">
             <button
               className={`${buttonClass} ${iconSize} text-theme-ink`}
-              onClick={() => setShowColorPicker(!showColorPicker)}
+              onClick={() => {
+                setShowColorPicker(!showColorPicker);
+                setShowTextColorPicker(false);
+              }}
             >
               <span className="relative">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -421,6 +426,64 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           )}
         </div>
 
+        {/* Text Color */}
+        <div className="relative">
+          <Tooltip content="Text Color">
+            <button
+              className={`${buttonClass} ${iconSize} text-theme-ink`}
+              onClick={() => {
+                setShowTextColorPicker(!showTextColorPicker);
+                setShowColorPicker(false);
+              }}
+            >
+              <span className="relative font-bold">
+                A
+                {format.textColor && (
+                  <span
+                    className="absolute -bottom-0.5 left-0 right-0 h-1 rounded-sm"
+                    style={{ backgroundColor: format.textColor }}
+                  />
+                )}
+              </span>
+            </button>
+          </Tooltip>
+          {showTextColorPicker && (
+            <div
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-button shadow-lg p-2 z-10"
+              style={{ minWidth: '160px' }}
+            >
+              <Tooltip content="Use the theme text color">
+                <button
+                  className={`w-full h-7 rounded border mb-2 ${!format.textColor ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
+                  onClick={() => {
+                    onFormatChange({ textColor: undefined });
+                    setShowTextColorPicker(false);
+                  }}
+                >
+                  <span className="text-theme-ink text-xs">Default text color</span>
+                </button>
+              </Tooltip>
+              <div className="text-[10px] text-theme-muted mb-1">Custom color</div>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={textColorInputRef}
+                  type="color"
+                  value={format.textColor || '#1a1a1a'}
+                  onChange={(e) => onFormatChange({ textColor: e.target.value })}
+                  className="w-8 h-8 rounded border border-theme-border cursor-pointer"
+                  style={{ padding: 0 }}
+                />
+                <button
+                  className="flex-1 px-2 py-1 text-xs border border-theme-border rounded hover:bg-theme-accent hover:text-theme-paper"
+                  onClick={() => textColorInputRef.current?.click()}
+                >
+                  Pick color
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Divider */}
         <div className="w-px h-5 bg-theme-border mx-1" />
 
@@ -468,6 +531,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
               setShowLabelInput(!showLabelInput);
               setShowFormulaInput(false);
               setShowColorPicker(false);
+              setShowTextColorPicker(false);
               setLabelDraft(cellLabel || '');
             }}
           >
@@ -486,6 +550,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
               setShowFormulaInput(!showFormulaInput);
               setShowLabelInput(false);
               setShowColorPicker(false);
+              setShowTextColorPicker(false);
               setFormulaDraft(cellFormula || '');
             }}
           >
@@ -1314,6 +1379,10 @@ export default function TableWidget({ widget, height }: Props) {
         }
       }
     }
+
+    if (format.textColor) {
+      style.color = format.textColor;
+    }
     
     if (format.hAlign) {
       style.textAlign = format.hAlign;
@@ -1528,7 +1597,7 @@ export default function TableWidget({ widget, height }: Props) {
                 const isSelected = selectedColumn === idx;
                 const isEditingHeader = editingColumnHeader === idx;
                 const needsDarkText = columnFormat.bgColor ? isLightColor(columnFormat.bgColor, columnFormat.bgOpacity ?? 1) : false;
-                const textColorStyle = needsDarkText ? { color: '#1a1a1a' } : {};
+                const textColorStyle = !columnFormat.textColor && needsDarkText ? { color: '#1a1a1a' } : {};
 
                 return (
                 <th
@@ -1561,8 +1630,8 @@ export default function TableWidget({ widget, height }: Props) {
                           if (event.key === 'Enter' || event.key === 'Escape') setEditingColumnHeader(null);
                         }}
                         onClick={(event) => event.stopPropagation()}
-                        className={`w-full min-w-0 bg-transparent p-0 text-center font-heading focus:outline-none ${needsDarkText ? '' : 'text-theme-ink'}`}
-                        style={textColorStyle}
+                        className={`w-full min-w-0 bg-transparent p-0 text-center font-heading focus:outline-none ${needsDarkText || columnFormat.textColor ? '' : 'text-theme-ink'}`}
+                        style={columnFormat.textColor ? { color: columnFormat.textColor } : textColorStyle}
                       />
                     ) : (
                       <span className="min-w-0 truncate text-center">{col}</span>
@@ -1708,7 +1777,7 @@ export default function TableWidget({ widget, height }: Props) {
                   const isEditing = editingCell?.row === rowIdx && editingCell?.col === colIdx;
                   const needsDarkText = cellFormat.bgColor ? isLightColor(cellFormat.bgColor, cellFormat.bgOpacity ?? 1) : false;
                   // Use inline style with dark color (#1a1a1a) for light backgrounds to ensure readability
-                  const textColorStyle = needsDarkText ? { color: '#1a1a1a' } : {};
+                  const textColorStyle = !cellFormat.textColor && needsDarkText ? { color: '#1a1a1a' } : {};
                   
                   return (
                     <td 
