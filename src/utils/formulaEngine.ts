@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField } from '../types';
 
 /**
  * Collects all labels and their current values from a character.
@@ -58,6 +58,20 @@ export function collectLabels(character: Character): Record<string, number> {
         for (const res of data.poolResources as PoolResource[]) {
           if (res.maxLabel) labels[res.maxLabel] = res.max ?? 0;
           if (res.currentLabel) labels[res.currentLabel] = res.current ?? 0;
+        }
+      }
+
+      if (data.mixedFields) {
+        for (const field of data.mixedFields as MixedField[]) {
+          if (field.type === 'number') {
+            if (field.valueLabel) labels[field.valueLabel] = field.value;
+            if (field.minValueLabel) labels[field.minValueLabel] = field.minValue ?? 0;
+            if (field.maxValueLabel) labels[field.maxValueLabel] = field.maxValue ?? 0;
+          }
+          if (field.type === 'progress' || field.type === 'resource') {
+            if (field.currentLabel) labels[field.currentLabel] = field.current;
+            if (field.maxLabel) labels[field.maxLabel] = field.max;
+          }
         }
       }
 
@@ -703,6 +717,11 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'minValue', 'minValueFormula', 'label');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'maxValue', 'maxValueFormula', 'label');
   checkArrayChanges(oldWidget.data.diceGroups, newWidget.data.diceGroups, 'count', 'countFormula', 'customDiceName');
+  checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'value', 'valueFormula', 'name');
+  checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'minValue', 'minValueFormula', 'name');
+  checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'maxValue', 'maxValueFormula', 'name');
+  checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'current', 'currentFormula', 'name');
+  checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'max', 'maxFormula', 'name');
 
   // Pool resources: check max and current separately
   if (oldWidget.data.poolResources && newWidget.data.poolResources) {
@@ -933,6 +952,58 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
     }
   }
 
+  if (widget.data.mixedFields) {
+    let fieldsChanged = false;
+    const updatedFields = (widget.data.mixedFields as MixedField[]).map((field) => {
+      if (field.type === 'number') {
+        let updatedField = field;
+        if (field.minValueFormula) {
+          const computed = evaluateFormula(field.minValueFormula, labels);
+          if (computed !== null && computed !== field.minValue) updatedField = { ...updatedField, minValue: computed };
+        }
+        if (field.maxValueFormula) {
+          const computed = evaluateFormula(field.maxValueFormula, labels);
+          if (computed !== null && computed !== field.maxValue) updatedField = { ...updatedField, maxValue: computed };
+        }
+        if (field.valueFormula) {
+          const computed = evaluateFormula(field.valueFormula, labels);
+          if (computed !== null && computed !== field.value) updatedField = { ...updatedField, value: computed };
+        }
+        if (updatedField.minValue === undefined || updatedField.maxValue === undefined || updatedField.minValue <= updatedField.maxValue) {
+          const value = Math.max(updatedField.minValue ?? -Infinity, Math.min(updatedField.maxValue ?? Infinity, updatedField.value));
+          if (value !== updatedField.value) updatedField = { ...updatedField, value };
+        }
+        if (updatedField !== field) fieldsChanged = true;
+        return updatedField;
+      }
+
+      if (field.type === 'progress' || field.type === 'resource') {
+        let updatedField = field;
+        if (field.maxFormula) {
+          const computed = evaluateFormula(field.maxFormula, labels);
+          if (computed !== null) {
+            const max = Math.max(1, computed);
+            if (max !== field.max) updatedField = { ...updatedField, max };
+          }
+        }
+        if (field.currentFormula) {
+          const computed = evaluateFormula(field.currentFormula, labels);
+          if (computed !== null && computed !== updatedField.current) updatedField = { ...updatedField, current: computed };
+        }
+        const current = Math.max(0, Math.min(updatedField.max, updatedField.current));
+        if (current !== updatedField.current) updatedField = { ...updatedField, current };
+        if (updatedField !== field) fieldsChanged = true;
+        return updatedField;
+      }
+
+      return field;
+    });
+    if (fieldsChanged) {
+      changed = true;
+      updates.mixedFields = updatedFields;
+    }
+  }
+
   // Resolve InitiativeParticipant formulas
   if (widget.data.initiativePool) {
     let itemsChanged = false;
@@ -1066,6 +1137,20 @@ export function getAvailableLabels(character: Character): { label: string; value
         for (const res of data.poolResources as PoolResource[]) {
           if (res.maxLabel) result.push({ label: res.maxLabel, value: res.max, widgetLabel, sheetName: sheet.name });
           if (res.currentLabel) result.push({ label: res.currentLabel, value: res.current, widgetLabel, sheetName: sheet.name });
+        }
+      }
+
+      if (data.mixedFields) {
+        for (const field of data.mixedFields as MixedField[]) {
+          if (field.type === 'number') {
+            if (field.valueLabel) result.push({ label: field.valueLabel, value: field.value, widgetLabel, sheetName: sheet.name });
+            if (field.minValueLabel) result.push({ label: field.minValueLabel, value: field.minValue ?? 0, widgetLabel, sheetName: sheet.name });
+            if (field.maxValueLabel) result.push({ label: field.maxValueLabel, value: field.maxValue ?? 0, widgetLabel, sheetName: sheet.name });
+          }
+          if (field.type === 'progress' || field.type === 'resource') {
+            if (field.currentLabel) result.push({ label: field.currentLabel, value: field.current, widgetLabel, sheetName: sheet.name });
+            if (field.maxLabel) result.push({ label: field.maxLabel, value: field.max, widgetLabel, sheetName: sheet.name });
+          }
         }
       }
 
@@ -1216,6 +1301,20 @@ export function buildDependencyGraph(character: Character): Record<string, strin
         for (const res of data.poolResources as PoolResource[]) {
           if (res.maxLabel && res.maxFormula) graph[res.maxLabel] = extractFormulaRefs(res.maxFormula, labels);
           if (res.currentLabel && res.currentFormula) graph[res.currentLabel] = extractFormulaRefs(res.currentFormula, labels);
+        }
+      }
+
+      if (data.mixedFields) {
+        for (const field of data.mixedFields as MixedField[]) {
+          if (field.type === 'number') {
+            if (field.valueLabel && field.valueFormula) graph[field.valueLabel] = extractFormulaRefs(field.valueFormula, labels);
+            if (field.minValueLabel && field.minValueFormula) graph[field.minValueLabel] = extractFormulaRefs(field.minValueFormula, labels);
+            if (field.maxValueLabel && field.maxValueFormula) graph[field.maxValueLabel] = extractFormulaRefs(field.maxValueFormula, labels);
+          }
+          if (field.type === 'progress' || field.type === 'resource') {
+            if (field.currentLabel && field.currentFormula) graph[field.currentLabel] = extractFormulaRefs(field.currentFormula, labels);
+            if (field.maxLabel && field.maxFormula) graph[field.maxLabel] = extractFormulaRefs(field.maxFormula, labels);
+          }
         }
       }
 

@@ -16,6 +16,7 @@ export type WidgetType =
   | 'TABLE'
   | 'TIME_TRACKER'
   | 'FORM'
+  | 'MIXED_FIELDS'
   | 'REST_BUTTON'
   | 'PROGRESS_BAR'
   | 'MAP_SKETCHER'
@@ -190,6 +191,22 @@ export interface FormItem {
   tooltip?: string;
 }
 
+export type MixedFieldType = 'text' | 'number' | 'progress' | 'resource' | 'step-dice' | 'menu';
+
+interface MixedFieldBase {
+  name: string;
+  tooltip?: string;
+}
+
+export type MixedField = MixedFieldBase & (
+  | { type: 'text'; value: string }
+  | { type: 'number'; value: number; valueLabel?: string; valueFormula?: string; minValue?: number; minValueLabel?: string; minValueFormula?: string; maxValue?: number; maxValueLabel?: string; maxValueFormula?: string }
+  | { type: 'progress'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; showPercentage?: boolean; showValues?: boolean; fillColor?: string }
+  | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }
+  | { type: 'step-dice'; currentStep: number; diceChain?: DiceStep[] }
+  | { type: 'menu'; value: string; options: string[] }
+);
+
 export interface DiceGroup {
   count: number;
   faces: number;
@@ -296,6 +313,8 @@ export interface WidgetData {
   // Form
   formItems?: FormItem[];
   labelWidth?: number;
+  // Mixed Fields
+  mixedFields?: MixedField[];
   // Image
   imageUrl?: string;
   // Pool

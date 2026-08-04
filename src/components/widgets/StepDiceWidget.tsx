@@ -30,7 +30,7 @@ interface Props {
   interactive?: boolean;
 }
 
-const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
+export const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
 const getPhysicalDiceRequests = (terms: DiceExpressionTerm[]): PhysicalDieRequest[] => (
   terms.flatMap((term) => {
@@ -49,7 +49,7 @@ const getPhysicalDiceRequests = (terms: DiceExpressionTerm[]): PhysicalDieReques
   })
 );
 
-const rollDiceStep = async (terms: DiceExpressionTerm[]): Promise<DiceExpressionRollResult> => {
+export const rollDiceStep = async (terms: DiceExpressionTerm[]): Promise<DiceExpressionRollResult> => {
   const physicalDice = getPhysicalDiceRequests(terms);
   const physicalValues = physicalDice.length > 0
     ? await rollPhysicalDice(physicalDice)

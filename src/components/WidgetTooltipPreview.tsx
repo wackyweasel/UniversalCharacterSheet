@@ -15,6 +15,7 @@ import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
+import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -277,6 +278,26 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       formItems: [
         { name: 'Class', value: 'Ranger' },
         { name: 'Origin', value: 'Woodlands' },
+      ],
+    },
+  },
+  MIXED_FIELDS: {
+    id: 'preview-mixed-fields',
+    type: 'MIXED_FIELDS',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 166,
+    locked: true,
+    data: {
+      label: 'Adventurer',
+      labelWidth: 34,
+      mixedFields: [
+        { type: 'text', name: 'Calling', value: 'Pathfinder' },
+        { type: 'number', name: 'Armor', value: 2, minValue: 0 },
+        { type: 'progress', name: 'Journey', current: 3, max: 6, showValues: true },
+        { type: 'resource', name: 'Supply', current: 3, max: 5, style: 'dots' },
+        { type: 'menu', name: 'Stance', value: 'Guarded', options: ['Bold', 'Guarded', 'Cautious'] },
       ],
     },
   },
@@ -545,6 +566,7 @@ function renderWidget(widget: Widget) {
     case 'TABLE': return <TableWidget {...props} />;
     case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
     case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
+    case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
     case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;

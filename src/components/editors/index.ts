@@ -2,6 +2,7 @@ export type { EditorProps } from './types';
 export { NumberEditor } from './NumberEditor';
 export { NumberDisplayEditor } from './NumberDisplayEditor';
 export { FormEditor } from './FormEditor';
+export { MixedFieldsEditor } from './MixedFieldsEditor';
 export { ListEditor } from './ListEditor';
 export { TextEditor } from './TextEditor';
 export { CheckboxEditor } from './CheckboxEditor';

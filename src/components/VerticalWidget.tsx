@@ -23,6 +23,7 @@ import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
+import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -46,6 +47,7 @@ interface Props {
 
 const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'FORM',
+  'MIXED_FIELDS',
   'LIST',
   'CHECKBOX',
   'NUMBER',
@@ -183,6 +185,7 @@ export default function VerticalWidget({
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
+      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;

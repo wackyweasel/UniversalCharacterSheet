@@ -884,6 +884,7 @@ export const useStore = create<StoreState>((set, get) => {
             'TABLE': 'Table',
             'TIME_TRACKER': 'Temporary Effects',
             'FORM': 'Character Info',
+            'MIXED_FIELDS': 'Mixed Fields',
             'REST_BUTTON': 'Rest',
             'PROGRESS_BAR': 'Progress',
             'MAP_SKETCHER': 'Map',
@@ -916,6 +917,7 @@ export const useStore = create<StoreState>((set, get) => {
               poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
               showPoolCount: false,
             } : {}),
+            ...(type === 'MIXED_FIELDS' ? { mixedFields: [], labelWidth: 33 } : {}),
             ...(type === 'GRID_MAP' ? {
               gridMapTokens: [],
               gridMapWalls: [],

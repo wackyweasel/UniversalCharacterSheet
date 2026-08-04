@@ -25,6 +25,7 @@ import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
+import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -64,6 +65,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'TABLE': { width: 80, height: 40 },
   'TIME_TRACKER': { width: 90, height: 70 },
   'FORM': { width: 80, height: 30 },
+  'MIXED_FIELDS': { width: 140, height: 60 },
   'REST_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
   'MAP_SKETCHER': { width: 100, height: 100 },
@@ -731,6 +733,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
+      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} sheetScale={scale} />;

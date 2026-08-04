@@ -74,6 +74,13 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
         add(item.name || 'Field value', item.value);
       });
       break;
+    case 'MIXED_FIELDS':
+      data.mixedFields?.forEach((field) => {
+        add('Field', field.name);
+        if (field.type === 'text' || field.type === 'menu') add(field.name || 'Field value', field.value);
+        if (field.type === 'menu') field.options.forEach((option) => add(`${field.name || 'Menu'} option`, option));
+      });
+      break;
     case 'CHECKBOX':
       data.checkboxItems?.forEach((item) => add('Checklist item', item.name));
       break;

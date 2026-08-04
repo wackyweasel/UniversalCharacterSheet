@@ -10,6 +10,7 @@ import {
   NumberEditor,
   NumberDisplayEditor,
   FormEditor,
+  MixedFieldsEditor,
   ListEditor,
   TextEditor,
   CheckboxEditor,
@@ -50,6 +51,7 @@ import ConditionWidget from './widgets/ConditionWidget';
 import TableWidget from './widgets/TableWidget';
 import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
+import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -72,6 +74,7 @@ const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
   'DICE_ROLLER',
   'DICE_TRAY',
   'FORM',
+  'MIXED_FIELDS',
   'GRID_MAP',
   'HEALTH_BAR',
   'IMAGE',
@@ -110,6 +113,7 @@ function getWidgetTitle(type: WidgetType): string {
     'TABLE': 'Table',
     'TIME_TRACKER': 'Temporary Effects',
     'FORM': 'Form',
+    'MIXED_FIELDS': 'Mixed Fields',
     'REST_BUTTON': 'Rest Button',
     'PROGRESS_BAR': 'Progress Bar',
     'MAP_SKETCHER': 'Map Sketcher',
@@ -180,6 +184,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TABLE': return <TableEditor {...editorProps} />;
       case 'TIME_TRACKER': return <TimeTrackerEditor {...editorProps} />;
       case 'FORM': return <FormEditor {...editorProps} />;
+      case 'MIXED_FIELDS': return <MixedFieldsEditor {...editorProps} />;
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
@@ -238,6 +243,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
+      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
