@@ -72,6 +72,9 @@ export function collectLabels(character: Character): Record<string, number> {
             if (field.currentLabel) labels[field.currentLabel] = field.current;
             if (field.maxLabel) labels[field.maxLabel] = field.max;
           }
+          if (field.type === 'switch' && field.valueLabel) {
+            labels[field.valueLabel] = field.value ? 1 : 0;
+          }
         }
       }
 
@@ -1151,6 +1154,9 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (field.type === 'progress' || field.type === 'resource') {
             if (field.currentLabel) result.push({ label: field.currentLabel, value: field.current, widgetLabel, sheetName: sheet.name });
             if (field.maxLabel) result.push({ label: field.maxLabel, value: field.max, widgetLabel, sheetName: sheet.name });
+          }
+          if (field.type === 'switch' && field.valueLabel) {
+            result.push({ label: field.valueLabel, value: field.value ? 1 : 0, widgetLabel, sheetName: sheet.name });
           }
         }
       }

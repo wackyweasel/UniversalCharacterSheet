@@ -193,7 +193,7 @@ export interface FormItem {
   tooltip?: string;
 }
 
-export type MixedFieldType = 'text' | 'number' | 'progress' | 'resource' | 'step-dice' | 'menu';
+export type MixedFieldType = 'text' | 'number' | 'progress' | 'resource' | 'step-dice' | 'menu' | 'switch';
 
 interface MixedFieldBase {
   name: string;
@@ -207,6 +207,7 @@ export type MixedField = MixedFieldBase & (
   | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }
   | { type: 'step-dice'; currentStep: number; diceChain?: DiceStep[] }
   | { type: 'menu'; value: string; options: string[] }
+  | { type: 'switch'; value: boolean; valueLabel?: string; toggleColor?: string }
 );
 
 export interface DiceGroup {

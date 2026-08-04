@@ -10,6 +10,7 @@ export const MIXED_FIELD_TYPE_OPTIONS: { value: MixedFieldType; label: string }[
   { value: 'resource', label: 'Resource' },
   { value: 'step-dice', label: 'Step dice' },
   { value: 'menu', label: 'Menu' },
+  { value: 'switch', label: 'Switch' },
 ];
 
 export function createMixedField(type: MixedFieldType, name: string): MixedField {
@@ -24,6 +25,8 @@ export function createMixedField(type: MixedFieldType, name: string): MixedField
       return { type, name, currentStep: 0 };
     case 'menu':
       return { type, name, value: '', options: [] };
+    case 'switch':
+      return { type, name, value: false };
     case 'text':
     default:
       return { type: 'text', name, value: '' };

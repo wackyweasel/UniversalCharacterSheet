@@ -225,7 +225,7 @@ export function LabeledNumberField({
           max={max}
           step={step}
           placeholder={placeholder}
-          className={`px-2 py-1 border border-theme-border rounded-button text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+          className={`px-2 py-1 border border-theme-border rounded-button font-body text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
             compact ? (hideStepperButtons ? 'w-14' : 'w-[6rem]') : 'flex-1 min-w-[60px]'
           } ${
             hasFormula
@@ -338,7 +338,7 @@ export function LabeledNumberField({
                 if (e.key === 'Escape') setShowLabelInput(false);
               }}
               placeholder="e.g. str, max_hp"
-              className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-xs focus:outline-none focus:border-theme-accent"
+              className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper font-body text-theme-ink text-xs focus:outline-none focus:border-theme-accent"
               autoFocus
             />
             <button
