@@ -119,6 +119,14 @@
       "description": "Buffy RPG Premade Character",
       "file": "presets/amateur_hunter.json",
       "gameSystem": "Buffy RPG"
+    },
+    {
+      "id": "16",
+      "name": "Generic Preset 1",
+      "author": "@WackyWeasel",
+      "description": "Some of the few most generally useful elements. Use this for simple games or as a starting point.",
+      "file": "presets/generic_preset_1.json",
+      "gameSystem": "Generic"
     }
   ],
   "themes": [
