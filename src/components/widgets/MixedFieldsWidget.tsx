@@ -474,7 +474,7 @@ export default function MixedFieldsWidget({
         </div>
       )}
 
-      <div className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
         {mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
             <span className="flex-shrink-0 truncate text-xs font-body text-theme-ink" style={{ width: `${labelWidth}%` }}>

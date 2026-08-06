@@ -69,7 +69,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'TABLE': { width: 80, height: 40 },
   'TIME_TRACKER': { width: 90, height: 70 },
   'FORM': { width: 80, height: 30 },
-  'MIXED_FIELDS': { width: 140, height: 60 },
+  'MIXED_FIELDS': { width: 140, height: 30 },
   'REST_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
   'MAP_SKETCHER': { width: 100, height: 100 },
