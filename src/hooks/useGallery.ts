@@ -58,7 +58,8 @@ export function useGallery() {
         const cached = localStorage.getItem(THEME_DATA_CACHE_KEY);
         if (cached) {
           const data = JSON.parse(cached);
-          if (Date.now() - data.timestamp < CACHE_TTL_MS) {
+          const includesAllThemes = themes.every((theme) => data.themes?.[theme.id]);
+          if (Date.now() - data.timestamp < CACHE_TTL_MS && includesAllThemes) {
             setThemeData(data.themes);
             return;
           }

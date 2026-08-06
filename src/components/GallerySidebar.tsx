@@ -184,7 +184,7 @@ function ExpandableDescription({ description, className, style }: ExpandableDesc
       className={`${className} ${canExpand ? 'cursor-pointer rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500' : ''}`}
       style={style}
     >
-      <p ref={descriptionRef} className={expanded ? undefined : 'line-clamp-2'}>{description}</p>
+      <p ref={descriptionRef} className={expanded ? 'whitespace-pre-line' : 'line-clamp-2 whitespace-pre-line'}>{description}</p>
       {canExpand && (
         <span className="block mt-1 text-[11px] font-semibold underline underline-offset-2">
           {expanded ? 'Show less' : 'Read more'}
