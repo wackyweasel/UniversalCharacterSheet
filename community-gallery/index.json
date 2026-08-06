@@ -127,6 +127,14 @@
       "description": "Some of the few most generally useful elements. Use this for simple games or as a starting point.",
       "file": "presets/generic_preset_1.json",
       "gameSystem": "Generic"
+      },
+      {
+        "id": "17",
+        "name": "Knight v1.1",
+        "author": "@Xomerian",
+        "description": "Character sheet for Knight RPG (French version)\nUpdated with the website update\n+ Better switch\n+ Better design for list\n+ More compatible with smaller devices (not yet for phones)",
+        "file": "presets/knight_ttrpg_v1_1.json",
+        "gameSystem": "Knight"
     }
   ],
   "themes": [
@@ -164,6 +172,13 @@
       "author": "@aMetsu",
       "description": "Dark mode of the Ordem sheet",
       "file": "themes/ordem_paranormal.json"
+    },
+    {
+      "id": "6",
+      "name": "Konoha's scroll",
+      "author": "@Nyest",
+      "description": "A theme inspired on Naruto.",
+      "file": "themes/konoha_scroll.json"
     }
   ],
   "templates": [
