@@ -207,10 +207,10 @@ export default function ShareExportMenu({
                 </button></Tooltip>
               </div>}
               {!inlineActionIds.has('undo-redo') && <div className="grid grid-cols-2 gap-1">
-                <Tooltip content="Undo the last change (Ctrl+Z)" placement="below"><span className="inline-flex w-full"><button type="button" onClick={() => { onUndo(); onOpenChange(false); }} disabled={!canUndo} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
+                <Tooltip content="Undo the last change (Ctrl+Z)" placement="below"><span className="inline-flex w-full"><button type="button" onClick={onUndo} disabled={!canUndo} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
                   <UndoIcon className="h-4 w-4" /> Undo
                 </button></span></Tooltip>
-                <Tooltip content="Redo the last undone change (Ctrl+Y)" placement="below"><span className="inline-flex w-full"><button type="button" onClick={() => { onRedo(); onOpenChange(false); }} disabled={!canRedo} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
+                <Tooltip content="Redo the last undone change (Ctrl+Y)" placement="below"><span className="inline-flex w-full"><button type="button" onClick={onRedo} disabled={!canRedo} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-button bg-theme-background text-xs font-body text-theme-ink disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-theme-accent/20">
                   <UndoIcon className="h-4 w-4 scale-x-[-1]" /> Redo
                 </button></span></Tooltip>
               </div>}

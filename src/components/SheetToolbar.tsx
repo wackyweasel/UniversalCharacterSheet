@@ -306,9 +306,10 @@ export default function SheetToolbar({
     const candidates = [
       ...(playLayout === 'list' ? [{ id: 'collapse-expand', labeledWidth: 188, iconWidth: 80 }] : []),
       { id: 'layout', labeledWidth: 176, iconWidth: 80 },
-      { id: workspace === 'build' ? 'add-widget' : 'timeline', labeledWidth: 116, iconWidth: 42 },
-      { id: 'undo-redo', labeledWidth: 152, iconWidth: 80 },
+      { id: 'add-widget', labeledWidth: 116, iconWidth: 42 },
+      { id: 'undo-redo', labeledWidth: 80, iconWidth: 80 },
     ];
+    if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42 });
     if (workspace === 'build') candidates.push({ id: 'theme', labeledWidth: 126, iconWidth: 42 });
     if (workspace === 'build' && playLayout === 'canvas' && onAutoStack) candidates.push({ id: 'auto-stack', labeledWidth: 110, iconWidth: 42 });
     return candidates;
@@ -427,7 +428,7 @@ export default function SheetToolbar({
           </div>
         )}
       </div>}
-      {workspace === 'build' && inlineActionIds.has('add-widget') ? (
+      {inlineActionIds.has('add-widget') && (
         <Tooltip content={addWidgetLabel} placement="below">
           <button
             type="button"
@@ -439,7 +440,8 @@ export default function SheetToolbar({
             <PlusIcon className="h-4 w-4" /> {showLabel('add-widget') && <span>{addWidgetLabel}</span>}
           </button>
         </Tooltip>
-      ) : workspace === 'play' && inlineActionIds.has('timeline') ? (
+      )}
+      {workspace === 'play' && inlineActionIds.has('timeline') && (
         <Tooltip content={timelineOpen ? 'Close timeline' : 'Open timeline'} placement="below">
           <button
             type="button"
@@ -452,11 +454,11 @@ export default function SheetToolbar({
             <ClockIcon className="h-4 w-4" /> {showLabel('timeline') && <span>Timeline</span>}
           </button>
         </Tooltip>
-      ) : null}
+      )}
       {inlineActionIds.has('undo-redo') && (
         <div className="flex shrink-0 gap-1">
-          <Tooltip content="Undo (Ctrl+Z)" placement="below"><span className="inline-flex"><button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" className={utilityButtonClass}><UndoIcon className="h-4 w-4" /> {showLabel('undo-redo') && <span>Undo</span>}</button></span></Tooltip>
-          <Tooltip content="Redo (Ctrl+Y)" placement="below"><span className="inline-flex"><button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" className={utilityButtonClass}><UndoIcon className="h-4 w-4 scale-x-[-1]" /> {showLabel('undo-redo') && <span>Redo</span>}</button></span></Tooltip>
+          <Tooltip content="Undo (Ctrl+Z)" placement="below"><span className="inline-flex"><button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" className={utilityButtonClass}><UndoIcon className="h-4 w-4" /></button></span></Tooltip>
+          <Tooltip content="Redo (Ctrl+Y)" placement="below"><span className="inline-flex"><button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" className={utilityButtonClass}><UndoIcon className="h-4 w-4 scale-x-[-1]" /></button></span></Tooltip>
         </div>
       )}
       {inlineActionIds.has('theme') && (
