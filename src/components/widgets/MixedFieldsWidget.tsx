@@ -39,19 +39,22 @@ const HOLD_DELAY_MS = 300;
 interface MixedProgressValueModalProps {
   field: Extract<MixedField, { type: 'progress' }>;
   currentEditable: boolean;
+  minEditable: boolean;
   maxEditable: boolean;
-  onConfirm: (current: number, max: number) => void;
+  onConfirm: (current: number, min: number, max: number) => void;
   onCancel: () => void;
 }
 
-function MixedProgressValueModal({ field, currentEditable, maxEditable, onConfirm, onCancel }: MixedProgressValueModalProps) {
+function MixedProgressValueModal({ field, currentEditable, minEditable, maxEditable, onConfirm, onCancel }: MixedProgressValueModalProps) {
   const [currentDraft, setCurrentDraft] = useState(String(field.current));
+  const [minDraft, setMinDraft] = useState(String(field.min ?? 0));
   const [maxDraft, setMaxDraft] = useState(String(field.max));
 
   const submit = () => {
-    const max = maxEditable && Number.isFinite(Number(maxDraft)) ? Math.max(1, Number(maxDraft)) : field.max;
+    const min = minEditable && Number.isFinite(Number(minDraft)) ? Math.min(field.max, Number(minDraft)) : field.min ?? 0;
+    const max = maxEditable && Number.isFinite(Number(maxDraft)) ? Math.max(min, Number(maxDraft)) : field.max;
     const current = currentEditable && Number.isFinite(Number(currentDraft)) ? Number(currentDraft) : field.current;
-    onConfirm(Math.max(0, Math.min(max, current)), max);
+    onConfirm(Math.max(min, Math.min(max, current)), min, max);
   };
 
   return (
@@ -59,8 +62,9 @@ function MixedProgressValueModal({ field, currentEditable, maxEditable, onConfir
       <div className="fixed inset-0 z-[9999] bg-black/50 animate-fade-in" onClick={onCancel} onMouseDown={(event) => event.stopPropagation()} />
       <form role="dialog" aria-modal="true" aria-label={`Set ${field.name} values`} className="fixed left-1/2 top-1/2 z-[10000] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-button border border-theme-border bg-theme-paper p-4 font-body text-theme-ink shadow-theme animate-fade-in" onSubmit={(event) => { event.preventDefault(); submit(); }} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
         <h3 className="font-heading text-base font-bold">{field.name || 'Progress'} values</h3>
-        <label className="mt-3 block text-sm font-medium">Current value<input autoFocus={currentEditable} type="number" min="0" max={maxDraft || field.max} value={currentDraft} disabled={!currentEditable} onChange={(event) => setCurrentDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
-        <label className="mt-3 block text-sm font-medium">Maximum value<input autoFocus={!currentEditable && maxEditable} type="number" min="1" value={maxDraft} disabled={!maxEditable} onChange={(event) => setMaxDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
+        <label className="mt-3 block text-sm font-medium">Current value<input autoFocus={currentEditable} type="number" min={minDraft || field.min || 0} max={maxDraft || field.max} value={currentDraft} disabled={!currentEditable} onChange={(event) => setCurrentDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
+        <label className="mt-3 block text-sm font-medium">Minimum value<input autoFocus={!currentEditable && minEditable} type="number" max={maxDraft || field.max} value={minDraft} disabled={!minEditable} onChange={(event) => setMinDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
+        <label className="mt-3 block text-sm font-medium">Maximum value<input autoFocus={!currentEditable && !minEditable && maxEditable} type="number" min={minDraft || field.min || 0} value={maxDraft} disabled={!maxEditable} onChange={(event) => setMaxDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
         <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button><button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Save</button></div>
       </form>
     </>
@@ -90,12 +94,17 @@ function MixedProgressControl({
   const pointerStartXRef = useRef(0);
   const pointerLatestXRef = useRef(0);
   const hasCurrentFormula = !!field.currentFormula;
+  const hasMinFormula = !!field.minFormula;
   const hasMaxFormula = !!field.maxFormula;
-  const valuesEditable = canInteract && (!hasCurrentFormula || !hasMaxFormula);
-  const safeMax = Math.max(1, field.max);
+  const valuesEditable = canInteract && (!hasCurrentFormula || !hasMinFormula || !hasMaxFormula);
+  const safeMin = Math.min(field.min ?? 0, field.max);
+  const safeMax = Math.max(safeMin, field.max);
+  const valueRange = Math.max(1, safeMax - safeMin);
   const displayedValue = scrubValue ?? field.current;
-  const percentage = Math.round((Math.max(0, Math.min(safeMax, displayedValue)) / safeMax) * 100);
+  const percentage = Math.round((Math.max(safeMin, Math.min(safeMax, displayedValue)) - safeMin) / valueRange * 100);
+  const fillPercentage = Math.round(Math.max(0, Math.min(100, displayedValue / Math.max(1, safeMax) * 100)));
   const currentBroken = hasCurrentFormula && isFormulaBroken(field.currentFormula!, labels);
+  const minBroken = hasMinFormula && isFormulaBroken(field.minFormula!, labels);
   const maxBroken = hasMaxFormula && isFormulaBroken(field.maxFormula!, labels);
 
   useEffect(() => () => {
@@ -110,24 +119,25 @@ function MixedProgressControl({
 
   const getValueFromPointer = (clientX: number, element: HTMLDivElement) => {
     const bounds = element.getBoundingClientRect();
-    const delta = bounds.width > 0 ? ((clientX - pointerStartXRef.current) / bounds.width) * safeMax : 0;
-    return Math.round(Math.max(0, Math.min(safeMax, scrubStartRef.current + delta)));
+    const delta = bounds.width > 0 ? ((clientX - pointerStartXRef.current) / bounds.width) * valueRange : 0;
+    return Math.round(Math.max(safeMin, Math.min(safeMax, scrubStartRef.current + delta)));
   };
 
   const updateCurrent = (current: number) => {
     if (hasCurrentFormula) return;
-    const nextCurrent = Math.max(0, Math.min(safeMax, current));
+    const nextCurrent = Math.max(safeMin, Math.min(safeMax, current));
     if (nextCurrent === field.current) return;
     onUpdate({ ...field, current: nextCurrent });
     onAnnounce(`${field.current}/${safeMax} → ${nextCurrent}/${safeMax}`);
   };
 
-  const setValues = (current: number, max: number) => {
-    const nextMax = hasMaxFormula ? field.max : Math.max(1, max);
-    const nextCurrent = hasCurrentFormula ? field.current : Math.max(0, Math.min(nextMax, current));
-    if (nextCurrent !== field.current || nextMax !== field.max) {
-      onUpdate({ ...field, ...(hasCurrentFormula ? {} : { current: nextCurrent }), ...(hasMaxFormula ? {} : { max: nextMax }) });
-      onAnnounce(`${field.current}/${field.max} → ${nextCurrent}/${nextMax}`);
+  const setValues = (current: number, min: number, max: number) => {
+    const nextMin = hasMinFormula ? field.min ?? 0 : Math.min(max, min);
+    const nextMax = hasMaxFormula ? field.max : Math.max(nextMin, max);
+    const nextCurrent = hasCurrentFormula ? field.current : Math.max(nextMin, Math.min(nextMax, current));
+    if (nextCurrent !== field.current || nextMin !== (field.min ?? 0) || nextMax !== field.max) {
+      onUpdate({ ...field, ...(hasCurrentFormula ? {} : { current: nextCurrent }), ...(hasMinFormula ? {} : { min: nextMin }), ...(hasMaxFormula ? {} : { max: nextMax }) });
+      onAnnounce(`${field.current}/${field.min ?? 0}-${field.max} → ${nextCurrent}/${nextMin}-${nextMax}`);
     }
     setShowValueModal(false);
   };
@@ -142,11 +152,11 @@ function MixedProgressControl({
 
   return (
     <>
-      <Tooltip content={hasCurrentFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit maximum' : 'Click to edit; hold and drag to change progress'}>
+      <Tooltip content={hasCurrentFormula && hasMinFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit bounds' : 'Click to edit; hold and drag to change progress'}>
         <div
           role={valuesEditable && !hasCurrentFormula ? 'slider' : 'progressbar'}
           aria-label={field.name || 'Progress'}
-          aria-valuemin={0}
+          aria-valuemin={safeMin}
           aria-valuemax={safeMax}
           aria-valuenow={displayedValue}
           aria-valuetext={`${displayedValue} of ${safeMax}`}
@@ -210,11 +220,11 @@ function MixedProgressControl({
             }
           }}
         >
-          <div className="progress-bar__fill-clip"><div className="progress-bar__fill" style={{ width: isPrintMode ? '0%' : `${percentage}%`, ...(field.fillColor ? { backgroundColor: field.fillColor } : {}) }} /></div>
-          {readout && <div className={`progress-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>{currentBroken && <span className="mr-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.currentFormula}`}>⚠</span>}<strong>{readout}</strong>{maxBroken && <span className="ml-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.maxFormula}`}>⚠</span>}</div>}
+          <div className="progress-bar__fill-clip"><div className="progress-bar__fill" style={{ width: isPrintMode ? '0%' : `${fillPercentage}%`, ...(field.fillColor ? { backgroundColor: field.fillColor } : {}) }} /></div>
+          {readout && <div className={`progress-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>{currentBroken && <span className="mr-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.currentFormula}`}>⚠</span>}{minBroken && <span className="mr-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.minFormula}`}>⚠</span>}<strong>{readout}</strong>{maxBroken && <span className="ml-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.maxFormula}`}>⚠</span>}</div>}
         </div>
       </Tooltip>
-      {showValueModal && createPortal(<MixedProgressValueModal field={field} currentEditable={!hasCurrentFormula} maxEditable={!hasMaxFormula} onConfirm={setValues} onCancel={() => setShowValueModal(false)} />, document.body)}
+      {showValueModal && createPortal(<MixedProgressValueModal field={field} currentEditable={!hasCurrentFormula} minEditable={!hasMinFormula} maxEditable={!hasMaxFormula} onConfirm={setValues} onCancel={() => setShowValueModal(false)} />, document.body)}
     </>
   );
 }

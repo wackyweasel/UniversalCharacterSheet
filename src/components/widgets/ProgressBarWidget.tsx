@@ -16,11 +16,13 @@ interface Props {
 
 interface ProgressValueModalProps {
   currentValue: number;
+  minValue: number;
   maxValue: number;
   currentEditable: boolean;
+  minEditable: boolean;
   maxEditable: boolean;
   allowOutOfRange: boolean;
-  onConfirm: (currentValue: number, maxValue: number) => void;
+  onConfirm: (currentValue: number, minValue: number, maxValue: number) => void;
   onCancel: () => void;
 }
 
@@ -28,23 +30,29 @@ const HOLD_DELAY_MS = 300;
 
 function ProgressValueModal({
   currentValue,
+  minValue,
   maxValue,
   currentEditable,
+  minEditable,
   maxEditable,
   allowOutOfRange,
   onConfirm,
   onCancel,
 }: ProgressValueModalProps) {
   const [currentDraft, setCurrentDraft] = useState(String(currentValue));
+  const [minDraft, setMinDraft] = useState(String(minValue));
   const [maxDraft, setMaxDraft] = useState(String(maxValue));
 
   const submit = () => {
+    const parsedMin = Number(minDraft);
+    const nextMin = minEditable && Number.isFinite(parsedMin) ? Math.min(maxValue, parsedMin) : minValue;
     const parsedMax = Number(maxDraft);
-    const nextMax = maxEditable && Number.isFinite(parsedMax) ? Math.max(1, parsedMax) : maxValue;
+    const nextMax = maxEditable && Number.isFinite(parsedMax) ? Math.max(nextMin, parsedMax) : maxValue;
     const parsedCurrent = Number(currentDraft);
     const nextCurrent = currentEditable && Number.isFinite(parsedCurrent) ? parsedCurrent : currentValue;
     onConfirm(
-      allowOutOfRange ? nextCurrent : Math.max(0, Math.min(nextMax, nextCurrent)),
+      allowOutOfRange ? nextCurrent : Math.max(nextMin, Math.min(nextMax, nextCurrent)),
+      nextMin,
       nextMax,
     );
   };
@@ -82,19 +90,30 @@ function ProgressValueModal({
           id="progress-current-value"
           autoFocus={currentEditable}
           type="number"
-          min={allowOutOfRange ? undefined : 0}
+          min={allowOutOfRange ? undefined : Number(minDraft) || minValue}
           max={allowOutOfRange ? undefined : Number(maxDraft) || maxValue}
           value={currentDraft}
           onChange={(event) => setCurrentDraft(event.target.value)}
           disabled={!currentEditable}
           className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         />
+        <label htmlFor="progress-min-value" className="mt-3 block text-sm font-medium">Min value</label>
+        <input
+          id="progress-min-value"
+          autoFocus={!currentEditable && minEditable}
+          type="number"
+          max={Number(maxDraft) || maxValue}
+          value={minDraft}
+          onChange={(event) => setMinDraft(event.target.value)}
+          disabled={!minEditable}
+          className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        />
         <label htmlFor="progress-max-value" className="mt-3 block text-sm font-medium">Max value</label>
         <input
           id="progress-max-value"
-          autoFocus={!currentEditable && maxEditable}
+          autoFocus={!currentEditable && !minEditable && maxEditable}
           type="number"
-          min="1"
+          min={Number(minDraft) || minValue}
           value={maxDraft}
           onChange={(event) => setMaxDraft(event.target.value)}
           disabled={!maxEditable}
@@ -117,6 +136,7 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
   const { 
     label, 
     currentValue = 0, 
+    minValue = 0,
     maxValue = 100,
     showPercentage = false,
     showValues = true,
@@ -139,10 +159,13 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
   const pointerLatestYRef = useRef(0);
   const holdTimerRef = useRef<number | null>(null);
   const hasCurrentFormula = !!fieldFormulas?.currentValue;
+  const hasMinFormula = !!fieldFormulas?.minValue;
   const hasMaxFormula = !!fieldFormulas?.maxValue;
   const controlsVisible = interactive && !isPrintMode;
-  const valuesEditable = controlsVisible && (!hasCurrentFormula || !hasMaxFormula);
-  const safeMaxValue = Math.max(1, maxValue);
+  const valuesEditable = controlsVisible && (!hasCurrentFormula || !hasMinFormula || !hasMaxFormula);
+  const safeMinValue = Math.min(minValue, maxValue);
+  const safeMaxValue = Math.max(safeMinValue, maxValue);
+  const valueRange = Math.max(1, safeMaxValue - safeMinValue);
   const displayedValue = scrubValue ?? currentValue;
 
   const labels = useMemo(() => {
@@ -151,9 +174,11 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
   }, [characters, activeCharacterId]);
 
   const currentBroken = hasCurrentFormula && isFormulaBroken(fieldFormulas!.currentValue, labels);
+  const minBroken = hasMinFormula && isFormulaBroken(fieldFormulas!.minValue, labels);
   const maxBroken = hasMaxFormula && isFormulaBroken(fieldFormulas!.maxValue, labels);
 
-  const progressPercent = Math.max(0, Math.min(100, (displayedValue / safeMaxValue) * 100));
+  const progressPercent = Math.max(0, Math.min(100, ((displayedValue - safeMinValue) / valueRange) * 100));
+  const fillPercent = Math.max(0, Math.min(100, (displayedValue / Math.max(1, safeMaxValue)) * 100));
 
   useEffect(() => () => {
     if (holdTimerRef.current !== null) window.clearTimeout(holdTimerRef.current);
@@ -168,9 +193,9 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
   const valueFromDrag = (clientX: number, clientY: number, element: HTMLDivElement) => {
     const bounds = element.getBoundingClientRect();
     const delta = verticalBar
-      ? (bounds.height > 0 ? ((pointerStartYRef.current - clientY) / bounds.height) * safeMaxValue : 0)
-      : (bounds.width > 0 ? ((clientX - pointerStartXRef.current) / bounds.width) * safeMaxValue : 0);
-    return Math.round(Math.max(0, Math.min(safeMaxValue, scrubStartRef.current + delta)));
+      ? (bounds.height > 0 ? ((pointerStartYRef.current - clientY) / bounds.height) * valueRange : 0)
+      : (bounds.width > 0 ? ((clientX - pointerStartXRef.current) / bounds.width) * valueRange : 0);
+    return Math.round(Math.max(safeMinValue, Math.min(safeMaxValue, scrubStartRef.current + delta)));
   };
 
   const startScrub = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -232,22 +257,24 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
   };
 
   const setFromKeyboard = (nextValue: number) => {
-    const boundedValue = Math.max(0, Math.min(safeMaxValue, nextValue));
+    const boundedValue = Math.max(safeMinValue, Math.min(safeMaxValue, nextValue));
     if (boundedValue === currentValue) return;
     updateWidgetData(widget.id, { currentValue: boundedValue });
     addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue} → ${boundedValue} / ${safeMaxValue}`, '📊');
   };
 
-  const setValues = (nextCurrent: number, nextMax: number) => {
+  const setValues = (nextCurrent: number, nextMin: number, nextMax: number) => {
     const updatedCurrent = hasCurrentFormula ? currentValue : nextCurrent;
+    const updatedMin = hasMinFormula ? minValue : nextMin;
     const updatedMax = hasMaxFormula ? maxValue : nextMax;
     updateWidgetData(widget.id, {
       ...(hasCurrentFormula ? {} : { currentValue: updatedCurrent }),
+      ...(hasMinFormula ? {} : { minValue: updatedMin }),
       ...(hasMaxFormula ? {} : { maxValue: updatedMax }),
     });
     setShowValueModal(false);
-    if (updatedCurrent !== currentValue || updatedMax !== maxValue) {
-      addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue}/${maxValue} → ${updatedCurrent}/${updatedMax}`, '📊');
+    if (updatedCurrent !== currentValue || updatedMin !== minValue || updatedMax !== maxValue) {
+      addTimelineEvent(label || 'Progress Bar', 'PROGRESS_BAR', `${currentValue}/${minValue}-${maxValue} → ${updatedCurrent}/${updatedMin}-${updatedMax}`, '📊');
     }
   };
 
@@ -292,14 +319,14 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
             −
           </button>
         </Tooltip>}
-        <Tooltip content={hasCurrentFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit maximum' : 'Click to edit; hold and drag to change progress'}>
+        <Tooltip content={hasCurrentFormula && hasMinFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit bounds' : 'Click to edit; hold and drag to change progress'}>
           <div
             className={`progress-bar__track ${!valuesEditable ? 'progress-bar__track--disabled' : ''}`}
             data-touch-camera-ignore={valuesEditable ? 'true' : undefined}
             role={controlsVisible && !hasCurrentFormula ? 'slider' : 'progressbar'}
             tabIndex={valuesEditable ? 0 : undefined}
             aria-label={label || 'Progress'}
-            aria-valuemin={0}
+            aria-valuemin={safeMinValue}
             aria-valuemax={safeMaxValue}
             aria-valuenow={displayedValue}
             aria-valuetext={`${displayedValue} of ${safeMaxValue}`}
@@ -321,7 +348,7 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
                 setFromKeyboard(currentValue + increment);
               } else if (!hasCurrentFormula && event.key === 'Home') {
                 event.preventDefault();
-                setFromKeyboard(0);
+                setFromKeyboard(safeMinValue);
               } else if (!hasCurrentFormula && event.key === 'End') {
                 event.preventDefault();
                 setFromKeyboard(safeMaxValue);
@@ -332,8 +359,8 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
               <div
                 className={`progress-bar__fill ${scrubValue !== null ? 'progress-bar__fill--scrubbing' : ''}`}
                 style={verticalBar
-                  ? { height: isPrintMode ? '0%' : `${progressPercent}%`, ...(fillColor ? { backgroundColor: fillColor } : {}) }
-                  : { width: isPrintMode ? '0%' : `${progressPercent}%`, ...(fillColor ? { backgroundColor: fillColor } : {}) }}
+                  ? { height: isPrintMode ? '0%' : `${fillPercent}%`, ...(fillColor ? { backgroundColor: fillColor } : {}) }
+                  : { width: isPrintMode ? '0%' : `${fillPercent}%`, ...(fillColor ? { backgroundColor: fillColor } : {}) }}
               />
             </div>
             {(showValues || (showPercentage && !isPrintMode)) && (
@@ -343,6 +370,7 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
                 ) : (
                   <>
                     {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
+                    {minBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.minValue}`}>⚠</span>}
                     <strong>{getBarText()}</strong>
                     {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
                   </>
@@ -370,8 +398,10 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
       {showValueModal && createPortal(
         <ProgressValueModal
           currentValue={currentValue}
+          minValue={safeMinValue}
           maxValue={safeMaxValue}
           currentEditable={!hasCurrentFormula}
+          minEditable={!hasMinFormula}
           maxEditable={!hasMaxFormula}
           allowOutOfRange={allowOutOfRange}
           onConfirm={setValues}

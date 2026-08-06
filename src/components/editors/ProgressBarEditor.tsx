@@ -6,6 +6,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
   const { 
     label, 
     maxValue = 100, 
+    minValue = 0,
     currentValue = 0,
     showPercentage = false,
     showValues = true,
@@ -18,7 +19,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
     fieldFormulas = {}
   } = widget.data;
 
-  const clampCurrentValue = (value: number, maximum = maxValue) => Math.max(0, Math.min(maximum, value));
+  const clampCurrentValue = (value: number, minimum = minValue, maximum = maxValue) => Math.max(minimum, Math.min(maximum, value));
 
   const setFieldLabel = (field: string, labelName: string | undefined) => {
     const updated = { ...fieldLabels };
@@ -69,8 +70,26 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             onFieldLabelChange={(l) => setFieldLabel('currentValue', l)}
             formula={fieldFormulas['currentValue']}
             onFormulaChange={(f) => setFieldFormula('currentValue', f)}
-            min={allowOutOfRange ? undefined : 0}
+            min={allowOutOfRange ? undefined : minValue}
             max={allowOutOfRange ? undefined : maxValue}
+          />
+        </div>
+        <div>
+          <LabeledNumberField
+            displayLabel="Minimum Value"
+            value={typeof minValue === 'number' ? minValue : 0}
+            onChange={(v) => {
+              const nextMin = Math.min(maxValue, v);
+              updateData({
+                minValue: nextMin,
+                ...(allowOutOfRange ? {} : { currentValue: clampCurrentValue(currentValue, nextMin) })
+              });
+            }}
+            fieldLabel={fieldLabels['minValue']}
+            onFieldLabelChange={(l) => setFieldLabel('minValue', l)}
+            formula={fieldFormulas['minValue']}
+            onFormulaChange={(f) => setFieldFormula('minValue', f)}
+            max={maxValue}
           />
         </div>
         <div>
@@ -78,17 +97,17 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             displayLabel="Maximum Value"
             value={typeof maxValue === 'number' ? maxValue : 100}
             onChange={(v) => {
-              const nextMax = Math.max(1, v);
+              const nextMax = Math.max(minValue, v);
               updateData({
                 maxValue: nextMax,
-                ...(allowOutOfRange ? {} : { currentValue: clampCurrentValue(currentValue, nextMax) })
+                ...(allowOutOfRange ? {} : { currentValue: clampCurrentValue(currentValue, minValue, nextMax) })
               });
             }}
             fieldLabel={fieldLabels['maxValue']}
             onFieldLabelChange={(l) => setFieldLabel('maxValue', l)}
             formula={fieldFormulas['maxValue']}
             onFormulaChange={(f) => setFieldFormula('maxValue', f)}
-            min={1}
+            min={minValue}
           />
         </div>
       </div>
@@ -194,7 +213,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             }}
             className="w-4 h-4 accent-theme-accent"
           />
-          <span className="text-sm text-theme-ink">Allow values outside 0 to max</span>
+          <span className="text-sm text-theme-ink">Allow values outside minimum to maximum</span>
         </label>
         
         <label className="flex items-center gap-2 cursor-pointer mb-2">

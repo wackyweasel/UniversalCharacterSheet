@@ -18,7 +18,7 @@ export function createMixedField(type: MixedFieldType, name: string): MixedField
     case 'number':
       return { type, name, value: 0 };
     case 'progress':
-      return { type, name, current: 0, max: 10, showValues: true };
+      return { type, name, current: 0, min: 0, max: 10, showValues: true };
     case 'resource':
       return { type, name, current: 5, max: 5, style: 'dots' };
     case 'step-dice':

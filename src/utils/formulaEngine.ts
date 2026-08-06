@@ -70,6 +70,7 @@ export function collectLabels(character: Character): Record<string, number> {
           }
           if (field.type === 'progress' || field.type === 'resource') {
             if (field.currentLabel) labels[field.currentLabel] = field.current;
+            if (field.type === 'progress' && field.minLabel) labels[field.minLabel] = field.min ?? 0;
             if (field.maxLabel) labels[field.maxLabel] = field.max;
           }
           if (field.type === 'switch' && field.valueLabel) {
@@ -149,6 +150,7 @@ export function collectLabels(character: Character): Record<string, number> {
 
 function getFieldValue(data: WidgetData, field: string): number | undefined {
   switch (field) {
+    case 'minValue': return typeof data.minValue === 'number' ? data.minValue : undefined;
     case 'maxValue': return typeof data.maxValue === 'number' ? data.maxValue : undefined;
     case 'currentValue': return typeof data.currentValue === 'number' ? data.currentValue : undefined;
     case 'increment': return typeof data.increment === 'number' ? data.increment : undefined;
@@ -811,6 +813,7 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
             changed = true;
             switch (field) {
               case 'maxValue': updates.maxValue = resolvedValue; break;
+              case 'minValue': updates.minValue = resolvedValue; break;
               case 'currentValue': updates.currentValue = resolvedValue; break;
               case 'increment': updates.increment = resolvedValue; break;
               case 'maxPool': updates.maxPool = resolvedValue; break;
@@ -836,9 +839,14 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
 
   if (widget.type === 'PROGRESS_BAR' && !widget.data.allowOutOfRange) {
     const maxValue = updates.maxValue ?? widget.data.maxValue ?? 100;
-    const originalCurrentValue = widget.data.currentValue ?? 0;
+    const minValue = Math.min(maxValue, updates.minValue ?? widget.data.minValue ?? 0);
+    if (widget.data.minValue !== minValue) {
+      changed = true;
+      updates.minValue = minValue;
+    }
+    const originalCurrentValue = widget.data.currentValue ?? minValue;
     const currentValue = updates.currentValue ?? originalCurrentValue;
-    const clampedValue = Math.max(0, Math.min(maxValue, currentValue));
+    const clampedValue = Math.max(minValue, Math.min(maxValue, currentValue));
     if (originalCurrentValue !== clampedValue) {
       changed = true;
       updates.currentValue = clampedValue;
@@ -981,7 +989,32 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
         return updatedField;
       }
 
-      if (field.type === 'progress' || field.type === 'resource') {
+      if (field.type === 'progress') {
+        let updatedField = field;
+        if (field.minFormula) {
+          const computed = evaluateFormula(field.minFormula, labels);
+          if (computed !== null && computed !== field.min) updatedField = { ...updatedField, min: computed };
+        }
+        if (field.maxFormula) {
+          const computed = evaluateFormula(field.maxFormula, labels);
+          if (computed !== null) {
+            const max = Math.max(updatedField.min ?? 0, computed);
+            if (max !== field.max) updatedField = { ...updatedField, max };
+          }
+        }
+        if (field.currentFormula) {
+          const computed = evaluateFormula(field.currentFormula, labels);
+          if (computed !== null && computed !== updatedField.current) updatedField = { ...updatedField, current: computed };
+        }
+        const min = Math.min(updatedField.max, updatedField.min ?? 0);
+        if (updatedField.min !== min) updatedField = { ...updatedField, min };
+        const current = Math.max(min, Math.min(updatedField.max, updatedField.current));
+        if (current !== updatedField.current) updatedField = { ...updatedField, current };
+        if (updatedField !== field) fieldsChanged = true;
+        return updatedField;
+      }
+
+      if (field.type === 'resource') {
         let updatedField = field;
         if (field.maxFormula) {
           const computed = evaluateFormula(field.maxFormula, labels);
