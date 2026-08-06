@@ -13,6 +13,7 @@ import {
   MixedFieldsEditor,
   ListEditor,
   TextEditor,
+  LabelEditor,
   CheckboxEditor,
   ProgressBarEditor,
   HealthBarEditor,
@@ -177,7 +178,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     switch (widget.type) {
       case 'NUMBER': return <NumberEditor {...editorProps} />;
       case 'NUMBER_DISPLAY': return <NumberDisplayEditor {...editorProps} />;
-      case 'LABEL': return <TextEditor {...editorProps} />;
+      case 'LABEL': return <LabelEditor {...editorProps} />;
       case 'LIST': return <ListEditor {...editorProps} />;
       case 'TEXT': return <TextEditor {...editorProps} />;
       case 'CHECKBOX': return <CheckboxEditor {...editorProps} />;

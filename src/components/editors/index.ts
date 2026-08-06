@@ -5,6 +5,7 @@ export { FormEditor } from './FormEditor';
 export { MixedFieldsEditor } from './MixedFieldsEditor';
 export { ListEditor } from './ListEditor';
 export { TextEditor } from './TextEditor';
+export { LabelEditor } from './LabelEditor';
 export { CheckboxEditor } from './CheckboxEditor';
 export { ProgressBarEditor } from './ProgressBarEditor';
 export { HealthBarEditor } from './HealthBarEditor';

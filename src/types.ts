@@ -275,6 +275,9 @@ export interface WidgetData {
   wrapText?: boolean;
   text?: string;
   richText?: string;
+  // Label
+  labelAlignment?: 'left' | 'center' | 'right';
+  labelTextColor?: string;
   // Checkbox
   checked?: boolean;
   checkboxItems?: CheckboxItem[];
