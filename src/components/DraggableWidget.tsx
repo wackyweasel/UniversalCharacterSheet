@@ -777,7 +777,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
+            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
             ...borderRadiusStyle,
             ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
