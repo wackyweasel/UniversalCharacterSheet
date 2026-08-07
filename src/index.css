@@ -540,8 +540,8 @@
 
   .notes-rich-text__toolbar {
     align-items: center;
-    background: color-mix(in srgb, var(--color-background) 58%, var(--color-paper));
-    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    background: color-mix(in srgb, var(--color-background) 38%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
     display: flex;
     flex: 0 0 27px;
     gap: 2px;
@@ -857,6 +857,24 @@
   transform-origin: top;
 }
 
+/* Keep centered dialogs within the visible viewport while a mobile keyboard is open. */
+@media (max-width: 639px) {
+  .fixed.inset-0 {
+    top: var(--visual-viewport-offset-top, 0px);
+    bottom: auto;
+    height: var(--visual-viewport-height, 100dvh);
+  }
+
+  .fixed.left-1\/2.top-1\/2 {
+    top: calc(
+      var(--visual-viewport-offset-top, 0px) +
+      var(--visual-viewport-height, 100dvh) / 2
+    );
+    max-height: calc(var(--visual-viewport-height, 100dvh) - 2rem);
+    overflow-y: auto;
+  }
+}
+
 @media (pointer: coarse), (max-width: 640px) {
   .widget-menu-trigger,
   .widget-attachment-control {
@@ -1132,7 +1150,7 @@
 }
 
 .inventory-item {
-  background: color-mix(in srgb, var(--color-background) 56%, var(--color-paper));
+  background: color-mix(in srgb, var(--color-background) 38%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
   border-left-color: color-mix(in srgb, var(--color-accent) 46%, var(--color-border));
   border-radius: var(--button-radius);
@@ -1144,7 +1162,7 @@
 
 .inventory-item:hover,
 .inventory-item:focus-within {
-  background: color-mix(in srgb, var(--color-background) 44%, var(--color-paper));
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-background));
   border-color: color-mix(in srgb, var(--color-accent) 54%, var(--color-border));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 24%, transparent), 0 2px 5px rgb(0 0 0 / 0.1);
 }
@@ -1160,7 +1178,7 @@
 }
 
 .inventory-item--drag-ghost {
-  background: color-mix(in srgb, var(--color-background) 44%, var(--color-paper));
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-background));
   border: 1px solid var(--color-accent) !important;
   border-radius: var(--button-radius);
   box-shadow: 0 14px 20px rgb(0 0 0 / 0.24);
