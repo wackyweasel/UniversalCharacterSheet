@@ -68,6 +68,20 @@ function isInteractiveCanvasTarget(target: EventTarget | null): boolean {
   return !['auto', 'default', 'grab', 'grabbing'].includes(cursor);
 }
 
+function isScrollableCanvasTarget(target: EventTarget | null, canvas: Element): boolean {
+  let element = target instanceof Element ? target : null;
+  while (element && element !== canvas) {
+    const style = window.getComputedStyle(element);
+    const canScrollVertically =
+      /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight;
+    const canScrollHorizontally =
+      /(auto|scroll)/.test(style.overflowX) && element.scrollWidth > element.clientWidth;
+    if (canScrollVertically || canScrollHorizontally) return true;
+    element = element.parentElement;
+  }
+  return false;
+}
+
 export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, onBackgroundClick }: UsePanZoomOptions) {
   const initial = useRef(readInitialLock(characterId)).current;
   const [pan, setPan] = useState(initial.pan);
@@ -163,6 +177,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     if (editingWidgetId) return;
     // Disable camera wheel controls when view is locked
     if (viewLockedRef.current) return;
+    // Let an overflowing widget region receive the wheel event for native scrolling.
+    if (isScrollableCanvasTarget(e.target, e.currentTarget)) return;
 
     if (wheelPanEnabled) {
       setPan(currentPan => ({ x: currentPan.x, y: currentPan.y - e.deltaY }));

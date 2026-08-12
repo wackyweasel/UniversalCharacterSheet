@@ -1,8 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { InitiativeParticipant } from '../../types';
+import { InitiativeEncounterEntry, InitiativeParticipant } from '../../types';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
+
+function generateEncounterId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2, 11);
+}
 
 export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -39,8 +46,19 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
         flatBonusLabel: newFlatBonusLabel,
         flatBonusFormula: newFlatBonusFormula
       };
-      updateData({ 
-        initiativePool: [...initiativePool, newParticipant] 
+      const updatedPool = [...initiativePool, newParticipant] as InitiativeParticipant[];
+      updateData({
+        initiativePool: updatedPool,
+        initiativeEncounter: [
+          ...(widget.data.initiativeEncounter ?? []),
+          {
+            id: generateEncounterId(),
+            name: newParticipant.name,
+            diceFaces: newParticipant.diceFaces,
+            flatBonus: newParticipant.flatBonus,
+            isTemporary: false,
+          } satisfies InitiativeEncounterEntry,
+        ],
       });
       setNewName('');
       setNewDiceFaces(20);
@@ -51,7 +69,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   };
 
   const removeParticipant = (index: number) => {
-    const updated = [...initiativePool];
+    const updated = [...initiativePool] as InitiativeParticipant[];
     updated.splice(index, 1);
     updateData({ initiativePool: updated });
     if (editingIndex === index) {

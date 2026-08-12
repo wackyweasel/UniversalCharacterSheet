@@ -25,6 +25,19 @@ function formatInitiativeDice(entry: InitiativeEncounterEntry): string {
     : `d${entry.diceFaces}${entry.flatBonus > 0 ? '+' : ''}${entry.flatBonus}`;
 }
 
+function sortInitiativeEntries(entries: InitiativeEncounterEntry[]): InitiativeEncounterEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.rollResult === undefined || b.rollResult === undefined) {
+      if (a.rollResult !== undefined) return -1;
+      if (b.rollResult !== undefined) return 1;
+      return 0;
+    }
+    if (b.rollResult !== a.rollResult) return b.rollResult - a.rollResult;
+    if (b.flatBonus !== a.flatBonus) return b.flatBonus - a.flatBonus;
+    return Math.random() - 0.5;
+  });
+}
+
 interface AddParticipantModalProps {
   showRollButton: boolean;
   onClose: () => void;
@@ -436,20 +449,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         };
       });
 
-      // Sort by roll result (highest first)
-      // Tie-breaker: highest flat bonus first, then random
-      const sorted = [...rolled].sort((a, b) => {
-        // First: compare by roll result
-        if ((b.rollResult ?? 0) !== (a.rollResult ?? 0)) {
-          return (b.rollResult ?? 0) - (a.rollResult ?? 0);
-        }
-        // Tie-breaker 1: higher flat bonus wins
-        if (b.flatBonus !== a.flatBonus) {
-          return b.flatBonus - a.flatBonus;
-        }
-        // Tie-breaker 2: random
-        return Math.random() - 0.5;
-      });
+      const sorted = sortInitiativeEntries(rolled);
 
       updateWidgetData(widget.id, {
         initiativeEncounter: sorted,
@@ -459,6 +459,22 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       setIsRolling(false);
     }, 300);
   }, [initiativeEncounter, widget.id, updateWidgetData]);
+
+  const rollParticipant = (participantId: string) => {
+    const activeParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
+    const rolled = initiativeEncounter.map((entry: InitiativeEncounterEntry) => {
+      if (entry.id !== participantId) return entry;
+      const dieRoll = Math.floor(Math.random() * entry.diceFaces) + 1;
+      return { ...entry, rollResult: dieRoll + entry.flatBonus };
+    });
+    const sorted = sortInitiativeEntries(rolled);
+    const activeParticipantIndex = sorted.findIndex((entry) => entry.id === activeParticipantId);
+
+    updateWidgetData(widget.id, {
+      initiativeEncounter: sorted,
+      initiativeCurrentIndex: activeParticipantIndex >= 0 ? activeParticipantIndex : 0,
+    });
+  };
 
   // Navigate to next participant
   const goNext = () => {
@@ -816,9 +832,16 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   </span>
                 )}
 
-                <span className={`${itemClass} mr-1 min-w-[42px] text-right font-mono font-bold tabular-nums font-body`}>
-                  {entry.rollResult ?? formatInitiativeDice(entry)}
-                </span>
+                <Tooltip content={`${entry.rollResult === undefined ? 'Roll' : 'Reroll'} initiative for ${entry.name}`}>
+                  <button
+                    type="button"
+                    onClick={() => rollParticipant(entry.id)}
+                    className={`${itemClass} mr-1 min-w-[42px] text-right font-mono font-bold tabular-nums font-body underline-offset-2 hover:underline focus-visible:rounded`}
+                    aria-label={`${entry.rollResult === undefined ? 'Roll' : 'Reroll'} initiative for ${entry.name}`}
+                  >
+                    {entry.rollResult ?? formatInitiativeDice(entry)}
+                  </button>
+                </Tooltip>
 
               </div>
             ))}
