@@ -144,7 +144,6 @@ export default function Sheet() {
   const addWidget = useStore((state) => state.addWidget);
   const mode = useStore((state) => state.mode);
   const setMode = useStore((state) => state.setMode);
-  const { workspace, playLayout, listColumns, enterBuild, enterPlay, setPlayLayout, setListColumns } = useWorkspaceNavigation();
   const selectCharacter = useStore((state) => state.selectCharacter);
   const updateCharacterName = useStore((state) => state.updateCharacterName);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
@@ -162,6 +161,8 @@ export default function Sheet() {
   const canUndo = useUndoStore((state) => activeCharacterId ? state.canUndo(activeCharacterId) : false);
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  const activeSheetId = activeCharacter?.activeSheetId;
+  const { workspace, playLayout, listColumns, enterBuild, enterPlay, setPlayLayout, setListColumns } = useWorkspaceNavigation(activeCharacterId, activeSheetId);
   const switchableCharacters = useMemo(() => {
     if (!activeCharacterId || transientCharacterIds.includes(activeCharacterId)) return [];
     const transientIds = new Set(transientCharacterIds);
@@ -350,12 +351,15 @@ export default function Sheet() {
     wheelPanEnabled,
     setWheelPanEnabled,
     toggleViewLock,
+    initialFitComplete,
+    completeInitialFit,
   } = usePanZoom({
     minScale: MIN_CANVAS_SCALE,
     maxScale: MAX_CANVAS_SCALE,
     editingWidgetId,
     mode,
     characterId: activeCharacterId,
+    sheetId: activeSheetId,
     onBackgroundClick: handleBackgroundInteraction,
   });
 
@@ -951,20 +955,20 @@ export default function Sheet() {
     }
   }, [tutorialStep]);
 
-  // Fit all widgets when character sheet is opened or sheet is changed
+  const autoFitCharacterIdsRef = useRef(new Set<string>());
   useEffect(() => {
-    if (viewLocked) return;
-    if (searchReveal?.sheetId === activeCharacter?.activeSheetId) return;
-    if (activeCharacterId && activeSheetWidgets.length > 0) {
-      // Small delay to ensure DOM elements are rendered
-      const timer = setTimeout(() => {
-        if (viewLockedRef.current) return;
+    if (!activeCharacterId || autoFitCharacterIdsRef.current.has(activeCharacterId)) return;
+    if (initialFitComplete || viewLocked || activeSheetWidgets.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      if (!viewLockedRef.current) {
         handleFitAllWidgets();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCharacterId, activeCharacter?.activeSheetId]);
+        completeInitialFit();
+        autoFitCharacterIdsRef.current.add(activeCharacterId);
+      }
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [activeCharacterId, activeSheetId, activeSheetWidgets.length, completeInitialFit, handleFitAllWidgets, initialFitComplete, viewLocked]);
 
   // Apply character's theme when entering sheet, revert to default when leaving
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react
 
 const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
 const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
+const SHEET_CAMERA_STORAGE_KEY = 'ucs:sheet-camera';
 
 function lockKey(characterId: string | null | undefined): string {
   return characterId ? `${VIEW_LOCK_STORAGE_KEY}:${characterId}` : VIEW_LOCK_STORAGE_KEY;
@@ -11,23 +12,59 @@ function viewKey(characterId: string | null | undefined): string {
   return characterId ? `${LOCKED_VIEW_STORAGE_KEY}:${characterId}` : LOCKED_VIEW_STORAGE_KEY;
 }
 
-function readInitialLock(characterId: string | null | undefined): { locked: boolean; pan: { x: number; y: number }; scale: number } {
+interface CameraSettings {
+  locked: boolean;
+  pan: { x: number; y: number };
+  scale: number;
+  wheelPanEnabled: boolean;
+}
+
+function cameraKey(characterId?: string | null, sheetId?: string | null): string | null {
+  return characterId && sheetId ? `${SHEET_CAMERA_STORAGE_KEY}:${characterId}:${sheetId}` : null;
+}
+
+function hasCompletedInitialFit(characterId?: string | null, sheetId?: string | null): boolean {
   try {
+    const key = cameraKey(characterId, sheetId);
+    if (key) {
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      if (parsed) return parsed.initialFitComplete !== false;
+    }
+    return localStorage.getItem(lockKey(characterId)) === 'true';
+  } catch {
+    return true;
+  }
+}
+
+function readInitialCamera(characterId: string | null | undefined, sheetId?: string | null): CameraSettings {
+  const key = cameraKey(characterId, sheetId);
+  try {
+    if (key) {
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      if (
+        parsed && typeof parsed.locked === 'boolean' && typeof parsed.scale === 'number' &&
+        parsed.pan && typeof parsed.pan.x === 'number' && typeof parsed.pan.y === 'number' &&
+        typeof parsed.wheelPanEnabled === 'boolean'
+      ) {
+        return parsed;
+      }
+    }
+
     const locked = localStorage.getItem(lockKey(characterId)) === 'true';
-    if (!locked) return { locked: false, pan: { x: 0, y: 0 }, scale: 1 };
+    if (!locked) return { locked: false, pan: { x: 0, y: 0 }, scale: 1, wheelPanEnabled: false };
     const raw = localStorage.getItem(viewKey(characterId));
-    if (!raw) return { locked: true, pan: { x: 0, y: 0 }, scale: 1 };
+    if (!raw) return { locked: true, pan: { x: 0, y: 0 }, scale: 1, wheelPanEnabled: false };
     const parsed = JSON.parse(raw);
     if (
       parsed && typeof parsed.scale === 'number' &&
       parsed.pan && typeof parsed.pan.x === 'number' && typeof parsed.pan.y === 'number'
     ) {
-      return { locked: true, pan: parsed.pan, scale: parsed.scale };
+      return { locked: true, pan: parsed.pan, scale: parsed.scale, wheelPanEnabled: false };
     }
   } catch {
     // ignore parse errors
   }
-  return { locked: false, pan: { x: 0, y: 0 }, scale: 1 };
+  return { locked: false, pan: { x: 0, y: 0 }, scale: 1, wheelPanEnabled: false };
 }
 
 interface UsePanZoomOptions {
@@ -36,6 +73,7 @@ interface UsePanZoomOptions {
   editingWidgetId: string | null;
   mode: 'play' | 'edit' | 'vertical' | 'print';
   characterId?: string | null;
+  sheetId?: string | null;
   onBackgroundClick?: () => void;
 }
 
@@ -82,17 +120,54 @@ function isScrollableCanvasTarget(target: EventTarget | null, canvas: Element): 
   return false;
 }
 
-export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, onBackgroundClick }: UsePanZoomOptions) {
-  const initial = useRef(readInitialLock(characterId)).current;
+export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, sheetId, onBackgroundClick }: UsePanZoomOptions) {
+  const initial = useRef(readInitialCamera(characterId, sheetId)).current;
   const [pan, setPan] = useState(initial.pan);
   const [scale, setScale] = useState(initial.scale);
   const [viewLocked, setViewLockedState] = useState(initial.locked);
-  const [wheelPanEnabled, setWheelPanEnabled] = useState(false);
+  const [wheelPanEnabled, setWheelPanEnabled] = useState(initial.wheelPanEnabled);
   const [isPanning, setIsPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const lastTouchStartTime = useRef(0);
   const viewLockedRef = useRef(viewLocked);
+  const panRef = useRef(pan);
+  const scaleRefInternal = useRef(scale);
+  const activeCameraKey = cameraKey(characterId, sheetId);
+  const previousCameraKeyRef = useRef(activeCameraKey);
+  const [initialFitComplete, setInitialFitComplete] = useState(() => hasCompletedInitialFit(characterId, sheetId));
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { scaleRefInternal.current = scale; }, [scale]);
+
+  useLayoutEffect(() => {
+    if (previousCameraKeyRef.current === activeCameraKey) return;
+    previousCameraKeyRef.current = activeCameraKey;
+
+    const next = readInitialCamera(characterId, sheetId);
+    setInitialFitComplete(hasCompletedInitialFit(characterId, sheetId));
+    panRef.current = next.pan;
+    scaleRefInternal.current = next.scale;
+    viewLockedRef.current = next.locked;
+    setPan(next.pan);
+    setScale(next.scale);
+    setViewLockedState(next.locked);
+    setWheelPanEnabled(next.wheelPanEnabled);
+  }, [activeCameraKey, characterId, sheetId]);
+
+  useEffect(() => {
+    if (!activeCameraKey) return;
+    try {
+      localStorage.setItem(activeCameraKey, JSON.stringify({
+        locked: viewLocked,
+        pan,
+        scale,
+        wheelPanEnabled,
+        initialFitComplete,
+      }));
+    } catch {
+      // Camera state is optional when storage is unavailable.
+    }
+  }, [activeCameraKey, initialFitComplete, pan, scale, viewLocked, wheelPanEnabled]);
 
   useEffect(() => {
     const handleTouchStart = () => {
@@ -223,46 +298,17 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     setScale(newScale);
   }, []);
 
-  const panRef = useRef(pan);
-  const scaleRefInternal = useRef(scale);
-  useEffect(() => { panRef.current = pan; }, [pan]);
-  useEffect(() => { scaleRefInternal.current = scale; }, [scale]);
-
   const setViewLocked = useCallback((locked: boolean) => {
     setViewLockedState(locked);
-    try {
-      if (locked) {
-        localStorage.setItem(lockKey(characterId), 'true');
-        localStorage.setItem(
-          viewKey(characterId),
-          JSON.stringify({ pan: panRef.current, scale: scaleRefInternal.current }),
-        );
-      } else {
-        localStorage.removeItem(lockKey(characterId));
-        localStorage.removeItem(viewKey(characterId));
-      }
-    } catch {
-      // ignore storage errors (quota, privacy mode)
-    }
-  }, [characterId]);
+  }, []);
+
+  const completeInitialFit = useCallback(() => {
+    setInitialFitComplete(true);
+  }, []);
 
   const toggleViewLock = useCallback(() => {
     setViewLocked(!viewLockedRef.current);
   }, [setViewLocked]);
-
-  // Re-apply the lock state (and locked view) for the active character when it changes.
-  const prevCharacterIdRef = useRef(characterId);
-  useLayoutEffect(() => {
-    if (prevCharacterIdRef.current === characterId) return;
-    prevCharacterIdRef.current = characterId;
-    const next = readInitialLock(characterId);
-    viewLockedRef.current = next.locked;
-    setViewLockedState(next.locked);
-    if (next.locked) {
-      setPan(next.pan);
-      setScale(next.scale);
-    }
-  }, [characterId]);
 
   return {
     pan,
@@ -270,6 +316,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     isPanning,
     viewLocked,
     wheelPanEnabled,
+    initialFitComplete,
     setPan,
     setScale,
     setWheelPanEnabled,
@@ -283,5 +330,6 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     setView,
     setViewLocked,
     toggleViewLock,
+    completeInitialFit,
   };
 }
