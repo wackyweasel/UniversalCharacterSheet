@@ -18,7 +18,7 @@ export default defineConfig({
       manifest: {
         id: `${base}?app=installed`,
         name: 'Universal Character Sheet',
-        short_name: 'Character Sheet',
+        short_name: 'Universal Character Sheet',
         description: 'Create and play with system-agnostic tabletop RPG character sheets.',
         start_url: `${base}?app=installed`,
         scope: base,

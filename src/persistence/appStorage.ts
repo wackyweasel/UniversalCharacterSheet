@@ -12,10 +12,12 @@ import {
   setInstalledRecord,
   setInstalledRecords,
 } from './installedDatabase';
+import { CUSTOM_THEMES_STORAGE_KEY, LEGACY_CUSTOM_THEMES_STORAGE_KEY } from './storageKeys';
 
 const MIGRATED_EXACT_KEYS = new Set([
   'ucs:store',
-  'ucs:customThemes',
+  CUSTOM_THEMES_STORAGE_KEY,
+  LEGACY_CUSTOM_THEMES_STORAGE_KEY,
   'ucs:templates',
   'ucs:userPresets',
   'ucs:timeline',
@@ -178,6 +180,14 @@ export async function initializeAppStorage(): Promise<StorageBootstrapResult> {
   const showWorkspaceNotice = !(await readWorkspaceNoticeDismissed(installedDatabase));
 
   const records = await readInstalledRecords(installedDatabase);
+  if (!records.has(CUSTOM_THEMES_STORAGE_KEY)) {
+    const customThemes = records.get(LEGACY_CUSTOM_THEMES_STORAGE_KEY)
+      ?? window.localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY)
+      ?? window.localStorage.getItem(LEGACY_CUSTOM_THEMES_STORAGE_KEY)
+      ?? '[]';
+    await setInstalledRecord(installedDatabase, CUSTOM_THEMES_STORAGE_KEY, customThemes);
+    records.set(CUSTOM_THEMES_STORAGE_KEY, customThemes);
+  }
   installedMemoryStorage = new MemoryStorage(records, queueInstalledWrite, installedDatabase);
   activeStorage = installedMemoryStorage;
   registerLifecycleFlush();

@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CUSTOM_THEMES_STORAGE_KEY } from './storageKeys';
 
 class TestStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -75,6 +76,8 @@ describe('app storage modes', () => {
 
   it('copies once on Chrome install launch and permanently dismisses the workspace notice', async () => {
     websiteStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'web-1' }] }));
+    const websiteThemes = JSON.stringify([{ id: 'theme-1', name: 'Transferred Theme' }]);
+    websiteStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, websiteThemes);
     websiteStorage.setItem('ucs:templates', JSON.stringify({ templates: [{ id: 'template-1' }] }));
     websiteStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: [] }));
     websiteStorage.setItem('ucs:timeline', '{"eventsByCharacter":{}}');
@@ -97,6 +100,7 @@ describe('app storage modes', () => {
       userPresetCount: 0,
     });
     expect(appStorage.getItem('ucs:timeline')).toBe('{"eventsByCharacter":{}}');
+    expect(appStorage.getItem(CUSTOM_THEMES_STORAGE_KEY)).toBe(websiteThemes);
     expect(appStorage.getItem('ucs:telemetry')).toBeNull();
     expect(appStorage.getItem('ucs:gallery-cache:v2')).toBeNull();
 
@@ -115,8 +119,10 @@ describe('app storage modes', () => {
     expect(dismissedLaunch.showWorkspaceNotice).toBe(false);
 
     dismissedStorage.appStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'installed-only' }] }));
+    dismissedStorage.appStorage.setItem(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify([{ id: 'installed-theme' }]));
     await dismissedStorage.flushAppStorage();
     expect(websiteStorage.getItem('ucs:store')).toBe(originalWebsiteStore);
+    expect(websiteStorage.getItem(CUSTOM_THEMES_STORAGE_KEY)).toBe(websiteThemes);
 
     websiteStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'web-1' }, { id: 'web-2' }] }));
     const replacement = await dismissedStorage.replaceInstalledWorkspaceFromWebsite();

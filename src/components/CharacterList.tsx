@@ -26,6 +26,7 @@ import {
   type StorageBootstrapResult,
 } from '../persistence/appStorage';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
+import { CUSTOM_THEMES_STORAGE_KEY } from '../persistence/storageKeys';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -964,7 +965,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
         }));
 
         if (backupData.customThemes) {
-          restoredRecords.set('ucs:customThemes', JSON.stringify(backupData.customThemes));
+          restoredRecords.set(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(backupData.customThemes));
         }
 
         if (backupData.templates && Array.isArray(backupData.templates)) {
@@ -1105,11 +1106,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
               <p className={`mt-0.5 text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
                 Characters here are stored separately on this device. Changes do not sync with the website or other devices.
               </p>
-              {storageBootstrap.migrationSummary && (
-                <p className={`mt-1 text-xs font-semibold ${darkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>
-                  Initial copy: {storageBootstrap.migrationSummary.characterCount} character(s), {storageBootstrap.migrationSummary.templateCount} template(s), and {storageBootstrap.migrationSummary.userPresetCount} preset(s).
-                </p>
-              )}
             </div>
             <button
               type="button"
