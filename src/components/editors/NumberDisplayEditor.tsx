@@ -1,12 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { DisplayNumber } from '../../types';
+import { DisplayNumber, ModifierRange } from '../../types';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { Plus, Trash2 } from 'lucide-react';
+import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue, getModifierRangeIssue } from '../../utils/modifierRanges';
 
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   const { label, displayNumbers = [], displayLayout = 'horizontal' } = widget.data;
+  const showSecondaryNumbers = widget.data.showSecondaryDisplayNumbers ?? false;
+  const automaticModifiers = widget.data.secondaryDisplayAutoCompute ?? false;
+  const modifierRanges = widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES;
+  const modifierRangeIssue = getModifierRangeIssue(modifierRanges);
   const [newItemLabel, setNewItemLabel] = useState('');
   const [boundEditorIndex, setBoundEditorIndex] = useState<number | null>(null);
   
@@ -49,7 +55,15 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
 
   const updateItemValue = (index: number, value: number) => {
     const updated = [...displayNumbers] as DisplayNumber[];
-    updated[index] = { ...updated[index], value };
+    const item = updated[index];
+    const modifier = automaticModifiers
+      ? getModifierForValue(value, modifierRanges) ?? 0
+      : undefined;
+    updated[index] = {
+      ...item,
+      value,
+      ...(modifier !== undefined ? { secondaryValue: modifier } : {}),
+    };
     updateData({ displayNumbers: updated });
   };
 
@@ -57,6 +71,53 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
     const updated = [...displayNumbers] as DisplayNumber[];
     updated[index] = { ...updated[index], ...changes };
     updateData({ displayNumbers: updated });
+  };
+
+  const toggleSecondaryNumbers = (enabled: boolean) => {
+    updateData({
+      showSecondaryDisplayNumbers: enabled,
+      displayNumbers: enabled
+        ? (displayNumbers as DisplayNumber[]).map(item => ({ ...item, secondaryValue: item.secondaryValue ?? 0 }))
+        : displayNumbers,
+    });
+  };
+
+  const applyModifierRanges = (items: DisplayNumber[], ranges: ModifierRange[]) => items.map(item => {
+    const modifier = getModifierForValue(item.value, ranges) ?? 0;
+    return { ...item, secondaryValue: modifier };
+  });
+
+  const toggleAutomaticModifiers = (enabled: boolean) => {
+    const ranges = modifierRanges.map(range => ({ ...range }));
+    updateData({
+      secondaryDisplayAutoCompute: enabled,
+      secondaryDisplayModifierRanges: ranges,
+      ...(enabled ? { displayNumbers: applyModifierRanges(displayNumbers as DisplayNumber[], ranges) } : {}),
+    });
+  };
+
+  const updateModifierRange = (rangeIndex: number, changes: Partial<ModifierRange>) => {
+    const ranges = [...modifierRanges];
+    ranges[rangeIndex] = { ...ranges[rangeIndex], ...changes };
+    updateData({
+      secondaryDisplayModifierRanges: ranges,
+      displayNumbers: applyModifierRanges(displayNumbers as DisplayNumber[], ranges),
+    });
+  };
+
+  const addModifierRange = () => {
+    const ranges = [...modifierRanges];
+    const lastMaximum = ranges.reduce((maximum, range) => Math.max(maximum, range.max), -1);
+    const nextRange = { min: lastMaximum + 1, max: lastMaximum + 5, modifier: 0 };
+    updateData({ secondaryDisplayModifierRanges: [...ranges, nextRange] });
+  };
+
+  const removeModifierRange = (rangeIndex: number) => {
+    const ranges = modifierRanges.filter((_, index) => index !== rangeIndex);
+    updateData({
+      secondaryDisplayModifierRanges: ranges,
+      displayNumbers: applyModifierRanges(displayNumbers as DisplayNumber[], ranges),
+    });
   };
 
   const setBounds = (index: number) => {
@@ -278,10 +339,100 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
         />
         <span className="text-sm text-theme-ink">Show names under numbers</span>
       </label>
+
+      <label className="flex items-start gap-2 cursor-pointer rounded-button border border-theme-border bg-theme-accent/5 p-3">
+        <input
+          type="checkbox"
+          checked={showSecondaryNumbers}
+          onChange={(event) => toggleSecondaryNumbers(event.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-theme-accent"
+        />
+        <span>
+          <span className="block text-sm font-medium text-theme-ink">Show secondary numbers</span>
+          <span className="block text-xs text-theme-muted">Adds a compact value box to the bottom-right corner of each number.</span>
+        </span>
+      </label>
+
+      {showSecondaryNumbers && (
+        <div className="rounded-button border border-theme-border bg-theme-accent/5 p-3">
+          <label className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={automaticModifiers}
+              onChange={(event) => toggleAutomaticModifiers(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-theme-accent"
+            />
+            <span>
+              <span className="block text-sm font-medium text-theme-ink">Automatic modifiers</span>
+              <span className="block text-xs text-theme-muted">Use one score table for every secondary number in this widget.</span>
+            </span>
+          </label>
+
+          {automaticModifiers && (
+            <div className="mt-3 rounded-button border border-theme-border bg-theme-paper p-2">
+              <div className="mb-1.5 grid grid-cols-[1fr_1fr_1fr_28px] gap-1 text-[10px] font-medium uppercase text-theme-muted">
+                <span>Score from</span>
+                <span>Through</span>
+                <span>Modifier</span>
+                <span className="sr-only">Actions</span>
+              </div>
+              <div className="max-h-52 space-y-1 overflow-y-auto pr-1">
+                {modifierRanges.map((range, rangeIndex) => (
+                  <div key={rangeIndex} className="grid grid-cols-[1fr_1fr_1fr_28px] items-center gap-1">
+                    <input
+                      type="number"
+                      value={range.min}
+                      onChange={(event) => updateModifierRange(rangeIndex, { min: Number(event.target.value) })}
+                      aria-label={`Range ${rangeIndex + 1} minimum`}
+                      className="min-w-0 rounded-button border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
+                    />
+                    <input
+                      type="number"
+                      value={range.max}
+                      onChange={(event) => updateModifierRange(rangeIndex, { max: Number(event.target.value) })}
+                      aria-label={`Range ${rangeIndex + 1} maximum`}
+                      className="min-w-0 rounded-button border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
+                    />
+                    <input
+                      type="number"
+                      value={range.modifier}
+                      onChange={(event) => updateModifierRange(rangeIndex, { modifier: Number(event.target.value) })}
+                      aria-label={`Range ${rangeIndex + 1} modifier`}
+                      className="min-w-0 rounded-button border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs font-semibold text-theme-ink"
+                    />
+                    <Tooltip content="Remove range">
+                      <button
+                        type="button"
+                        onClick={() => removeModifierRange(rangeIndex)}
+                        aria-label={`Remove range ${rangeIndex + 1}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-button text-red-500 hover:bg-red-500/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </Tooltip>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={addModifierRange}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-theme-accent hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add range
+                </button>
+                <span className="text-xs text-theme-muted">Scores 1–30</span>
+              </div>
+              {modifierRangeIssue && <p className="mt-1.5 text-xs text-red-500">{modifierRangeIssue}</p>}
+            </div>
+          )}
+        </div>
+      )}
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Numbers</label>
-        <div ref={containerRef} className="max-h-72 space-y-2 overflow-y-auto">
+        <div ref={containerRef} className="max-h-72 space-y-2 overflow-x-hidden overflow-y-auto">
           {(displayNumbers as DisplayNumber[]).map((item, idx) => {
             const boundsVisible = item.minValue !== undefined || item.maxValue !== undefined || boundEditorIndex === idx;
 
@@ -325,7 +476,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                 <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700 px-2 flex-shrink-0">×</button>
               </div>
 
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Current</span>
                 <LabeledNumberField
                   value={item.value}
@@ -382,6 +533,31 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       compact
                       hideStepperButtons
                     />
+                  </div>
+                </div>
+              )}
+
+              {showSecondaryNumbers && (
+                <div className="mt-2 border-t border-theme-border pt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-12 flex-shrink-0 text-xs font-medium text-theme-muted">Small box</span>
+                    <LabeledNumberField
+                      value={item.secondaryValue ?? 0}
+                      onChange={(secondaryValue) => updateItem(idx, { secondaryValue })}
+                      fieldLabel={item.secondaryValueLabel}
+                      onFieldLabelChange={(secondaryValueLabel) => updateItem(idx, { secondaryValueLabel })}
+                      formula={automaticModifiers ? undefined : item.secondaryValueFormula}
+                      onFormulaChange={(secondaryValueFormula) => updateItem(idx, { secondaryValueFormula })}
+                      compact
+                      hideStepperButtons
+                      readOnlyValue={automaticModifiers}
+                      hideFormulaButton={automaticModifiers}
+                    />
+                    {automaticModifiers && (
+                      <span className="ml-auto text-xs text-theme-muted">
+                        {item.value} gives <strong className="text-theme-ink">{formatSignedNumber(item.secondaryValue ?? 0)}</strong>
+                      </span>
+                    )}
                   </div>
                 </div>
               )}

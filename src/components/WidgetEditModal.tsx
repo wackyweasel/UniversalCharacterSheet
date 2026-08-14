@@ -328,6 +328,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
                 className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 shadow-theme"
                 style={{ 
                   width: `${getPreviewDimensions().width + 16}px`,
+                  maxWidth: '100%',
                   height: `${getPreviewDimensions().height + 16}px`
                 }}
               >

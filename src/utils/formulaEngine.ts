@@ -1,4 +1,5 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField } from '../types';
+import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
 
 /**
  * Collects all labels and their current values from a character.
@@ -49,6 +50,9 @@ export function collectLabels(character: Character): Record<string, number> {
           }
           if (item.maxValueLabel) {
             labels[item.maxValueLabel] = item.maxValue ?? 0;
+          }
+          if (item.secondaryValueLabel) {
+            labels[item.secondaryValueLabel] = item.secondaryValue ?? 0;
           }
         }
       }
@@ -722,6 +726,7 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'value', 'valueFormula', 'label');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'minValue', 'minValueFormula', 'label');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'maxValue', 'maxValueFormula', 'label');
+  checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'secondaryValue', 'secondaryValueFormula', 'label');
   checkArrayChanges(oldWidget.data.diceGroups, newWidget.data.diceGroups, 'count', 'countFormula', 'customDiceName');
   checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'value', 'valueFormula', 'name');
   checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'minValue', 'minValueFormula', 'name');
@@ -916,6 +921,18 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
         const computed = evaluateFormula(item.valueFormula, labels);
         if (computed !== null && computed !== item.value) {
           updatedItem = { ...updatedItem, value: computed };
+        }
+      }
+      if (item.secondaryValueFormula && !widget.data.secondaryDisplayAutoCompute) {
+        const computed = evaluateFormula(item.secondaryValueFormula, labels);
+        if (computed !== null && computed !== item.secondaryValue) {
+          updatedItem = { ...updatedItem, secondaryValue: computed };
+        }
+      }
+      if (widget.data.secondaryDisplayAutoCompute) {
+        const modifier = getModifierForValue(updatedItem.value, widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES) ?? 0;
+        if (modifier !== item.secondaryValue) {
+          updatedItem = { ...updatedItem, secondaryValue: modifier };
         }
       }
       const { minValue, maxValue } = updatedItem;
@@ -1167,6 +1184,9 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (item.maxValueLabel) {
             result.push({ label: item.maxValueLabel, value: item.maxValue ?? 0, widgetLabel, sheetName: sheet.name });
           }
+          if (item.secondaryValueLabel) {
+            result.push({ label: item.secondaryValueLabel, value: item.secondaryValue ?? 0, widgetLabel, sheetName: sheet.name });
+          }
         }
       }
 
@@ -1332,6 +1352,9 @@ export function buildDependencyGraph(character: Character): Record<string, strin
           }
           if (item.maxValueLabel && item.maxValueFormula) {
             graph[item.maxValueLabel] = extractFormulaRefs(item.maxValueFormula, labels);
+          }
+          if (item.secondaryValueLabel && item.secondaryValueFormula && !data.secondaryDisplayAutoCompute) {
+            graph[item.secondaryValueLabel] = extractFormulaRefs(item.secondaryValueFormula, labels);
           }
         }
       }

@@ -173,6 +173,12 @@ export interface NumberItem {
   tooltip?: string;
 }
 
+export interface ModifierRange {
+  min: number;
+  max: number;
+  modifier: number;
+}
+
 export interface DisplayNumber {
   label: string;
   value: number;
@@ -184,6 +190,9 @@ export interface DisplayNumber {
   maxValue?: number;
   maxValueLabel?: string;
   maxValueFormula?: string;
+  secondaryValue?: number;
+  secondaryValueLabel?: string;
+  secondaryValueFormula?: string;
   tooltip?: string;
 }
 
@@ -317,6 +326,9 @@ export interface WidgetData {
   displayLayout?: 'horizontal' | 'vertical';
   showDisplayNumberMax?: boolean;
   showDisplayNumberLabels?: boolean;
+  showSecondaryDisplayNumbers?: boolean;
+  secondaryDisplayAutoCompute?: boolean;
+  secondaryDisplayModifierRanges?: ModifierRange[];
   // Form
   formItems?: FormItem[];
   labelWidth?: number;

@@ -36,6 +36,10 @@ interface LabeledNumberFieldProps {
   compact?: boolean;
   /** Hide the +/- buttons while keeping label/formula controls */
   hideStepperButtons?: boolean;
+  /** Lock the numeric value while retaining its label control */
+  readOnlyValue?: boolean;
+  /** Hide formula editing for values controlled by another input */
+  hideFormulaButton?: boolean;
   /** Optional prefix for tutorial targets exposed by this field's tag/formula controls */
   tutorialTargetPrefix?: string;
   /** When provided, the controls are passed to this render function so the parent
@@ -60,6 +64,8 @@ export function LabeledNumberField({
   className = '',
   compact = false,
   hideStepperButtons = false,
+  readOnlyValue = false,
+  hideFormulaButton = false,
   tutorialTargetPrefix,
   renderRow,
 }: LabeledNumberFieldProps) {
@@ -118,19 +124,19 @@ export function LabeledNumberField({
   const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula') && hasValidFormulaDraft;
 
   const handleIncrement = () => {
-    if (hasFormula) return;
+    if (hasFormula || readOnlyValue) return;
     const newVal = (value ?? 0) + step;
     onChange(max !== undefined ? Math.min(max, newVal) : newVal);
   };
 
   const handleDecrement = () => {
-    if (hasFormula) return;
+    if (hasFormula || readOnlyValue) return;
     const newVal = (value ?? 0) - step;
     onChange(min !== undefined ? Math.max(min, newVal) : newVal);
   };
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (hasFormula) return;
+    if (hasFormula || readOnlyValue) return;
     if (e.target.value === '' && onClear) {
       onClear();
       return;
@@ -140,7 +146,7 @@ export function LabeledNumberField({
   };
 
   const handleValueBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (hasFormula) return;
+    if (hasFormula || readOnlyValue) return;
     if (e.target.value === '' && onClear) return;
     let val = parseFloat(e.target.value) || 0;
     if (min !== undefined) val = Math.max(min, val);
@@ -220,7 +226,7 @@ export function LabeledNumberField({
           value={value ?? ''}
           onChange={handleValueChange}
           onBlur={handleValueBlur}
-          readOnly={hasFormula}
+          readOnly={hasFormula || readOnlyValue}
           min={min}
           max={max}
           step={step}
@@ -228,7 +234,7 @@ export function LabeledNumberField({
           className={`px-2 py-1 border border-theme-border rounded-button font-body text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
             compact ? (hideStepperButtons ? 'w-14' : 'w-[6rem]') : 'flex-1 min-w-[60px]'
           } ${
-            hasFormula
+            hasFormula || readOnlyValue
               ? 'bg-theme-accent/10 cursor-default'
               : 'bg-theme-paper'
           } ${compact ? 'h-7' : ''}`}
@@ -270,7 +276,7 @@ export function LabeledNumberField({
           </button>
         </Tooltip>
 
-        {/* Formula button */}
+        {!hideFormulaButton && (
         <Tooltip content={formula ? `Formula: ${formula}` : 'Set formula'}>
           <button
             data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-fx-button` : undefined}
@@ -287,6 +293,7 @@ export function LabeledNumberField({
             <span className="italic" style={{ fontSize: '11px' }}>fx</span>
           </button>
         </Tooltip>
+        )}
     </div>
   );
 

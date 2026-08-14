@@ -8,6 +8,7 @@ import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue } from '../../utils/modifierRanges';
 
 interface Props {
   widget: Widget;
@@ -30,10 +31,15 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     printSettings,
     showDisplayNumberMax = false,
     showDisplayNumberLabels = true,
+    showSecondaryDisplayNumbers = false,
+    secondaryDisplayAutoCompute = false,
+    secondaryDisplayModifierRanges = DEFAULT_MODIFIER_RANGES,
   } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [editingSecondaryIndex, setEditingSecondaryIndex] = useState<number | null>(null);
+  const [secondaryEditValue, setSecondaryEditValue] = useState('');
   const [rangeIssue, setRangeIssue] = useState<string | null>(null);
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
@@ -93,7 +99,15 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
       const updated = [...displayNumbers] as DisplayNumber[];
       const oldVal = updated[index].value;
       const constrainedValue = constrainItemValue(newValue, updated[index]);
-      updated[index] = { ...updated[index], value: constrainedValue };
+      const item = updated[index];
+      const modifier = secondaryDisplayAutoCompute
+        ? getModifierForValue(constrainedValue, secondaryDisplayModifierRanges) ?? 0
+        : undefined;
+      updated[index] = {
+        ...item,
+        value: constrainedValue,
+        ...(modifier !== undefined ? { secondaryValue: modifier } : {}),
+      };
       updateWidgetData(widget.id, { displayNumbers: updated });
       if (oldVal !== constrainedValue) {
         addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${updated[index].label}: ${oldVal} → ${constrainedValue}`, '🔢');
@@ -117,12 +131,44 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     }
   };
 
+  const handleSecondaryValueClick = (index: number, currentValue: number) => {
+    const item = (displayNumbers as DisplayNumber[])[index];
+    if (isPrintMode || secondaryDisplayAutoCompute || item.secondaryValueFormula) return;
+    setEditingSecondaryIndex(index);
+    setSecondaryEditValue(String(currentValue));
+  };
+
+  const handleSecondaryValueBlur = (index: number) => {
+    const newValue = Number(secondaryEditValue);
+    if (secondaryEditValue.trim() !== '' && Number.isFinite(newValue)) {
+      const updated = [...displayNumbers] as DisplayNumber[];
+      const oldValue = updated[index].secondaryValue ?? 0;
+      updated[index] = { ...updated[index], secondaryValue: newValue };
+      updateWidgetData(widget.id, { displayNumbers: updated });
+      if (oldValue !== newValue) {
+        addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${updated[index].label} secondary: ${oldValue} → ${newValue}`, '🔢');
+      }
+    }
+    setEditingSecondaryIndex(null);
+    setSecondaryEditValue('');
+  };
+
+  const handleSecondaryValueKeyDown = (event: React.KeyboardEvent, index: number) => {
+    if (event.key === 'Enter') {
+      handleSecondaryValueBlur(index);
+    } else if (event.key === 'Escape') {
+      setEditingSecondaryIndex(null);
+      setSecondaryEditValue('');
+    }
+  };
+
   const addField = () => {
     const fieldName = fieldNameDraft.trim();
     if (!fieldName || hasInvalidBounds) return;
     const newItem: DisplayNumber = {
       label: fieldName,
       value: 0,
+      ...(showSecondaryDisplayNumbers ? { secondaryValue: 0 } : {}),
       ...(minimumDraftValue !== undefined ? { minValue: minimumDraftValue } : {}),
       ...(maximumDraftValue !== undefined ? { maxValue: maximumDraftValue } : {}),
     };
@@ -139,6 +185,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     const updated = (displayNumbers as DisplayNumber[]).filter((_, index) => !selectedFields.has(index));
     setEditingIndex(null);
     setEditValue('');
+    setEditingSecondaryIndex(null);
+    setSecondaryEditValue('');
     updateWidgetData(widget.id, { displayNumbers: updated });
     setSelectedFields(new Set());
     setFieldDialog(null);
@@ -180,6 +228,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const minDimension = Math.min(width / (isHorizontal ? itemCount : 1), height / (isHorizontal ? 1 : itemCount));
   const numberFontSize = Math.max(10, Math.min(20, minDimension * 0.25));
   const labelFontSize = Math.max(7, Math.min(10, minDimension * 0.12));
+  const secondaryFontSize = Math.max(9, Math.min(15, minDimension * 0.18));
 
   return (
     <div className="flex h-full w-full flex-col gap-1 overflow-hidden">
@@ -239,7 +288,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
           return (
           <div 
             key={idx} 
-            className={`flex flex-col items-center justify-center border-2 border-theme-border rounded-button bg-theme-paper/50 overflow-hidden ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
+            className={`relative flex flex-col items-center justify-center border-2 border-theme-border rounded-button bg-theme-paper/50 overflow-visible ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
             style={{ 
               minWidth: isHorizontal ? '30px' : undefined,
               minHeight: !isHorizontal ? '30px' : undefined,
@@ -247,7 +296,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
           >
             {/* Value - editable on click */}
             {editingIndex === idx ? (
-              <div className="relative w-full">
+              <div className={`relative w-full ${showSecondaryDisplayNumbers ? '-translate-y-2' : ''}`}>
                 <input
                   data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
                   type="text"
@@ -271,7 +320,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             ) : (
               <span 
                 data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
-                className={`font-bold text-theme-ink transition-colors leading-none font-body ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
+                className={`font-bold text-theme-ink transition-colors leading-none font-body ${showSecondaryDisplayNumbers ? '-translate-y-2' : ''} ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
                 style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                 data-print-hide={hideValues ? 'true' : undefined}
                 onClick={() => handleValueClick(idx, item.value)}
@@ -295,13 +344,61 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             
             {showDisplayNumberLabels && (
               <span 
-                className="text-theme-muted font-body truncate w-full text-center px-1 leading-tight"
+                className={`w-full truncate px-1 text-center font-body leading-tight text-theme-muted ${showSecondaryDisplayNumbers ? '-translate-y-2' : ''}`}
                 style={{ fontSize: `${labelFontSize}px` }}
               >
                 {mode === 'play' && item.tooltip ? (
                   <Tooltip content={item.tooltip}><span>{item.label}</span></Tooltip>
                 ) : item.label}
               </span>
+            )}
+
+            {showSecondaryDisplayNumbers && (
+              editingSecondaryIndex === idx ? (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={secondaryEditValue}
+                  onChange={(event) => setSecondaryEditValue(event.target.value)}
+                  onBlur={() => handleSecondaryValueBlur(idx)}
+                  onKeyDown={(event) => handleSecondaryValueKeyDown(event, idx)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  autoFocus
+                  aria-label={`Edit ${item.label || 'number'} secondary value`}
+                  className="absolute -bottom-1 -right-1 z-[1] h-6 w-12 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1 text-center font-body font-bold leading-none text-theme-ink outline-none ring-1 ring-theme-ink"
+                  style={{ fontSize: `${secondaryFontSize}px` }}
+                />
+              ) : secondaryDisplayAutoCompute || item.secondaryValueFormula || isPrintMode ? (
+                <span
+                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink"
+                  style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
+                  data-print-hide={hideValues ? 'true' : undefined}
+                  aria-label={`${item.label || 'Number'} secondary value ${item.secondaryValue ?? 0}`}
+                >
+                  {formatSignedNumber(item.secondaryValue ?? 0)}
+                  {item.secondaryValueFormula && !secondaryDisplayAutoCompute && isFormulaBroken(item.secondaryValueFormula, labels) && (
+                    <span className="ml-0.5 text-[8px] text-red-500" title={`Broken formula: ${item.secondaryValueFormula}`}>⚠</span>
+                  )}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSecondaryValueClick(idx, item.secondaryValue ?? 0)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleSecondaryValueClick(idx, item.secondaryValue ?? 0);
+                    }
+                  }}
+                  aria-label={`Set ${item.label || 'number'} secondary value, currently ${item.secondaryValue ?? 0}`}
+                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink transition-shadow hover:ring-1 hover:ring-theme-ink focus:outline-none focus:ring-1 focus:ring-theme-ink"
+                  style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
+                  data-print-hide={hideValues ? 'true' : undefined}
+                >
+                  {formatSignedNumber(item.secondaryValue ?? 0)}
+                </button>
+              )
             )}
           </div>
           );
