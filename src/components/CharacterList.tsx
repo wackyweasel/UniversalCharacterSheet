@@ -1027,10 +1027,10 @@ export default function CharacterList() {
                       setShowInstallInstructions(true);
                     }
                   }}
-                  className={`col-span-3 w-full min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button whitespace-nowrap transition-colors active:translate-y-px lg:col-span-1 lg:w-auto ${
+                  className={`col-span-3 w-full min-w-0 flex items-center justify-center gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button whitespace-nowrap transition-colors active:translate-y-px lg:col-span-1 lg:w-auto ${
                     darkMode
-                      ? 'border border-cyan-300 bg-cyan-500 text-black hover:bg-cyan-400'
-                      : 'border-[length:var(--border-width)] border-cyan-700 bg-cyan-600 text-white hover:bg-cyan-700'
+                      ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
                   }`}
                 >
                   <DownloadIcon className="h-5 w-5" />
