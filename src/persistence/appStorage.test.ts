@@ -73,7 +73,7 @@ describe('app storage modes', () => {
     expect(websiteStorage.getItem('ucs:store')).toBe(serialized);
   });
 
-  it('copies once, excludes disposable keys, and replaces installed data without changing the website', async () => {
+  it('copies once on a markerless standalone launch, excludes disposable keys, and replaces without changing the website', async () => {
     websiteStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'web-1' }] }));
     websiteStorage.setItem('ucs:templates', JSON.stringify({ templates: [{ id: 'template-1' }] }));
     websiteStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: [] }));
@@ -83,7 +83,6 @@ describe('app storage modes', () => {
     const originalWebsiteStore = websiteStorage.getItem('ucs:store');
 
     standalone = true;
-    window.location.search = '?app=installed';
     const {
       appStorage,
       flushAppStorage,
