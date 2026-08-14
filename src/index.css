@@ -857,7 +857,7 @@
   transform-origin: top;
 }
 
-/* Keep centered dialogs within the visible viewport while a mobile keyboard is open. */
+/* Keep dialogs stable and scrollable within the visible mobile viewport. */
 @media (max-width: 639px) {
   .fixed.inset-0 {
     top: var(--visual-viewport-offset-top, 0px);
@@ -865,13 +865,19 @@
     height: var(--visual-viewport-height, 100dvh);
   }
 
+  .fixed.inset-0.items-center {
+    align-items: flex-start;
+  }
+
+  .fixed.inset-0.items-center > * {
+    max-height: calc(var(--visual-viewport-height, 100dvh) - 2rem);
+  }
+
   .fixed.left-1\/2.top-1\/2 {
-    top: calc(
-      var(--visual-viewport-offset-top, 0px) +
-      var(--visual-viewport-height, 100dvh) / 2
-    );
+    top: calc(var(--visual-viewport-offset-top, 0px) + 1rem);
     max-height: calc(var(--visual-viewport-height, 100dvh) - 2rem);
     overflow-y: auto;
+    transform: translateX(-50%);
   }
 }
 

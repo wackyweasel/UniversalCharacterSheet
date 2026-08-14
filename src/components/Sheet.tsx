@@ -323,6 +323,10 @@ export default function Sheet() {
   
   // Clear mobile widget controls unless the touch stays on their selected widget controls.
   const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {
+    const preserveOverlayFocus = Boolean(touchTarget?.closest(
+      '[role="dialog"], [aria-modal="true"], [data-touch-camera-ignore="true"], .fixed.inset-0',
+    ));
+
     if (touchTarget) {
       const selectedWidgetId = useStore.getState().selectedWidgetId;
       const touchedWidgetId = touchTarget.closest('[data-widget-id]')?.getAttribute('data-widget-id');
@@ -331,6 +335,8 @@ export default function Sheet() {
     }
 
     setSelectedWidgetId(null);
+    if (preserveOverlayFocus) return;
+
     // Blur any focused input/textarea element
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
