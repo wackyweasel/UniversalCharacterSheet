@@ -8,8 +8,26 @@ interface BeforeInstallPromptEvent extends Event {
 
 export type InstallAvailability = 'installed' | 'prompt' | 'instructions' | 'unavailable';
 
+const INSTALL_COMPLETED_STORAGE_KEY = 'ucs:pwa-installed';
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
+let installationRecorded = readInstallationRecorded();
 const listeners = new Set<() => void>();
+
+function readInstallationRecorded(): boolean {
+  try {
+    return window.localStorage.getItem(INSTALL_COMPLETED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function recordInstallation(): void {
+  installationRecorded = true;
+  try {
+    window.localStorage.setItem(INSTALL_COMPLETED_STORAGE_KEY, 'true');
+  } catch {
+  }
+}
 
 function emitChange(): void {
   listeners.forEach((listener) => listener());
@@ -35,6 +53,7 @@ function handleBeforeInstallPrompt(event: Event): void {
 
 function handleInstalled(): void {
   deferredPrompt = null;
+  recordInstallation();
   emitChange();
 }
 
@@ -42,7 +61,7 @@ window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 window.addEventListener('appinstalled', handleInstalled);
 
 export function getInstallAvailability(): InstallAvailability {
-  if (isInstalledApp()) return 'installed';
+  if (isInstalledApp() || installationRecorded) return 'installed';
   if (deferredPrompt) return 'prompt';
   if (supportsManualInstallation()) return 'instructions';
   return 'unavailable';
@@ -67,7 +86,10 @@ export async function promptInstall(): Promise<'accepted' | 'dismissed' | 'unava
 
   await prompt.prompt();
   const choice = await prompt.userChoice;
-  if (choice.outcome === 'accepted') deferredPrompt = null;
+  if (choice.outcome === 'accepted') {
+    deferredPrompt = null;
+    recordInstallation();
+  }
   emitChange();
   return choice.outcome;
 }
