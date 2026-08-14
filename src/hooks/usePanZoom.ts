@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { appStorage } from '../persistence/appStorage';
 
 const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
 const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
@@ -27,10 +28,10 @@ function hasCompletedInitialFit(characterId?: string | null, sheetId?: string | 
   try {
     const key = cameraKey(characterId, sheetId);
     if (key) {
-      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      const parsed = JSON.parse(appStorage.getItem(key) || 'null');
       if (parsed) return parsed.initialFitComplete !== false;
     }
-    return localStorage.getItem(lockKey(characterId)) === 'true';
+    return appStorage.getItem(lockKey(characterId)) === 'true';
   } catch {
     return true;
   }
@@ -40,7 +41,7 @@ function readInitialCamera(characterId: string | null | undefined, sheetId?: str
   const key = cameraKey(characterId, sheetId);
   try {
     if (key) {
-      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      const parsed = JSON.parse(appStorage.getItem(key) || 'null');
       if (
         parsed && typeof parsed.locked === 'boolean' && typeof parsed.scale === 'number' &&
         parsed.pan && typeof parsed.pan.x === 'number' && typeof parsed.pan.y === 'number' &&
@@ -50,9 +51,9 @@ function readInitialCamera(characterId: string | null | undefined, sheetId?: str
       }
     }
 
-    const locked = localStorage.getItem(lockKey(characterId)) === 'true';
+    const locked = appStorage.getItem(lockKey(characterId)) === 'true';
     if (!locked) return { locked: false, pan: { x: 0, y: 0 }, scale: 1, wheelPanEnabled: false };
-    const raw = localStorage.getItem(viewKey(characterId));
+    const raw = appStorage.getItem(viewKey(characterId));
     if (!raw) return { locked: true, pan: { x: 0, y: 0 }, scale: 1, wheelPanEnabled: false };
     const parsed = JSON.parse(raw);
     if (
@@ -157,7 +158,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   useEffect(() => {
     if (!activeCameraKey) return;
     try {
-      localStorage.setItem(activeCameraKey, JSON.stringify({
+      appStorage.setItem(activeCameraKey, JSON.stringify({
         locked: viewLocked,
         pan,
         scale,

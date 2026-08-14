@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { appStorage } from '../persistence/appStorage';
 
 export interface CustomTheme {
   id: string; // UUID for custom themes
@@ -93,7 +94,7 @@ const STORAGE_KEY = 'ucs:custom-themes';
 
 function loadCustomThemes(): CustomTheme[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = appStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as CustomTheme[];
   } catch {
@@ -103,7 +104,7 @@ function loadCustomThemes(): CustomTheme[] {
 
 function saveCustomThemes(themes: CustomTheme[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(themes));
+    appStorage.setItem(STORAGE_KEY, JSON.stringify(themes));
   } catch (e) {
     console.error('Failed to persist custom themes', e);
     if (e instanceof DOMException && e.name === 'QuotaExceededError') {

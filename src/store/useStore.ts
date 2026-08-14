@@ -7,6 +7,7 @@ import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
+import { appStorage } from '../persistence/appStorage';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -269,7 +270,7 @@ export const useStore = create<StoreState>((set, get) => {
   // Try to load persisted state from localStorage
   const persisted = (() => {
     try {
-      const raw = localStorage.getItem('ucs:store');
+      const raw = appStorage.getItem('ucs:store');
       if (!raw) return null;
       const data = JSON.parse(raw) as { characters: any[]; activeCharacterId: string | null; mode?: Mode };
       // Migrate all characters to new format
@@ -2352,7 +2353,7 @@ export const useStore = create<StoreState>((set, get) => {
         const persistedCharacters = state.characters.filter((character: Character) => !transientIds.has(character.id));
         const activeCharacterId = state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId;
         const data = { characters: persistedCharacters, activeCharacterId, mode: activeCharacterId ? state.mode : 'play' };
-        localStorage.setItem('ucs:store', JSON.stringify(data));
+        appStorage.setItem('ucs:store', JSON.stringify(data));
         
         // Refresh storage warning after successful save
         import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().refresh()).catch(() => {});

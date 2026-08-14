@@ -11,11 +11,20 @@ import GallerySidebar from './GallerySidebar';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon } from './icons';
+import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
+import {
+  appStorage,
+  flushAppStorage,
+  getWebsiteMigrationSummary,
+  replaceInstalledWorkspaceFromWebsite,
+  setAppStorageRecords,
+  type StorageBootstrapResult,
+} from '../persistence/appStorage';
+import { promptInstall, useInstallAvailability } from '../pwa/install';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -29,7 +38,7 @@ const TUTORIAL_DESCRIPTIONS = {
 
 // Get initial dark mode preference from localStorage or OS
 function getInitialDarkMode(): boolean {
-  const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
+  const stored = appStorage.getItem(DARK_MODE_STORAGE_KEY);
   if (stored !== null) {
     return stored === 'true';
   }
@@ -99,7 +108,17 @@ function getThemeStyles(themeId?: string) {
   } as React.CSSProperties;
 }
 
-export default function CharacterList() {
+interface CharacterListProps {
+  storageBootstrap: StorageBootstrapResult;
+}
+
+interface InstalledStorageInfo {
+  usage: number;
+  quota: number;
+  persisted: boolean;
+}
+
+export default function CharacterList({ storageBootstrap }: CharacterListProps) {
   // Subscribe to custom theme changes so cards update when themes are edited
   const customThemes = useCustomThemeStore((state) => state.customThemes);
   // Subscribe to template changes for backup
@@ -125,6 +144,7 @@ export default function CharacterList() {
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
   const { setPlayLayout } = useWorkspaceNavigation();
+  const installAvailability = useInstallAvailability();
   const transientCharacterIds = useStore((state) => state.transientCharacterIds);
   const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
   const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
@@ -154,6 +174,10 @@ export default function CharacterList() {
   const [presetsOnly, setPresetsOnly] = useState(false);
   const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
+  const [showMigrationNotice, setShowMigrationNotice] = useState(storageBootstrap.firstMigration !== null);
+  const [installedStorageInfo, setInstalledStorageInfo] = useState<InstalledStorageInfo | null>(null);
+  const [isReplacingInstalledData, setIsReplacingInstalledData] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
@@ -205,6 +229,27 @@ export default function CharacterList() {
     targetIndex: number;
     didMove: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    if (!showBackupModal || storageBootstrap.mode !== 'installed' || !navigator.storage) return;
+
+    let active = true;
+    void Promise.all([
+      navigator.storage.estimate(),
+      navigator.storage.persisted?.() ?? Promise.resolve(false),
+    ]).then(([estimate, persisted]) => {
+      if (!active) return;
+      setInstalledStorageInfo({
+        usage: estimate.usage ?? 0,
+        quota: estimate.quota ?? 0,
+        persisted,
+      });
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [showBackupModal, storageBootstrap.mode]);
 
   useEffect(() => {
     const initialStepIndex = initialTutorialStepRef.current;
@@ -463,7 +508,7 @@ export default function CharacterList() {
   const toggleDarkMode = () => {
     setDarkMode((prev) => {
       const newValue = !prev;
-      localStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
+      appStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
       recordCharacterListEvent({
         eventName: 'app_dark_mode_changed',
         category: 'app',
@@ -888,7 +933,7 @@ export default function CharacterList() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const backupData = JSON.parse(event.target?.result as string) as BackupData;
         
@@ -911,26 +956,25 @@ export default function CharacterList() {
         
         if (!confirmRestore) return;
         
-        // Restore characters
-        localStorage.setItem('ucs:store', JSON.stringify({
+        const restoredRecords = new Map<string, string>();
+        restoredRecords.set('ucs:store', JSON.stringify({
           characters: backupData.characters,
           activeCharacterId: null
         }));
-        
-        // Restore custom themes if present
+
         if (backupData.customThemes) {
-          localStorage.setItem('ucs:customThemes', JSON.stringify(backupData.customThemes));
+          restoredRecords.set('ucs:customThemes', JSON.stringify(backupData.customThemes));
         }
-        
-        // Restore templates if present
+
         if (backupData.templates && Array.isArray(backupData.templates)) {
-          localStorage.setItem('ucs:templates', JSON.stringify({ templates: backupData.templates }));
+          restoredRecords.set('ucs:templates', JSON.stringify({ templates: backupData.templates }));
         }
-        
-        // Restore user presets if present
+
         if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
-          localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
+          restoredRecords.set('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
         }
+
+        await setAppStorageRecords(restoredRecords);
 
         recordCharacterListEvent({
           eventName: 'backup_restored',
@@ -942,11 +986,11 @@ export default function CharacterList() {
             userPresetCount,
           },
         });
-        
-        // Reload the page to apply changes
-        window.setTimeout(() => window.location.reload(), 250);
+
+        await flushAppStorage();
+        window.location.reload();
       } catch (err) {
-        alert('Failed to parse backup file');
+        alert('Failed to restore backup file');
         console.error(err);
       }
     };
@@ -955,6 +999,36 @@ export default function CharacterList() {
     // Reset file input
     if (backupFileInputRef.current) {
       backupFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRequestPersistentStorage = async () => {
+    if (!navigator.storage) return;
+    const persisted = await navigator.storage.persist();
+    const estimate = await navigator.storage.estimate();
+    setInstalledStorageInfo({
+      usage: estimate.usage ?? 0,
+      quota: estimate.quota ?? 0,
+      persisted,
+    });
+  };
+
+  const handleReplaceInstalledFromWebsite = async () => {
+    const website = getWebsiteMigrationSummary();
+    const confirmed = window.confirm(
+      `Replace the installed workspace with the website's ${website.characterCount} character(s), ${website.templateCount} template(s), and ${website.userPresetCount} preset(s)?\n\n` +
+      'This does not change the website. Download an installed backup first if you may need the current installed data.'
+    );
+    if (!confirmed) return;
+
+    setIsReplacingInstalledData(true);
+    try {
+      await replaceInstalledWorkspaceFromWebsite();
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to replace installed workspace', error);
+      alert('The installed workspace could not be replaced. Its current data was left in place.');
+      setIsReplacingInstalledData(false);
     }
   };
 
@@ -977,6 +1051,12 @@ export default function CharacterList() {
             <p className={`mt-1 max-w-2xl font-body text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
+            {storageBootstrap.mode === 'installed' && (
+              <p className={`mt-2 flex items-center gap-2 font-body text-xs font-semibold ${darkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                <span className="h-2 w-2 bg-cyan-500" aria-hidden="true" />
+                Installed workspace. Changes here do not sync with the website.
+              </p>
+            )}
           </div>
           <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
             <button
@@ -1013,6 +1093,28 @@ export default function CharacterList() {
         </header>
         <div className="w-full">
           <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
+            {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
+              <Tooltip content="Install on this device">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (installAvailability === 'prompt') {
+                      void promptInstall();
+                    } else {
+                      setShowInstallInstructions(true);
+                    }
+                  }}
+                  className={`col-span-3 w-full min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button whitespace-nowrap transition-colors active:translate-y-px lg:col-span-1 lg:w-auto ${
+                    darkMode
+                      ? 'border border-cyan-300 bg-cyan-500 text-black hover:bg-cyan-400'
+                      : 'border-[length:var(--border-width)] border-cyan-700 bg-cyan-600 text-white hover:bg-cyan-700'
+                  }`}
+                >
+                  <DownloadIcon className="h-5 w-5" />
+                  <span>Install App</span>
+                </button>
+              </Tooltip>
+            )}
             {/* Gallery Button */}
             <Tooltip content="Discover community content">
               <button
@@ -1440,6 +1542,25 @@ export default function CharacterList() {
                   </svg>
                   <span>Backup</span>
                 </button>
+                {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowHeaderMenu(false);
+                      if (installAvailability === 'prompt') {
+                        void promptInstall();
+                      } else {
+                        setShowInstallInstructions(true);
+                      }
+                    }}
+                    className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                      darkMode ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <DownloadIcon className="h-5 w-5" />
+                    <span>Install App</span>
+                  </button>
+                )}
                 <a
                   href="https://buymeacoffee.com/wackyweasel"
                   target="_blank"
@@ -2193,7 +2314,7 @@ export default function CharacterList() {
             className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowBackupModal(false)}
           />
-          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] animate-fade-in ${
+          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -2223,12 +2344,28 @@ export default function CharacterList() {
                 </svg>
                 <div>
                   <p className={`font-body text-sm font-semibold mb-1 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-                    Your data is stored locally
+                    {storageBootstrap.mode === 'installed' ? 'This is the installed workspace' : 'Your data is stored locally'}
                   </p>
                   <p className={`font-body text-sm ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                    All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers.
+                    {storageBootstrap.mode === 'installed'
+                      ? 'Its data is stored separately on this device. Changes do not sync with the website, other browsers, or other devices.'
+                      : "All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers."}
                   </p>
-                  {(() => {
+                  {storageBootstrap.mode === 'installed' && installedStorageInfo ? (
+                    <>
+                      <p className={`font-body text-xs mt-2 ${darkMode ? 'text-white/40' : 'text-theme-muted/70'}`}>
+                        Device storage used by this site: {formatBytes(installedStorageInfo.usage)} / {formatBytes(installedStorageInfo.quota)}
+                      </p>
+                      <p className={`font-body text-xs mt-1 ${installedStorageInfo.persisted ? 'text-green-600' : darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                        {installedStorageInfo.persisted ? 'Protected storage is enabled.' : 'Storage protection has not been granted.'}
+                      </p>
+                      {!installedStorageInfo.persisted && (
+                        <button type="button" onClick={() => void handleRequestPersistentStorage()} className={`mt-2 font-body text-xs font-semibold underline ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                          Request protected storage
+                        </button>
+                      )}
+                    </>
+                  ) : (() => {
                     const s = getStorageStatus();
                     return (
                       <p className={`font-body text-xs mt-2 ${darkMode ? 'text-white/40' : 'text-theme-muted/70'}`}>
@@ -2244,7 +2381,7 @@ export default function CharacterList() {
             <div className="mb-4">
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Download a backup file containing all your characters and custom themes.
+                Download a backup file containing all your characters and custom themes{storageBootstrap.mode === 'installed' ? ' from this installed workspace' : ''}.
               </p>
               <button
                 onClick={handleBackup}
@@ -2257,7 +2394,7 @@ export default function CharacterList() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download Backup
+                {storageBootstrap.mode === 'installed' ? 'Download Installed Backup' : 'Download Backup'}
               </button>
             </div>
             
@@ -2267,7 +2404,7 @@ export default function CharacterList() {
             <div>
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Restore from Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Upload a backup file to restore your characters and themes. <span className="text-red-500 font-semibold">This will replace all current data.</span>
+                Upload a backup file to restore your characters and themes{storageBootstrap.mode === 'installed' ? ' into this installed workspace' : ''}. <span className="text-red-500 font-semibold">This will replace all current data.</span>
               </p>
               <label className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-body rounded-theme transition-colors font-bold cursor-pointer ${
                 darkMode 
@@ -2287,6 +2424,80 @@ export default function CharacterList() {
                 />
               </label>
             </div>
+
+            {storageBootstrap.mode === 'installed' && (
+              <>
+                <div className={`border-t my-4 ${darkMode ? 'border-white/30' : 'border-theme-border'}`} />
+                <div>
+                  <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Replace from Website</h4>
+                  <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
+                    Copy the website's current data into this installed workspace again. This is one-way and does not enable syncing.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleBackup}
+                    className={`w-full px-4 py-2 font-body rounded-button font-semibold mb-2 ${darkMode ? 'border border-white/30 text-white hover:bg-white/10' : 'border-[length:var(--border-width)] border-theme-border text-theme-ink hover:bg-gray-100'}`}
+                  >
+                    Download Current Backup First
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isReplacingInstalledData}
+                    onClick={() => void handleReplaceInstalledFromWebsite()}
+                    className="w-full px-4 py-3 font-body rounded-button font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {isReplacingInstalledData ? 'Replacing...' : 'Replace Installed Data from Website'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {showInstallInstructions && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50 animate-fade-in" onClick={() => setShowInstallInstructions(false)} />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[430px] animate-fade-in ${
+            darkMode ? 'bg-black border border-white/30' : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`} role="dialog" aria-modal="true" aria-labelledby="install-app-title">
+            <div className="flex items-center justify-between gap-4">
+              <h3 id="install-app-title" className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Install Character Sheet</h3>
+              <button type="button" onClick={() => setShowInstallInstructions(false)} aria-label="Close" className={darkMode ? 'text-white/60 hover:text-white' : 'text-theme-muted hover:text-theme-ink'}>
+                <XIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <p className={`mt-4 font-body text-sm leading-relaxed ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
+              {/Android/i.test(navigator.userAgent)
+                ? <>Open your browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</>
+                : <>Open the Share menu and choose <strong>Add to Home Screen</strong>. In Safari on macOS, choose <strong>File</strong>, then <strong>Add to Dock</strong>.</>}
+            </p>
+            <p className={`mt-3 font-body text-sm leading-relaxed ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
+              The installed app copies your current data once. Its characters and the website's characters are separate after that.
+            </p>
+            <button type="button" onClick={() => setShowInstallInstructions(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
+              darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+            }`}>Done</button>
+          </div>
+        </>
+      )}
+
+      {showMigrationNotice && storageBootstrap.firstMigration && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50 animate-fade-in" />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[460px] animate-fade-in ${
+            darkMode ? 'bg-black border border-white/30' : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`} role="dialog" aria-modal="true" aria-labelledby="installed-copy-title">
+            <h3 id="installed-copy-title" className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Installed workspace ready</h3>
+            <p className={`mt-4 font-body text-sm ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
+              Copied {storageBootstrap.firstMigration.characterCount} character(s), {storageBootstrap.firstMigration.templateCount} template(s), and {storageBootstrap.firstMigration.userPresetCount} preset(s) from the website.
+            </p>
+            <div className={`mt-4 border-l-4 border-cyan-500 p-3 font-body text-sm ${darkMode ? 'bg-white/10 text-white' : 'bg-cyan-50 text-theme-ink'}`}>
+              The website and installed app do not sync. Changes in one workspace will not appear in the other.
+            </div>
+            <button type="button" onClick={() => setShowMigrationNotice(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
+              darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+            }`}>Continue</button>
           </div>
         </>
       )}

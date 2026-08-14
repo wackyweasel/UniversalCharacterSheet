@@ -9,6 +9,13 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
 - **Widget System**: Add Number Trackers, Lists, and Text Areas.
 - **Drag & Drop**: Arrange widgets freely with grid snapping.
 - **Old School Style**: Clean, black and white aesthetic.
+- **Installable App**: Install from a supported browser and keep working with cached sheets while offline.
+
+## Installed App Storage
+
+The installed app uses a separate on-device workspace. On its first launch it copies the website's current characters and custom content, but later changes do not sync between the website and installed app.
+
+Use **Backup** on the character list to move or protect data. The installed backup dialog can also replace the installed workspace with a fresh one-way copy from the website without changing the website's data.
 
 ## Getting Started
 

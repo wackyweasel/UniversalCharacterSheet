@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Character } from '../types';
 import { CharacterPreset } from '../presets';
+import { appStorage } from '../persistence/appStorage';
 
 export interface UserPreset {
   id: string;
@@ -24,7 +25,7 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
   // Load persisted user presets from localStorage
   const persisted = (() => {
     try {
-      const raw = localStorage.getItem('ucs:userPresets');
+      const raw = appStorage.getItem('ucs:userPresets');
       if (!raw) return null;
       return JSON.parse(raw) as { userPresets: UserPreset[] };
     } catch (e) {
@@ -38,7 +39,7 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
   // Subscribe to persist changes
   const persistUserPresets = (userPresets: UserPreset[]) => {
     try {
-      localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets }));
+      appStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets }));
     } catch (e) {
       console.error('Failed to persist user presets', e);
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Character } from '../types';
 import { stripImages } from '../utils/stripImages';
+import { appStorage } from '../persistence/appStorage';
 
 const TELEMETRY_STORAGE_KEY = 'ucs:telemetry';
 const TELEMETRY_CLIENT_ID_KEY = 'ucs:telemetry:clientId';
@@ -31,11 +32,11 @@ function createRandomId(): string {
 
 function getClientId(): string {
   try {
-    const existing = localStorage.getItem(TELEMETRY_CLIENT_ID_KEY);
+    const existing = appStorage.getItem(TELEMETRY_CLIENT_ID_KEY);
     if (existing) return existing;
 
     const clientId = createRandomId();
-    localStorage.setItem(TELEMETRY_CLIENT_ID_KEY, clientId);
+    appStorage.setItem(TELEMETRY_CLIENT_ID_KEY, clientId);
     return clientId;
   } catch {
     return 'unknown';
@@ -62,7 +63,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
   // Load persisted state
   const persisted = (() => {
     try {
-      const raw = localStorage.getItem(TELEMETRY_STORAGE_KEY);
+      const raw = appStorage.getItem(TELEMETRY_STORAGE_KEY);
       if (!raw) return { lastSent: {} };
       return JSON.parse(raw) as { lastSent: Record<string, number> };
     } catch (e) {
@@ -97,7 +98,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       
       // Persist to localStorage
       try {
-        localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify({ lastSent: newLastSent }));
+        appStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify({ lastSent: newLastSent }));
       } catch (e) {
         console.error('Failed to persist telemetry state', e);
       }

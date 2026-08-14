@@ -1,5 +1,6 @@
 import { useStorageWarningStore } from '../store/useStorageWarningStore';
 import { formatBytes } from '../utils/storageMonitor';
+import { getAppStorageMode } from '../persistence/appStorage';
 
 /**
  * Fixed banner that warns users when localStorage is approaching its quota,
@@ -14,6 +15,7 @@ export default function StorageWarning() {
   if (dismissed && !saveFailed) return null;
 
   const isCritical = severity === 'critical' || saveFailed;
+  const isInstalled = getAppStorageMode() === 'installed';
 
   // Find the biggest consumer to give actionable advice
   const biggest = status.breakdown[0];
@@ -46,7 +48,7 @@ export default function StorageWarning() {
       <div className="flex-1 min-w-0">
         <p className="font-semibold">
           {saveFailed
-            ? 'Save failed — browser storage is full!'
+            ? `Save failed — ${isInstalled ? 'installed' : 'browser'} storage is unavailable!`
             : severity === 'critical'
               ? 'Storage almost full!'
               : 'Storage is getting full'}
@@ -57,7 +59,7 @@ export default function StorageWarning() {
           {hasImages && (
             <> Embedded images are often the largest consumers — consider removing unused images or exporting a backup, then deleting old characters.</>
           )}
-          {' '}You can also go to <strong>Manage → Export Backup</strong> to save your data externally, then remove characters you no longer need.
+          {' '}Use <strong>Backup</strong> on the character list to save your data externally, then remove characters you no longer need.
         </p>
 
         {/* Per-key breakdown */}
