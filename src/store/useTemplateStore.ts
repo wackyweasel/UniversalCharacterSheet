@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Widget, WidgetType } from '../types';
 import { useStore } from './useStore';
 import { useTelemetryStore } from './useTelemetryStore';
-import { appStorage } from '../persistence/appStorage';
 
 export interface WidgetTemplate {
   id: string;
@@ -82,7 +81,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
   // Load persisted templates from localStorage
   const persisted = (() => {
     try {
-      const raw = appStorage.getItem('ucs:templates');
+      const raw = localStorage.getItem('ucs:templates');
       if (!raw) return null;
       return JSON.parse(raw) as { templates: AnyTemplate[] };
     } catch (e) {
@@ -96,7 +95,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
   // Subscribe to persist changes
   const persistTemplates = (templates: AnyTemplate[]) => {
     try {
-      appStorage.setItem('ucs:templates', JSON.stringify({ templates }));
+      localStorage.setItem('ucs:templates', JSON.stringify({ templates }));
     } catch (e) {
       console.error('Failed to persist templates', e);
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {

@@ -62,7 +62,3 @@ export const useStorageWarningStore = create<StorageWarningState>((set) => {
 setInterval(() => {
   useStorageWarningStore.getState().refresh();
 }, 30_000);
-
-window.addEventListener('ucs:storage-write-error', () => {
-  useStorageWarningStore.getState().reportSaveFailure();
-});

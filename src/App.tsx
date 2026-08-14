@@ -4,7 +4,6 @@ import CharacterList from './components/CharacterList';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
-import type { StorageBootstrapResult } from './persistence/appStorage';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -48,11 +47,7 @@ class SheetErrorBoundary extends Component<SheetErrorBoundaryProps, SheetErrorBo
   }
 }
 
-interface AppProps {
-  storageBootstrap: StorageBootstrapResult;
-}
-
-function App({ storageBootstrap }: AppProps) {
+function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
 
   useEffect(() => {
@@ -89,7 +84,7 @@ function App({ storageBootstrap }: AppProps) {
         <SheetErrorBoundary key={activeCharacterId}>
           <Sheet />
         </SheetErrorBoundary>
-      ) : <CharacterList storageBootstrap={storageBootstrap} />}
+      ) : <CharacterList />}
       <DicePhysicsOverlay />
     </div>
   );

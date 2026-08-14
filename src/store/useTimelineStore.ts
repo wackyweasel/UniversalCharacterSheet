@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { useStore } from './useStore';
 import { useTelemetryStore } from './useTelemetryStore';
-import { appStorage } from '../persistence/appStorage';
 
 export interface TimelineEvent {
   id: string;
@@ -40,7 +39,7 @@ const STORAGE_KEY = 'ucs:timeline';
 // Load persisted state from localStorage
 function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTimeline>; orderNewestFirst: boolean; showFormulas: boolean } {
   try {
-    const raw = appStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true };
     const data = JSON.parse(raw);
 
@@ -185,7 +184,7 @@ export const useTimelineStore = create<TimelineState>((set) => ({
     if (saveTimeout) window.clearTimeout(saveTimeout);
     saveTimeout = window.setTimeout(() => {
       try {
-        appStorage.setItem(STORAGE_KEY, JSON.stringify({
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
           eventsByCharacter: state.eventsByCharacter,
           orderNewestFirst: state.orderNewestFirst,
           showFormulas: state.showFormulas,

@@ -16,15 +16,7 @@ import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
-import {
-  appStorage,
-  dismissInstalledWorkspaceNotice,
-  flushAppStorage,
-  setAppStorageRecords,
-  type StorageBootstrapResult,
-} from '../persistence/appStorage';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
-import { CUSTOM_THEMES_STORAGE_KEY } from '../persistence/storageKeys';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -38,7 +30,7 @@ const TUTORIAL_DESCRIPTIONS = {
 
 // Get initial dark mode preference from localStorage or OS
 function getInitialDarkMode(): boolean {
-  const stored = appStorage.getItem(DARK_MODE_STORAGE_KEY);
+  const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
   if (stored !== null) {
     return stored === 'true';
   }
@@ -108,11 +100,7 @@ function getThemeStyles(themeId?: string) {
   } as React.CSSProperties;
 }
 
-interface CharacterListProps {
-  storageBootstrap: StorageBootstrapResult;
-}
-
-export default function CharacterList({ storageBootstrap }: CharacterListProps) {
+export default function CharacterList() {
   // Subscribe to custom theme changes so cards update when themes are edited
   const customThemes = useCustomThemeStore((state) => state.customThemes);
   // Subscribe to template changes for backup
@@ -169,7 +157,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
   const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
-  const [showWorkspaceNotice, setShowWorkspaceNotice] = useState(storageBootstrap.showWorkspaceNotice);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
@@ -479,7 +466,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
   const toggleDarkMode = () => {
     setDarkMode((prev) => {
       const newValue = !prev;
-      appStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
+      localStorage.setItem(DARK_MODE_STORAGE_KEY, String(newValue));
       recordCharacterListEvent({
         eventName: 'app_dark_mode_changed',
         category: 'app',
@@ -904,7 +891,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
         const backupData = JSON.parse(event.target?.result as string) as BackupData;
         
@@ -927,25 +914,26 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
         
         if (!confirmRestore) return;
         
-        const restoredRecords = new Map<string, string>();
-        restoredRecords.set('ucs:store', JSON.stringify({
+        // Restore characters
+        localStorage.setItem('ucs:store', JSON.stringify({
           characters: backupData.characters,
           activeCharacterId: null
         }));
-
+        
+        // Restore custom themes if present
         if (backupData.customThemes) {
-          restoredRecords.set(CUSTOM_THEMES_STORAGE_KEY, JSON.stringify(backupData.customThemes));
+          localStorage.setItem('ucs:customThemes', JSON.stringify(backupData.customThemes));
         }
-
+        
+        // Restore templates if present
         if (backupData.templates && Array.isArray(backupData.templates)) {
-          restoredRecords.set('ucs:templates', JSON.stringify({ templates: backupData.templates }));
+          localStorage.setItem('ucs:templates', JSON.stringify({ templates: backupData.templates }));
         }
-
+        
+        // Restore user presets if present
         if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
-          restoredRecords.set('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
+          localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
         }
-
-        await setAppStorageRecords(restoredRecords);
 
         recordCharacterListEvent({
           eventName: 'backup_restored',
@@ -957,11 +945,11 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             userPresetCount,
           },
         });
-
-        await flushAppStorage();
-        window.location.reload();
+        
+        // Reload the page to apply changes
+        window.setTimeout(() => window.location.reload(), 250);
       } catch (err) {
-        alert('Failed to restore backup file');
+        alert('Failed to parse backup file');
         console.error(err);
       }
     };
@@ -970,16 +958,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
     // Reset file input
     if (backupFileInputRef.current) {
       backupFileInputRef.current.value = '';
-    }
-  };
-
-  const handleDismissWorkspaceNotice = async () => {
-    try {
-      await dismissInstalledWorkspaceNotice();
-      setShowWorkspaceNotice(false);
-    } catch (error) {
-      console.error('Failed to dismiss installed workspace notice', error);
-      alert('The notice could not be dismissed yet. Please try again.');
     }
   };
 
@@ -1036,29 +1014,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             </button>
           </Tooltip>
         </header>
-        {storageBootstrap.mode === 'installed' && showWorkspaceNotice && (
-          <section className={`flex flex-col gap-3 border-l-4 border-cyan-500 px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${
-            darkMode ? 'bg-cyan-950/50 text-white' : 'bg-cyan-50 text-theme-ink'
-          }`} aria-label="Installed workspace information">
-            <div className="min-w-0 font-body">
-              <p className={`text-sm font-bold ${darkMode ? 'text-cyan-200' : 'text-cyan-800'}`}>Welcome to the installed version of Universal Character Sheet</p>
-              <p className={`mt-0.5 text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
-                Characters here are stored separately on this device. Changes do not sync with the website or other devices.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleDismissWorkspaceNotice()}
-              className={`flex-none px-3 py-2 text-xs font-body font-bold rounded-button transition-colors ${
-                darkMode
-                  ? 'border border-cyan-300 text-cyan-100 hover:bg-cyan-900'
-                  : 'border border-cyan-700 text-cyan-800 hover:bg-cyan-100'
-              }`}
-            >
-              Dismiss
-            </button>
-          </section>
-        )}
         <div className="w-full">
           <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
             {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
@@ -1478,25 +1433,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
                   </svg>
                   <span>Backup</span>
                 </button>
-                {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      if (installAvailability === 'prompt') {
-                        void promptInstall();
-                      } else {
-                        setShowInstallInstructions(true);
-                      }
-                    }}
-                    className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                      darkMode ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <DownloadIcon className="h-5 w-5" />
-                    <span>Install App</span>
-                  </button>
-                )}
                 <a
                   href="https://buymeacoffee.com/wackyweasel"
                   target="_blank"
@@ -2250,7 +2186,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
             onClick={() => setShowBackupModal(false)}
           />
-          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] animate-fade-in ${
+          <div data-tutorial="backup-modal" className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[450px] animate-fade-in ${
             darkMode 
               ? 'bg-black border border-white/30' 
               : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
@@ -2283,17 +2219,13 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
                     Your data is stored locally
                   </p>
                   <p className={`font-body text-sm ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                    {storageBootstrap.mode === 'installed'
-                      ? 'Its data is stored separately on this device. Changes do not sync with the website, other browsers, or other devices.'
-                      : "All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers."}
+                    All your characters and settings are stored in your browser's local storage. This data may be lost if you clear your browser cache, use private/incognito mode, or switch browsers.
                   </p>
                   {(() => {
                     const s = getStorageStatus();
                     return (
                       <p className={`font-body text-xs mt-2 ${darkMode ? 'text-white/40' : 'text-theme-muted/70'}`}>
-                        {s.quotaKnown
-                          ? `Storage used: ${formatBytes(s.usedBytes)} / ~${formatBytes(s.quotaBytes)} (${s.percentUsed}%)`
-                          : `Installed workspace data: ${formatBytes(s.usedBytes)}`}
+                        Storage used: {formatBytes(s.usedBytes)} / ~{formatBytes(s.quotaBytes)} ({s.percentUsed}%)
                       </p>
                     );
                   })()}
@@ -2305,7 +2237,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             <div className="mb-4">
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Download a backup file containing all your characters and custom themes{storageBootstrap.mode === 'installed' ? ' from this installed workspace' : ''}.
+                Download a backup file containing all your characters and custom themes.
               </p>
               <button
                 onClick={handleBackup}
@@ -2318,7 +2250,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                {storageBootstrap.mode === 'installed' ? 'Download Installed Backup' : 'Download Backup'}
+                Download Backup
               </button>
             </div>
             
@@ -2328,7 +2260,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             <div>
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Restore from Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Upload a backup file to restore your characters and themes{storageBootstrap.mode === 'installed' ? ' into this installed workspace' : ''}. <span className="text-red-500 font-semibold">This will replace all current data.</span>
+                Upload a backup file to restore your characters and themes. <span className="text-red-500 font-semibold">This will replace all current data.</span>
               </p>
               <label className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-body rounded-theme transition-colors font-bold cursor-pointer ${
                 darkMode 
@@ -2371,7 +2303,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
                 : <>Open the Share menu and choose <strong>Add to Home Screen</strong>. In Safari on macOS, choose <strong>File</strong>, then <strong>Add to Dock</strong>.</>}
             </p>
             <p className={`mt-3 font-body text-sm leading-relaxed ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
-              The installed app copies your current data once. Its characters and the website's characters are separate after that.
+              The installed app uses the same locally stored characters and settings as this website.
             </p>
             <button type="button" onClick={() => setShowInstallInstructions(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
               darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'

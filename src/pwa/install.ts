@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { getAppStorageMode } from '../persistence/appStorage';
-import { getInstalledLaunchUrl, isInstalledApp, isStandaloneDisplay } from './runtimeContext';
+import { isInstalledApp } from './runtimeContext';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -11,8 +10,6 @@ export type InstallAvailability = 'installed' | 'prompt' | 'instructions' | 'una
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
-const standaloneDisplay = window.matchMedia('(display-mode: standalone)');
-let standaloneCheckTimer: number | null = null;
 
 function emitChange(): void {
   listeners.forEach((listener) => listener());
@@ -39,34 +36,10 @@ function handleBeforeInstallPrompt(event: Event): void {
 function handleInstalled(): void {
   deferredPrompt = null;
   emitChange();
-  watchForStandaloneTransition();
-}
-
-function reloadReusedWebsiteDocument(): boolean {
-  if (!isStandaloneDisplay() || getAppStorageMode() !== 'website') return false;
-  window.location.replace(getInstalledLaunchUrl());
-  return true;
-}
-
-function watchForStandaloneTransition(): void {
-  if (reloadReusedWebsiteDocument()) return;
-  if (standaloneCheckTimer !== null) window.clearInterval(standaloneCheckTimer);
-
-  let checksRemaining = 50;
-  standaloneCheckTimer = window.setInterval(() => {
-    checksRemaining -= 1;
-    if (reloadReusedWebsiteDocument() || checksRemaining <= 0) {
-      if (standaloneCheckTimer !== null) window.clearInterval(standaloneCheckTimer);
-      standaloneCheckTimer = null;
-    }
-  }, 100);
 }
 
 window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 window.addEventListener('appinstalled', handleInstalled);
-standaloneDisplay.addEventListener('change', (event) => {
-  if (event.matches) reloadReusedWebsiteDocument();
-});
 
 export function getInstallAvailability(): InstallAvailability {
   if (isInstalledApp()) return 'installed';

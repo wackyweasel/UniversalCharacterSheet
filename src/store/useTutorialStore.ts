@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { appStorage } from '../persistence/appStorage';
 
 const TUTORIAL_STORAGE_KEY = 'ucs:tutorialStep';
 
@@ -635,40 +634,40 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
 
   startTutorial: () => {
     set({ tutorialStep: 0 });
-    appStorage.setItem(TUTORIAL_STORAGE_KEY, '0');
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, '0');
   },
 
   startThemesTutorial: () => {
     const themeTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === THEME_TUTORIAL_START_ID);
     const tutorialStep = themeTutorialStart >= 0 ? themeTutorialStart : 0;
     set({ tutorialStep });
-    appStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },
 
   startTemplatesTutorial: () => {
     const templateTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === TEMPLATE_TUTORIAL_START_ID);
     const tutorialStep = templateTutorialStart >= 0 ? templateTutorialStart : 0;
     set({ tutorialStep });
-    appStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },
 
   startAutomationTutorial: () => {
     const automationTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === AUTOMATION_TUTORIAL_START_ID);
     const tutorialStep = automationTutorialStart >= 0 ? automationTutorialStart : 0;
     set({ tutorialStep });
-    appStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },
 
   startVariousTutorial: () => {
     const variousTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === VARIOUS_TUTORIAL_START_ID);
     const tutorialStep = variousTutorialStart >= 0 ? variousTutorialStart : 0;
     set({ tutorialStep });
-    appStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },
 
   exitTutorial: () => {
     set({ tutorialStep: null });
-    appStorage.removeItem(TUTORIAL_STORAGE_KEY);
+    localStorage.removeItem(TUTORIAL_STORAGE_KEY);
   },
 
   advanceTutorial: () => {
@@ -676,25 +675,25 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     if (tutorialStep !== null && tutorialStep < TUTORIAL_STEPS.length - 1) {
       const newStep = tutorialStep + 1;
       set({ tutorialStep: newStep });
-      appStorage.setItem(TUTORIAL_STORAGE_KEY, String(newStep));
+      localStorage.setItem(TUTORIAL_STORAGE_KEY, String(newStep));
     } else {
       set({ tutorialStep: null });
-      appStorage.removeItem(TUTORIAL_STORAGE_KEY);
+      localStorage.removeItem(TUTORIAL_STORAGE_KEY);
     }
   },
 
   setTutorialStep: (step: number | null) => {
     set({ tutorialStep: step });
     if (step !== null) {
-      appStorage.setItem(TUTORIAL_STORAGE_KEY, String(step));
+      localStorage.setItem(TUTORIAL_STORAGE_KEY, String(step));
     } else {
-      appStorage.removeItem(TUTORIAL_STORAGE_KEY);
+      localStorage.removeItem(TUTORIAL_STORAGE_KEY);
     }
   },
 }));
 
 // Initialize from localStorage
-const storedStep = appStorage.getItem(TUTORIAL_STORAGE_KEY);
+const storedStep = localStorage.getItem(TUTORIAL_STORAGE_KEY);
 if (storedStep !== null) {
   useTutorialStore.setState({ tutorialStep: parseInt(storedStep, 10) });
 }

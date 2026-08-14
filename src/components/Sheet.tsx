@@ -8,7 +8,6 @@ import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation } from '../hooks';
-import { appStorage } from '../persistence/appStorage';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
@@ -211,7 +210,7 @@ export default function Sheet() {
   
   // Dark mode state (read from localStorage to match CharacterList)
   const [darkMode, setDarkMode] = useState(() => {
-    const stored = appStorage.getItem(DARK_MODE_STORAGE_KEY);
+    const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
     if (stored !== null) {
       return stored === 'true';
     }
@@ -1260,7 +1259,7 @@ export default function Sheet() {
   }, [activeCharacter]);
 
   const setAllVerticalWidgetsCollapsed = (collapsed: boolean) => {
-    activeSheetWidgets.forEach((widget) => appStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(collapsed)));
+    activeSheetWidgets.forEach((widget) => localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(collapsed)));
     window.dispatchEvent(new CustomEvent('vertical-collapse-all', { detail: collapsed }));
   };
 

@@ -1,5 +1,3 @@
-import { appStorage, getAppStorageMode } from '../persistence/appStorage';
-
 /**
  * Monitors localStorage usage and provides warnings when approaching quota limits.
  *
@@ -25,9 +23,9 @@ let detectedQuotaBytes: number | null = null;
 function probeQuota(): number {
   const usedChars = (() => {
     let t = 0;
-    for (let i = 0; i < appStorage.length; i++) {
-      const k = appStorage.key(i)!;
-      t += k.length + (appStorage.getItem(k)?.length ?? 0);
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)!;
+      t += k.length + (localStorage.getItem(k)?.length ?? 0);
     }
     return t;
   })();
@@ -40,7 +38,7 @@ function probeQuota(): number {
     while (hi - lo > 1024) {
       const mid = Math.floor((lo + hi) / 2);
       try {
-        appStorage.setItem(PROBE_KEY, 'x'.repeat(mid));
+        localStorage.setItem(PROBE_KEY, 'x'.repeat(mid));
         lo = mid; // it fit
       } catch {
         hi = mid; // too big
@@ -48,7 +46,7 @@ function probeQuota(): number {
     }
   } finally {
     // Always clean up
-    try { appStorage.removeItem(PROBE_KEY); } catch { /* */ }
+    try { localStorage.removeItem(PROBE_KEY); } catch { /* */ }
   }
 
   const totalChars = usedChars + lo;
@@ -58,11 +56,11 @@ function probeQuota(): number {
 /** Measure total bytes used by localStorage (keys + values, UTF-16 ⇒ ×2). */
 export function getLocalStorageUsageBytes(): number {
   let total = 0;
-  for (let i = 0; i < appStorage.length; i++) {
-    const key = appStorage.key(i);
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
     if (key) {
       // JavaScript strings are UTF-16 → 2 bytes per character
-      total += (key.length + (appStorage.getItem(key)?.length ?? 0)) * 2;
+      total += (key.length + (localStorage.getItem(key)?.length ?? 0)) * 2;
     }
   }
   return total;
@@ -71,10 +69,10 @@ export function getLocalStorageUsageBytes(): number {
 /** Return per-key usage for keys matching a prefix, sorted largest first. */
 export function getStorageBreakdown(prefix = 'ucs:'): { key: string; bytes: number }[] {
   const items: { key: string; bytes: number }[] = [];
-  for (let i = 0; i < appStorage.length; i++) {
-    const key = appStorage.key(i);
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
     if (key && key.startsWith(prefix)) {
-      const val = appStorage.getItem(key) ?? '';
+      const val = localStorage.getItem(key) ?? '';
       items.push({ key, bytes: (key.length + val.length) * 2 });
     }
   }
@@ -98,7 +96,6 @@ export function estimateQuotaBytes(): number {
 export interface StorageStatus {
   usedBytes: number;
   quotaBytes: number;
-  quotaKnown: boolean;
   /** 0-1 fraction of quota used */
   ratio: number;
   /** Formatted strings for UI */
@@ -111,17 +108,15 @@ export interface StorageStatus {
 
 export function getStorageStatus(): StorageStatus {
   const usedBytes = getLocalStorageUsageBytes();
-  const quotaKnown = getAppStorageMode() === 'website';
-  const quotaBytes = quotaKnown ? estimateQuotaBytes() : 0;
-  const ratio = quotaKnown ? Math.min(usedBytes / quotaBytes, 1) : 0;
+  const quotaBytes = estimateQuotaBytes();
+  const ratio = Math.min(usedBytes / quotaBytes, 1);
 
   return {
     usedBytes,
     quotaBytes,
-    quotaKnown,
     ratio,
     usedMB: (usedBytes / (1024 * 1024)).toFixed(2),
-    quotaMB: quotaKnown ? (quotaBytes / (1024 * 1024)).toFixed(0) : '',
+    quotaMB: (quotaBytes / (1024 * 1024)).toFixed(0),
     percentUsed: Math.round(ratio * 100),
     breakdown: getStorageBreakdown(),
   };

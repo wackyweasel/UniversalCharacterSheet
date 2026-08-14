@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
-import { appStorage } from '../persistence/appStorage';
 
 const PLAY_LAYOUT_STORAGE_KEY = 'ucs:play-layout';
 const LIST_COLUMNS_STORAGE_KEY = 'ucs:list-columns';
@@ -13,7 +12,7 @@ function getInitialPlayLayout(mode: string): PlayLayout {
   if (mode === 'vertical') return 'list';
   if (mode === 'play') return 'canvas';
   try {
-    return appStorage.getItem(PLAY_LAYOUT_STORAGE_KEY) === 'list' ? 'list' : 'canvas';
+    return localStorage.getItem(PLAY_LAYOUT_STORAGE_KEY) === 'list' ? 'list' : 'canvas';
   } catch {
     return 'canvas';
   }
@@ -21,7 +20,7 @@ function getInitialPlayLayout(mode: string): PlayLayout {
 
 function getInitialListColumns(): number {
   try {
-    const storedValue = Number(appStorage.getItem(LIST_COLUMNS_STORAGE_KEY));
+    const storedValue = Number(localStorage.getItem(LIST_COLUMNS_STORAGE_KEY));
     return Number.isFinite(storedValue) ? Math.max(1, Math.floor(storedValue)) : 1;
   } catch {
     return 1;
@@ -41,7 +40,7 @@ function readWorkspaceSettings(mode: string, characterId?: string | null, sheetI
   const key = workspaceKey(characterId, sheetId);
   if (key) {
     try {
-      const parsed = JSON.parse(appStorage.getItem(key) || 'null');
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
       if (parsed && (parsed.playLayout === 'canvas' || parsed.playLayout === 'list')) {
         const listColumns = Number(parsed.listColumns);
         return {
@@ -64,11 +63,11 @@ function persistWorkspaceSettings(settings: WorkspaceSettings, characterId?: str
   try {
     const key = workspaceKey(characterId, sheetId);
     if (key) {
-      appStorage.setItem(key, JSON.stringify(settings));
+      localStorage.setItem(key, JSON.stringify(settings));
       return;
     }
-    appStorage.setItem(PLAY_LAYOUT_STORAGE_KEY, settings.playLayout);
-    appStorage.setItem(LIST_COLUMNS_STORAGE_KEY, String(settings.listColumns));
+    localStorage.setItem(PLAY_LAYOUT_STORAGE_KEY, settings.playLayout);
+    localStorage.setItem(LIST_COLUMNS_STORAGE_KEY, String(settings.listColumns));
   } catch {
     // A view preference should never block the sheet when storage is unavailable.
   }

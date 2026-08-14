@@ -7,7 +7,6 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import { ChevronDownIcon, GripVerticalIcon, PencilIcon, TrashIcon } from './icons';
 import { Tooltip } from './Tooltip';
 import { getWidgetTypeLabel } from '../utils/widgetMetadata';
-import { appStorage } from '../persistence/appStorage';
 import WidgetEditModal from './WidgetEditModal';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
@@ -101,7 +100,7 @@ export default function VerticalWidget({
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
-      const stored = appStorage.getItem(`ucs:vertical-collapsed:${widget.id}`);
+      const stored = localStorage.getItem(`ucs:vertical-collapsed:${widget.id}`);
       return stored === 'true';
     } catch {
       return false;
@@ -111,7 +110,7 @@ export default function VerticalWidget({
   // Persist collapsed state to localStorage
   useEffect(() => {
     try {
-      appStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(isCollapsed));
+      localStorage.setItem(`ucs:vertical-collapsed:${widget.id}`, String(isCollapsed));
     } catch {
       // Ignore storage errors
     }

@@ -1,6 +1,5 @@
 import { useStorageWarningStore } from '../store/useStorageWarningStore';
 import { formatBytes } from '../utils/storageMonitor';
-import { getAppStorageMode } from '../persistence/appStorage';
 
 /**
  * Fixed banner that warns users when localStorage is approaching its quota,
@@ -15,7 +14,6 @@ export default function StorageWarning() {
   if (dismissed && !saveFailed) return null;
 
   const isCritical = severity === 'critical' || saveFailed;
-  const isInstalled = getAppStorageMode() === 'installed';
 
   // Find the biggest consumer to give actionable advice
   const biggest = status.breakdown[0];
@@ -48,20 +46,18 @@ export default function StorageWarning() {
       <div className="flex-1 min-w-0">
         <p className="font-semibold">
           {saveFailed
-            ? `Save failed — ${isInstalled ? 'installed' : 'browser'} storage is unavailable!`
+            ? 'Save failed — browser storage is full!'
             : severity === 'critical'
               ? 'Storage almost full!'
               : 'Storage is getting full'}
         </p>
         <p className={`mt-0.5 ${isCritical ? 'text-white/90' : 'text-yellow-900/80'}`}>
-          {status.quotaKnown
-            ? `Using ${formatBytes(status.usedBytes)} of ~${status.quotaMB} MB (${status.percentUsed}%).`
-            : `Installed workspace data: ${formatBytes(status.usedBytes)}.`}
+          Using {formatBytes(status.usedBytes)} of ~{status.quotaMB} MB ({status.percentUsed}%).
           {saveFailed && ' Your latest changes were NOT saved.'}
           {hasImages && (
             <> Embedded images are often the largest consumers — consider removing unused images or exporting a backup, then deleting old characters.</>
           )}
-          {' '}Use <strong>Backup</strong> on the character list to save your data externally, then remove characters you no longer need.
+          {' '}You can also go to <strong>Manage → Export Backup</strong> to save your data externally, then remove characters you no longer need.
         </p>
 
         {/* Per-key breakdown */}

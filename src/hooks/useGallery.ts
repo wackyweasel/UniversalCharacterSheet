@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { CharacterPreset } from '../presets';
 import { CustomTheme } from '../store/useCustomThemeStore';
 import { AnyTemplate } from '../store/useTemplateStore';
-import { appStorage } from '../persistence/appStorage';
 
 const GALLERY_BASE_URL = `${import.meta.env.BASE_URL}community-gallery`;
 const CACHE_KEY = 'ucs:gallery-cache:v2';
@@ -56,7 +55,7 @@ export function useGallery() {
     // Check cache first
     if (!forceRefresh) {
       try {
-        const cached = appStorage.getItem(THEME_DATA_CACHE_KEY);
+        const cached = localStorage.getItem(THEME_DATA_CACHE_KEY);
         if (cached) {
           const data = JSON.parse(cached);
           const includesAllThemes = themes.every((theme) => data.themes?.[theme.id]);
@@ -88,7 +87,7 @@ export function useGallery() {
 
     // Cache the fetched themes
     try {
-      appStorage.setItem(THEME_DATA_CACHE_KEY, JSON.stringify({
+      localStorage.setItem(THEME_DATA_CACHE_KEY, JSON.stringify({
         themes: fetchedThemes,
         timestamp: Date.now(),
       }));
@@ -115,7 +114,7 @@ export function useGallery() {
       
       // Cache the result
       try {
-        appStorage.setItem(CACHE_KEY, JSON.stringify({
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
           manifest: data,
           timestamp: Date.now(),
         }));
@@ -133,7 +132,7 @@ export function useGallery() {
       setError(e instanceof Error ? e.message : 'Failed to load gallery');
       // Keep the gallery usable offline with the last successful manifest.
       try {
-        const cached = appStorage.getItem(CACHE_KEY);
+        const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
           const data: CachedData = JSON.parse(cached);
           setManifest(data.manifest);

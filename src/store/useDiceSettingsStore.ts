@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { appStorage } from '../persistence/appStorage';
 
 const STORAGE_KEY = 'ucs:3d-dice-enabled';
 
@@ -10,7 +9,7 @@ interface DiceSettingsState {
 
 const loadThreeDDiceEnabled = () => {
   try {
-    const storedValue = appStorage.getItem(STORAGE_KEY);
+    const storedValue = localStorage.getItem(STORAGE_KEY);
     return storedValue === null ? true : JSON.parse(storedValue) !== false;
   } catch {
     return true;
@@ -21,7 +20,7 @@ export const useDiceSettingsStore = create<DiceSettingsState>((set) => ({
   threeDDiceEnabled: loadThreeDDiceEnabled(),
   setThreeDDiceEnabled: (enabled) => {
     try {
-      appStorage.setItem(STORAGE_KEY, JSON.stringify(enabled));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(enabled));
     } catch {
       // Keep the in-memory preference when storage is unavailable.
     }

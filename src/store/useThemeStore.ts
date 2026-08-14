@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { appStorage } from '../persistence/appStorage';
 
 // Import texture images
 import paperTexture from '../textures/paper.jpg';
@@ -563,7 +562,7 @@ export const useThemeStore = create<ThemeState>((set) => {
   // Load persisted theme from localStorage
   const persisted = (() => {
     try {
-      const raw = appStorage.getItem('ucs:theme');
+      const raw = localStorage.getItem('ucs:theme');
       if (!raw) return 'default';
       return JSON.parse(raw) as ThemeId;
     } catch {
@@ -576,7 +575,7 @@ export const useThemeStore = create<ThemeState>((set) => {
     setTheme: (themeId) => {
       set({ currentTheme: themeId });
       try {
-        appStorage.setItem('ucs:theme', JSON.stringify(themeId));
+        localStorage.setItem('ucs:theme', JSON.stringify(themeId));
       } catch (e) {
         console.error('Failed to persist theme', e);
         if (e instanceof DOMException && e.name === 'QuotaExceededError') {
