@@ -135,6 +135,14 @@
         "description": "Character sheet for Knight RPG (French version)\nUpdated with the website update\n+ Better switch\n+ Better design for list\n+ More compatible with smaller devices (not yet for phones)",
         "file": "presets/knight_ttrpg_v1_1.json",
         "gameSystem": "Knight"
+    },
+    {
+      "id": "18",
+      "name": "Disgaea",
+      "author": "@NC",
+      "description": "TOME!!!",
+      "file": "presets/disgaea.json",
+      "gameSystem": "Disgaea"
     }
   ],
   "themes": [
