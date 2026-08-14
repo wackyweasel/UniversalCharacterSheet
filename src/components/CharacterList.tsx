@@ -17,8 +17,8 @@ import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import {
-  acknowledgeInstalledMigrationNotice,
   appStorage,
+  dismissInstalledWorkspaceNotice,
   flushAppStorage,
   getWebsiteMigrationSummary,
   replaceInstalledWorkspaceFromWebsite,
@@ -176,7 +176,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
   const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
-  const [showMigrationNotice, setShowMigrationNotice] = useState(storageBootstrap.firstMigration !== null);
+  const [showWorkspaceNotice, setShowWorkspaceNotice] = useState(storageBootstrap.showWorkspaceNotice);
   const [installedStorageInfo, setInstalledStorageInfo] = useState<InstalledStorageInfo | null>(null);
   const [isReplacingInstalledData, setIsReplacingInstalledData] = useState(false);
   const [newCharName, setNewCharName] = useState('');
@@ -1033,13 +1033,13 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
     }
   };
 
-  const handleAcknowledgeMigrationNotice = async () => {
+  const handleDismissWorkspaceNotice = async () => {
     try {
-      await acknowledgeInstalledMigrationNotice();
-      setShowMigrationNotice(false);
+      await dismissInstalledWorkspaceNotice();
+      setShowWorkspaceNotice(false);
     } catch (error) {
-      console.error('Failed to acknowledge installed workspace notice', error);
-      alert('The notice could not be dismissed yet. Your installed data is still safe.');
+      console.error('Failed to dismiss installed workspace notice', error);
+      alert('The notice could not be dismissed yet. Please try again.');
     }
   };
 
@@ -1062,12 +1062,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             <p className={`mt-1 max-w-2xl font-body text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
-            {storageBootstrap.mode === 'installed' && (
-              <p className={`mt-2 flex items-center gap-2 font-body text-xs font-semibold ${darkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>
-                <span className="h-2 w-2 bg-cyan-500" aria-hidden="true" />
-                Installed workspace. Changes here do not sync with the website.
-              </p>
-            )}
           </div>
           <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
             <button
@@ -1102,6 +1096,34 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             </button>
           </Tooltip>
         </header>
+        {storageBootstrap.mode === 'installed' && showWorkspaceNotice && (
+          <section className={`flex flex-col gap-3 border-l-4 border-cyan-500 px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${
+            darkMode ? 'bg-cyan-950/50 text-white' : 'bg-cyan-50 text-theme-ink'
+          }`} aria-label="Installed workspace information">
+            <div className="min-w-0 font-body">
+              <p className={`text-sm font-bold ${darkMode ? 'text-cyan-200' : 'text-cyan-800'}`}>Installed workspace</p>
+              <p className={`mt-0.5 text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
+                Characters here are stored separately on this device. Changes do not sync with the website or other devices.
+              </p>
+              {storageBootstrap.migrationSummary && (
+                <p className={`mt-1 text-xs font-semibold ${darkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                  Initial copy: {storageBootstrap.migrationSummary.characterCount} character(s), {storageBootstrap.migrationSummary.templateCount} template(s), and {storageBootstrap.migrationSummary.userPresetCount} preset(s).
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleDismissWorkspaceNotice()}
+              className={`flex-none px-3 py-2 text-xs font-body font-bold rounded-button transition-colors ${
+                darkMode
+                  ? 'border border-cyan-300 text-cyan-100 hover:bg-cyan-900'
+                  : 'border border-cyan-700 text-cyan-800 hover:bg-cyan-100'
+              }`}
+            >
+              Dismiss
+            </button>
+          </section>
+        )}
         <div className="w-full">
           <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
             {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
@@ -2489,26 +2511,6 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             <button type="button" onClick={() => setShowInstallInstructions(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
               darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
             }`}>Done</button>
-          </div>
-        </>
-      )}
-
-      {showMigrationNotice && storageBootstrap.firstMigration && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-50 animate-fade-in" />
-          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[460px] animate-fade-in ${
-            darkMode ? 'bg-black border border-white/30' : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-          }`} role="dialog" aria-modal="true" aria-labelledby="installed-copy-title">
-            <h3 id="installed-copy-title" className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Installed workspace ready</h3>
-            <p className={`mt-4 font-body text-sm ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
-              Copied {storageBootstrap.firstMigration.characterCount} character(s), {storageBootstrap.firstMigration.templateCount} template(s), and {storageBootstrap.firstMigration.userPresetCount} preset(s) from the website.
-            </p>
-            <div className={`mt-4 border-l-4 border-cyan-500 p-3 font-body text-sm ${darkMode ? 'bg-white/10 text-white' : 'bg-cyan-50 text-theme-ink'}`}>
-              The website and installed app do not sync. Changes in one workspace will not appear in the other.
-            </div>
-            <button type="button" onClick={() => void handleAcknowledgeMigrationNotice()} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
-              darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-            }`}>Continue</button>
           </div>
         </>
       )}

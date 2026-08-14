@@ -73,7 +73,7 @@ describe('app storage modes', () => {
     expect(websiteStorage.getItem('ucs:store')).toBe(serialized);
   });
 
-  it('copies once on Chrome install launch and keeps the notice pending until acknowledged', async () => {
+  it('copies once on Chrome install launch and permanently dismisses the workspace notice', async () => {
     websiteStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'web-1' }] }));
     websiteStorage.setItem('ucs:templates', JSON.stringify({ templates: [{ id: 'template-1' }] }));
     websiteStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: [] }));
@@ -90,7 +90,8 @@ describe('app storage modes', () => {
 
     const firstLaunch = await initializeAppStorage();
     expect(firstLaunch.mode).toBe('installed');
-    expect(firstLaunch.firstMigration).toMatchObject({
+    expect(firstLaunch.showWorkspaceNotice).toBe(true);
+    expect(firstLaunch.migrationSummary).toMatchObject({
       characterCount: 1,
       templateCount: 1,
       userPresetCount: 0,
@@ -104,22 +105,23 @@ describe('app storage modes', () => {
     vi.resetModules();
     const shortcutLaunchStorage = await import('./appStorage');
     const shortcutLaunch = await shortcutLaunchStorage.initializeAppStorage();
-    expect(shortcutLaunch.firstMigration).toMatchObject({ characterCount: 1 });
+    expect(shortcutLaunch.migrationSummary).toMatchObject({ characterCount: 1 });
+    expect(shortcutLaunch.showWorkspaceNotice).toBe(true);
 
-    await shortcutLaunchStorage.acknowledgeInstalledMigrationNotice();
+    await shortcutLaunchStorage.dismissInstalledWorkspaceNotice();
     vi.resetModules();
-    const acknowledgedStorage = await import('./appStorage');
-    const acknowledgedLaunch = await acknowledgedStorage.initializeAppStorage();
-    expect(acknowledgedLaunch.firstMigration).toBeNull();
+    const dismissedStorage = await import('./appStorage');
+    const dismissedLaunch = await dismissedStorage.initializeAppStorage();
+    expect(dismissedLaunch.showWorkspaceNotice).toBe(false);
 
-    acknowledgedStorage.appStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'installed-only' }] }));
-    await acknowledgedStorage.flushAppStorage();
+    dismissedStorage.appStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'installed-only' }] }));
+    await dismissedStorage.flushAppStorage();
     expect(websiteStorage.getItem('ucs:store')).toBe(originalWebsiteStore);
 
     websiteStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'web-1' }, { id: 'web-2' }] }));
-    const replacement = await acknowledgedStorage.replaceInstalledWorkspaceFromWebsite();
+    const replacement = await dismissedStorage.replaceInstalledWorkspaceFromWebsite();
     expect(replacement.characterCount).toBe(2);
-    expect(JSON.parse(acknowledgedStorage.appStorage.getItem('ucs:store') ?? '{}').characters).toHaveLength(2);
+    expect(JSON.parse(dismissedStorage.appStorage.getItem('ucs:store') ?? '{}').characters).toHaveLength(2);
     expect(JSON.parse(websiteStorage.getItem('ucs:store') ?? '{}').characters).toHaveLength(2);
   });
 });

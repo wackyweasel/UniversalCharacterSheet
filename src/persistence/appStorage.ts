@@ -1,12 +1,12 @@
 import { getInstalledDatabaseName, isInstalledApp } from '../pwa/runtimeContext';
 import {
-  acknowledgeMigrationNotice,
   clearInstalledRecords,
+  dismissWorkspaceNotice,
   MigrationSummary,
   openInstalledDatabase,
   readInstalledRecords,
   readMigrationSummary,
-  readPendingMigrationNotice,
+  readWorkspaceNoticeDismissed,
   removeInstalledRecord,
   replaceInstalledRecords,
   setInstalledRecord,
@@ -79,7 +79,8 @@ class MemoryStorage implements Storage {
 
 export interface StorageBootstrapResult {
   mode: 'website' | 'installed';
-  firstMigration: MigrationSummary | null;
+  migrationSummary: MigrationSummary | null;
+  showWorkspaceNotice: boolean;
 }
 
 let activeStorage: Storage = window.localStorage;
@@ -163,25 +164,24 @@ export const appStorage: Storage = {
 };
 
 export async function initializeAppStorage(): Promise<StorageBootstrapResult> {
-  if (!isInstalledApp()) return { mode: 'website', firstMigration: null };
+  if (!isInstalledApp()) return { mode: 'website', migrationSummary: null, showWorkspaceNotice: false };
 
   installedDatabase = await openInstalledDatabase(getInstalledDatabaseName());
   let migrationSummary = await readMigrationSummary(installedDatabase);
-  let firstMigration: MigrationSummary | null = null;
 
   if (!migrationSummary) {
     const websiteRecords = readWebsiteRecords();
     migrationSummary = createMigrationSummary(websiteRecords);
-    await replaceInstalledRecords(installedDatabase, websiteRecords, migrationSummary, true);
+    await replaceInstalledRecords(installedDatabase, websiteRecords, migrationSummary);
   }
 
-  firstMigration = await readPendingMigrationNotice(installedDatabase);
+  const showWorkspaceNotice = !(await readWorkspaceNoticeDismissed(installedDatabase));
 
   const records = await readInstalledRecords(installedDatabase);
   installedMemoryStorage = new MemoryStorage(records, queueInstalledWrite, installedDatabase);
   activeStorage = installedMemoryStorage;
   registerLifecycleFlush();
-  return { mode: 'installed', firstMigration };
+  return { mode: 'installed', migrationSummary, showWorkspaceNotice };
 }
 
 export async function flushAppStorage(): Promise<void> {
@@ -195,11 +195,6 @@ export function getAppStorageMode(): 'website' | 'installed' {
 
 export function getWebsiteMigrationSummary(): MigrationSummary {
   return createMigrationSummary(readWebsiteRecords());
-}
-
-export async function acknowledgeInstalledMigrationNotice(): Promise<void> {
-  if (!installedDatabase) return;
-  await acknowledgeMigrationNotice(installedDatabase);
 }
 
 export async function replaceInstalledWorkspaceFromWebsite(): Promise<MigrationSummary> {
@@ -224,4 +219,9 @@ export async function setAppStorageRecords(records: ReadonlyMap<string, string>)
   await flushAppStorage();
   await setInstalledRecords(installedDatabase, records);
   installedMemoryStorage?.applyPersistedRecords(records);
+}
+
+export async function dismissInstalledWorkspaceNotice(): Promise<void> {
+  if (!installedDatabase) return;
+  await dismissWorkspaceNotice(installedDatabase);
 }

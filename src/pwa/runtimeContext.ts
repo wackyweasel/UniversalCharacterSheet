@@ -22,6 +22,12 @@ export function getWebsiteUrl(): string {
   return new URL(import.meta.env.BASE_URL, window.location.origin).href;
 }
 
+export function getInstalledLaunchUrl(): string {
+  const url = new URL(import.meta.env.BASE_URL, window.location.origin);
+  url.searchParams.set(INSTALLED_LAUNCH_PARAMETER, INSTALLED_LAUNCH_VALUE);
+  return url.href;
+}
+
 export function getInstalledDatabaseName(baseUrl = import.meta.env.BASE_URL): string {
   return `ucs-installed:${encodeURIComponent(baseUrl)}`;
 }
