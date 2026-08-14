@@ -1,10 +1,12 @@
 import { getInstalledDatabaseName, isInstalledApp } from '../pwa/runtimeContext';
 import {
+  acknowledgeMigrationNotice,
   clearInstalledRecords,
   MigrationSummary,
   openInstalledDatabase,
   readInstalledRecords,
   readMigrationSummary,
+  readPendingMigrationNotice,
   removeInstalledRecord,
   replaceInstalledRecords,
   setInstalledRecord,
@@ -170,9 +172,10 @@ export async function initializeAppStorage(): Promise<StorageBootstrapResult> {
   if (!migrationSummary) {
     const websiteRecords = readWebsiteRecords();
     migrationSummary = createMigrationSummary(websiteRecords);
-    await replaceInstalledRecords(installedDatabase, websiteRecords, migrationSummary);
-    firstMigration = migrationSummary;
+    await replaceInstalledRecords(installedDatabase, websiteRecords, migrationSummary, true);
   }
+
+  firstMigration = await readPendingMigrationNotice(installedDatabase);
 
   const records = await readInstalledRecords(installedDatabase);
   installedMemoryStorage = new MemoryStorage(records, queueInstalledWrite, installedDatabase);
@@ -192,6 +195,11 @@ export function getAppStorageMode(): 'website' | 'installed' {
 
 export function getWebsiteMigrationSummary(): MigrationSummary {
   return createMigrationSummary(readWebsiteRecords());
+}
+
+export async function acknowledgeInstalledMigrationNotice(): Promise<void> {
+  if (!installedDatabase) return;
+  await acknowledgeMigrationNotice(installedDatabase);
 }
 
 export async function replaceInstalledWorkspaceFromWebsite(): Promise<MigrationSummary> {

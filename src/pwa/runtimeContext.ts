@@ -15,7 +15,7 @@ export function hasInstalledLaunchMarker(location = window.location): boolean {
 }
 
 export function isInstalledApp(): boolean {
-  return isStandaloneDisplay();
+  return isStandaloneDisplay() || hasInstalledLaunchMarker();
 }
 
 export function getWebsiteUrl(): string {

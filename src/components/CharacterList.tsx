@@ -17,6 +17,7 @@ import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import {
+  acknowledgeInstalledMigrationNotice,
   appStorage,
   flushAppStorage,
   getWebsiteMigrationSummary,
@@ -1029,6 +1030,16 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
       console.error('Failed to replace installed workspace', error);
       alert('The installed workspace could not be replaced. Its current data was left in place.');
       setIsReplacingInstalledData(false);
+    }
+  };
+
+  const handleAcknowledgeMigrationNotice = async () => {
+    try {
+      await acknowledgeInstalledMigrationNotice();
+      setShowMigrationNotice(false);
+    } catch (error) {
+      console.error('Failed to acknowledge installed workspace notice', error);
+      alert('The notice could not be dismissed yet. Your installed data is still safe.');
     }
   };
 
@@ -2495,7 +2506,7 @@ export default function CharacterList({ storageBootstrap }: CharacterListProps) 
             <div className={`mt-4 border-l-4 border-cyan-500 p-3 font-body text-sm ${darkMode ? 'bg-white/10 text-white' : 'bg-cyan-50 text-theme-ink'}`}>
               The website and installed app do not sync. Changes in one workspace will not appear in the other.
             </div>
-            <button type="button" onClick={() => setShowMigrationNotice(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
+            <button type="button" onClick={() => void handleAcknowledgeMigrationNotice()} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
               darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
             }`}>Continue</button>
           </div>

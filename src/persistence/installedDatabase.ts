@@ -2,6 +2,8 @@ const DATABASE_VERSION = 1;
 const RECORD_STORE = 'records';
 const META_STORE = 'meta';
 const MIGRATION_META_KEY = 'websiteMigration';
+const MIGRATION_NOTICE_META_KEY = 'pendingMigrationNotice';
+const MIGRATION_NOTICE_ACK_META_KEY = 'migrationNoticeAcknowledged';
 
 export interface MigrationSummary {
   migratedAt: string;
@@ -60,16 +62,46 @@ export async function readMigrationSummary(database: IDBDatabase): Promise<Migra
   return result && typeof result === 'object' ? result as MigrationSummary : null;
 }
 
+export async function readPendingMigrationNotice(database: IDBDatabase): Promise<MigrationSummary | null> {
+  const transaction = database.transaction(META_STORE, 'readonly');
+  const store = transaction.objectStore(META_STORE);
+  const [pendingNotice, acknowledged, migrationSummary] = await Promise.all([
+    requestResult(store.get(MIGRATION_NOTICE_META_KEY)),
+    requestResult(store.get(MIGRATION_NOTICE_ACK_META_KEY)),
+    requestResult(store.get(MIGRATION_META_KEY)),
+  ]);
+  await transactionComplete(transaction);
+  if (pendingNotice && typeof pendingNotice === 'object') return pendingNotice as MigrationSummary;
+  if (acknowledged === true) return null;
+  return migrationSummary && typeof migrationSummary === 'object' ? migrationSummary as MigrationSummary : null;
+}
+
 export async function replaceInstalledRecords(
   database: IDBDatabase,
   records: ReadonlyMap<string, string>,
   summary: MigrationSummary,
+  pendingNotice = false,
 ): Promise<void> {
   const transaction = database.transaction([RECORD_STORE, META_STORE], 'readwrite');
   const recordStore = transaction.objectStore(RECORD_STORE);
   recordStore.clear();
   records.forEach((value, key) => recordStore.put(value, key));
-  transaction.objectStore(META_STORE).put(summary, MIGRATION_META_KEY);
+  const metaStore = transaction.objectStore(META_STORE);
+  metaStore.put(summary, MIGRATION_META_KEY);
+  if (pendingNotice) {
+    metaStore.put(summary, MIGRATION_NOTICE_META_KEY);
+    metaStore.delete(MIGRATION_NOTICE_ACK_META_KEY);
+  } else {
+    metaStore.delete(MIGRATION_NOTICE_META_KEY);
+  }
+  await transactionComplete(transaction);
+}
+
+export async function acknowledgeMigrationNotice(database: IDBDatabase): Promise<void> {
+  const transaction = database.transaction(META_STORE, 'readwrite');
+  const store = transaction.objectStore(META_STORE);
+  store.delete(MIGRATION_NOTICE_META_KEY);
+  store.put(true, MIGRATION_NOTICE_ACK_META_KEY);
   await transactionComplete(transaction);
 }
 
