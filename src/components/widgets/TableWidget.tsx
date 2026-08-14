@@ -4,6 +4,7 @@ import { Widget, TableRow, TableCell, CellFormat, TableColumnSettings, TableRowS
 import { useStore } from '../../store/useStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { InlineDiceText } from '../InlineDiceText';
 import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
 import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, ResetIcon, TrashIcon } from '../icons';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
@@ -1090,6 +1091,7 @@ export default function TableWidget({ widget, height }: Props) {
   };
 
   const handleCellClick = (rowIdx: number, colIdx: number, event: React.MouseEvent<HTMLElement>) => {
+    if (mode === 'print') return;
     // Always enter edit mode on click, show toolbar alongside
     setEditingCell({ row: rowIdx, col: colIdx });
     setSelectedCell({ row: rowIdx, col: colIdx });
@@ -1455,6 +1457,7 @@ export default function TableWidget({ widget, height }: Props) {
   });
 
   const handleTouchStart = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
+    if (mode === 'print') return;
     captureTouchUiState();
     const targetElement = e.currentTarget;
     setTouchStart({ row: rowIdx, col: colIdx });
@@ -1470,6 +1473,7 @@ export default function TableWidget({ widget, height }: Props) {
   };
 
   const handleTouchEnd = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
+    if (mode === 'print') return;
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -1800,7 +1804,7 @@ export default function TableWidget({ widget, height }: Props) {
                         onTouchEnd={(e) => handleTouchEnd(rowIdx, colIdx, e)}
                         onTouchMove={handleTouchMove}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className={`relative min-h-[1.5em] cursor-pointer hover:opacity-70 font-body flex leading-[1.5] ${getCellTextClass(cellFormat)}`}
+                        className={`relative min-h-[1.5em] font-body flex leading-[1.5] ${mode === 'print' ? '' : 'cursor-pointer hover:opacity-70'} ${getCellTextClass(cellFormat)}`}
                         style={{
                           ...getCellContentStyle(cellFormat),
                           ...textColorStyle,
@@ -1808,7 +1812,9 @@ export default function TableWidget({ widget, height }: Props) {
                         }}
                       >
                         <span className={`block min-w-0 whitespace-pre-wrap break-words ${isEditing ? 'invisible' : ''}`}>
-                          {cellValue || <span className={`text-theme-muted ${isPrintMode ? 'opacity-0' : ''}`}>-</span>}
+                          {cellValue ? (
+                            <InlineDiceText text={cellValue} widget={widget} />
+                          ) : <span className={`text-theme-muted ${isPrintMode ? 'opacity-0' : ''}`}>-</span>}
                         </span>
                         {cellFml && isFormulaBroken(cellFml, formulaLabels) && (
                           <span className={`text-red-500 ml-0.5 text-[9px] flex-shrink-0 ${isEditing ? 'invisible' : ''}`} title={`Broken formula: ${cellFml}`}>⚠</span>

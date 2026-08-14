@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DiceExpressionRollResult } from '../../utils/diceExpression';
 import { formatDiceRollDetail, formatDiceStep, parseDiceStep } from '../../utils/diceExpression';
+import { rollDiceTerms } from '../../utils/diceRoll';
 import type { MixedField, MixedFieldType, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { InlineDiceText } from '../InlineDiceText';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import {
   clampMixedFieldValue,
@@ -15,7 +17,6 @@ import {
 import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
-import { rollDiceStep } from './StepDiceWidget';
 
 interface Props {
   widget: Widget;
@@ -237,6 +238,7 @@ export default function MixedFieldsWidget({
   interactive = true,
 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const workspaceMode = useStore((state) => state.mode);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const { label, mixedFields = [], labelWidth = 33 } = widget.data;
@@ -250,6 +252,7 @@ export default function MixedFieldsWidget({
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [rollResults, setRollResults] = useState<Record<number, DiceExpressionRollResult>>({});
+  const [editingTextIndex, setEditingTextIndex] = useState<number | null>(null);
   const previousTextValues = useRef<Record<number, string>>({});
   const labels = useMemo(() => {
     const character = characters.find((item) => item.id === activeCharacterId);
@@ -284,7 +287,7 @@ export default function MixedFieldsWidget({
     if (!terms) return;
     setRollingIndex(index);
     try {
-      const result = await rollDiceStep(terms);
+      const result = await rollDiceTerms(terms);
       setRollResults((current) => ({ ...current, [index]: result }));
       announceChange(field, formatDiceRollDetail(result));
     } finally {
@@ -320,7 +323,7 @@ export default function MixedFieldsWidget({
   const renderFieldControl = (field: MixedField, index: number) => {
     switch (field.type) {
       case 'text':
-        return (
+        return workspaceMode === 'edit' || editingTextIndex === index ? (
           <input
             type="text"
             value={field.value}
@@ -330,12 +333,30 @@ export default function MixedFieldsWidget({
               const previous = previousTextValues.current[index];
               if (previous !== undefined && previous !== field.value) announceChange(field, 'text changed');
               delete previousTextValues.current[index];
+              setEditingTextIndex(null);
             }}
             onMouseDown={(event) => event.stopPropagation()}
             readOnly={!canInteract}
+            autoFocus={workspaceMode !== 'edit'}
             placeholder={isPrintMode ? '' : '...'}
             className="min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 text-xs font-body text-theme-ink outline-none focus:border-theme-accent"
           />
+        ) : (
+          <div
+            className={`min-h-[1.5em] min-w-0 flex-1 border-b border-theme-border px-1 py-0.5 text-xs font-body text-theme-ink ${isPrintMode ? '' : 'cursor-text'}`}
+            role="button"
+            tabIndex={isPrintMode ? -1 : 0}
+            aria-label={`Edit ${field.name || 'text value'}`}
+            onClick={() => { if (!isPrintMode && canInteract) setEditingTextIndex(index); }}
+            onKeyDown={(event) => {
+              if (!isPrintMode && canInteract && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                setEditingTextIndex(index);
+              }
+            }}
+          >
+            {field.value ? <InlineDiceText text={field.value} widget={widget} /> : isPrintMode ? null : <span className="text-theme-muted">...</span>}
+          </div>
         );
       case 'menu':
         return (

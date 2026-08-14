@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Widget, FormItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
@@ -25,6 +26,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const [fieldNameDraft, setFieldNameDraft] = useState('');
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
+  const [editingValueIndex, setEditingValueIndex] = useState<number | null>(null);
 
   // Fixed small sizing
   const itemClass = 'text-xs';
@@ -177,16 +179,34 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
               ) : item.name}
             </span>
 
-            {/* Value Input */}
-            <input
-              type="text"
-              value={item.value}
-              onChange={(e) => handleValueChange(idx, e.target.value)}
-              onBlur={() => handleValueBlur(idx)}
-              onMouseDown={(e) => e.stopPropagation()}
-              className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border focus:border-theme-accent focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
-              placeholder={isPrintMode ? '' : '...'}
-            />
+            {mode === 'edit' || editingValueIndex === idx ? (
+              <input
+                type="text"
+                value={item.value}
+                onChange={(e) => handleValueChange(idx, e.target.value)}
+                onBlur={() => { handleValueBlur(idx); setEditingValueIndex(null); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                autoFocus={mode !== 'edit'}
+                className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border focus:border-theme-accent focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
+                placeholder="..."
+              />
+            ) : (
+              <div
+                className={`min-h-[1.5em] min-w-0 flex-1 border-b border-theme-border px-1 py-0.5 ${isPrintMode ? '' : 'cursor-text'} ${itemClass} font-body text-theme-ink`}
+                role="button"
+                tabIndex={isPrintMode ? -1 : 0}
+                aria-label={`Edit ${item.name || 'form value'}`}
+                onClick={() => { if (!isPrintMode) setEditingValueIndex(idx); }}
+                onKeyDown={(event) => {
+                  if (!isPrintMode && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    setEditingValueIndex(idx);
+                  }
+                }}
+              >
+                {item.value ? <InlineDiceText text={item.value} widget={widget} /> : isPrintMode ? null : <span className="text-theme-muted">...</span>}
+              </div>
+            )}
           </div>
         ))}
         {formItems.length === 0 && (

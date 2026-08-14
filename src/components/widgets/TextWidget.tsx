@@ -1,6 +1,6 @@
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -18,6 +18,7 @@ import {
   UnderlineIcon,
 } from '../icons';
 import { Tooltip } from '../Tooltip';
+import { InlineDiceRichText } from '../InlineDiceRichText';
 
 interface Props {
   widget: Widget;
@@ -29,15 +30,17 @@ interface Props {
 export default function TextWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
-  const isPrintMode = mode === 'print';
+  const [isContentEditing, setIsContentEditing] = useState(false);
+  const showEditor = mode === 'edit' || (isContentEditing && mode !== 'print');
   const { label, text = '', richText } = widget.data;
+  const widgetRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
 
   const initialContent = richText ?? plainTextToHtml(text);
   const editor = useEditor({
     extensions: [StarterKit, TextStyle, Color],
     content: initialContent,
-    editable: !isPrintMode,
+    editable: showEditor,
     editorProps: {
       attributes: {
         class: 'notes-rich-text__content',
@@ -76,6 +79,13 @@ export default function TextWidget({ widget, height }: Props) {
     }
   }, []);
 
+  const runEditorCommand = useCallback((command: () => void) => {
+    if (!editor || mode === 'print') return;
+    editor.setEditable(true);
+    setIsContentEditing(true);
+    window.requestAnimationFrame(command);
+  }, [editor, mode]);
+
   const gapClass = 'gap-1';
   const isAutoHeight = height >= 10000;
 
@@ -86,29 +96,49 @@ export default function TextWidget({ widget, height }: Props) {
   }, [editor, initialContent]);
 
   useEffect(() => {
-    editor?.setEditable(!isPrintMode);
-  }, [editor, isPrintMode]);
+    editor?.setEditable(showEditor);
+  }, [editor, showEditor]);
+
+  useEffect(() => {
+    if (!isContentEditing || mode === 'edit') return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!widgetRef.current?.contains(event.target as Node)) setIsContentEditing(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isContentEditing, mode]);
+
+  useEffect(() => {
+    if (!isContentEditing || !editor) return;
+    const frame = window.requestAnimationFrame(() => editor.commands.focus('end'));
+    return () => window.cancelAnimationFrame(frame);
+  }, [editor, isContentEditing]);
+
+  useEffect(() => {
+    if (mode === 'print') setIsContentEditing(false);
+  }, [mode]);
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
+    <div ref={widgetRef} className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
       {label && (
         <div className="widget-header flex-shrink-0">
           <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
         </div>
       )}
       <div className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}>
-        {!isPrintMode && editor && (
+        {mode !== 'print' && editor && (
           <div className="notes-rich-text__toolbar" role="toolbar" aria-label="Text formatting">
-            <ToolbarButton label="Bold" active={toolbarState?.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
+            <ToolbarButton label="Bold" active={toolbarState?.bold} onClick={() => runEditorCommand(() => editor.chain().focus().toggleBold().run())}>
               <BoldIcon />
             </ToolbarButton>
-            <ToolbarButton label="Italic" active={toolbarState?.italic} onClick={() => editor.chain().focus().toggleItalic().run()}>
+            <ToolbarButton label="Italic" active={toolbarState?.italic} onClick={() => runEditorCommand(() => editor.chain().focus().toggleItalic().run())}>
               <ItalicIcon />
             </ToolbarButton>
-            <ToolbarButton label="Underline" active={toolbarState?.underline} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+            <ToolbarButton label="Underline" active={toolbarState?.underline} onClick={() => runEditorCommand(() => editor.chain().focus().toggleUnderline().run())}>
               <UnderlineIcon />
             </ToolbarButton>
-            <ToolbarButton label="Strikethrough" active={toolbarState?.strike} onClick={() => editor.chain().focus().toggleStrike().run()}>
+            <ToolbarButton label="Strikethrough" active={toolbarState?.strike} onClick={() => runEditorCommand(() => editor.chain().focus().toggleStrike().run())}>
               <StrikethroughIcon />
             </ToolbarButton>
             <div className="notes-rich-text__divider" />
@@ -119,37 +149,59 @@ export default function TextWidget({ widget, height }: Props) {
                 <input
                   type="color"
                   value={normalizeColor(toolbarState?.color)}
-                  onChange={(event) => editor.chain().focus().setColor(event.target.value).run()}
+                  onChange={(event) => {
+                    const color = event.target.value;
+                    runEditorCommand(() => editor.chain().focus().setColor(color).run());
+                  }}
                 />
               </label>
             </Tooltip>
             <div className="notes-rich-text__divider" />
-            <ToolbarButton label="Bullet list" active={toolbarState?.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+            <ToolbarButton label="Bullet list" active={toolbarState?.bulletList} onClick={() => runEditorCommand(() => editor.chain().focus().toggleBulletList().run())}>
               <ListIcon />
             </ToolbarButton>
-            <ToolbarButton label="Numbered list" active={toolbarState?.orderedList} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+            <ToolbarButton label="Numbered list" active={toolbarState?.orderedList} onClick={() => runEditorCommand(() => editor.chain().focus().toggleOrderedList().run())}>
               <ListOrderedIcon />
             </ToolbarButton>
-            <ToolbarButton label="Decrease indent" disabled={!toolbarState?.canOutdent} onClick={() => editor.chain().focus().liftListItem('listItem').run()}>
+            <ToolbarButton label="Decrease indent" disabled={!toolbarState?.canOutdent} onClick={() => runEditorCommand(() => editor.chain().focus().liftListItem('listItem').run())}>
               <OutdentIcon />
             </ToolbarButton>
-            <ToolbarButton label="Increase indent" disabled={!toolbarState?.canIndent} onClick={() => editor.chain().focus().sinkListItem('listItem').run()}>
+            <ToolbarButton label="Increase indent" disabled={!toolbarState?.canIndent} onClick={() => runEditorCommand(() => editor.chain().focus().sinkListItem('listItem').run())}>
               <IndentIcon />
             </ToolbarButton>
             <div className="notes-rich-text__divider" />
-            <ToolbarButton label="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
+            <ToolbarButton label="Clear formatting" onClick={() => runEditorCommand(() => editor.chain().focus().unsetAllMarks().clearNodes().run())}>
               <ClearFormattingIcon />
             </ToolbarButton>
           </div>
         )}
         <div
           ref={editorScrollRef}
-          className="notes-rich-text__scroll"
+          className={`notes-rich-text__scroll ${!showEditor && mode !== 'print' ? 'cursor-text' : ''}`}
+          role={!showEditor && mode !== 'print' ? 'button' : undefined}
+          tabIndex={!showEditor && mode !== 'print' ? 0 : undefined}
+          aria-label={!showEditor && mode !== 'print' ? `Edit ${label || 'notes'}` : undefined}
           onMouseDown={(event) => event.stopPropagation()}
+          onClick={() => { if (!showEditor && mode !== 'print') setIsContentEditing(true); }}
+          onKeyDown={(event) => {
+            if (!showEditor && mode !== 'print' && (event.key === 'Enter' || event.key === ' ')) {
+              event.preventDefault();
+              setIsContentEditing(true);
+            }
+          }}
           onWheel={handleWheel}
         >
-          <EditorContent editor={editor} />
-          {!isPrintMode && editor?.isEmpty && (
+          {showEditor ? (
+            <EditorContent editor={editor} />
+          ) : (
+            <div
+              className={`notes-rich-text__content ${mode === 'print' ? '' : 'notes-rich-text__content--preview'}`}
+              aria-label={label ? `${label} notes` : 'Notes'}
+            >
+              <InlineDiceRichText html={initialContent} widget={widget} />
+            </div>
+          )}
+          {showEditor && editor?.isEmpty && (
             <span className="notes-rich-text__placeholder">Enter text here...</span>
           )}
         </div>

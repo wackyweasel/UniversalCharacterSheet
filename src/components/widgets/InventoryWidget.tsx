@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { getCharacterGlobalInventoryLoad, getInventoryLoad } from '../../utils/inventory';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 import { GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon } from '../icons';
+import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import { SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
@@ -452,7 +453,9 @@ export default function InventoryWidget({
                   <div key={field.id} className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1 text-[9px] leading-3">
                     <dt className="min-w-0 break-words text-theme-muted [overflow-wrap:anywhere]">{field.name}</dt>
                     <dd className={`min-w-0 whitespace-pre-wrap break-words font-medium [overflow-wrap:anywhere] ${field.type === 'number' ? 'font-mono tabular-nums' : ''}`}>
-                      {formatFieldValue(item, fieldIndex)}
+                      {field.type === 'text' || field.type === 'textarea' ? (
+                        <InlineDiceText text={formatFieldValue(item, fieldIndex)} widget={widget} />
+                      ) : formatFieldValue(item, fieldIndex)}
                     </dd>
                   </div>
                 ))}

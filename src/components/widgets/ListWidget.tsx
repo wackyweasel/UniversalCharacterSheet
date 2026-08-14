@@ -4,6 +4,7 @@ import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
+import { InlineDiceText } from '../InlineDiceText';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
@@ -20,12 +21,13 @@ interface WrappingListInputProps {
   className: string;
   placeholder: string;
   ariaLabel: string;
+  autoFocus?: boolean;
   onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   onFocus: (event: FocusEvent<HTMLTextAreaElement>) => void;
   onBlur: (event: FocusEvent<HTMLTextAreaElement>) => void;
 }
 
-function WrappingListInput({ value, width, className, placeholder, ariaLabel, onChange, onFocus, onBlur }: WrappingListInputProps) {
+function WrappingListInput({ value, width, className, placeholder, ariaLabel, autoFocus, onChange, onFocus, onBlur }: WrappingListInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -48,6 +50,7 @@ function WrappingListInput({ value, width, className, placeholder, ariaLabel, on
         if (event.key === 'Enter') event.preventDefault();
       }}
       placeholder={placeholder}
+      autoFocus={autoFocus}
       onMouseDown={(event) => event.stopPropagation()}
       aria-label={ariaLabel}
     />
@@ -56,6 +59,7 @@ function WrappingListInput({ value, width, className, placeholder, ariaLabel, on
 
 export default function ListWidget({ widget, mode, width, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const workspaceMode = useStore((state) => state.mode);
   const { label, items = [], itemCount = 5, wrapText = true } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
@@ -63,6 +67,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Fixed small sizing
   const inputClass = 'text-xs py-0.5';
@@ -217,16 +222,33 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
         {normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>
-            {wrapText ? (
+            {workspaceMode !== 'edit' && editingIndex !== idx ? (
+              <div
+                className={`min-h-[1.5em] min-w-0 flex-1 cursor-text border-b border-theme-border py-0.5 text-xs font-body text-theme-ink ${wrapText ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
+                role="button"
+                tabIndex={workspaceMode === 'print' ? -1 : 0}
+                aria-label={`Edit ${label || 'List'} item ${idx + 1}`}
+                onClick={() => { if (workspaceMode !== 'print') setEditingIndex(idx); }}
+                onKeyDown={(event) => {
+                  if (workspaceMode !== 'print' && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    setEditingIndex(idx);
+                  }
+                }}
+              >
+                {item ? <InlineDiceText text={item} widget={widget} /> : workspaceMode === 'print' ? null : <span className="text-theme-muted">...</span>}
+              </div>
+            ) : wrapText ? (
               <WrappingListInput
                 className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
                 value={item}
                 width={width}
                 onChange={(e) => updateItem(idx, e.target.value)}
                 onFocus={() => handleFocus(idx)}
-                onBlur={() => handleBlur(idx)}
+                onBlur={() => { handleBlur(idx); setEditingIndex(null); }}
                 placeholder={mode === 'print' ? '' : '...'}
                 ariaLabel={`${label || 'List'} item ${idx + 1}`}
+                autoFocus={workspaceMode !== 'edit'}
               />
             ) : (
               <input
@@ -234,22 +256,25 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
                 value={item}
                 onChange={(e) => updateItem(idx, e.target.value)}
                 onFocus={() => handleFocus(idx)}
-                onBlur={() => handleBlur(idx)}
+                onBlur={() => { handleBlur(idx); setEditingIndex(null); }}
                 placeholder={mode === 'print' ? '' : '...'}
+                autoFocus={workspaceMode !== 'edit'}
                 onMouseDown={(e) => e.stopPropagation()}
                 aria-label={`${label || 'List'} item ${idx + 1}`}
               />
             )}
-            <Tooltip content="Clear this item">
-              <button 
-                onClick={() => clearItem(idx)}
-                className={`text-theme-muted hover:text-red-500 px-1 flex-shrink-0 transition-opacity ${item ? 'opacity-50 group-hover:opacity-100 focus:opacity-100' : 'opacity-0 pointer-events-none'}`}
-                onMouseDown={(e) => e.stopPropagation()}
-                aria-label={`Clear ${label || 'list'} item ${idx + 1}`}
-              >
-                ×
-              </button>
-            </Tooltip>
+            {workspaceMode !== 'print' && (workspaceMode === 'edit' || editingIndex === idx) && (
+              <Tooltip content="Clear this item">
+                <button 
+                  onClick={() => clearItem(idx)}
+                  className={`text-theme-muted hover:text-red-500 px-1 flex-shrink-0 transition-opacity ${item ? 'opacity-50 group-hover:opacity-100 focus:opacity-100' : 'opacity-0 pointer-events-none'}`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  aria-label={`Clear ${label || 'list'} item ${idx + 1}`}
+                >
+                  ×
+                </button>
+              </Tooltip>
+            )}
           </div>
         ))}
       </div>
