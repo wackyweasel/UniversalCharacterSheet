@@ -8,7 +8,6 @@ import { appStorage, getAppStorageMode } from '../persistence/appStorage';
  */
 
 const ASSUMED_QUOTA_BYTES = 5 * 1024 * 1024; // 5 MB conservative estimate
-const ASSUMED_INSTALLED_QUOTA_BYTES = 50 * 1024 * 1024;
 const PROBE_KEY = '__ucs_quota_probe__';
 
 /** Cached result so we only probe once per session. */
@@ -87,7 +86,6 @@ export function getStorageBreakdown(prefix = 'ucs:'): { key: string; bytes: numb
  * Result is cached for the session. Falls back to 5 MB on failure.
  */
 export function estimateQuotaBytes(): number {
-  if (getAppStorageMode() === 'installed') return ASSUMED_INSTALLED_QUOTA_BYTES;
   if (detectedQuotaBytes !== null) return detectedQuotaBytes;
   try {
     detectedQuotaBytes = probeQuota();
@@ -100,6 +98,7 @@ export function estimateQuotaBytes(): number {
 export interface StorageStatus {
   usedBytes: number;
   quotaBytes: number;
+  quotaKnown: boolean;
   /** 0-1 fraction of quota used */
   ratio: number;
   /** Formatted strings for UI */
@@ -112,15 +111,17 @@ export interface StorageStatus {
 
 export function getStorageStatus(): StorageStatus {
   const usedBytes = getLocalStorageUsageBytes();
-  const quotaBytes = estimateQuotaBytes();
-  const ratio = Math.min(usedBytes / quotaBytes, 1);
+  const quotaKnown = getAppStorageMode() === 'website';
+  const quotaBytes = quotaKnown ? estimateQuotaBytes() : 0;
+  const ratio = quotaKnown ? Math.min(usedBytes / quotaBytes, 1) : 0;
 
   return {
     usedBytes,
     quotaBytes,
+    quotaKnown,
     ratio,
     usedMB: (usedBytes / (1024 * 1024)).toFixed(2),
-    quotaMB: (quotaBytes / (1024 * 1024)).toFixed(0),
+    quotaMB: quotaKnown ? (quotaBytes / (1024 * 1024)).toFixed(0) : '',
     percentUsed: Math.round(ratio * 100),
     breakdown: getStorageBreakdown(),
   };

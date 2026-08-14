@@ -54,7 +54,9 @@ export default function StorageWarning() {
               : 'Storage is getting full'}
         </p>
         <p className={`mt-0.5 ${isCritical ? 'text-white/90' : 'text-yellow-900/80'}`}>
-          Using {formatBytes(status.usedBytes)} of ~{status.quotaMB} MB ({status.percentUsed}%).
+          {status.quotaKnown
+            ? `Using ${formatBytes(status.usedBytes)} of ~${status.quotaMB} MB (${status.percentUsed}%).`
+            : `Installed workspace data: ${formatBytes(status.usedBytes)}.`}
           {saveFailed && ' Your latest changes were NOT saved.'}
           {hasImages && (
             <> Embedded images are often the largest consumers — consider removing unused images or exporting a backup, then deleting old characters.</>

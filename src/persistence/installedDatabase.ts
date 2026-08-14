@@ -61,7 +61,7 @@ export async function readMigrationSummary(database: IDBDatabase): Promise<Migra
   return result && typeof result === 'object' ? result as MigrationSummary : null;
 }
 
-export async function replaceInstalledRecords(
+export async function initializeInstalledRecords(
   database: IDBDatabase,
   records: ReadonlyMap<string, string>,
   summary: MigrationSummary,

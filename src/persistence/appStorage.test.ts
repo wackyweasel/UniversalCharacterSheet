@@ -31,10 +31,14 @@ class TestStorage implements Storage {
 }
 
 const websiteStorage = new TestStorage();
+const requestPersistentStorage = vi.fn(async () => true);
 let standalone = false;
 
 beforeAll(() => {
-  const navigatorValue = { standalone: false };
+  const navigatorValue = {
+    standalone: false,
+    storage: { persist: requestPersistentStorage },
+  };
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
     value: {
@@ -57,6 +61,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   websiteStorage.clear();
+  requestPersistentStorage.mockClear();
   standalone = false;
   window.location.search = '';
   vi.resetModules();
@@ -72,6 +77,7 @@ describe('app storage modes', () => {
 
     expect(result.mode).toBe('website');
     expect(websiteStorage.getItem('ucs:store')).toBe(serialized);
+    expect(requestPersistentStorage).not.toHaveBeenCalled();
   });
 
   it('copies once on Chrome install launch and permanently dismisses the workspace notice', async () => {
@@ -93,6 +99,7 @@ describe('app storage modes', () => {
 
     const firstLaunch = await initializeAppStorage();
     expect(firstLaunch.mode).toBe('installed');
+    expect(requestPersistentStorage).toHaveBeenCalledTimes(1);
     expect(firstLaunch.showWorkspaceNotice).toBe(true);
     expect(firstLaunch.migrationSummary).toMatchObject({
       characterCount: 1,
@@ -123,11 +130,5 @@ describe('app storage modes', () => {
     await dismissedStorage.flushAppStorage();
     expect(websiteStorage.getItem('ucs:store')).toBe(originalWebsiteStore);
     expect(websiteStorage.getItem(CUSTOM_THEMES_STORAGE_KEY)).toBe(websiteThemes);
-
-    websiteStorage.setItem('ucs:store', JSON.stringify({ characters: [{ id: 'web-1' }, { id: 'web-2' }] }));
-    const replacement = await dismissedStorage.replaceInstalledWorkspaceFromWebsite();
-    expect(replacement.characterCount).toBe(2);
-    expect(JSON.parse(dismissedStorage.appStorage.getItem('ucs:store') ?? '{}').characters).toHaveLength(2);
-    expect(JSON.parse(websiteStorage.getItem('ucs:store') ?? '{}').characters).toHaveLength(2);
   });
 });

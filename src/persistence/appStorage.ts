@@ -2,13 +2,13 @@ import { getInstalledDatabaseName, isInstalledApp } from '../pwa/runtimeContext'
 import {
   clearInstalledRecords,
   dismissWorkspaceNotice,
+  initializeInstalledRecords,
   MigrationSummary,
   openInstalledDatabase,
   readInstalledRecords,
   readMigrationSummary,
   readWorkspaceNoticeDismissed,
   removeInstalledRecord,
-  replaceInstalledRecords,
   setInstalledRecord,
   setInstalledRecords,
 } from './installedDatabase';
@@ -154,6 +154,17 @@ function registerLifecycleFlush(): void {
   });
 }
 
+async function requestInstalledStoragePersistence(): Promise<void> {
+  const storage = window.navigator.storage;
+  if (!storage || typeof storage.persist !== 'function') return;
+
+  try {
+    await storage.persist();
+  } catch (error) {
+    console.warn('Could not request persistent installed storage', error);
+  }
+}
+
 export const appStorage: Storage = {
   get length() {
     return activeStorage.length;
@@ -168,13 +179,14 @@ export const appStorage: Storage = {
 export async function initializeAppStorage(): Promise<StorageBootstrapResult> {
   if (!isInstalledApp()) return { mode: 'website', migrationSummary: null, showWorkspaceNotice: false };
 
+  await requestInstalledStoragePersistence();
   installedDatabase = await openInstalledDatabase(getInstalledDatabaseName());
   let migrationSummary = await readMigrationSummary(installedDatabase);
 
   if (!migrationSummary) {
     const websiteRecords = readWebsiteRecords();
     migrationSummary = createMigrationSummary(websiteRecords);
-    await replaceInstalledRecords(installedDatabase, websiteRecords, migrationSummary);
+    await initializeInstalledRecords(installedDatabase, websiteRecords, migrationSummary);
   }
 
   const showWorkspaceNotice = !(await readWorkspaceNoticeDismissed(installedDatabase));
@@ -201,23 +213,6 @@ export async function flushAppStorage(): Promise<void> {
 
 export function getAppStorageMode(): 'website' | 'installed' {
   return installedDatabase ? 'installed' : 'website';
-}
-
-export function getWebsiteMigrationSummary(): MigrationSummary {
-  return createMigrationSummary(readWebsiteRecords());
-}
-
-export async function replaceInstalledWorkspaceFromWebsite(): Promise<MigrationSummary> {
-  if (!installedDatabase) throw new Error('The installed workspace is not active');
-
-  await flushAppStorage();
-  const websiteRecords = readWebsiteRecords();
-  const summary = createMigrationSummary(websiteRecords);
-  await replaceInstalledRecords(installedDatabase, websiteRecords, summary);
-  installedMemoryStorage = new MemoryStorage(new Map(websiteRecords), queueInstalledWrite, installedDatabase);
-  activeStorage = installedMemoryStorage;
-  writeFailure = null;
-  return summary;
 }
 
 export async function setAppStorageRecords(records: ReadonlyMap<string, string>): Promise<void> {
