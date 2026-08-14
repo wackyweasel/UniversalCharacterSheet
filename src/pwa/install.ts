@@ -16,25 +16,13 @@ interface NavigatorWithInstalledRelatedApps extends Navigator {
 
 export type InstallAvailability = 'installed' | 'prompt' | 'instructions' | 'unavailable';
 
-const INSTALL_COMPLETED_STORAGE_KEY = 'ucs:pwa-installed';
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
-let installationRecorded = readInstallationRecorded();
+let installationRecorded = false;
+let relatedAppDetectionRequest = 0;
 const listeners = new Set<() => void>();
-
-function readInstallationRecorded(): boolean {
-  try {
-    return window.localStorage.getItem(INSTALL_COMPLETED_STORAGE_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
 
 function recordInstallation(): void {
   installationRecorded = true;
-  try {
-    window.localStorage.setItem(INSTALL_COMPLETED_STORAGE_KEY, 'true');
-  } catch {
-  }
 }
 
 function emitChange(): void {
@@ -68,13 +56,24 @@ function handleInstalled(): void {
 async function detectInstalledRelatedApp(): Promise<void> {
   const getInstalledRelatedApps = (navigator as NavigatorWithInstalledRelatedApps).getInstalledRelatedApps;
   if (!getInstalledRelatedApps) return;
+  const requestId = ++relatedAppDetectionRequest;
 
   try {
     const relatedApps = await getInstalledRelatedApps.call(navigator);
-    if (!relatedApps.some((app) => app.platform === 'webapp')) return;
-    if (installationRecorded) return;
-    recordInstallation();
-    emitChange();
+    if (requestId !== relatedAppDetectionRequest) return;
+
+    if (relatedApps.some((app) => app.platform === 'webapp')) {
+      if (!installationRecorded) {
+        recordInstallation();
+        emitChange();
+      }
+      return;
+    }
+
+    if (installationRecorded && !isInstalledApp()) {
+      installationRecorded = false;
+      emitChange();
+    }
   } catch {
     // This optional API is unavailable in some browsers and contexts.
   }
@@ -88,6 +87,7 @@ function refreshInstalledRelatedApp(): void {
 window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 window.addEventListener('appinstalled', handleInstalled);
 window.addEventListener('pageshow', refreshInstalledRelatedApp);
+window.addEventListener('focus', refreshInstalledRelatedApp);
 document.addEventListener('visibilitychange', refreshInstalledRelatedApp);
 void detectInstalledRelatedApp();
 
