@@ -1,9 +1,51 @@
-import { useEffect } from 'react';
+import { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import CharacterList from './components/CharacterList';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
+
+interface SheetErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface SheetErrorBoundaryState {
+  hasError: boolean;
+}
+
+class SheetErrorBoundary extends Component<SheetErrorBoundaryProps, SheetErrorBoundaryState> {
+  state: SheetErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): SheetErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Failed to render character sheet', error, errorInfo);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <main className="h-full flex items-center justify-center bg-gray-100 p-6">
+        <section className="w-full max-w-lg border-2 border-ink bg-paper p-6 shadow-[6px_6px_0_var(--color-ink)]">
+          <h1 className="text-xl font-bold">This character could not be displayed</h1>
+          <p className="mt-3 text-sm">
+            Its saved data is still intact. Return to the character list to create a backup or open another character.
+          </p>
+          <button
+            type="button"
+            className="mt-5 border-2 border-ink bg-accent px-4 py-2 font-bold text-paper hover:opacity-90"
+            onClick={() => useStore.getState().selectCharacter(null)}
+          >
+            Return to characters
+          </button>
+        </section>
+      </main>
+    );
+  }
+}
 
 function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -38,7 +80,11 @@ function App() {
   return (
     <div className="h-full bg-gray-100 text-ink font-mono overflow-hidden">
       <StorageWarning />
-      {activeCharacterId ? <Sheet /> : <CharacterList />}
+      {activeCharacterId ? (
+        <SheetErrorBoundary key={activeCharacterId}>
+          <Sheet />
+        </SheetErrorBoundary>
+      ) : <CharacterList />}
       <DicePhysicsOverlay />
     </div>
   );

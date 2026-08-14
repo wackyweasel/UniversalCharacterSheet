@@ -48,6 +48,7 @@ export default function TextWidget({ widget, height }: Props) {
       },
     },
     onUpdate: ({ editor: currentEditor }) => {
+      if (currentEditor.isDestroyed) return;
       updateWidgetData(widget.id, {
         richText: currentEditor.getHTML(),
         text: currentEditor.getText({ blockSeparator: '\n' }),
@@ -80,7 +81,7 @@ export default function TextWidget({ widget, height }: Props) {
   }, []);
 
   const runEditorCommand = useCallback((command: () => void) => {
-    if (!editor || mode === 'print') return;
+    if (!editor || editor.isDestroyed || mode === 'print') return;
     editor.setEditable(true);
     setIsContentEditing(true);
     window.requestAnimationFrame(command);
@@ -90,13 +91,13 @@ export default function TextWidget({ widget, height }: Props) {
   const isAutoHeight = height >= 10000;
 
   useEffect(() => {
-    if (editor && editor.getHTML() !== initialContent) {
+    if (editor && !editor.isDestroyed && editor.getHTML() !== initialContent) {
       editor.commands.setContent(initialContent, { emitUpdate: false });
     }
   }, [editor, initialContent]);
 
   useEffect(() => {
-    editor?.setEditable(showEditor);
+    if (editor && !editor.isDestroyed) editor.setEditable(showEditor);
   }, [editor, showEditor]);
 
   useEffect(() => {
@@ -110,7 +111,7 @@ export default function TextWidget({ widget, height }: Props) {
   }, [isContentEditing, mode]);
 
   useEffect(() => {
-    if (!isContentEditing || !editor) return;
+    if (!isContentEditing || !editor || editor.isDestroyed) return;
     const frame = window.requestAnimationFrame(() => editor.commands.focus('end'));
     return () => window.cancelAnimationFrame(frame);
   }, [editor, isContentEditing]);

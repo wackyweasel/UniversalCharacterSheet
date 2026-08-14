@@ -273,9 +273,12 @@ export const useStore = create<StoreState>((set, get) => {
       if (!raw) return null;
       const data = JSON.parse(raw) as { characters: any[]; activeCharacterId: string | null; mode?: Mode };
       // Migrate all characters to new format
+      const characters = data.characters.map(migrateCharacter);
       return {
-        characters: data.characters.map(migrateCharacter),
-        activeCharacterId: data.activeCharacterId,
+        characters,
+        activeCharacterId: characters.some((character) => character.id === data.activeCharacterId)
+          ? data.activeCharacterId
+          : null,
         mode: data.mode
       };
     } catch (e) {
