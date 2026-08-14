@@ -3,6 +3,8 @@ interface NavigatorWithStandalone extends Navigator {
 }
 
 export function isInstalledApp(): boolean {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || (window.navigator as NavigatorWithStandalone).standalone === true;
+  const installedDisplayModes = ['standalone', 'fullscreen', 'minimal-ui', 'window-controls-overlay'];
+  return installedDisplayModes.some((mode) => window.matchMedia(`(display-mode: ${mode})`).matches)
+    || (window.navigator as NavigatorWithStandalone).standalone === true
+    || document.referrer.startsWith('android-app://');
 }

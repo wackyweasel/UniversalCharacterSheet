@@ -22,6 +22,13 @@ export default defineConfig({
         start_url: base,
         scope: base,
         display: 'standalone',
+        related_applications: [
+          {
+            platform: 'webapp',
+            url: `${base}manifest.webmanifest`,
+            id: base,
+          },
+        ],
         background_color: '#f3f4f6',
         theme_color: '#171717',
         icons: [

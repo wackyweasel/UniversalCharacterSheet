@@ -6,6 +6,14 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
+interface InstalledRelatedApp {
+  platform: string;
+}
+
+interface NavigatorWithInstalledRelatedApps extends Navigator {
+  getInstalledRelatedApps?: () => Promise<InstalledRelatedApp[]>;
+}
+
 export type InstallAvailability = 'installed' | 'prompt' | 'instructions' | 'unavailable';
 
 const INSTALL_COMPLETED_STORAGE_KEY = 'ucs:pwa-installed';
@@ -57,8 +65,31 @@ function handleInstalled(): void {
   emitChange();
 }
 
+async function detectInstalledRelatedApp(): Promise<void> {
+  const getInstalledRelatedApps = (navigator as NavigatorWithInstalledRelatedApps).getInstalledRelatedApps;
+  if (!getInstalledRelatedApps) return;
+
+  try {
+    const relatedApps = await getInstalledRelatedApps.call(navigator);
+    if (!relatedApps.some((app) => app.platform === 'webapp')) return;
+    if (installationRecorded) return;
+    recordInstallation();
+    emitChange();
+  } catch {
+    // This optional API is unavailable in some browsers and contexts.
+  }
+}
+
+function refreshInstalledRelatedApp(): void {
+  if (document.visibilityState === 'hidden') return;
+  void detectInstalledRelatedApp();
+}
+
 window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 window.addEventListener('appinstalled', handleInstalled);
+window.addEventListener('pageshow', refreshInstalledRelatedApp);
+document.addEventListener('visibilitychange', refreshInstalledRelatedApp);
+void detectInstalledRelatedApp();
 
 export function getInstallAvailability(): InstallAvailability {
   if (isInstalledApp() || installationRecorded) return 'installed';
