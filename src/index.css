@@ -1774,7 +1774,80 @@ td .inline-dice-token {
   transform-style: preserve-3d;
 }
 
+.card-deck-dom-face--symbol-only {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .card-deck-dom-face[hidden] {
+  display: none;
+}
+
+.card-deck-dom-back {
+  --card-back-pattern-size: calc(var(--card-back-height) * 0.059);
+  align-items: center;
+  background-color: var(--card-back-color);
+  border: max(1px, calc(var(--card-back-height) * 0.008)) solid var(--card-back-border);
+  border-radius: calc(var(--card-back-height) * 0.035);
+  box-sizing: border-box;
+  color: var(--card-back-paper);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--card-back-height) * 0.045);
+  justify-content: center;
+  overflow: hidden;
+  padding: calc(var(--card-back-height) * 0.1);
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  transform-origin: center;
+}
+
+.card-deck-back--none {
+  background-image: none;
+}
+
+.card-deck-back--crosshatch {
+  background-image:
+    linear-gradient(45deg, transparent 44%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 20%, transparent) 44% 56%, transparent 56%),
+    linear-gradient(-45deg, transparent 44%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 20%, transparent) 44% 56%, transparent 56%);
+  background-size: var(--card-back-pattern-size, 10px) var(--card-back-pattern-size, 10px);
+}
+
+.card-deck-back--diamonds {
+  background-image:
+    linear-gradient(45deg, transparent 46%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 22%, transparent) 47% 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 22%, transparent) 47% 53%, transparent 54%);
+  background-size: calc(var(--card-back-pattern-size, 10px) * 2) calc(var(--card-back-pattern-size, 10px) * 2);
+}
+
+.card-deck-back--stripes {
+  background-image: repeating-linear-gradient(45deg, transparent 0 35%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 20%, transparent) 35% 50%, transparent 50% 85%);
+  background-size: calc(var(--card-back-pattern-size, 10px) * 1.5) calc(var(--card-back-pattern-size, 10px) * 1.5);
+}
+
+.card-deck-back--dots {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 28%, transparent) 0 18%, transparent 20%);
+  background-size: var(--card-back-pattern-size, 10px) var(--card-back-pattern-size, 10px);
+}
+
+.card-deck-dom-back__symbol {
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", Georgia, serif;
+  font-size: clamp(24px, calc(var(--card-back-height) * 0.3), 100px);
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.card-deck-dom-back__text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(14px, calc(var(--card-back-height) * 0.13), 38px);
+  font-weight: 700;
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.card-deck-dom-back[hidden] {
   display: none;
 }
 
@@ -1789,13 +1862,23 @@ td .inline-dice-token {
 .card-deck-dom-face__symbol {
   align-items: center;
   color: var(--card-face-accent);
-  display: flex;
+  display: grid;
   font-family: "Segoe UI Emoji", "Segoe UI Symbol", Georgia, serif;
-  font-size: clamp(20px, calc(var(--card-face-height) * 0.24), 88px);
+  font-size: clamp(11px, calc(var(--card-face-height) * var(--card-symbol-size-factor, 0.24)), 88px);
+  gap: calc(var(--card-face-height) * 0.018);
+  grid-template-columns: repeat(var(--card-symbol-columns, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(auto-fit, minmax(0, 1fr));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card-deck-dom-face__symbol-glyph {
+  align-items: center;
+  display: flex;
   justify-content: center;
   line-height: 1;
   min-height: 0;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .card-deck-dom-face__divider {
@@ -1850,6 +1933,268 @@ td .inline-dice-token {
   border-style: dashed;
 }
 
+.card-table-widget {
+  container-name: card-table-widget;
+  container-type: inline-size;
+}
+
+.card-deck-actions {
+  display: grid;
+  flex: none;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card-deck-action {
+  align-items: center;
+  display: flex;
+  font-size: 10px;
+  gap: 4px;
+  justify-content: center;
+  min-height: 26px;
+  min-width: 0;
+  padding: 3px 6px;
+}
+
+.card-deck-action svg {
+  flex: none;
+}
+
+.card-deck-action span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container card-table-widget (max-width: 210px) {
+  .card-deck-action {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+
+  .card-deck-action span {
+    display: none;
+  }
+}
+
+.card-deck-gather-dialog {
+  background: var(--color-paper);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--button-radius);
+  box-shadow: var(--shadow-style);
+  color: var(--color-ink);
+  overflow: hidden;
+  width: min(460px, calc(100vw - 24px));
+}
+
+.card-deck-inspect-dialog {
+  background: var(--color-paper);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--button-radius);
+  box-shadow: var(--shadow-style);
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 680px);
+  overflow: hidden;
+  width: min(720px, calc(100vw - 16px));
+}
+
+.card-deck-inspect-dialog__header {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 11px;
+}
+
+.card-deck-inspect-dialog__content {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(230px, 1.1fr);
+  min-height: 0;
+}
+
+.card-deck-inspect-list {
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.card-deck-inspect-list__rows {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.card-deck-inspect-list__bulk-actions {
+  display: grid;
+  flex: none;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 6px;
+}
+
+.card-deck-inspect-list__bulk-actions .widget-control {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+  justify-content: center;
+  min-width: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.card-deck-inspect-row {
+  align-items: stretch;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 25%, transparent);
+  display: flex;
+  min-width: 0;
+}
+
+.card-deck-inspect-row--selected {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.card-deck-inspect-row__grip {
+  align-items: center;
+  color: var(--color-muted);
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 30px;
+}
+
+.card-deck-inspect-row__grip:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.card-deck-inspect-row__name {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 7px 8px 2px;
+  text-align: left;
+  width: 100%;
+}
+
+.card-deck-inspect-row__flip {
+  align-self: center;
+  display: inline-flex;
+  flex: none;
+  height: 26px;
+  justify-content: center;
+  margin-right: 5px;
+  padding: 0;
+  width: 26px;
+}
+
+.card-deck-inspect-row__position {
+  color: var(--color-muted);
+  flex: none;
+  font-size: 10px;
+  text-align: right;
+  width: 16px;
+}
+
+.card-deck-inspect-preview-wrap {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-background) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  min-height: 360px;
+  padding: 18px;
+}
+
+.card-deck-inspect-preview {
+  aspect-ratio: 0.705;
+  background: var(--color-paper);
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 6px 7px 0 color-mix(in srgb, var(--color-shadow) 24%, transparent);
+  display: grid;
+  font-family: Georgia, "Times New Roman", serif;
+  grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0.72fr);
+  max-height: 430px;
+  overflow: hidden;
+  padding: 18px;
+  text-align: center;
+  width: min(230px, 100%);
+}
+
+.card-deck-inspect-preview__title {
+  align-items: center;
+  display: flex;
+  font-size: 17px;
+  font-weight: 700;
+  justify-content: center;
+  line-height: 1.1;
+  position: relative;
+}
+
+.card-deck-inspect-preview__symbol {
+  align-items: center;
+  color: var(--color-accent);
+  display: flex;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", Georgia, serif;
+  font-size: 64px;
+  justify-content: center;
+  line-height: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card-deck-inspect-preview__divider {
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 36%, transparent);
+  margin: 0 12px;
+}
+
+.card-deck-inspect-preview__body {
+  align-content: start;
+  font-size: 13px;
+  line-height: 1.25;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 12px;
+  white-space: pre-wrap;
+}
+
+.card-deck-inspect-preview__flip {
+  align-items: center;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 26px;
+}
+
+@media (max-width: 560px) {
+  .card-deck-inspect-dialog__content {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .card-deck-inspect-list {
+    border-bottom: 1px solid var(--color-border);
+    border-right: 0;
+    max-height: 40vh;
+    min-height: 0;
+  }
+
+  .card-deck-inspect-preview-wrap {
+    min-height: 330px;
+  }
+}
+
 .card-deck-hit-target {
   background: transparent;
   border: 0;
@@ -1864,6 +2209,8 @@ td .inline-dice-token {
 }
 
 .card-deck-fallback {
+  --card-back-paper: var(--color-paper);
+  --card-back-pattern-size: 10px;
   align-items: center;
   aspect-ratio: 0.705;
   background: var(--color-accent);
@@ -1915,9 +2262,19 @@ td .inline-dice-token {
   width: 100%;
 }
 
-.card-deck-empty-label {
-  color: var(--color-muted);
-  font-size: 10px;
+.card-deck-fallback__back-symbol {
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.card-deck-fallback__back-text {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  text-align: center;
+  width: 100%;
 }
 
 /* Print mode styles */

@@ -1,17 +1,118 @@
+import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { CardTableCard } from '../../types';
-import { getCardTableCards } from '../../utils/cardTable';
-import { ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon } from '../icons';
+import type { CardTableBackDesign, CardTableBackPattern, CardTableCard } from '../../types';
+import { getCardTableBackDesign, getCardTableCards, normalizeCardTableOrigins } from '../../utils/cardTable';
+import { limitCardSymbols, MAX_CARD_SYMBOLS, splitCardSymbols } from '../../utils/cardSymbols';
+import { ChevronDownIcon, ChevronUpIcon, LayoutGridIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import type { EditorProps } from './types';
 
 const inputClass = 'w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
 
+const CARD_SYMBOLS = [
+  '✦', '✧', '✶', '☀', '☾', '☽', '☄', '⟡',
+  '✥', '✤', '☯', '☸', '♆', '⚚', '⚕', '⚜',
+  '♠', '♥', '♦', '♣', '●', '▲', '■', '◆',
+  '⚔', '🛡', '🏹', '🗝', '👁', '⚓', '☠', '🐉',
+  '♜', '♞', '♛', '🌿', '🌙', '🔥', '💧', '🌍',
+] as const;
+
+interface SymbolInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  pickerOpen: boolean;
+  onTogglePicker: () => void;
+  onClosePicker: () => void;
+  inputLabel: string;
+  pickerLabel: string;
+}
+
+function SymbolInput({
+  value,
+  onChange,
+  pickerOpen,
+  onTogglePicker,
+  onClosePicker,
+  inputLabel,
+  pickerLabel,
+}: SymbolInputProps) {
+  return (
+    <div className="relative mt-1 flex gap-1">
+      <input
+        value={value}
+        onChange={(event) => onChange(limitCardSymbols(event.target.value))}
+        placeholder="✦"
+        aria-label={inputLabel}
+        title={`${splitCardSymbols(value).length}/${MAX_CARD_SYMBOLS} symbols`}
+        className={`${inputClass} min-w-0 flex-1 text-center text-lg`}
+      />
+      <Tooltip content="Choose a symbol">
+        <button
+          type="button"
+          onClick={onTogglePicker}
+          aria-expanded={pickerOpen}
+          aria-label={pickerLabel}
+          className="widget-control h-9 w-9 flex-none p-0"
+        >
+          <LayoutGridIcon className="h-4 w-4" />
+        </button>
+      </Tooltip>
+      {pickerOpen && (
+        <div className="absolute right-0 top-full z-30 mt-1 grid w-48 grid-cols-6 gap-1 rounded-button border border-theme-border bg-theme-paper p-1 shadow-theme" role="menu" aria-label="Symbol picker">
+          {CARD_SYMBOLS.map((symbol) => (
+            <button
+              key={symbol}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onChange(symbol);
+                onClosePicker();
+              }}
+              aria-label={`Use ${symbol}`}
+              className="widget-control flex aspect-square items-center justify-center p-0 text-base"
+            >
+              {symbol}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CardTableEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
   const cards = getCardTableCards(widget.data);
+  const backDesign = getCardTableBackDesign(widget.data);
+  const [symbolPickerCardId, setSymbolPickerCardId] = useState<string | null>(null);
 
-  const setCards = (nextCards: CardTableCard[]) => updateData({ cardTableCards: nextCards });
+  const setCards = (nextCards: CardTableCard[]) => updateData({
+    cardTableCards: normalizeCardTableOrigins(nextCards, widget.id, backDesign),
+  });
+
+  const updateBackDesign = (update: Partial<CardTableBackDesign>) => {
+    const nextDesign = { ...backDesign, ...update };
+    updateData({
+      cardTableBackColor: nextDesign.color,
+      cardTableBackSymbol: nextDesign.symbol,
+      cardTableBackText: nextDesign.text,
+      cardTableBackPattern: nextDesign.pattern,
+    cardTableCards: cards.map((card, index) => {
+      const isLocallyOwned = !card.originWidgetId || card.originWidgetId === widget.id;
+      return isLocallyOwned
+        ? {
+            ...card,
+            originWidgetId: card.originWidgetId ?? widget.id,
+            originOrder: card.originOrder ?? index,
+            originBackColor: nextDesign.color,
+            originBackSymbol: nextDesign.symbol,
+            originBackText: nextDesign.text,
+            originBackPattern: nextDesign.pattern,
+          }
+        : card;
+    }),
+    });
+  };
 
   const updateCard = (cardId: string, update: Partial<CardTableCard>) => {
     setCards(cards.map((card) => card.id === cardId ? { ...card, ...update } : card));
@@ -38,6 +139,78 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         />
       </label>
 
+      <section className="rounded-button border border-theme-border bg-theme-accent/5 p-3" aria-labelledby="card-deck-back-heading">
+        <div>
+          <h4 id="card-deck-back-heading" className="text-sm font-semibold text-theme-ink">Card back</h4>
+          <p className="mt-0.5 text-[11px] font-normal leading-4 text-theme-muted">
+            Cards created here keep this deck identity when moved.
+          </p>
+        </div>
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+            <label className="block text-xs font-medium text-theme-ink">
+              Color
+              <div className="mt-1 flex h-9 items-center gap-2 rounded-button border border-theme-border bg-theme-paper px-2">
+                <input
+                  type="color"
+                  value={backDesign.color || '#374151'}
+                  onChange={(event) => updateBackDesign({ color: event.target.value })}
+                  aria-label="Card back color"
+                  className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0"
+                />
+                <span className="text-xs text-theme-muted">{backDesign.color || 'Theme color'}</span>
+              </div>
+            </label>
+            <button
+              type="button"
+              disabled={!backDesign.color}
+              onClick={() => updateBackDesign({ color: undefined })}
+              className="widget-control h-9 px-2 text-xs disabled:opacity-40"
+            >
+              Use theme color
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-medium text-theme-ink">
+              Pattern
+              <select
+                value={backDesign.pattern}
+                onChange={(event) => updateBackDesign({ pattern: event.target.value as CardTableBackPattern })}
+                className={`${inputClass} mt-1 h-9`}
+              >
+                <option value="none">None</option>
+                <option value="crosshatch">Crosshatch</option>
+                <option value="diamonds">Diamonds</option>
+                <option value="stripes">Stripes</option>
+                <option value="dots">Dots</option>
+              </select>
+            </label>
+            <label className="text-xs font-medium text-theme-ink">
+              Symbol(s) <span className="font-normal text-theme-muted">Optional</span>
+              <SymbolInput
+                value={backDesign.symbol || ''}
+                onChange={(symbol) => updateBackDesign({ symbol: symbol || undefined })}
+                pickerOpen={symbolPickerCardId === 'back'}
+                onTogglePicker={() => setSymbolPickerCardId((openCardId) => openCardId === 'back' ? null : 'back')}
+                onClosePicker={() => setSymbolPickerCardId(null)}
+                inputLabel={`Back symbols, maximum ${MAX_CARD_SYMBOLS} symbols`}
+                pickerLabel="Choose a symbol for the card back"
+              />
+            </label>
+          </div>
+          <label className="block text-xs font-medium text-theme-ink">
+            Text <span className="font-normal text-theme-muted">Optional</span>
+            <input
+              value={backDesign.text || ''}
+              onChange={(event) => updateBackDesign({ text: event.target.value.slice(0, 80) || undefined })}
+              placeholder="The Night Deck"
+              maxLength={80}
+              className={`${inputClass} mt-1`}
+            />
+          </label>
+        </div>
+      </section>
+
       <section>
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -46,10 +219,24 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           </div>
           <button
             type="button"
-            onClick={() => setCards([
-              ...cards,
-              { id: uuidv4(), title: 'New card', symbol: '✦', body: '', faceUp: false },
-            ])}
+            onClick={() => {
+              setCards([
+                ...cards,
+                {
+                  id: uuidv4(),
+                  title: 'New card',
+                  symbol: '✦',
+                  body: '',
+                  faceUp: false,
+                  originWidgetId: widget.id,
+                  originOrder: Date.now(),
+                  originBackColor: backDesign.color,
+                  originBackSymbol: backDesign.symbol,
+                  originBackText: backDesign.text,
+                  originBackPattern: backDesign.pattern,
+                },
+              ]);
+            }}
             className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
           >
             <PlusIcon className="h-3.5 w-3.5" />
@@ -114,11 +301,14 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                 </label>
                 <label className="text-[11px] font-medium text-theme-muted">
                   Symbol
-                  <input
+                  <SymbolInput
                     value={card.symbol}
-                    onChange={(event) => updateCard(card.id, { symbol: event.target.value })}
-                    placeholder="✦"
-                    className={`${inputClass} mt-0.5 text-center text-lg`}
+                    onChange={(symbol) => updateCard(card.id, { symbol })}
+                    pickerOpen={symbolPickerCardId === card.id}
+                    onTogglePicker={() => setSymbolPickerCardId((openCardId) => openCardId === card.id ? null : card.id)}
+                    onClosePicker={() => setSymbolPickerCardId(null)}
+                    inputLabel={`Symbol for ${card.title || 'card'}, maximum ${MAX_CARD_SYMBOLS} symbols`}
+                    pickerLabel={`Choose a symbol for ${card.title || 'card'}`}
                   />
                 </label>
               </div>

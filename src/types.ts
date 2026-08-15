@@ -72,12 +72,27 @@ export interface DeckState {
   discarded: string[];
 }
 
+export type CardTableBackPattern = 'none' | 'crosshatch' | 'diamonds' | 'stripes' | 'dots';
+
+export interface CardTableBackDesign {
+  color?: string;
+  symbol?: string;
+  text?: string;
+  pattern: CardTableBackPattern;
+}
+
 export interface CardTableCard {
   id: string;
   title: string;
   symbol: string;
   body: string;
   faceUp: boolean;
+  originWidgetId?: string;
+  originOrder?: number;
+  originBackColor?: string;
+  originBackSymbol?: string;
+  originBackText?: string;
+  originBackPattern?: CardTableBackPattern;
 }
 
 export interface CardTableSpot {
@@ -413,6 +428,10 @@ export interface WidgetData {
   showDeckCards?: boolean;
   // Experimental 3D Card Table
   cardTableCards?: CardTableCard[];
+  cardTableBackColor?: string;
+  cardTableBackSymbol?: string;
+  cardTableBackText?: string;
+  cardTableBackPattern?: CardTableBackPattern;
   // Legacy experimental multi-spot data, read as a migration fallback.
   cardTableSpots?: CardTableSpot[];
   // Initiative Tracker

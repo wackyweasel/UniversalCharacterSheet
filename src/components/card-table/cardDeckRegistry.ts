@@ -1,10 +1,11 @@
-import type { CardTableCard } from '../../types';
+import type { CardTableBackDesign, CardTableCard } from '../../types';
 
 export interface CardDeckRegistration {
   widgetId: string;
   element: HTMLElement;
   label: string;
   cards: CardTableCard[];
+  backDesign: CardTableBackDesign;
   interactive: boolean;
   onFlip: (cardId: string) => void;
   onMove: (cardId: string, targetWidgetId: string) => void;
@@ -29,6 +30,27 @@ export interface CardDeckDragState {
   settleToY: number;
 }
 
+export interface CardDeckGatherRequestEntry {
+  card: CardTableCard;
+  sourceWidgetId: string;
+  backDesign: CardTableBackDesign;
+}
+
+export interface CardDeckGatherAnimationEntry extends CardDeckGatherRequestEntry {
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  index: number;
+}
+
+export interface CardDeckGatherAnimationState {
+  targetWidgetId: string;
+  entries: CardDeckGatherAnimationEntry[];
+  startedAt: number;
+  duration: number;
+}
+
 const registrations = new Map<string, CardDeckRegistration>();
 const subscribers = new Set<() => void>();
 let version = 0;
@@ -36,6 +58,8 @@ let dragState: CardDeckDragState | null = null;
 let dragElement: HTMLElement | null = null;
 let removePointerListeners: (() => void) | null = null;
 let settleTimeout: number | null = null;
+let gatherAnimation: CardDeckGatherAnimationState | null = null;
+let gatherTimeout: number | null = null;
 
 const emit = () => {
   version += 1;
@@ -141,6 +165,51 @@ export const subscribeCardDeckRegistry = (subscriber: () => void) => {
 export const getCardDeckRegistryVersion = () => version;
 export const getCardDeckRegistrations = () => Array.from(registrations.values());
 export const getCardDeckDragState = () => dragState;
+export const getCardDeckGatherAnimation = () => gatherAnimation;
+
+export function startCardDeckGatherAnimation(
+  targetWidgetId: string,
+  entries: CardDeckGatherRequestEntry[],
+) {
+  const target = registrations.get(targetWidgetId);
+  if (!target || entries.length === 0) return;
+  if (gatherTimeout !== null) window.clearTimeout(gatherTimeout);
+  const targetRect = target.element.getBoundingClientRect();
+  const targetX = targetRect.left + targetRect.width / 2;
+  const targetY = targetRect.top + targetRect.height / 2;
+  const animationEntries = entries.flatMap((entry, index) => {
+    const source = registrations.get(entry.sourceWidgetId);
+    if (!source) return [];
+    const sourceRect = source.element.getBoundingClientRect();
+    return [{
+      ...entry,
+      sourceX: sourceRect.left + sourceRect.width / 2,
+      sourceY: sourceRect.top + sourceRect.height / 2,
+      targetX,
+      targetY,
+      index,
+    }];
+  });
+  if (animationEntries.length === 0) return;
+  const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900;
+  gatherAnimation = {
+    targetWidgetId,
+    entries: animationEntries,
+    startedAt: performance.now(),
+    duration,
+  };
+  emit();
+  if (duration === 0) {
+    gatherAnimation = null;
+    emit();
+    return;
+  }
+  gatherTimeout = window.setTimeout(() => {
+    gatherAnimation = null;
+    gatherTimeout = null;
+    emit();
+  }, duration);
+}
 
 export function registerCardDeck(registration: CardDeckRegistration) {
   registrations.set(registration.widgetId, registration);
