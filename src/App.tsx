@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import CharacterList from './components/CharacterList';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
+import CardDeckLayer from './components/card-table/CardDeckLayer';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
 
@@ -85,6 +86,7 @@ function App() {
           <Sheet />
         </SheetErrorBoundary>
       ) : <CharacterList />}
+      {activeCharacterId && <CardDeckLayer />}
       <DicePhysicsOverlay />
     </div>
   );

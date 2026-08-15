@@ -1,4 +1,5 @@
 import type { Character, TableCell, Widget, WidgetType } from '../types';
+import { getCardTableCards } from './cardTable';
 import { getWidgetTypeLabel } from './widgetMetadata';
 
 export interface SheetSearchSegment {
@@ -110,6 +111,13 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
       data.deckCards?.forEach((card) => add('Card', card.name));
       data.deckState?.remaining.forEach((card) => add('Remaining card', card));
       data.deckState?.discarded.forEach((card) => add('Discarded card', card));
+      break;
+    case 'CARD_TABLE':
+      getCardTableCards(data).forEach((card) => {
+        add('Card title', card.title);
+        add('Card symbol', card.symbol);
+        add('Card text', card.body);
+      });
       break;
     case 'INITIATIVE_TRACKER':
       data.initiativeEncounter?.forEach((participant) => add('Encounter', participant.name));

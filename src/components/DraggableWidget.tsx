@@ -36,6 +36,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
+import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WidgetEditModal from './WidgetEditModal';
@@ -78,6 +79,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'INVENTORY': { width: 150, height: 80 },
   'DECK': { width: 70, height: 40 },
+  'CARD_TABLE': { width: 150, height: 170 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
 };
@@ -748,6 +750,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={mode === 'play'} />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;

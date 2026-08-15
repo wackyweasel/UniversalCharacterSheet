@@ -7,6 +7,7 @@ import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
+import { getCardTableCards } from '../utils/cardTable';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -214,6 +215,8 @@ interface StoreState {
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
+  toggleCardTableCard: (widgetId: string, cardId: string) => void;
+  moveCardTableCard: (options: { sourceWidgetId: string; targetWidgetId: string; cardId: string }) => void;
   moveInventoryItem: (options: {
     sourceWidgetId: string;
     targetWidgetId: string;
@@ -795,8 +798,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'CARD_TABLE' ? 280 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'CARD_TABLE' ? 220 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -898,6 +901,7 @@ export const useStore = create<StoreState>((set, get) => {
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'INVENTORY': 'Inventory',
             'DECK': 'Deck',
+            'CARD_TABLE': 'Card Deck',
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
           };
@@ -937,6 +941,7 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapDistanceUnit: 'ft',
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
+            ...(type === 'CARD_TABLE' ? { cardTableCards: [] } : {}),
           }
         };
 
@@ -1356,6 +1361,66 @@ export const useStore = create<StoreState>((set, get) => {
 
         return { characters: updatedCharacters };
       });
+    },
+
+    toggleCardTableCard: (widgetId, cardId) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
+      if (!widget || widget.type !== 'CARD_TABLE') return;
+      const cards = getCardTableCards(widget.data);
+      if (cards[0]?.id !== cardId) return;
+
+      get()._takeSnapshot('Flip card');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((candidate) => (
+            candidate.id === widgetId
+              ? {
+                  ...candidate,
+                  data: {
+                    ...candidate.data,
+                    cardTableCards: getCardTableCards(candidate.data).map((card, index) => (
+                      index === 0 ? { ...card, faceUp: !card.faceUp } : card
+                    )),
+                  },
+                }
+              : candidate
+          )));
+        }),
+      }));
+    },
+
+    moveCardTableCard: ({ sourceWidgetId, targetWidgetId, cardId }) => {
+      if (sourceWidgetId === targetWidgetId) return;
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      const sourceCards = getCardTableCards(sourceWidget.data);
+      const targetCards = getCardTableCards(targetWidget.data);
+      const card = sourceCards[0];
+      if (!card || card.id !== cardId) return;
+
+      get()._takeSnapshot('Move card');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: sourceCards.slice(1) } };
+            }
+            if (widget.id === targetWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [{ ...card }, ...targetCards] } };
+            }
+            return widget;
+          }));
+        }),
+      }));
     },
 
     moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex }) => {

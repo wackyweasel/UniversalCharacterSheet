@@ -27,6 +27,7 @@ export type WidgetType =
   | 'INITIATIVE_TRACKER'
   | 'INVENTORY'
   | 'DECK'
+  | 'CARD_TABLE'
   | 'TIMER'
   | 'STEP_DICE';
 
@@ -69,6 +70,20 @@ export interface DeckCard {
 export interface DeckState {
   remaining: string[];
   discarded: string[];
+}
+
+export interface CardTableCard {
+  id: string;
+  title: string;
+  symbol: string;
+  body: string;
+  faceUp: boolean;
+}
+
+export interface CardTableSpot {
+  id: string;
+  name: string;
+  cards: CardTableCard[];
 }
 
 export type InventoryFieldType = 'text' | 'number' | 'checkbox' | 'textarea';
@@ -396,6 +411,10 @@ export interface WidgetData {
   deckCards?: DeckCard[];
   deckState?: DeckState | null;
   showDeckCards?: boolean;
+  // Experimental 3D Card Table
+  cardTableCards?: CardTableCard[];
+  // Legacy experimental multi-spot data, read as a migration fallback.
+  cardTableSpots?: CardTableSpot[];
   // Initiative Tracker
   initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
   initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants

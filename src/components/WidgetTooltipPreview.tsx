@@ -26,6 +26,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
+import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 
@@ -535,6 +536,23 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       showDeckCards: true,
     },
   },
+  CARD_TABLE: {
+    id: 'preview-card-table',
+    type: 'CARD_TABLE',
+    x: 0,
+    y: 0,
+    w: 260,
+    h: 154,
+    locked: true,
+    data: {
+      label: 'Arcana Deck',
+      cardTableCards: [
+        { id: 'card-moon', title: 'The Moon', symbol: '☾', body: 'Trust the path hidden in shadow.', faceUp: false },
+        { id: 'card-blade', title: 'The Blade', symbol: '⚔', body: 'Act before the opening closes.', faceUp: false },
+        { id: 'card-star', title: 'North Star', symbol: '✦', body: 'Choose a direction.\nDo not look back.', faceUp: true },
+      ],
+    },
+  },
   TIMER: {
     id: 'preview-timer',
     type: 'TIMER',
@@ -606,6 +624,7 @@ function renderWidget(widget: Widget) {
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
     case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
     case 'DECK': return <DeckWidget {...props} />;
+    case 'CARD_TABLE': return <CardTableWidget {...props} interactive={false} render3D={false} />;
     case 'TIMER': return <TimerWidget {...props} />;
     case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
     default: return null;

@@ -33,6 +33,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'STEP_DICE', label: 'Step dice', category: 'Randomize', keywords: 'die rating savage' },
   { type: 'ROLL_TABLE', label: 'Roll table', category: 'Randomize', keywords: 'random result generator' },
   { type: 'DECK', label: 'Deck of cards', category: 'Randomize', keywords: 'draw shuffle cards' },
+  { type: 'CARD_TABLE', label: '3D card deck (Experimental)', category: 'Randomize', keywords: 'cards deck tabletop flip drag discard' },
   { type: 'INITIATIVE_TRACKER', label: 'Initiative tracker', category: 'Time Management', keywords: 'combat turn order' },
   { type: 'TIMER', label: 'Timer', category: 'Time Management', keywords: 'countdown time' },
   { type: 'TIME_TRACKER', label: 'Temporary effects', category: 'Time Management', keywords: 'duration rounds conditions' },
