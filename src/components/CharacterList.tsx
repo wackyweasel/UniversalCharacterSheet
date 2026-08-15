@@ -973,6 +973,22 @@ export default function CharacterList() {
       <div className="max-w-4xl mx-auto pb-safe">
       <div className="flex flex-col gap-3 mb-4 pb-3">
         <header className="flex items-start gap-3 sm:items-center">
+          <svg
+            viewBox="0 0 512 512"
+            role="img"
+            aria-label="Universal Character Sheet logo"
+            className="h-14 w-14 flex-none sm:h-20 sm:w-20"
+          >
+            <path
+              fill="#171717"
+              d="M48 56h128v252l80 80 80-80V56h128v316L256 512 48 372V56Z"
+            />
+            <path
+              fill="#33312f"
+              d="m48 372 128-64 80 80-80 68-128-84ZM464 372l-128-64-80 80 80 68 128-84Z"
+            />
+            <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z" />
+          </svg>
           <div className="min-w-0 flex-1 border-l-[3px] border-cyan-500 pl-3 sm:pl-4">
             <h1 className={`font-heading text-xl font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
               Universal Character Sheet
@@ -981,41 +997,43 @@ export default function CharacterList() {
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
           </div>
-          <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={darkMode}
-              aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
-              onClick={toggleDarkMode}
-              className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
+          <button
+            type="button"
+            role="switch"
+            aria-checked={darkMode}
+            aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+            onClick={toggleDarkMode}
+            className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
+              darkMode
+                ? 'border-white/40 bg-white/15'
+                : 'border-theme-border bg-theme-paper'
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
                 darkMode
-                  ? 'border-white/40 bg-white/15'
-                  : 'border-theme-border bg-theme-paper'
+                  ? 'translate-x-6 bg-white text-black'
+                  : 'translate-x-0 bg-theme-ink text-theme-paper'
               }`}
             >
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
-                  darkMode
-                    ? 'translate-x-6 bg-white text-black'
-                    : 'translate-x-0 bg-theme-ink text-theme-paper'
-                }`}
-              >
-                {darkMode ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                )}
-              </span>
-            </button>
-          </Tooltip>
+              {darkMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              )}
+            </span>
+          </button>
         </header>
         <div className="w-full">
-          <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
+          <div className={`grid grid-cols-3 gap-1.5 lg:gap-2 ${
+            installAvailability === 'prompt' || installAvailability === 'instructions'
+              ? 'lg:grid-cols-7'
+              : 'lg:grid-cols-6'
+          }`}>
             {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
               <Tooltip content="Install on this device">
                 <button

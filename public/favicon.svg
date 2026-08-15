@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="72" fill="#171717"/>
-  <path d="M116 70h214l66 66v306H116z" fill="#f7f3ea"/>
-  <path d="M330 70v66h66" fill="#d8d0c2"/>
-  <path d="M330 70v66h66" fill="none" stroke="#171717" stroke-width="18" stroke-linejoin="round"/>
-  <path d="M164 190h184M164 238h118" stroke="#171717" stroke-width="18" stroke-linecap="square"/>
-  <path d="M164 300h184v92H164z" fill="#cf4c3f" stroke="#171717" stroke-width="18"/>
-  <path d="M225 300v92M287 300v92" stroke="#171717" stroke-width="14"/>
+  <title>Universal Character Sheet</title>
+  <path fill="#171717" d="M48 56h128v252l80 80 80-80V56h128v316L256 512 48 372V56Z"/>
+  <path fill="#33312f" d="m48 372 128-64 80 80-80 68-128-84ZM464 372l-128-64-80 80 80 68 128-84Z"/>
+  <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z"/>
 </svg>
