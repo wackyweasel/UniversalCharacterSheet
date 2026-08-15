@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import packageInfo from '../../package.json';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
 import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
@@ -997,36 +998,41 @@ export default function CharacterList() {
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={darkMode}
-            aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
-            onClick={toggleDarkMode}
-            className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
-              darkMode
-                ? 'border-white/40 bg-white/15'
-                : 'border-theme-border bg-theme-paper'
-            }`}
-          >
-            <span
-              className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
+          <div className="flex flex-none flex-col items-center gap-1">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={darkMode}
+              aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+              onClick={toggleDarkMode}
+              className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
                 darkMode
-                  ? 'translate-x-6 bg-white text-black'
-                  : 'translate-x-0 bg-theme-ink text-theme-paper'
+                  ? 'border-white/40 bg-white/15'
+                  : 'border-theme-border bg-theme-paper'
               }`}
             >
-              {darkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              )}
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
+                  darkMode
+                    ? 'translate-x-6 bg-white text-black'
+                    : 'translate-x-0 bg-theme-ink text-theme-paper'
+                }`}
+              >
+                {darkMode ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                )}
+              </span>
+            </button>
+            <span className={`text-[10px] font-body ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
+              v{packageInfo.version}
             </span>
-          </button>
+          </div>
         </header>
         <div className="w-full">
           <div className={`grid grid-cols-3 gap-1.5 lg:gap-2 ${
