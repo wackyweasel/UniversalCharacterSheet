@@ -11,11 +11,12 @@ import GallerySidebar from './GallerySidebar';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon } from './icons';
+import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
+import { promptInstall, useInstallAvailability } from '../pwa/install';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -125,6 +126,7 @@ export default function CharacterList() {
   const deleteCharacter = useStore((state) => state.deleteCharacter);
   const setMode = useStore((state) => state.setMode);
   const { setPlayLayout } = useWorkspaceNavigation();
+  const installAvailability = useInstallAvailability();
   const transientCharacterIds = useStore((state) => state.transientCharacterIds);
   const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
   const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
@@ -154,6 +156,7 @@ export default function CharacterList() {
   const [presetsOnly, setPresetsOnly] = useState(false);
   const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
@@ -968,51 +971,91 @@ export default function CharacterList() {
         className="hidden"
       />
       <div className="max-w-4xl mx-auto pb-safe">
-      <div className={`flex flex-col gap-3 mb-4 border-b-[length:var(--border-width)] pb-3 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
-        <header className="flex items-start gap-3 sm:items-center">
+      <div className="flex flex-col gap-3 mb-4 pb-3">
+        <header className="flex items-center gap-3">
+          <svg
+            viewBox="0 0 512 512"
+            role="img"
+            aria-label="Universal Character Sheet logo"
+            className="h-14 w-14 flex-none sm:h-20 sm:w-20"
+          >
+            <path
+              fill="#171717"
+              d="M48 56h128v252l80 80 80-80V56h128v316L256 512 48 372V56Z"
+            />
+            <path
+              fill="#33312f"
+              d="m48 372 128-64 80 80-80 68-128-84ZM464 372l-128-64-80 80 80 68 128-84Z"
+            />
+            <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z" />
+          </svg>
           <div className="min-w-0 flex-1 border-l-[3px] border-cyan-500 pl-3 sm:pl-4">
-            <h1 className={`font-heading text-xl font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+            <h1 className={`font-heading text-lg font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
               Universal Character Sheet
             </h1>
-            <p className={`mt-1 max-w-2xl font-body text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
+            <p className={`mt-1 hidden max-w-2xl font-body text-sm leading-relaxed sm:block ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
           </div>
-          <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={darkMode}
-              aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
-              onClick={toggleDarkMode}
-              className={`relative flex h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors lg:hidden ${
+          <button
+            type="button"
+            role="switch"
+            aria-checked={darkMode}
+            aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
+            onClick={toggleDarkMode}
+            className={`relative flex h-8 w-14 flex-none items-center rounded-full border-2 p-0.5 transition-colors ${
+              darkMode
+                ? 'border-white/40 bg-white/15'
+                : 'border-theme-border bg-theme-paper'
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
                 darkMode
-                  ? 'border-white/40 bg-white/15'
-                  : 'border-theme-border bg-theme-paper'
+                  ? 'translate-x-6 bg-white text-black'
+                  : 'translate-x-0 bg-theme-ink text-theme-paper'
               }`}
             >
-              <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
-                  darkMode
-                    ? 'translate-x-6 bg-white text-black'
-                    : 'translate-x-0 bg-theme-ink text-theme-paper'
-                }`}
-              >
-                {darkMode ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                )}
-              </span>
-            </button>
-          </Tooltip>
+              {darkMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              )}
+            </span>
+          </button>
         </header>
         <div className="w-full">
-          <div className="grid grid-cols-3 gap-1.5 lg:flex lg:items-center lg:gap-2">
+          <div className={`grid grid-cols-3 gap-1.5 lg:gap-2 ${
+            installAvailability === 'prompt' || installAvailability === 'instructions'
+              ? 'lg:grid-cols-7'
+              : 'lg:grid-cols-6'
+          }`}>
+            {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
+              <Tooltip content="Install on this device">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (installAvailability === 'prompt') {
+                      void promptInstall();
+                    } else {
+                      setShowInstallInstructions(true);
+                    }
+                  }}
+                  className={`col-span-3 w-full min-w-0 flex items-center justify-center gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button whitespace-nowrap transition-colors active:translate-y-px lg:col-span-1 lg:w-auto ${
+                    darkMode
+                      ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                  }`}
+                >
+                  <DownloadIcon className="h-5 w-5" />
+                  <span>Install App</span>
+                </button>
+              </Tooltip>
+            )}
             {/* Gallery Button */}
             <Tooltip content="Discover community content">
               <button
@@ -1197,38 +1240,6 @@ export default function CharacterList() {
                 </svg>
                 <span>Donate</span>
               </a>
-            </Tooltip>
-            <Tooltip content={`Switch to ${darkMode ? 'light' : 'dark'} mode`}>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={darkMode}
-                aria-label={`${darkMode ? 'Dark' : 'Light'} mode. Switch to ${darkMode ? 'light' : 'dark'} mode`}
-                onClick={toggleDarkMode}
-                className={`relative hidden h-8 w-14 items-center rounded-full border-2 p-0.5 transition-colors lg:ml-auto lg:flex ${
-                  darkMode
-                    ? 'border-white/40 bg-white/15'
-                    : 'border-theme-border bg-theme-paper'
-                }`}
-              >
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform ${
-                    darkMode
-                      ? 'translate-x-6 bg-white text-black'
-                      : 'translate-x-0 bg-theme-ink text-theme-paper'
-                  }`}
-                >
-                  {darkMode ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  )}
-                </span>
-              </button>
             </Tooltip>
           </div>
           
@@ -2287,6 +2298,34 @@ export default function CharacterList() {
                 />
               </label>
             </div>
+
+          </div>
+        </>
+      )}
+
+      {showInstallInstructions && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50 animate-fade-in" onClick={() => setShowInstallInstructions(false)} />
+          <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-50 w-[90vw] max-w-[430px] animate-fade-in ${
+            darkMode ? 'bg-black border border-white/30' : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+          }`} role="dialog" aria-modal="true" aria-labelledby="install-app-title">
+            <div className="flex items-center justify-between gap-4">
+              <h3 id="install-app-title" className={`font-heading font-bold text-xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Install Character Sheet</h3>
+              <button type="button" onClick={() => setShowInstallInstructions(false)} aria-label="Close" className={darkMode ? 'text-white/60 hover:text-white' : 'text-theme-muted hover:text-theme-ink'}>
+                <XIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <p className={`mt-4 font-body text-sm leading-relaxed ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
+              {/Android/i.test(navigator.userAgent)
+                ? <>Open your browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</>
+                : <>Open the Share menu and choose <strong>Add to Home Screen</strong>. In Safari on macOS, choose <strong>File</strong>, then <strong>Add to Dock</strong>.</>}
+            </p>
+            <p className={`mt-3 font-body text-sm leading-relaxed ${darkMode ? 'text-white/70' : 'text-theme-muted'}`}>
+              The installed app uses the same locally stored characters and settings as this website.
+            </p>
+            <button type="button" onClick={() => setShowInstallInstructions(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
+              darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+            }`}>Done</button>
           </div>
         </>
       )}

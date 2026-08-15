@@ -9,6 +9,7 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
 - **Widget System**: Add Number Trackers, Lists, and Text Areas.
 - **Drag & Drop**: Arrange widgets freely with grid snapping.
 - **Old School Style**: Clean, black and white aesthetic.
+- **Installable App**: Install from a supported browser and keep working with cached sheets while offline.
 
 ## Getting Started
 
