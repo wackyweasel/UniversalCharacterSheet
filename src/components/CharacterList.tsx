@@ -972,7 +972,7 @@ export default function CharacterList() {
       />
       <div className="max-w-4xl mx-auto pb-safe">
       <div className="flex flex-col gap-3 mb-4 pb-3">
-        <header className="flex items-start gap-3 sm:items-center">
+        <header className="flex items-center gap-3">
           <svg
             viewBox="0 0 512 512"
             role="img"
@@ -990,10 +990,10 @@ export default function CharacterList() {
             <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z" />
           </svg>
           <div className="min-w-0 flex-1 border-l-[3px] border-cyan-500 pl-3 sm:pl-4">
-            <h1 className={`font-heading text-xl font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+            <h1 className={`font-heading text-lg font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
               Universal Character Sheet
             </h1>
-            <p className={`mt-1 max-w-2xl font-body text-xs leading-relaxed sm:text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
+            <p className={`mt-1 hidden max-w-2xl font-body text-sm leading-relaxed sm:block ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
           </div>
