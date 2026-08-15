@@ -971,7 +971,7 @@ export default function CharacterList() {
         className="hidden"
       />
       <div className="max-w-4xl mx-auto pb-safe">
-      <div className={`flex flex-col gap-3 mb-4 border-b-[length:var(--border-width)] pb-3 ${darkMode ? 'border-white/30' : 'border-theme-border'}`}>
+      <div className="flex flex-col gap-3 mb-4 pb-3">
         <header className="flex items-start gap-3 sm:items-center">
           <div className="min-w-0 flex-1 border-l-[3px] border-cyan-500 pl-3 sm:pl-4">
             <h1 className={`font-heading text-xl font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
