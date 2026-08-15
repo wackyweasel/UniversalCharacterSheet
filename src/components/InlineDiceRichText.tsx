@@ -12,6 +12,8 @@ const ALLOWED_TAGS = new Set([
   'blockquote', 'code', 'pre', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span',
 ]);
 
+const VOID_TAGS = new Set(['br', 'hr']);
+
 export function InlineDiceRichText({ html, widget }: Props) {
   if (!html) return null;
 
@@ -34,7 +36,9 @@ export function InlineDiceRichText({ html, widget }: Props) {
     if (tagName === 'span' && element.style.color) {
       props.style = { color: element.style.color };
     }
-    return createElement(tagName, props, children);
+    return VOID_TAGS.has(tagName)
+      ? createElement(tagName, props)
+      : createElement(tagName, props, children);
   };
 
   return <>{Array.from(container.childNodes).map((node, index) => renderNode(node, String(index)))}</>;
