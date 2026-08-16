@@ -73,29 +73,32 @@ function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['dat
 }
 
 function cloneWidgetData(type: WidgetType, data: Widget['data'], widgetId: string): Widget['data'] {
-  return type === 'CARD_TABLE'
+  return type === 'DECK_OF_CARDS'
     ? cloneCardTableData(data, widgetId)
     : JSON.parse(JSON.stringify(data));
 }
 
 function migrateLegacyWidgetHeader(widget: Widget): Widget {
-  const label = widget.data?.label;
+  const migratedWidget = (widget.type as string) === 'CARD_TABLE'
+    ? { ...widget, type: 'DECK_OF_CARDS' as const }
+    : widget;
+  const label = migratedWidget.data?.label;
   const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
   const hidLegacyHeaderControls =
-    widget.data?.showFieldControls === false ||
-    (widget.type === 'TABLE' && widget.data?.showTableEditButton === false);
+    migratedWidget.data?.showFieldControls === false ||
+    (migratedWidget.type === 'TABLE' && migratedWidget.data?.showTableEditButton === false);
   if (
-    widget.data?.hideWidgetHeader === undefined &&
+    migratedWidget.data?.hideWidgetHeader === undefined &&
     hidLegacyHeaderControls &&
     hasNoLabel
   ) {
     return {
-      ...widget,
-      data: { ...widget.data, hideWidgetHeader: true },
+      ...migratedWidget,
+      data: { ...migratedWidget.data, hideWidgetHeader: true },
     };
   }
 
-  return widget;
+  return migratedWidget;
 }
 
 // Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
@@ -836,8 +839,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'CARD_TABLE' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'CARD_TABLE' ? 210 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -938,8 +941,8 @@ export const useStore = create<StoreState>((set, get) => {
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'INVENTORY': 'Inventory',
-            'DECK': 'Deck',
-            'CARD_TABLE': 'Card Deck',
+            'DECK': 'Legacy Deck of Cards',
+            'DECK_OF_CARDS': 'Deck of Cards',
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
           };
@@ -979,7 +982,7 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapDistanceUnit: 'ft',
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
-            ...(type === 'CARD_TABLE' ? {
+            ...(type === 'DECK_OF_CARDS' ? {
               cardTableCards: [],
               cardTableDiscardedCards: [],
               cardTableShowDiscard: true,
@@ -1413,7 +1416,7 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
-      if (!widget || widget.type !== 'CARD_TABLE') return;
+      if (!widget || widget.type !== 'DECK_OF_CARDS') return;
       const cards = normalizeCardTableOrigins(
         getCardTableCards(widget.data),
         widget.id,
@@ -1451,7 +1454,7 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
-      if (!widget || widget.type !== 'CARD_TABLE') return;
+      if (!widget || widget.type !== 'DECK_OF_CARDS') return;
       const cards = normalizeCardTableOrigins(
         getCardTableCards(widget.data),
         widget.id,
@@ -1489,7 +1492,7 @@ export const useStore = create<StoreState>((set, get) => {
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
-      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
       const sourceCards = normalizeCardTableOrigins(
         getCardTableCards(sourceWidget.data),
         sourceWidget.id,
@@ -1527,7 +1530,7 @@ export const useStore = create<StoreState>((set, get) => {
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
-      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
       const sourceCards = normalizeCardTableOrigins(
         getCardTableCards(sourceWidget.data),
         sourceWidget.id,
@@ -1540,7 +1543,7 @@ export const useStore = create<StoreState>((set, get) => {
         getCardTableBackDesign(targetWidget.data),
       );
 
-      get()._takeSnapshot('Move entire card deck');
+      get()._takeSnapshot('Move Entire Deck of Cards');
       set((currentState) => ({
         characters: currentState.characters.map((entry) => {
           if (entry.id !== currentState.activeCharacterId) return entry;
@@ -1563,7 +1566,7 @@ export const useStore = create<StoreState>((set, get) => {
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
-      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
       const sourceCards = normalizeCardTableOrigins(
         getCardTableCards(sourceWidget.data),
         sourceWidget.id,
@@ -1613,7 +1616,7 @@ export const useStore = create<StoreState>((set, get) => {
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
-      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
       const sourceCards = normalizeCardTableOrigins(
         getCardTableCards(sourceWidget.data),
         sourceWidget.id,
@@ -1626,7 +1629,7 @@ export const useStore = create<StoreState>((set, get) => {
         getCardTableBackDesign(targetWidget.data),
       );
 
-      get()._takeSnapshot('Discard entire card deck');
+      get()._takeSnapshot('Discard Entire Deck of Cards');
       set((currentState) => ({
         characters: currentState.characters.map((entry) => {
           if (entry.id !== currentState.activeCharacterId) return entry;
@@ -1662,7 +1665,7 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
-      if (!widget || widget.type !== 'CARD_TABLE') return;
+      if (!widget || widget.type !== 'DECK_OF_CARDS') return;
       const cards = normalizeCardTableOrigins(
         getCardTableCards(widget.data),
         widget.id,
@@ -1711,10 +1714,10 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const originWidget = activeSheet?.widgets.find((widget) => widget.id === widgetId);
-      if (!originWidget || originWidget.type !== 'CARD_TABLE' || !activeSheet) return;
+      if (!originWidget || originWidget.type !== 'DECK_OF_CARDS' || !activeSheet) return;
 
       const normalizedByWidget = new Map(activeSheet.widgets
-        .filter((widget) => widget.type === 'CARD_TABLE')
+        .filter((widget) => widget.type === 'DECK_OF_CARDS')
         .map((widget) => [
           widget.id,
           {
@@ -1932,12 +1935,12 @@ export const useStore = create<StoreState>((set, get) => {
               });
             }
             const widgets = getActiveSheetWidgets(c);
-            if (!widget || widget.type !== 'CARD_TABLE') {
+            if (!widget || widget.type !== 'DECK_OF_CARDS') {
               return updateActiveSheetWidgets(c, (activeWidgets) => activeWidgets.filter((candidate) => candidate.id !== id));
             }
 
             const normalizedLocations = new Map(widgets
-              .filter((candidate) => candidate.type === 'CARD_TABLE')
+              .filter((candidate) => candidate.type === 'DECK_OF_CARDS')
               .map((candidate) => [
                 candidate.id,
                 {

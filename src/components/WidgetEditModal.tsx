@@ -76,7 +76,7 @@ interface Props {
 
 const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
   'CHECKBOX',
-  'CARD_TABLE',
+  'DECK_OF_CARDS',
   'DECK',
   'DICE_ROLLER',
   'DICE_TRAY',
@@ -131,8 +131,8 @@ function getWidgetTitle(type: WidgetType): string {
     'ROLL_TABLE': 'Roll Table',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'INVENTORY': 'Inventory',
-    'DECK': 'Deck of Cards',
-    'CARD_TABLE': '3D Card Deck (Experimental)',
+    'DECK': 'Legacy Deck of Cards',
+    'DECK_OF_CARDS': 'Deck of Cards',
     'TIMER': 'Timer',
     'STEP_DICE': 'Step Dice',
   };
@@ -206,7 +206,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
       case 'INVENTORY': return <InventoryEditor {...editorProps} />;
       case 'DECK': return <DeckEditor {...editorProps} />;
-      case 'CARD_TABLE': return <CardTableEditor {...editorProps} />;
+      case 'DECK_OF_CARDS': return <CardTableEditor {...editorProps} />;
       case 'TIMER': return <TimerEditor {...editorProps} />;
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
       default: return null;
@@ -268,7 +268,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
-      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
+      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;

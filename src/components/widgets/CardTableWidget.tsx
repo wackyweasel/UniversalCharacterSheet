@@ -72,7 +72,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const unhostedOwnedCards = (activeSheet?.cardTableUnhostedCards ?? [])
     .filter((card) => card.originWidgetId === widget.id);
   const returningCards = (activeSheet?.widgets ?? []).flatMap((candidate) => {
-    if (candidate.type !== 'CARD_TABLE') return [];
+    if (candidate.type !== 'DECK_OF_CARDS') return [];
     const activeCards = candidate.id === widget.id
       ? []
       : getCardTableCards(candidate.data).filter((card) => card.originWidgetId === widget.id);
@@ -83,7 +83,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   });
   const returningCardCount = returningCards.length + unhostedOwnedCards.length;
   const discardedOwnedCount = (activeSheet?.widgets ?? []).reduce((count, candidate) => (
-    candidate.type === 'CARD_TABLE'
+    candidate.type === 'DECK_OF_CARDS'
       ? count + getCardTableDiscardedCards(candidate.data).filter((card) => card.originWidgetId === widget.id).length
       : count
   ), 0);
@@ -96,13 +96,13 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const flipInspectedCard = (cardId: string) => {
     const card = cards.find((entry) => entry.id === cardId);
     toggleCardTableCard(widget.id, cardId);
-    if (card) addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `${card.faceUp ? 'Hid' : 'Revealed'} “${card.title || 'Untitled card'}”`, '🂠');
+    if (card) addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `${card.faceUp ? 'Hid' : 'Revealed'} “${card.title || 'Untitled card'}”`, '🂠');
   };
 
   const setAllCardsFaceUp = (faceUp: boolean) => {
     if (!cards.some((card) => card.faceUp !== faceUp)) return;
     setCardTableCardsFaceUp(widget.id, faceUp);
-    addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', faceUp ? 'Revealed all cards' : 'Hid all cards', '🂠');
+    addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', faceUp ? 'Revealed all cards' : 'Hid all cards', '🂠');
   };
 
   const shuffleCards = () => {
@@ -117,7 +117,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       shuffled.push(shuffled.shift()!);
     }
     updateCards(shuffled);
-    addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `Shuffled ${cards.length} cards`, '🂠');
+    addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Shuffled ${cards.length} cards`, '🂠');
   };
 
   const gatherCards = (shuffle: boolean, setFaceDown: boolean) => {
@@ -131,8 +131,8 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     gatherCardTableCards(widget.id, shuffle, setFaceDown);
     setGatherOpen(false);
     addTimelineEvent(
-      label || 'Card Deck',
-      'CARD_TABLE',
+      label || 'Deck of Cards',
+      'DECK_OF_CARDS',
       returningCardCount > 0
         ? `Gathered ${returningCardCount} card${returningCardCount === 1 ? '' : 's'}${shuffle ? ' and shuffled' : ' in original order'}${setFaceDown ? ' face down' : ''}`
         : `${shuffle ? 'Shuffled deck' : 'Restored original deck order'}${setFaceDown ? ' and set cards face down' : ''}`,
@@ -147,36 +147,36 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       widgetId: widget.id,
       element,
       discardElement: showDiscardPile ? discardRef.current : null,
-      label: label || 'Card Deck',
+      label: label || 'Deck of Cards',
       cards,
       backDesign,
       interactive: canInteract,
       onFlip: (cardId) => {
         const card = cards.find((entry) => entry.id === cardId);
         toggleCardTableCard(widget.id, cardId);
-        if (card) addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `${card.faceUp ? 'Hid' : 'Revealed'} “${card.title || 'Untitled card'}”`, '🂠');
+        if (card) addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `${card.faceUp ? 'Hid' : 'Revealed'} “${card.title || 'Untitled card'}”`, '🂠');
       },
       onMove: (cardId, targetWidgetId) => {
         const card = cards.find((entry) => entry.id === cardId);
         const target = getCardDeckRegistrations().find((entry) => entry.widgetId === targetWidgetId);
         moveCardTableCard({ sourceWidgetId: widget.id, targetWidgetId, cardId });
-        if (card) addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `Moved “${card.title || 'Untitled card'}” to ${target?.label || 'another deck'}`, '🂠');
+        if (card) addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Moved “${card.title || 'Untitled card'}” to ${target?.label || 'another deck'}`, '🂠');
       },
       onDiscard: (cardId, targetWidgetId) => {
         const card = cards.find((entry) => entry.id === cardId);
         const target = getCardDeckRegistrations().find((entry) => entry.widgetId === targetWidgetId);
         discardCardTableCard({ sourceWidgetId: widget.id, targetWidgetId, cardId });
-        if (card) addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `Discarded “${card.title || 'Untitled card'}”${targetWidgetId === widget.id ? '' : ` into ${target?.label || 'another deck'}`}`, '🂠');
+        if (card) addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Discarded “${card.title || 'Untitled card'}”${targetWidgetId === widget.id ? '' : ` into ${target?.label || 'another deck'}`}`, '🂠');
       },
       onMoveAll: (targetWidgetId) => {
         const target = getCardDeckRegistrations().find((entry) => entry.widgetId === targetWidgetId);
         moveAllCardTableCards({ sourceWidgetId: widget.id, targetWidgetId });
-        addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `Moved all ${cards.length} cards to ${target?.label || 'another deck'}`, '🂠');
+        addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Moved all ${cards.length} cards to ${target?.label || 'another deck'}`, '🂠');
       },
       onDiscardAll: (targetWidgetId) => {
         const target = getCardDeckRegistrations().find((entry) => entry.widgetId === targetWidgetId);
         discardAllCardTableCards({ sourceWidgetId: widget.id, targetWidgetId });
-        addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `Discarded all ${cards.length} cards${targetWidgetId === widget.id ? '' : ` into ${target?.label || 'another deck'}`}`, '🂠');
+        addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Discarded all ${cards.length} cards${targetWidgetId === widget.id ? '' : ` into ${target?.label || 'another deck'}`}`, '🂠');
       },
     });
   }, [backDesign, canInteract, cards, discardAllCardTableCards, discardCardTableCard, label, mode, moveAllCardTableCards, moveCardTableCard, render3D, showDiscardPile, toggleCardTableCard, widget.id]);
@@ -189,7 +189,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       className={`card-deck-grab-all widget-control${portalGrabAll ? ' card-deck-grab-all--overlay' : ''}`}
       data-card-deck-grab-all-widget-id={widget.id}
       data-touch-camera-ignore="true"
-      aria-label={`Grab all ${cards.length} cards from ${label || 'Card Deck'}`}
+      aria-label={`Grab all ${cards.length} cards from ${label || 'Deck of Cards'}`}
       onPointerDown={(event) => startCardDeckDrag(widget.id, event.nativeEvent, event.currentTarget, true)}
     >
       <HandIcon className="h-3.5 w-3.5" />
@@ -300,21 +300,21 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       )}
       {inspectOpen && (
         <CardDeckInspectDialog
-          deckName={label || 'Card Deck'}
+          deckName={label || 'Deck of Cards'}
           cards={cards}
           onFlipCard={flipInspectedCard}
           onSetAllFaceUp={() => setAllCardsFaceUp(true)}
           onSetAllFaceDown={() => setAllCardsFaceUp(false)}
           onReorder={(nextCards) => {
             updateCards(nextCards);
-            addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', 'Reordered deck', '🂠');
+            addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', 'Reordered deck', '🂠');
           }}
           onClose={closeInspector}
         />
       )}
       {gatherOpen && (
         <CardDeckGatherDialog
-          deckName={label || 'Card Deck'}
+          deckName={label || 'Deck of Cards'}
           cardCount={returningCardCount}
           discardedCount={discardedOwnedCount}
           sourceDeckCount={awaySourceDeckCount}
@@ -324,12 +324,12 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       )}
       {discardOpen && (
         <CardDeckDiscardDialog
-          deckName={label || 'Card Deck'}
+          deckName={label || 'Deck of Cards'}
           cards={discardedCards}
           onRestore={(cardIds, position: CardTableRestorePosition) => {
             restoreCardTableCards(widget.id, cardIds, position);
             const destination = position === 'random' ? 'randomly in the deck' : `to the ${position}`;
-            addTimelineEvent(label || 'Card Deck', 'CARD_TABLE', `Returned ${cardIds.length} discarded card${cardIds.length === 1 ? '' : 's'} ${destination}`, '🂠');
+            addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Returned ${cardIds.length} discarded card${cardIds.length === 1 ? '' : 's'} ${destination}`, '🂠');
           }}
           onClose={closeDiscard}
         />

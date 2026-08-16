@@ -27,7 +27,7 @@ export type WidgetType =
   | 'INITIATIVE_TRACKER'
   | 'INVENTORY'
   | 'DECK'
-  | 'CARD_TABLE'
+  | 'DECK_OF_CARDS'
   | 'TIMER'
   | 'STEP_DICE';
 

@@ -94,7 +94,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
   const discardedCards = getCardTableDiscardedCards(widget.data);
   const backDesign = getCardTableBackDesign(widget.data);
   const ownedCardEntries = activeSheetWidgets
-    .filter((candidate) => candidate.type === 'CARD_TABLE')
+    .filter((candidate) => candidate.type === 'DECK_OF_CARDS')
     .flatMap((candidate) => getCardTableCards(candidate.data).map((card) => ({ card, hostWidgetId: candidate.id })))
     .filter(({ card, hostWidgetId }) => card.originWidgetId === widget.id || (!card.originWidgetId && hostWidgetId === widget.id));
   const cards = [...ownedCardEntries]
@@ -139,7 +139,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
   const updateCard = (cardId: string, update: Partial<CardTableCard>) => {
     const entry = ownedCardEntries.find((candidate) => candidate.card.id === cardId);
     const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === entry?.hostWidgetId);
-    if (!entry || !hostWidget || hostWidget.type !== 'CARD_TABLE') return;
+    if (!entry || !hostWidget || hostWidget.type !== 'DECK_OF_CARDS') return;
     const nextCards = getCardTableCards(hostWidget.data).map((card) => (
       card.id === cardId ? { ...card, ...update } : card
     ));
@@ -186,7 +186,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
     );
     hostWidgetIds.forEach((hostWidgetId) => {
       const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === hostWidgetId);
-      if (!hostWidget || hostWidget.type !== 'CARD_TABLE') return;
+      if (!hostWidget || hostWidget.type !== 'DECK_OF_CARDS') return;
       const nextCards = getCardTableCards(hostWidget.data).filter((card) => !cardIds.has(card.id));
       if (nextCards.length === getCardTableCards(hostWidget.data).length) return;
       if (hostWidget.id === widget.id) setLocalCards(nextCards);

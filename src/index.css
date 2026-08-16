@@ -2516,6 +2516,15 @@ td .inline-dice-token {
   opacity: 1;
 }
 
+.widget-tooltip-preview--deck-of-cards .card-deck-fallback {
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    3px 4px 0 -1px var(--color-paper),
+    4px 5px 0 0 var(--color-border),
+    6px 8px 0 -1px var(--color-paper),
+    7px 9px 0 0 var(--color-border);
+}
+
 @media print {
   .card-deck-layer {
     display: none;

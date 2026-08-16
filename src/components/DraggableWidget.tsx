@@ -86,7 +86,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'INVENTORY': { width: 150, height: 80 },
   'DECK': { width: 70, height: 40 },
-  'CARD_TABLE': { width: 100, height: 120 },
+  'DECK_OF_CARDS': { width: 100, height: 120 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
 };
@@ -790,7 +790,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
-      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={mode === 'play'} showControls />;
+      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={mode === 'play'} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
@@ -814,13 +814,13 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper group ${widget.type === 'CARD_TABLE' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'CARD_TABLE' ? 100 : undefined),
+            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? 100 : undefined),
             ...borderRadiusStyle,
             ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
@@ -1505,7 +1505,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           )}
 
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
-          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && widget.type !== 'CARD_TABLE' && (
+          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && widget.type !== 'DECK_OF_CARDS' && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10"
               style={borderRadiusStyle}

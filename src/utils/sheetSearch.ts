@@ -112,7 +112,7 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
       data.deckState?.remaining.forEach((card) => add('Remaining card', card));
       data.deckState?.discarded.forEach((card) => add('Discarded card', card));
       break;
-    case 'CARD_TABLE':
+    case 'DECK_OF_CARDS':
       getCardTableCards(data).forEach((card) => {
         add('Card title', card.title);
         add('Card symbol', card.symbol);
