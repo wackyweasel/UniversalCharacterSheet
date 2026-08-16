@@ -69,6 +69,8 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const closeDiscard = useCallback(() => setDiscardOpen(false), []);
   const activeCharacter = characters.find((character) => character.id === activeCharacterId);
   const activeSheet = activeCharacter?.sheets.find((sheet) => sheet.id === activeCharacter.activeSheetId);
+  const unhostedOwnedCards = (activeSheet?.cardTableUnhostedCards ?? [])
+    .filter((card) => card.originWidgetId === widget.id);
   const returningCards = (activeSheet?.widgets ?? []).flatMap((candidate) => {
     if (candidate.type !== 'CARD_TABLE') return [];
     const activeCards = candidate.id === widget.id
@@ -79,6 +81,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     return [...activeCards, ...ownedDiscardedCards]
       .map((card) => ({ card, sourceWidgetId: candidate.id }));
   });
+  const returningCardCount = returningCards.length + unhostedOwnedCards.length;
   const discardedOwnedCount = (activeSheet?.widgets ?? []).reduce((count, candidate) => (
     candidate.type === 'CARD_TABLE'
       ? count + getCardTableDiscardedCards(candidate.data).filter((card) => card.originWidgetId === widget.id).length
@@ -130,8 +133,8 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     addTimelineEvent(
       label || 'Card Deck',
       'CARD_TABLE',
-      returningCards.length > 0
-        ? `Gathered ${returningCards.length} card${returningCards.length === 1 ? '' : 's'}${shuffle ? ' and shuffled' : ' in original order'}${setFaceDown ? ' face down' : ''}`
+      returningCardCount > 0
+        ? `Gathered ${returningCardCount} card${returningCardCount === 1 ? '' : 's'}${shuffle ? ' and shuffled' : ' in original order'}${setFaceDown ? ' face down' : ''}`
         : `${shuffle ? 'Shuffled deck' : 'Restored original deck order'}${setFaceDown ? ' and set cards face down' : ''}`,
       '🂠',
     );
@@ -281,7 +284,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
               <span>Inspect</span>
             </button>
           </Tooltip>
-          <Tooltip content={returningCards.length === 0 ? 'Reset deck order or shuffle cards' : `Gather ${returningCards.length} card${returningCards.length === 1 ? '' : 's'}, including discards`}>
+          <Tooltip content={returningCardCount === 0 ? 'Reset deck order or shuffle cards' : `Gather ${returningCardCount} card${returningCardCount === 1 ? '' : 's'}, including discards`}>
             <button
               type="button"
               disabled={previewOnly}
@@ -312,7 +315,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       {gatherOpen && (
         <CardDeckGatherDialog
           deckName={label || 'Card Deck'}
-          cardCount={returningCards.length}
+          cardCount={returningCardCount}
           discardedCount={discardedOwnedCount}
           sourceDeckCount={awaySourceDeckCount}
           onGather={gatherCards}

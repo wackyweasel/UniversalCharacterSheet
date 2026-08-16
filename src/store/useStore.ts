@@ -1732,6 +1732,7 @@ export const useStore = create<StoreState>((set, get) => {
         ]));
       const ownedCards = Array.from(normalizedByWidget.values())
         .flatMap((location) => [...location.cards, ...location.discardedCards])
+        .concat((activeSheet.cardTableUnhostedCards ?? []).filter((card) => card.originWidgetId === widgetId))
         .filter((card) => card.originWidgetId === widgetId);
 
       ownedCards.sort((left, right) => (left.originOrder ?? 0) - (right.originOrder ?? 0));
@@ -1758,28 +1759,39 @@ export const useStore = create<StoreState>((set, get) => {
       set((currentState) => ({
         characters: currentState.characters.map((entry) => {
           if (entry.id !== currentState.activeCharacterId) return entry;
-          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
-            const location = normalizedByWidget.get(widget.id);
-            if (!location) return widget;
-            if (widget.id === widgetId) {
+          return {
+            ...entry,
+            sheets: entry.sheets.map((sheet) => {
+              if (sheet.id !== entry.activeSheetId) return sheet;
               return {
-                ...widget,
-                data: {
-                  ...widget.data,
-                  cardTableCards: finalHomeCards,
-                  cardTableDiscardedCards: visitingDiscardedCards,
-                },
+                ...sheet,
+                cardTableUnhostedCards: (sheet.cardTableUnhostedCards ?? [])
+                  .filter((card) => card.originWidgetId !== widgetId),
+                widgets: sheet.widgets.map((widget) => {
+                  const location = normalizedByWidget.get(widget.id);
+                  if (!location) return widget;
+                  if (widget.id === widgetId) {
+                    return {
+                      ...widget,
+                      data: {
+                        ...widget.data,
+                        cardTableCards: finalHomeCards,
+                        cardTableDiscardedCards: visitingDiscardedCards,
+                      },
+                    };
+                  }
+                  return {
+                    ...widget,
+                    data: {
+                      ...widget.data,
+                      cardTableCards: location.cards.filter((card) => card.originWidgetId !== widgetId),
+                      cardTableDiscardedCards: location.discardedCards.filter((card) => card.originWidgetId !== widgetId),
+                    },
+                  };
+                }),
               };
-            }
-            return {
-              ...widget,
-              data: {
-                ...widget.data,
-                cardTableCards: location.cards.filter((card) => card.originWidgetId !== widgetId),
-                cardTableDiscardedCards: location.discardedCards.filter((card) => card.originWidgetId !== widgetId),
-              },
-            };
-          }));
+            }),
+          };
         }),
       }));
     },
@@ -1919,9 +1931,61 @@ export const useStore = create<StoreState>((set, get) => {
                 metadata: { widgetId: id },
               });
             }
-            return updateActiveSheetWidgets(c, widgets => 
-              widgets.filter(w => w.id !== id)
-            );
+            const widgets = getActiveSheetWidgets(c);
+            if (!widget || widget.type !== 'CARD_TABLE') {
+              return updateActiveSheetWidgets(c, (activeWidgets) => activeWidgets.filter((candidate) => candidate.id !== id));
+            }
+
+            const normalizedLocations = new Map(widgets
+              .filter((candidate) => candidate.type === 'CARD_TABLE')
+              .map((candidate) => [
+                candidate.id,
+                {
+                  cards: normalizeCardTableOrigins(
+                    getCardTableCards(candidate.data),
+                    candidate.id,
+                    getCardTableBackDesign(candidate.data),
+                  ),
+                  discardedCards: normalizeCardTableOrigins(
+                    getCardTableDiscardedCards(candidate.data),
+                    candidate.id,
+                    getCardTableBackDesign(candidate.data),
+                  ),
+                },
+              ]));
+            const deletedLocation = normalizedLocations.get(id);
+            const visitingCards = deletedLocation
+              ? [...deletedLocation.cards, ...deletedLocation.discardedCards]
+                  .filter((card) => card.originWidgetId !== id)
+              : [];
+
+            return {
+              ...c,
+              sheets: c.sheets.map((sheet) => {
+                if (sheet.id !== c.activeSheetId) return sheet;
+                return {
+                  ...sheet,
+                  cardTableUnhostedCards: [
+                    ...(sheet.cardTableUnhostedCards ?? []).filter((card) => card.originWidgetId !== id),
+                    ...visitingCards,
+                  ],
+                  widgets: widgets
+                    .filter((candidate) => candidate.id !== id)
+                    .map((candidate) => {
+                      const location = normalizedLocations.get(candidate.id);
+                      if (!location) return candidate;
+                      return {
+                        ...candidate,
+                        data: {
+                          ...candidate.data,
+                          cardTableCards: location.cards.filter((card) => card.originWidgetId !== id),
+                          cardTableDiscardedCards: location.discardedCards.filter((card) => card.originWidgetId !== id),
+                        },
+                      };
+                    }),
+                };
+              }),
+            };
           }
           return c;
         })

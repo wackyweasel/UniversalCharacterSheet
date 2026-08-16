@@ -504,6 +504,7 @@ export interface Sheet {
   id: string;
   name: string;
   widgets: Widget[];
+  cardTableUnhostedCards?: CardTableCard[];
 }
 
 export type ThemeId = 
