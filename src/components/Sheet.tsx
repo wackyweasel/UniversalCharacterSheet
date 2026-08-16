@@ -15,6 +15,7 @@ import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import VerticalWidget from './VerticalWidget';
 import AttachmentButtons from './AttachmentButtons';
+import CardDeckLayer from './card-table/CardDeckLayer';
 import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
@@ -1306,7 +1307,7 @@ export default function Sheet() {
   // Render list layout in either Play or Build.
   if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
     return (
-      <div className="w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
+      <div className="vertical-mode-container w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -1584,6 +1585,8 @@ export default function Sheet() {
           </div>
         </div>
 
+        <CardDeckLayer pan={{ x: 0, y: 0 }} scale={1} />
+
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
 
@@ -1680,6 +1683,8 @@ export default function Sheet() {
               isSearchTarget={searchReveal?.widgetId === widget.id}
             />
           ))}
+
+          <CardDeckLayer pan={pan} scale={scale} />
           
           {/* Attachment Buttons - only in edit mode */}
           {mode === 'edit' && attachmentControlsVisible && (

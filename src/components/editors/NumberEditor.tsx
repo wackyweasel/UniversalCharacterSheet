@@ -240,6 +240,16 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
         />
         <span className="text-sm text-theme-ink">Show maximums in tracker (e.g. 5/10)</span>
       </label>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={widget.data.showIncrementButtons ?? true}
+          onChange={(event) => updateData({ showIncrementButtons: event.target.checked })}
+          className="w-4 h-4 accent-theme-accent"
+        />
+        <span className="text-sm text-theme-ink">Show +/− buttons</span>
+      </label>
       
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-2">Items</label>

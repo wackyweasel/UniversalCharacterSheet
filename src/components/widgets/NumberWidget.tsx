@@ -21,7 +21,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, numberItems = [], printSettings, showNumberItemMax = false } = widget.data;
+  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -237,7 +237,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
 
       {/* Number Items */}
       <div 
-        className={`flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden flex-1 pr-4`}
+        className={`flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden flex-1 ${showIncrementButtons ? 'pr-4' : ''}`}
         style={{ maxHeight: `${itemsHeight}px` }}
         onWheel={(e) => {
           const el = e.currentTarget;
@@ -263,17 +263,19 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
 
               {/* Value Controls - fixed width container for alignment */}
               <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${controlsSectionWidth}`}>
-              <Tooltip content="Decrease value">
-                <button
-                  onClick={() => adjustItemValue(idx, -1)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  disabled={!!item.valueFormula || atMinimum}
-                  aria-label={`Decrease ${item.name || 'value'}`}
-                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula || atMinimum ? 'opacity-30 cursor-not-allowed' : ''}`}
-                >
-                  -
-                </button>
-              </Tooltip>
+              {showIncrementButtons && (
+                <Tooltip content="Decrease value">
+                  <button
+                    onClick={() => adjustItemValue(idx, -1)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={!!item.valueFormula || atMinimum}
+                    aria-label={`Decrease ${item.name || 'value'}`}
+                    className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula || atMinimum ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  >
+                    -
+                  </button>
+                </Tooltip>
+              )}
               {editingIndex === idx ? (
                 <div className={`relative flex-shrink-0 ${showNumberItemMax ? 'w-[5.5rem]' : 'w-[4.5rem]'}`}>
                   <input
@@ -323,17 +325,19 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   )}
                 </span>
               )}
-              <Tooltip content="Increase value">
-                <button
-                  onClick={() => adjustItemValue(idx, 1)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  disabled={!!item.valueFormula || atMaximum}
-                  aria-label={`Increase ${item.name || 'value'}`}
-                  className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula || atMaximum ? 'opacity-30 cursor-not-allowed' : ''}`}
-                >
-                  +
-                </button>
-              </Tooltip>
+              {showIncrementButtons && (
+                <Tooltip content="Increase value">
+                  <button
+                    onClick={() => adjustItemValue(idx, 1)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={!!item.valueFormula || atMaximum}
+                    aria-label={`Increase ${item.name || 'value'}`}
+                    className={`${buttonSize} widget-control min-h-0 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${item.valueFormula || atMaximum ? 'opacity-30 cursor-not-allowed' : ''}`}
+                  >
+                    +
+                  </button>
+                </Tooltip>
+              )}
               </div>
             </div>
           </div>

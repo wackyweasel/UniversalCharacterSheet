@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
@@ -8,6 +9,12 @@ import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { DotsVerticalIcon, PencilIcon } from './icons';
+import {
+  finishWidgetDrag,
+  getWidgetDragState,
+  startWidgetDrag,
+  subscribeWidgetDragState,
+} from './widgetDragRegistry';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
@@ -36,6 +43,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
+import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WidgetEditModal from './WidgetEditModal';
@@ -78,6 +86,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'INVENTORY': { width: 150, height: 80 },
   'DECK': { width: 70, height: 40 },
+  'DECK_OF_CARDS': { width: 100, height: 120 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
 };
@@ -128,10 +137,13 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownMenuRef = useRef<HTMLDivElement>(null);
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
+  const [dropdownViewportPosition, setDropdownViewportPosition] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [showPrintSettings, setShowPrintSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -148,6 +160,16 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+
+  const positionDropdownFromTrigger = useCallback((rect = dropdownTriggerRef.current?.getBoundingClientRect()) => {
+    if (!rect) return;
+    const align = rect.right < 198 ? 'left' : 'right';
+    setDropdownAlign(align);
+    setDropdownViewportPosition({
+      x: align === 'left' ? rect.left : rect.right,
+      y: rect.bottom + 4,
+    });
+  }, []);
   
   // Widget types that have print settings customization
   const WIDGETS_WITH_PRINT_SETTINGS: WidgetType[] = ['NUMBER', 'NUMBER_DISPLAY'];
@@ -171,6 +193,14 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
   const selectedBeforeTouchRef = useRef<string | null>(null);
+  const activeWidgetDrag = useSyncExternalStore(
+    subscribeWidgetDragState,
+    getWidgetDragState,
+    getWidgetDragState,
+  );
+  const isWidgetDragging = activeWidgetDrag?.widgetId === widget.id || (
+    widget.groupId !== undefined && activeWidgetDrag?.groupId === widget.groupId
+  );
 
   useTouchCameraPinchCancellation(() => {
     if (isDraggingRef.current) pinchCanceledDragRef.current = true;
@@ -225,6 +255,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
+  const buildControlScale = Math.min(1, 1 / scale);
 
   // Auto-open dropdown for the original form tutorial step only. Automation edit steps keep
   // the dropdown opened by the widget the user actually clicked.
@@ -241,7 +272,8 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       if (tutorialStep === 17 && widget.type === 'FORM') {
         return;
       }
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (!dropdownRef.current?.contains(target) && !dropdownMenuRef.current?.contains(target)) {
         setShowDropdown(false);
         setShowDeleteConfirm(false);
         setShowTemplateNameInput(false);
@@ -265,6 +297,12 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       };
     }
   }, [showDropdown, tutorialStep, widget.type]);
+
+  useEffect(() => {
+    if (showDropdown && contextMenuPosition === null && dropdownViewportPosition === null) {
+      positionDropdownFromTrigger();
+    }
+  }, [contextMenuPosition, dropdownViewportPosition, positionDropdownFromTrigger, showDropdown]);
 
   // Close print settings dropdown when clicking outside
   useEffect(() => {
@@ -347,7 +385,9 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       x: (e.clientX - widgetRect.left) / scale,
       y: (e.clientY - widgetRect.top) / scale,
     });
-    setDropdownAlign(e.clientX < window.innerWidth - 198 ? 'left' : 'right');
+    const align = e.clientX < window.innerWidth - 198 ? 'left' : 'right';
+    setDropdownAlign(align);
+    setDropdownViewportPosition({ x: e.clientX, y: e.clientY });
     setShowDeleteConfirm(false);
     setShowTemplateNameInput(false);
     setTemplateName('');
@@ -490,6 +530,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     dragStartPos.current = { x: data.x, y: data.y };
     isDraggingRef.current = true;
     pinchCanceledDragRef.current = false;
+    startWidgetDrag(widget.id, widget.groupId ?? null);
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
@@ -516,6 +557,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
     isDraggingRef.current = false;
+    finishWidgetDrag(widget.id);
     if (pinchCanceledDragRef.current) {
       pinchCanceledDragRef.current = false;
       if (widget.groupId) {
@@ -748,6 +790,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={mode === 'play'} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
@@ -771,13 +814,13 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper group ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
+            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? 100 : undefined),
             ...borderRadiusStyle,
             ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
@@ -833,11 +876,12 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
               {!isContextMenuOpen && (
                 <Tooltip content="Widget options">
                   <button
+                    ref={dropdownTriggerRef}
                     data-tutorial={widgetMenuTutorialTarget}
                     aria-label={`Options for ${widget.data.label || widget.type}`}
                     aria-expanded={showDropdown}
                     className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                    style={{ transform: `scale(${1 / scale})`, transformOrigin: 'top right' }}
+                    style={{ transform: `scale(${buildControlScale})`, transformOrigin: 'top right' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
@@ -852,7 +896,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
                       }
                       if (!showDropdown) {
                         setContextMenuPosition(null);
-                        setDropdownAlign(e.currentTarget.getBoundingClientRect().right < 198 ? 'left' : 'right');
+                        positionDropdownFromTrigger(e.currentTarget.getBoundingClientRect());
                       }
                       setShowDropdown(!showDropdown);
                       if (showDropdown) {
@@ -877,10 +921,15 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
               )}
               
               {/* Dropdown Menu with Tabs */}
-              {showDropdown && (
+              {showDropdown && dropdownViewportPosition && createPortal(
                 <div
-                  className={`widget-options-menu absolute ${isContextMenuOpen ? 'top-0' : 'top-full mt-1'} bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme min-w-[190px] overflow-hidden z-[200] font-body ${dropdownAlign === 'left' ? 'left-0' : 'right-0'}`}
-                  style={{ transform: `scale(${1 / scale})`, transformOrigin: dropdownAlign === 'left' ? 'top left' : 'top right' }}
+                  ref={dropdownMenuRef}
+                  className="widget-options-menu fixed z-[1001] min-w-[190px] overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme font-body"
+                  style={{
+                    left: `${dropdownViewportPosition.x}px`,
+                    top: `${dropdownViewportPosition.y}px`,
+                    transform: dropdownAlign === 'left' ? 'none' : 'translateX(-100%)',
+                  }}
                 >
                   {/* Tab Header - only show if widget is part of a group */}
                   {widget.groupId && (
@@ -1404,7 +1453,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
                     </>
                   )}
                 </div>
-              )}
+              , document.body)}
             </div>
           )}
 
@@ -1456,7 +1505,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           )}
 
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
-          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && (
+          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && widget.type !== 'DECK_OF_CARDS' && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10"
               style={borderRadiusStyle}

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { CardTableCard, Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
+import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -47,24 +48,57 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
   };
 }
 
+function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['data'] {
+  const backDesign = getCardTableBackDesign(data);
+  const activeCards = getCardTableCards(data);
+  const discardedCards = getCardTableDiscardedCards(data);
+  const cloneCards = (cards: CardTableCard[], orderOffset: number) => cards.map((card, index) => ({
+    ...card,
+    id: uuidv4(),
+    originWidgetId: widgetId,
+    originOrder: orderOffset + index,
+    originBackColor: backDesign.color,
+    originBackTextColor: backDesign.textColor,
+    originBackSymbol: backDesign.symbol,
+    originBackText: backDesign.text,
+    originBackPattern: backDesign.pattern,
+  }));
+
+  return {
+    ...data,
+    cardTableCards: cloneCards(activeCards, 0),
+    cardTableDiscardedCards: cloneCards(discardedCards, activeCards.length),
+    cardTableSpots: undefined,
+  };
+}
+
+function cloneWidgetData(type: WidgetType, data: Widget['data'], widgetId: string): Widget['data'] {
+  return type === 'DECK_OF_CARDS'
+    ? cloneCardTableData(data, widgetId)
+    : JSON.parse(JSON.stringify(data));
+}
+
 function migrateLegacyWidgetHeader(widget: Widget): Widget {
-  const label = widget.data?.label;
+  const migratedWidget = (widget.type as string) === 'CARD_TABLE'
+    ? { ...widget, type: 'DECK_OF_CARDS' as const }
+    : widget;
+  const label = migratedWidget.data?.label;
   const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
   const hidLegacyHeaderControls =
-    widget.data?.showFieldControls === false ||
-    (widget.type === 'TABLE' && widget.data?.showTableEditButton === false);
+    migratedWidget.data?.showFieldControls === false ||
+    (migratedWidget.type === 'TABLE' && migratedWidget.data?.showTableEditButton === false);
   if (
-    widget.data?.hideWidgetHeader === undefined &&
+    migratedWidget.data?.hideWidgetHeader === undefined &&
     hidLegacyHeaderControls &&
     hasNoLabel
   ) {
     return {
-      ...widget,
-      data: { ...widget.data, hideWidgetHeader: true },
+      ...migratedWidget,
+      data: { ...migratedWidget.data, hideWidgetHeader: true },
     };
   }
 
-  return widget;
+  return migratedWidget;
 }
 
 // Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
@@ -93,11 +127,13 @@ function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): 
     id: sheetIdMap.get(sheet.id)!,
     widgets: sheet.widgets.map(widget => {
       const migratedWidget = migrateLegacyWidgetHeader(widget);
+      const newWidgetId = widgetIdMap.get(widget.id)!;
       return {
         ...migratedWidget,
-        id: widgetIdMap.get(widget.id)!,
+        id: newWidgetId,
         groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
-        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
+        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id),
+        data: cloneWidgetData(migratedWidget.type, migratedWidget.data, newWidgetId),
       };
     })
   }));
@@ -214,6 +250,15 @@ interface StoreState {
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
+  toggleCardTableCard: (widgetId: string, cardId: string) => void;
+  setCardTableCardsFaceUp: (widgetId: string, faceUp: boolean) => void;
+  moveCardTableCard: (options: { sourceWidgetId: string; targetWidgetId: string; cardId: string }) => void;
+  moveAllCardTableCards: (options: { sourceWidgetId: string; targetWidgetId: string }) => void;
+  discardCardTableCard: (options: { sourceWidgetId: string; targetWidgetId: string; cardId: string }) => void;
+  discardAllCardTableCards: (options: { sourceWidgetId: string; targetWidgetId: string }) => void;
+  restoreCardTableCards: (widgetId: string, cardIds: string[], position: import('../types').CardTableRestorePosition) => void;
+  gatherCardTableCards: (widgetId: string, shuffle: boolean, setFaceDown: boolean) => void;
+  resetCardTableCards: (widgetId: string) => void;
   moveInventoryItem: (options: {
     sourceWidgetId: string;
     targetWidgetId: string;
@@ -795,8 +840,8 @@ export const useStore = create<StoreState>((set, get) => {
         const GRID_SIZE = 10;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
+        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
+        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -897,7 +942,8 @@ export const useStore = create<StoreState>((set, get) => {
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'INVENTORY': 'Inventory',
-            'DECK': 'Deck',
+            'DECK': 'Legacy Deck of Cards',
+            'DECK_OF_CARDS': 'Deck of Cards',
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
           };
@@ -937,6 +983,12 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapDistanceUnit: 'ft',
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
+            ...(type === 'DECK_OF_CARDS' ? {
+              cardTableCards: [],
+              cardTableDiscardedCards: [],
+              cardTableShowDiscard: true,
+              cardTableShowGrabAll: true,
+            } : {}),
           }
         };
 
@@ -975,14 +1027,15 @@ export const useStore = create<StoreState>((set, get) => {
         
         const OFFSET = 30; // Offset the clone slightly from original
         
+        const newWidgetId = uuidv4();
         const newWidget: Widget = {
-          id: uuidv4(),
+          id: newWidgetId,
           type: sourceWidget.type,
           x: sourceWidget.x + OFFSET,
           y: sourceWidget.y + OFFSET,
           w: sourceWidget.w,
           h: sourceWidget.h,
-          data: JSON.parse(JSON.stringify(sourceWidget.data)), // Deep clone the data
+          data: cloneWidgetData(sourceWidget.type, sourceWidget.data, newWidgetId),
         };
 
         recordStoreEvent(state, {
@@ -1091,14 +1144,15 @@ export const useStore = create<StoreState>((set, get) => {
           }
         }
         
+        const newWidgetId = uuidv4();
         const newWidget: Widget = {
-          id: uuidv4(),
+          id: newWidgetId,
           type: template.type,
           x: finalX,
           y: finalY,
           w: template.w || 200,
           h: template.h || 120,
-          data: JSON.parse(JSON.stringify(template.data)), // Deep clone the data
+          data: cloneWidgetData(template.type, template.data, newWidgetId),
         };
 
         recordStoreEvent(state, {
@@ -1228,7 +1282,7 @@ export const useStore = create<StoreState>((set, get) => {
           w: wt.w || 200,
           h: wt.h || 120,
           groupId: newGroupId,
-          data: JSON.parse(JSON.stringify(wt.data)),
+          data: cloneWidgetData(wt.type, wt.data, widgetIds[idx]),
         }));
         
         // Set up attachedTo based on the attachments array
@@ -1356,6 +1410,398 @@ export const useStore = create<StoreState>((set, get) => {
 
         return { characters: updatedCharacters };
       });
+    },
+
+    toggleCardTableCard: (widgetId, cardId) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
+      if (!widget || widget.type !== 'DECK_OF_CARDS') return;
+      const cards = normalizeCardTableOrigins(
+        getCardTableCards(widget.data),
+        widget.id,
+        getCardTableBackDesign(widget.data),
+      );
+      if (!cards.some((card) => card.id === cardId)) return;
+
+      get()._takeSnapshot('Flip card');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((candidate) => (
+            candidate.id === widgetId
+              ? {
+                  ...candidate,
+                  data: {
+                    ...candidate.data,
+                    cardTableCards: normalizeCardTableOrigins(
+                      getCardTableCards(candidate.data),
+                      candidate.id,
+                      getCardTableBackDesign(candidate.data),
+                    ).map((card) => (
+                      card.id === cardId ? { ...card, faceUp: !card.faceUp } : card
+                    )),
+                  },
+                }
+              : candidate
+          )));
+        }),
+      }));
+    },
+
+    setCardTableCardsFaceUp: (widgetId, faceUp) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
+      if (!widget || widget.type !== 'DECK_OF_CARDS') return;
+      const cards = normalizeCardTableOrigins(
+        getCardTableCards(widget.data),
+        widget.id,
+        getCardTableBackDesign(widget.data),
+      );
+      if (!cards.length || cards.every((card) => card.faceUp === faceUp)) return;
+
+      get()._takeSnapshot(faceUp ? 'Reveal all cards' : 'Hide all cards');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((candidate) => (
+            candidate.id === widgetId
+              ? {
+                  ...candidate,
+                  data: {
+                    ...candidate.data,
+                    cardTableCards: normalizeCardTableOrigins(
+                      getCardTableCards(candidate.data),
+                      candidate.id,
+                      getCardTableBackDesign(candidate.data),
+                    ).map((card) => ({ ...card, faceUp })),
+                  },
+                }
+              : candidate
+          )));
+        }),
+      }));
+    },
+
+    moveCardTableCard: ({ sourceWidgetId, targetWidgetId, cardId }) => {
+      if (sourceWidgetId === targetWidgetId) return;
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      const targetCards = normalizeCardTableOrigins(
+        getCardTableCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+      const card = sourceCards[0];
+      if (!card || card.id !== cardId) return;
+
+      get()._takeSnapshot('Move card');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: sourceCards.slice(1) } };
+            }
+            if (widget.id === targetWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [{ ...card }, ...targetCards] } };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    moveAllCardTableCards: ({ sourceWidgetId, targetWidgetId }) => {
+      if (sourceWidgetId === targetWidgetId) return;
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      if (sourceCards.length === 0) return;
+      const targetCards = normalizeCardTableOrigins(
+        getCardTableCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+
+      get()._takeSnapshot('Move Entire Deck of Cards');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [] } };
+            }
+            if (widget.id === targetWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [...sourceCards, ...targetCards] } };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    discardCardTableCard: ({ sourceWidgetId, targetWidgetId, cardId }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      const card = sourceCards[0];
+      if (!card || card.id !== cardId) return;
+      const targetDiscardedCards = normalizeCardTableOrigins(
+        getCardTableDiscardedCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+
+      get()._takeSnapshot('Discard card');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId && widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: {
+                  ...widget.data,
+                  cardTableCards: sourceCards.slice(1),
+                  cardTableDiscardedCards: [{ ...card }, ...targetDiscardedCards],
+                },
+              };
+            }
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: sourceCards.slice(1) } };
+            }
+            if (widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: { ...widget.data, cardTableDiscardedCards: [{ ...card }, ...targetDiscardedCards] },
+              };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    discardAllCardTableCards: ({ sourceWidgetId, targetWidgetId }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'DECK_OF_CARDS' || targetWidget.type !== 'DECK_OF_CARDS') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      if (sourceCards.length === 0) return;
+      const targetDiscardedCards = normalizeCardTableOrigins(
+        getCardTableDiscardedCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+
+      get()._takeSnapshot('Discard Entire Deck of Cards');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId && widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: {
+                  ...widget.data,
+                  cardTableCards: [],
+                  cardTableDiscardedCards: [...sourceCards, ...targetDiscardedCards],
+                },
+              };
+            }
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [] } };
+            }
+            if (widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: { ...widget.data, cardTableDiscardedCards: [...sourceCards, ...targetDiscardedCards] },
+              };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    restoreCardTableCards: (widgetId, cardIds, position) => {
+      if (cardIds.length === 0) return;
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
+      if (!widget || widget.type !== 'DECK_OF_CARDS') return;
+      const cards = normalizeCardTableOrigins(
+        getCardTableCards(widget.data),
+        widget.id,
+        getCardTableBackDesign(widget.data),
+      );
+      const discardedCards = normalizeCardTableOrigins(
+        getCardTableDiscardedCards(widget.data),
+        widget.id,
+        getCardTableBackDesign(widget.data),
+      );
+      const requestedIds = new Set(cardIds);
+      const restoredCards = discardedCards.filter((card) => requestedIds.has(card.id));
+      if (restoredCards.length === 0) return;
+      const nextCards = position === 'top'
+        ? [...restoredCards, ...cards]
+        : position === 'bottom'
+          ? [...cards, ...restoredCards]
+          : restoredCards.reduce((entries, card) => {
+              const insertionIndex = Math.floor(Math.random() * (entries.length + 1));
+              entries.splice(insertionIndex, 0, card);
+              return entries;
+            }, [...cards]);
+
+      get()._takeSnapshot(`${restoredCards.length === 1 ? 'Return discarded card' : 'Return discarded cards'} to ${position}`);
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((candidate) => (
+            candidate.id === widgetId
+              ? {
+                  ...candidate,
+                  data: {
+                    ...candidate.data,
+                    cardTableCards: nextCards,
+                    cardTableDiscardedCards: discardedCards.filter((card) => !requestedIds.has(card.id)),
+                  },
+                }
+              : candidate
+          )));
+        }),
+      }));
+    },
+
+    gatherCardTableCards: (widgetId, shuffle, setFaceDown) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const originWidget = activeSheet?.widgets.find((widget) => widget.id === widgetId);
+      if (!originWidget || originWidget.type !== 'DECK_OF_CARDS' || !activeSheet) return;
+
+      const normalizedByWidget = new Map(activeSheet.widgets
+        .filter((widget) => widget.type === 'DECK_OF_CARDS')
+        .map((widget) => [
+          widget.id,
+          {
+            cards: normalizeCardTableOrigins(
+              getCardTableCards(widget.data),
+              widget.id,
+              getCardTableBackDesign(widget.data),
+            ),
+            discardedCards: normalizeCardTableOrigins(
+              getCardTableDiscardedCards(widget.data),
+              widget.id,
+              getCardTableBackDesign(widget.data),
+            ),
+          },
+        ]));
+      const ownedCards = Array.from(normalizedByWidget.values())
+        .flatMap((location) => [...location.cards, ...location.discardedCards])
+        .concat((activeSheet.cardTableUnhostedCards ?? []).filter((card) => card.originWidgetId === widgetId))
+        .filter((card) => card.originWidgetId === widgetId);
+
+      ownedCards.sort((left, right) => (left.originOrder ?? 0) - (right.originOrder ?? 0));
+      const homeLocation = normalizedByWidget.get(widgetId) ?? { cards: [], discardedCards: [] };
+      const homeCards = homeLocation.cards;
+      const visitingCards = homeCards.filter((card) => card.originWidgetId !== widgetId);
+      const visitingDiscardedCards = homeLocation.discardedCards.filter((card) => card.originWidgetId !== widgetId);
+      const gatheredHomeCards = [...ownedCards, ...visitingCards];
+      if (shuffle) {
+        const originalOrder = gatheredHomeCards.map((card) => card.id);
+        for (let index = gatheredHomeCards.length - 1; index > 0; index -= 1) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          [gatheredHomeCards[index], gatheredHomeCards[swapIndex]] = [gatheredHomeCards[swapIndex], gatheredHomeCards[index]];
+        }
+        if (gatheredHomeCards.length > 1 && gatheredHomeCards.every((card, index) => card.id === originalOrder[index])) {
+          gatheredHomeCards.push(gatheredHomeCards.shift()!);
+        }
+      }
+      const finalHomeCards = setFaceDown
+        ? gatheredHomeCards.map((card) => ({ ...card, faceUp: false }))
+        : gatheredHomeCards;
+
+      get()._takeSnapshot(`${shuffle ? 'Gather and shuffle cards' : 'Gather cards'}${setFaceDown ? ' face down' : ''}`);
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return {
+            ...entry,
+            sheets: entry.sheets.map((sheet) => {
+              if (sheet.id !== entry.activeSheetId) return sheet;
+              return {
+                ...sheet,
+                cardTableUnhostedCards: (sheet.cardTableUnhostedCards ?? [])
+                  .filter((card) => card.originWidgetId !== widgetId),
+                widgets: sheet.widgets.map((widget) => {
+                  const location = normalizedByWidget.get(widget.id);
+                  if (!location) return widget;
+                  if (widget.id === widgetId) {
+                    return {
+                      ...widget,
+                      data: {
+                        ...widget.data,
+                        cardTableCards: finalHomeCards,
+                        cardTableDiscardedCards: visitingDiscardedCards,
+                      },
+                    };
+                  }
+                  return {
+                    ...widget,
+                    data: {
+                      ...widget.data,
+                      cardTableCards: location.cards.filter((card) => card.originWidgetId !== widgetId),
+                      cardTableDiscardedCards: location.discardedCards.filter((card) => card.originWidgetId !== widgetId),
+                    },
+                  };
+                }),
+              };
+            }),
+          };
+        }),
+      }));
+    },
+
+    resetCardTableCards: (widgetId) => {
+      get().gatherCardTableCards(widgetId, false, true);
     },
 
     moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex }) => {
@@ -1493,9 +1939,61 @@ export const useStore = create<StoreState>((set, get) => {
                 metadata: { widgetId: id },
               });
             }
-            return updateActiveSheetWidgets(c, widgets => 
-              widgets.filter(w => w.id !== id)
-            );
+            const widgets = getActiveSheetWidgets(c);
+            if (!widget || widget.type !== 'DECK_OF_CARDS') {
+              return updateActiveSheetWidgets(c, (activeWidgets) => activeWidgets.filter((candidate) => candidate.id !== id));
+            }
+
+            const normalizedLocations = new Map(widgets
+              .filter((candidate) => candidate.type === 'DECK_OF_CARDS')
+              .map((candidate) => [
+                candidate.id,
+                {
+                  cards: normalizeCardTableOrigins(
+                    getCardTableCards(candidate.data),
+                    candidate.id,
+                    getCardTableBackDesign(candidate.data),
+                  ),
+                  discardedCards: normalizeCardTableOrigins(
+                    getCardTableDiscardedCards(candidate.data),
+                    candidate.id,
+                    getCardTableBackDesign(candidate.data),
+                  ),
+                },
+              ]));
+            const deletedLocation = normalizedLocations.get(id);
+            const visitingCards = deletedLocation
+              ? [...deletedLocation.cards, ...deletedLocation.discardedCards]
+                  .filter((card) => card.originWidgetId !== id)
+              : [];
+
+            return {
+              ...c,
+              sheets: c.sheets.map((sheet) => {
+                if (sheet.id !== c.activeSheetId) return sheet;
+                return {
+                  ...sheet,
+                  cardTableUnhostedCards: [
+                    ...(sheet.cardTableUnhostedCards ?? []).filter((card) => card.originWidgetId !== id),
+                    ...visitingCards,
+                  ],
+                  widgets: widgets
+                    .filter((candidate) => candidate.id !== id)
+                    .map((candidate) => {
+                      const location = normalizedLocations.get(candidate.id);
+                      if (!location) return candidate;
+                      return {
+                        ...candidate,
+                        data: {
+                          ...candidate.data,
+                          cardTableCards: location.cards.filter((card) => card.originWidgetId !== id),
+                          cardTableDiscardedCards: location.discardedCards.filter((card) => card.originWidgetId !== id),
+                        },
+                      };
+                    }),
+                };
+              }),
+            };
           }
           return c;
         })
@@ -1933,7 +2431,7 @@ export const useStore = create<StoreState>((set, get) => {
           groupId: newGroupId,
           attachedTo: w.attachedTo?.map(id => idMapping.get(id)).filter((id): id is string => id !== undefined),
           locked: w.locked,
-          data: JSON.parse(JSON.stringify(w.data)),
+          data: cloneWidgetData(w.type, w.data, idMapping.get(w.id)!),
         }));
 
         recordStoreEvent(state, {

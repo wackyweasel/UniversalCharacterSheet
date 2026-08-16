@@ -26,6 +26,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
+import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 
@@ -535,6 +536,25 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       showDeckCards: true,
     },
   },
+  DECK_OF_CARDS: {
+    id: 'preview-card-table',
+    type: 'DECK_OF_CARDS',
+    x: 0,
+    y: 0,
+    w: 180,
+    h: 252,
+    locked: true,
+    data: {
+      label: 'Deck of Cards',
+      cardTableCards: [
+        { id: 'card-moon', title: 'The Moon', symbol: '☾', body: 'Trust the path hidden in shadow.', faceUp: false },
+        { id: 'card-blade', title: 'The Blade', symbol: '⚔', body: 'Act before the opening closes.', faceUp: false },
+        { id: 'card-star', title: 'North Star', symbol: '✦', body: 'Choose a direction.\nDo not look back.', faceUp: true },
+      ],
+      cardTableShowDiscard: true,
+      cardTableShowGrabAll: true,
+    },
+  },
   TIMER: {
     id: 'preview-timer',
     type: 'TIMER',
@@ -606,6 +626,7 @@ function renderWidget(widget: Widget) {
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
     case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
     case 'DECK': return <DeckWidget {...props} />;
+    case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
     case 'TIMER': return <TimerWidget {...props} />;
     case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
     default: return null;
@@ -616,7 +637,7 @@ export default function WidgetTooltipPreview({ type }: { type: WidgetType }) {
   const widget = PREVIEW_WIDGETS[type];
 
   return (
-    <div className="pointer-events-none">
+    <div className={`pointer-events-none${type === 'DECK_OF_CARDS' ? ' widget-tooltip-preview--deck-of-cards' : ''}`}>
       <div
         className="bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 rounded-theme shadow-theme overflow-hidden"
         style={{

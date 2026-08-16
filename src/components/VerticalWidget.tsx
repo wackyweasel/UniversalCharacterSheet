@@ -33,6 +33,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
+import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 
@@ -197,6 +198,7 @@ export default function VerticalWidget({
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={!isBuildMode} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
@@ -211,7 +213,7 @@ export default function VerticalWidget({
       }}
       data-vertical-index={index}
       data-widget-id={widget.id}
-      className={`vertical-widget vertical-widget-sort-item relative ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
+      className={`vertical-widget vertical-widget-sort-item relative ${widget.type === 'DECK_OF_CARDS' ? 'vertical-widget--card-table' : ''} ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
     >
       {/* Widget Card */}
       <div className="vertical-widget-card">

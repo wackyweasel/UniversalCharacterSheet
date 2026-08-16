@@ -4,6 +4,7 @@ import CharacterList from './components/CharacterList';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
+import UpdatePrompt from './components/UpdatePrompt';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -79,6 +80,7 @@ function App() {
 
   return (
     <div className="h-full bg-gray-100 text-ink font-mono overflow-hidden">
+      <UpdatePrompt />
       <StorageWarning />
       {activeCharacterId ? (
         <SheetErrorBoundary key={activeCharacterId}>

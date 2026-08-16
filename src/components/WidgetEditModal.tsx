@@ -33,6 +33,7 @@ import {
   InitiativeTrackerEditor,
   InventoryEditor,
   DeckEditor,
+  CardTableEditor,
   TimerEditor,
   StepDiceEditor,
 } from './editors';
@@ -64,6 +65,7 @@ import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
 import DeckWidget from './widgets/DeckWidget';
+import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 
@@ -74,6 +76,7 @@ interface Props {
 
 const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
   'CHECKBOX',
+  'DECK_OF_CARDS',
   'DECK',
   'DICE_ROLLER',
   'DICE_TRAY',
@@ -128,7 +131,8 @@ function getWidgetTitle(type: WidgetType): string {
     'ROLL_TABLE': 'Roll Table',
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'INVENTORY': 'Inventory',
-    'DECK': 'Deck of Cards',
+    'DECK': 'Legacy Deck of Cards',
+    'DECK_OF_CARDS': 'Deck of Cards',
     'TIMER': 'Timer',
     'STEP_DICE': 'Step Dice',
   };
@@ -202,6 +206,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerEditor {...editorProps} />;
       case 'INVENTORY': return <InventoryEditor {...editorProps} />;
       case 'DECK': return <DeckEditor {...editorProps} />;
+      case 'DECK_OF_CARDS': return <CardTableEditor {...editorProps} />;
       case 'TIMER': return <TimerEditor {...editorProps} />;
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
       default: return null;
@@ -263,6 +268,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
+      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
