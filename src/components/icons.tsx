@@ -68,6 +68,24 @@ export function ChevronUpIcon(props: IconProps) {
   );
 }
 
+export function ChevronsDownIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m7 6 5 5 5-5" />
+      <path d="m7 13 5 5 5-5" />
+    </Base>
+  );
+}
+
+export function ChevronsUpIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m17 18-5-5-5 5" />
+      <path d="m17 11-5-5-5 5" />
+    </Base>
+  );
+}
+
 export function MenuIcon(props: IconProps) {
   return (
     <Base {...props}>

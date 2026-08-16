@@ -4,10 +4,11 @@ import type { CardTableBackDesign, CardTableBackPattern, CardTableCard } from '.
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../../utils/cardTable';
 import { limitCardSymbols, MAX_CARD_SYMBOLS, splitCardSymbols } from '../../utils/cardSymbols';
 import { useStore } from '../../store/useStore';
-import { ChevronDownIcon, ChevronUpIcon, LayoutGridIcon, PlusIcon, TrashIcon } from '../icons';
+import { ChevronsDownIcon, ChevronsUpIcon, ChevronDownIcon, ChevronUpIcon, LayoutGridIcon, ListOrderedIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import CardDeckBulkAddDialog, { type BulkCardDraft } from './CardDeckBulkAddDialog';
 import CardDeckBulkDeleteDialog from './CardDeckBulkDeleteDialog';
+import CardDeckPositionDialog from './CardDeckPositionDialog';
 import type { EditorProps } from './types';
 
 const inputClass = 'w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
@@ -44,7 +45,7 @@ function SymbolInput({
       <input
         value={value}
         onChange={(event) => onChange(limitCardSymbols(event.target.value))}
-        placeholder="✦"
+        placeholder="Symbols"
         aria-label={inputLabel}
         title={`${splitCardSymbols(value).length}/${MAX_CARD_SYMBOLS} symbols`}
         className={`${inputClass} h-9 min-w-0 flex-1 text-center text-lg`}
@@ -98,11 +99,21 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
     .flatMap((candidate) => getCardTableCards(candidate.data).map((card) => ({ card, hostWidgetId: candidate.id })))
     .filter(({ card, hostWidgetId }) => card.originWidgetId === widget.id || (!card.originWidgetId && hostWidgetId === widget.id));
   const cards = [...ownedCardEntries]
-    .sort((left, right) => (left.card.originOrder ?? Number.MAX_SAFE_INTEGER) - (right.card.originOrder ?? Number.MAX_SAFE_INTEGER))
+    .sort((left, right) => {
+      const leftLocalIndex = localCards.findIndex((card) => card.id === left.card.id);
+      const rightLocalIndex = localCards.findIndex((card) => card.id === right.card.id);
+      if (leftLocalIndex >= 0 || rightLocalIndex >= 0) {
+        if (leftLocalIndex < 0) return 1;
+        if (rightLocalIndex < 0) return -1;
+        return leftLocalIndex - rightLocalIndex;
+      }
+      return (left.card.originOrder ?? Number.MAX_SAFE_INTEGER) - (right.card.originOrder ?? Number.MAX_SAFE_INTEGER);
+    })
     .map((entry) => entry.card);
   const [symbolPickerCardId, setSymbolPickerCardId] = useState<string | null>(null);
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [positionCardId, setPositionCardId] = useState<string | null>(null);
 
   const setLocalCards = (nextCards: CardTableCard[]) => updateData({
     cardTableCards: normalizeCardTableOrigins(nextCards, widget.id, backDesign),
@@ -147,23 +158,23 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
     else updateWidgetData(hostWidget.id, { cardTableCards: nextCards });
   };
 
-  const appendCards = (drafts: BulkCardDraft[]) => {
-    const originOrderStart = Date.now();
-    setLocalCards([
-      ...localCards,
-      ...drafts.map((draft, index) => ({
-        id: uuidv4(),
-        ...draft,
-        faceUp: false,
-        originWidgetId: widget.id,
-        originOrder: originOrderStart + index,
-        originBackColor: backDesign.color,
-        originBackTextColor: backDesign.textColor,
-        originBackSymbol: backDesign.symbol,
-        originBackText: backDesign.text,
-        originBackPattern: backDesign.pattern,
-      })),
-    ]);
+  const appendCards = (drafts: BulkCardDraft[], addToTop = false) => {
+    const originOrderStart = addToTop
+      ? Math.min(0, ...cards.map((card, index) => card.originOrder ?? index)) - drafts.length
+      : Date.now();
+    const nextCards = drafts.map((draft, index) => ({
+      id: uuidv4(),
+      ...draft,
+      faceUp: false,
+      originWidgetId: widget.id,
+      originOrder: originOrderStart + index,
+      originBackColor: backDesign.color,
+      originBackTextColor: backDesign.textColor,
+      originBackSymbol: backDesign.symbol,
+      originBackText: backDesign.text,
+      originBackPattern: backDesign.pattern,
+    }));
+    setLocalCards(addToTop ? [...nextCards, ...localCards] : [...localCards, ...nextCards]);
   };
 
   const moveCard = (index: number, direction: -1 | 1) => {
@@ -180,6 +191,23 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
     setLocalCards(nextCards);
   };
 
+  const moveCardToPosition = (cardId: string, targetPosition: number) => {
+    const entry = ownedCardEntries.find((candidate) => candidate.card.id === cardId);
+    if (!entry || entry.hostWidgetId !== widget.id) return;
+    const localIndex = localCards.findIndex((card) => card.id === cardId);
+    if (localIndex < 0 || !Number.isInteger(targetPosition) || targetPosition < 1 || targetPosition > localCards.length) return;
+    const targetIndex = targetPosition - 1;
+    if (localIndex === targetIndex) return;
+    const nextCards = [...localCards];
+    const [card] = nextCards.splice(localIndex, 1);
+    nextCards.splice(targetIndex, 0, card);
+    setLocalCards(nextCards);
+  };
+
+  const moveCardTo = (cardId: string, position: 'top' | 'bottom') => {
+    moveCardToPosition(cardId, position === 'top' ? 1 : localCards.length);
+  };
+
   const removeCards = (cardIds: Set<string>) => {
     const hostWidgetIds = new Set(
       ownedCardEntries.filter((entry) => cardIds.has(entry.card.id)).map((entry) => entry.hostWidgetId),
@@ -193,6 +221,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
       else updateWidgetData(hostWidget.id, { cardTableCards: nextCards });
     });
   };
+
+  const positionCard = positionCardId ? cards.find((card) => card.id === positionCardId) : undefined;
+  const positionCardIndex = positionCard ? localCards.findIndex((card) => card.id === positionCard.id) : -1;
 
   return (
     <div className="space-y-4">
@@ -333,7 +364,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           <div className="flex flex-nowrap justify-end gap-1.5">
             <button
               type="button"
-              onClick={() => appendCards([{ title: '', symbol: '✦', body: '' }])}
+              onClick={() => appendCards([{ title: '', symbol: '', body: '' }], true)}
               className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
             >
               <PlusIcon className="h-3.5 w-3.5" />
@@ -369,7 +400,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             <div key={card.id} className="rounded-button border border-theme-border bg-theme-background p-2">
               <div className="mb-2 flex items-center gap-1.5">
                 <span className="min-w-0 flex-1 truncate text-xs font-semibold text-theme-ink">
-                  {index === 0 && ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId === widget.id ? 'Top card' : `Card ${index + 1}`}
+                  {localCards[0]?.id === card.id ? 'Top card' : `Card ${index + 1}`}
                 </span>
                 <Tooltip content="Move toward top">
                   <button
@@ -391,6 +422,39 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                     aria-label={`Move ${card.title || 'card'} toward bottom`}
                   >
                     <ChevronDownIcon className="h-3.5 w-3.5" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Move to top">
+                  <button
+                    type="button"
+                    disabled={ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId !== widget.id || localCards.findIndex((localCard) => localCard.id === card.id) <= 0}
+                    onClick={() => moveCardTo(card.id, 'top')}
+                    className="widget-control h-7 w-7 disabled:opacity-30"
+                    aria-label={`Move ${card.title || 'card'} to top`}
+                  >
+                    <ChevronsUpIcon className="h-3.5 w-3.5" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Move to bottom">
+                  <button
+                    type="button"
+                    disabled={ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId !== widget.id || localCards.findIndex((localCard) => localCard.id === card.id) < 0 || localCards.findIndex((localCard) => localCard.id === card.id) === localCards.length - 1}
+                    onClick={() => moveCardTo(card.id, 'bottom')}
+                    className="widget-control h-7 w-7 disabled:opacity-30"
+                    aria-label={`Move ${card.title || 'card'} to bottom`}
+                  >
+                    <ChevronsDownIcon className="h-3.5 w-3.5" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Move to position">
+                  <button
+                    type="button"
+                    disabled={ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId !== widget.id || localCards.findIndex((localCard) => localCard.id === card.id) < 0}
+                    onClick={() => setPositionCardId(card.id)}
+                    className="widget-control h-7 w-7 disabled:opacity-30"
+                    aria-label={`Move ${card.title || 'card'} to position`}
+                  >
+                    <ListOrderedIcon className="h-3.5 w-3.5" />
                   </button>
                 </Tooltip>
                 <Tooltip content="Remove card">
@@ -459,6 +523,16 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             removeCards(cardIds);
             setBulkDeleteOpen(false);
           }}
+        />
+      )}
+
+      {positionCard && positionCardIndex >= 0 && (
+        <CardDeckPositionDialog
+          cardLabel={positionCard.title.trim() || 'Untitled card'}
+          currentPosition={positionCardIndex + 1}
+          deckSize={localCards.length}
+          onMove={(position) => moveCardToPosition(positionCard.id, position)}
+          onClose={() => setPositionCardId(null)}
         />
       )}
     </div>
