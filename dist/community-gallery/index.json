@@ -143,6 +143,14 @@
       "description": "TOME!!!",
       "file": "presets/disgaea.json",
       "gameSystem": "Disgaea"
+    },
+    {
+      "id": "19",
+      "name": "OVA Character Sheet v3",
+      "author": "@Nyest",
+      "description": "OVA Character Sheet",
+      "file": "presets/ova_character_sheet_v3.json",
+      "gameSystem": "OVA: The Anime RPG"
     }
   ],
   "themes": [
@@ -187,6 +195,13 @@
       "author": "@Nyest",
       "description": "A theme inspired on Naruto.",
       "file": "themes/konoha_scroll.json"
+    },
+    {
+      "id": "7",
+      "name": "Ova: The Anime RPG",
+      "author": "@Nyest",
+      "description": "Colour scheme of OVA: The Anime RPG",
+      "file": "themes/ova_anime_rpg.json"
     }
   ],
   "templates": [
