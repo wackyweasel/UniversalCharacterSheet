@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
@@ -9,6 +9,12 @@ import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { DotsVerticalIcon, PencilIcon } from './icons';
+import {
+  finishWidgetDrag,
+  getWidgetDragState,
+  startWidgetDrag,
+  subscribeWidgetDragState,
+} from './widgetDragRegistry';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
@@ -187,6 +193,14 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
   const selectedBeforeTouchRef = useRef<string | null>(null);
+  const activeWidgetDrag = useSyncExternalStore(
+    subscribeWidgetDragState,
+    getWidgetDragState,
+    getWidgetDragState,
+  );
+  const isWidgetDragging = activeWidgetDrag?.widgetId === widget.id || (
+    widget.groupId !== undefined && activeWidgetDrag?.groupId === widget.groupId
+  );
 
   useTouchCameraPinchCancellation(() => {
     if (isDraggingRef.current) pinchCanceledDragRef.current = true;
@@ -241,6 +255,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
+  const buildControlScale = Math.min(1, 1 / scale);
 
   // Auto-open dropdown for the original form tutorial step only. Automation edit steps keep
   // the dropdown opened by the widget the user actually clicked.
@@ -515,6 +530,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     dragStartPos.current = { x: data.x, y: data.y };
     isDraggingRef.current = true;
     pinchCanceledDragRef.current = false;
+    startWidgetDrag(widget.id, widget.groupId ?? null);
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
@@ -541,6 +557,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
     isDraggingRef.current = false;
+    finishWidgetDrag(widget.id);
     if (pinchCanceledDragRef.current) {
       pinchCanceledDragRef.current = false;
       if (widget.groupId) {
@@ -797,13 +814,13 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           data-widget-id={widget.id}
           data-tutorial={`widget-${widget.type}`}
           data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper group ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+          className={`react-draggable widget-surface absolute bg-theme-paper group ${widget.type === 'CARD_TABLE' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
           style={{ 
             width: `${widgetWidth}px`,
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' ? 100 : undefined),
+            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'CARD_TABLE' ? 100 : undefined),
             ...borderRadiusStyle,
             ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
@@ -864,7 +881,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
                     aria-label={`Options for ${widget.data.label || widget.type}`}
                     aria-expanded={showDropdown}
                     className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                    style={{ transform: `scale(${1 / scale})`, transformOrigin: 'top right' }}
+                    style={{ transform: `scale(${buildControlScale})`, transformOrigin: 'top right' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       // Advance tutorial if on step 16 (widget-menu) and this is a Form widget

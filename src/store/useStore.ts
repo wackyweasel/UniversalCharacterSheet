@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { CardTableCard, Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
@@ -46,6 +46,36 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
         : s
     )
   };
+}
+
+function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['data'] {
+  const backDesign = getCardTableBackDesign(data);
+  const activeCards = getCardTableCards(data);
+  const discardedCards = getCardTableDiscardedCards(data);
+  const cloneCards = (cards: CardTableCard[], orderOffset: number) => cards.map((card, index) => ({
+    ...card,
+    id: uuidv4(),
+    originWidgetId: widgetId,
+    originOrder: orderOffset + index,
+    originBackColor: backDesign.color,
+    originBackTextColor: backDesign.textColor,
+    originBackSymbol: backDesign.symbol,
+    originBackText: backDesign.text,
+    originBackPattern: backDesign.pattern,
+  }));
+
+  return {
+    ...data,
+    cardTableCards: cloneCards(activeCards, 0),
+    cardTableDiscardedCards: cloneCards(discardedCards, activeCards.length),
+    cardTableSpots: undefined,
+  };
+}
+
+function cloneWidgetData(type: WidgetType, data: Widget['data'], widgetId: string): Widget['data'] {
+  return type === 'CARD_TABLE'
+    ? cloneCardTableData(data, widgetId)
+    : JSON.parse(JSON.stringify(data));
 }
 
 function migrateLegacyWidgetHeader(widget: Widget): Widget {
@@ -94,11 +124,13 @@ function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): 
     id: sheetIdMap.get(sheet.id)!,
     widgets: sheet.widgets.map(widget => {
       const migratedWidget = migrateLegacyWidgetHeader(widget);
+      const newWidgetId = widgetIdMap.get(widget.id)!;
       return {
         ...migratedWidget,
-        id: widgetIdMap.get(widget.id)!,
+        id: newWidgetId,
         groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
-        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id)
+        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id),
+        data: cloneWidgetData(migratedWidget.type, migratedWidget.data, newWidgetId),
       };
     })
   }));
@@ -991,14 +1023,15 @@ export const useStore = create<StoreState>((set, get) => {
         
         const OFFSET = 30; // Offset the clone slightly from original
         
+        const newWidgetId = uuidv4();
         const newWidget: Widget = {
-          id: uuidv4(),
+          id: newWidgetId,
           type: sourceWidget.type,
           x: sourceWidget.x + OFFSET,
           y: sourceWidget.y + OFFSET,
           w: sourceWidget.w,
           h: sourceWidget.h,
-          data: JSON.parse(JSON.stringify(sourceWidget.data)), // Deep clone the data
+          data: cloneWidgetData(sourceWidget.type, sourceWidget.data, newWidgetId),
         };
 
         recordStoreEvent(state, {
@@ -1107,14 +1140,15 @@ export const useStore = create<StoreState>((set, get) => {
           }
         }
         
+        const newWidgetId = uuidv4();
         const newWidget: Widget = {
-          id: uuidv4(),
+          id: newWidgetId,
           type: template.type,
           x: finalX,
           y: finalY,
           w: template.w || 200,
           h: template.h || 120,
-          data: JSON.parse(JSON.stringify(template.data)), // Deep clone the data
+          data: cloneWidgetData(template.type, template.data, newWidgetId),
         };
 
         recordStoreEvent(state, {
@@ -1244,7 +1278,7 @@ export const useStore = create<StoreState>((set, get) => {
           w: wt.w || 200,
           h: wt.h || 120,
           groupId: newGroupId,
-          data: JSON.parse(JSON.stringify(wt.data)),
+          data: cloneWidgetData(wt.type, wt.data, widgetIds[idx]),
         }));
         
         // Set up attachedTo based on the attachments array
@@ -2325,7 +2359,7 @@ export const useStore = create<StoreState>((set, get) => {
           groupId: newGroupId,
           attachedTo: w.attachedTo?.map(id => idMapping.get(id)).filter((id): id is string => id !== undefined),
           locked: w.locked,
-          data: JSON.parse(JSON.stringify(w.data)),
+          data: cloneWidgetData(w.type, w.data, idMapping.get(w.id)!),
         }));
 
         recordStoreEvent(state, {

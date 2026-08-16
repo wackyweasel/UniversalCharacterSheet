@@ -40,6 +40,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
   const [widgetSizes, setWidgetSizes] = useState<Record<string, { width: number; height: number }>>({});
   const activeWidgetId = selectedWidgetId || hoveredWidgetId;
+  const buildControlScale = Math.min(1, 1 / scale);
 
   const widgetIdsKey = widgets.map(widget => widget.id).join('|');
 
@@ -313,7 +314,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
                 left: `${edge.x}px`,
                 top: `${edge.y}px`,
                 zIndex: 100,
-                transform: `translate(-50%, -50%) scale(${1 / scale})`,
+                transform: `translate(-50%, -50%) scale(${buildControlScale})`,
               }}
               onClick={() => handleClick(edge)}
               onMouseDown={(e) => e.stopPropagation()}

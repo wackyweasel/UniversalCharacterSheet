@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CardTableBackDesign, CardTableBackPattern, CardTableCard } from '../../types';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../../utils/cardTable';
 import { limitCardSymbols, MAX_CARD_SYMBOLS, splitCardSymbols } from '../../utils/cardSymbols';
+import { useStore } from '../../store/useStore';
 import { ChevronDownIcon, ChevronUpIcon, LayoutGridIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import CardDeckBulkAddDialog, { type BulkCardDraft } from './CardDeckBulkAddDialog';
@@ -84,14 +85,26 @@ function SymbolInput({
 
 export function CardTableEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
-  const cards = getCardTableCards(widget.data);
+  const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const activeSheetWidgets = useStore((state) => {
+    const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+    return character?.sheets.find((sheet) => sheet.id === character.activeSheetId)?.widgets ?? [];
+  });
+  const localCards = getCardTableCards(widget.data);
   const discardedCards = getCardTableDiscardedCards(widget.data);
   const backDesign = getCardTableBackDesign(widget.data);
+  const ownedCardEntries = activeSheetWidgets
+    .filter((candidate) => candidate.type === 'CARD_TABLE')
+    .flatMap((candidate) => getCardTableCards(candidate.data).map((card) => ({ card, hostWidgetId: candidate.id })))
+    .filter(({ card, hostWidgetId }) => card.originWidgetId === widget.id || (!card.originWidgetId && hostWidgetId === widget.id));
+  const cards = [...ownedCardEntries]
+    .sort((left, right) => (left.card.originOrder ?? Number.MAX_SAFE_INTEGER) - (right.card.originOrder ?? Number.MAX_SAFE_INTEGER))
+    .map((entry) => entry.card);
   const [symbolPickerCardId, setSymbolPickerCardId] = useState<string | null>(null);
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  const setCards = (nextCards: CardTableCard[]) => updateData({
+  const setLocalCards = (nextCards: CardTableCard[]) => updateData({
     cardTableCards: normalizeCardTableOrigins(nextCards, widget.id, backDesign),
   });
 
@@ -118,19 +131,26 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
       cardTableBackSymbol: nextDesign.symbol,
       cardTableBackText: nextDesign.text,
       cardTableBackPattern: nextDesign.pattern,
-      cardTableCards: cards.map(updateOwnedCardBack),
+      cardTableCards: localCards.map(updateOwnedCardBack),
       cardTableDiscardedCards: discardedCards.map(updateOwnedCardBack),
     });
   };
 
   const updateCard = (cardId: string, update: Partial<CardTableCard>) => {
-    setCards(cards.map((card) => card.id === cardId ? { ...card, ...update } : card));
+    const entry = ownedCardEntries.find((candidate) => candidate.card.id === cardId);
+    const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === entry?.hostWidgetId);
+    if (!entry || !hostWidget || hostWidget.type !== 'CARD_TABLE') return;
+    const nextCards = getCardTableCards(hostWidget.data).map((card) => (
+      card.id === cardId ? { ...card, ...update } : card
+    ));
+    if (hostWidget.id === widget.id) setLocalCards(nextCards);
+    else updateWidgetData(hostWidget.id, { cardTableCards: nextCards });
   };
 
   const appendCards = (drafts: BulkCardDraft[]) => {
     const originOrderStart = Date.now();
-    setCards([
-      ...cards,
+    setLocalCards([
+      ...localCards,
       ...drafts.map((draft, index) => ({
         id: uuidv4(),
         ...draft,
@@ -148,11 +168,30 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
 
   const moveCard = (index: number, direction: -1 | 1) => {
     const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= cards.length) return;
-    const nextCards = [...cards];
-    const [card] = nextCards.splice(index, 1);
-    nextCards.splice(targetIndex, 0, card);
-    setCards(nextCards);
+    const entry = ownedCardEntries.find((candidate) => candidate.card.id === cards[index]?.id);
+    const target = ownedCardEntries.find((candidate) => candidate.card.id === cards[targetIndex]?.id);
+    if (targetIndex < 0 || targetIndex >= cards.length || entry?.hostWidgetId !== widget.id || target?.hostWidgetId !== widget.id) return;
+    const localIndex = localCards.findIndex((card) => card.id === entry.card.id);
+    const localTargetIndex = localCards.findIndex((card) => card.id === target.card.id);
+    if (localIndex < 0 || localTargetIndex < 0) return;
+    const nextCards = [...localCards];
+    const [card] = nextCards.splice(localIndex, 1);
+    nextCards.splice(localTargetIndex, 0, card);
+    setLocalCards(nextCards);
+  };
+
+  const removeCards = (cardIds: Set<string>) => {
+    const hostWidgetIds = new Set(
+      ownedCardEntries.filter((entry) => cardIds.has(entry.card.id)).map((entry) => entry.hostWidgetId),
+    );
+    hostWidgetIds.forEach((hostWidgetId) => {
+      const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === hostWidgetId);
+      if (!hostWidget || hostWidget.type !== 'CARD_TABLE') return;
+      const nextCards = getCardTableCards(hostWidget.data).filter((card) => !cardIds.has(card.id));
+      if (nextCards.length === getCardTableCards(hostWidget.data).length) return;
+      if (hostWidget.id === widget.id) setLocalCards(nextCards);
+      else updateWidgetData(hostWidget.id, { cardTableCards: nextCards });
+    });
   };
 
   return (
@@ -330,12 +369,12 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             <div key={card.id} className="rounded-button border border-theme-border bg-theme-background p-2">
               <div className="mb-2 flex items-center gap-1.5">
                 <span className="min-w-0 flex-1 truncate text-xs font-semibold text-theme-ink">
-                  {index === 0 ? 'Top card' : `Card ${index + 1}`}
+                  {index === 0 && ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId === widget.id ? 'Top card' : `Card ${index + 1}`}
                 </span>
                 <Tooltip content="Move toward top">
                   <button
                     type="button"
-                    disabled={index === 0}
+                    disabled={index === 0 || ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId !== widget.id || ownedCardEntries.find((entry) => entry.card.id === cards[index - 1]?.id)?.hostWidgetId !== widget.id}
                     onClick={() => moveCard(index, -1)}
                     className="widget-control h-7 w-7 disabled:opacity-30"
                     aria-label={`Move ${card.title || 'card'} toward top`}
@@ -346,7 +385,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                 <Tooltip content="Move toward bottom">
                   <button
                     type="button"
-                    disabled={index === cards.length - 1}
+                    disabled={index === cards.length - 1 || ownedCardEntries.find((entry) => entry.card.id === card.id)?.hostWidgetId !== widget.id || ownedCardEntries.find((entry) => entry.card.id === cards[index + 1]?.id)?.hostWidgetId !== widget.id}
                     onClick={() => moveCard(index, 1)}
                     className="widget-control h-7 w-7 disabled:opacity-30"
                     aria-label={`Move ${card.title || 'card'} toward bottom`}
@@ -357,7 +396,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                 <Tooltip content="Remove card">
                   <button
                     type="button"
-                    onClick={() => setCards(cards.filter((entry) => entry.id !== card.id))}
+                    onClick={() => removeCards(new Set([card.id]))}
                     className="widget-control h-7 w-7 text-red-500"
                     aria-label={`Remove ${card.title || 'card'}`}
                   >
@@ -417,7 +456,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           cards={cards}
           onClose={() => setBulkDeleteOpen(false)}
           onDelete={(cardIds) => {
-            setCards(cards.filter((card) => !cardIds.has(card.id)));
+            removeCards(cardIds);
             setBulkDeleteOpen(false);
           }}
         />

@@ -157,6 +157,7 @@ const handlePointerMove = (event: PointerEvent) => {
   if (!dragState || event.pointerId !== dragState.pointerId || dragState.phase === 'settling') return;
   if (!dragState.didMove && Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) < 5) return;
   event.preventDefault();
+  const startedDragging = !dragState.didMove;
   const target = resolveTarget(event.clientX, event.clientY, dragState.sourceWidgetId);
   clearTarget();
   if (target?.kind === 'discard') target.registration.discardElement?.classList.add('card-deck-discard--drop-target');
@@ -170,6 +171,7 @@ const handlePointerMove = (event: PointerEvent) => {
     targetWidgetId: target?.registration.widgetId ?? null,
     targetKind: target?.kind ?? null,
   };
+  if (startedDragging) emit();
 };
 
 const handlePointerEnd = (event: PointerEvent, cancelled = false) => {

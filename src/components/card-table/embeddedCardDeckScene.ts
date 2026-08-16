@@ -343,7 +343,7 @@ const screenPosition = (x: number, y: number, width: number, height: number, z =
   new THREE.Vector3(x - width / 2, height / 2 - y, z)
 );
 
-export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
+export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer: HTMLElement) {
   let disposed = false;
   let frameId = 0;
   let viewportWidth = 1;
@@ -357,9 +357,9 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
   renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
   const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
   const gatherVisuals = new Map<string, GatherVisual>();
-  const faceLayer = document.createElement('div');
-  faceLayer.className = 'card-deck-dom-layer';
-  document.body.appendChild(faceLayer);
+  let canvasRect = canvas.getBoundingClientRect();
+  let canvasScaleX = 1;
+  let canvasScaleY = 1;
   scene.add(new THREE.HemisphereLight('#ffffff', '#4b4d46', 1.25));
   const light = new THREE.DirectionalLight('#fff8e8', 1.1);
   light.position.set(-300, 500, 900);
@@ -375,6 +375,15 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
     camera.bottom = -viewportHeight / 2;
     camera.updateProjectionMatrix();
   };
+
+  const updateCanvasMetrics = () => {
+    canvasRect = canvas.getBoundingClientRect();
+    canvasScaleX = canvasRect.width > 0 ? canvasRect.width / viewportWidth : 1;
+    canvasScaleY = canvasRect.height > 0 ? canvasRect.height / viewportHeight : 1;
+  };
+
+  const toCanvasX = (screenX: number) => (screenX - canvasRect.left) / canvasScaleX;
+  const toCanvasY = (screenY: number) => (screenY - canvasRect.top) / canvasScaleY;
 
   const removeVisual = (widgetId: string) => {
     const visual = visuals.get(widgetId);
@@ -483,12 +492,14 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
   const render = (time: number) => {
     if (disposed) return;
     if (canvas.clientWidth !== viewportWidth || canvas.clientHeight !== viewportHeight) resize();
+    updateCanvasMetrics();
     const registrations = getCardDeckRegistrations();
     const activeIds = new Set(registrations.map((registration) => registration.widgetId));
     Array.from(visuals.keys()).forEach((widgetId) => {
       if (!activeIds.has(widgetId)) removeVisual(widgetId);
     });
     const drag = getCardDeckDragState();
+    faceLayer.classList.toggle('card-deck-dom-layer--dragging', drag?.phase === 'dragging');
     const gather = getCardDeckGatherAnimation();
     const gatheredCardIds = new Set(gather?.entries.map((entry) => entry.card.id) ?? []);
 
@@ -502,8 +513,14 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
         if (grabAllElement) grabAllElement.style.visibility = 'hidden';
         return;
       }
-      const rect = registration.element.getBoundingClientRect();
-      const visible = rect.width > 4 && rect.height > 4 && rect.right > 0 && rect.bottom > 0 && rect.left < viewportWidth && rect.top < viewportHeight;
+      const screenRect = registration.element.getBoundingClientRect();
+      const rect = {
+        left: toCanvasX(screenRect.left),
+        top: toCanvasY(screenRect.top),
+        width: screenRect.width / canvasScaleX,
+        height: screenRect.height / canvasScaleY,
+      };
+      const visible = screenRect.width > 4 && screenRect.height > 4 && screenRect.right > 0 && screenRect.bottom > 0 && screenRect.left < window.innerWidth && screenRect.top < window.innerHeight;
       const colors = getThemeColors();
       const originRegistration = registrations.find((entry) => entry.widgetId === card.originWidgetId);
       const backDesign = resolveBackDesign(card, originRegistration?.backDesign, colors.accent);
@@ -545,21 +562,22 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       let dragLift = 0;
       const isDragged = drag?.sourceWidgetId === registration.widgetId && drag.cardId === card.id;
       const isWholeDeckDrag = isDragged && drag?.allCards === true;
+      const isHostWidgetDragging = registration.element.closest('.widget-surface--dragging') !== null;
       if (isDragged && drag) {
         if (drag.phase === 'dragging') {
-          x = drag.x;
-          y = drag.y;
+          x = toCanvasX(drag.x);
+          y = toCanvasY(drag.y);
           dragLift = 28;
         } else if (drag.phase === 'settling') {
           const rawProgress = drag.settleDuration === 0 ? 1 : Math.min(1, (time - drag.settleStartedAt) / drag.settleDuration);
           const progress = 1 - Math.pow(1 - rawProgress, 3);
-          x = THREE.MathUtils.lerp(drag.settleFromX, drag.settleToX, progress);
-          y = THREE.MathUtils.lerp(drag.settleFromY, drag.settleToY, progress) - Math.sin(Math.PI * progress) * 24;
+          x = toCanvasX(THREE.MathUtils.lerp(drag.settleFromX, drag.settleToX, progress));
+          y = toCanvasY(THREE.MathUtils.lerp(drag.settleFromY, drag.settleToY, progress)) - Math.sin(Math.PI * progress) * 24;
           dragLift = 28 * (1 - progress);
         }
       }
       const dragRotation = isDragged && drag?.phase === 'dragging'
-        ? THREE.MathUtils.clamp((drag.x - drag.startX) * -0.0015, -0.16, 0.16)
+        ? THREE.MathUtils.clamp((toCanvasX(drag.x) - toCanvasX(drag.startX)) * -0.0015, -0.16, 0.16)
         : 0;
       const shuffle = getCardDeckShuffleAnimation(registration.widgetId);
       const shuffleProgress = shuffle ? Math.min(1, (time - shuffle.startedAt) / shuffle.duration) : 1;
@@ -574,11 +592,17 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
         (isWholeDeckDrag ? y - dragLift : deckY) + shuffleLift,
         viewportWidth,
         viewportHeight,
-        isWholeDeckDrag ? 70 : 10,
+        isWholeDeckDrag ? 70 : isHostWidgetDragging ? 130 : 10,
       ));
       visual.group.scale.setScalar(scale * (isWholeDeckDrag ? 1.04 : 1));
       visual.group.rotation.z = (isWholeDeckDrag ? dragRotation : 0) - shuffleRotation * 0.55;
-      visual.card.position.copy(screenPosition(x + shuffleTopX, y - dragLift - shuffleLift, viewportWidth, viewportHeight, isDragged ? 80 : 20));
+      visual.card.position.copy(screenPosition(
+        x + shuffleTopX,
+        y - dragLift - shuffleLift,
+        viewportWidth,
+        viewportHeight,
+        isDragged ? 80 : isHostWidgetDragging ? 140 : 20,
+      ));
       visual.card.scale.setScalar(scale * (isDragged ? 1.04 : 1));
       visual.card.rotation.z = dragRotation + shuffleRotation;
       if (visual.flipStartedAt > 0) {
@@ -597,9 +621,12 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       if (grabAllElement) {
         const controlX = (isWholeDeckDrag ? x : deckX) + shuffleTopX;
         const controlY = (isWholeDeckDrag ? y - dragLift : deckY) - shuffleLift;
-        const controlHeight = grabAllElement.offsetHeight || 24;
+        const controlSize = Math.min(24, cardHeight * 0.28);
+        grabAllElement.style.removeProperty('width');
+        grabAllElement.style.removeProperty('height');
+        grabAllElement.style.setProperty('--card-deck-grab-all-size', `${controlSize}px`);
         grabAllElement.style.left = `${controlX - cardWidth / 2 + 4}px`;
-        grabAllElement.style.top = `${controlY + cardHeight / 2 - controlHeight - 4}px`;
+        grabAllElement.style.top = `${controlY + cardHeight / 2 - controlSize - 4}px`;
         grabAllElement.style.visibility = 'visible';
       }
       visual.faceElement.style.left = `${x + shuffleTopX}px`;
@@ -607,7 +634,7 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       visual.faceElement.style.width = `${faceWidth}px`;
       visual.faceElement.style.height = `${faceHeight}px`;
       visual.faceElement.style.setProperty('--card-face-height', `${faceHeight}px`);
-      visual.faceElement.style.zIndex = isDragged ? '1000' : '1';
+      visual.faceElement.style.zIndex = isDragged ? '1000' : isHostWidgetDragging ? '100' : '1';
       visual.faceElement.style.transform = [
         'translate(-50%, -50%)',
         `rotateZ(${-visual.card.rotation.z}rad)`,
@@ -642,13 +669,17 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
         const visual = ensureGatherVisual(entry);
         const sourceRegistration = registrations.find((registration) => registration.widgetId === entry.sourceWidgetId);
         const targetRegistration = registrations.find((registration) => registration.widgetId === gather.targetWidgetId);
-        const sizeRect = sourceRegistration?.element.getBoundingClientRect()
+        const screenSizeRect = sourceRegistration?.element.getBoundingClientRect()
           ?? targetRegistration?.element.getBoundingClientRect();
-        if (!sizeRect) {
+        if (!screenSizeRect) {
           visual.group.visible = false;
           visual.faceElement.hidden = true;
           return;
         }
+        const sizeRect = {
+          width: screenSizeRect.width / canvasScaleX,
+          height: screenSizeRect.height / canvasScaleY,
+        };
         const maxWidth = sizeRect.width * 0.68;
         const maxHeight = sizeRect.height * 0.76;
         const cardHeight = Math.min(maxHeight, maxWidth / (CARD_WIDTH / CARD_HEIGHT));
@@ -660,8 +691,8 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
         const flightSpreadX = ((entry.index % 7) - 3) * 22 * flightFan;
         const flightSpreadY = ((entry.index % 3) - 1) * 8 * flightFan;
         const arc = Math.sin(Math.PI * progress) * (48 + (entry.index % 4) * 8);
-        const x = THREE.MathUtils.lerp(entry.sourceX + sourceSpreadX, entry.targetX + targetSpreadX, progress) + flightSpreadX;
-        const y = THREE.MathUtils.lerp(entry.sourceY + sourceSpreadY, entry.targetY, progress) - arc + flightSpreadY;
+        const x = toCanvasX(THREE.MathUtils.lerp(entry.sourceX + sourceSpreadX, entry.targetX + targetSpreadX, progress) + flightSpreadX);
+        const y = toCanvasY(THREE.MathUtils.lerp(entry.sourceY + sourceSpreadY, entry.targetY, progress) - arc + flightSpreadY);
         const rotationZ = Math.sin(Math.PI * progress) * (entry.index % 2 === 0 ? -0.13 : 0.13);
         visual.group.visible = true;
         visual.group.position.copy(screenPosition(x, y, viewportWidth, viewportHeight, 180 + entry.index));
@@ -700,7 +731,6 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       window.cancelAnimationFrame(frameId);
       Array.from(visuals.keys()).forEach(removeVisual);
       Array.from(gatherVisuals.keys()).forEach(removeGatherVisual);
-      faceLayer.remove();
       renderer.dispose();
       renderer.forceContextLoss();
     },

@@ -300,6 +300,15 @@ td .inline-dice-token {
     isolation: isolate;
     outline: var(--border-width) var(--border-style) var(--color-border);
     outline-offset: calc(var(--border-width) / -2);
+    z-index: 10;
+  }
+
+  .widget-surface--card-table {
+    z-index: 8;
+  }
+
+  .widget-surface--dragging {
+    z-index: 1000 !important;
   }
 
   .widget-content {
@@ -312,6 +321,10 @@ td .inline-dice-token {
   }
 
   .widget-content--field-controls-interactive {
+    z-index: auto;
+  }
+
+  .widget-surface--card-table .widget-content {
     z-index: auto;
   }
 
@@ -1743,31 +1756,59 @@ td .inline-dice-token {
   inset: 0;
   opacity: 0;
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   width: 100%;
-  z-index: 25;
+  z-index: 9;
 }
 
 .card-deck-layer--active {
   opacity: 1;
 }
 
+.card-deck-layer--dragging {
+  z-index: 1000;
+}
+
+.print-canvas-content:has(.widget-surface--dragging.widget-surface--card-table) .card-deck-layer {
+  z-index: 1000;
+}
+
 .card-deck-dom-layer {
   height: 100%;
   inset: 0;
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   width: 100%;
-  z-index: 26;
+  z-index: 9;
+}
+
+.card-deck-dom-layer--dragging {
+  z-index: 1000;
+}
+
+.print-canvas-content:has(.widget-surface--dragging.widget-surface--card-table) .card-deck-dom-layer {
+  z-index: 1000;
 }
 
 .card-deck-controls-layer {
   height: 100%;
   inset: 0;
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   width: 100%;
-  z-index: 27;
+  z-index: 9;
+}
+
+.card-deck-controls-layer--dragging {
+  z-index: 1000;
+}
+
+.print-canvas-content:has(.widget-surface--dragging.widget-surface--card-table) .card-deck-controls-layer {
+  z-index: 1000;
+}
+
+.card-deck-controls-layer--dragging .card-deck-grab-all {
+  visibility: hidden !important;
 }
 
 .card-deck-dom-face {
@@ -2405,19 +2446,26 @@ td .inline-dice-token {
 }
 
 .card-deck-grab-all {
+  --card-deck-grab-all-size: 24px;
+  --card-deck-grab-all-icon-size: calc(var(--card-deck-grab-all-size) * 0.583333);
   align-items: center;
   bottom: 15%;
   cursor: grab;
   display: flex;
-  height: 24px;
+  height: var(--card-deck-grab-all-size);
   justify-content: center;
   left: 19%;
-  min-height: 24px;
+  min-height: 0;
   padding: 0;
   position: absolute;
   touch-action: none;
-  width: 24px;
+  width: var(--card-deck-grab-all-size);
   z-index: 4;
+}
+
+.card-deck-grab-all > svg {
+  height: var(--card-deck-grab-all-icon-size);
+  width: var(--card-deck-grab-all-icon-size);
 }
 
 .card-deck-grab-all:active:not(:disabled) {
