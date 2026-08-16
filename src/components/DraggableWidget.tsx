@@ -80,7 +80,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'INVENTORY': { width: 150, height: 80 },
   'DECK': { width: 70, height: 40 },
-  'CARD_TABLE': { width: 150, height: 170 },
+  'CARD_TABLE': { width: 100, height: 120 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
 };
@@ -773,7 +773,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
-      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={mode === 'play'} />;
+      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={mode === 'play'} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;
@@ -1488,7 +1488,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           )}
 
           {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
-          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && (
+          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && widget.type !== 'CARD_TABLE' && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10"
               style={borderRadiusStyle}

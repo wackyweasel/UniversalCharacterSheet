@@ -1,5 +1,15 @@
 import type { CardTableBackDesign, CardTableCard, WidgetData } from '../types';
 
+export type CardTableContentLayout = 'empty' | 'title' | 'symbol' | 'body' | 'title-symbol' | 'title-body' | 'symbol-body' | 'title-symbol-body';
+
+export function getCardTableContentLayout(card: CardTableCard): CardTableContentLayout {
+  const parts: string[] = [];
+  if (card.title.trim()) parts.push('title');
+  if (card.symbol.trim()) parts.push('symbol');
+  if (card.body.trim()) parts.push('body');
+  return (parts.join('-') || 'empty') as CardTableContentLayout;
+}
+
 export function getCardTableBackDesign(data: WidgetData): CardTableBackDesign {
   return {
     color: data.cardTableBackColor,
@@ -21,6 +31,10 @@ export function getCardOriginBackDesign(card: CardTableCard): CardTableBackDesig
 export function getCardTableCards(data: WidgetData): CardTableCard[] {
   if (data.cardTableCards) return data.cardTableCards;
   return data.cardTableSpots?.flatMap((spot) => spot.cards) ?? [];
+}
+
+export function getCardTableDiscardedCards(data: WidgetData): CardTableCard[] {
+  return data.cardTableDiscardedCards ?? [];
 }
 
 export function normalizeCardTableOrigins(

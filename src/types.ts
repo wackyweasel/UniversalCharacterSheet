@@ -95,6 +95,8 @@ export interface CardTableCard {
   originBackPattern?: CardTableBackPattern;
 }
 
+export type CardTableRestorePosition = 'top' | 'bottom' | 'random';
+
 export interface CardTableSpot {
   id: string;
   name: string;
@@ -428,10 +430,13 @@ export interface WidgetData {
   showDeckCards?: boolean;
   // Experimental 3D Card Table
   cardTableCards?: CardTableCard[];
+  cardTableDiscardedCards?: CardTableCard[];
   cardTableBackColor?: string;
   cardTableBackSymbol?: string;
   cardTableBackText?: string;
   cardTableBackPattern?: CardTableBackPattern;
+  cardTableShowDiscard?: boolean;
+  cardTableShowGrabAll?: boolean;
   // Legacy experimental multi-spot data, read as a migration fallback.
   cardTableSpots?: CardTableSpot[];
   // Initiative Tracker

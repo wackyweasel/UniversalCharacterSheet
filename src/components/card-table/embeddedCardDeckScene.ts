@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import type { CardTableBackDesign, CardTableCard } from '../../types';
-import { getCardOriginBackDesign } from '../../utils/cardTable';
+import { getCardOriginBackDesign, getCardTableContentLayout } from '../../utils/cardTable';
 import { getCardSymbolColumns, getCardSymbolSizeFactor, splitCardSymbols } from '../../utils/cardSymbols';
 import {
   getCardDeckDragState,
   getCardDeckGatherAnimation,
+  getCardDeckShuffleAnimation,
   getCardDeckRegistrations,
   type CardDeckGatherAnimationEntry,
 } from './cardDeckRegistry';
@@ -238,37 +239,46 @@ const createFaceElement = (
   colors: Record<'paper' | 'ink' | 'accent' | 'border', string>,
 ) => {
   const face = document.createElement('div');
-  face.className = 'card-deck-dom-face';
+  const contentLayout = getCardTableContentLayout(card);
+  face.className = `card-deck-dom-face card-deck-dom-face--${contentLayout}`;
   face.style.setProperty('--card-face-paper', colors.paper);
   face.style.setProperty('--card-face-ink', colors.ink);
   face.style.setProperty('--card-face-accent', colors.accent);
   face.style.setProperty('--card-face-border', colors.border);
   const symbols = splitCardSymbols(card.symbol).slice(0, 20);
   const symbolColumns = getCardSymbolColumns(symbols.length);
+  const hasTitle = card.title.trim().length > 0;
+  const hasSymbol = symbols.length > 0;
   const hasBody = card.body.trim().length > 0;
-  if (!hasBody) face.classList.add('card-deck-dom-face--symbol-only');
 
-  const title = document.createElement('div');
-  title.className = 'card-deck-dom-face__title';
-  title.textContent = card.title || 'Untitled card';
-  face.appendChild(title);
+  if (hasTitle) {
+    const title = document.createElement('div');
+    title.className = 'card-deck-dom-face__title';
+    title.textContent = card.title;
+    face.appendChild(title);
+  }
 
-  const symbol = document.createElement('div');
-  symbol.className = 'card-deck-dom-face__symbol';
-  symbol.style.setProperty('--card-symbol-columns', String(symbolColumns));
-  symbol.style.setProperty('--card-symbol-size-factor', String(getCardSymbolSizeFactor(symbolColumns)));
-  symbols.forEach((glyph) => {
-    const glyphElement = document.createElement('span');
-    glyphElement.className = 'card-deck-dom-face__symbol-glyph';
-    glyphElement.textContent = glyph;
-    symbol.appendChild(glyphElement);
-  });
-  face.appendChild(symbol);
+  if (hasSymbol) {
+    const symbol = document.createElement('div');
+    symbol.className = 'card-deck-dom-face__symbol';
+    symbol.style.setProperty('--card-symbol-columns', String(symbolColumns));
+    const symbolScale = contentLayout === 'symbol' ? 1.55 : contentLayout === 'symbol-body' ? 1.15 : 1;
+    symbol.style.setProperty('--card-symbol-size-factor', String(getCardSymbolSizeFactor(symbolColumns) * symbolScale));
+    symbols.forEach((glyph) => {
+      const glyphElement = document.createElement('span');
+      glyphElement.className = 'card-deck-dom-face__symbol-glyph';
+      glyphElement.textContent = glyph;
+      symbol.appendChild(glyphElement);
+    });
+    face.appendChild(symbol);
+  }
 
   if (hasBody) {
-    const divider = document.createElement('div');
-    divider.className = 'card-deck-dom-face__divider';
-    face.appendChild(divider);
+    if (hasTitle || hasSymbol) {
+      const divider = document.createElement('div');
+      divider.className = 'card-deck-dom-face__divider';
+      face.appendChild(divider);
+    }
 
     const body = document.createElement('div');
     body.className = 'card-deck-dom-face__body';
@@ -526,6 +536,7 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       let y = deckY;
       let dragLift = 0;
       const isDragged = drag?.sourceWidgetId === registration.widgetId && drag.cardId === card.id;
+      const isWholeDeckDrag = isDragged && drag?.allCards === true;
       if (isDragged && drag) {
         if (drag.phase === 'dragging') {
           x = drag.x;
@@ -539,14 +550,29 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
           dragLift = 28 * (1 - progress);
         }
       }
-      visual.group.position.copy(screenPosition(deckX, deckY, viewportWidth, viewportHeight, 10));
-      visual.group.scale.setScalar(scale);
-      visual.group.rotation.z = 0;
-      visual.card.position.copy(screenPosition(x, y - dragLift, viewportWidth, viewportHeight, isDragged ? 80 : 20));
-      visual.card.scale.setScalar(scale * (isDragged ? 1.04 : 1));
-      visual.card.rotation.z = isDragged && drag?.phase === 'dragging'
+      const dragRotation = isDragged && drag?.phase === 'dragging'
         ? THREE.MathUtils.clamp((drag.x - drag.startX) * -0.0015, -0.16, 0.16)
         : 0;
+      const shuffle = getCardDeckShuffleAnimation(registration.widgetId);
+      const shuffleProgress = shuffle ? Math.min(1, (time - shuffle.startedAt) / shuffle.duration) : 1;
+      const shuffleEnvelope = shuffle ? Math.sin(Math.PI * shuffleProgress) : 0;
+      const shuffleWave = shuffle ? Math.sin(Math.PI * shuffleProgress * 4) * shuffleEnvelope : 0;
+      const shuffleTopX = shuffleWave * cardHeight * 0.14;
+      const shuffleStackX = shuffleWave * cardHeight * -0.08;
+      const shuffleLift = shuffleEnvelope * cardHeight * 0.025;
+      const shuffleRotation = shuffleWave * 0.075;
+      visual.group.position.copy(screenPosition(
+        (isWholeDeckDrag ? x : deckX) + shuffleStackX,
+        (isWholeDeckDrag ? y - dragLift : deckY) + shuffleLift,
+        viewportWidth,
+        viewportHeight,
+        isWholeDeckDrag ? 70 : 10,
+      ));
+      visual.group.scale.setScalar(scale * (isWholeDeckDrag ? 1.04 : 1));
+      visual.group.rotation.z = (isWholeDeckDrag ? dragRotation : 0) - shuffleRotation * 0.55;
+      visual.card.position.copy(screenPosition(x + shuffleTopX, y - dragLift - shuffleLift, viewportWidth, viewportHeight, isDragged ? 80 : 20));
+      visual.card.scale.setScalar(scale * (isDragged ? 1.04 : 1));
+      visual.card.rotation.z = dragRotation + shuffleRotation;
       if (visual.flipStartedAt > 0) {
         const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 360;
         const progress = duration === 0 ? 1 : Math.min(1, (time - visual.flipStartedAt) / duration);
@@ -560,8 +586,8 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       const cardWidth = cardHeight * (CARD_WIDTH / CARD_HEIGHT);
       const faceWidth = cardWidth * ((CARD_WIDTH - 0.08) / CARD_WIDTH);
       const faceHeight = cardHeight * ((CARD_HEIGHT - 0.08) / CARD_HEIGHT);
-      visual.faceElement.style.left = `${x}px`;
-      visual.faceElement.style.top = `${y - dragLift}px`;
+      visual.faceElement.style.left = `${x + shuffleTopX}px`;
+      visual.faceElement.style.top = `${y - dragLift - shuffleLift}px`;
       visual.faceElement.style.width = `${faceWidth}px`;
       visual.faceElement.style.height = `${faceHeight}px`;
       visual.faceElement.style.setProperty('--card-face-height', `${faceHeight}px`);

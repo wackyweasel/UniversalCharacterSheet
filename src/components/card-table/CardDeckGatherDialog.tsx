@@ -5,6 +5,7 @@ import { ArrowLeftIcon, ShuffleIcon, XIcon } from '../icons';
 interface Props {
   deckName: string;
   cardCount: number;
+  discardedCount: number;
   sourceDeckCount: number;
   onGather: (shuffle: boolean, setFaceDown: boolean) => void;
   onClose: () => void;
@@ -13,6 +14,7 @@ interface Props {
 export default function CardDeckGatherDialog({
   deckName,
   cardCount,
+  discardedCount,
   sourceDeckCount,
   onGather,
   onClose,
@@ -57,11 +59,13 @@ export default function CardDeckGatherDialog({
         <div className="space-y-3 p-3 text-sm text-theme-ink">
           {cardCount > 0 ? (
             <p>
-              {cardCount} card{cardCount === 1 ? '' : 's'} created in this deck will return from {sourceDeckCount} temporary deck{sourceDeckCount === 1 ? '' : 's'}.
+              {cardCount} card{cardCount === 1 ? '' : 's'} created in this deck will return.
+              {sourceDeckCount > 0 && <> {sourceDeckCount} temporary deck{sourceDeckCount === 1 ? ' currently holds' : 's currently hold'} returning cards.</>}
+              {discardedCount > 0 && <> {discardedCount} returning card{discardedCount === 1 ? ' is' : 's are'} in discard pile{discardedCount === 1 ? '' : 's'}.</>}
             </p>
           ) : <p>All cards created in this deck are already here.</p>}
           <p className="text-xs leading-5 text-theme-muted">
-            Cards visiting this deck from elsewhere will stay here. Choose whether returning cards resume their original creation order or the completed home deck is shuffled.
+            Cards visiting this deck or its discard pile from elsewhere will stay where they are. Choose whether returning cards resume their original creation order or the completed home deck is shuffled.
           </p>
           <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-theme-ink">
             <input

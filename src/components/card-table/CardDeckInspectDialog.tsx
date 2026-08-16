@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CardTableCard } from '../../types';
 import { usePointerReorder } from '../../hooks';
+import { getCardTableContentLayout } from '../../utils/cardTable';
+import { getCardSymbolColumns, getCardSymbolSizeFactor, splitCardSymbols } from '../../utils/cardSymbols';
 import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon, XIcon } from '../icons';
 
 interface Props {
@@ -26,6 +28,8 @@ export default function CardDeckInspectDialog({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [selectedCardId, setSelectedCardId] = useState(cards[0]?.id ?? null);
   const selectedCard = cards.find((card) => card.id === selectedCardId) ?? cards[0] ?? null;
+  const selectedCardSymbols = selectedCard ? splitCardSymbols(selectedCard.symbol) : [];
+  const selectedCardLayout = selectedCard ? getCardTableContentLayout(selectedCard) : 'empty';
   const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({ items: cards, onReorder });
 
   useEffect(() => {
@@ -122,21 +126,33 @@ export default function CardDeckInspectDialog({
           <div className="card-deck-inspect-preview-wrap">
             {selectedCard && (
               <>
-                <div className="card-deck-inspect-preview">
-                  <div className="card-deck-inspect-preview__title">
-                    <span>{selectedCard.title || 'Untitled card'}</span>
-                    <button
-                      type="button"
-                      onClick={() => onFlipCard(selectedCard.id)}
-                      className="widget-control card-deck-inspect-preview__flip"
-                      aria-label={selectedCard.faceUp ? 'Turn card face down' : 'Turn card face up'}
+                <div className={`card-deck-inspect-preview card-deck-inspect-preview--${selectedCardLayout}`}>
+                  {selectedCard.title.trim() && <div className="card-deck-inspect-preview__title">{selectedCard.title}</div>}
+                  {selectedCardSymbols.length > 0 && (
+                    <div
+                      className="card-deck-inspect-preview__symbol"
+                      style={{
+                        fontSize: `${getCardSymbolSizeFactor(getCardSymbolColumns(selectedCardSymbols.length)) * (selectedCardLayout === 'symbol' ? 340 : 290)}px`,
+                        gridTemplateColumns: `repeat(${getCardSymbolColumns(selectedCardSymbols.length)}, minmax(0, 1fr))`,
+                      }}
                     >
-                      {selectedCard.faceUp ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <div className="card-deck-inspect-preview__symbol">{selectedCard.symbol || ' '}</div>
-                  <div className="card-deck-inspect-preview__divider" />
-                  <div className="card-deck-inspect-preview__body">{selectedCard.body}</div>
+                      {selectedCardSymbols.map((symbol, index) => <span key={`${symbol}-${index}`}>{symbol}</span>)}
+                    </div>
+                  )}
+                  {selectedCard.body.trim() && (
+                    <>
+                      {(selectedCard.title.trim() || selectedCardSymbols.length > 0) && <div className="card-deck-inspect-preview__divider" />}
+                      <div className="card-deck-inspect-preview__body">{selectedCard.body}</div>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onFlipCard(selectedCard.id)}
+                    className="widget-control card-deck-inspect-preview__flip"
+                    aria-label={selectedCard.faceUp ? 'Turn card face down' : 'Turn card face up'}
+                  >
+                    {selectedCard.faceUp ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
+                  </button>
                 </div>
               </>
             )}

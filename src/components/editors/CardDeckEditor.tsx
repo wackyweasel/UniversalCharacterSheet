@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { CardTableBackDesign, CardTableBackPattern, CardTableCard } from '../../types';
-import { getCardTableBackDesign, getCardTableCards, normalizeCardTableOrigins } from '../../utils/cardTable';
+import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../../utils/cardTable';
 import { limitCardSymbols, MAX_CARD_SYMBOLS, splitCardSymbols } from '../../utils/cardSymbols';
 import { ChevronDownIcon, ChevronUpIcon, LayoutGridIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
+import CardDeckBulkAddDialog, { type BulkCardDraft } from './CardDeckBulkAddDialog';
+import CardDeckBulkDeleteDialog from './CardDeckBulkDeleteDialog';
 import type { EditorProps } from './types';
 
 const inputClass = 'w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
@@ -37,14 +39,14 @@ function SymbolInput({
   pickerLabel,
 }: SymbolInputProps) {
   return (
-    <div className="relative mt-1 flex gap-1">
+    <div className="relative mt-1 flex h-9 gap-1">
       <input
         value={value}
         onChange={(event) => onChange(limitCardSymbols(event.target.value))}
         placeholder="✦"
         aria-label={inputLabel}
         title={`${splitCardSymbols(value).length}/${MAX_CARD_SYMBOLS} symbols`}
-        className={`${inputClass} min-w-0 flex-1 text-center text-lg`}
+        className={`${inputClass} h-9 min-w-0 flex-1 text-center text-lg`}
       />
       <Tooltip content="Choose a symbol">
         <button
@@ -83,8 +85,11 @@ function SymbolInput({
 export function CardTableEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
   const cards = getCardTableCards(widget.data);
+  const discardedCards = getCardTableDiscardedCards(widget.data);
   const backDesign = getCardTableBackDesign(widget.data);
   const [symbolPickerCardId, setSymbolPickerCardId] = useState<string | null>(null);
+  const [bulkAddOpen, setBulkAddOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const setCards = (nextCards: CardTableCard[]) => updateData({
     cardTableCards: normalizeCardTableOrigins(nextCards, widget.id, backDesign),
@@ -92,12 +97,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
 
   const updateBackDesign = (update: Partial<CardTableBackDesign>) => {
     const nextDesign = { ...backDesign, ...update };
-    updateData({
-      cardTableBackColor: nextDesign.color,
-      cardTableBackSymbol: nextDesign.symbol,
-      cardTableBackText: nextDesign.text,
-      cardTableBackPattern: nextDesign.pattern,
-    cardTableCards: cards.map((card, index) => {
+    const updateOwnedCardBack = (card: CardTableCard, index: number) => {
       const isLocallyOwned = !card.originWidgetId || card.originWidgetId === widget.id;
       return isLocallyOwned
         ? {
@@ -110,12 +110,37 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             originBackPattern: nextDesign.pattern,
           }
         : card;
-    }),
+    };
+    updateData({
+      cardTableBackColor: nextDesign.color,
+      cardTableBackSymbol: nextDesign.symbol,
+      cardTableBackText: nextDesign.text,
+      cardTableBackPattern: nextDesign.pattern,
+      cardTableCards: cards.map(updateOwnedCardBack),
+      cardTableDiscardedCards: discardedCards.map(updateOwnedCardBack),
     });
   };
 
   const updateCard = (cardId: string, update: Partial<CardTableCard>) => {
     setCards(cards.map((card) => card.id === cardId ? { ...card, ...update } : card));
+  };
+
+  const appendCards = (drafts: BulkCardDraft[]) => {
+    const originOrderStart = Date.now();
+    setCards([
+      ...cards,
+      ...drafts.map((draft, index) => ({
+        id: uuidv4(),
+        ...draft,
+        faceUp: false,
+        originWidgetId: widget.id,
+        originOrder: originOrderStart + index,
+        originBackColor: backDesign.color,
+        originBackSymbol: backDesign.symbol,
+        originBackText: backDesign.text,
+        originBackPattern: backDesign.pattern,
+      })),
+    ]);
   };
 
   const moveCard = (index: number, direction: -1 | 1) => {
@@ -138,6 +163,30 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           className={`${inputClass} mt-1`}
         />
       </label>
+
+      <section aria-labelledby="card-deck-display-heading">
+        <h4 id="card-deck-display-heading" className="text-xs font-semibold text-theme-ink">Deck controls</h4>
+        <div className="mt-2 space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
+            <input
+              type="checkbox"
+              checked={widget.data.cardTableShowDiscard ?? true}
+              onChange={(event) => updateData({ cardTableShowDiscard: event.target.checked })}
+              className="h-4 w-4 flex-none accent-theme-accent"
+            />
+            Show discard pile
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
+            <input
+              type="checkbox"
+              checked={widget.data.cardTableShowGrabAll ?? true}
+              onChange={(event) => updateData({ cardTableShowGrabAll: event.target.checked })}
+              className="h-4 w-4 flex-none accent-theme-accent"
+            />
+            Show grab-all button
+          </label>
+        </div>
+      </section>
 
       <section className="rounded-button border border-theme-border bg-theme-accent/5 p-3" aria-labelledby="card-deck-back-heading">
         <div>
@@ -215,33 +264,34 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         <div className="flex items-center justify-between gap-2">
           <div>
             <h4 className="text-xs font-semibold text-theme-ink">Cards</h4>
-            <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">The first card is the top of this deck.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setCards([
-                ...cards,
-                {
-                  id: uuidv4(),
-                  title: 'New card',
-                  symbol: '✦',
-                  body: '',
-                  faceUp: false,
-                  originWidgetId: widget.id,
-                  originOrder: Date.now(),
-                  originBackColor: backDesign.color,
-                  originBackSymbol: backDesign.symbol,
-                  originBackText: backDesign.text,
-                  originBackPattern: backDesign.pattern,
-                },
-              ]);
-            }}
-            className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
-          >
-            <PlusIcon className="h-3.5 w-3.5" />
-            Add card
-          </button>
+          <div className="flex flex-nowrap justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => appendCards([{ title: '', symbol: '✦', body: '' }])}
+              className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              Add card
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkAddOpen(true)}
+              className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
+            >
+              <LayoutGridIcon className="h-3.5 w-3.5" />
+              Add in bulk
+            </button>
+            <button
+              type="button"
+              disabled={cards.length === 0}
+              onClick={() => setBulkDeleteOpen(true)}
+              className="widget-control flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 disabled:opacity-40"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+              Delete in bulk
+            </button>
+          </div>
         </div>
 
         <div className="mt-2 space-y-2">
@@ -289,18 +339,17 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                   </button>
                 </Tooltip>
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_90px] gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_128px] gap-2">
                 <label className="text-[11px] font-medium text-theme-muted">
-                  Title
                   <input
                     value={card.title}
                     onChange={(event) => updateCard(card.id, { title: event.target.value })}
-                    placeholder="The Wanderer"
-                    className={`${inputClass} mt-0.5`}
+                    placeholder="Enter the name of the card"
+                    aria-label={`Title for ${card.title || 'card'}`}
+                    className={`${inputClass} mt-1 h-9`}
                   />
                 </label>
                 <label className="text-[11px] font-medium text-theme-muted">
-                  Symbol
                   <SymbolInput
                     value={card.symbol}
                     onChange={(symbol) => updateCard(card.id, { symbol })}
@@ -313,28 +362,40 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                 </label>
               </div>
               <label className="mt-2 block text-[11px] font-medium text-theme-muted">
-                Card text
                 <textarea
                   value={card.body}
                   onChange={(event) => updateCard(card.id, { body: event.target.value })}
                   placeholder="Multiline rules or story text"
-                  rows={3}
+                  aria-label={`Card text for ${card.title || 'card'}`}
+                  rows={2}
                   className={`${inputClass} mt-0.5 resize-y`}
                 />
-              </label>
-              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
-                <input
-                  type="checkbox"
-                  checked={card.faceUp}
-                  onChange={(event) => updateCard(card.id, { faceUp: event.target.checked })}
-                  className="h-4 w-4 accent-theme-accent"
-                />
-                Face up
               </label>
             </div>
           ))}
         </div>
       </section>
+
+      {bulkAddOpen && (
+        <CardDeckBulkAddDialog
+          onClose={() => setBulkAddOpen(false)}
+          onAdd={(drafts) => {
+            appendCards(drafts);
+            setBulkAddOpen(false);
+          }}
+        />
+      )}
+
+      {bulkDeleteOpen && (
+        <CardDeckBulkDeleteDialog
+          cards={cards}
+          onClose={() => setBulkDeleteOpen(false)}
+          onDelete={(cardIds) => {
+            setCards(cards.filter((card) => !cardIds.has(card.id)));
+            setBulkDeleteOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

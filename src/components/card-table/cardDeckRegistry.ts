@@ -3,19 +3,25 @@ import type { CardTableBackDesign, CardTableCard } from '../../types';
 export interface CardDeckRegistration {
   widgetId: string;
   element: HTMLElement;
+  discardElement: HTMLElement | null;
   label: string;
   cards: CardTableCard[];
   backDesign: CardTableBackDesign;
   interactive: boolean;
   onFlip: (cardId: string) => void;
   onMove: (cardId: string, targetWidgetId: string) => void;
+  onDiscard: (cardId: string, targetWidgetId: string) => void;
+  onMoveAll?: (targetWidgetId: string) => void;
+  onDiscardAll?: (targetWidgetId: string) => void;
 }
 
 export interface CardDeckDragState {
   pointerId: number;
   sourceWidgetId: string;
   targetWidgetId: string | null;
+  targetKind: 'deck' | 'discard' | null;
   cardId: string;
+  allCards: boolean;
   x: number;
   y: number;
   startX: number;
@@ -51,6 +57,11 @@ export interface CardDeckGatherAnimationState {
   duration: number;
 }
 
+export interface CardDeckShuffleAnimationState {
+  startedAt: number;
+  duration: number;
+}
+
 const registrations = new Map<string, CardDeckRegistration>();
 const subscribers = new Set<() => void>();
 let version = 0;
@@ -60,6 +71,8 @@ let removePointerListeners: (() => void) | null = null;
 let settleTimeout: number | null = null;
 let gatherAnimation: CardDeckGatherAnimationState | null = null;
 let gatherTimeout: number | null = null;
+const shuffleAnimations = new Map<string, CardDeckShuffleAnimationState>();
+const shuffleTimeouts = new Map<string, number>();
 
 const emit = () => {
   version += 1;
@@ -67,7 +80,10 @@ const emit = () => {
 };
 
 const clearTarget = () => {
-  registrations.forEach((registration) => registration.element.classList.remove('card-deck-surface--drop-target'));
+  registrations.forEach((registration) => {
+    registration.element.classList.remove('card-deck-surface--drop-target');
+    registration.discardElement?.classList.remove('card-deck-discard--drop-target');
+  });
 };
 
 const clearPointerListeners = () => {
@@ -75,22 +91,32 @@ const clearPointerListeners = () => {
   removePointerListeners = null;
 };
 
-const finishSettlement = (source: CardDeckRegistration, targetWidgetId: string | null) => {
+const finishSettlement = (source: CardDeckRegistration, targetWidgetId: string | null, targetKind: CardDeckDragState['targetKind']) => {
   const cardId = dragState?.cardId;
+  const allCards = dragState?.allCards ?? false;
   clearTarget();
   dragState = null;
   settleTimeout = null;
   emit();
-  if (cardId && targetWidgetId && targetWidgetId !== source.widgetId) source.onMove(cardId, targetWidgetId);
+  if (!cardId || !targetWidgetId) return;
+  if (targetKind === 'discard') {
+    if (allCards) source.onDiscardAll?.(targetWidgetId);
+    else source.onDiscard(cardId, targetWidgetId);
+  } else if (targetWidgetId !== source.widgetId) {
+    if (allCards) source.onMoveAll?.(targetWidgetId);
+    else source.onMove(cardId, targetWidgetId);
+  }
 };
 
-const settleDrag = (source: CardDeckRegistration, targetWidgetId: string | null) => {
+const settleDrag = (source: CardDeckRegistration, targetWidgetId: string | null, targetKind: CardDeckDragState['targetKind']) => {
   if (!dragState) return;
   const target = targetWidgetId ? registrations.get(targetWidgetId) : source;
-  const targetRect = target?.element.getBoundingClientRect() ?? source.element.getBoundingClientRect();
+  const targetElement = targetKind === 'discard' ? target?.discardElement : target?.element;
+  const targetRect = targetElement?.getBoundingClientRect() ?? source.element.getBoundingClientRect();
   dragState = {
     ...dragState,
     targetWidgetId,
+    targetKind,
     phase: 'settling',
     settleStartedAt: performance.now(),
     settleDuration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 260,
@@ -102,19 +128,29 @@ const settleDrag = (source: CardDeckRegistration, targetWidgetId: string | null)
   clearTarget();
   emit();
   if (dragState.settleDuration === 0) {
-    finishSettlement(source, targetWidgetId);
+    finishSettlement(source, targetWidgetId, targetKind);
     return;
   }
-  settleTimeout = window.setTimeout(() => finishSettlement(source, targetWidgetId), dragState.settleDuration);
+  settleTimeout = window.setTimeout(() => finishSettlement(source, targetWidgetId, targetKind), dragState.settleDuration);
 };
 
-const resolveTarget = (clientX: number, clientY: number, sourceWidgetId: string): CardDeckRegistration | null => {
-  const candidates = Array.from(registrations.values()).filter((registration) => {
+const containsPoint = (element: HTMLElement, clientX: number, clientY: number) => {
+  const rect = element.getBoundingClientRect();
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+};
+
+const resolveTarget = (clientX: number, clientY: number, sourceWidgetId: string) => {
+  const registrationsList = Array.from(registrations.values());
+  const discardCandidates = registrationsList.filter((registration) => (
+    registration.interactive && registration.discardElement && containsPoint(registration.discardElement, clientX, clientY)
+  ));
+  if (discardCandidates.length > 0) return { registration: discardCandidates[discardCandidates.length - 1], kind: 'discard' as const };
+  const deckCandidates = registrationsList.filter((registration) => {
     if (!registration.interactive || registration.widgetId === sourceWidgetId) return false;
     const rect = registration.element.getBoundingClientRect();
     return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
   });
-  return candidates.length > 0 ? candidates[candidates.length - 1] : null;
+  return deckCandidates.length > 0 ? { registration: deckCandidates[deckCandidates.length - 1], kind: 'deck' as const } : null;
 };
 
 const handlePointerMove = (event: PointerEvent) => {
@@ -123,14 +159,16 @@ const handlePointerMove = (event: PointerEvent) => {
   event.preventDefault();
   const target = resolveTarget(event.clientX, event.clientY, dragState.sourceWidgetId);
   clearTarget();
-  target?.element.classList.add('card-deck-surface--drop-target');
+  if (target?.kind === 'discard') target.registration.discardElement?.classList.add('card-deck-discard--drop-target');
+  else target?.registration.element.classList.add('card-deck-surface--drop-target');
   dragState = {
     ...dragState,
     didMove: true,
     phase: 'dragging',
     x: event.clientX,
     y: event.clientY,
-    targetWidgetId: target?.widgetId ?? null,
+    targetWidgetId: target?.registration.widgetId ?? null,
+    targetKind: target?.kind ?? null,
   };
 };
 
@@ -154,7 +192,7 @@ const handlePointerEnd = (event: PointerEvent, cancelled = false) => {
     source.onFlip(active.cardId);
     return;
   }
-  settleDrag(source, cancelled ? null : active.targetWidgetId);
+  settleDrag(source, cancelled ? null : active.targetWidgetId, cancelled ? null : active.targetKind);
 };
 
 export const subscribeCardDeckRegistry = (subscriber: () => void) => {
@@ -166,6 +204,28 @@ export const getCardDeckRegistryVersion = () => version;
 export const getCardDeckRegistrations = () => Array.from(registrations.values());
 export const getCardDeckDragState = () => dragState;
 export const getCardDeckGatherAnimation = () => gatherAnimation;
+export const getCardDeckShuffleAnimation = (widgetId: string) => shuffleAnimations.get(widgetId) ?? null;
+
+export function startCardDeckShuffleAnimation(widgetId: string) {
+  const registration = registrations.get(widgetId);
+  if (!registration || registration.cards.length < 2) return;
+  const existingTimeout = shuffleTimeouts.get(widgetId);
+  if (existingTimeout !== undefined) window.clearTimeout(existingTimeout);
+  const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 620;
+  if (duration === 0) {
+    shuffleAnimations.delete(widgetId);
+    shuffleTimeouts.delete(widgetId);
+    return;
+  }
+  shuffleAnimations.set(widgetId, { startedAt: performance.now(), duration });
+  emit();
+  const timeout = window.setTimeout(() => {
+    shuffleAnimations.delete(widgetId);
+    shuffleTimeouts.delete(widgetId);
+    emit();
+  }, duration);
+  shuffleTimeouts.set(widgetId, timeout);
+}
 
 export function startCardDeckGatherAnimation(
   targetWidgetId: string,
@@ -227,7 +287,7 @@ export function registerCardDeck(registration: CardDeckRegistration) {
   };
 }
 
-export function startCardDeckDrag(widgetId: string, event: PointerEvent, element: HTMLElement) {
+export function startCardDeckDrag(widgetId: string, event: PointerEvent, element: HTMLElement, allCards = false) {
   const registration = registrations.get(widgetId);
   const card = registration?.cards[0];
   if (!registration?.interactive || !card || event.button !== 0 || dragState) return;
@@ -242,7 +302,9 @@ export function startCardDeckDrag(widgetId: string, event: PointerEvent, element
     pointerId: event.pointerId,
     sourceWidgetId: widgetId,
     targetWidgetId: null,
+    targetKind: null,
     cardId: card.id,
+    allCards,
     x: rect.left + rect.width / 2,
     y: rect.top + rect.height / 2,
     startX: event.clientX,

@@ -198,7 +198,7 @@ export default function VerticalWidget({
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
-      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={!isBuildMode} />;
+      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={!isBuildMode} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;

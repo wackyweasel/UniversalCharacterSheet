@@ -268,7 +268,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
-      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={false} render3D={false} />;
+      case 'CARD_TABLE': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       default: return null;

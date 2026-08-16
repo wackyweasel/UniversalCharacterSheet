@@ -7,7 +7,7 @@ import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
-import { getCardTableBackDesign, getCardTableCards, normalizeCardTableOrigins } from '../utils/cardTable';
+import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -218,6 +218,10 @@ interface StoreState {
   toggleCardTableCard: (widgetId: string, cardId: string) => void;
   setCardTableCardsFaceUp: (widgetId: string, faceUp: boolean) => void;
   moveCardTableCard: (options: { sourceWidgetId: string; targetWidgetId: string; cardId: string }) => void;
+  moveAllCardTableCards: (options: { sourceWidgetId: string; targetWidgetId: string }) => void;
+  discardCardTableCard: (options: { sourceWidgetId: string; targetWidgetId: string; cardId: string }) => void;
+  discardAllCardTableCards: (options: { sourceWidgetId: string; targetWidgetId: string }) => void;
+  restoreCardTableCards: (widgetId: string, cardIds: string[], position: import('../types').CardTableRestorePosition) => void;
   gatherCardTableCards: (widgetId: string, shuffle: boolean, setFaceDown: boolean) => void;
   moveInventoryItem: (options: {
     sourceWidgetId: string;
@@ -943,7 +947,12 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapDistanceUnit: 'ft',
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
-            ...(type === 'CARD_TABLE' ? { cardTableCards: [] } : {}),
+            ...(type === 'CARD_TABLE' ? {
+              cardTableCards: [],
+              cardTableDiscardedCards: [],
+              cardTableShowDiscard: true,
+              cardTableShowGrabAll: true,
+            } : {}),
           }
         };
 
@@ -1477,6 +1486,192 @@ export const useStore = create<StoreState>((set, get) => {
       }));
     },
 
+    moveAllCardTableCards: ({ sourceWidgetId, targetWidgetId }) => {
+      if (sourceWidgetId === targetWidgetId) return;
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      if (sourceCards.length === 0) return;
+      const targetCards = normalizeCardTableOrigins(
+        getCardTableCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+
+      get()._takeSnapshot('Move entire card deck');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [] } };
+            }
+            if (widget.id === targetWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [...sourceCards, ...targetCards] } };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    discardCardTableCard: ({ sourceWidgetId, targetWidgetId, cardId }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      const card = sourceCards[0];
+      if (!card || card.id !== cardId) return;
+      const targetDiscardedCards = normalizeCardTableOrigins(
+        getCardTableDiscardedCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+
+      get()._takeSnapshot('Discard card');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId && widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: {
+                  ...widget.data,
+                  cardTableCards: sourceCards.slice(1),
+                  cardTableDiscardedCards: [{ ...card }, ...targetDiscardedCards],
+                },
+              };
+            }
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: sourceCards.slice(1) } };
+            }
+            if (widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: { ...widget.data, cardTableDiscardedCards: [{ ...card }, ...targetDiscardedCards] },
+              };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    discardAllCardTableCards: ({ sourceWidgetId, targetWidgetId }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'CARD_TABLE' || targetWidget.type !== 'CARD_TABLE') return;
+      const sourceCards = normalizeCardTableOrigins(
+        getCardTableCards(sourceWidget.data),
+        sourceWidget.id,
+        getCardTableBackDesign(sourceWidget.data),
+      );
+      if (sourceCards.length === 0) return;
+      const targetDiscardedCards = normalizeCardTableOrigins(
+        getCardTableDiscardedCards(targetWidget.data),
+        targetWidget.id,
+        getCardTableBackDesign(targetWidget.data),
+      );
+
+      get()._takeSnapshot('Discard entire card deck');
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            if (widget.id === sourceWidgetId && widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: {
+                  ...widget.data,
+                  cardTableCards: [],
+                  cardTableDiscardedCards: [...sourceCards, ...targetDiscardedCards],
+                },
+              };
+            }
+            if (widget.id === sourceWidgetId) {
+              return { ...widget, data: { ...widget.data, cardTableCards: [] } };
+            }
+            if (widget.id === targetWidgetId) {
+              return {
+                ...widget,
+                data: { ...widget.data, cardTableDiscardedCards: [...sourceCards, ...targetDiscardedCards] },
+              };
+            }
+            return widget;
+          }));
+        }),
+      }));
+    },
+
+    restoreCardTableCards: (widgetId, cardIds, position) => {
+      if (cardIds.length === 0) return;
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
+      if (!widget || widget.type !== 'CARD_TABLE') return;
+      const cards = normalizeCardTableOrigins(
+        getCardTableCards(widget.data),
+        widget.id,
+        getCardTableBackDesign(widget.data),
+      );
+      const discardedCards = normalizeCardTableOrigins(
+        getCardTableDiscardedCards(widget.data),
+        widget.id,
+        getCardTableBackDesign(widget.data),
+      );
+      const requestedIds = new Set(cardIds);
+      const restoredCards = discardedCards.filter((card) => requestedIds.has(card.id));
+      if (restoredCards.length === 0) return;
+      const nextCards = position === 'top'
+        ? [...restoredCards, ...cards]
+        : position === 'bottom'
+          ? [...cards, ...restoredCards]
+          : restoredCards.reduce((entries, card) => {
+              const insertionIndex = Math.floor(Math.random() * (entries.length + 1));
+              entries.splice(insertionIndex, 0, card);
+              return entries;
+            }, [...cards]);
+
+      get()._takeSnapshot(`${restoredCards.length === 1 ? 'Return discarded card' : 'Return discarded cards'} to ${position}`);
+      set((currentState) => ({
+        characters: currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((candidate) => (
+            candidate.id === widgetId
+              ? {
+                  ...candidate,
+                  data: {
+                    ...candidate.data,
+                    cardTableCards: nextCards,
+                    cardTableDiscardedCards: discardedCards.filter((card) => !requestedIds.has(card.id)),
+                  },
+                }
+              : candidate
+          )));
+        }),
+      }));
+    },
+
     gatherCardTableCards: (widgetId, shuffle, setFaceDown) => {
       const state = get();
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
@@ -1488,19 +1683,28 @@ export const useStore = create<StoreState>((set, get) => {
         .filter((widget) => widget.type === 'CARD_TABLE')
         .map((widget) => [
           widget.id,
-          normalizeCardTableOrigins(
-            getCardTableCards(widget.data),
-            widget.id,
-            getCardTableBackDesign(widget.data),
-          ),
+          {
+            cards: normalizeCardTableOrigins(
+              getCardTableCards(widget.data),
+              widget.id,
+              getCardTableBackDesign(widget.data),
+            ),
+            discardedCards: normalizeCardTableOrigins(
+              getCardTableDiscardedCards(widget.data),
+              widget.id,
+              getCardTableBackDesign(widget.data),
+            ),
+          },
         ]));
       const ownedCards = Array.from(normalizedByWidget.values())
-        .flat()
+        .flatMap((location) => [...location.cards, ...location.discardedCards])
         .filter((card) => card.originWidgetId === widgetId);
 
       ownedCards.sort((left, right) => (left.originOrder ?? 0) - (right.originOrder ?? 0));
-      const homeCards = normalizedByWidget.get(widgetId) ?? [];
+      const homeLocation = normalizedByWidget.get(widgetId) ?? { cards: [], discardedCards: [] };
+      const homeCards = homeLocation.cards;
       const visitingCards = homeCards.filter((card) => card.originWidgetId !== widgetId);
+      const visitingDiscardedCards = homeLocation.discardedCards.filter((card) => card.originWidgetId !== widgetId);
       const gatheredHomeCards = [...ownedCards, ...visitingCards];
       if (shuffle) {
         const originalOrder = gatheredHomeCards.map((card) => card.id);
@@ -1521,19 +1725,24 @@ export const useStore = create<StoreState>((set, get) => {
         characters: currentState.characters.map((entry) => {
           if (entry.id !== currentState.activeCharacterId) return entry;
           return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
-            const normalizedCards = normalizedByWidget.get(widget.id);
-            if (!normalizedCards) return widget;
+            const location = normalizedByWidget.get(widget.id);
+            if (!location) return widget;
             if (widget.id === widgetId) {
               return {
                 ...widget,
-                data: { ...widget.data, cardTableCards: finalHomeCards },
+                data: {
+                  ...widget.data,
+                  cardTableCards: finalHomeCards,
+                  cardTableDiscardedCards: visitingDiscardedCards,
+                },
               };
             }
             return {
               ...widget,
               data: {
                 ...widget.data,
-                cardTableCards: normalizedCards.filter((card) => card.originWidgetId !== widgetId),
+                cardTableCards: location.cards.filter((card) => card.originWidgetId !== widgetId),
+                cardTableDiscardedCards: location.discardedCards.filter((card) => card.originWidgetId !== widgetId),
               },
             };
           }));
