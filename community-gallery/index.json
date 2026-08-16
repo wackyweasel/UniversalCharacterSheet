@@ -202,6 +202,20 @@
       "author": "@Nyest",
       "description": "Colour scheme of OVA: The Anime RPG",
       "file": "themes/ova_anime_rpg.json"
+    },
+    {
+      "id": "8",
+      "name": "Icebreaker",
+      "author": "@Holypunk",
+      "description": "A Frozen theme for the frostwalkers and icebreakers.",
+      "file": "themes/icebreaker.json"
+    },
+    {
+      "id": "9",
+      "name": "Holypunk",
+      "author": "@Holypunk",
+      "description": "The divinator's theme",
+      "file": "themes/holypunk.json"
     }
   ],
   "templates": [
