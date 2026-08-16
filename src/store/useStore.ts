@@ -258,6 +258,7 @@ interface StoreState {
   discardAllCardTableCards: (options: { sourceWidgetId: string; targetWidgetId: string }) => void;
   restoreCardTableCards: (widgetId: string, cardIds: string[], position: import('../types').CardTableRestorePosition) => void;
   gatherCardTableCards: (widgetId: string, shuffle: boolean, setFaceDown: boolean) => void;
+  resetCardTableCards: (widgetId: string) => void;
   moveInventoryItem: (options: {
     sourceWidgetId: string;
     targetWidgetId: string;
@@ -1797,6 +1798,10 @@ export const useStore = create<StoreState>((set, get) => {
           };
         }),
       }));
+    },
+
+    resetCardTableCards: (widgetId) => {
+      get().gatherCardTableCards(widgetId, false, true);
     },
 
     moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex }) => {

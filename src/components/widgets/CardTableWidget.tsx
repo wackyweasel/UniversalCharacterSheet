@@ -11,10 +11,9 @@ import {
   startCardDeckGatherAnimation,
   startCardDeckShuffleAnimation,
 } from '../card-table/cardDeckRegistry';
-import CardDeckGatherDialog from '../card-table/CardDeckGatherDialog';
 import CardDeckInspectDialog from '../card-table/CardDeckInspectDialog';
 import CardDeckDiscardDialog from '../card-table/CardDeckDiscardDialog';
-import { ArrowLeftIcon, EyeIcon, HandIcon, LayersIcon, ShuffleIcon } from '../icons';
+import { EyeIcon, HandIcon, LayersIcon, ResetIcon, ShuffleIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 
 interface Props {
@@ -36,7 +35,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const discardCardTableCard = useStore((state) => state.discardCardTableCard);
   const discardAllCardTableCards = useStore((state) => state.discardAllCardTableCards);
   const restoreCardTableCards = useStore((state) => state.restoreCardTableCards);
-  const gatherCardTableCards = useStore((state) => state.gatherCardTableCards);
+  const resetCardTableCards = useStore((state) => state.resetCardTableCards);
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -44,7 +43,6 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const discardRef = useRef<HTMLButtonElement>(null);
   const [cardDeckControlsLayer, setCardDeckControlsLayer] = useState<HTMLElement | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
-  const [gatherOpen, setGatherOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const { label } = widget.data;
   const cards = getCardTableCards(widget.data);
@@ -65,7 +63,6 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   }, []);
 
   const closeInspector = useCallback(() => setInspectOpen(false), []);
-  const closeGather = useCallback(() => setGatherOpen(false), []);
   const closeDiscard = useCallback(() => setDiscardOpen(false), []);
   const activeCharacter = characters.find((character) => character.id === activeCharacterId);
   const activeSheet = activeCharacter?.sheets.find((sheet) => sheet.id === activeCharacter.activeSheetId);
@@ -82,12 +79,6 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       .map((card) => ({ card, sourceWidgetId: candidate.id }));
   });
   const returningCardCount = returningCards.length + unhostedOwnedCards.length;
-  const discardedOwnedCount = (activeSheet?.widgets ?? []).reduce((count, candidate) => (
-    candidate.type === 'DECK_OF_CARDS'
-      ? count + getCardTableDiscardedCards(candidate.data).filter((card) => card.originWidgetId === widget.id).length
-      : count
-  ), 0);
-  const awaySourceDeckCount = new Set(returningCards.filter((entry) => entry.sourceWidgetId !== widget.id).map((entry) => entry.sourceWidgetId)).size;
 
   const updateCards = (nextCards: typeof cards) => {
     updateWidgetData(widget.id, { cardTableCards: nextCards });
@@ -120,22 +111,20 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Shuffled ${cards.length} cards`, '🂠');
   };
 
-  const gatherCards = (shuffle: boolean, setFaceDown: boolean) => {
+  const resetCards = () => {
     const animationEntries = returningCards.map(({ card, sourceWidgetId }) => ({
       card: { ...card } as CardTableCard,
       sourceWidgetId,
       backDesign,
     }));
     startCardDeckGatherAnimation(widget.id, animationEntries);
-    if (shuffle) startCardDeckShuffleAnimation(widget.id);
-    gatherCardTableCards(widget.id, shuffle, setFaceDown);
-    setGatherOpen(false);
+    resetCardTableCards(widget.id);
     addTimelineEvent(
       label || 'Deck of Cards',
       'DECK_OF_CARDS',
       returningCardCount > 0
-        ? `Gathered ${returningCardCount} card${returningCardCount === 1 ? '' : 's'}${shuffle ? ' and shuffled' : ' in original order'}${setFaceDown ? ' face down' : ''}`
-        : `${shuffle ? 'Shuffled deck' : 'Restored original deck order'}${setFaceDown ? ' and set cards face down' : ''}`,
+        ? `Reset deck, gathered ${returningCardCount} card${returningCardCount === 1 ? '' : 's'} in original order, and set all cards face down`
+        : 'Reset deck to original order and set all cards face down',
       '🂠',
     );
   };
@@ -284,16 +273,16 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
               <span>Inspect</span>
             </button>
           </Tooltip>
-          <Tooltip content={returningCardCount === 0 ? 'Reset deck order or shuffle cards' : `Gather ${returningCardCount} card${returningCardCount === 1 ? '' : 's'}, including discards`}>
+          <Tooltip content="Gather cards, set all face down, and restore original order">
             <button
               type="button"
               disabled={previewOnly}
-              onClick={() => setGatherOpen(true)}
-              aria-label="Gather cards"
+              onClick={resetCards}
+              aria-label="Reset deck"
               className="widget-control card-deck-action"
             >
-              <ArrowLeftIcon className="h-3.5 w-3.5" />
-              <span>Gather</span>
+              <ResetIcon className="h-3.5 w-3.5" />
+              <span>Reset</span>
             </button>
           </Tooltip>
         </div>
@@ -310,16 +299,6 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
             addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', 'Reordered deck', '🂠');
           }}
           onClose={closeInspector}
-        />
-      )}
-      {gatherOpen && (
-        <CardDeckGatherDialog
-          deckName={label || 'Deck of Cards'}
-          cardCount={returningCardCount}
-          discardedCount={discardedOwnedCount}
-          sourceDeckCount={awaySourceDeckCount}
-          onGather={gatherCards}
-          onClose={closeGather}
         />
       )}
       {discardOpen && (
