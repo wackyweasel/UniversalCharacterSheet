@@ -13,6 +13,7 @@ export function getCardTableContentLayout(card: CardTableCard): CardTableContent
 export function getCardTableBackDesign(data: WidgetData): CardTableBackDesign {
   return {
     color: data.cardTableBackColor,
+    textColor: data.cardTableBackTextColor,
     symbol: data.cardTableBackSymbol,
     text: data.cardTableBackText,
     pattern: data.cardTableBackPattern ?? 'crosshatch',
@@ -22,6 +23,7 @@ export function getCardTableBackDesign(data: WidgetData): CardTableBackDesign {
 export function getCardOriginBackDesign(card: CardTableCard): CardTableBackDesign {
   return {
     color: card.originBackColor,
+    textColor: card.originBackTextColor,
     symbol: card.originBackSymbol,
     text: card.originBackText,
     pattern: card.originBackPattern ?? 'crosshatch',
@@ -49,6 +51,7 @@ export function normalizeCardTableOrigins(
       originWidgetId: card.originWidgetId ?? widgetId,
       originOrder: card.originOrder ?? index,
       originBackColor: hasOrigin ? card.originBackColor : backDesign.color,
+      originBackTextColor: hasOrigin ? card.originBackTextColor : backDesign.textColor,
       originBackSymbol: hasOrigin ? card.originBackSymbol : backDesign.symbol,
       originBackText: hasOrigin ? card.originBackText : backDesign.text,
       originBackPattern: hasOrigin ? card.originBackPattern : backDesign.pattern,

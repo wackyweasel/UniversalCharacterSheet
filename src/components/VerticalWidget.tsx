@@ -213,7 +213,7 @@ export default function VerticalWidget({
       }}
       data-vertical-index={index}
       data-widget-id={widget.id}
-      className={`vertical-widget vertical-widget-sort-item relative ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
+      className={`vertical-widget vertical-widget-sort-item relative ${widget.type === 'CARD_TABLE' ? 'vertical-widget--card-table' : ''} ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
     >
       {/* Widget Card */}
       <div className="vertical-widget-card">

@@ -32,11 +32,14 @@ export default function CardDeckLayer() {
   }, [hasDecks]);
 
   return (
-    <canvas
-      key={version > 0 ? 'registered' : 'empty'}
-      ref={canvasRef}
-      className={`card-deck-layer${hasDecks ? ' card-deck-layer--active' : ''}`}
-      aria-hidden="true"
-    />
+    <>
+      <canvas
+        key={version > 0 ? 'registered' : 'empty'}
+        ref={canvasRef}
+        className={`card-deck-layer${hasDecks ? ' card-deck-layer--active' : ''}`}
+        aria-hidden="true"
+      />
+      <div className="card-deck-controls-layer" />
+    </>
   );
 }

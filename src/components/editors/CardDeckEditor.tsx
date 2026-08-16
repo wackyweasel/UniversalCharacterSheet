@@ -105,6 +105,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             originWidgetId: card.originWidgetId ?? widget.id,
             originOrder: card.originOrder ?? index,
             originBackColor: nextDesign.color,
+            originBackTextColor: nextDesign.textColor,
             originBackSymbol: nextDesign.symbol,
             originBackText: nextDesign.text,
             originBackPattern: nextDesign.pattern,
@@ -113,6 +114,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
     };
     updateData({
       cardTableBackColor: nextDesign.color,
+      cardTableBackTextColor: nextDesign.textColor,
       cardTableBackSymbol: nextDesign.symbol,
       cardTableBackText: nextDesign.text,
       cardTableBackPattern: nextDesign.pattern,
@@ -136,6 +138,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         originWidgetId: widget.id,
         originOrder: originOrderStart + index,
         originBackColor: backDesign.color,
+        originBackTextColor: backDesign.textColor,
         originBackSymbol: backDesign.symbol,
         originBackText: backDesign.text,
         originBackPattern: backDesign.pattern,
@@ -214,6 +217,29 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
               type="button"
               disabled={!backDesign.color}
               onClick={() => updateBackDesign({ color: undefined })}
+              className="widget-control h-9 px-2 text-xs disabled:opacity-40"
+            >
+              Use theme color
+            </button>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+            <label className="block text-xs font-medium text-theme-ink">
+              Text color
+              <div className="mt-1 flex h-9 items-center gap-2 rounded-button border border-theme-border bg-theme-paper px-2">
+                <input
+                  type="color"
+                  value={backDesign.textColor || '#f8f4e8'}
+                  onChange={(event) => updateBackDesign({ textColor: event.target.value })}
+                  aria-label="Card back text color"
+                  className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0"
+                />
+                <span className="text-xs text-theme-muted">{backDesign.textColor || 'Theme color'}</span>
+              </div>
+            </label>
+            <button
+              type="button"
+              disabled={!backDesign.textColor}
+              onClick={() => updateBackDesign({ textColor: undefined })}
               className="widget-control h-9 px-2 text-xs disabled:opacity-40"
             >
               Use theme color

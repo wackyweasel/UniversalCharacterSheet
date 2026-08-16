@@ -84,6 +84,7 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
 
   const [selectedSuits, setSelectedSuits] = useState(() => new Set(PLAYING_SUITS.map((suit) => suit.id)));
   const [playingTitleStyle, setPlayingTitleStyle] = useState<'long' | 'compact'>('long');
+  const [repeatPlayingSymbol, setRepeatPlayingSymbol] = useState(true);
   const [includePlayingSymbol, setIncludePlayingSymbol] = useState(false);
   const [jokerCount, setJokerCount] = useState(0);
 
@@ -136,9 +137,11 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
         const baseTitle = playingTitleStyle === 'long'
           ? `${rank.name} of ${suit.name}`
           : `${rank.short} ${suit.name}`;
+        const numericRank = Number.parseInt(rank.short, 10);
+        const symbol = suit.symbol.repeat(repeatPlayingSymbol && Number.isFinite(numericRank) ? numericRank : 1);
         return {
-          title: appendSymbol(baseTitle, suit.symbol, includePlayingSymbol),
-          symbol: suit.symbol,
+          title: appendSymbol(baseTitle, symbol, includePlayingSymbol),
+          symbol,
           body: '',
         };
       }));
@@ -360,10 +363,16 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
                     </select>
                   </label>
                 </div>
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
-                  <input type="checkbox" checked={includePlayingSymbol} onChange={(event) => setIncludePlayingSymbol(event.target.checked)} className="h-4 w-4 accent-theme-accent" />
-                  Also include the suit symbol in each card title
-                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
+                    <input type="checkbox" checked={repeatPlayingSymbol} onChange={(event) => setRepeatPlayingSymbol(event.target.checked)} className="h-4 w-4 accent-theme-accent" />
+                    Repeat the symbol to match each number
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
+                    <input type="checkbox" checked={includePlayingSymbol} onChange={(event) => setIncludePlayingSymbol(event.target.checked)} className="h-4 w-4 accent-theme-accent" />
+                    Also include the suit symbol in each card title
+                  </label>
+                </div>
               </div>
             )}
 

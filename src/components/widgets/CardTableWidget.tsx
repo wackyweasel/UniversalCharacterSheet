@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CardTableCard, CardTableRestorePosition, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -41,6 +42,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const characters = useStore((state) => state.characters);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const discardRef = useRef<HTMLButtonElement>(null);
+  const [cardDeckControlsLayer, setCardDeckControlsLayer] = useState<HTMLElement | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
   const [gatherOpen, setGatherOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -57,6 +59,11 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     : topCard ? getCardOriginBackDesign(topCard) : backDesign;
   const canInteract = interactive && mode !== 'print';
   const controlsVisible = mode !== 'print' && (showControls ?? (render3D && canInteract));
+
+  useLayoutEffect(() => {
+    setCardDeckControlsLayer(document.querySelector<HTMLElement>('.card-deck-controls-layer'));
+  }, []);
+
   const closeInspector = useCallback(() => setInspectOpen(false), []);
   const closeGather = useCallback(() => setGatherOpen(false), []);
   const closeDiscard = useCallback(() => setDiscardOpen(false), []);
@@ -171,6 +178,21 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     });
   }, [backDesign, canInteract, cards, discardAllCardTableCards, discardCardTableCard, label, mode, moveAllCardTableCards, moveCardTableCard, render3D, showDiscardPile, toggleCardTableCard, widget.id]);
 
+  const portalGrabAll = render3D && canInteract && cardDeckControlsLayer !== null;
+  const grabAllButton = (
+    <button
+      type="button"
+      disabled={!canInteract || cards.length === 0}
+      className={`card-deck-grab-all widget-control${portalGrabAll ? ' card-deck-grab-all--overlay' : ''}`}
+      data-card-deck-grab-all-widget-id={widget.id}
+      data-touch-camera-ignore="true"
+      aria-label={`Grab all ${cards.length} cards from ${label || 'Card Deck'}`}
+      onPointerDown={(event) => startCardDeckDrag(widget.id, event.nativeEvent, event.currentTarget, true)}
+    >
+      <HandIcon className="h-3.5 w-3.5" />
+    </button>
+  );
+
   return (
     <div className="card-table-widget flex h-full w-full flex-col gap-1.5">
       {label && (
@@ -187,7 +209,10 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
         >
           <div
             className={`card-deck-fallback${topCard?.faceUp ? ` card-deck-fallback--face-up card-deck-fallback--${topCardContentLayout}` : ` card-deck-back--${topCardBackDesign.pattern}`}`}
-            style={!topCard?.faceUp && topCardBackDesign.color ? { backgroundColor: topCardBackDesign.color } : undefined}
+            style={!topCard?.faceUp && (topCardBackDesign.color || topCardBackDesign.textColor) ? {
+              ...(topCardBackDesign.color ? { backgroundColor: topCardBackDesign.color } : {}),
+              ...(topCardBackDesign.textColor ? { color: topCardBackDesign.textColor } : {}),
+            } : undefined}
             aria-hidden="true"
           >
             {topCard?.faceUp ? (
@@ -207,22 +232,24 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
             <button
               type="button"
               className="card-deck-hit-target"
+              data-touch-camera-ignore="true"
               aria-label={topCard.faceUp ? `Top card: ${topCard.title || 'Untitled card'}` : 'Top card, face down'}
               onPointerDown={(event) => startCardDeckDrag(widget.id, event.nativeEvent, event.currentTarget)}
             />
           )}
           {controlsVisible && showGrabAll && (
-            <Tooltip content={canInteract ? `Drag all ${cards.length} cards` : 'Switch to Play to move the whole deck'}>
-              <button
-                type="button"
-                disabled={!canInteract || cards.length === 0}
-                className="card-deck-grab-all widget-control"
-                aria-label={`Grab all ${cards.length} cards from ${label || 'Card Deck'}`}
-                onPointerDown={(event) => startCardDeckDrag(widget.id, event.nativeEvent, event.currentTarget, true)}
-              >
-                <HandIcon className="h-3.5 w-3.5" />
-              </button>
-            </Tooltip>
+            portalGrabAll && cardDeckControlsLayer
+              ? createPortal(
+                  <Tooltip content={`Drag all ${cards.length} cards`}>
+                    {grabAllButton}
+                  </Tooltip>,
+                  cardDeckControlsLayer,
+                )
+              : (
+                <Tooltip content={canInteract ? `Drag all ${cards.length} cards` : 'Switch to Play to move the whole deck'}>
+                  {grabAllButton}
+                </Tooltip>
+              )
           )}
         </div>
         {controlsVisible && showDiscardPile && (

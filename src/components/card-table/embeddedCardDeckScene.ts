@@ -125,7 +125,7 @@ const createBackTexture = (
   context.lineWidth = 7;
   roundedRect(context, 22, 22, 396, 580, 20);
   context.stroke();
-  context.fillStyle = colors.paper;
+  context.fillStyle = design.textColor ?? colors.paper;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   const hasSymbol = Boolean(design.symbol?.trim());
@@ -296,6 +296,7 @@ const createBackElement = (
   back.className = `card-deck-dom-back card-deck-back--${design.pattern}`;
   back.hidden = true;
   back.style.setProperty('--card-back-color', design.color);
+  back.style.setProperty('--card-back-text', design.textColor ?? colors.paper);
   back.style.setProperty('--card-back-paper', colors.paper);
   back.style.setProperty('--card-back-border', colors.border);
   if (design.text) {
@@ -493,8 +494,12 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
 
     registrations.forEach((registration) => {
       const card = registration.cards[0];
+      const grabAllElement = document.querySelector<HTMLElement>(
+        `[data-card-deck-grab-all-widget-id="${registration.widgetId}"]`,
+      );
       if (!card) {
         removeVisual(registration.widgetId);
+        if (grabAllElement) grabAllElement.style.visibility = 'hidden';
         return;
       }
       const rect = registration.element.getBoundingClientRect();
@@ -525,7 +530,10 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
         visual.cardShadow.visible = false;
         visual.faceElement.hidden = true;
       }
-      if (!visible || isGatheringCard) return;
+      if (!visible || isGatheringCard) {
+        if (grabAllElement) grabAllElement.style.visibility = 'hidden';
+        return;
+      }
       const maxWidth = rect.width * 0.68;
       const maxHeight = rect.height * 0.76;
       const cardHeight = Math.min(maxHeight, maxWidth / (CARD_WIDTH / CARD_HEIGHT));
@@ -586,6 +594,14 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement) {
       const cardWidth = cardHeight * (CARD_WIDTH / CARD_HEIGHT);
       const faceWidth = cardWidth * ((CARD_WIDTH - 0.08) / CARD_WIDTH);
       const faceHeight = cardHeight * ((CARD_HEIGHT - 0.08) / CARD_HEIGHT);
+      if (grabAllElement) {
+        const controlX = (isWholeDeckDrag ? x : deckX) + shuffleTopX;
+        const controlY = (isWholeDeckDrag ? y - dragLift : deckY) - shuffleLift;
+        const controlHeight = grabAllElement.offsetHeight || 24;
+        grabAllElement.style.left = `${controlX - cardWidth / 2 + 4}px`;
+        grabAllElement.style.top = `${controlY + cardHeight / 2 - controlHeight - 4}px`;
+        grabAllElement.style.visibility = 'visible';
+      }
       visual.faceElement.style.left = `${x + shuffleTopX}px`;
       visual.faceElement.style.top = `${y - dragLift - shuffleLift}px`;
       visual.faceElement.style.width = `${faceWidth}px`;

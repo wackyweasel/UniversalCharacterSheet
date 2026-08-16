@@ -1232,6 +1232,10 @@ td .inline-dice-token {
   -webkit-user-select: none;
 }
 
+.vertical-widget--card-table .card-table-widget {
+  min-height: 420px;
+}
+
 .vertical-widget-sort-item {
   transform: translate(0, 0);
   transition: filter 180ms ease, opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -1757,6 +1761,15 @@ td .inline-dice-token {
   z-index: 26;
 }
 
+.card-deck-controls-layer {
+  height: 100%;
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  width: 100%;
+  z-index: 27;
+}
+
 .card-deck-dom-face {
   backface-visibility: hidden;
   background: var(--card-face-paper);
@@ -1807,7 +1820,7 @@ td .inline-dice-token {
   border: max(1px, calc(var(--card-back-height) * 0.008)) solid var(--card-back-border);
   border-radius: calc(var(--card-back-height) * 0.035);
   box-sizing: border-box;
-  color: var(--card-back-paper);
+  color: var(--card-back-text, var(--card-back-paper));
   display: flex;
   flex-direction: column;
   gap: calc(var(--card-back-height) * 0.045);
@@ -2393,12 +2406,12 @@ td .inline-dice-token {
 
 .card-deck-grab-all {
   align-items: center;
-  bottom: 4px;
+  bottom: 15%;
   cursor: grab;
   display: flex;
   height: 24px;
   justify-content: center;
-  left: 4px;
+  left: 19%;
   min-height: 24px;
   padding: 0;
   position: absolute;
@@ -2414,6 +2427,13 @@ td .inline-dice-token {
 .card-deck-grab-all:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.card-deck-grab-all--overlay {
+  bottom: auto;
+  left: auto;
+  pointer-events: auto;
+  visibility: hidden;
 }
 
 .card-deck-fallback {

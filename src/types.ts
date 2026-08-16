@@ -76,6 +76,7 @@ export type CardTableBackPattern = 'none' | 'crosshatch' | 'diamonds' | 'stripes
 
 export interface CardTableBackDesign {
   color?: string;
+  textColor?: string;
   symbol?: string;
   text?: string;
   pattern: CardTableBackPattern;
@@ -90,6 +91,7 @@ export interface CardTableCard {
   originWidgetId?: string;
   originOrder?: number;
   originBackColor?: string;
+  originBackTextColor?: string;
   originBackSymbol?: string;
   originBackText?: string;
   originBackPattern?: CardTableBackPattern;
@@ -432,6 +434,7 @@ export interface WidgetData {
   cardTableCards?: CardTableCard[];
   cardTableDiscardedCards?: CardTableCard[];
   cardTableBackColor?: string;
+  cardTableBackTextColor?: string;
   cardTableBackSymbol?: string;
   cardTableBackText?: string;
   cardTableBackPattern?: CardTableBackPattern;
