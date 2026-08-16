@@ -1246,7 +1246,9 @@ td .inline-dice-token {
 }
 
 .vertical-widget--card-table .card-table-widget {
-  min-height: 420px;
+  aspect-ratio: 4 / 3;
+  height: auto;
+  min-height: 0;
 }
 
 .vertical-widget-sort-item {
@@ -1797,6 +1799,12 @@ td .inline-dice-token {
   position: absolute;
   width: 100%;
   z-index: 9;
+}
+
+.vertical-mode-container > .card-deck-layer,
+.vertical-mode-container > .card-deck-dom-layer,
+.vertical-mode-container > .card-deck-controls-layer {
+  z-index: 25;
 }
 
 .card-deck-controls-layer--dragging {

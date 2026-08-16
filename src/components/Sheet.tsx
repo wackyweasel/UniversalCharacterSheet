@@ -1585,6 +1585,8 @@ export default function Sheet() {
           </div>
         </div>
 
+        <CardDeckLayer pan={{ x: 0, y: 0 }} scale={1} />
+
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
 
