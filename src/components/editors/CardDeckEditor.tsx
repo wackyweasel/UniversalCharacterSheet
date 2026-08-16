@@ -356,7 +356,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section>
+      <section className="rounded-button border border-theme-border bg-theme-accent/5 p-3">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h4 className="text-xs font-semibold text-theme-ink">Cards</h4>
@@ -390,7 +390,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           </div>
         </div>
 
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 max-h-[min(60vh,36rem)] space-y-2 overflow-y-auto p-1">
           {cards.length === 0 && (
             <div className="rounded-button border border-dashed border-theme-border px-3 py-5 text-center text-xs text-theme-muted">
               This deck is empty.
