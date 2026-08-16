@@ -167,6 +167,24 @@ export function ArrowUpDownIcon(props: IconProps) {
   );
 }
 
+export function ArrowUpIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 19V5" />
+      <path d="m5 12 7-7 7 7" />
+    </Base>
+  );
+}
+
+export function ArrowDownIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 5v14" />
+      <path d="m19 12-7 7-7-7" />
+    </Base>
+  );
+}
+
 export function TrashIcon(props: IconProps) {
   return (
     <Base {...props}>
@@ -230,6 +248,26 @@ export function ResetIcon(props: IconProps) {
     <Base {...props}>
       <path d="M3 12a9 9 0 1 0 3-6.7" />
       <path d="M3 4v5h5" />
+    </Base>
+  );
+}
+
+export function ShuffleIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M16 3h5v5" />
+      <path d="m21 3-6.5 6.5a4 4 0 0 1-5.7 0L3 4" />
+      <path d="M16 16h5v5" />
+      <path d="m21 21-6.5-6.5a4 4 0 0 0-5.7 0L3 20" />
+    </Base>
+  );
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+      <circle cx="12" cy="12" r="2.5" />
     </Base>
   );
 }

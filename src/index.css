@@ -1733,6 +1733,809 @@ td .inline-dice-token {
   }
 }
 
+.card-deck-layer {
+  display: block;
+  height: 100%;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  width: 100%;
+  z-index: 25;
+}
+
+.card-deck-layer--active {
+  opacity: 1;
+}
+
+.card-deck-dom-layer {
+  height: 100%;
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  width: 100%;
+  z-index: 26;
+}
+
+.card-deck-dom-face {
+  backface-visibility: hidden;
+  background: var(--card-face-paper);
+  border: max(1px, calc(var(--card-face-height) * 0.008)) solid var(--card-face-border);
+  border-radius: calc(var(--card-face-height) * 0.035);
+  color: var(--card-face-ink);
+  display: grid;
+  font-family: Georgia, "Times New Roman", serif;
+  overflow: hidden;
+  padding: calc(var(--card-face-height) * 0.045);
+  position: absolute;
+  text-align: center;
+  transform-origin: center;
+  transform-style: preserve-3d;
+}
+
+.card-deck-dom-face--title-symbol-body {
+  grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0.72fr);
+}
+
+.card-deck-dom-face--title-symbol {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.card-deck-dom-face--title-body {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.card-deck-dom-face--symbol-body {
+  grid-template-rows: minmax(0, 1.1fr) auto minmax(0, 1fr);
+}
+
+.card-deck-dom-face--title,
+.card-deck-dom-face--symbol,
+.card-deck-dom-face--body,
+.card-deck-dom-face--empty {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.card-deck-dom-face[hidden] {
+  display: none;
+}
+
+.card-deck-dom-back {
+  --card-back-pattern-size: calc(var(--card-back-height) * 0.059);
+  align-items: center;
+  background-color: var(--card-back-color);
+  border: max(1px, calc(var(--card-back-height) * 0.008)) solid var(--card-back-border);
+  border-radius: calc(var(--card-back-height) * 0.035);
+  box-sizing: border-box;
+  color: var(--card-back-paper);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--card-back-height) * 0.045);
+  justify-content: center;
+  overflow: hidden;
+  padding: calc(var(--card-back-height) * 0.1);
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  transform-origin: center;
+}
+
+.card-deck-back--none {
+  background-image: none;
+}
+
+.card-deck-back--crosshatch {
+  background-image:
+    linear-gradient(45deg, transparent 44%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 20%, transparent) 44% 56%, transparent 56%),
+    linear-gradient(-45deg, transparent 44%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 20%, transparent) 44% 56%, transparent 56%);
+  background-size: var(--card-back-pattern-size, 10px) var(--card-back-pattern-size, 10px);
+}
+
+.card-deck-back--diamonds {
+  background-image:
+    linear-gradient(45deg, transparent 46%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 22%, transparent) 47% 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 22%, transparent) 47% 53%, transparent 54%);
+  background-size: calc(var(--card-back-pattern-size, 10px) * 2) calc(var(--card-back-pattern-size, 10px) * 2);
+}
+
+.card-deck-back--stripes {
+  background-image: repeating-linear-gradient(45deg, transparent 0 35%, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 20%, transparent) 35% 50%, transparent 50% 85%);
+  background-size: calc(var(--card-back-pattern-size, 10px) * 1.5) calc(var(--card-back-pattern-size, 10px) * 1.5);
+}
+
+.card-deck-back--dots {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--card-back-paper, var(--color-paper)) 28%, transparent) 0 18%, transparent 20%);
+  background-size: var(--card-back-pattern-size, 10px) var(--card-back-pattern-size, 10px);
+}
+
+.card-deck-dom-back__symbol {
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", Georgia, serif;
+  font-size: clamp(24px, calc(var(--card-back-height) * 0.3), 100px);
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.card-deck-dom-back__text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(14px, calc(var(--card-back-height) * 0.13), 38px);
+  font-weight: 700;
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.card-deck-dom-back[hidden] {
+  display: none;
+}
+
+.card-deck-dom-face__title {
+  font-size: clamp(7px, calc(var(--card-face-height) * 0.055), 18px);
+  font-weight: 700;
+  line-height: 1.08;
+  max-height: 2.16em;
+  overflow: hidden;
+}
+
+.card-deck-dom-face--title .card-deck-dom-face__title {
+  align-self: center;
+  font-size: clamp(12px, calc(var(--card-face-height) * 0.105), 34px);
+  line-height: 1.12;
+  max-height: 6.72em;
+  overflow-wrap: anywhere;
+  padding: calc(var(--card-face-height) * 0.07);
+}
+
+.card-deck-dom-face--title-body .card-deck-dom-face__title {
+  font-size: clamp(9px, calc(var(--card-face-height) * 0.072), 23px);
+}
+
+.card-deck-dom-face__symbol {
+  align-items: center;
+  color: var(--card-face-accent);
+  display: grid;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", Georgia, serif;
+  font-size: clamp(11px, calc(var(--card-face-height) * var(--card-symbol-size-factor, 0.24)), 88px);
+  gap: calc(var(--card-face-height) * 0.018);
+  grid-template-columns: repeat(var(--card-symbol-columns, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(auto-fit, minmax(0, 1fr));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card-deck-dom-face__symbol-glyph {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  line-height: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.card-deck-dom-face__divider {
+  border-top: max(1px, calc(var(--card-face-height) * 0.004)) solid color-mix(in srgb, var(--card-face-border) 36%, transparent);
+  margin: 0 calc(var(--card-face-height) * 0.045);
+}
+
+.card-deck-dom-face__body {
+  align-content: start;
+  font-size: clamp(6px, calc(var(--card-face-height) * 0.036), 15px);
+  line-height: 1.2;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: calc(var(--card-face-height) * 0.035);
+  white-space: pre-wrap;
+}
+
+.card-deck-dom-face--body .card-deck-dom-face__body {
+  align-content: center;
+  font-size: clamp(9px, calc(var(--card-face-height) * 0.055), 20px);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  padding: calc(var(--card-face-height) * 0.055);
+}
+
+.card-deck-dom-face--title-body .card-deck-dom-face__body,
+.card-deck-dom-face--symbol-body .card-deck-dom-face__body {
+  font-size: clamp(7px, calc(var(--card-face-height) * 0.043), 17px);
+}
+
+.card-deck-count {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-muted) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 38%, transparent);
+  border-radius: 999px;
+  color: var(--color-muted);
+  display: inline-flex;
+  font-size: 9px;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 5px;
+}
+
+.card-deck-surface {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-background) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 30%, transparent);
+  border-radius: min(var(--button-radius), 6px);
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-height: 90px;
+  position: relative;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.card-deck-surface--drop-target {
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-background));
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 26%, transparent);
+}
+
+.card-deck-surface--empty {
+  border-style: dashed;
+}
+
+.card-deck-play-area {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  min-height: 90px;
+}
+
+.card-deck-play-area--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card-deck-discard {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-background) 72%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-border) 52%, transparent);
+  border-radius: min(var(--button-radius), 6px);
+  color: var(--color-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+  padding: 5px 2px;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.card-deck-discard:hover,
+.card-deck-discard:focus-visible {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-background));
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.card-deck-discard--drop-target {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-background));
+  border-color: var(--color-accent);
+  border-style: solid;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  color: var(--color-accent);
+}
+
+.card-deck-discard__count {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-muted) 18%, transparent);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 700;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 4px;
+}
+
+.card-deck-discard__label {
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+  writing-mode: vertical-rl;
+}
+
+.card-table-widget {
+  container-name: card-table-widget;
+  container-type: inline-size;
+}
+
+.card-deck-actions {
+  display: grid;
+  flex: none;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card-deck-action {
+  align-items: center;
+  display: flex;
+  font-size: 10px;
+  gap: 4px;
+  justify-content: center;
+  min-height: 26px;
+  min-width: 0;
+  padding: 3px 6px;
+}
+
+.card-deck-action svg {
+  flex: none;
+}
+
+.card-deck-action span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container card-table-widget (max-width: 210px) {
+  .card-deck-action {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+
+  .card-deck-action span {
+    display: none;
+  }
+}
+
+@container card-table-widget (max-width: 130px) {
+  .card-deck-play-area,
+  .card-deck-surface {
+    min-height: 48px;
+  }
+
+  .card-deck-discard {
+    gap: 2px;
+    padding-bottom: 2px;
+    padding-top: 2px;
+  }
+
+  .card-deck-discard__label {
+    display: none;
+  }
+}
+
+.card-deck-gather-dialog {
+  background: var(--color-paper);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--button-radius);
+  box-shadow: var(--shadow-style);
+  color: var(--color-ink);
+  overflow: hidden;
+  width: min(460px, calc(100vw - 24px));
+}
+
+.card-deck-inspect-dialog {
+  background: var(--color-paper);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--button-radius);
+  box-shadow: var(--shadow-style);
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 680px);
+  overflow: hidden;
+  width: min(720px, calc(100vw - 16px));
+}
+
+.card-deck-inspect-dialog__header {
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 11px;
+}
+
+.card-deck-inspect-dialog__content {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(230px, 1.1fr);
+  min-height: 0;
+}
+
+.card-deck-inspect-list {
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.card-deck-inspect-list__rows {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.card-deck-inspect-list__bulk-actions {
+  display: grid;
+  flex: none;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 6px;
+}
+
+.card-deck-inspect-list__bulk-actions .widget-control {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+  justify-content: center;
+  min-width: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.card-deck-inspect-row {
+  align-items: stretch;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 25%, transparent);
+  display: flex;
+  min-width: 0;
+}
+
+.card-deck-inspect-row--selected {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.card-deck-inspect-row__grip {
+  align-items: center;
+  color: var(--color-muted);
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 30px;
+}
+
+.card-deck-inspect-row__grip:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.card-deck-inspect-row__name {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 7px 8px 2px;
+  text-align: left;
+  width: 100%;
+}
+
+.card-deck-inspect-row__flip {
+  align-self: center;
+  display: inline-flex;
+  flex: none;
+  height: 26px;
+  justify-content: center;
+  margin-right: 5px;
+  padding: 0;
+  width: 26px;
+}
+
+.card-deck-inspect-row__position {
+  color: var(--color-muted);
+  flex: none;
+  font-size: 10px;
+  text-align: right;
+  width: 16px;
+}
+
+.card-deck-inspect-preview-wrap {
+  align-items: center;
+  background: color-mix(in srgb, var(--color-background) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  min-height: 360px;
+  padding: 18px;
+}
+
+.card-deck-inspect-preview {
+  aspect-ratio: 0.705;
+  background: var(--color-paper);
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 6px 7px 0 color-mix(in srgb, var(--color-shadow) 24%, transparent);
+  display: grid;
+  font-family: Georgia, "Times New Roman", serif;
+  max-height: 430px;
+  overflow: hidden;
+  padding: 18px;
+  position: relative;
+  text-align: center;
+  width: min(230px, 100%);
+}
+
+.card-deck-inspect-preview--title-symbol-body {
+  grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0.72fr);
+}
+
+.card-deck-inspect-preview--title-symbol {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.card-deck-inspect-preview--title-body {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.card-deck-inspect-preview--symbol-body {
+  grid-template-rows: minmax(0, 1.1fr) auto minmax(0, 1fr);
+}
+
+.card-deck-inspect-preview--title,
+.card-deck-inspect-preview--symbol,
+.card-deck-inspect-preview--body,
+.card-deck-inspect-preview--empty {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.card-deck-inspect-preview__title {
+  align-items: center;
+  display: flex;
+  font-size: 17px;
+  font-weight: 700;
+  justify-content: center;
+  line-height: 1.1;
+  max-height: 2.2em;
+  overflow: hidden;
+  padding-left: 30px;
+  padding-right: 30px;
+  position: relative;
+}
+
+.card-deck-inspect-preview--title .card-deck-inspect-preview__title {
+  font-size: 29px;
+  line-height: 1.15;
+  max-height: none;
+  overflow-wrap: anywhere;
+  padding: 26px 30px;
+}
+
+.card-deck-inspect-preview--title-body .card-deck-inspect-preview__title {
+  font-size: 21px;
+}
+
+.card-deck-inspect-preview__symbol {
+  align-items: center;
+  color: var(--color-accent);
+  display: grid;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", Georgia, serif;
+  gap: 5px;
+  grid-template-rows: repeat(auto-fit, minmax(0, 1fr));
+  line-height: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card-deck-inspect-preview__symbol > span {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.card-deck-inspect-preview__divider {
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 36%, transparent);
+  margin: 0 12px;
+}
+
+.card-deck-inspect-preview__body {
+  align-content: start;
+  font-size: 13px;
+  line-height: 1.25;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 12px;
+  white-space: pre-wrap;
+}
+
+.card-deck-inspect-preview--body .card-deck-inspect-preview__body {
+  align-content: center;
+  font-size: 19px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  padding: 28px 12px;
+}
+
+.card-deck-inspect-preview--title-body .card-deck-inspect-preview__body,
+.card-deck-inspect-preview--symbol-body .card-deck-inspect-preview__body {
+  font-size: 15px;
+}
+
+.card-deck-inspect-preview__flip {
+  align-items: center;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 26px;
+}
+
+@media (max-width: 560px) {
+  .card-deck-inspect-dialog__content {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .card-deck-inspect-list {
+    border-bottom: 1px solid var(--color-border);
+    border-right: 0;
+    max-height: 40vh;
+    min-height: 0;
+  }
+
+  .card-deck-inspect-preview-wrap {
+    min-height: 330px;
+  }
+}
+
+.card-deck-hit-target {
+  background: transparent;
+  border: 0;
+  cursor: grab;
+  inset: 8%;
+  position: absolute;
+  touch-action: none;
+}
+
+.card-deck-hit-target:active {
+  cursor: grabbing;
+}
+
+.card-deck-grab-all {
+  align-items: center;
+  bottom: 4px;
+  cursor: grab;
+  display: flex;
+  height: 24px;
+  justify-content: center;
+  left: 4px;
+  min-height: 24px;
+  padding: 0;
+  position: absolute;
+  touch-action: none;
+  width: 24px;
+  z-index: 4;
+}
+
+.card-deck-grab-all:active:not(:disabled) {
+  cursor: grabbing;
+}
+
+.card-deck-grab-all:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.card-deck-fallback {
+  --card-back-paper: var(--color-paper);
+  --card-back-pattern-size: 10px;
+  align-items: center;
+  aspect-ratio: 0.705;
+  background: var(--color-accent);
+  border: 2px solid var(--color-paper);
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px var(--color-border), 4px 5px 0 color-mix(in srgb, var(--color-shadow) 22%, transparent);
+  color: var(--color-paper);
+  display: flex;
+  flex-direction: column;
+  height: 70%;
+  justify-content: center;
+  max-width: 62%;
+  opacity: 0.08;
+  overflow: hidden;
+  padding: 5px;
+}
+
+.card-deck-surface--fallback-only .card-deck-fallback {
+  opacity: 1;
+}
+
+@media print {
+  .card-deck-layer {
+    display: none;
+  }
+
+  .card-deck-fallback {
+    opacity: 1;
+  }
+}
+
+.card-deck-fallback--face-up {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.card-deck-fallback--title-symbol-body {
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.8fr);
+}
+
+.card-deck-fallback--title-symbol,
+.card-deck-fallback--title-body {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.card-deck-fallback--symbol-body {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.card-deck-fallback--title,
+.card-deck-fallback--symbol,
+.card-deck-fallback--body,
+.card-deck-fallback--empty {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.card-deck-fallback__symbol {
+  align-self: center;
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 24px;
+  line-height: 1;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.card-deck-fallback__title {
+  align-self: center;
+  font-family: var(--font-heading);
+  font-size: 8px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-align: center;
+  width: 100%;
+}
+
+.card-deck-fallback--title .card-deck-fallback__title {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.card-deck-fallback--symbol .card-deck-fallback__symbol {
+  font-size: 34px;
+}
+
+.card-deck-fallback__body {
+  align-self: center;
+  font-family: var(--font-body);
+  font-size: 6px;
+  line-height: 1.2;
+  max-height: 100%;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.card-deck-fallback--body .card-deck-fallback__body {
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.card-deck-fallback__back-symbol {
+  font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.card-deck-fallback__back-text {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  overflow: hidden;
+  text-align: center;
+  width: 100%;
+}
+
 /* Print mode styles */
 @media print {
   /* Hide everything by default */

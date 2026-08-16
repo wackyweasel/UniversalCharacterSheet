@@ -25,5 +25,6 @@ export { RollTableEditor } from './RollTableEditor';
 export { InitiativeTrackerEditor } from './InitiativeTrackerEditor';
 export { InventoryEditor } from './InventoryEditor';
 export { DeckEditor } from './DeckEditor';
+export { CardTableEditor } from './CardDeckEditor';
 export { TimerEditor } from './TimerEditor';
 export { StepDiceEditor } from './StepDiceEditor';

@@ -27,6 +27,7 @@ export type WidgetType =
   | 'INITIATIVE_TRACKER'
   | 'INVENTORY'
   | 'DECK'
+  | 'CARD_TABLE'
   | 'TIMER'
   | 'STEP_DICE';
 
@@ -69,6 +70,37 @@ export interface DeckCard {
 export interface DeckState {
   remaining: string[];
   discarded: string[];
+}
+
+export type CardTableBackPattern = 'none' | 'crosshatch' | 'diamonds' | 'stripes' | 'dots';
+
+export interface CardTableBackDesign {
+  color?: string;
+  symbol?: string;
+  text?: string;
+  pattern: CardTableBackPattern;
+}
+
+export interface CardTableCard {
+  id: string;
+  title: string;
+  symbol: string;
+  body: string;
+  faceUp: boolean;
+  originWidgetId?: string;
+  originOrder?: number;
+  originBackColor?: string;
+  originBackSymbol?: string;
+  originBackText?: string;
+  originBackPattern?: CardTableBackPattern;
+}
+
+export type CardTableRestorePosition = 'top' | 'bottom' | 'random';
+
+export interface CardTableSpot {
+  id: string;
+  name: string;
+  cards: CardTableCard[];
 }
 
 export type InventoryFieldType = 'text' | 'number' | 'checkbox' | 'textarea';
@@ -396,6 +428,17 @@ export interface WidgetData {
   deckCards?: DeckCard[];
   deckState?: DeckState | null;
   showDeckCards?: boolean;
+  // Experimental 3D Card Table
+  cardTableCards?: CardTableCard[];
+  cardTableDiscardedCards?: CardTableCard[];
+  cardTableBackColor?: string;
+  cardTableBackSymbol?: string;
+  cardTableBackText?: string;
+  cardTableBackPattern?: CardTableBackPattern;
+  cardTableShowDiscard?: boolean;
+  cardTableShowGrabAll?: boolean;
+  // Legacy experimental multi-spot data, read as a migration fallback.
+  cardTableSpots?: CardTableSpot[];
   // Initiative Tracker
   initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
   initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants

@@ -58,17 +58,33 @@ export default function TextWidget({ widget, height }: Props) {
 
   const toolbarState = useEditorState({
     editor,
-    selector: ({ editor: currentEditor }) => ({
-      bold: currentEditor?.isActive('bold') ?? false,
-      italic: currentEditor?.isActive('italic') ?? false,
-      underline: currentEditor?.isActive('underline') ?? false,
-      strike: currentEditor?.isActive('strike') ?? false,
-      bulletList: currentEditor?.isActive('bulletList') ?? false,
-      orderedList: currentEditor?.isActive('orderedList') ?? false,
-      color: currentEditor?.getAttributes('textStyle').color as string | undefined,
-      canIndent: currentEditor?.can().sinkListItem('listItem') ?? false,
-      canOutdent: currentEditor?.can().liftListItem('listItem') ?? false,
-    }),
+    selector: ({ editor: currentEditor }) => {
+      if (!currentEditor || currentEditor.isDestroyed) {
+        return {
+          bold: false,
+          italic: false,
+          underline: false,
+          strike: false,
+          bulletList: false,
+          orderedList: false,
+          color: undefined,
+          canIndent: false,
+          canOutdent: false,
+        };
+      }
+
+      return {
+        bold: currentEditor.isActive('bold'),
+        italic: currentEditor.isActive('italic'),
+        underline: currentEditor.isActive('underline'),
+        strike: currentEditor.isActive('strike'),
+        bulletList: currentEditor.isActive('bulletList'),
+        orderedList: currentEditor.isActive('orderedList'),
+        color: currentEditor.getAttributes('textStyle').color as string | undefined,
+        canIndent: currentEditor.can().sinkListItem('listItem'),
+        canOutdent: currentEditor.can().liftListItem('listItem'),
+      };
+    },
   });
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
