@@ -2449,7 +2449,9 @@ td .inline-dice-token {
   --card-deck-grab-all-size: 24px;
   --card-deck-grab-all-icon-size: calc(var(--card-deck-grab-all-size) * 0.583333);
   align-items: center;
+  background: transparent;
   bottom: 15%;
+  border: 0;
   cursor: grab;
   display: flex;
   height: var(--card-deck-grab-all-size);
@@ -2466,6 +2468,12 @@ td .inline-dice-token {
 .card-deck-grab-all > svg {
   height: var(--card-deck-grab-all-icon-size);
   width: var(--card-deck-grab-all-icon-size);
+}
+
+.card-deck-grab-all:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-ink);
 }
 
 .card-deck-grab-all:active:not(:disabled) {
