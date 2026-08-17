@@ -189,7 +189,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         />
       </div>
 
-      <div className="border border-theme-border rounded-button p-3">
+      <div className="border border-theme-border rounded-theme p-3">
         <h4 className="font-medium text-theme-ink mb-3">Healing Options</h4>
         
         <label className="flex items-center gap-2 cursor-pointer mb-3">
@@ -259,7 +259,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         )}
       </div>
 
-      <div className="border border-theme-border rounded-button p-3">
+      <div className="border border-theme-border rounded-theme p-3">
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-medium text-theme-ink">Resource Pools</h4>
           {poolTargets.length > 0 && (
@@ -367,7 +367,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
                   {/* Inline formula editor */}
                   {enabled && restore!.mode === 'flat' && isFormulaOpen && (
-                    <div className="mt-1.5 ml-6 p-2 border border-theme-accent/50 rounded-button bg-theme-paper">
+                    <div className="mt-1.5 ml-6 p-2 border border-theme-accent/50 rounded-theme bg-theme-paper">
                       <div className="flex items-center gap-1 mb-1.5">
                         <span className="italic text-theme-accent font-bold" style={{ fontSize: '11px' }}>fx</span>
                         <span className="text-xs font-medium text-theme-ink">Restore Amount Formula</span>
@@ -419,7 +419,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         )}
       </div>
 
-      <div className="border border-theme-border rounded-button p-3">
+      <div className="border border-theme-border rounded-theme p-3">
         <h4 className="font-medium text-theme-ink mb-3">Other Actions</h4>
                 
         <label className="flex items-center gap-2 cursor-pointer mb-2">

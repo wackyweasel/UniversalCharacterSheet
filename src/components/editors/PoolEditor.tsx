@@ -109,7 +109,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
 
       <div className="space-y-3 max-h-64 overflow-y-auto">
             {resources.map((resource: PoolResource, idx: number) => (
-              <div key={idx} className="border border-theme-border rounded-button p-3 space-y-2">
+              <div key={idx} className="border border-theme-border rounded-theme p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <input
                     className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"

@@ -9,9 +9,10 @@ import {
 interface Props {
   pan: { x: number; y: number };
   scale: number;
+  zIndex?: number;
 }
 
-export default function CardDeckLayer({ pan, scale }: Props) {
+export default function CardDeckLayer({ pan, scale, zIndex }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const faceLayerRef = useRef<HTMLDivElement>(null);
   const version = useSyncExternalStore(
@@ -22,7 +23,11 @@ export default function CardDeckLayer({ pan, scale }: Props) {
   const hasDecks = getCardDeckRegistrations().length > 0;
   const isCardDragging = getCardDeckDragState()?.phase === 'dragging';
   const inverseCanvasTransform = `translate(${-pan.x / scale}px, ${-pan.y / scale}px) scale(${1 / scale})`;
-  const layerStyle = { transform: inverseCanvasTransform, transformOrigin: 'top left' };
+  const layerStyle = {
+    transform: inverseCanvasTransform,
+    transformOrigin: 'top left',
+    ...(zIndex !== undefined ? { zIndex } : {}),
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -232,6 +232,12 @@ export default function Sheet() {
   
   // Get widgets from active sheet
   const activeSheetWidgets = activeCharacter ? getActiveSheetWidgets(activeCharacter) : [];
+  const cardDeckLayerZIndex = Math.max(
+    9,
+    ...activeSheetWidgets
+      .filter((widget) => widget.type === 'DECK_OF_CARDS')
+      .map((widget) => widget.zIndex ?? 8),
+  );
 
   const recordSheetWorkflowEvent = useCallback((eventName: string, category: 'view' | 'print' | 'widget', metadata?: Record<string, string | number | boolean | null | undefined>) => {
     if (activeCharacterId && transientCharacterIds.includes(activeCharacterId)) return;
@@ -1684,7 +1690,7 @@ export default function Sheet() {
             />
           ))}
 
-          <CardDeckLayer pan={pan} scale={scale} />
+          <CardDeckLayer pan={pan} scale={scale} zIndex={cardDeckLayerZIndex} />
           
           {/* Attachment Buttons - only in edit mode */}
           {mode === 'edit' && attachmentControlsVisible && (

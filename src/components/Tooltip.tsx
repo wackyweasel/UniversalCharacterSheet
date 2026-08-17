@@ -109,7 +109,7 @@ export function Tooltip({ content, children, placement = 'above' }: TooltipProps
             backgroundColor: 'var(--color-ink)',
             border: '1px solid var(--color-border)',
             boxShadow: 'var(--shadow-style)',
-            borderRadius: 'var(--button-radius)',
+            borderRadius: 'var(--border-radius)',
             whiteSpace: 'pre-wrap',
             pointerEvents: 'none',
           }}

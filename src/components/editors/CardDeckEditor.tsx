@@ -11,7 +11,7 @@ import CardDeckBulkDeleteDialog from './CardDeckBulkDeleteDialog';
 import CardDeckPositionDialog from './CardDeckPositionDialog';
 import type { EditorProps } from './types';
 
-const inputClass = 'w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
+const inputClass = 'w-full rounded-theme border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
 
 const CARD_SYMBOLS = [
   '✦', '✧', '✶', '☀', '☾', '☽', '☄', '⟡',
@@ -62,7 +62,7 @@ function SymbolInput({
         </button>
       </Tooltip>
       {pickerOpen && (
-        <div className="absolute right-0 top-full z-30 mt-1 grid w-48 grid-cols-6 gap-1 rounded-button border border-theme-border bg-theme-paper p-1 shadow-theme" role="menu" aria-label="Symbol picker">
+        <div className="absolute right-0 top-full z-30 mt-1 grid w-48 grid-cols-6 gap-1 rounded-theme border border-theme-border bg-theme-paper p-1 shadow-theme" role="menu" aria-label="Symbol picker">
           {CARD_SYMBOLS.map((symbol) => (
             <button
               key={symbol}
@@ -261,7 +261,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section className="rounded-button border border-theme-border bg-theme-accent/5 p-3" aria-labelledby="card-deck-back-heading">
+      <section className="rounded-theme border border-theme-border bg-theme-accent/5 p-3" aria-labelledby="card-deck-back-heading">
         <div>
           <h4 id="card-deck-back-heading" className="text-sm font-semibold text-theme-ink">Card back</h4>
           <p className="mt-0.5 text-[11px] font-normal leading-4 text-theme-muted">
@@ -272,7 +272,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
             <label className="block text-xs font-medium text-theme-ink">
               Color
-              <div className="mt-1 flex h-9 items-center gap-2 rounded-button border border-theme-border bg-theme-paper px-2">
+              <div className="mt-1 flex h-9 items-center gap-2 rounded-theme border border-theme-border bg-theme-paper px-2">
                 <input
                   type="color"
                   value={backDesign.color || '#374151'}
@@ -295,7 +295,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
             <label className="block text-xs font-medium text-theme-ink">
               Text color
-              <div className="mt-1 flex h-9 items-center gap-2 rounded-button border border-theme-border bg-theme-paper px-2">
+              <div className="mt-1 flex h-9 items-center gap-2 rounded-theme border border-theme-border bg-theme-paper px-2">
                 <input
                   type="color"
                   value={backDesign.textColor || '#f8f4e8'}
@@ -356,7 +356,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section className="rounded-button border border-theme-border bg-theme-accent/5 p-3">
+      <section className="rounded-theme border border-theme-border bg-theme-accent/5 p-3">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h4 className="text-xs font-semibold text-theme-ink">Cards</h4>
@@ -392,12 +392,12 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
 
         <div className="mt-2 max-h-[min(60vh,36rem)] space-y-2 overflow-y-auto p-1">
           {cards.length === 0 && (
-            <div className="rounded-button border border-dashed border-theme-border px-3 py-5 text-center text-xs text-theme-muted">
+            <div className="rounded-theme border border-dashed border-theme-border px-3 py-5 text-center text-xs text-theme-muted">
               This deck is empty.
             </div>
           )}
           {cards.map((card, index) => (
-            <div key={card.id} className="rounded-button border border-theme-border bg-theme-background p-2">
+            <div key={card.id} className="rounded-theme border border-theme-border bg-theme-background p-2">
               <div className="mb-2 flex items-center gap-1.5">
                 <span className="min-w-0 flex-1 truncate text-xs font-semibold text-theme-ink">
                   {localCards[0]?.id === card.id ? 'Top card' : `Card ${index + 1}`}

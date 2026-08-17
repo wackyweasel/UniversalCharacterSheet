@@ -273,7 +273,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-theme bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             value={label || ''}
             onChange={(e) => updateData({ label: e.target.value })}
             placeholder="Stats"
@@ -340,7 +340,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
         <span className="text-sm text-theme-ink">Show names under numbers</span>
       </label>
 
-      <label className="flex items-start gap-2 cursor-pointer rounded-button border border-theme-border bg-theme-accent/5 p-3">
+      <label className="flex items-start gap-2 cursor-pointer rounded-theme border border-theme-border bg-theme-accent/5 p-3">
         <input
           type="checkbox"
           checked={showSecondaryNumbers}
@@ -354,7 +354,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
       </label>
 
       {showSecondaryNumbers && (
-        <div className="rounded-button border border-theme-border bg-theme-accent/5 p-3">
+        <div className="rounded-theme border border-theme-border bg-theme-accent/5 p-3">
           <label className="flex cursor-pointer items-start gap-2">
             <input
               type="checkbox"
@@ -369,7 +369,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
           </label>
 
           {automaticModifiers && (
-            <div className="mt-3 rounded-button border border-theme-border bg-theme-paper p-2">
+            <div className="mt-3 rounded-theme border border-theme-border bg-theme-paper p-2">
               <div className="mb-1.5 grid grid-cols-[1fr_1fr_1fr_28px] gap-1 text-[10px] font-medium uppercase text-theme-muted">
                 <span>Score from</span>
                 <span>Through</span>
@@ -384,21 +384,21 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       value={range.min}
                       onChange={(event) => updateModifierRange(rangeIndex, { min: Number(event.target.value) })}
                       aria-label={`Range ${rangeIndex + 1} minimum`}
-                      className="min-w-0 rounded-button border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
+                      className="min-w-0 rounded-theme border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
                     />
                     <input
                       type="number"
                       value={range.max}
                       onChange={(event) => updateModifierRange(rangeIndex, { max: Number(event.target.value) })}
                       aria-label={`Range ${rangeIndex + 1} maximum`}
-                      className="min-w-0 rounded-button border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
+                      className="min-w-0 rounded-theme border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
                     />
                     <input
                       type="number"
                       value={range.modifier}
                       onChange={(event) => updateModifierRange(rangeIndex, { modifier: Number(event.target.value) })}
                       aria-label={`Range ${rangeIndex + 1} modifier`}
-                      className="min-w-0 rounded-button border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs font-semibold text-theme-ink"
+                      className="min-w-0 rounded-theme border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs font-semibold text-theme-ink"
                     />
                     <Tooltip content="Remove range">
                       <button
@@ -440,7 +440,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             <div 
               key={idx} 
               ref={(el) => { itemRefs.current[idx] = el; }}
-              className={`rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors ${
+              className={`rounded-theme border border-theme-border bg-theme-accent/5 p-2 transition-colors ${
                 dragOverIndex === idx ? 'border-t-2 border-theme-accent' : ''
               } ${draggedIndex === idx ? 'opacity-50 bg-theme-accent/10' : ''}`}
               onDragOver={(e) => handleNativeDragOver(e, idx)}
@@ -463,7 +463,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                   </div>
                 </Tooltip>
                 <input
-                  className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                  className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
                   value={item.label}
                   onChange={(e) => updateItemLabel(idx, e.target.value)}
                   placeholder="Label"
@@ -472,6 +472,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                   tooltip={item.tooltip}
                   itemName={item.label}
                   onSave={(tooltip) => updateItem(idx, { tooltip })}
+                  radius="theme"
                 />
                 <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700 px-2 flex-shrink-0">×</button>
               </div>
@@ -490,6 +491,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                   max={item.maxValue}
                   compact
                   hideStepperButtons
+                  radius="theme"
                 />
                 {!boundsVisible ? (
                   <button type="button" onClick={() => setBounds(idx)} className="ml-auto text-xs text-theme-accent hover:underline">
@@ -517,6 +519,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       max={item.maxValue}
                       compact
                       hideStepperButtons
+                      radius="theme"
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -532,6 +535,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       min={item.minValue}
                       compact
                       hideStepperButtons
+                      radius="theme"
                     />
                   </div>
                 </div>
@@ -552,6 +556,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       hideStepperButtons
                       readOnlyValue={automaticModifiers}
                       hideFormulaButton={automaticModifiers}
+                      radius="theme"
                     />
                     {automaticModifiers && (
                       <span className="ml-auto text-xs text-theme-muted">
@@ -571,7 +576,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             value={newItemLabel}
             onChange={(e) => setNewItemLabel(e.target.value)}
             placeholder="Add new number..."
-            className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+            className="flex-1 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
           />
           <button
             type="submit"

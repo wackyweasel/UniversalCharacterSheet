@@ -85,7 +85,7 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <div className="rounded-button border border-theme-border p-3">
+      <div className="rounded-theme border border-theme-border p-3">
         <h4 className="mb-3 font-medium text-theme-ink">Display Options</h4>
         <label className="flex cursor-pointer items-center gap-2">
           <input

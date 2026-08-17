@@ -142,7 +142,7 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
         <label className="mb-2 block text-sm font-medium text-theme-ink">Fields</label>
         <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
           {mixedFields.map((field, index) => (
-            <div key={index} className="rounded-button border border-theme-border p-2">
+            <div key={index} className="rounded-theme border border-theme-border p-2">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex flex-shrink-0 gap-0.5">
                   <Tooltip content="Move up"><button type="button" onClick={() => moveField(index, -1)} disabled={index === 0} className="widget-control h-7 w-7 min-h-0 p-1"><ChevronUpIcon className="h-3.5 w-3.5" /></button></Tooltip>

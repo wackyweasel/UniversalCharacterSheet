@@ -97,7 +97,7 @@ export default function CardDeckBulkDeleteDialog({ cards, onDelete, onClose }: P
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3" aria-label="Cards to delete">
-          <div className="overflow-hidden rounded-button border border-theme-border bg-theme-paper">
+          <div className="overflow-hidden rounded-theme border border-theme-border bg-theme-paper">
             {cards.map((card, index) => {
               const selected = selectedCardIds.has(card.id);
               return (

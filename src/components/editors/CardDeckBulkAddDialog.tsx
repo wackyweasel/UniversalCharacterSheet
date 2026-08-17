@@ -17,7 +17,7 @@ interface Props {
 type GeneratorMode = 'sequence' | 'playing' | 'tarot' | 'list';
 
 const MAX_BULK_CARDS = 200;
-const inputClass = 'w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
+const inputClass = 'w-full rounded-theme border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
 const choiceClass = 'rounded-button border border-theme-border px-2 py-2 text-left text-xs transition-colors';
 const COMMON_SYMBOLS = ['✦', '●', '▲', '■', '◆', '♠', '♥', '♦', '♣', '⚔'] as const;
 
@@ -273,7 +273,7 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
             ))}
           </div>
 
-          <section className="mt-4 rounded-button border border-theme-border bg-theme-background p-3" aria-label={`${modes.find((option) => option.id === mode)?.label} options`}>
+          <section className="mt-4 rounded-theme border border-theme-border bg-theme-background p-3" aria-label={`${modes.find((option) => option.id === mode)?.label} options`}>
             {mode === 'sequence' && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -329,7 +329,7 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
                   <legend className="text-xs font-semibold text-theme-ink">Suits</legend>
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {PLAYING_SUITS.map((suit) => (
-                      <label key={suit.id} className="flex cursor-pointer items-center gap-2 rounded-button border border-theme-border bg-theme-paper px-2 py-2 text-xs text-theme-ink">
+                      <label key={suit.id} className="flex cursor-pointer items-center gap-2 rounded-theme border border-theme-border bg-theme-paper px-2 py-2 text-xs text-theme-ink">
                         <input
                           type="checkbox"
                           checked={selectedSuits.has(suit.id)}
@@ -430,7 +430,7 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
               <h3 id="bulk-card-preview-heading" className="text-xs font-semibold text-theme-ink">Preview</h3>
               <span className="text-[11px] text-theme-muted">{generatedCards.length} card{generatedCards.length === 1 ? '' : 's'}</span>
             </div>
-            <div className="mt-2 max-h-72 overflow-y-auto rounded-button border border-theme-border bg-theme-paper">
+            <div className="mt-2 max-h-72 overflow-y-auto rounded-theme border border-theme-border bg-theme-paper">
               {generatedCards.length === 0 ? (
                 <p className="px-3 py-5 text-center text-xs text-theme-muted">Choose at least one card.</p>
               ) : generatedCards.map((card, index) => (

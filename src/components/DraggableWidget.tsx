@@ -95,6 +95,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
+  const bringWidgetToFront = useStore((state) => state.bringWidgetToFront);
   const removeWidget = useStore((state) => state.removeWidget);
   const cloneWidget = useStore((state) => state.cloneWidget);
   const detachWidgets = useStore((state) => state.detachWidgets);
@@ -359,6 +360,12 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       if (!isSelected) {
         setSelectedWidgetId(widget.id);
       }
+    }
+  };
+
+  const handleWidgetPointerDown = () => {
+    if (mode !== 'print') {
+      bringWidgetToFront(widget.id);
     }
   };
 
@@ -820,7 +827,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? 100 : undefined),
+            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? Math.max(100, widget.zIndex ?? 10) : widget.zIndex),
             ...borderRadiusStyle,
             ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
@@ -829,6 +836,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           onTouchStart={handleWidgetTouchStart}
           onTouchEnd={handleWidgetTouchEnd}
           onTouchCancel={handleWidgetTouchEnd}
+          onPointerDownCapture={handleWidgetPointerDown}
           onClick={handleWidgetClick}
           onContextMenu={handleWidgetContextMenu}
         >

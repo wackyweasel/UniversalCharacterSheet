@@ -36,6 +36,16 @@ function getActiveSheetWidgets(character: Character): Widget[] {
   return sheet?.widgets || [];
 }
 
+const DEFAULT_WIDGET_Z_INDEX = 10;
+
+function getNextWidgetZIndex(widgets: Widget[]): number {
+  return Math.max(
+    DEFAULT_WIDGET_Z_INDEX,
+    100,
+    ...widgets.map(widget => widget.zIndex ?? DEFAULT_WIDGET_Z_INDEX),
+  ) + 1;
+}
+
 // Helper to update the active sheet's widgets
 function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widget[]) => Widget[]): Character {
   return {
@@ -248,6 +258,7 @@ interface StoreState {
   addGroupFromTemplate: (template: { widgets: { type: WidgetType; relativeX: number; relativeY: number; w?: number; h?: number; data: any }[]; attachments: [number, number][] }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
+  bringWidgetToFront: (id: string) => void;
   updateWidgetSize: (id: string, w: number, h: number) => void;
   updateWidgetData: (id: string, data: any) => void;
   toggleCardTableCard: (widgetId: string, cardId: string) => void;
@@ -957,6 +968,7 @@ export const useStore = create<StoreState>((set, get) => {
           y: finalY,
           w: newWidgetWidth,
           h: newWidgetHeight,
+          zIndex: getNextWidgetZIndex(currentWidgets),
           data: {
             label: getDefaultLabel(type),
             value: 0,
@@ -1035,6 +1047,7 @@ export const useStore = create<StoreState>((set, get) => {
           y: sourceWidget.y + OFFSET,
           w: sourceWidget.w,
           h: sourceWidget.h,
+          zIndex: getNextWidgetZIndex(currentWidgets),
           data: cloneWidgetData(sourceWidget.type, sourceWidget.data, newWidgetId),
         };
 
@@ -1152,6 +1165,7 @@ export const useStore = create<StoreState>((set, get) => {
           y: finalY,
           w: template.w || 200,
           h: template.h || 120,
+          zIndex: getNextWidgetZIndex(currentWidgets),
           data: cloneWidgetData(template.type, template.data, newWidgetId),
         };
 
@@ -1272,6 +1286,7 @@ export const useStore = create<StoreState>((set, get) => {
         // Generate new IDs for each widget
         const newGroupId = uuidv4();
         const widgetIds = template.widgets.map(() => uuidv4());
+        const groupZIndex = getNextWidgetZIndex(currentWidgets);
         
         // Create the new widgets
         const newWidgets: Widget[] = template.widgets.map((wt, idx) => ({
@@ -1281,6 +1296,7 @@ export const useStore = create<StoreState>((set, get) => {
           y: finalY + wt.relativeY,
           w: wt.w || 200,
           h: wt.h || 120,
+          zIndex: groupZIndex,
           groupId: newGroupId,
           data: cloneWidgetData(wt.type, wt.data, widgetIds[idx]),
         }));
@@ -1351,6 +1367,33 @@ export const useStore = create<StoreState>((set, get) => {
         })
       }));
     },
+
+    bringWidgetToFront: (widgetId) => set((state) => {
+      if (!state.activeCharacterId) return state;
+
+      const character = state.characters.find(c => c.id === state.activeCharacterId);
+      if (!character) return state;
+
+      const widgets = getActiveSheetWidgets(character);
+      const widget = widgets.find(candidate => candidate.id === widgetId);
+      if (!widget) return state;
+
+      const widgetsToRaise = new Set(
+        widget.groupId
+          ? widgets.filter(candidate => candidate.groupId === widget.groupId).map(candidate => candidate.id)
+          : [widgetId]
+      );
+      const zIndex = getNextWidgetZIndex(widgets);
+
+      return {
+        characters: state.characters.map(c => {
+          if (c.id !== state.activeCharacterId) return c;
+          return updateActiveSheetWidgets(c, currentWidgets => currentWidgets.map(currentWidget =>
+            widgetsToRaise.has(currentWidget.id) ? { ...currentWidget, zIndex } : currentWidget
+          ));
+        })
+      };
+    }),
 
     updateWidgetSize: (id, w, h) => set((state) => ({
       characters: state.characters.map(c => {
@@ -2180,6 +2223,7 @@ export const useStore = create<StoreState>((set, get) => {
             const targetGroupId = widget2.groupId;
             const alreadyShareGroup = !!widget1.groupId && widget1.groupId === targetGroupId;
             const shouldAlignTarget = !alreadyShareGroup && (targetDelta.x !== 0 || targetDelta.y !== 0);
+            const groupZIndex = getNextWidgetZIndex(widgets);
 
             return updateActiveSheetWidgets(c, widgets =>
               widgets.map(w => {
@@ -2192,6 +2236,10 @@ export const useStore = create<StoreState>((set, get) => {
                   updatedWidget = { ...updatedWidget, groupId: newGroupId };
                 } else if (updatedWidget.id === widgetId1 || updatedWidget.id === widgetId2) {
                   updatedWidget = { ...updatedWidget, groupId: newGroupId };
+                }
+
+                if (updatedWidget.groupId === newGroupId) {
+                  updatedWidget = { ...updatedWidget, zIndex: groupZIndex };
                 }
 
                 if (updatedWidget.id === widgetId1) {
@@ -2413,6 +2461,7 @@ export const useStore = create<StoreState>((set, get) => {
         
         const OFFSET = 30;
         const newGroupId = uuidv4();
+        const groupZIndex = getNextWidgetZIndex(widgets);
         
         // Create a mapping from old IDs to new IDs
         const idMapping = new Map<string, string>();
@@ -2428,6 +2477,7 @@ export const useStore = create<StoreState>((set, get) => {
           y: w.y + OFFSET,
           w: w.w,
           h: w.h,
+          zIndex: groupZIndex,
           groupId: newGroupId,
           attachedTo: w.attachedTo?.map(id => idMapping.get(id)).filter((id): id is string => id !== undefined),
           locked: w.locked,

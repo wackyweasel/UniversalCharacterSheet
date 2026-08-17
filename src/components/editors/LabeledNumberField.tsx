@@ -40,6 +40,7 @@ interface LabeledNumberFieldProps {
   readOnlyValue?: boolean;
   /** Hide formula editing for values controlled by another input */
   hideFormulaButton?: boolean;
+  radius?: 'button' | 'theme';
   /** Optional prefix for tutorial targets exposed by this field's tag/formula controls */
   tutorialTargetPrefix?: string;
   /** When provided, the controls are passed to this render function so the parent
@@ -66,6 +67,7 @@ export function LabeledNumberField({
   hideStepperButtons = false,
   readOnlyValue = false,
   hideFormulaButton = false,
+  radius = 'button',
   tutorialTargetPrefix,
   renderRow,
 }: LabeledNumberFieldProps) {
@@ -122,6 +124,7 @@ export function LabeledNumberField({
   const shouldHighlightStrengthTagConfirm = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag') && hasValidLabelDraft;
   const shouldHighlightDiceFormulaButton = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button');
   const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula') && hasValidFormulaDraft;
+  const radiusClass = radius === 'theme' ? 'rounded-theme' : 'rounded-button';
 
   const handleIncrement = () => {
     if (hasFormula || readOnlyValue) return;
@@ -231,7 +234,7 @@ export function LabeledNumberField({
           max={max}
           step={step}
           placeholder={placeholder}
-          className={`px-2 py-1 border border-theme-border rounded-button font-body text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+          className={`px-2 py-1 border border-theme-border ${radiusClass} font-body text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
             compact ? (hideStepperButtons ? 'w-14' : 'w-[6rem]') : 'flex-1 min-w-[60px]'
           } ${
             hasFormula || readOnlyValue
@@ -325,7 +328,7 @@ export function LabeledNumberField({
 
       {/* Label input popover */}
       {showLabelInput && (
-        <div className="mt-1.5 p-2 border border-theme-accent/50 rounded-button bg-theme-paper shadow-sm">
+        <div className={`mt-1.5 p-2 border border-theme-accent/50 ${radiusClass} bg-theme-paper shadow-sm`}>
           <div className="flex items-center gap-1 mb-1.5">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-theme-accent shrink-0">
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
@@ -345,7 +348,7 @@ export function LabeledNumberField({
                 if (e.key === 'Escape') setShowLabelInput(false);
               }}
               placeholder="e.g. str, max_hp"
-              className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper font-body text-theme-ink text-xs focus:outline-none focus:border-theme-accent"
+              className={`flex-1 px-2 py-1 border border-theme-border ${radiusClass} bg-theme-paper font-body text-theme-ink text-xs focus:outline-none focus:border-theme-accent`}
               autoFocus
             />
             <button
@@ -374,7 +377,7 @@ export function LabeledNumberField({
 
       {/* Formula input popover */}
       {showFormulaInput && (
-        <div className="mt-1.5 p-2 border border-theme-accent/50 rounded-button bg-theme-paper shadow-sm">
+        <div className={`mt-1.5 p-2 border border-theme-accent/50 ${radiusClass} bg-theme-paper shadow-sm`}>
           <div className="flex items-center gap-1 mb-1.5">
             <span className="italic font-bold text-theme-accent text-xs">fx</span>
             <span className="text-xs font-medium text-theme-ink">Formula</span>
@@ -390,7 +393,7 @@ export function LabeledNumberField({
                 if (e.key === 'Escape') setShowFormulaInput(false);
               }}
               placeholder="e.g. @str * 2 + 5"
-              className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-xs font-mono focus:outline-none focus:border-theme-accent"
+              className={`flex-1 px-2 py-1 border border-theme-border ${radiusClass} bg-theme-paper text-theme-ink text-xs font-mono focus:outline-none focus:border-theme-accent`}
               autoFocus
             />
             <button

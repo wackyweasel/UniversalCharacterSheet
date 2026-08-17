@@ -10,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-const inputClass = 'w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
+const inputClass = 'w-full rounded-theme border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
 
 export default function CardDeckPositionDialog({ cardLabel, currentPosition, deckSize, onMove, onClose }: Props) {
   const [positionDraft, setPositionDraft] = useState(String(currentPosition));

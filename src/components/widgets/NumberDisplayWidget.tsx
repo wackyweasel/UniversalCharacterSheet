@@ -288,7 +288,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
           return (
           <div 
             key={idx} 
-            className={`relative flex flex-col items-center justify-center border-2 border-theme-border rounded-button bg-theme-paper/50 overflow-visible ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
+            className={`relative flex flex-col items-center justify-center border-2 border-theme-border rounded-theme bg-theme-paper/50 overflow-visible ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
             style={{ 
               minWidth: isHorizontal ? '30px' : undefined,
               minHeight: !isHorizontal ? '30px' : undefined,
@@ -365,12 +365,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   onMouseDown={(event) => event.stopPropagation()}
                   autoFocus
                   aria-label={`Edit ${item.label || 'number'} secondary value`}
-                  className="absolute -bottom-1 -right-1 z-[1] h-6 w-12 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1 text-center font-body font-bold leading-none text-theme-ink outline-none ring-1 ring-theme-ink"
+                  className="absolute -bottom-1 -right-1 z-[1] h-6 w-12 rounded-theme border-2 border-theme-border bg-theme-paper px-1 text-center font-body font-bold leading-none text-theme-ink outline-none ring-1 ring-theme-ink"
                   style={{ fontSize: `${secondaryFontSize}px` }}
                 />
               ) : secondaryDisplayAutoCompute || item.secondaryValueFormula || isPrintMode ? (
                 <span
-                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink"
+                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border-2 border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink"
                   style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                   data-print-hide={hideValues ? 'true' : undefined}
                   aria-label={`${item.label || 'Number'} secondary value ${item.secondaryValue ?? 0}`}
@@ -392,7 +392,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                     }
                   }}
                   aria-label={`Set ${item.label || 'number'} secondary value, currently ${item.secondaryValue ?? 0}`}
-                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink transition-shadow hover:ring-1 hover:ring-theme-ink focus:outline-none focus:ring-1 focus:ring-theme-ink"
+                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border-2 border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink transition-shadow hover:ring-1 hover:ring-theme-ink focus:outline-none focus:ring-1 focus:ring-theme-ink"
                   style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                   data-print-hide={hideValues ? 'true' : undefined}
                 >

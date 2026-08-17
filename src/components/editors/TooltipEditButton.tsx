@@ -6,12 +6,14 @@ interface TooltipEditButtonProps {
   tooltip: string | undefined;
   onSave: (tooltip: string | undefined) => void;
   itemName: string;
+  radius?: 'button' | 'theme';
 }
 
-export function TooltipEditButton({ tooltip, onSave, itemName }: TooltipEditButtonProps) {
+export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button' }: TooltipEditButtonProps) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const radiusClass = radius === 'theme' ? 'rounded-theme' : 'rounded-button';
 
   const openDialog = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,7 +54,7 @@ export function TooltipEditButton({ tooltip, onSave, itemName }: TooltipEditButt
             style={{
               background: 'var(--color-paper)',
               border: 'var(--border-width, 1px) solid var(--color-border)',
-              borderRadius: 'var(--button-radius)',
+              borderRadius: radius === 'theme' ? 'var(--border-radius)' : 'var(--button-radius)',
               boxShadow: 'var(--shadow-style)',
               fontFamily: 'var(--font-body)',
             }}
@@ -67,7 +69,7 @@ export function TooltipEditButton({ tooltip, onSave, itemName }: TooltipEditButt
               onKeyDown={(e) => { if (e.key === 'Escape') cancel(); }}
               placeholder="Enter tooltip text shown on hover in play mode (not visible on touch devices)..."
               rows={3}
-              className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent resize-none"
+              className={`w-full px-3 py-2 border border-theme-border ${radiusClass} bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent resize-none`}
             />
             <div className="flex gap-2 justify-end">
               <button

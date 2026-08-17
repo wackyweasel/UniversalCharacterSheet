@@ -162,7 +162,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
         </>
       )}
 
-      <div className="border border-theme-border rounded-button p-3">
+      <div className="border border-theme-border rounded-theme p-3">
         <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
 
         <label className="flex items-center gap-2 cursor-pointer mb-2">

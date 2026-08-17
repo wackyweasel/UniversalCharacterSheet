@@ -28,7 +28,7 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
         />
       </div>
 
-      <div className="border border-theme-border rounded-button p-3">
+      <div className="border border-theme-border rounded-theme p-3">
         <label className="flex items-center gap-2 cursor-pointer mb-3">
           <input
             type="checkbox"

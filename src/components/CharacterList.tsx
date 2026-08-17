@@ -29,6 +29,48 @@ const TUTORIAL_DESCRIPTIONS = {
   various: 'Tour Discover, sharing, backup, feedback, Print Preview, the Play List layout, timeline, and sheets.',
 };
 
+const CHANGELOG_ENTRIES = [
+  {
+    version: '1.1.1',
+    changes: [
+      'Fix several issues related to the z ordering of widgets (logic to choose which widget is rendered on top of the others)',
+      'Added this changelog button',
+    ],
+  },
+  {
+    version: '1.1.0',
+    changes: [
+      'New Deck of Cards widget. Renders 3D cards with fancy animations.',
+      'The old deck of cards widget is renamed "Legacy Deck of Cards"',
+      'Option to remove the + and - buttons from the number tracker widget',
+      {
+        text: 'New community contributions:',
+        items: [
+          '[Preset] OVA: The Anime RPG by Nyest',
+          '[Theme] OVA by Nyest',
+          '[Theme] Icebreaker by Holypunk',
+          '[Theme] Holypunk by Holypunk',
+        ],
+      },
+    ],
+  },
+  {
+    version: '1.0.0',
+    changes: [
+      'Added logo',
+      'The app is now a PWA app that you can install on your device',
+      'Store the camera view for each character sheet. If you setup your view in canvas mode with a precise zoom level and switch character of switch sheet, then come back, it will restore it as is.',
+      'Pop up windows should not be hidden behind virtual keyboard on touch devices anymore (hopefully? Touch is annoying)',
+      'Added optional secondary numbers to the number display widget. You can type in any number manually, or select automatic calculations of modifiers (example, an intelligence of 15 yields a +3 mod). These mods support labeling, so you can use them in formulas.',
+      {
+        text: 'You can now add dice roll buttons directly in the text of some widgets. For example, type "strength test {d20+@str}" and in play mode, it will render as a dice button you can click. Supported widgets:',
+        items: ['List', 'Notes', 'Fields & Stats', 'Mixed Fields', 'Inventory', 'Table'],
+      },
+      'Fixed a few bugs with the initiative tracker',
+    ],
+  },
+] as const;
+
 // Get initial dark mode preference from localStorage or OS
 function getInitialDarkMode(): boolean {
   const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
@@ -158,6 +200,7 @@ export default function CharacterList() {
   const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
@@ -1032,6 +1075,15 @@ export default function CharacterList() {
             <span className={`text-[10px] font-body ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
               v{packageInfo.version}
             </span>
+            <button
+              type="button"
+              onClick={() => setShowChangelog(true)}
+              aria-haspopup="dialog"
+              aria-expanded={showChangelog}
+              className={`text-[10px] font-body underline underline-offset-2 transition-colors ${darkMode ? 'text-white/60 hover:text-white' : 'text-theme-accent hover:text-theme-ink'}`}
+            >
+              Changelog
+            </button>
           </div>
         </header>
         <div className="w-full">
@@ -2332,6 +2384,63 @@ export default function CharacterList() {
             <button type="button" onClick={() => setShowInstallInstructions(false)} className={`mt-5 w-full px-4 py-3 font-body rounded-button font-bold ${
               darkMode ? 'bg-white text-black hover:bg-white/80' : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
             }`}>Done</button>
+          </div>
+        </>
+      )}
+
+      {showChangelog && (
+        <>
+          <div
+            data-touch-camera-ignore="true"
+            className="fixed inset-0 z-50 bg-black/50 animate-fade-in"
+            onClick={() => setShowChangelog(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="changelog-title"
+            className={`fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-1.5rem)] w-[calc(100%-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-theme p-5 shadow-theme animate-fade-in sm:p-6 ${
+              darkMode
+                ? 'border border-white/30 bg-black text-white'
+                : 'border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink'
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="changelog-title" className="font-heading text-xl font-bold">Changelog</h2>
+              <button
+                type="button"
+                onClick={() => setShowChangelog(false)}
+                aria-label="Close changelog"
+                className={darkMode ? 'text-white/60 transition-colors hover:text-white' : 'text-theme-muted transition-colors hover:text-theme-ink'}
+              >
+                <XIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-6">
+              {CHANGELOG_ENTRIES.map((entry) => (
+                <section key={entry.version}>
+                  <h3 className="font-heading text-base font-bold">{entry.version}</h3>
+                  <ul className={`mt-2 list-disc space-y-2 pl-5 font-body text-sm leading-relaxed ${darkMode ? 'text-white/75' : 'text-theme-muted'}`}>
+                    {entry.changes.map((change, index) => (
+                      typeof change === 'string' ? (
+                        <li key={`${entry.version}-${index}`}>{change}</li>
+                      ) : (
+                        <li key={`${entry.version}-${index}`}>
+                          {change.text}
+                          <ul className="mt-2 list-disc space-y-1 pl-5">
+                            {change.items.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </li>
+                      )
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           </div>
         </>
       )}

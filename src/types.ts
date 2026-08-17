@@ -494,6 +494,7 @@ export interface Widget {
   listColumn?: number; // Persisted column membership for the multi-column list layout
   w?: number; // width
   h?: number; // height
+  zIndex?: number;
   groupId?: string; // ID of the group this widget belongs to (for snap+attach)
   attachedTo?: string[]; // IDs of widgets this widget is directly attached to (graph edges)
   locked?: boolean; // If true, widget cannot be interacted with in play mode
