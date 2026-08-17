@@ -34,6 +34,7 @@ const CHANGELOG_ENTRIES = [
     version: '1.1.1',
     changes: [
       'Fix several issues related to the z ordering of widgets (logic to choose which widget is rendered on top of the others)',
+      'Fixed several menus not using the correct corner radius',
       'Added this changelog button',
     ],
   },
