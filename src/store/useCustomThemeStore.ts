@@ -89,6 +89,33 @@ interface CustomThemeState {
   deleteCustomTheme: (id: string) => void;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function isCustomTheme(value: unknown): value is CustomTheme {
+  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string' || typeof value.icon !== 'string' || typeof value.description !== 'string') {
+    return false;
+  }
+
+  const colors = value.colors;
+  const fonts = value.fonts;
+  if (!isRecord(colors) || !isRecord(fonts)) return false;
+
+  const requiredColors = ['background', 'paper', 'ink', 'accent', 'accentHover', 'border', 'shadow', 'muted', 'glow'];
+  if (!requiredColors.every((key) => typeof colors[key] === 'string')) return false;
+  if (typeof fonts.heading !== 'string' || typeof fonts.body !== 'string') return false;
+
+  return typeof value.borderRadius === 'string'
+    && typeof value.buttonRadius === 'string'
+    && typeof value.borderWidth === 'string'
+    && typeof value.shadowStyle === 'string'
+    && typeof value.cardTexture === 'string'
+    && typeof value.textureColor === 'string'
+    && typeof value.textureOpacity === 'number'
+    && typeof value.borderStyle === 'string';
+}
+
 const STORAGE_KEY = 'ucs:custom-themes';
 
 function loadCustomThemes(): CustomTheme[] {

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Character } from '../types';
 import { CharacterPreset } from '../presets';
+import { getCharacterPresetData } from '../utils/characterTransfer';
 
 export interface UserPreset {
   id: string;
@@ -51,8 +52,7 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
     userPresets: initialUserPresets,
 
     addPreset: (character, name, includeTheme = false) => {
-      // Create a preset from the character (without the id)
-      const { id: _, ...presetData } = character;
+      const presetData = getCharacterPresetData(character, includeTheme);
       
       const userPreset: UserPreset = {
         id: uuidv4(),

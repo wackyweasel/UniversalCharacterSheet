@@ -1,4 +1,5 @@
 import type { DiceStep } from './utils/diceExpression';
+import type { CustomTheme } from './store/useCustomThemeStore';
 
 export type WidgetType = 
   | 'NUMBER' 
@@ -526,6 +527,7 @@ export interface Character {
   id: string;
   name: string;
   theme?: ThemeId | string; // Can be a built-in ThemeId or a custom theme ID
+  customTheme?: CustomTheme;
   sheets: Sheet[];
   activeSheetId: string;
   // Legacy: widgets array for migration (will be moved to sheets)

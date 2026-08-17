@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import packageInfo from '../../package.json';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
-import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
+import { getCustomTheme, useCustomThemeStore, type CustomTheme } from '../store/useCustomThemeStore';
 import { useTemplateStore, AnyTemplate } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -16,6 +16,7 @@ import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRi
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
+import { getCharacterTransferData, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
 
@@ -92,6 +93,14 @@ interface BackupData {
   userPresets?: UserPreset[];
 }
 
+type CharacterImportSource = 'json_file' | 'raw_json';
+
+interface PendingCharacterImport {
+  character: Character;
+  source: CharacterImportSource;
+  customTheme: CustomTheme;
+}
+
 // Helper to get theme colors for a character
 function getThemeStyles(themeId?: string) {
   // First check if it's a custom theme
@@ -147,6 +156,7 @@ function getThemeStyles(themeId?: string) {
 export default function CharacterList() {
   // Subscribe to custom theme changes so cards update when themes are edited
   const customThemes = useCustomThemeStore((state) => state.customThemes);
+  const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
   // Subscribe to template changes for backup
   const templates = useTemplateStore((state) => state.templates);
   // Subscribe to user presets for backup and preset selection
@@ -224,6 +234,7 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
+  const [pendingCharacterImport, setPendingCharacterImport] = useState<PendingCharacterImport | null>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
@@ -851,7 +862,7 @@ export default function CharacterList() {
   };
 
   const handleExport = (char: Character) => {
-    const dataStr = JSON.stringify(char, null, 2);
+    const dataStr = JSON.stringify(getCharacterTransferData(char), null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -874,6 +885,31 @@ export default function CharacterList() {
     });
   };
 
+  const importCharacterWithTheme = (character: Character, source: CharacterImportSource, theme: string) => {
+    importCharacter(
+      removeEmbeddedCustomTheme({ ...character, theme }),
+      source,
+    );
+  };
+
+  const handleCharacterImport = (character: Character, source: CharacterImportSource) => {
+    const embeddedTheme = getEmbeddedCustomTheme(character);
+    if (embeddedTheme && !customThemes.some((theme) => theme.id === embeddedTheme.id)) {
+      setPendingCharacterImport({ character, source, customTheme: embeddedTheme });
+      return;
+    }
+
+    const defaultTheme = darkMode ? 'classic-dark' : 'default';
+    const hasKnownTheme = Boolean(
+      character.theme && (
+        THEMES.some((theme) => theme.id === character.theme) ||
+        customThemes.some((theme) => theme.id === character.theme)
+      ),
+    );
+    const theme = embeddedTheme?.id || (hasKnownTheme ? character.theme : defaultTheme);
+    importCharacterWithTheme(character, source, theme || defaultTheme);
+  };
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -887,7 +923,7 @@ export default function CharacterList() {
           alert('Invalid character file format');
           return;
         }
-        importCharacter(character, 'json_file');
+        handleCharacterImport(character, 'json_file');
       } catch (err) {
         alert('Failed to parse character file');
         console.error(err);
@@ -2463,7 +2499,11 @@ export default function CharacterList() {
             </h3>
             <textarea
               readOnly
-              value={JSON.stringify(excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter, null, 2)}
+              value={JSON.stringify(
+                excludeImages ? stripImages(getCharacterTransferData(rawDataCharacter)) : getCharacterTransferData(rawDataCharacter),
+                null,
+                2,
+              )}
               className={`flex-1 w-full min-h-[300px] p-3 text-xs font-mono rounded-theme resize-none ${
                 darkMode 
                   ? 'bg-white/5 border border-white/30 text-white/80' 
@@ -2498,7 +2538,7 @@ export default function CharacterList() {
               <div className="flex-1" />
               <button
                 onClick={async () => {
-                  const data = excludeImages ? stripImages(rawDataCharacter) : rawDataCharacter;
+                  const data = excludeImages ? stripImages(getCharacterTransferData(rawDataCharacter)) : getCharacterTransferData(rawDataCharacter);
                   await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
                   recordCharacterListEvent({
                     eventName: 'character_raw_data_copied',
@@ -2598,7 +2638,7 @@ export default function CharacterList() {
                       alert('Invalid character data format');
                       return;
                     }
-                    importCharacter(character, 'raw_json');
+                    handleCharacterImport(character, 'raw_json');
                     setShowRawImportModal(false);
                     setRawImportValue('');
                   } catch {
@@ -2612,6 +2652,76 @@ export default function CharacterList() {
                 }`}
               >
                 Import
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {pendingCharacterImport && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in"
+            onClick={() => setPendingCharacterImport(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="custom-theme-import-title"
+            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-[60] w-[90vw] max-w-[460px] animate-fade-in ${
+              darkMode
+                ? 'bg-black border border-white/30'
+                : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
+            }`}
+          >
+            <h3 id="custom-theme-import-title" className={`font-heading font-bold text-xl mb-3 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              Custom Theme Found
+            </h3>
+            <p className={`text-sm font-body ${darkMode ? 'text-white/75' : 'text-theme-ink'}`}>
+              This character contains the custom theme &ldquo;{pendingCharacterImport.customTheme.name}&rdquo;.
+            </p>
+            <p className={`text-sm font-body mt-2 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
+              Add this theme to your library to keep the character&rsquo;s appearance, or use {darkMode ? 'Classic Dark' : 'Classic'} instead.
+            </p>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  importCharacterWithTheme(
+                    pendingCharacterImport.character,
+                    pendingCharacterImport.source,
+                    darkMode ? 'classic-dark' : 'default',
+                  );
+                  setPendingCharacterImport(null);
+                }}
+                className={`px-4 py-2 font-body rounded-button transition-colors ${
+                  darkMode
+                    ? 'text-white border border-white/30 hover:bg-white/10'
+                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
+                }`}
+              >
+                Use {darkMode ? 'Classic Dark' : 'Classic'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customThemes.some((theme) => theme.id === pendingCharacterImport.customTheme.id)) {
+                    addCustomTheme(pendingCharacterImport.customTheme);
+                  }
+                  importCharacterWithTheme(
+                    pendingCharacterImport.character,
+                    pendingCharacterImport.source,
+                    pendingCharacterImport.customTheme.id,
+                  );
+                  setPendingCharacterImport(null);
+                }}
+                className={`px-4 py-2 font-body rounded-button transition-colors font-bold ${
+                  darkMode
+                    ? 'bg-white text-black hover:bg-white/80'
+                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
+                }`}
+              >
+                Add Theme &amp; Import
               </button>
             </div>
           </div>

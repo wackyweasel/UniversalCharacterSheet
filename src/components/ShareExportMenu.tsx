@@ -3,6 +3,7 @@ import type { Character } from '../types';
 import { useUserPresetStore } from '../store/useUserPresetStore';
 import { submitToGallery } from '../hooks/useGallery';
 import { stripImages } from '../utils/stripImages';
+import { getCharacterTransferData } from '../utils/characterTransfer';
 import GalleryShareModal from './GalleryShareModal';
 import { Tooltip } from './Tooltip';
 import {
@@ -56,7 +57,7 @@ interface ShareExportMenuProps {
 }
 
 export function downloadCharacter(character: Character) {
-  const data = JSON.stringify(character, null, 2);
+  const data = JSON.stringify(getCharacterTransferData(character), null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
