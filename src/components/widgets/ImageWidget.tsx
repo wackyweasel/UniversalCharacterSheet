@@ -19,6 +19,7 @@ export type ImageFrameStyle = 'none' | 'line' | 'double-line' | 'inset' | 'halo'
 export const IMAGE_FRAME_THICKNESS_MIN = 1;
 export const IMAGE_FRAME_THICKNESS_MAX = 8;
 export const IMAGE_FRAME_THICKNESS_DEFAULT = 2;
+const LIST_IMAGE_MAX_HEIGHT = 300;
 
 const IMAGE_FRAME_CLASSES: Record<Exclude<ImageFrameStyle, 'none'>, string> = {
   line: 'image-widget__css-frame image-widget__css-frame--line',
@@ -109,6 +110,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const [webpPlaybackKey, setWebpPlaybackKey] = useState(0);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // Refs that the animation loop reads on each tick (avoids stale closures)
   const pausedRef = useRef(false);
@@ -116,7 +118,6 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const frameIdxRef = useRef(0);
   const tickerRef = useRef<number | undefined>(undefined);
 
-  // Fixed small sizing
   const gapClass = 'gap-1';
 
   const isVerticalMode = height > 1000;
@@ -125,9 +126,28 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const padding = 0;
 
   const titleSpace = label ? labelHeight + gapSize : 0;
+  const canvasWidgetWidth = widget.w && widget.w > 0 ? widget.w : 200;
+  const canvasWidgetHeight = widget.h && widget.h > 0 ? widget.h : 120;
+  const canvasSurfaceBorder = 2;
+  const canvasContentPaddingX = 16;
+  const canvasContentPaddingTop = !label && widget.data.hideWidgetHeader !== true ? 28 : 6;
+  const canvasContentPaddingBottom = 8;
+  const canvasFrameWidth = Math.max(20, canvasWidgetWidth - canvasSurfaceBorder - canvasContentPaddingX);
+  const canvasFrameHeight = Math.max(
+    40,
+    canvasWidgetHeight
+      - canvasSurfaceBorder
+      - canvasContentPaddingTop
+      - canvasContentPaddingBottom
+      - titleSpace,
+  );
+  const canvasFrameAspectRatio = canvasFrameHeight / canvasFrameWidth;
+  const listFrameWidth = containerWidth || width;
+  const uncappedListImageHeight = Math.max(40, listFrameWidth * canvasFrameAspectRatio);
   const imageHeight = isVerticalMode
-    ? Math.min(300, width)
+    ? Math.min(LIST_IMAGE_MAX_HEIGHT, uncappedListImageHeight)
     : Math.max(40, height - titleSpace - padding * 2);
+  const listImageIsHeightCapped = isVerticalMode && uncappedListImageHeight > LIST_IMAGE_MAX_HEIGHT;
 
   const normalizedImageUrl = imageUrl.toLowerCase();
   const isGif = !!imageUrl && (
@@ -153,17 +173,24 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
       } as const;
   const frameStyle = imageShape === 'circle'
     ? { width: `min(100%, ${imageHeight}px)`, aspectRatio: '1', alignSelf: 'center' }
-    : { width: '100%', height: `${imageHeight}px` };
+    : {
+        width: listImageIsHeightCapped ? `${imageHeight / canvasFrameAspectRatio}px` : '100%',
+        height: `${imageHeight}px`,
+        ...(listImageIsHeightCapped ? { alignSelf: 'center' } : {}),
+      };
 
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
+    const container = frame.parentElement;
     const updateFrameSize = () => {
       setFrameSize({ width: frame.clientWidth, height: frame.clientHeight });
+      setContainerWidth(container?.clientWidth || frame.clientWidth);
     };
     updateFrameSize();
     const observer = new ResizeObserver(updateFrameSize);
     observer.observe(frame);
+    if (container) observer.observe(container);
     return () => observer.disconnect();
   }, [imageShape, imageHeight]);
 
@@ -325,7 +352,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   ) : null;
 
   return (
-    <div className={`flex flex-col ${gapClass} w-full ${isVerticalMode ? '' : 'h-full'} ${imageShape === 'circle' ? 'justify-center' : ''}`}>
+    <div className={`image-widget flex flex-col ${gapClass} w-full ${isVerticalMode ? '' : 'h-full'} ${imageShape === 'circle' ? 'justify-center' : ''}`}>
       {imageTitlePosition === 'above' && title}
 
       <div

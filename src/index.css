@@ -1221,7 +1221,11 @@ td .inline-dice-token {
     min-height: 44px;
   }
 
-  .vertical-widget-body--header-label > div:not(.form-widget) > :first-child {
+  .vertical-widget-body--header-label > div:not(.form-widget):not(.image-widget) > :first-child {
+    display: none;
+  }
+
+  .vertical-widget-body--header-label > div.image-widget > .image-widget__title {
     display: none;
   }
 
