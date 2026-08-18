@@ -4,6 +4,7 @@ import { useInlineDiceRoll } from '../hooks/useInlineDiceRoll';
 import { tokenizeInlineDiceText } from '../utils/inlineDice';
 import { DiceIcon } from './icons';
 import { InlineDiceResultPopover } from './InlineDiceResultPopover';
+import { Tooltip } from './Tooltip';
 
 interface Props {
   text: string;
@@ -27,6 +28,18 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
           if (segment.type === 'text') return <span key={index}>{segment.value}</span>;
 
           const resolution = resolveExpression(segment.expression);
+          if (segment.type === 'formula') {
+            if (!resolution.valid) {
+              return <span key={index}>{segment.source}</span>;
+            }
+
+            return (
+              <Tooltip key={index} content={segment.source}>
+                <span className="inline-dice-formula">{resolution.resolvedExpression}</span>
+              </Tooltip>
+            );
+          }
+
           const label = resolution.valid
             ? `Roll ${resolution.resolvedExpression}`
             : `${segment.expression}: ${resolution.reason}`;

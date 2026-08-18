@@ -6,6 +6,7 @@ import { evaluateFormula, hasUnresolvedRefs } from './formulaEngine';
 
 export type InlineDiceSegment =
   | { type: 'text'; value: string }
+  | { type: 'formula'; source: string; expression: string }
   | { type: 'dice'; source: string; expression: string };
 
 export type ResolvedInlineDiceExpression =
@@ -72,10 +73,12 @@ export const tokenizeInlineDiceText = (text: string): InlineDiceSegment[] => {
 
     const source = text.slice(index, tokenEnd + 1);
     const expression = text.slice(index + 1, tokenEnd).trim();
-    if (DICE_CANDIDATE_PATTERN.test(expression)) {
+    if (!expression) {
+      appendText(segments, source);
+    } else if (DICE_CANDIDATE_PATTERN.test(expression)) {
       segments.push({ type: 'dice', source, expression });
     } else {
-      appendText(segments, source);
+      segments.push({ type: 'formula', source, expression });
     }
 
     index = tokenEnd + 1;
@@ -130,6 +133,25 @@ export const resolveInlineDiceExpression = (
   labels: Record<string, number>,
 ): ResolvedInlineDiceExpression => {
   const expression = sourceExpression.trim();
+  if (!DICE_CANDIDATE_PATTERN.test(expression)) {
+    if (hasUnresolvedRefs(expression, labels)) {
+      return { valid: false, sourceExpression, reason: 'Expression contains an unknown label' };
+    }
+
+    const value = evaluateFormula(expression, labels);
+    if (value === null) {
+      return { valid: false, sourceExpression, reason: 'Invalid formula' };
+    }
+
+    const sign = value < 0 ? -1 : 1;
+    return {
+      valid: true,
+      sourceExpression,
+      resolvedExpression: String(value),
+      terms: [{ type: 'modifier', sign, value: Math.abs(value) }],
+    };
+  }
+
   const expressionSegments = splitTopLevelTerms(expression);
   if (!expressionSegments) {
     return { valid: false, sourceExpression, reason: 'Invalid dice expression' };

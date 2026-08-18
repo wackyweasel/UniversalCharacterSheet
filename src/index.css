@@ -6,6 +6,10 @@
   white-space: pre-wrap;
 }
 
+.inline-dice-formula {
+  color: var(--color-accent);
+}
+
 .inline-dice-token {
   align-items: center;
   background: transparent;
