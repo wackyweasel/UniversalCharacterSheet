@@ -12,7 +12,7 @@ import GallerySidebar from './GallerySidebar';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
+import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
@@ -31,6 +31,22 @@ const TUTORIAL_DESCRIPTIONS = {
 };
 
 const CHANGELOG_ENTRIES = [
+  {
+    version: '1.2.0',
+    changes: [
+      'Exported characters now include their custom theme.',
+      'Importing a character that has a custom theme that is not in the library lets the user choose if they want to import and apply the custom theme as well.',
+      'If not, the default theme will now consider if the dark or light theme is selected in the app.',
+      {
+        text: 'Made several improvements to the theme selection panel:',
+        items: [
+          'Export and import from JSON',
+          'Community themes directly selectable from theme',
+          'Many small tweaks',
+        ],
+      },
+    ],
+  },
   {
     version: '1.1.1',
     changes: [
@@ -212,6 +228,9 @@ export default function CharacterList() {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [expandedChangelogVersions, setExpandedChangelogVersions] = useState<Record<string, boolean>>(() => ({
+    [CHANGELOG_ENTRIES[0].version]: true,
+  }));
   const [newCharName, setNewCharName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedTheme, setSelectedTheme] = useState<string>(darkMode ? 'classic-dark' : 'default');
@@ -2456,27 +2475,52 @@ export default function CharacterList() {
             </div>
 
             <div className="mt-5 space-y-6">
-              {CHANGELOG_ENTRIES.map((entry) => (
-                <section key={entry.version}>
-                  <h3 className="font-heading text-base font-bold">{entry.version}</h3>
-                  <ul className={`mt-2 list-disc space-y-2 pl-5 font-body text-sm leading-relaxed ${darkMode ? 'text-white/75' : 'text-theme-muted'}`}>
-                    {entry.changes.map((change, index) => (
-                      typeof change === 'string' ? (
-                        <li key={`${entry.version}-${index}`}>{change}</li>
+              {CHANGELOG_ENTRIES.map((entry) => {
+                const isExpanded = expandedChangelogVersions[entry.version] ?? false;
+                const contentId = `changelog-version-${entry.version.replace(/\./g, '-')}`;
+
+                return (
+                  <section key={entry.version}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedChangelogVersions((expanded) => ({
+                        ...expanded,
+                        [entry.version]: !isExpanded,
+                      }))}
+                      aria-expanded={isExpanded}
+                      aria-controls={contentId}
+                      className={`group flex w-full items-center justify-between border-b-[length:var(--border-width)] pb-2 text-left font-heading text-base font-bold ${
+                        darkMode ? 'border-white/30 text-white' : 'border-theme-border text-theme-ink'
+                      }`}
+                    >
+                      <span>{entry.version}</span>
+                      {isExpanded ? (
+                        <ChevronUpIcon className="h-4 w-4" />
                       ) : (
-                        <li key={`${entry.version}-${index}`}>
-                          {change.text}
-                          <ul className="mt-2 list-disc space-y-1 pl-5">
-                            {change.items.map((item) => (
-                              <li key={item}>{item}</li>
-                            ))}
-                          </ul>
-                        </li>
-                      )
-                    ))}
-                  </ul>
-                </section>
-              ))}
+                        <ChevronDownIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                    {isExpanded && (
+                      <ul id={contentId} className={`mt-2 list-disc space-y-2 pl-5 font-body text-sm leading-relaxed ${darkMode ? 'text-white/75' : 'text-theme-muted'}`}>
+                        {entry.changes.map((change, index) => (
+                          typeof change === 'string' ? (
+                            <li key={`${entry.version}-${index}`}>{change}</li>
+                          ) : (
+                            <li key={`${entry.version}-${index}`}>
+                              {change.text}
+                              <ul className="mt-2 list-disc space-y-1 pl-5">
+                                {change.items.map((item) => (
+                                  <li key={item}>{item}</li>
+                                ))}
+                              </ul>
+                            </li>
+                          )
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                );
+              })}
             </div>
           </div>
         </>

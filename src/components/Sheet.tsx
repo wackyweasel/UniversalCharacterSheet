@@ -8,6 +8,7 @@ import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation } from '../hooks';
+import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
@@ -682,8 +683,11 @@ export default function Sheet() {
       // First, restore the base theme so toggling OFF works correctly
       const themeId = activeCharacter.theme || 'default';
       const customTheme = getCustomTheme(themeId);
+      const communityTheme = getCachedGalleryTheme(themeId);
       if (customTheme) {
         applyCustomTheme(customTheme);
+      } else if (communityTheme) {
+        applyCustomTheme(communityTheme);
       } else {
         applyTheme(themeId);
       }
@@ -723,8 +727,11 @@ export default function Sheet() {
     if (mode !== 'print' && activeCharacter) {
       const themeId = activeCharacter.theme || 'default';
       const customTheme = getCustomTheme(themeId);
+      const communityTheme = getCachedGalleryTheme(themeId);
       if (customTheme) {
         applyCustomTheme(customTheme);
+      } else if (communityTheme) {
+        applyCustomTheme(communityTheme);
       } else {
         applyTheme(themeId);
       }
@@ -989,8 +996,11 @@ export default function Sheet() {
       const themeId = activeCharacter.theme || 'default';
       // Check if it's a custom theme
       const customTheme = getCustomTheme(themeId);
+      const communityTheme = getCachedGalleryTheme(themeId);
       if (customTheme) {
         applyCustomTheme(customTheme);
+      } else if (communityTheme) {
+        applyCustomTheme(communityTheme);
       } else {
         applyTheme(themeId);
       }

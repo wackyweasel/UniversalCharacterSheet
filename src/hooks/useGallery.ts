@@ -44,6 +44,20 @@ interface CachedData {
   timestamp: number;
 }
 
+export function getCachedGalleryTheme(themeId: string): CustomTheme | undefined {
+  try {
+    const cached = localStorage.getItem(THEME_DATA_CACHE_KEY);
+    if (!cached) {
+      return undefined;
+    }
+
+    const data = JSON.parse(cached) as { themes?: Record<string, CustomTheme> };
+    return Object.values(data.themes ?? {}).find((theme) => theme.id === themeId);
+  } catch {
+    return undefined;
+  }
+}
+
 export function useGallery() {
   const [manifest, setManifest] = useState<GalleryManifest | null>(null);
   const [themeData, setThemeData] = useState<Record<string, CustomTheme>>({});
