@@ -32,6 +32,14 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.3.0',
+    changes: [
+      'Most widgets that contain text now support formulas. Write your formula in curly brackets; for example, {10 + @str} renders as 10 plus the value labeled @str.',
+      'Added multiple customization options for the image widget.',
+      'Fixed an issue causing the attachment buttons to not display in build mode.',
+    ],
+  },
+  {
     version: '1.2.0',
     changes: [
       'Exported characters now include their custom theme.',

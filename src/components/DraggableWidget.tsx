@@ -57,6 +57,9 @@ interface Props {
 }
 
 const GRID_SIZE = 10;
+const BUILD_CONTROL_Z_INDEX = 10001;
+const BUILD_MENU_Z_INDEX = 10003;
+const WIDGET_OPTIONS_OPEN_EVENT = 'widget-options-open';
 
 // Minimum dimensions per widget type
 const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
@@ -171,6 +174,11 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       y: rect.bottom + 4,
     });
   }, []);
+
+  const openDropdown = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(WIDGET_OPTIONS_OPEN_EVENT, { detail: widget.id }));
+    setShowDropdown(true);
+  }, [widget.id]);
   
   // Widget types that have print settings customization
   const WIDGETS_WITH_PRINT_SETTINGS: WidgetType[] = ['NUMBER', 'NUMBER_DISPLAY'];
@@ -264,9 +272,30 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   // the dropdown opened by the widget the user actually clicked.
   useEffect(() => {
     if (tutorialStep === 17 && widget.type === 'FORM') {
-      setShowDropdown(true);
+      openDropdown();
     }
-  }, [tutorialStep, widget.type]);
+  }, [openDropdown, tutorialStep, widget.type]);
+
+  useEffect(() => {
+    const handleWidgetOptionsOpen = (event: Event) => {
+      const openedWidgetId = (event as CustomEvent<string>).detail;
+      if (openedWidgetId === widget.id) return;
+
+      setShowDropdown(false);
+      setShowDeleteConfirm(false);
+      setShowTemplateNameInput(false);
+      setTemplateName('');
+      setShowMoveToSheet(false);
+      setShowGroupDeleteConfirm(false);
+      setShowGroupTemplateNameInput(false);
+      setGroupTemplateName('');
+      setShowGroupMoveToSheet(false);
+      setDropdownTab('widget');
+    };
+
+    window.addEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
+    return () => window.removeEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
+  }, [widget.id]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -406,7 +435,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     setGroupTemplateName('');
     setShowGroupMoveToSheet(false);
     setDropdownTab('widget');
-    setShowDropdown(true);
+    openDropdown();
   };
 
   const showControls = isHovered || isSelected;
@@ -829,7 +858,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             minWidth: `${minDimensions.width}px`,
             height: widgetHeight ? `${widgetHeight}px` : 'auto',
             minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: isSearchTarget ? 10000 : showDropdown ? 200 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? Math.max(100, widget.zIndex ?? 10) : widget.zIndex),
+            zIndex: showDropdown ? BUILD_MENU_Z_INDEX : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? BUILD_CONTROL_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : widget.zIndex),
             ...borderRadiusStyle,
             ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
           }}
@@ -879,7 +908,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
           {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
           {((mode === 'edit' && (showControls || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu)) || ((mode === 'edit' || mode === 'play') && showDropdown)) && (tutorialStep === null || tutorialStep >= 16) && (
             <div
-              className={`${isContextMenuOpen ? '' : 'right-1 top-1'} absolute z-[200] flex items-center gap-1`}
+              className={`${isContextMenuOpen ? '' : 'right-1 top-1'} absolute z-[10002] flex items-center gap-1`}
               style={isContextMenuOpen ? { left: contextMenuPosition.x, top: contextMenuPosition.y } : undefined}
               ref={dropdownRef}
             >
@@ -907,9 +936,9 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
                       if (!showDropdown) {
                         setContextMenuPosition(null);
                         positionDropdownFromTrigger(e.currentTarget.getBoundingClientRect());
-                      }
-                      setShowDropdown(!showDropdown);
-                      if (showDropdown) {
+                        openDropdown();
+                      } else {
+                        setShowDropdown(false);
                         setShowDeleteConfirm(false);
                         setShowTemplateNameInput(false);
                         setTemplateName('');
@@ -934,7 +963,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
               {showDropdown && dropdownViewportPosition && createPortal(
                 <div
                   ref={dropdownMenuRef}
-                  className="widget-options-menu fixed z-[1001] min-w-[190px] overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme font-body"
+                  className="widget-options-menu fixed z-[10003] min-w-[190px] overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme font-body"
                   style={{
                     left: `${dropdownViewportPosition.x}px`,
                     top: `${dropdownViewportPosition.y}px`,

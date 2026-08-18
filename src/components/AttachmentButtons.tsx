@@ -313,7 +313,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
               style={{
                 left: `${edge.x}px`,
                 top: `${edge.y}px`,
-                zIndex: 100,
+                zIndex: 10001,
                 transform: `translate(-50%, -50%) scale(${buildControlScale})`,
               }}
               onClick={() => handleClick(edge)}
