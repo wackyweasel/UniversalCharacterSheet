@@ -220,7 +220,9 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   });
 
   const isSelected = selectedWidgetId === widget.id;
-  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.data.hideWidgetHeader === true;
+  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
+  const isImageEditButtonHidden = widget.type === 'IMAGE' && widget.data.hideWidgetHeader === true;
+  const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isImageEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
   const renderedWidget = {
     ...widget,
@@ -1584,8 +1586,8 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode !== 'print' && !isWidgetHeaderHidden && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && !isWidgetHeaderHidden && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
-            {mode !== 'print' && !isWidgetHeaderHidden && (widget.type !== 'LABEL' || mode === 'edit') && (
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+            {mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button
                   type="button"

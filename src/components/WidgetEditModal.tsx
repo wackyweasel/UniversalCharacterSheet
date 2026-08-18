@@ -146,7 +146,11 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
-  const isWidgetHeaderHidden = widget.type !== 'LABEL' && localData.hideWidgetHeader === true;
+  const isImageWidget = widget.type === 'IMAGE';
+  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && localData.hideWidgetHeader === true;
+  const isImageEditButtonHidden = isImageWidget && localData.hideWidgetHeader === true;
+  const isEditButtonHidden = isWidgetHeaderHidden || isImageEditButtonHidden;
+  const hasEditableWidgetHeader = !isEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && localData.inlineLabel === true;
   const isAutomationCloseStep =
     tutorialStep !== null &&
@@ -214,14 +218,14 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   };
 
   const renderHeaderVisibilitySetting = () => (
-    <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+    <label className={`flex cursor-pointer items-center gap-2 text-sm text-theme-ink ${isImageWidget ? 'image-editor__header-setting' : 'mb-4'}`}>
       <input
         type="checkbox"
-        checked={isWidgetHeaderHidden}
+        checked={isEditButtonHidden}
         onChange={(event) => handleUpdateData({ hideWidgetHeader: event.target.checked })}
         className="h-4 w-4 accent-theme-accent"
       />
-      Hide header (Canvas view)
+      {isImageWidget ? 'Hide edit button (Canvas view)' : 'Hide header (Canvas view)'}
     </label>
   );
 
@@ -275,6 +279,16 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     }
   };
 
+  const previewDimensions = getPreviewDimensions();
+  const imagePreviewContentStyle = isImageWidget
+    ? {
+        width: `${previewDimensions.width}px`,
+        maxWidth: '100%',
+        height: 'auto',
+        aspectRatio: `${previewDimensions.width} / ${previewDimensions.height}`,
+      }
+    : undefined;
+
   // Close on escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -301,7 +315,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchEnd={(e) => e.stopPropagation()}
       onDragOver={(e) => e.preventDefault()}
     >
-      <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-in">
+      <div className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full ${isImageWidget ? 'max-w-5xl' : 'max-w-lg'} max-h-[90vh] overflow-hidden flex flex-col animate-modal-in`}>
         {/* Header */}
         <div className={`flex items-center justify-between border-b border-theme-border ${widget.type === 'INVENTORY' ? 'px-3 py-2' : 'px-4 py-3'}`}>
           <h2 className={`${widget.type === 'INVENTORY' ? 'text-base' : 'text-lg'} font-bold text-theme-ink font-heading`}>
@@ -317,8 +331,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         </div>
 
         {/* Content */}
-        <div className={`flex-1 overflow-auto ${widget.type === 'INVENTORY' ? 'p-3' : 'p-4'}`}>
-          <div className={`flex flex-col ${widget.type === 'INVENTORY' ? 'gap-3' : 'gap-6'}`}>
+        <div className={`flex-1 overflow-auto ${widget.type === 'INVENTORY' ? 'p-3' : isImageWidget ? 'p-4 sm:p-5' : 'p-4'}`}>
+          <div className={isImageWidget
+            ? 'grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]'
+            : `flex flex-col ${widget.type === 'INVENTORY' ? 'gap-3' : 'gap-6'}`}>
             {/* Editor Section */}
             <div className="flex-1 min-w-0">
               {widget.type !== 'LABEL' && renderHeaderVisibilitySetting()}
@@ -328,24 +344,27 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
             </div>
 
             {/* Preview Section */}
-            <div className="flex-shrink-0">
-              <h3 className="text-sm font-medium text-theme-muted mb-3">Preview</h3>
+            <div className={`flex-shrink-0 ${isImageWidget ? 'lg:sticky lg:top-0' : ''}`}>
+              <h3 className="mb-3 text-sm font-medium text-theme-muted">{isImageWidget ? 'Canvas preview' : 'Preview'}</h3>
               <div 
-                className="bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme p-2 shadow-theme"
+                className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme ${isImageWidget ? 'mx-auto w-fit max-w-full p-3' : 'p-2'}`}
                 style={{ 
-                  width: `${getPreviewDimensions().width + 16}px`,
+                  width: isImageWidget ? undefined : `${previewDimensions.width + 16}px`,
                   maxWidth: '100%',
-                  height: `${getPreviewDimensions().height + 16}px`
+                  ...(!isImageWidget ? { height: `${previewDimensions.height + 16}px` } : {})
                 }}
               >
                 <div
+                  style={imagePreviewContentStyle}
                   className={`widget-content pointer-events-none ${
                     isWidgetHeaderHidden
                       ? 'widget-content--header-hidden'
-                      : `widget-content--editable-header ${hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''}`
+                      : hasEditableWidgetHeader
+                        ? `widget-content--editable-header ${hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''}`
+                        : ''
                   }`}
                 >
-                  {!isWidgetHeaderHidden && (
+                  {hasEditableWidgetHeader && (
                     <span className="widget-header-edit-button widget-control widget-control--subtle" aria-hidden="true">
                       <PencilIcon className="h-3 w-3" />
                     </span>

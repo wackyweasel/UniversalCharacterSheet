@@ -371,6 +371,21 @@ export interface WidgetData {
   mixedFields?: MixedField[];
   // Image
   imageUrl?: string;
+  imageShape?: 'rectangle' | 'oval' | 'circle';
+  imageBorderStyle?: 'none' | 'line' | 'double-line' | 'inset' | 'halo';
+  imageFrameThickness?: number;
+  imageFrameColor?: string;
+  imageEffect?: 'none' | 'grayscale' | 'sepia' | 'vivid' | 'moody';
+  imageTitleAlignment?: 'left' | 'center' | 'right';
+  imageTitlePosition?: 'above' | 'below';
+  imageCropTop?: number;
+  imageCropRight?: number;
+  imageCropBottom?: number;
+  imageCropLeft?: number;
+  // Legacy crop settings used to initialize edge crops for existing widgets.
+  imageCropX?: number;
+  imageCropY?: number;
+  imageZoom?: number;
   // Pool
   maxPool?: number;
   currentPool?: number;

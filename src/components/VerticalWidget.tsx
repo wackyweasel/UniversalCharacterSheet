@@ -82,7 +82,7 @@ export default function VerticalWidget({
   const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
-  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.data.hideWidgetHeader === true;
+  const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
   const renderedWidget = {
     ...widget,
     data: {
