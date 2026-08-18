@@ -27,6 +27,25 @@ const IMAGE_FRAME_CLASSES: Record<Exclude<ImageFrameStyle, 'none'>, string> = {
   halo: 'image-widget__css-frame image-widget__css-frame--halo',
 };
 
+function isAnimatedWebPData(buffer: ArrayBuffer): boolean {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 12) return false;
+  if (String.fromCharCode(...bytes.slice(0, 4)) !== 'RIFF' || String.fromCharCode(...bytes.slice(8, 12)) !== 'WEBP') {
+    return false;
+  }
+
+  const view = new DataView(buffer);
+  let offset = 12;
+  while (offset + 8 <= bytes.length) {
+    const chunkType = String.fromCharCode(...bytes.slice(offset, offset + 4));
+    const chunkSize = view.getUint32(offset + 4, true);
+    if (chunkType === 'ANIM' || chunkType === 'ANMF') return true;
+    offset += 8 + chunkSize + (chunkSize % 2);
+  }
+
+  return false;
+}
+
 export function normalizeImageFrameStyle(frameStyle: string): ImageFrameStyle {
   switch (frameStyle) {
     case 'none':
@@ -80,8 +99,14 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   } = widget.data;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const webpImageRef = useRef<HTMLImageElement>(null);
   const [paused, setPaused] = useState(false);
   const [gifReady, setGifReady] = useState(false);
+  const [isAnimatedWebP, setIsAnimatedWebP] = useState(false);
+  const [webpReady, setWebpReady] = useState(false);
+  const [webpPaused, setWebpPaused] = useState(false);
+  const [webpSnapshot, setWebpSnapshot] = useState<string | null>(null);
+  const [webpPlaybackKey, setWebpPlaybackKey] = useState(0);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
 
@@ -104,11 +129,19 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
     ? Math.min(300, width)
     : Math.max(40, height - titleSpace - padding * 2);
 
+  const normalizedImageUrl = imageUrl.toLowerCase();
   const isGif = !!imageUrl && (
-    imageUrl.startsWith('data:image/gif') ||
+    normalizedImageUrl.startsWith('data:image/gif') ||
     /\.gif(\?|#|$)/i.test(imageUrl)
   );
-  const showPauseControl = mode === 'play' && isGif && gifReady;
+  const isWebP = !!imageUrl && (
+    normalizedImageUrl.startsWith('data:image/webp') ||
+    /\.webp(\?|#|$)/i.test(imageUrl)
+  );
+  const showPauseControl = mode === 'play' && ((isGif && gifReady) || (isAnimatedWebP && webpReady));
+  const mediaIsPaused = isGif ? paused : webpPaused;
+  const animationLabel = isGif ? 'GIF' : 'animation';
+  const isPausedWebPSnapshot = isAnimatedWebP && webpPaused && !!webpSnapshot;
   const crop = getImageCrop(widget.data);
   const hasCustomCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
   const mediaStyle = hasCustomCrop
@@ -216,12 +249,71 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
     };
   }, [imageUrl, isGif]);
 
+  useEffect(() => {
+    if (!isWebP || !imageUrl) {
+      setIsAnimatedWebP(false);
+      setWebpReady(false);
+      setWebpPaused(false);
+      setWebpSnapshot(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsAnimatedWebP(false);
+    setWebpReady(false);
+    setWebpPaused(false);
+    setWebpSnapshot(null);
+
+    (async () => {
+      try {
+        const response = await fetch(imageUrl);
+        const buffer = await response.arrayBuffer();
+        if (cancelled) return;
+        const animated = isAnimatedWebPData(buffer);
+        setIsAnimatedWebP(animated);
+        if (animated && webpImageRef.current?.complete && webpImageRef.current.naturalWidth > 0) {
+          setWebpReady(true);
+        }
+      } catch (error) {
+        if (!cancelled) setIsAnimatedWebP(false);
+        console.error('Failed to inspect WebP animation:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl, isWebP]);
+
   // Keep pausedRef in sync with state
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
 
-  const togglePause = () => setPaused((p) => !p);
+  const togglePause = () => {
+    if (isGif) {
+      setPaused((currentPaused) => !currentPaused);
+      return;
+    }
+    if (!isAnimatedWebP) return;
+    if (webpPaused) {
+      setWebpPaused(false);
+      setWebpSnapshot(null);
+      setWebpPlaybackKey((key) => key + 1);
+      return;
+    }
+
+    const image = webpImageRef.current;
+    if (!image || image.naturalWidth === 0 || image.naturalHeight === 0) return;
+    const snapshotCanvas = document.createElement('canvas');
+    snapshotCanvas.width = image.naturalWidth;
+    snapshotCanvas.height = image.naturalHeight;
+    const context = snapshotCanvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(image, 0, 0);
+    setWebpSnapshot(snapshotCanvas.toDataURL('image/png'));
+    setWebpPaused(true);
+  };
 
   const title = label ? (
     <div
@@ -257,49 +349,12 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
                   data-effect={imageEffect}
                   style={mediaStyle}
                 />
-                {showPauseControl && (
-                  <button
-                    type="button"
-                    onClick={togglePause}
-                    title={paused ? 'Play' : 'Pause'}
-                    aria-label={paused ? 'Play GIF' : 'Pause GIF'}
-                    className="absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center rounded-full"
-                    style={{
-                      backgroundColor: 'rgba(0, 0, 0, 0.55)',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {paused ? (
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        xmlns="http://www.w3.org/2000/svg"
-                        style={{ display: 'block' }}
-                      >
-                        <polygon points="3,2 10,6 3,10" fill="#ffffff" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        xmlns="http://www.w3.org/2000/svg"
-                        style={{ display: 'block' }}
-                      >
-                        <rect x="3" y="2" width="2.5" height="8" fill="#ffffff" />
-                        <rect x="6.5" y="2" width="2.5" height="8" fill="#ffffff" />
-                      </svg>
-                    )}
-                  </button>
-                )}
               </>
             ) : (
               <img
-                src={imageUrl}
+                key={isPausedWebPSnapshot ? 'webp-paused' : `webp-playing-${webpPlaybackKey}`}
+                ref={isPausedWebPSnapshot ? undefined : webpImageRef}
+                src={isPausedWebPSnapshot ? webpSnapshot || imageUrl : imageUrl}
                 alt={label || 'Character'}
                 className="image-widget__media w-full h-full"
                 data-effect={imageEffect}
@@ -308,6 +363,9 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
                   width: event.currentTarget.naturalWidth,
                   height: event.currentTarget.naturalHeight,
                 })}
+                onLoadCapture={() => {
+                  if (isWebP && isAnimatedWebP && !isPausedWebPSnapshot) setWebpReady(true);
+                }}
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
@@ -329,6 +387,45 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
             />
           )}
         </div>
+        {showPauseControl && (
+          <button
+            type="button"
+            onClick={togglePause}
+            title={mediaIsPaused ? `Play ${animationLabel}` : `Pause ${animationLabel}`}
+            aria-label={mediaIsPaused ? `Play ${animationLabel}` : `Pause ${animationLabel}`}
+            className="absolute bottom-1 right-1 z-[4] flex h-6 w-6 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.55)',
+              color: '#ffffff',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
+            {mediaIsPaused ? (
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ display: 'block' }}
+              >
+                <polygon points="3,2 10,6 3,10" fill="#ffffff" />
+              </svg>
+            ) : (
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ display: 'block' }}
+              >
+                <rect x="3" y="2" width="2.5" height="8" fill="#ffffff" />
+                <rect x="6.5" y="2" width="2.5" height="8" fill="#ffffff" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
       {imageTitlePosition === 'below' && title}
     </div>
