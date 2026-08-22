@@ -3,6 +3,7 @@ import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { ResourceStylePicker } from '../ResourceStylePicker';
 
 export function PoolEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -57,33 +58,8 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     updateData({ poolResources: updated });
   };
 
-  const styleOptions = (
-    <>
-      <optgroup label="Basic">
-        <option value="dots">● Dots</option>
-        <option value="boxes">■ Boxes</option>
-        <option value="stars">★ Stars</option>
-        <option value="diamonds">◆ Diamonds</option>
-        <option value="crosses">✖ Crosses</option>
-        <option value="checkmarks">✔ Checkmarks</option>
-      </optgroup>
-      <optgroup label="Themed">
-        <option value="hearts">❤️ Hearts</option>
-        <option value="flames">🔥 Flames</option>
-        <option value="skulls">💀 Skulls</option>
-        <option value="shields">🛡️ Shields</option>
-        <option value="swords">⚔️ Swords</option>
-        <option value="lightning">⚡ Lightning</option>
-        <option value="moons">🌙 Moons</option>
-        <option value="suns">☀️ Suns</option>
-        <option value="coins">🪙 Coins</option>
-        <option value="gems">💎 Gems</option>
-      </optgroup>
-    </>
-  );
-
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--pool space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -107,7 +83,12 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <div className="space-y-3 max-h-64 overflow-y-auto">
+      <section className="widget-editor__section" aria-labelledby={`resources-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`resources-title-${widget.id}`} className="widget-editor__section-title">Resources</h3>
+          <span className="widget-editor__section-count">{resources.length}</span>
+        </div>
+        <div className="max-h-64 space-y-3 overflow-y-auto">
             {resources.map((resource: PoolResource, idx: number) => (
               <div key={idx} className="border border-theme-border rounded-theme p-3 space-y-2">
                 <div className="flex items-center justify-between">
@@ -135,7 +116,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     ×
                   </button>
                 </div>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs text-theme-muted mb-1">Max</label>
                     <LabeledNumberField
@@ -181,46 +162,43 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-theme-muted mb-1">Style</label>
-                  <select
-                    value={resource.style}
-                    onChange={(e) => updateResource(idx, 'style', e.target.value)}
-                    className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
-                  >
-                    {styleOptions}
-                  </select>
-                </div>
+                <ResourceStylePicker value={resource.style} onChange={(style) => updateResource(idx, 'style', style)} />
               </div>
             ))}
-      </div>
+        </div>
 
-      <button
-        onClick={addResource}
-        className="w-full px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
-      >
-        + Add Resource
-      </button>
+        <div className="widget-editor__add-row">
+          <button
+            onClick={addResource}
+            className="w-full rounded-button border border-theme-border px-3 py-2 text-sm text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper"
+          >
+            + Add Resource
+          </button>
+        </div>
+      </section>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showPoolCount}
-          onChange={(e) => updateData({ showPoolCount: e.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show Counter (e.g., 3 / 5)</span>
-      </label>
+      <fieldset className="widget-editor__option-group">
+        <legend>Display</legend>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showPoolCount}
+            onChange={(e) => updateData({ showPoolCount: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show counter (e.g., 3 / 5)</span>
+        </label>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={inlineLabels}
-          onChange={(e) => updateData({ inlineLabels: e.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Inline labels with icons</span>
-      </label>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={inlineLabels}
+            onChange={(e) => updateData({ inlineLabels: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Inline labels with icons</span>
+        </label>
+      </fieldset>
     </div>
   );
 }

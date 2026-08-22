@@ -17,57 +17,62 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
-        <input
-          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-          value={label || ''}
-          onChange={(e) => updateData({ label: e.target.value })}
-          placeholder="Timer"
-        />
-      </div>
+    <div className="widget-editor widget-editor--timer space-y-4">
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Widget label
+          <input
+            className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
+            value={label || ''}
+            onChange={(e) => updateData({ label: e.target.value })}
+            placeholder="Timer"
+          />
+        </label>
+      </section>
 
-      <div className="border border-theme-border rounded-theme p-3">
-        <label className="flex items-center gap-2 cursor-pointer mb-3">
+      <fieldset className="widget-editor__option-group">
+        <legend className="widget-editor__section-title">Timer mode</legend>
+        <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
             checked={timerCountDown}
             onChange={(e) => updateData({ timerCountDown: e.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
           />
-          <span className="text-sm text-theme-ink">Countdown mode</span>
+          <span className="text-xs text-theme-ink">Countdown mode</span>
         </label>
 
         {timerCountDown && (
-          <div>
-            <label className="block text-sm font-medium text-theme-ink mb-1">Duration</label>
+          <div className="border-t border-theme-border pt-3">
+            <label className="block text-xs font-medium text-theme-ink">Starting duration</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={0}
-                className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-center focus:outline-none focus:border-theme-accent"
+                aria-label="Minutes"
+                className="h-8 w-16 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-theme-ink focus:border-theme-accent focus:outline-none"
                 value={durationMinutes}
                 onChange={(e) =>
                   setDuration(Math.max(0, parseInt(e.target.value) || 0), durationRemainderSeconds)
                 }
               />
-              <span className="text-sm text-theme-muted">min</span>
+              <span className="text-xs text-theme-muted">min</span>
               <input
                 type="number"
                 min={0}
                 max={59}
-                className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-center focus:outline-none focus:border-theme-accent"
+                aria-label="Seconds"
+                className="h-8 w-16 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-theme-ink focus:border-theme-accent focus:outline-none"
                 value={durationRemainderSeconds}
                 onChange={(e) =>
                   setDuration(durationMinutes, Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))
                 }
               />
-              <span className="text-sm text-theme-muted">sec</span>
+              <span className="text-xs text-theme-muted">sec</span>
             </div>
           </div>
         )}
-      </div>
+      </fieldset>
     </div>
   );
 }

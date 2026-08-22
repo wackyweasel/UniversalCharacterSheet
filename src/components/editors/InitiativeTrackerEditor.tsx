@@ -159,10 +159,11 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--initiative-tracker space-y-4">
       {/* Widget Label */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Widget label
         <div className="relative">
           <input
             className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -180,100 +181,93 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             </button>
           )}
         </div>
-      </div>
-
-      {/* Show Roll Initiative Button Toggle */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="showRollButton"
-          checked={initiativeShowRollButton}
-          onChange={(e) => updateData({ initiativeShowRollButton: e.target.checked })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <label htmlFor="showRollButton" className="text-sm text-theme-ink">
-          Include "Roll Initiative" button
         </label>
-      </div>
+      </section>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="showInitiativeTimer"
-          checked={initiativeShowTimer}
-          onChange={(e) => updateData({ initiativeShowTimer: e.target.checked })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <label htmlFor="showInitiativeTimer" className="text-sm text-theme-ink">
-          Include turn timer
-        </label>
-      </div>
-
-      {/* Advance Time Trackers on New Round */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
+      <fieldset className="widget-editor__option-group">
+        <legend className="widget-editor__section-title">Tracker behavior</legend>
+        <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
-            id="advanceTimeTrackers"
-            checked={initiativeAdvanceTimeTrackers}
-            onChange={(e) => updateData({ initiativeAdvanceTimeTrackers: e.target.checked })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+            id="showRollButton"
+            checked={initiativeShowRollButton}
+            onChange={(e) => updateData({ initiativeShowRollButton: e.target.checked })}
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
           />
-          <label htmlFor="advanceTimeTrackers" className="text-sm text-theme-ink">
-            Advance Time Trackers on new round
+          <span className="text-xs text-theme-ink">Include "Roll Initiative" button</span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2">
+          <input
+            type="checkbox"
+            id="showInitiativeTimer"
+            checked={initiativeShowTimer}
+            onChange={(e) => updateData({ initiativeShowTimer: e.target.checked })}
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
+          />
+          <span className="text-xs text-theme-ink">Include turn timer</span>
+        </label>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              id="advanceTimeTrackers"
+              checked={initiativeAdvanceTimeTrackers}
+              onChange={(e) => updateData({ initiativeAdvanceTimeTrackers: e.target.checked })}
+              className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
+            />
+            <span className="text-xs text-theme-ink">Advance Time Trackers on new round</span>
           </label>
-        </div>
 
-        {initiativeAdvanceTimeTrackers && (
-          <div className="ml-6 p-2 border border-theme-border rounded bg-theme-background/50 space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="advanceByRound"
-                checked={initiativeAdvanceByRound}
-                onChange={(e) => updateData({ initiativeAdvanceByRound: e.target.checked })}
-                className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-              />
-              <label htmlFor="advanceByRound" className="text-sm text-theme-ink">
-                Advance by 1 round (for round-mode trackers)
+          {initiativeAdvanceTimeTrackers && (
+            <div className="ml-6 space-y-2 border-l-2 border-theme-accent pl-3">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="advanceByRound"
+                  checked={initiativeAdvanceByRound}
+                  onChange={(e) => updateData({ initiativeAdvanceByRound: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
+                />
+                <span className="text-xs text-theme-ink">Advance by 1 round (for round-mode trackers)</span>
               </label>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-theme-ink">Also advance by:</label>
-              <input
-                type="number"
-                min={0}
-                value={initiativeAdvanceTimeAmount}
-                onChange={(e) => updateData({ initiativeAdvanceTimeAmount: Math.max(0, parseInt(e.target.value) || 0) })}
-                className="w-16 px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-              />
-              <select
-                value={initiativeAdvanceTimeUnit}
-                onChange={(e) => updateData({ initiativeAdvanceTimeUnit: e.target.value })}
-                className="px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-              >
-                <option value="seconds">seconds</option>
-                <option value="minutes">minutes</option>
-                <option value="hours">hours</option>
-                <option value="days">days</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-theme-ink">Also advance by:</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={initiativeAdvanceTimeAmount}
+                  onChange={(e) => updateData({ initiativeAdvanceTimeAmount: Math.max(0, parseInt(e.target.value) || 0) })}
+                  className="w-16 rounded border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                />
+                <select
+                  value={initiativeAdvanceTimeUnit}
+                  onChange={(e) => updateData({ initiativeAdvanceTimeUnit: e.target.value })}
+                  className="rounded border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                >
+                  <option value="seconds">seconds</option>
+                  <option value="minutes">minutes</option>
+                  <option value="hours">hours</option>
+                  <option value="days">days</option>
+                </select>
+              </div>
+              <p className="widget-editor__hint text-xs leading-4 text-theme-muted">
+                Time Trackers will be updated when the turn cycles back to the first participant.
+              </p>
             </div>
-            <p className="text-xs text-theme-muted">
-              Time Trackers will be updated when the turn cycles back to the first participant.
-            </p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </fieldset>
 
       {/* Participant Pool */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">
-          Participant Pool
-        </label>
+      <section className="widget-editor__section" aria-labelledby={`initiative-pool-heading-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`initiative-pool-heading-${widget.id}`} className="widget-editor__section-title">Participant pool</h3>
+          <span className="widget-editor__section-count">{initiativePool.length}</span>
+        </div>
 
         {/* Add new participant form */}
-        <form onSubmit={addParticipant} className="mb-3 p-2 border border-theme-border rounded bg-theme-background/50">
+        <form onSubmit={addParticipant} className="widget-editor__option-group mb-3">
           <div className="flex flex-col gap-2">
             <input
               type="text"
@@ -452,7 +446,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -105,7 +105,7 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--step-dice space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
@@ -117,8 +117,11 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
       </div>
 
       {/* Dice chain editor */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Dice Chain</label>
+      <section className="widget-editor__section" aria-labelledby={`dice-chain-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`dice-chain-title-${widget.id}`} className="widget-editor__section-title">Dice chain</h3>
+          <span className="widget-editor__section-count">{diceChain.length}</span>
+        </div>
         <div className="flex flex-wrap items-center gap-1 mb-2">
           {diceChain.map((step: DiceStep, idx: number) => (
             <React.Fragment key={idx}>
@@ -143,7 +146,7 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             </React.Fragment>
           ))}
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="widget-editor__add-row flex items-center gap-2">
           <input
             className="w-40 px-2 py-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             value={newDiceExpression}
@@ -180,13 +183,14 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             </button>
           )}
         </div>
-      </div>
+      </section>
 
       {/* Existing items */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">
-          Items ({stepDiceItems.length})
-        </label>
+      <section className="widget-editor__section" aria-labelledby={`step-items-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`step-items-title-${widget.id}`} className="widget-editor__section-title">Items</h3>
+          <span className="widget-editor__section-count">{stepDiceItems.length}</span>
+        </div>
         <div className="space-y-1">
           {stepDiceItems.map((item: StepDiceItem, i: number) => (
             <React.Fragment key={i}>
@@ -247,24 +251,22 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             <div className="h-0.5 bg-theme-accent rounded-full mx-2" />
           )}
         </div>
-      </div>
-
-      {/* Add new item */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          className="flex-1 px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          placeholder="Add item..."
-        />
-        <button
-          type="submit"
-          disabled={!newItemName.trim()}
-          className="px-3 py-2 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-sm"
-        >
-          Add
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="widget-editor__add-row flex gap-2">
+          <input
+            className="flex-1 px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            placeholder="Add item..."
+          />
+          <button
+            type="submit"
+            disabled={!newItemName.trim()}
+            className="px-3 py-2 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-sm"
+          >
+            Add
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

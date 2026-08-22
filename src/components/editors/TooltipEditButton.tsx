@@ -7,9 +7,10 @@ interface TooltipEditButtonProps {
   onSave: (tooltip: string | undefined) => void;
   itemName: string;
   radius?: 'button' | 'theme';
+  buttonClassName?: string;
 }
 
-export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button' }: TooltipEditButtonProps) {
+export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button', buttonClassName }: TooltipEditButtonProps) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,7 +36,7 @@ export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button'
         <button
           type="button"
           onClick={openDialog}
-          className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs transition-colors ${
+          className={`${buttonClassName ?? 'w-7 h-7'} flex items-center justify-center border rounded-button text-xs transition-colors ${
             tooltip
               ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
               : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
@@ -46,44 +47,39 @@ export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button'
       </Tooltip>
       {open && ReactDOM.createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="widget-edit-modal__backdrop fixed inset-0 z-50 flex items-center justify-center p-3"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div
-            className="p-4 w-80 flex flex-col gap-3"
-            style={{
-              background: 'var(--color-paper)',
-              border: 'var(--border-width, 1px) solid var(--color-border)',
-              borderRadius: radius === 'theme' ? 'var(--border-radius)' : 'var(--button-radius)',
-              boxShadow: 'var(--shadow-style)',
-              fontFamily: 'var(--font-body)',
-            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tooltip-edit-dialog-title"
+            className="widget-edit-modal__aux-dialog w-full max-w-sm overflow-hidden animate-modal-in"
           >
-            <div className="text-sm font-medium text-theme-ink">
-              Tooltip for <span className="font-bold">{itemName}</span>
+            <div className="widget-edit-modal__header flex items-center justify-between border-b border-theme-border">
+              <div className="widget-edit-modal__title-group">
+                <span className="widget-edit-modal__eyebrow">Field guidance</span>
+                <h2 id="tooltip-edit-dialog-title" className="widget-edit-modal__title font-bold text-theme-ink font-heading">
+                  Tooltip for <span>{itemName}</span>
+                </h2>
+              </div>
             </div>
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') cancel(); }}
-              placeholder="Enter tooltip text shown on hover in play mode (not visible on touch devices)..."
-              rows={3}
-              className={`w-full px-3 py-2 border border-theme-border ${radiusClass} bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent resize-none`}
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={cancel}
-                className="px-3 py-1 text-sm border border-theme-border rounded-button text-theme-ink hover:bg-theme-border transition-colors"
-              >
+            <div className="flex flex-col gap-3 p-4">
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') cancel(); }}
+                placeholder="Enter tooltip text shown on hover in play mode (not visible on touch devices)..."
+                rows={3}
+                className={`w-full px-3 py-2 border border-theme-border ${radiusClass} bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent resize-none`}
+              />
+            </div>
+            <div className="widget-edit-modal__footer flex gap-2 justify-end border-t border-theme-border">
+              <button type="button" onClick={cancel} className="widget-control px-3 py-2 text-xs font-semibold">
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={save}
-                className="px-3 py-1 text-sm bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-opacity"
-              >
+              <button type="button" onClick={save} className="widget-control bg-theme-accent px-3 py-2 text-xs font-semibold text-theme-paper hover:opacity-90">
                 Save
               </button>
             </div>

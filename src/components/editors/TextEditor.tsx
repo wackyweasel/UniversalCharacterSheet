@@ -5,8 +5,11 @@ export function TextEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
 
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="widget-editor widget-editor--text space-y-4">
+      <section className="widget-editor__section" aria-labelledby="text-label-title">
+        <div className="widget-editor__section-heading">
+          <h3 id="text-label-title" className="widget-editor__section-title">Content</h3>
+        </div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -27,8 +30,8 @@ export function TextEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
-      <p className="text-xs text-theme-muted">
+      </section>
+      <p className="widget-editor__hint text-xs text-theme-muted">
         Use the resize handle on the widget in edit mode to adjust the size.
       </p>
     </div>

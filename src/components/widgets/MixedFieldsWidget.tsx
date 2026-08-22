@@ -31,7 +31,18 @@ const RESOURCE_SYMBOLS: Record<string, [string, string]> = {
   boxes: ['■', '□'],
   stars: ['★', '☆'],
   diamonds: ['◆', '◇'],
-  hearts: ['♥', '♡'],
+  crosses: ['✖', '✕'],
+  checkmarks: ['✔', '○'],
+  hearts: ['❤️', '🖤'],
+  flames: ['🔥', '·'],
+  skulls: ['💀', '·'],
+  shields: ['🛡️', '·'],
+  swords: ['⚔️', '·'],
+  lightning: ['⚡', '·'],
+  moons: ['🌙', '·'],
+  suns: ['☀️', '·'],
+  coins: ['🪙', '·'],
+  gems: ['💎', '·'],
   dots: ['●', '○'],
 };
 
@@ -241,7 +252,7 @@ export default function MixedFieldsWidget({
   const workspaceMode = useStore((state) => state.mode);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const { label, mixedFields = [], labelWidth = 33 } = widget.data;
+  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && !isPrintMode;
   const canInteract = interactive && !isPrintMode;
@@ -408,9 +419,10 @@ export default function MixedFieldsWidget({
         const hasValueFormula = !!field.valueFormula;
         const atMinimum = field.minValue !== undefined && field.value <= field.minValue;
         const atMaximum = field.maxValue !== undefined && field.value >= field.maxValue;
+        const showIncrementButtons = field.showIncrementButtons !== false;
         return (
           <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5">
-            {!isPrintMode && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => adjustNumber(index, field, -1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
+            {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => adjustNumber(index, field, -1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
             <input
               type="number"
               value={field.value}
@@ -426,7 +438,7 @@ export default function MixedFieldsWidget({
               readOnly={!canInteract || hasValueFormula}
               className={`h-6 w-16 rounded-button border border-theme-border px-1 text-center text-xs font-bold font-body text-theme-ink outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasValueFormula ? 'cursor-default bg-theme-accent/10' : 'bg-theme-paper'}`}
             />
-            {!isPrintMode && <button type="button" aria-label={`Increase ${field.name}`} onClick={() => adjustNumber(index, field, 1)} disabled={!canInteract || hasValueFormula || atMaximum} className="widget-control h-6 w-6 min-h-0 text-xs">+</button>}
+            {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Increase ${field.name}`} onClick={() => adjustNumber(index, field, 1)} disabled={!canInteract || hasValueFormula || atMaximum} className="widget-control h-6 w-6 min-h-0 text-xs">+</button>}
           </div>
         );
       }
@@ -495,7 +507,7 @@ export default function MixedFieldsWidget({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px`, rowGap: `${itemSpacing}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
         {mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
             <span className="flex-shrink-0 truncate text-xs font-body text-theme-ink" style={{ width: `${labelWidth}%` }}>

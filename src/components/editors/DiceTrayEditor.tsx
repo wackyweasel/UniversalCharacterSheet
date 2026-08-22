@@ -192,7 +192,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
     .filter(({ die }) => isCustomDie(die)) as { die: CustomDie; index: number }[];
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--dice-tray space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -216,22 +216,31 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showTrayRollDetailsButton}
-          onChange={(e) => updateData({
-            showTrayRollDetailsButton: e.target.checked,
-            showTrayRollDetails: e.target.checked ? widget.data.showTrayRollDetails : false,
-          })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show roll details control</span>
-      </label>
+      <fieldset className="widget-editor__option-group">
+        <legend>Display</legend>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showTrayRollDetailsButton}
+            onChange={(e) => updateData({
+              showTrayRollDetailsButton: e.target.checked,
+              showTrayRollDetails: e.target.checked ? widget.data.showTrayRollDetails : false,
+            })}
+            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show roll details control</span>
+        </label>
+      </fieldset>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Quick Add Common Dice</label>
-        <div className="flex flex-wrap gap-2">
+      <section className="widget-editor__section" aria-labelledby={`dice-selection-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`dice-selection-title-${widget.id}`} className="widget-editor__section-title">Dice selection</h3>
+          <span className="widget-editor__section-count">{availableDice.length}</span>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-theme-ink mb-2">Quick add common dice</label>
+            <div className="flex flex-wrap gap-2">
           {COMMON_DICE.map((faces) => (
             <button
               key={faces}
@@ -245,12 +254,12 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
               d{faces}
             </button>
           ))}
-        </div>
-      </div>
+            </div>
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Add Custom Numeric Dice</label>
-        <form onSubmit={addCustomNumericDice} className="flex gap-2">
+          <div>
+            <label className="block text-sm font-medium text-theme-ink mb-2">Add custom numeric dice</label>
+            <form onSubmit={addCustomNumericDice} className="flex gap-2">
           <div className="flex items-center gap-1">
             <span className="text-theme-ink">d</span>
             <input
@@ -268,19 +277,19 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           >
             Add
           </button>
-        </form>
-      </div>
+            </form>
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Custom Faces Dice</label>
-        <button
+          <div>
+            <label className="block text-sm font-medium text-theme-ink mb-2">Custom faces dice</label>
+            <button
           onClick={() => openCustomFacesModal()}
           className="px-3 py-2 border border-theme-border rounded-button text-sm font-bold bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-all"
-        >
-          + Add Custom Faces Die
-        </button>
-        {customDiceInList.length > 0 && (
-          <div className="mt-2 space-y-2">
+            >
+              + Add Custom Faces Die
+            </button>
+            {customDiceInList.length > 0 && (
+              <div className="mt-2 space-y-2">
             {customDiceInList.map(({ die, index }) => (
               <div
                 key={`custom-${die.name}-${index}`}
@@ -308,14 +317,14 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
                 </button>
               </div>
             ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Current Standard Dice</label>
-        {standardDiceInList.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
+          <div>
+            <label className="block text-sm font-medium text-theme-ink mb-2">Current standard dice</label>
+            {standardDiceInList.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
             {standardDiceInList.map(({ die, index }) => (
               <div
                 key={`standard-${die}`}
@@ -330,15 +339,19 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
                 </button>
               </div>
             ))}
+              </div>
+            ) : (
+              <p className="text-xs text-theme-muted">No standard dice selected</p>
+            )}
           </div>
-        ) : (
-          <p className="text-xs text-theme-muted">No standard dice selected</p>
-        )}
-      </div>
+        </div>
+      </section>
 
-      <div>
+      <section className="widget-editor__section" aria-labelledby={`tray-modifier-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`tray-modifier-title-${widget.id}`} className="widget-editor__section-title">Modifier</h3>
+        </div>
         <LabeledNumberField
-          displayLabel="Modifier"
           value={modifier}
           onChange={(v) => updateData({ modifier: v })}
           tutorialTargetPrefix="automation-dice-modifier"
@@ -347,7 +360,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           formula={fieldFormulas['modifier']}
           onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
-      </div>
+      </section>
 
       {/* Custom Faces Modal */}
       {customFacesModal.open && (

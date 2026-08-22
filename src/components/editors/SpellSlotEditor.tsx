@@ -47,7 +47,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--spell-slots space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -71,11 +71,14 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Spell Levels</label>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
+      <section className="widget-editor__section" aria-labelledby={`spell-levels-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`spell-levels-title-${widget.id}`} className="widget-editor__section-title">Spell levels</h3>
+          <span className="widget-editor__section-count">{spellLevels.length}</span>
+        </div>
+        <div className="max-h-48 space-y-2 overflow-y-auto">
           {(spellLevels as SpellLevel[]).map((levelData, levelIdx) => (
-            <div key={levelIdx} className="flex items-center gap-2">
+            <div key={levelIdx} className="flex items-center gap-2 rounded-button border border-theme-border bg-theme-background px-2 py-2">
               <span className="text-theme-ink text-sm">Level</span>
               <input
                 type="number"
@@ -106,14 +109,16 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
           ))}
         </div>
         {(spellLevels as SpellLevel[]).length < 9 && (
-          <button
-            onClick={addLevel}
-            className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-          >
-            + Add Level
-          </button>
+          <div className="widget-editor__add-row">
+            <button
+              onClick={addLevel}
+              className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+            >
+              + Add Level
+            </button>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

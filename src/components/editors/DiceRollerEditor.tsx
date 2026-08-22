@@ -229,7 +229,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--dice-roller space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -253,24 +253,30 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showRollDetailsButton}
-          onChange={(e) => updateData({
-            showRollDetailsButton: e.target.checked,
-            showRollDetails: e.target.checked ? widget.data.showRollDetails : false,
-          })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show roll details control</span>
-      </label>
+      <fieldset className="widget-editor__option-group">
+        <legend>Display</legend>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showRollDetailsButton}
+            onChange={(e) => updateData({
+              showRollDetailsButton: e.target.checked,
+              showRollDetails: e.target.checked ? widget.data.showRollDetails : false,
+            })}
+            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show roll details control</span>
+        </label>
+      </fieldset>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Dice Groups</label>
+      <section className="widget-editor__section" aria-labelledby={`dice-groups-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`dice-groups-title-${widget.id}`} className="widget-editor__section-title">Dice groups</h3>
+          <span className="widget-editor__section-count">{diceGroups.length}</span>
+        </div>
         <div className="space-y-2">
           {diceGroups.map((group: DiceGroup, index: number) => (
-            <div key={index} className="flex flex-col gap-1">
+            <div key={index} className="flex flex-col gap-1 rounded-button border border-theme-border bg-theme-background p-2">
               <LabeledNumberField
                 value={group.count}
                 onChange={(v) => updateDiceGroup(index, 'count', Math.max(1, v))}
@@ -381,17 +387,21 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-        <button
-          onClick={addDiceGroup}
-          className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-        >
-          + Add Dice
-        </button>
-      </div>
+        <div className="widget-editor__add-row">
+          <button
+            onClick={addDiceGroup}
+            className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+          >
+            + Add Dice
+          </button>
+        </div>
+      </section>
       
-      <div>
+      <section className="widget-editor__section" aria-labelledby={`modifier-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`modifier-title-${widget.id}`} className="widget-editor__section-title">Modifier</h3>
+        </div>
         <LabeledNumberField
-          displayLabel="Modifier"
           value={modifier}
           onChange={(v) => updateData({ modifier: v })}
           tutorialTargetPrefix="automation-dice-modifier"
@@ -400,7 +410,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
           formula={fieldFormulas['modifier']}
           onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
-      </div>
+      </section>
 
       {/* Custom Faces Modal */}
       {customFacesModal.open && (

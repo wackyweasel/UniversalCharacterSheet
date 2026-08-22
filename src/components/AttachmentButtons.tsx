@@ -3,6 +3,7 @@ import { Widget } from '../types';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
 import { LinkIcon, UnlinkIcon } from './icons';
+import { WIDGET_CONTROLS_DISMISS_EVENT } from './widgetDragRegistry';
 
 interface Props {
   widgets: Widget[];
@@ -73,6 +74,12 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
 
     document.addEventListener('mouseover', handleMouseOver);
     return () => document.removeEventListener('mouseover', handleMouseOver);
+  }, []);
+
+  useEffect(() => {
+    const dismissHoverControls = () => setHoveredWidgetId(null);
+    window.addEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
+    return () => window.removeEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
   }, []);
 
   useLayoutEffect(() => {

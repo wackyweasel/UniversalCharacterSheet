@@ -84,7 +84,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
   const availableSuggestions = SUGGESTIONS.filter(s => !existingNames.includes(s.toLowerCase()));
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--conditions space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -108,9 +108,12 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Conditions</label>
-        <div className="flex flex-col max-h-48 overflow-y-auto">
+      <section className="widget-editor__section" aria-labelledby={`conditions-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`conditions-title-${widget.id}`} className="widget-editor__section-title">Conditions</h3>
+          <span className="widget-editor__section-count">{toggleItems.length}</span>
+        </div>
+        <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
           {(toggleItems as ToggleItem[]).map((item, idx) => (
             <React.Fragment key={idx}>
               {insertionIndex === idx && draggedIndex !== null && (
@@ -123,7 +126,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
-                className={`flex items-center gap-1 px-2 py-1 bg-theme-background rounded-button text-sm cursor-grab active:cursor-grabbing transition-all ${
+                className={`flex cursor-grab items-center gap-1 rounded-button border border-theme-border bg-theme-background px-2 py-1 text-sm transition-all active:cursor-grabbing ${
                   draggedIndex === idx ? 'opacity-40' : ''
                 }`}
               >
@@ -151,7 +154,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
             <div className="h-0.5 w-full bg-theme-accent rounded-full my-0.5 flex-shrink-0" />
           )}
         </div>
-        <form onSubmit={handleSubmit} className="flex gap-2 mt-2">
+        <form onSubmit={handleSubmit} className="widget-editor__add-row flex gap-2">
           <input
             type="text"
             value={newItemName}
@@ -167,8 +170,8 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
           </button>
         </form>
         {availableSuggestions.length > 0 && (
-          <div className="mt-2">
-            <span className="text-xs text-theme-muted">Quick add:</span>
+          <div className="mt-3">
+            <span className="text-xs font-medium text-theme-muted">Quick add common conditions</span>
             <div className="flex flex-wrap gap-1 mt-1">
               {availableSuggestions.slice(0, 8).map((suggestion) => (
                 <button
@@ -182,7 +185,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

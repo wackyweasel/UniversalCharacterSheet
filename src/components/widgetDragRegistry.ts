@@ -6,6 +6,8 @@ export interface WidgetDragState {
 let dragState: WidgetDragState | null = null;
 const subscribers = new Set<() => void>();
 
+export const WIDGET_CONTROLS_DISMISS_EVENT = 'widget-controls-dismiss';
+
 const emit = () => {
   subscribers.forEach((subscriber) => subscriber());
 };

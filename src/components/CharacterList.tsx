@@ -32,6 +32,12 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.3.1',
+    changes: [
+      'Fixed an issue on touch devices where some buttons would never disappear',
+    ],
+  },
+  {
     version: '1.3.0',
     changes: [
       'Most widgets that contain text now support formulas. Write your formula in curly brackets; for example, {10 + @str} renders as 10 plus the value labeled @str.',

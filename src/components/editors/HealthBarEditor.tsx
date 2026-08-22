@@ -20,7 +20,7 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--health-bar space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -44,31 +44,41 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <LabeledNumberField
-        displayLabel="Current Value"
-        value={typeof currentValue === 'number' ? currentValue : 0}
-        onChange={(v) => updateData({ currentValue: v })}
-        fieldLabel={fieldLabels['currentValue']}
-        onFieldLabelChange={(l) => setFieldLabel('currentValue', l)}
-        formula={fieldFormulas['currentValue']}
-        onFormulaChange={(f) => setFieldFormula('currentValue', f)}
-        min={0}
-      />
+      <section className="widget-editor__section" aria-labelledby={`health-values-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`health-values-title-${widget.id}`} className="widget-editor__section-title">Health values</h3>
+        </div>
+        <div className="space-y-4">
+          <LabeledNumberField
+            displayLabel="Current Value"
+            value={typeof currentValue === 'number' ? currentValue : 0}
+            onChange={(v) => updateData({ currentValue: v })}
+            fieldLabel={fieldLabels['currentValue']}
+            onFieldLabelChange={(l) => setFieldLabel('currentValue', l)}
+            formula={fieldFormulas['currentValue']}
+            onFormulaChange={(f) => setFieldFormula('currentValue', f)}
+            min={0}
+          />
 
-      <LabeledNumberField
-        displayLabel="Maximum Value"
-        value={typeof maxValue === 'number' ? maxValue : 10}
-        onChange={(v) => updateData({ maxValue: Math.max(1, v) })}
-        fieldLabel={fieldLabels['maxValue']}
-        onFieldLabelChange={(l) => setFieldLabel('maxValue', l)}
-        formula={fieldFormulas['maxValue']}
-        onFormulaChange={(f) => setFieldFormula('maxValue', f)}
-        min={1}
-      />
+          <LabeledNumberField
+            displayLabel="Maximum Value"
+            value={typeof maxValue === 'number' ? maxValue : 10}
+            onChange={(v) => updateData({ maxValue: Math.max(1, v) })}
+            fieldLabel={fieldLabels['maxValue']}
+            onFieldLabelChange={(l) => setFieldLabel('maxValue', l)}
+            formula={fieldFormulas['maxValue']}
+            onFormulaChange={(f) => setFieldFormula('maxValue', f)}
+            min={1}
+          />
+        </div>
+      </section>
 
-      <div>
+      <section className="widget-editor__section" aria-labelledby={`health-appearance-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`health-appearance-title-${widget.id}`} className="widget-editor__section-title">Appearance</h3>
+        </div>
         <label htmlFor={`health-fill-color-${widget.id}`} className="block text-sm font-medium text-theme-ink mb-1">
-          Filled Bar Color
+          Filled bar color
         </label>
         <div className="flex items-center gap-2">
           <div
@@ -98,33 +108,36 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             <span className="text-sm text-theme-muted">Theme color</span>
           )}
         </div>
-      </div>
+      </section>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showIncrementButtons}
-          onChange={(e) => updateData({ showIncrementButtons: e.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show +/− buttons</span>
-      </label>
-
-      {showIncrementButtons && (
-        <>
-          <LabeledNumberField
-            displayLabel="Button Increment"
-            value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
-            onChange={(v) => updateData({ increment: Math.max(1, v) })}
-            fieldLabel={fieldLabels['increment']}
-            onFieldLabelChange={(l) => setFieldLabel('increment', l)}
-            formula={fieldFormulas['increment']}
-            onFormulaChange={(f) => setFieldFormula('increment', f)}
-            min={1}
+      <fieldset className="widget-editor__option-group">
+        <legend>Interaction</legend>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showIncrementButtons}
+            onChange={(e) => updateData({ showIncrementButtons: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
           />
-          <p className="text-xs text-theme-muted -mt-3">Amount changed by +/− buttons</p>
-        </>
-      )}
+          <span className="text-sm text-theme-ink">Show +/− buttons</span>
+        </label>
+
+        {showIncrementButtons && (
+          <>
+            <LabeledNumberField
+              displayLabel="Button Increment"
+              value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
+              onChange={(v) => updateData({ increment: Math.max(1, v) })}
+              fieldLabel={fieldLabels['increment']}
+              onFieldLabelChange={(l) => setFieldLabel('increment', l)}
+              formula={fieldFormulas['increment']}
+              onFormulaChange={(f) => setFieldFormula('increment', f)}
+              min={1}
+            />
+            <p className="widget-editor__hint text-xs text-theme-muted">Amount changed by +/− buttons</p>
+          </>
+        )}
+      </fieldset>
     </div>
   );
 }

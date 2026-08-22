@@ -178,7 +178,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--rest-button space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Button Text</label>
         <input
@@ -189,8 +189,10 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         />
       </div>
 
-      <div className="border border-theme-border rounded-theme p-3">
-        <h4 className="font-medium text-theme-ink mb-3">Healing Options</h4>
+      <section className="widget-editor__section" aria-labelledby={`healing-options-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`healing-options-title-${widget.id}`} className="widget-editor__section-title">Healing options</h3>
+        </div>
         
         <label className="flex items-center gap-2 cursor-pointer mb-3">
           <input
@@ -235,12 +237,14 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={addDiceGroup}
-                className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-              >
-                + Add Dice
-              </button>
+              <div className="widget-editor__add-row">
+                <button
+                  onClick={addDiceGroup}
+                  className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+                >
+                  + Add Dice
+                </button>
+              </div>
             </div>
 
             <div>
@@ -257,11 +261,11 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             </div>
           </>
         )}
-      </div>
+      </section>
 
-      <div className="border border-theme-border rounded-theme p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-medium text-theme-ink">Resource Pools</h4>
+      <section className="widget-editor__section" aria-labelledby={`resource-pools-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`resource-pools-title-${widget.id}`} className="widget-editor__section-title">Resource pools</h3>
           {poolTargets.length > 0 && (
             <div className="flex items-center gap-1">
               <button
@@ -417,10 +421,12 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="border border-theme-border rounded-theme p-3">
-        <h4 className="font-medium text-theme-ink mb-3">Other Actions</h4>
+      <section className="widget-editor__section" aria-labelledby={`other-actions-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`other-actions-title-${widget.id}`} className="widget-editor__section-title">Other actions</h3>
+        </div>
                 
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
@@ -481,7 +487,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

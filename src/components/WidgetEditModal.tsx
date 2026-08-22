@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
@@ -146,6 +146,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const [localData, setLocalData] = useState({ ...widget.data });
   const [localWidth, setLocalWidth] = useState(widget.w || 200);
+  const previewFrameRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
   const isImageWidget = widget.type === 'IMAGE';
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && localData.hideWidgetHeader === true;
   const isImageEditButtonHidden = isImageWidget && localData.hideWidgetHeader === true;
@@ -218,7 +220,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   };
 
   const renderHeaderVisibilitySetting = () => (
-    <label className={`flex cursor-pointer items-center gap-2 text-sm text-theme-ink ${isImageWidget ? 'image-editor__header-setting' : 'mb-4'}`}>
+    <label className={`widget-edit-modal__global-setting ${isImageWidget ? 'image-editor__header-setting' : ''}`}>
       <input
         type="checkbox"
         checked={isEditButtonHidden}
@@ -232,7 +234,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   // Get actual widget dimensions for preview
   const getPreviewDimensions = () => {
     const actualWidth = localWidth || widget.w || 200;
-    const actualHeight = widget.h || 200;
+    const actualHeight = widget.h || 120;
     
     return {
       width: actualWidth,
@@ -243,7 +245,12 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const renderPreview = () => {
     const { width: previewWidth, height: previewHeight } = getPreviewDimensions();
     
-    const props = { widget: renderedPreviewWidget, mode: 'play' as const, width: previewWidth, height: previewHeight };
+    const props = {
+      widget: renderedPreviewWidget,
+      mode: 'play' as const,
+      width: Math.max(20, previewWidth - 16),
+      height: Math.max(20, previewHeight - 16),
+    };
     
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
@@ -280,14 +287,32 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   };
 
   const previewDimensions = getPreviewDimensions();
-  const imagePreviewContentStyle = isImageWidget
-    ? {
-        width: `${previewDimensions.width}px`,
-        maxWidth: '100%',
-        height: 'auto',
-        aspectRatio: `${previewDimensions.width} / ${previewDimensions.height}`,
-      }
-    : undefined;
+
+  useLayoutEffect(() => {
+    const frame = previewFrameRef.current;
+    if (!frame) return;
+
+    const updateScale = () => {
+      const styles = window.getComputedStyle(frame);
+      const horizontalPadding = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const verticalPadding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+      const availableWidth = frame.clientWidth - horizontalPadding;
+      const explicitHeight = parseFloat(styles.height);
+      const maxHeight = parseFloat(styles.maxHeight);
+      const heightLimit = widget.type === 'TEXT' && Number.isFinite(explicitHeight) ? explicitHeight : maxHeight;
+      const availableHeight = Number.isFinite(heightLimit) ? heightLimit - verticalPadding : frame.clientHeight - verticalPadding;
+      const widthScale = availableWidth > 0 ? availableWidth / previewDimensions.width : 1;
+      const heightScale = availableHeight > 0 ? availableHeight / previewDimensions.height : 1;
+      const nextScale = Math.max(0.1, Math.min(widthScale, heightScale));
+
+      setPreviewScale((currentScale) => Math.abs(currentScale - nextScale) > 0.001 ? nextScale : currentScale);
+    };
+
+    updateScale();
+    const resizeObserver = new ResizeObserver(updateScale);
+    resizeObserver.observe(frame);
+    return () => resizeObserver.disconnect();
+  }, [previewDimensions.width, previewDimensions.height]);
 
   // Close on escape key
   useEffect(() => {
@@ -302,7 +327,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
 
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in"
+      className="widget-edit-modal__backdrop fixed inset-0 flex items-center justify-center z-50 p-4 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -315,69 +340,93 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       onTouchEnd={(e) => e.stopPropagation()}
       onDragOver={(e) => e.preventDefault()}
     >
-      <div className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full ${isImageWidget ? 'max-w-5xl' : 'max-w-lg'} max-h-[90vh] overflow-hidden flex flex-col animate-modal-in`}>
+      <div
+        className={`widget-edit-modal__dialog widget-edit-modal__dialog--${widget.type.toLowerCase()} bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-modal-in`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="widget-edit-modal-title"
+      >
         {/* Header */}
-        <div className={`flex items-center justify-between border-b border-theme-border ${widget.type === 'INVENTORY' ? 'px-3 py-2' : 'px-4 py-3'}`}>
-          <h2 className={`${widget.type === 'INVENTORY' ? 'text-base' : 'text-lg'} font-bold text-theme-ink font-heading`}>
-            Edit {getWidgetTitle(widget.type)}
-          </h2>
+        <div className="widget-edit-modal__header flex items-center justify-between border-b border-theme-border">
+          <div className="widget-edit-modal__title-group">
+            <span className="widget-edit-modal__eyebrow">Widget settings</span>
+            <h2 id="widget-edit-modal-title" className="widget-edit-modal__title font-bold text-theme-ink font-heading">
+              Edit {getWidgetTitle(widget.type)}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-button transition-colors"
+            className="widget-edit-modal__close w-8 h-8 flex items-center justify-center text-theme-muted hover:text-theme-ink hover:bg-theme-background rounded-button transition-colors"
           >
             <XIcon className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className={`flex-1 overflow-auto ${widget.type === 'INVENTORY' ? 'p-3' : isImageWidget ? 'p-4 sm:p-5' : 'p-4'}`}>
-          <div className={isImageWidget
-            ? 'grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]'
-            : `flex flex-col ${widget.type === 'INVENTORY' ? 'gap-3' : 'gap-6'}`}>
+        <div className="widget-edit-modal__body flex-1 overflow-auto">
+          <div className={`widget-edit-modal__layout ${isImageWidget ? 'widget-edit-modal__layout--image' : ''}`}>
             {/* Editor Section */}
-            <div className="flex-1 min-w-0">
+            <section className="widget-edit-modal__settings min-w-0" aria-labelledby="widget-edit-modal-settings-title">
+              <div className="widget-edit-modal__pane-heading">
+                <h3 id="widget-edit-modal-settings-title">Settings</h3>
+              </div>
               {widget.type !== 'LABEL' && renderHeaderVisibilitySetting()}
-              <div className={isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : undefined}>
+              <div className={`widget-edit-modal__editor-content ${isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : ''}`}>
                 {renderEditor()}
               </div>
-            </div>
+            </section>
 
             {/* Preview Section */}
-            <div className={`flex-shrink-0 ${isImageWidget ? 'lg:sticky lg:top-0' : ''}`}>
-              <h3 className="mb-3 text-sm font-medium text-theme-muted">{isImageWidget ? 'Canvas preview' : 'Preview'}</h3>
-              <div 
-                className={`bg-theme-paper border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme ${isImageWidget ? 'mx-auto w-fit max-w-full p-3' : 'p-2'}`}
-                style={{ 
-                  width: isImageWidget ? undefined : `${previewDimensions.width + 16}px`,
-                  maxWidth: '100%',
-                  ...(!isImageWidget ? { height: `${previewDimensions.height + 16}px` } : {})
-                }}
+            <aside className={`widget-edit-modal__preview-pane flex-shrink-0 ${isImageWidget ? 'lg:sticky lg:top-0' : ''}`} aria-labelledby="widget-edit-modal-preview-title">
+              <div className="widget-edit-modal__pane-heading">
+                <h3 id="widget-edit-modal-preview-title">{isImageWidget ? 'Canvas preview' : 'Preview'}</h3>
+              </div>
+              <div
+                ref={previewFrameRef}
+                className="widget-edit-modal__preview-frame"
               >
                 <div
-                  style={imagePreviewContentStyle}
-                  className={`widget-content pointer-events-none ${
-                    isWidgetHeaderHidden
-                      ? 'widget-content--header-hidden'
-                      : hasEditableWidgetHeader
-                        ? `widget-content--editable-header ${hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''}`
-                        : ''
-                  }`}
+                  className="widget-edit-modal__preview-scaler"
+                  style={{
+                    height: `${previewDimensions.height * previewScale}px`,
+                    width: `${previewDimensions.width * previewScale}px`,
+                  }}
                 >
-                  {hasEditableWidgetHeader && (
-                    <span className="widget-header-edit-button widget-control widget-control--subtle" aria-hidden="true">
-                      <PencilIcon className="h-3 w-3" />
-                    </span>
-                  )}
-                  {renderPreview()}
+                  <div
+                    className="widget-edit-modal__preview-surface widget-surface relative rounded-theme bg-theme-paper"
+                    style={{
+                      height: `${previewDimensions.height}px`,
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: 'top left',
+                      width: `${previewDimensions.width}px`,
+                    }}
+                  >
+                    <div
+                      className={`widget-content pointer-events-none ${
+                        isWidgetHeaderHidden
+                          ? 'widget-content--header-hidden'
+                          : hasEditableWidgetHeader
+                            ? `widget-content--editable-header ${hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''}`
+                            : ''
+                      }`}
+                    >
+                      {hasEditableWidgetHeader && (
+                        <span className="widget-header-edit-button widget-control widget-control--subtle" aria-hidden="true">
+                          <PencilIcon className="h-3 w-3" />
+                        </span>
+                      )}
+                      {renderPreview()}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
         </div>
 
         {/* Footer */}
-        <div className={`border-t border-theme-border flex justify-end ${widget.type === 'INVENTORY' ? 'px-3 py-2' : 'px-4 py-3'}`}>
+        <div className="widget-edit-modal__footer border-t border-theme-border flex justify-end">
           <button
             data-tutorial="edit-done-button"
             disabled={tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21}
@@ -395,7 +444,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               }
               onClose();
             }}
-            className={`px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium transition-opacity ${
+            className={`widget-edit-modal__done px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium transition-opacity ${
               tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21 
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:opacity-90'

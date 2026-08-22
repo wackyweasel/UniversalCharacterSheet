@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
@@ -30,10 +30,14 @@ interface LabeledNumberFieldProps {
   step?: number;
   /** Placeholder text */
   placeholder?: string;
+  /** Allow the input to remain blank while a replacement number is being typed */
+  allowEmpty?: boolean;
   /** Additional class names */
   className?: string;
   /** Whether to show compact (inline) style */
   compact?: boolean;
+  /** Height preset for the numeric input and inline action buttons */
+  controlHeight?: 'compact' | 'input';
   /** Hide the +/- buttons while keeping label/formula controls */
   hideStepperButtons?: boolean;
   /** Lock the numeric value while retaining its label control */
@@ -62,8 +66,10 @@ export function LabeledNumberField({
   max,
   step = 1,
   placeholder,
+  allowEmpty = false,
   className = '',
   compact = false,
+  controlHeight = 'compact',
   hideStepperButtons = false,
   readOnlyValue = false,
   hideFormulaButton = false,
@@ -75,6 +81,16 @@ export function LabeledNumberField({
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(fieldLabel || '');
   const [formulaDraft, setFormulaDraft] = useState(formula || '');
+  const [valueDraft, setValueDraft] = useState(() => value === undefined ? '' : String(value));
+  const editingValueRef = useRef(false);
+  const controlHeightClass = controlHeight === 'input' ? 'h-10' : 'h-7';
+  const controlWidthClass = controlHeight === 'input' ? 'w-10' : 'w-7';
+
+  useEffect(() => {
+    if (!allowEmpty || !editingValueRef.current) {
+      setValueDraft(value === undefined ? '' : String(value));
+    }
+  }, [allowEmpty, value]);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -140,21 +156,44 @@ export function LabeledNumberField({
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (hasFormula || readOnlyValue) return;
-    if (e.target.value === '' && onClear) {
+    const rawValue = e.target.value;
+    if (allowEmpty) {
+      setValueDraft(rawValue);
+      if (rawValue === '') {
+        onClear?.();
+        return;
+      }
+      const parsedValue = parseFloat(rawValue);
+      if (Number.isFinite(parsedValue)) onChange(parsedValue);
+      return;
+    }
+    if (rawValue === '' && onClear) {
       onClear();
       return;
     }
-    const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+    const val = rawValue === '' ? 0 : parseFloat(rawValue) || 0;
     onChange(val);
+  };
+
+  const handleValueFocus = () => {
+    if (!allowEmpty) return;
+    editingValueRef.current = true;
+    setValueDraft(value === undefined ? '' : String(value));
   };
 
   const handleValueBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     if (hasFormula || readOnlyValue) return;
-    if (e.target.value === '' && onClear) return;
-    let val = parseFloat(e.target.value) || 0;
+    const rawValue = allowEmpty ? valueDraft : e.target.value;
+    editingValueRef.current = false;
+    if (rawValue === '' && onClear) {
+      if (allowEmpty) setValueDraft('');
+      return;
+    }
+    let val = parseFloat(rawValue) || 0;
     if (min !== undefined) val = Math.max(min, val);
     if (max !== undefined) val = Math.min(max, val);
     onChange(val);
+    if (allowEmpty) setValueDraft(String(val));
   };
 
   const confirmLabel = () => {
@@ -214,7 +253,7 @@ export function LabeledNumberField({
           type="button"
           onClick={handleDecrement}
           disabled={hasFormula}
-          className={`w-7 h-7 flex items-center justify-center border border-theme-border rounded-button text-sm font-bold transition-colors ${
+          className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border border-theme-border rounded-button text-sm font-bold transition-colors ${
             hasFormula
               ? 'opacity-40 cursor-not-allowed text-theme-muted'
               : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
@@ -226,8 +265,9 @@ export function LabeledNumberField({
 
         <input
           type="number"
-          value={value ?? ''}
+          value={allowEmpty ? valueDraft : value ?? ''}
           onChange={handleValueChange}
+          onFocus={handleValueFocus}
           onBlur={handleValueBlur}
           readOnly={hasFormula || readOnlyValue}
           min={min}
@@ -240,7 +280,7 @@ export function LabeledNumberField({
             hasFormula || readOnlyValue
               ? 'bg-theme-accent/10 cursor-default'
               : 'bg-theme-paper'
-          } ${compact ? 'h-7' : ''}`}
+          } ${controlHeightClass}`}
         />
 
       {!hideStepperButtons && (
@@ -248,7 +288,7 @@ export function LabeledNumberField({
           type="button"
           onClick={handleIncrement}
           disabled={hasFormula}
-          className={`w-7 h-7 flex items-center justify-center border border-theme-border rounded-button text-sm font-bold transition-colors ${
+          className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border border-theme-border rounded-button text-sm font-bold transition-colors ${
             hasFormula
               ? 'opacity-40 cursor-not-allowed text-theme-muted'
               : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
@@ -264,7 +304,7 @@ export function LabeledNumberField({
             data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-button` : undefined}
             type="button"
             onClick={openLabelInput}
-            className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs transition-colors ${
+            className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border rounded-button text-xs transition-colors ${
               showLabelInput
                 ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
                 : fieldLabel
@@ -285,7 +325,7 @@ export function LabeledNumberField({
             data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-fx-button` : undefined}
             type="button"
             onClick={openFormulaInput}
-            className={`w-7 h-7 flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
+            className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
               showFormulaInput
                 ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
                 : formula

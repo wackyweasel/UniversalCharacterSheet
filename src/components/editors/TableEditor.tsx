@@ -115,7 +115,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--table space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -139,18 +139,24 @@ export function TableEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
-        <input
-          type="checkbox"
-          checked={!hideTableHeader}
-          onChange={(event) => updateData({ hideTableHeader: !event.target.checked })}
-          className="h-4 w-4 accent-theme-accent"
-        />
-        Show column headers
-      </label>
+      <fieldset className="widget-editor__option-group">
+        <legend>Display</legend>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+          <input
+            type="checkbox"
+            checked={!hideTableHeader}
+            onChange={(event) => updateData({ hideTableHeader: !event.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Show column headers
+        </label>
+      </fieldset>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Columns</label>
+      <section className="widget-editor__section" aria-labelledby={`columns-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`columns-title-${widget.id}`} className="widget-editor__section-title">Columns</h3>
+          <span className="widget-editor__section-count">{columns.length}</span>
+        </div>
         <div 
           className="space-y-2"
           onDragOver={(e) => e.preventDefault()}
@@ -158,7 +164,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
           {columns.map((col: string, idx: number) => (
             <div 
               key={idx} 
-              className={`flex items-center gap-2 ${draggedIndex === idx ? 'opacity-50' : ''} ${dragOverIndex === idx && draggedIndex !== idx ? 'border-t-2 border-theme-accent' : ''}`}
+              className={`flex items-center gap-2 rounded-button border border-theme-border bg-theme-background p-2 ${draggedIndex === idx ? 'opacity-50' : ''} ${dragOverIndex === idx && draggedIndex !== idx ? 'border-t-2 border-theme-accent' : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, idx)}
               onDragOver={(e) => {
@@ -200,17 +206,22 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-        <button
-          onClick={addColumn}
-          className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-        >
-          + Add Column
-        </button>
-      </div>
+        <div className="widget-editor__add-row">
+          <button
+            onClick={addColumn}
+            className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+          >
+            + Add Column
+          </button>
+        </div>
+      </section>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Rows ({rows.length})</label>
-        <div className="flex gap-2">
+      <section className="widget-editor__section" aria-labelledby={`rows-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`rows-title-${widget.id}`} className="widget-editor__section-title">Rows</h3>
+          <span className="widget-editor__section-count">{rows.length}</span>
+        </div>
+        <div className="widget-editor__add-row flex gap-2">
           <button
             onClick={addRow}
             className="px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
@@ -226,8 +237,8 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             </button>
           )}
         </div>
-        <p className="text-xs text-theme-muted mt-1">Row contents can be edited in play mode</p>
-      </div>
+        <p className="widget-editor__hint mt-3 text-xs text-theme-muted">Row contents can be edited in play mode</p>
+      </section>
     </div>
   );
 }

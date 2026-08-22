@@ -226,19 +226,21 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
   const positionCardIndex = positionCard ? localCards.findIndex((card) => card.id === positionCard.id) : -1;
 
   return (
-    <div className="space-y-4">
-      <label className="block text-xs font-medium text-theme-ink">
-        Deck name
-        <input
-          value={label || ''}
-          onChange={(event) => updateData({ label: event.target.value })}
-          placeholder="Draw Deck"
-          className={`${inputClass} mt-1`}
-        />
-      </label>
+    <div className="widget-editor widget-editor--card-deck space-y-4">
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Deck name
+          <input
+            value={label || ''}
+            onChange={(event) => updateData({ label: event.target.value })}
+            placeholder="Draw Deck"
+            className={`${inputClass} mt-1`}
+          />
+        </label>
+      </section>
 
-      <section aria-labelledby="card-deck-display-heading">
-        <h4 id="card-deck-display-heading" className="text-xs font-semibold text-theme-ink">Deck controls</h4>
+      <section className="widget-editor__option-group" aria-labelledby={`card-deck-display-heading-${widget.id}`}>
+        <h3 id={`card-deck-display-heading-${widget.id}`} className="widget-editor__section-title">Deck controls</h3>
         <div className="mt-2 space-y-2">
           <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
             <input
@@ -261,9 +263,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section className="rounded-theme border border-theme-border bg-theme-accent/5 p-3" aria-labelledby="card-deck-back-heading">
+      <section className="widget-editor__section" aria-labelledby={`card-deck-back-heading-${widget.id}`}>
         <div>
-          <h4 id="card-deck-back-heading" className="text-sm font-semibold text-theme-ink">Card back</h4>
+          <h3 id={`card-deck-back-heading-${widget.id}`} className="widget-editor__section-title">Card back</h3>
           <p className="mt-0.5 text-[11px] font-normal leading-4 text-theme-muted">
             Cards created here keep this deck identity when moved.
           </p>
@@ -356,12 +358,13 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section className="rounded-theme border border-theme-border bg-theme-accent/5 p-3">
-        <div className="flex items-center justify-between gap-2">
+      <section className="widget-editor__section" aria-labelledby={`card-deck-cards-heading-${widget.id}`}>
+        <div className="widget-editor__section-heading">
           <div>
-            <h4 className="text-xs font-semibold text-theme-ink">Cards</h4>
+            <h3 id={`card-deck-cards-heading-${widget.id}`} className="widget-editor__section-title">Cards</h3>
           </div>
-          <div className="flex flex-nowrap justify-end gap-1.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <span className="widget-editor__section-count">{cards.length}</span>
             <button
               type="button"
               onClick={() => appendCards([{ title: '', symbol: '', body: '' }], true)}

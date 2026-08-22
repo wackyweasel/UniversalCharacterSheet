@@ -268,7 +268,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--number-display space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -292,53 +292,50 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Layout</label>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
+      <fieldset className="widget-editor__option-group">
+        <legend>Display layout</legend>
+        <div className="widget-editor__segmented-group" role="radiogroup" aria-label="Display layout">
+          <label className={`widget-editor__segment ${displayLayout === 'horizontal' ? 'widget-editor__segment--selected' : ''}`}>
             <input
               type="radio"
               name="displayLayout"
               value="horizontal"
               checked={displayLayout === 'horizontal'}
               onChange={(e) => updateData({ displayLayout: e.target.value })}
-              className="w-4 h-4 text-theme-accent border-theme-border focus:ring-theme-accent"
             />
-            <span className="text-sm text-theme-ink">Horizontal</span>
+            <span>Horizontal</span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className={`widget-editor__segment ${displayLayout === 'vertical' ? 'widget-editor__segment--selected' : ''}`}>
             <input
               type="radio"
               name="displayLayout"
               value="vertical"
               checked={displayLayout === 'vertical'}
               onChange={(e) => updateData({ displayLayout: e.target.value })}
-              className="w-4 h-4 text-theme-accent border-theme-border focus:ring-theme-accent"
             />
-            <span className="text-sm text-theme-ink">Vertical</span>
+            <span>Vertical</span>
           </label>
         </div>
-      </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={widget.data.showDisplayNumberMax ?? false}
+            onChange={(event) => updateData({ showDisplayNumberMax: event.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show maximums in display (e.g. 5/10)</span>
+        </label>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={widget.data.showDisplayNumberMax ?? false}
-          onChange={(event) => updateData({ showDisplayNumberMax: event.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show maximums in display (e.g. 5/10)</span>
-      </label>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={widget.data.showDisplayNumberLabels ?? true}
-          onChange={(event) => updateData({ showDisplayNumberLabels: event.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show names under numbers</span>
-      </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={widget.data.showDisplayNumberLabels ?? true}
+            onChange={(event) => updateData({ showDisplayNumberLabels: event.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show names under numbers</span>
+        </label>
+      </fieldset>
 
       <label className="flex items-start gap-2 cursor-pointer rounded-theme border border-theme-border bg-theme-accent/5 p-3">
         <input
@@ -430,8 +427,11 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
         </div>
       )}
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Numbers</label>
+      <section className="widget-editor__section" aria-labelledby="display-numbers-title">
+        <div className="widget-editor__section-heading">
+          <h3 id="display-numbers-title" className="widget-editor__section-title">Numbers</h3>
+          <span className="widget-editor__section-count">{displayNumbers.length}</span>
+        </div>
         <div ref={containerRef} className="max-h-72 space-y-2 overflow-x-hidden overflow-y-auto">
           {(displayNumbers as DisplayNumber[]).map((item, idx) => {
             const boundsVisible = item.minValue !== undefined || item.maxValue !== undefined || boundEditorIndex === idx;
@@ -570,7 +570,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             );
           })}
         </div>
-        <form onSubmit={addItem} className="flex gap-2 mt-2">
+        <form onSubmit={addItem} className="widget-editor__add-row flex gap-2 mt-2">
           <input
             type="text"
             value={newItemLabel}
@@ -585,7 +585,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

@@ -108,7 +108,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--checkbox space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -132,8 +132,9 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <div>
-        <label className="flex items-center gap-2 text-sm font-medium text-theme-ink mb-2">
+      <fieldset className="widget-editor__option-group">
+        <legend>Checked item behavior</legend>
+        <label className="flex items-center gap-2 text-sm font-medium text-theme-ink">
           <input
             type="checkbox"
             checked={strikethrough}
@@ -142,10 +143,13 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
           />
           Strike through checked items
         </label>
-      </div>
+      </fieldset>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Checkbox Items</label>
+      <section className="widget-editor__section" aria-labelledby="checkbox-items-title">
+        <div className="widget-editor__section-heading">
+          <h3 id="checkbox-items-title" className="widget-editor__section-title">Checkbox Items</h3>
+          <span className="widget-editor__section-count">{checkboxItems.length}</span>
+        </div>
         <div className="space-y-1 max-h-48 overflow-y-auto">
           {(checkboxItems as CheckboxItem[]).map((item, idx) => (
             <div 
@@ -205,7 +209,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-        <form onSubmit={addItem} className="flex gap-2 mt-2">
+        <form onSubmit={addItem} className="widget-editor__add-row flex gap-2 mt-2">
           <input
             type="text"
             value={newItemName}
@@ -220,7 +224,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

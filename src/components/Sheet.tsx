@@ -34,6 +34,7 @@ import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
+import { WIDGET_CONTROLS_DISMISS_EVENT } from './widgetDragRegistry';
 
 // Helper to get active sheet widgets
 function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
@@ -342,6 +343,7 @@ export default function Sheet() {
       if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
     }
 
+    window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
     setSelectedWidgetId(null);
     if (preserveOverlayFocus) return;
 

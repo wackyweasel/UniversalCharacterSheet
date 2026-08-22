@@ -117,8 +117,8 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-2">
+    <div className="widget-editor widget-editor--inventory space-y-4">
+      <section className="widget-editor__section grid grid-cols-[100px_minmax(0,1fr)] items-center gap-2">
         <label className="text-xs font-medium text-theme-ink">Container name</label>
         <input
           value={label || ''}
@@ -128,24 +128,27 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
         />
       </section>
 
-      <section>
-        <div className="flex items-center justify-between gap-2">
+      <section className="widget-editor__section" aria-labelledby={`inventory-attributes-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
           <div>
-            <h4 className="text-xs font-semibold text-theme-ink">New item attributes</h4>
+            <h3 id={`inventory-attributes-title-${widget.id}`} className="widget-editor__section-title">New item attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
               Added to every new item and customizable on each item.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => updateData({
-              inventoryDefaultFields: [...inventoryDefaultFields, createInventoryFieldTemplate('New attribute', 'text')],
-            })}
-            className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
-          >
-            <PlusIcon className="h-3.5 w-3.5" />
-            Add attribute
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="widget-editor__section-count">{inventoryDefaultFields.length}</span>
+            <button
+              type="button"
+              onClick={() => updateData({
+                inventoryDefaultFields: [...inventoryDefaultFields, createInventoryFieldTemplate('New attribute', 'text')],
+              })}
+              className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              Add attribute
+            </button>
+          </div>
         </div>
 
         <div className="mt-1.5 border-y border-theme-border">
@@ -210,7 +213,10 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section>
+      <section className="widget-editor__section" aria-labelledby={`inventory-weight-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`inventory-weight-title-${widget.id}`} className="widget-editor__section-title">Weight &amp; encumbrance</h3>
+        </div>
         <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"

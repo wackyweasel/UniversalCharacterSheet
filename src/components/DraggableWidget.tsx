@@ -14,6 +14,7 @@ import {
   getWidgetDragState,
   startWidgetDrag,
   subscribeWidgetDragState,
+  WIDGET_CONTROLS_DISMISS_EVENT,
 } from './widgetDragRegistry';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
@@ -296,6 +297,12 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     window.addEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
     return () => window.removeEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
   }, [widget.id]);
+
+  useEffect(() => {
+    const dismissHoverControls = () => setIsHovered(false);
+    window.addEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
+    return () => window.removeEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {

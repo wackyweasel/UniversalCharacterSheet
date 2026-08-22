@@ -36,7 +36,7 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--progress-bar space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -60,7 +60,11 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <div className="space-y-2">
+      <section className="widget-editor__section" aria-labelledby={`progress-values-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`progress-values-title-${widget.id}`} className="widget-editor__section-title">Progress values</h3>
+        </div>
+        <div className="space-y-2">
         <div>
           <LabeledNumberField
             displayLabel="Current Value"
@@ -72,6 +76,8 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             onFormulaChange={(f) => setFieldFormula('currentValue', f)}
             min={allowOutOfRange ? undefined : minValue}
             max={allowOutOfRange ? undefined : maxValue}
+            controlHeight="input"
+            allowEmpty
           />
         </div>
         <div>
@@ -90,6 +96,8 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             formula={fieldFormulas['minValue']}
             onFormulaChange={(f) => setFieldFormula('minValue', f)}
             max={maxValue}
+            controlHeight="input"
+            allowEmpty
           />
         </div>
         <div>
@@ -108,13 +116,19 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             formula={fieldFormulas['maxValue']}
             onFormulaChange={(f) => setFieldFormula('maxValue', f)}
             min={minValue}
+            controlHeight="input"
+            allowEmpty
           />
         </div>
-      </div>
+        </div>
+      </section>
 
-      <div>
+      <section className="widget-editor__section" aria-labelledby={`progress-appearance-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`progress-appearance-title-${widget.id}`} className="widget-editor__section-title">Appearance</h3>
+        </div>
         <label htmlFor={`progress-fill-color-${widget.id}`} className="block text-sm font-medium text-theme-ink mb-1">
-          Filled Bar Color
+          Filled bar color
         </label>
         <div className="flex items-center gap-2">
           <div
@@ -144,28 +158,9 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             <span className="text-sm text-theme-muted">Theme color</span>
           )}
         </div>
-      </div>
+        <fieldset className="mt-5 min-w-0 border-0 p-0" aria-label="Display options">
 
-      {showIncrementButtons && (
-        <>
-          <LabeledNumberField
-            displayLabel="Button Increment"
-            value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
-            onChange={(v) => updateData({ increment: Math.max(1, v) })}
-            fieldLabel={fieldLabels['increment']}
-            onFieldLabelChange={(l) => setFieldLabel('increment', l)}
-            formula={fieldFormulas['increment']}
-            onFormulaChange={(f) => setFieldFormula('increment', f)}
-            min={1}
-          />
-          <p className="text-xs text-theme-muted -mt-3">Amount changed by +/− buttons and arrow keys</p>
-        </>
-      )}
-
-      <div className="border border-theme-border rounded-theme p-3">
-        <h4 className="font-medium text-theme-ink mb-3">Display Options</h4>
-
-        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
             type="checkbox"
             checked={showIncrementButtons}
@@ -174,6 +169,23 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show +/− buttons</span>
         </label>
+
+        {showIncrementButtons && (
+          <>
+            <LabeledNumberField
+              displayLabel="Button Increment"
+              value={typeof widget.data.increment === 'number' ? widget.data.increment : 1}
+              onChange={(v) => updateData({ increment: Math.max(1, v) })}
+              fieldLabel={fieldLabels['increment']}
+              onFieldLabelChange={(l) => setFieldLabel('increment', l)}
+              formula={fieldFormulas['increment']}
+              onFormulaChange={(f) => setFieldFormula('increment', f)}
+              min={1}
+              controlHeight="input"
+            />
+            <p className="widget-editor__hint text-xs text-theme-muted">Amount changed by +/− buttons and arrow keys</p>
+          </>
+        )}
 
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
@@ -234,8 +246,9 @@ export function ProgressBarEditor({ widget, updateData }: EditorProps) {
             className="w-4 h-4 accent-theme-accent"
           />
           <span className="text-sm text-theme-ink">Show Percentage</span>
-        </label>
-      </div>
+          </label>
+        </fieldset>
+      </section>
     </div>
   );
 }

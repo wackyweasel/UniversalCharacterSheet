@@ -12,9 +12,10 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
   } = widget.data;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+    <div className="widget-editor widget-editor--map-sketcher space-y-4">
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Widget label
         <div className="relative">
           <input
             className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -34,77 +35,87 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </label>
+      </section>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Stroke Color</label>
-        <div className="flex gap-2 items-center">
-          <input
-            type="color"
-            value={strokeColor}
-            onChange={(e) => updateData({ strokeColor: e.target.value })}
-            className="w-10 h-10 border border-theme-border rounded-button cursor-pointer"
-          />
-          <input
-            className="flex-1 px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={strokeColor}
-            onChange={(e) => updateData({ strokeColor: e.target.value })}
-            placeholder="#333333"
-          />
+      <section className="widget-editor__section" aria-labelledby={`map-sketcher-style-heading-${widget.id}`}>
+        <h3 id={`map-sketcher-style-heading-${widget.id}`} className="widget-editor__section-title">Drawing style</h3>
+        <div className="mt-3 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-theme-ink">Stroke color</label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="color"
+                value={strokeColor}
+                onChange={(e) => updateData({ strokeColor: e.target.value })}
+                className="h-10 w-10 cursor-pointer rounded-button border border-theme-border"
+              />
+              <input
+                className="min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
+                value={strokeColor}
+                onChange={(e) => updateData({ strokeColor: e.target.value })}
+                placeholder="#333333"
+                aria-label="Stroke color hex value"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-theme-ink">Stroke width</label>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={strokeWidth}
+              onChange={(e) => updateData({ strokeWidth: parseInt(e.target.value) })}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-theme-muted">{strokeWidth}px</div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-theme-ink">Corridor width</label>
+            <input
+              type="range"
+              min="5"
+              max="50"
+              value={corridorWidth}
+              onChange={(e) => updateData({ corridorWidth: parseInt(e.target.value) })}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-theme-muted">{corridorWidth}px</div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Stroke Width</label>
-        <input
-          type="range"
-          min="1"
-          max="10"
-          value={strokeWidth}
-          onChange={(e) => updateData({ strokeWidth: parseInt(e.target.value) })}
-          className="w-full"
-        />
-        <div className="text-xs text-theme-muted text-center">{strokeWidth}px</div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Corridor Width</label>
-        <input
-          type="range"
-          min="5"
-          max="50"
-          value={corridorWidth}
-          onChange={(e) => updateData({ corridorWidth: parseInt(e.target.value) })}
-          className="w-full"
-        />
-        <div className="text-xs text-theme-muted text-center">{corridorWidth}px</div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="gridEnabled"
-          checked={gridEnabled}
-          onChange={(e) => updateData({ gridEnabled: e.target.checked })}
-          className="w-4 h-4"
-        />
-        <label htmlFor="gridEnabled" className="text-sm font-medium text-theme-ink">Show Grid</label>
-      </div>
-
-      {gridEnabled && (
-        <div>
-          <label className="block text-sm font-medium text-theme-ink mb-1">Grid Size</label>
+      <fieldset className="widget-editor__option-group">
+        <legend className="widget-editor__section-title">Grid display</legend>
+        <label className="flex cursor-pointer items-start gap-2">
           <input
-            type="range"
-            min="10"
-            max="50"
-            value={gridSize}
-            onChange={(e) => updateData({ gridSize: parseInt(e.target.value) })}
-            className="w-full"
+            type="checkbox"
+            id="gridEnabled"
+            checked={gridEnabled}
+            onChange={(e) => updateData({ gridEnabled: e.target.checked })}
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
           />
-          <div className="text-xs text-theme-muted text-center">{gridSize}px</div>
-        </div>
-      )}
+          <span className="text-xs font-medium text-theme-ink">Show grid</span>
+        </label>
+
+        {gridEnabled && (
+          <div className="border-t border-theme-border pt-3">
+            <label className="mb-1 block text-xs font-medium text-theme-ink">Grid size</label>
+            <input
+              type="range"
+              min="10"
+              max="50"
+              value={gridSize}
+              onChange={(e) => updateData({ gridSize: parseInt(e.target.value) })}
+              className="w-full"
+            />
+            <div className="text-center text-xs text-theme-muted">{gridSize}px</div>
+          </div>
+        )}
+      </fieldset>
     </div>
   );
 }
