@@ -58,6 +58,8 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             formula={fieldFormulas['currentValue']}
             onFormulaChange={(f) => setFieldFormula('currentValue', f)}
             min={0}
+            controlHeight="input"
+            allowEmpty
           />
 
           <LabeledNumberField
@@ -69,6 +71,8 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             formula={fieldFormulas['maxValue']}
             onFormulaChange={(f) => setFieldFormula('maxValue', f)}
             min={1}
+            controlHeight="input"
+            allowEmpty
           />
         </div>
       </section>
@@ -133,8 +137,9 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
               formula={fieldFormulas['increment']}
               onFormulaChange={(f) => setFieldFormula('increment', f)}
               min={1}
+              controlHeight="input"
+              allowEmpty
             />
-            <p className="widget-editor__hint text-xs text-theme-muted">Amount changed by +/− buttons</p>
           </>
         )}
       </fieldset>

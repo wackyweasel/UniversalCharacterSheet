@@ -31,7 +31,7 @@ export function ResourceStylePicker({ value, onChange }: ResourceStylePickerProp
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-theme-muted">Symbol</span>
+      <span className="text-xs text-theme-muted">SYMBOL</span>
       <div className="relative flex-shrink-0">
         <Tooltip content={`Resource style: ${selectedStyle[2]}`}>
           <button
@@ -40,7 +40,7 @@ export function ResourceStylePicker({ value, onChange }: ResourceStylePickerProp
             aria-haspopup="menu"
             aria-label={`Resource style: ${selectedStyle[2]}`}
             onClick={() => setIsOpen((current) => !current)}
-            className="widget-control flex h-8 w-8 items-center justify-center p-0 text-base leading-none"
+            className="widget-control flex h-10 w-10 items-center justify-center p-0 text-base leading-none"
           >
             {selectedStyle[1]}
           </button>

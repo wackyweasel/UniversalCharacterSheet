@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ToggleItem } from '../../types';
+import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { GripVerticalIcon, TrashIcon } from '../icons';
 
 export function ConditionEditor({ widget, updateData }: EditorProps) {
   const { label, toggleItems = [] } = widget.data;
   const [newItemName, setNewItemName] = useState('');
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
+  const toggleItemsList = toggleItems as ToggleItem[];
+  const toggleItemIdsRef = useRef(new WeakMap<ToggleItem, string>());
+  const nextToggleItemIdRef = useRef(0);
+  const getToggleItemId = (item: ToggleItem) => {
+    const existingId = toggleItemIdsRef.current.get(item);
+    if (existingId) return existingId;
+    const id = `condition-item-${nextToggleItemIdRef.current++}`;
+    toggleItemIdsRef.current.set(item, id);
+    return id;
+  };
+  const reorderableItems = toggleItemsList.map((item) => ({ id: getToggleItemId(item), item }));
+  const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
+    items: reorderableItems,
+    onReorder: (items) => updateData({ toggleItems: items.map(({ item }) => item) }),
+  });
 
   const SUGGESTIONS = [
     'Blinded', 'Charmed', 'Frightened', 'Poisoned', 'Stunned', 
@@ -36,51 +51,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
     updateData({ toggleItems: updated });
   };
 
-  // Drag-and-drop handlers
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedIndex === null) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const mid = rect.top + rect.height / 2;
-    setInsertionIndex(e.clientY < mid ? index : index + 1);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
-      setInsertionIndex(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const fromIndex = draggedIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10);
-    const toIndex = insertionIndex;
-    setDraggedIndex(null);
-    setInsertionIndex(null);
-    if (toIndex === null || isNaN(fromIndex)) return;
-    if (toIndex === fromIndex || toIndex === fromIndex + 1) return;
-    const updated = [...toggleItems] as ToggleItem[];
-    const [moved] = updated.splice(fromIndex, 1);
-    const adjustedDrop = fromIndex < toIndex ? toIndex - 1 : toIndex;
-    updated.splice(adjustedDrop, 0, moved);
-    updateData({ toggleItems: updated });
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setInsertionIndex(null);
-  };
-
-  const existingNames = toggleItems.map((item: ToggleItem) => item.name.toLowerCase());
+  const existingNames = toggleItemsList.map((item) => item.name.toLowerCase());
   const availableSuggestions = SUGGESTIONS.filter(s => !existingNames.includes(s.toLowerCase()));
 
   return (
@@ -114,45 +85,49 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
           <span className="widget-editor__section-count">{toggleItems.length}</span>
         </div>
         <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-          {(toggleItems as ToggleItem[]).map((item, idx) => (
-            <React.Fragment key={idx}>
-              {insertionIndex === idx && draggedIndex !== null && (
-                <div className="h-0.5 w-full bg-theme-accent rounded-full my-0.5 flex-shrink-0" />
-              )}
+          {reorderableItems.map(({ id, item }, idx) => (
               <div
-                draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onDragEnd={handleDragEnd}
-                className={`flex cursor-grab items-center gap-1 rounded-button border border-theme-border bg-theme-background px-2 py-1 text-sm transition-all active:cursor-grabbing ${
-                  draggedIndex === idx ? 'opacity-40' : ''
-                }`}
+                key={id}
+                ref={(element) => setRowRef(id, element)}
+                className="pointer-sort-row flex items-center gap-1 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm transition-colors"
               >
-                <span className="text-theme-muted mr-1 select-none">⠿</span>
+                <Tooltip content="Drag to reorder">
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                    onPointerDown={(event) => startDrag(id, event)}
+                    onKeyDown={(event) => handleReorderKey(id, event)}
+                    disabled={toggleItemsList.length < 2}
+                    aria-label={`Reorder ${item.name || `condition ${idx + 1}`}`}
+                    title="Drag to reorder. Arrow keys also work."
+                  >
+                    <GripVerticalIcon className="h-4 w-4" />
+                  </button>
+                </Tooltip>
                 <span className="text-theme-ink flex-1">{item.name}</span>
                 <TooltipEditButton
                   tooltip={item.tooltip}
                   itemName={item.name}
+                  buttonClassName="h-10 w-10"
                   onSave={(t) => {
-                    const updated = [...toggleItems] as ToggleItem[];
-                    updated[idx] = { ...updated[idx], tooltip: t };
+                    const updatedItem = { ...toggleItemsList[idx], tooltip: t };
+                    toggleItemIdsRef.current.set(updatedItem, id);
+                    const updated = [...toggleItemsList];
+                    updated[idx] = updatedItem;
                     updateData({ toggleItems: updated });
                   }}
                 />
                 <button
+                  type="button"
                   onClick={() => removeItem(idx)}
-                  className="text-red-500 hover:text-red-700"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                  aria-label={`Delete ${item.name || `condition ${idx + 1}`}`}
+                  title="Delete condition"
                 >
-                  ×
+                  <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
-            </React.Fragment>
           ))}
-          {insertionIndex === (toggleItems as ToggleItem[]).length && draggedIndex !== null && (
-            <div className="h-0.5 w-full bg-theme-accent rounded-full my-0.5 flex-shrink-0" />
-          )}
         </div>
         <form onSubmit={handleSubmit} className="widget-editor__add-row flex gap-2">
           <input
@@ -173,7 +148,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
           <div className="mt-3">
             <span className="text-xs font-medium text-theme-muted">Quick add common conditions</span>
             <div className="flex flex-wrap gap-1 mt-1">
-              {availableSuggestions.slice(0, 8).map((suggestion) => (
+              {availableSuggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => addItem(suggestion)}

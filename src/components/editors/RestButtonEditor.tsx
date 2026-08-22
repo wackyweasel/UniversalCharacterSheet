@@ -4,6 +4,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { useStore } from '../../store/useStore';
 import { PoolResource, PoolRestoreTarget } from '../../types';
 import { collectLabels, evaluateFormula, getAvailableLabels } from '../../utils/formulaEngine';
+import { TrashIcon } from '../icons';
 
 interface PoolTargetInfo {
   widgetId: string;
@@ -229,15 +230,18 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
                       className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
                     />
                     <button
+                      type="button"
                       onClick={() => removeDiceGroup(index)}
-                      className="text-red-500 hover:text-red-700 px-2"
+                      aria-label={`Delete healing dice ${index + 1}`}
+                      title="Delete healing dice"
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
                     >
-                      ×
+                      <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="widget-editor__add-row">
+              <div className="mt-2">
                 <button
                   onClick={addDiceGroup}
                   className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
@@ -257,6 +261,8 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
                 formula={fieldFormulas['healFlatAmount']}
                 onFormulaChange={(f) => setFieldFormula('healFlatAmount', f)}
                 min={0}
+                controlHeight="input"
+                allowEmpty
               />
             </div>
           </>

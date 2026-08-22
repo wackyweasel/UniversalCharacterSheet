@@ -354,6 +354,11 @@ export interface WidgetData {
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
   spellLevels?: SpellLevel[];
+  spellSlotShape?: 'circle' | 'square' | 'diamond';
+  spellSlotSize?: number;
+  spellSlotHorizontalSpacing?: number;
+  spellSlotVerticalSpacing?: number;
+  showResetButton?: boolean;
   // Number
   numberItems?: NumberItem[];
   // Number Display

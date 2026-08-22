@@ -21,13 +21,18 @@ export default function SpellSlotWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
-  const { label, spellLevels = [{ level: 1, max: 4, used: 0 }] } = widget.data;
+  const { label, spellLevels = [{ level: 1, max: 4, used: 0 }], fillColor, spellSlotShape = 'circle', spellSlotSize = 20, spellSlotHorizontalSpacing = 4, spellSlotVerticalSpacing = 4, showResetButton = true } = widget.data;
+  const normalizedSpellSlotSize = Math.max(12, Math.min(40, spellSlotSize));
+  const normalizedHorizontalSpacing = Math.max(0, Math.min(16, spellSlotHorizontalSpacing));
+  const normalizedVerticalSpacing = Math.max(0, Math.min(16, spellSlotVerticalSpacing));
 
   // Fixed small sizing
   const levelLabelClass = 'w-6 text-[10px]';
-  const slotSize = 'w-5 h-5';
   const buttonClass = 'text-[10px] px-1 py-0.5';
   const gapClass = 'gap-1';
+  const slotShapeClass = spellSlotShape === 'square'
+    ? 'rounded-button'
+    : 'rounded-full';
   
   // Calculate spell levels area height
   const labelHeight = 16;
@@ -71,8 +76,8 @@ export default function SpellSlotWidget({ widget, height }: Props) {
 
       {/* Spell Levels */}
       <div 
-        className={`flex flex-col ${gapClass} overflow-y-auto flex-1`}
-        style={{ maxHeight: `${levelsHeight}px` }}
+        className="flex flex-1 flex-col overflow-y-auto"
+        style={{ maxHeight: `${levelsHeight}px`, rowGap: `${normalizedVerticalSpacing}px` }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight) {
@@ -85,21 +90,47 @@ export default function SpellSlotWidget({ widget, height }: Props) {
             {/* Level Label */}
             <span className={`${levelLabelClass} font-bold text-center text-theme-ink font-body`}>{ordinalSuffix(levelData.level)}</span>
 
-            {/* Slot Circles */}
-            <div className="flex gap-1 flex-1 flex-wrap">
+            {/* Slots */}
+            <div className="flex flex-1 flex-wrap" style={{ gap: `${normalizedHorizontalSpacing}px` }}>
               {Array.from({ length: levelData.max }).map((_, slotIdx) => (
                 <Tooltip key={slotIdx} content={slotIdx < levelData.used ? 'Click to restore' : 'Click to use'}>
-                  <button
-                    onClick={() => toggleSlot(levelIdx, slotIdx)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    aria-label={`${ordinalSuffix(levelData.level)} level slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
-                    aria-pressed={slotIdx < levelData.used}
-                    className={`${slotSize} rounded-full border border-theme-border transition-all focus-visible:scale-110 ${
-                      slotIdx < levelData.used 
-                        ? 'bg-theme-accent' 
-                        : 'bg-theme-paper hover:opacity-80'
-                    }`}
-                  />
+                  {spellSlotShape === 'diamond' ? (
+                    <button
+                      onClick={() => toggleSlot(levelIdx, slotIdx)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      aria-label={`${ordinalSuffix(levelData.level)} level slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
+                      aria-pressed={slotIdx < levelData.used}
+                      className="flex items-center justify-center border-0 bg-transparent p-0 transition-all hover:opacity-80 focus-visible:scale-110"
+                      style={{ width: `${normalizedSpellSlotSize}px`, height: `${normalizedSpellSlotSize}px` }}
+                    >
+                      <span
+                        className={`rotate-45 rounded-sm border border-theme-border ${slotIdx < levelData.used ? 'bg-theme-accent' : 'bg-theme-paper'}`}
+                        style={{
+                          width: `${Math.max(8, Math.round(normalizedSpellSlotSize * 0.7))}px`,
+                          height: `${Math.max(8, Math.round(normalizedSpellSlotSize * 0.7))}px`,
+                          ...(slotIdx < levelData.used && fillColor ? { backgroundColor: fillColor } : {}),
+                        }}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => toggleSlot(levelIdx, slotIdx)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      aria-label={`${ordinalSuffix(levelData.level)} level slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
+                      aria-pressed={slotIdx < levelData.used}
+                      className={`${slotShapeClass} border border-theme-border transition-all focus-visible:scale-110 ${
+                        slotIdx < levelData.used 
+                          ? 'bg-theme-accent' 
+                          : 'bg-theme-paper hover:opacity-80'
+                      }`}
+                      style={{
+                        width: `${normalizedSpellSlotSize}px`,
+                        height: `${normalizedSpellSlotSize}px`,
+                        ...(slotIdx < levelData.used && fillColor ? { backgroundColor: fillColor } : {}),
+                      }}
+                    />
+                  )}
                 </Tooltip>
               ))}
             </div>
@@ -111,18 +142,20 @@ export default function SpellSlotWidget({ widget, height }: Props) {
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-end ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
-        <Tooltip content="Reset all spell slots to unused">
-          <button
-            onClick={resetAll}
-            onMouseDown={(e) => e.stopPropagation()}
-            disabled={(spellLevels as SpellLevel[]).every((level) => level.used === 0)}
-            className={`${buttonClass} widget-control widget-control--subtle disabled:opacity-35`}
-          >
-            Reset All
-          </button>
-        </Tooltip>
-      </div>
+      {showResetButton && (
+        <div className={`flex items-center justify-end ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
+          <Tooltip content="Reset all spell slots to unused">
+            <button
+              onClick={resetAll}
+              onMouseDown={(e) => e.stopPropagation()}
+              disabled={(spellLevels as SpellLevel[]).every((level) => level.used === 0)}
+              className={`${buttonClass} widget-control widget-control--subtle disabled:opacity-35`}
+            >
+              Reset All
+            </button>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 }
