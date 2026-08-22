@@ -19,6 +19,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
     diceName: '',
     editIndex: null 
   });
+  const [pendingDiceRemoval, setPendingDiceRemoval] = useState<{ index: number; label: string } | null>(null);
   const [newFaceValue, setNewFaceValue] = useState('');
   
   const COMMON_DICE = [4, 6, 8, 10, 12, 20, 100];
@@ -127,8 +128,33 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
 
   const removeDice = (index: number) => {
     const current = [...(availableDice as (number | CustomDie)[])];
+    const die = current[index];
+    const isCustomNumericDie = typeof die === 'number' && !COMMON_DICE.includes(die);
+    if (isCustomDie(die) || isCustomNumericDie) {
+      setPendingDiceRemoval({
+        index,
+        label: isCustomDie(die) ? die.name : `d${die}`,
+      });
+      return;
+    }
     current.splice(index, 1);
     updateData({ availableDice: current });
+  };
+
+  const confirmDiceRemoval = () => {
+    if (!pendingDiceRemoval) return;
+
+    const current = [...(availableDice as (number | CustomDie)[])];
+    const die = current[pendingDiceRemoval.index];
+    const isCustomNumericDie = typeof die === 'number' && !COMMON_DICE.includes(die);
+    if (!isCustomDie(die) && !isCustomNumericDie) {
+      setPendingDiceRemoval(null);
+      return;
+    }
+
+    current.splice(pendingDiceRemoval.index, 1);
+    updateData({ availableDice: current });
+    setPendingDiceRemoval(null);
   };
 
   const openCustomFacesModal = (editIndex: number | null = null) => {
@@ -216,8 +242,10 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <fieldset className="widget-editor__option-group">
-        <legend>Display</legend>
+      <section className="widget-editor__section" aria-labelledby={`tray-display-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`tray-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
+        </div>
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
@@ -230,7 +258,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show roll details control</span>
         </label>
-      </fieldset>
+      </section>
       
       <section className="widget-editor__section" aria-labelledby={`dice-selection-title-${widget.id}`}>
         <div className="widget-editor__section-heading">
@@ -238,24 +266,66 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           <span className="widget-editor__section-count">{availableDice.length}</span>
         </div>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-theme-ink mb-2">Quick add common dice</label>
-            <div className="flex flex-wrap gap-2">
-          {COMMON_DICE.map((faces) => (
-            <button
-              key={faces}
-              onClick={() => toggleDice(faces)}
-              className={`px-3 py-2 border border-theme-border rounded-button text-sm font-bold transition-all ${
-                standardDiceInList.some(({ die }) => die === faces)
-                  ? 'bg-theme-accent text-theme-paper'
-                  : 'bg-theme-paper text-theme-ink hover:bg-theme-muted hover:text-theme-paper'
-              }`}
-            >
-              d{faces}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-2">
+            {COMMON_DICE.map((faces) => (
+              <button
+                type="button"
+                key={faces}
+                onClick={() => toggleDice(faces)}
+                className={`px-3 py-2 border border-theme-border rounded-button text-sm font-bold transition-all ${
+                  standardDiceInList.some(({ die }) => die === faces)
+                    ? 'bg-theme-accent text-theme-paper'
+                    : 'bg-theme-paper text-theme-ink hover:bg-theme-muted hover:text-theme-paper'
+                }`}
+              >
+                d{faces}
+              </button>
+            ))}
+            {standardDiceInList
+              .filter(({ die }) => !COMMON_DICE.includes(die))
+              .map(({ die, index }) => (
+                <div
+                  key={`custom-standard-${die}`}
+                  className="flex items-center gap-1 rounded-button bg-theme-accent px-3 py-2 text-sm text-theme-paper"
+                >
+                  <span>d{die}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeDice(index)}
+                    aria-label={`Remove d${die}`}
+                    className="ml-1 hover:text-red-300"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            {customDiceInList.map(({ die, index }) => (
+              <div
+                key={`custom-${die.name}-${index}`}
+                className="flex max-w-full items-center gap-1 rounded-button bg-theme-accent px-2 py-2 text-sm text-theme-paper"
+              >
+                <Tooltip content={`${die.name} (${die.faces.length} faces)`}>
+                  <span className="max-w-[140px] truncate px-1 font-bold">{die.name}</span>
+                </Tooltip>
+                <button
+                  type="button"
+                  onClick={() => openCustomFacesModal(index)}
+                  aria-label={`Edit ${die.name}`}
+                  className="px-1 text-xs hover:text-theme-muted"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeDice(index)}
+                  aria-label={`Remove ${die.name}`}
+                  className="px-1 hover:text-red-300"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
             </div>
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-theme-ink mb-2">Add custom numeric dice</label>
@@ -283,66 +353,12 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           <div>
             <label className="block text-sm font-medium text-theme-ink mb-2">Custom faces dice</label>
             <button
-          onClick={() => openCustomFacesModal()}
-          className="px-3 py-2 border border-theme-border rounded-button text-sm font-bold bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-all"
+              type="button"
+              onClick={() => openCustomFacesModal()}
+              className="px-3 py-2 border border-theme-border rounded-button text-sm font-bold bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-all"
             >
               + Add Custom Faces Die
             </button>
-            {customDiceInList.length > 0 && (
-              <div className="mt-2 space-y-2">
-            {customDiceInList.map(({ die, index }) => (
-              <div
-                key={`custom-${die.name}-${index}`}
-                className="flex items-start gap-2 p-2 bg-theme-border/20 rounded-button"
-              >
-                <div className="flex-1">
-                  <div className="font-bold text-sm text-theme-ink">{die.name}</div>
-                  <div className="text-xs text-theme-muted flex flex-wrap gap-1 mt-1">
-                    {die.faces.map((face, i) => (
-                      <span key={i} className="bg-theme-border/30 px-1 rounded">{face}</span>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => openCustomFacesModal(index)}
-                  className="text-theme-accent hover:opacity-80 text-xs px-2 py-1"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => removeDice(index)}
-                  className="text-red-500 hover:text-red-700 px-1"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-theme-ink mb-2">Current standard dice</label>
-            {standardDiceInList.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-            {standardDiceInList.map(({ die, index }) => (
-              <div
-                key={`standard-${die}`}
-                className="flex items-center gap-1 px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-sm"
-              >
-                <span>d{die}</span>
-                <button
-                  onClick={() => removeDice(index)}
-                  className="hover:text-red-300 ml-1"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-              </div>
-            ) : (
-              <p className="text-xs text-theme-muted">No standard dice selected</p>
-            )}
           </div>
         </div>
       </section>
@@ -494,6 +510,60 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
                 Save
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDiceRemoval && (
+        <div
+          className="widget-edit-modal__backdrop fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPendingDiceRemoval(null)}
+          onMouseDown={(event) => event.stopPropagation()}
+          onMouseUp={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              setPendingDiceRemoval(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`remove-dice-title-${widget.id}`}
+            className="widget-edit-modal__aux-dialog w-full max-w-md animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="widget-edit-modal__header border-b border-theme-border">
+              <span className="widget-edit-modal__eyebrow">Dice tray</span>
+              <h2 id={`remove-dice-title-${widget.id}`} className="widget-edit-modal__title font-heading font-bold text-theme-ink">
+                Remove custom die?
+              </h2>
+            </header>
+            <div className="p-4">
+              <p className="text-sm text-theme-ink">
+                Remove <strong>{pendingDiceRemoval.label}</strong> from this dice tray?
+              </p>
+            </div>
+            <footer className="widget-edit-modal__footer flex justify-end gap-2 border-t border-theme-border">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setPendingDiceRemoval(null)}
+                className="widget-control px-3 py-2 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDiceRemoval}
+                className="rounded-button bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Remove die
+              </button>
+            </footer>
           </div>
         </div>
       )}

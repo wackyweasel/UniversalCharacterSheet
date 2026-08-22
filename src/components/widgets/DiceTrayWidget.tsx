@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, CustomDie } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -16,6 +17,7 @@ interface Props {
   width: number;
   height: number;
   interactive?: boolean;
+  sheetScale?: number;
 }
 
 interface DiceInPool {
@@ -50,7 +52,12 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
   return typeof die === 'object' && 'faces' in die && Array.isArray(die.faces);
 };
 
-export default function DiceTrayWidget({ widget, mode, interactive = true }: Props) {
+const DETAILS_VIEWPORT_PADDING = 8;
+const DETAILS_OFFSET = 4;
+const MIN_DETAILS_WIDTH = 180;
+const MAX_DETAILS_WIDTH = 240;
+
+export default function DiceTrayWidget({ widget, mode, interactive = true, sheetScale = 1 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0 } = widget.data;
   const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
@@ -61,7 +68,67 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
   const [isRolling, setIsRolling] = useState(false);
   const [rerollingDieId, setRerollingDieId] = useState<number | null>(null);
   const [nextId, setNextId] = useState(1);
+  const resultSummaryRef = useRef<HTMLDivElement>(null);
+  const detailsDropdownRef = useRef<HTMLDivElement>(null);
+  const [detailsPosition, setDetailsPosition] = useState({ left: 0, top: 0, width: 0, maxHeight: 0 });
   const controlsVisible = interactive && mode !== 'print';
+
+  useLayoutEffect(() => {
+    if (!showTrayRollDetails || !result || isRolling) return;
+
+    const updateDetailsPosition = () => {
+      const anchor = resultSummaryRef.current;
+      if (!anchor) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const viewportWidth = Math.max(0, window.innerWidth - DETAILS_VIEWPORT_PADDING * 2);
+      const width = Math.min(Math.max(anchorRect.width, MIN_DETAILS_WIDTH), viewportWidth, MAX_DETAILS_WIDTH);
+      const maxHeight = Math.max(0, window.innerHeight - DETAILS_VIEWPORT_PADDING * 2);
+      const dropdownHeight = Math.min(
+        detailsDropdownRef.current?.getBoundingClientRect().height ?? 0,
+        maxHeight,
+      );
+      const below = anchorRect.bottom + DETAILS_OFFSET;
+      const top = below + dropdownHeight <= window.innerHeight - DETAILS_VIEWPORT_PADDING
+        ? below
+        : Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.top - dropdownHeight - DETAILS_OFFSET);
+      const left = Math.min(
+        Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.left),
+        Math.max(DETAILS_VIEWPORT_PADDING, window.innerWidth - width - DETAILS_VIEWPORT_PADDING),
+      );
+
+      setDetailsPosition({ left, top, width, maxHeight });
+    };
+
+    updateDetailsPosition();
+    window.addEventListener('resize', updateDetailsPosition);
+    window.addEventListener('scroll', updateDetailsPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateDetailsPosition);
+      window.removeEventListener('scroll', updateDetailsPosition, true);
+    };
+  }, [isRolling, result, showTrayRollDetails, sheetScale]);
+
+  useEffect(() => {
+    if (!showTrayRollDetails || !result || isRolling) return;
+
+    const closeDetails = () => updateWidgetData(widget.id, { showTrayRollDetails: false });
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (detailsDropdownRef.current?.contains(target) || resultSummaryRef.current?.contains(target)) return;
+      closeDetails();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeDetails();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isRolling, result, showTrayRollDetails, updateWidgetData, widget.id]);
 
   // Fixed small sizing
   const buttonClass = 'py-1 px-2 text-xs';
@@ -507,12 +574,12 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
 
       {/* Result Display */}
       <div
-        className={`text-center flex-1 flex flex-col min-h-0 overflow-y-auto ${showTrayRollDetails ? 'justify-start' : 'justify-center'}`}
+        className="text-center flex-1 flex flex-col min-h-0 justify-center"
         onWheel={(e) => e.stopPropagation()}
       >
         {result && !isRolling ? (
           <>
-            <div className="relative flex min-h-5 items-center justify-center">
+            <div ref={resultSummaryRef} className="relative flex min-h-5 items-center justify-center">
               <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
                 {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
               </div>
@@ -531,50 +598,6 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
                 </Tooltip>
               )}
             </div>
-            {showTrayRollDetails && (
-              <div className="mt-1 flex flex-col gap-0.5">
-              {result.dice.map((d, i) => {
-                const dieLabel = Array.isArray(d.faces)
-                  ? (d.customDieName || 'custom')
-                  : `d${d.faces}`;
-                return (
-                  <div
-                    key={d.id}
-                    className="flex items-center justify-between gap-1 px-1 py-0.5 border-b border-theme-border/30 last:border-b-0"
-                  >
-                    <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>{dieLabel}</span>
-                    <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
-                      {String(d.roll)}
-                    </span>
-                    {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
-                      <button
-                        onClick={() => rerollSingleDie(i)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        disabled={rerollingDieId !== null}
-                        className={`p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0 ${
-                          rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''
-                        }`}
-                        aria-label={`Re-roll ${dieLabel} ${i + 1}`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                    </Tooltip> : <span className="w-4 flex-shrink-0" />}
-                  </div>
-                );
-              })}
-              {result.modifier !== 0 && (
-                <div className="flex items-center justify-between gap-1 px-1 py-0.5">
-                  <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>modifier</span>
-                  <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center`}>
-                    {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
-                  </span>
-                  <span className="w-[18px] flex-shrink-0" />
-                </div>
-              )}
-            </div>
-            )}
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.dice.length === 1 && 
              typeof result.dice[0].faces === 'number' && 
@@ -596,6 +619,68 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
           </>
         )}
       </div>
+      {showTrayRollDetails && result && !isRolling && createPortal(
+        <div
+          id={`dice-tray-roll-details-${widget.id}`}
+          ref={detailsDropdownRef}
+          role="region"
+          aria-label="Roll details"
+          className="fixed z-[10020] max-w-[calc(100vw-16px)] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-0.5 shadow-theme font-body animate-dropdown-in"
+          style={{
+            left: detailsPosition.left,
+            top: detailsPosition.top,
+            width: detailsPosition.width || undefined,
+            maxHeight: detailsPosition.maxHeight || undefined,
+          }}
+          data-touch-camera-ignore="true"
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="mt-1 flex flex-col gap-0.5">
+            {result.dice.map((d, i) => {
+              const dieLabel = Array.isArray(d.faces)
+                ? (d.customDieName || 'custom')
+                : `d${d.faces}`;
+              return (
+                <div
+                  key={d.id}
+                  className="flex items-center justify-between gap-0 px-0 py-0.5 border-b border-theme-border/30 last:border-b-0"
+                >
+                  <span className="text-sm text-theme-muted font-body flex-shrink-0">{dieLabel}</span>
+                  <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center truncate">
+                    {String(d.roll)}
+                  </span>
+                  {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
+                    <button
+                      onClick={() => rerollSingleDie(i)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      disabled={rerollingDieId !== null}
+                      className={`p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0 ${
+                        rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''
+                      }`}
+                      aria-label={`Re-roll ${dieLabel} ${i + 1}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  </Tooltip> : <span className="w-4 flex-shrink-0" />}
+                </div>
+              );
+            })}
+            {result.modifier !== 0 && (
+              <div className="flex items-center justify-between gap-0 px-0 py-0.5">
+                <span className="text-sm text-theme-muted font-body flex-shrink-0">modifier</span>
+                <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center">
+                  {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
+                </span>
+                <span className="w-[18px] flex-shrink-0" />
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

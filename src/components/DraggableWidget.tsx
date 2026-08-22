@@ -815,8 +815,8 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'TEXT': return <TextWidget {...props} sheetScale={scale} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
-      case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
-      case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
+      case 'DICE_ROLLER': return <DiceRollerWidget {...props} sheetScale={scale} />;
+      case 'DICE_TRAY': return <DiceTrayWidget {...props} sheetScale={scale} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
