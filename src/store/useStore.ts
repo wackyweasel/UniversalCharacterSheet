@@ -981,6 +981,22 @@ export const useStore = create<StoreState>((set, get) => {
               showPoolCount: false,
             } : {}),
             ...(type === 'TOGGLE' ? { toggleState: false, inlineLabel: true } : {}),
+            ...(type === 'TIME_TRACKER' ? {
+              effectSuggestions: [
+                'Poisoned',
+                'Burning',
+                'Blinded',
+                'Charmed',
+                'Frightened',
+                'Stunned',
+                'Prone',
+                'Restrained',
+                'Slowed',
+                'Hasted',
+                'Invisible',
+                'Blessed',
+              ],
+            } : {}),
             ...(type === 'MIXED_FIELDS' ? { mixedFields: [], labelWidth: 33 } : {}),
             ...(type === 'GRID_MAP' ? {
               gridMapTokens: [],

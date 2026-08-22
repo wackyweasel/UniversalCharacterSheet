@@ -88,8 +88,8 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <fieldset className="widget-editor__option-group">
-        <legend className="widget-editor__section-title">Grid display</legend>
+      <fieldset className="widget-editor__option-group" aria-labelledby={`map-sketcher-grid-heading-${widget.id}`}>
+        <h3 id={`map-sketcher-grid-heading-${widget.id}`} className="widget-editor__section-title">Grid display</h3>
         <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
@@ -102,7 +102,7 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
         </label>
 
         {gridEnabled && (
-          <div className="border-t border-theme-border pt-3">
+          <div className="pt-3">
             <label className="mb-1 block text-xs font-medium text-theme-ink">Grid size</label>
             <input
               type="range"

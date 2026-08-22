@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { EditorProps } from './types';
 
 interface ColorControlProps {
@@ -44,6 +45,29 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
     gridMapCellDistance = 5,
     gridMapDistanceUnit = 'ft',
   } = widget.data;
+  const [cellDistanceDraft, setCellDistanceDraft] = useState(() => String(gridMapCellDistance));
+  const editingCellDistanceRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingCellDistanceRef.current) setCellDistanceDraft(String(gridMapCellDistance));
+  }, [gridMapCellDistance]);
+
+  const handleCellDistanceChange = (rawValue: string) => {
+    setCellDistanceDraft(rawValue);
+    const value = Number(rawValue);
+    if (Number.isFinite(value) && value > 0) updateData({ gridMapCellDistance: value });
+  };
+
+  const handleCellDistanceBlur = () => {
+    editingCellDistanceRef.current = false;
+    const value = Number(cellDistanceDraft);
+    if (Number.isFinite(value) && value > 0) {
+      setCellDistanceDraft(String(value));
+      updateData({ gridMapCellDistance: value });
+    } else {
+      setCellDistanceDraft(String(gridMapCellDistance));
+    }
+  };
 
   return (
     <div className="widget-editor widget-editor--grid-map space-y-4">
@@ -64,7 +88,7 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
         <h3 id={`grid-map-layout-heading-${widget.id}`} className="widget-editor__section-title">Grid layout</h3>
         <div className="mt-3 space-y-3">
           <div>
-            <div className="mb-1 text-xs font-medium text-theme-ink">Grid type</div>
+            <div className="mb-1 text-xs font-semibold uppercase text-theme-muted">Grid type</div>
             <div className="widget-editor__segmented-group" role="group" aria-label="Grid type">
               {(['square', 'hex'] as const).map((gridType) => (
                 <button
@@ -107,12 +131,14 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
                 type="number"
                 min="0.1"
                 step="0.5"
-                value={gridMapCellDistance}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  if (Number.isFinite(value) && value > 0) updateData({ gridMapCellDistance: value });
+                value={cellDistanceDraft}
+                onFocus={() => {
+                  editingCellDistanceRef.current = true;
+                  setCellDistanceDraft(String(gridMapCellDistance));
                 }}
-                className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
+                onChange={(event) => handleCellDistanceChange(event.target.value)}
+                onBlur={handleCellDistanceBlur}
+                className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink [appearance:textfield] focus:border-theme-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <input
                 aria-label="Distance unit"

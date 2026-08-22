@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { TrashIcon } from '../icons';
 
 export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
   const { label, roundMode = false, effectSuggestions = [] } = widget.data;
   const [newSuggestion, setNewSuggestion] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   const addSuggestion = () => {
     if (newSuggestion.trim() && !effectSuggestions.includes(newSuggestion.trim())) {
@@ -21,6 +23,29 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--time-tracker space-y-4">
+      <div className="widget-editor__hint text-xs text-theme-muted" style={{ marginBottom: '-0.5rem', marginTop: '0.5rem' }}>
+        <div className="flex items-center justify-between gap-3">
+          <p>Use this widget to track timed effects in your game.</p>
+          <button
+            type="button"
+            aria-expanded={showHelp}
+            aria-controls={`time-tracker-help-${widget.id}`}
+            onClick={() => setShowHelp((expanded) => !expanded)}
+            className="widget-control flex-none px-2 py-1 text-[11px] font-semibold"
+          >
+            {showHelp ? 'less' : 'more'}
+          </button>
+        </div>
+        {showHelp && (
+          <ul id={`time-tracker-help-${widget.id}`} className="ml-4 mt-2 list-disc space-y-1">
+            <li>Add effects with their remaining duration</li>
+            <li>{roundMode ? 'Use "Pass Round" to advance all timers by 1 round' : 'Use the "Pass Time" controls to advance all timers at once'}</li>
+            <li>Expired effects will be highlighted</li>
+            <li>Time can also be tracked from the Initiative Tracker and Rest button</li>
+          </ul>
+        )}
+      </div>
+
       <section className="widget-editor__section">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
@@ -46,21 +71,41 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
         </label>
       </section>
 
-      <fieldset className="widget-editor__option-group">
-        <legend className="widget-editor__section-title">Time mode</legend>
-        <label className="flex cursor-pointer items-start gap-2">
-          <input
-            type="checkbox"
-            checked={roundMode}
-            onChange={(e) => updateData({ roundMode: e.target.checked })}
-            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
-          />
-          <span className="text-xs font-medium text-theme-ink">Round mode</span>
-        </label>
-        <p className="widget-editor__hint ml-6 text-[11px] leading-4 text-theme-muted">
-          In round mode, time is tracked in rounds instead of real-world time units.
-        </p>
-      </fieldset>
+      <section className="widget-editor__option-group" aria-labelledby={`time-mode-heading-${widget.id}`}>
+        <h3 id={`time-mode-heading-${widget.id}`} className="widget-editor__section-title">Time mode</h3>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Time mode options">
+          <button
+            type="button"
+            aria-pressed={!roundMode}
+            onClick={() => updateData({ roundMode: false })}
+            className={`flex min-h-20 w-full flex-col items-start justify-center rounded-button border p-3 text-left transition-colors ${
+              !roundMode
+                ? 'border-theme-accent bg-theme-accent text-theme-paper shadow-sm'
+                : 'border-theme-border bg-theme-paper text-theme-ink hover:border-theme-accent hover:bg-theme-accent/10'
+            }`}
+          >
+            <span className="text-sm font-semibold">Real time mode</span>
+            <span className={`mt-1 text-[11px] leading-4 ${!roundMode ? 'text-theme-paper/75' : 'text-theme-muted'}`}>
+              Track durations in seconds, minutes, and hours.
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={roundMode}
+            onClick={() => updateData({ roundMode: true })}
+            className={`flex min-h-20 w-full flex-col items-start justify-center rounded-button border p-3 text-left transition-colors ${
+              roundMode
+                ? 'border-theme-accent bg-theme-accent text-theme-paper shadow-sm'
+                : 'border-theme-border bg-theme-paper text-theme-ink hover:border-theme-accent hover:bg-theme-accent/10'
+            }`}
+          >
+            <span className="text-sm font-semibold">Round mode</span>
+            <span className={`mt-1 text-[11px] leading-4 ${roundMode ? 'text-theme-paper/75' : 'text-theme-muted'}`}>
+              Track durations by rounds instead of real-world time.
+            </span>
+          </button>
+        </div>
+      </section>
 
       <section className="widget-editor__section" aria-labelledby={`time-tracker-suggestions-heading-${widget.id}`}>
         <div className="widget-editor__section-heading">
@@ -94,34 +139,30 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
           </button>
         </div>
         {effectSuggestions.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="mt-1 flex flex-wrap gap-1">
             {effectSuggestions.map((suggestion, index) => (
               <span
                 key={index}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-theme-border/30 text-theme-ink rounded-button text-sm"
+                className="inline-flex items-center gap-1 rounded-button border border-theme-border bg-theme-border/30 px-2 py-1 text-sm text-theme-ink"
               >
                 {suggestion}
-                <button
-                  type="button"
-                  onClick={() => removeSuggestion(index)}
-                  className="text-theme-muted hover:text-red-500 transition-colors ml-1"
-                >
-                  ×
-                </button>
+                <Tooltip content="Delete suggestion">
+                  <button
+                    type="button"
+                    onClick={() => removeSuggestion(index)}
+                    aria-label={`Delete ${suggestion} suggestion`}
+                    title="Delete suggestion"
+                    className="flex h-5 w-5 items-center justify-center rounded-button text-theme-muted transition-colors hover:text-red-500"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  </button>
+                </Tooltip>
               </span>
             ))}
           </div>
         )}
       </section>
       
-      <div className="widget-editor__hint text-xs text-theme-muted">
-        <p>Use this widget to track timed effects in your game.</p>
-        <ul className="ml-4 mt-2 list-disc space-y-1">
-          <li>Add effects with their remaining duration</li>
-          <li>{roundMode ? 'Use "Pass Round" to advance all timers by 1 round' : 'Use the "Pass Time" controls to advance all timers at once'}</li>
-          <li>Expired effects will be highlighted</li>
-        </ul>
-      </div>
     </div>
   );
 }

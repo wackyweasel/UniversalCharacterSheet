@@ -30,8 +30,8 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
         </label>
       </section>
 
-      <fieldset className="widget-editor__option-group">
-        <legend className="widget-editor__section-title">Timer mode</legend>
+      <section className="widget-editor__option-group" aria-labelledby={`timer-mode-heading-${widget.id}`}>
+        <h3 id={`timer-mode-heading-${widget.id}`} className="widget-editor__section-title">Timer mode</h3>
         <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
@@ -72,7 +72,7 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </fieldset>
+      </section>
     </div>
   );
 }
