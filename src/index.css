@@ -436,6 +436,11 @@ td .inline-dice-token {
     color: var(--color-ink);
   }
 
+  .widget-edit-modal__editor-content input::placeholder,
+  .widget-edit-modal__editor-content textarea::placeholder {
+    font-weight: 400;
+  }
+
   .widget-editor__option-group,
   .widget-editor__section {
     background: color-mix(in srgb, var(--color-paper) 72%, var(--color-background));
@@ -714,6 +719,20 @@ td .inline-dice-token {
 
   .widget-edit-modal__aux-dialog .widget-edit-modal__footer {
     background: color-mix(in srgb, var(--color-paper) 76%, var(--color-background));
+  }
+
+  .roll-table-weight-input,
+  .deck-amount-input {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .roll-table-weight-input::-webkit-inner-spin-button,
+  .roll-table-weight-input::-webkit-outer-spin-button,
+  .deck-amount-input::-webkit-inner-spin-button,
+  .deck-amount-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 
   @media (max-width: 767px) {

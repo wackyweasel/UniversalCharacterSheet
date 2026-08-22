@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { TrashIcon } from '../icons';
 
 interface RollTableItem {
   text: string;
@@ -8,6 +10,7 @@ interface RollTableItem {
 
 export function RollTableEditor({ widget, updateData }: EditorProps) {
   const { label, rollTableItems = [{ text: '', weight: 1 }], showRollTableItems = true } = widget.data;
+  const [weightDrafts, setWeightDrafts] = useState<Record<number, string>>({});
 
   const updateItem = (index: number, field: 'text' | 'weight', value: string | number) => {
     const newItems = [...rollTableItems];
@@ -23,6 +26,20 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
   const addItem = () => {
     const newItems = [...rollTableItems, { text: '', weight: 1 }];
     updateData({ rollTableItems: newItems });
+  };
+
+  const updateWeight = (index: number, value: string) => {
+    setWeightDrafts((current) => ({ ...current, [index]: value }));
+    updateItem(index, 'weight', value);
+  };
+
+  const commitWeight = (index: number) => {
+    setWeightDrafts((current) => {
+      if (!(index in current)) return current;
+      const next = { ...current };
+      delete next[index];
+      return next;
+    });
   };
 
   const removeItem = (index: number) => {
@@ -89,7 +106,7 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
           <div>
             <h3 id={`roll-table-items-heading-${widget.id}`} className="widget-editor__section-title">Table items</h3>
             <p className="widget-editor__hint mt-2 text-[11px] leading-4 text-theme-muted">
-              Add items with weights. Higher weights = higher probability. All weights are normalized when rolling.
+              Add items with weights. Higher weights = higher probability.
             </p>
           </div>
           <span className="widget-editor__section-count">{rollTableItems.length}</span>
@@ -97,10 +114,10 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {rollTableItems.map((item: RollTableItem, idx: number) => (
-            <div key={idx} className="flex items-center gap-2 rounded-button border border-theme-border bg-theme-background p-2">
+            <div key={idx} className="flex items-center gap-2 rounded-button border border-theme-border bg-theme-paper p-2">
               <span className="text-xs text-theme-muted w-6">{idx + 1}.</span>
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                className="h-10 flex-1 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                 value={item.text}
                 onChange={(e) => updateItem(idx, 'text', e.target.value)}
                 placeholder="Item text..."
@@ -111,9 +128,11 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
                   type="number"
                   min="0"
                   step="1"
-                  className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
-                  value={item.weight}
-                  onChange={(e) => updateItem(idx, 'weight', e.target.value)}
+                  inputMode="numeric"
+                  className="roll-table-weight-input h-10 w-16 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
+                  value={weightDrafts[idx] ?? item.weight}
+                  onChange={(e) => updateWeight(idx, e.target.value)}
+                  onBlur={() => commitWeight(idx)}
                 />
               </div>
               <span className="text-xs text-theme-muted w-10 text-right">
@@ -124,9 +143,10 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
                 onClick={() => removeItem(idx)}
                 disabled={rollTableItems.length <= 1}
                 aria-label={`Remove item ${idx + 1}`}
-                className="widget-control h-7 w-7 text-red-500 disabled:cursor-not-allowed disabled:opacity-30"
+                title="Delete item"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
               >
-                ×
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}
