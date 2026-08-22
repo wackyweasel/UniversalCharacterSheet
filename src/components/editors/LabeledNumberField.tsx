@@ -4,6 +4,7 @@ import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
+import { XIcon } from '../icons';
 
 interface LabeledNumberFieldProps {
   /** Current numeric value */
@@ -211,6 +212,11 @@ export function LabeledNumberField({
     setShowLabelInput(false);
   };
 
+  const cancelLabelEditing = () => {
+    setLabelDraft(fieldLabel || '');
+    setShowLabelInput(false);
+  };
+
   const confirmFormula = () => {
     if (isCircular) return;
     const trimmed = formulaDraft.trim();
@@ -395,15 +401,26 @@ export function LabeledNumberField({
               data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidLabelDraft ? 'tag-target' : 'tag-confirm'}` : undefined}
               type="button"
               onClick={confirmLabel}
-              className={`px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90 ${shouldHighlightStrengthTagConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
+              className={`${controlHeightClass} px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90 ${shouldHighlightStrengthTagConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
             >
               Set
+            </button>
+            <button
+              type="button"
+              onClick={cancelLabelEditing}
+              aria-label="Cancel label editing"
+              title="Cancel label editing"
+              className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border border-theme-border rounded-button text-theme-muted hover:border-theme-accent hover:text-theme-ink`}
+            >
+              <XIcon className="h-3.5 w-3.5" />
             </button>
             {fieldLabel && (
               <button
                 type="button"
                 onClick={clearLabel}
-                className="px-2 py-1 border border-red-300 text-red-500 rounded-button text-xs hover:bg-red-50"
+                aria-label="Clear label"
+                title="Clear label"
+                className={`${controlWidthClass} ${controlHeightClass} border border-red-300 text-red-500 rounded-button text-xs hover:bg-red-50`}
               >
                 ×
               </button>

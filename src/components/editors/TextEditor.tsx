@@ -6,10 +6,7 @@ export function TextEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--text space-y-4">
-      <section className="widget-editor__section" aria-labelledby="text-label-title">
-        <div className="widget-editor__section-heading">
-          <h3 id="text-label-title" className="widget-editor__section-title">Content</h3>
-        </div>
+      <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -30,10 +27,8 @@ export function TextEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </section>
-      <p className="widget-editor__hint text-xs text-theme-muted">
-        Use the resize handle on the widget in edit mode to adjust the size.
-      </p>
+      </div>
+
     </div>
   );
 }

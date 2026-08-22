@@ -230,8 +230,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
   const isSelected = selectedWidgetId === widget.id;
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
-  const isImageEditButtonHidden = widget.type === 'IMAGE' && widget.data.hideWidgetHeader === true;
-  const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isImageEditButtonHidden;
+  const hasEditableWidgetHeader = !isWidgetHeaderHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
   const renderedWidget = {
     ...widget,
@@ -813,7 +812,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
       case 'LABEL': return <LabelWidget widget={renderedWidget} />;
       case 'LIST': return <ListWidget {...props} />;
-      case 'TEXT': return <TextWidget {...props} />;
+      case 'TEXT': return <TextWidget {...props} sheetScale={scale} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
       case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
@@ -823,7 +822,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'POOL': return <PoolWidget {...props} />;
       case 'TOGGLE': return <ToggleWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
-      case 'TABLE': return <TableWidget {...props} />;
+      case 'TABLE': return <TableWidget {...props} sheetScale={scale} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;

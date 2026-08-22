@@ -41,7 +41,7 @@ export function LabelEditor({ widget, updateData }: EditorProps) {
           <h3 id="label-style-title" className="widget-editor__section-title">Style</h3>
         </div>
         <div>
-          <span className="mb-1 block text-sm font-medium text-theme-ink">Alignment</span>
+          <span className="mb-1 block text-xs font-bold uppercase text-theme-muted">Alignment</span>
           <div className="inline-flex overflow-hidden rounded-button border border-theme-border">
             {ALIGNMENT_OPTIONS.map(({ value, label: optionLabel, Icon }) => (
               <Tooltip key={value} content={optionLabel}>
@@ -63,7 +63,7 @@ export function LabelEditor({ widget, updateData }: EditorProps) {
           </div>
         </div>
 
-        <div>
+        <div className="mt-2">
           <label htmlFor={`label-text-color-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">
             Text Color
           </label>

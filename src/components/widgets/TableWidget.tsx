@@ -14,6 +14,7 @@ interface Props {
   mode: 'play' | 'edit' | 'print';
   width: number;
   height: number;
+  sheetScale?: number;
 }
 
 interface RectBounds {
@@ -733,7 +734,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   );
 }
 
-export default function TableWidget({ widget, height }: Props) {
+export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -766,6 +767,7 @@ export default function TableWidget({ widget, height }: Props) {
   const dragRowItem = useRef<number | null>(null);
   const columnResizeRef = useRef<{ column: number; pointerId: number; startX: number; startWidth: number } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const toolbarAnchorRef = useRef<HTMLElement | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [touchStart, setTouchStart] = useState<{ row: number; col: number } | null>(null);
   const touchUiSnapshotRef = useRef<{
@@ -1090,6 +1092,47 @@ export default function TableWidget({ widget, height }: Props) {
     };
   };
 
+  useLayoutEffect(() => {
+    if (!showToolbar || !toolbarAnchorRef.current) return;
+
+    const updateToolbarPosition = () => {
+      const anchor = toolbarAnchorRef.current;
+      if (!anchor) return;
+
+      const nextPosition = getToolbarPositionForElement(anchor);
+      setToolbarPos((currentPosition) => {
+        const currentRect = currentPosition.avoidRect;
+        const nextRect = nextPosition.avoidRect;
+        if (
+          currentPosition.x === nextPosition.x &&
+          currentPosition.y === nextPosition.y &&
+          currentRect?.top === nextRect?.top &&
+          currentRect?.right === nextRect?.right &&
+          currentRect?.bottom === nextRect?.bottom &&
+          currentRect?.left === nextRect?.left &&
+          currentRect?.width === nextRect?.width &&
+          currentRect?.height === nextRect?.height
+        ) {
+          return currentPosition;
+        }
+        return nextPosition;
+      });
+    };
+
+    updateToolbarPosition();
+    let frame = window.requestAnimationFrame(function refreshToolbarPosition() {
+      updateToolbarPosition();
+      frame = window.requestAnimationFrame(refreshToolbarPosition);
+    });
+    window.addEventListener('resize', updateToolbarPosition);
+    window.addEventListener('scroll', updateToolbarPosition, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updateToolbarPosition);
+      window.removeEventListener('scroll', updateToolbarPosition, true);
+    };
+  }, [isMobile, sheetScale, showToolbar]);
+
   const handleCellClick = (rowIdx: number, colIdx: number, event: React.MouseEvent<HTMLElement>) => {
     if (mode === 'print') return;
     // Always enter edit mode on click, show toolbar alongside
@@ -1097,6 +1140,7 @@ export default function TableWidget({ widget, height }: Props) {
     setSelectedCell({ row: rowIdx, col: colIdx });
     setSelectedColumn(null);
     setSelectedRow(null);
+    toolbarAnchorRef.current = event.currentTarget;
     setToolbarPos(getToolbarPositionForElement(event.currentTarget));
     setShowToolbar(true);
   };
@@ -1108,6 +1152,7 @@ export default function TableWidget({ widget, height }: Props) {
     setSelectedCell(null);
     setSelectedColumn(colIdx);
     setSelectedRow(null);
+    toolbarAnchorRef.current = event.currentTarget;
     setToolbarPos(getToolbarPositionForElement(event.currentTarget));
     setShowToolbar(true);
   };
@@ -1118,6 +1163,7 @@ export default function TableWidget({ widget, height }: Props) {
     setSelectedCell(null);
     setSelectedColumn(null);
     setSelectedRow(rowIdx);
+    toolbarAnchorRef.current = event.currentTarget;
     setToolbarPos(getToolbarPositionForElement(event.currentTarget));
     setShowToolbar(true);
   };
@@ -1133,6 +1179,7 @@ export default function TableWidget({ widget, height }: Props) {
     setSelectedColumn(null);
     setSelectedRow(null);
     setShowToolbar(false);
+    toolbarAnchorRef.current = null;
   };
 
   const addRow = () => {
@@ -1426,6 +1473,7 @@ export default function TableWidget({ widget, height }: Props) {
         setSelectedCell(null);
         setSelectedColumn(null);
         setSelectedRow(null);
+        toolbarAnchorRef.current = null;
       }
     };
     
@@ -1466,6 +1514,7 @@ export default function TableWidget({ widget, height }: Props) {
       setSelectedCell({ row: rowIdx, col: colIdx });
       setSelectedColumn(null);
       setSelectedRow(null);
+      toolbarAnchorRef.current = targetElement;
       setToolbarPos(getToolbarPositionForElement(targetElement));
       setShowToolbar(true);
       longPressTimer.current = null;
@@ -1484,6 +1533,7 @@ export default function TableWidget({ widget, height }: Props) {
         setSelectedCell({ row: rowIdx, col: colIdx });
         setSelectedColumn(null);
         setSelectedRow(null);
+        toolbarAnchorRef.current = e.currentTarget;
         setToolbarPos(getToolbarPositionForElement(e.currentTarget));
         
         setShowToolbar(true);
@@ -1985,6 +2035,7 @@ export default function TableWidget({ widget, height }: Props) {
             setSelectedCell(null);
             setSelectedColumn(null);
             setSelectedRow(null);
+            toolbarAnchorRef.current = null;
           }}
           position={toolbarPos}
           isMobile={isMobile}
@@ -2010,6 +2061,7 @@ export default function TableWidget({ widget, height }: Props) {
             setSelectedCell(null);
             setSelectedColumn(null);
             setSelectedRow(null);
+            toolbarAnchorRef.current = null;
           }}
           position={toolbarPos}
           isMobile={isMobile}
@@ -2036,6 +2088,7 @@ export default function TableWidget({ widget, height }: Props) {
             setSelectedCell(null);
             setSelectedColumn(null);
             setSelectedRow(null);
+            toolbarAnchorRef.current = null;
           }}
           position={toolbarPos}
           isMobile={isMobile}

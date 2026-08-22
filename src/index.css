@@ -319,12 +319,11 @@ td .inline-dice-token {
     --editor-subtle: color-mix(in srgb, var(--color-background) 42%, var(--color-paper));
     --editor-tint: color-mix(in srgb, var(--color-accent) 9%, var(--color-paper));
     --editor-input-border: color-mix(in srgb, var(--color-border) 66%, transparent);
-    min-height: min(38rem, calc(90vh - 2rem));
   }
 
-  .widget-edit-modal__dialog--label {
+  .widget-edit-modal__dialog.widget-edit-modal__dialog--label {
     max-height: 70vh !important;
-    min-height: 0;
+    min-height: 0 !important;
   }
 
   .widget-edit-modal__dialog--label .widget-edit-modal__body {
@@ -1424,15 +1423,24 @@ td .inline-dice-token {
 
   .notes-rich-text__toolbar {
     align-items: center;
-    background: color-mix(in srgb, var(--color-background) 38%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    background-color: var(--color-paper);
+    background-image: var(--card-texture);
+    background-blend-mode: multiply;
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    box-shadow: var(--shadow-style);
     display: flex;
-    flex: 0 0 27px;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
     gap: 2px;
+    max-width: calc(100vw - 16px);
     min-width: 0;
-    overflow-x: auto;
+    min-height: 27px;
+    overflow: hidden;
     padding: 2px;
-    scrollbar-width: thin;
+    position: fixed;
+    width: max-content;
+    z-index: 9999;
   }
 
   .notes-rich-text__button,
@@ -1465,6 +1473,30 @@ td .inline-dice-token {
   .notes-rich-text__color svg {
     height: 14px;
     width: 14px;
+  }
+
+  .notes-rich-text__font-size {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .notes-rich-text__font-size select {
+    background: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--button-radius);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 0.625rem;
+    height: 22px;
+    max-width: 70px;
+    min-width: 58px;
+    padding: 0 2px;
+  }
+
+  .notes-rich-text__font-size select:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
   }
 
   .notes-rich-text__color > span {
@@ -1558,6 +1590,10 @@ td .inline-dice-token {
     pointer-events: none;
     position: absolute;
     top: 4px;
+  }
+
+  .notes-rich-text__placeholder--list {
+    left: calc(4px + 1.4rem);
   }
 
   .widget-control--primary {

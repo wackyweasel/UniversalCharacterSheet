@@ -150,9 +150,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const [previewScale, setPreviewScale] = useState(1);
   const isImageWidget = widget.type === 'IMAGE';
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && localData.hideWidgetHeader === true;
-  const isImageEditButtonHidden = isImageWidget && localData.hideWidgetHeader === true;
-  const isEditButtonHidden = isWidgetHeaderHidden || isImageEditButtonHidden;
-  const hasEditableWidgetHeader = !isEditButtonHidden;
+  const hasEditableWidgetHeader = widget.type !== 'LABEL' && !isWidgetHeaderHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && localData.inlineLabel === true;
   const isAutomationCloseStep =
     tutorialStep !== null &&
@@ -220,14 +218,14 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   };
 
   const renderHeaderVisibilitySetting = () => (
-    <label className={`widget-edit-modal__global-setting ${isImageWidget ? 'image-editor__header-setting' : ''}`}>
+    <label className="widget-edit-modal__global-setting">
       <input
         type="checkbox"
-        checked={isEditButtonHidden}
+        checked={isWidgetHeaderHidden}
         onChange={(event) => handleUpdateData({ hideWidgetHeader: event.target.checked })}
         className="h-4 w-4 accent-theme-accent"
       />
-      {isImageWidget ? 'Hide edit button (Canvas view)' : 'Hide header (Canvas view)'}
+      Hide header (Canvas view)
     </label>
   );
 
@@ -367,11 +365,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         <div className="widget-edit-modal__body flex-1 overflow-auto">
           <div className={`widget-edit-modal__layout ${isImageWidget ? 'widget-edit-modal__layout--image' : ''}`}>
             {/* Editor Section */}
-            <section className="widget-edit-modal__settings min-w-0" aria-labelledby="widget-edit-modal-settings-title">
-              <div className="widget-edit-modal__pane-heading">
-                <h3 id="widget-edit-modal-settings-title">Settings</h3>
-              </div>
-              {widget.type !== 'LABEL' && renderHeaderVisibilitySetting()}
+            <section className="widget-edit-modal__settings min-w-0" aria-label="Settings">
+              {widget.type !== 'LABEL' && widget.type !== 'IMAGE' && renderHeaderVisibilitySetting()}
               <div className={`widget-edit-modal__editor-content ${isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : ''}`}>
                 {renderEditor()}
               </div>
