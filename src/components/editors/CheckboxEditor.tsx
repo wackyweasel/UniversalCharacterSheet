@@ -1,17 +1,32 @@
 import React, { useState, useRef } from 'react';
 import { CheckboxItem } from '../../types';
+import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { GripVerticalIcon, TrashIcon } from '../icons';
 
 export function CheckboxEditor({ widget, updateData }: EditorProps) {
   const { label, checkboxItems = [], checklistSettings } = widget.data;
   const [newItemName, setNewItemName] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState('');
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const checkboxItemsList = checkboxItems as CheckboxItem[];
+  const checkboxItemIdsRef = useRef(new WeakMap<CheckboxItem, string>());
+  const nextCheckboxItemIdRef = useRef(0);
+  const getCheckboxItemId = (item: CheckboxItem) => {
+    const existingId = checkboxItemIdsRef.current.get(item);
+    if (existingId) return existingId;
+    const id = `checkbox-item-${nextCheckboxItemIdRef.current++}`;
+    checkboxItemIdsRef.current.set(item, id);
+    return id;
+  };
+  const reorderableItems = checkboxItemsList.map((item) => ({ id: getCheckboxItemId(item), item }));
+  const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
+    items: reorderableItems,
+    onReorder: (items) => updateData({ checkboxItems: items.map(({ item }) => item) }),
+  });
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
 
   const addItem = (e: React.FormEvent) => {
@@ -23,7 +38,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
   };
 
   const removeItem = (index: number) => {
-    const updated = [...checkboxItems];
+    const updated = [...checkboxItemsList];
     updated.splice(index, 1);
     updateData({ checkboxItems: updated });
     if (editingIndex === index) {
@@ -33,14 +48,18 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
 
   const startEditing = (index: number) => {
     setEditingIndex(index);
-    setEditingValue((checkboxItems as CheckboxItem[])[index].name);
+    setEditingValue(checkboxItemsList[index].name);
     setTimeout(() => editInputRef.current?.focus(), 0);
   };
 
   const saveEdit = () => {
     if (editingIndex !== null && editingValue.trim()) {
-      const updated = [...checkboxItems] as CheckboxItem[];
-      updated[editingIndex] = { ...updated[editingIndex], name: editingValue.trim() };
+      const currentItem = checkboxItemsList[editingIndex];
+      const updatedItem = { ...currentItem, name: editingValue.trim() };
+      const itemId = checkboxItemIdsRef.current.get(currentItem);
+      if (itemId) checkboxItemIdsRef.current.set(updatedItem, itemId);
+      const updated = [...checkboxItemsList];
+      updated[editingIndex] = updatedItem;
       updateData({ checkboxItems: updated });
     }
     setEditingIndex(null);
@@ -54,57 +73,6 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
       setEditingIndex(null);
       setEditingValue('');
     }
-  };
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-    // Set a drag image (helps with visibility)
-    if (e.currentTarget.parentElement) {
-      e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const fromIndex = draggedIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
-    if (isNaN(fromIndex) || fromIndex === dropIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    const updated = [...checkboxItems] as CheckboxItem[];
-    const [draggedItem] = updated.splice(fromIndex, 1);
-    // Adjust drop index if we removed an item before it
-    const adjustedDropIndex = fromIndex < dropIndex ? dropIndex - 1 : dropIndex;
-    updated.splice(adjustedDropIndex, 0, draggedItem);
-    updateData({ checkboxItems: updated });
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
   };
 
   return (
@@ -132,8 +100,10 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <fieldset className="widget-editor__option-group">
-        <legend>Checked item behavior</legend>
+      <fieldset className="widget-editor__section" aria-labelledby={`checkbox-style-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`checkbox-style-title-${widget.id}`} className="widget-editor__section-title">Style</h3>
+        </div>
         <label className="flex items-center gap-2 text-sm font-medium text-theme-ink">
           <input
             type="checkbox"
@@ -151,25 +121,24 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
           <span className="widget-editor__section-count">{checkboxItems.length}</span>
         </div>
         <div className="space-y-1 max-h-48 overflow-y-auto">
-          {(checkboxItems as CheckboxItem[]).map((item, idx) => (
-            <div 
-              key={idx} 
-              className={`flex items-center gap-2 text-sm rounded px-1 transition-colors ${
-                dragOverIndex === idx ? 'border-t-2 border-theme-accent' : ''
-              } ${draggedIndex === idx ? 'opacity-50' : ''}`}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDragLeave={(e) => handleDragLeave(e)}
-              onDrop={(e) => handleDrop(e, idx)}
+          {reorderableItems.map(({ id, item }, idx) => (
+            <div
+              key={id}
+              ref={(element) => setRowRef(id, element)}
+              className="pointer-sort-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-1 text-sm transition-colors"
             >
               <Tooltip content="Drag to reorder">
-                <div 
-                  className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, idx)}
-                  onDragEnd={handleDragEnd}
+                <button
+                  type="button"
+                  className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                  onPointerDown={(event) => startDrag(id, event)}
+                  onKeyDown={(event) => handleReorderKey(id, event)}
+                  disabled={checkboxItemsList.length < 2}
+                  aria-label={`Reorder ${item.name || `item ${idx + 1}`}`}
+                  title="Drag to reorder. Arrow keys also work."
                 >
-                  ⋮⋮
-                </div>
+                  <GripVerticalIcon className="h-4 w-4" />
+                </button>
               </Tooltip>
               {editingIndex === idx ? (
                 <input
@@ -194,17 +163,23 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
               <TooltipEditButton
                 tooltip={item.tooltip}
                 itemName={item.name}
+                buttonClassName="h-10 w-10"
                 onSave={(t) => {
-                  const updated = [...checkboxItems] as CheckboxItem[];
-                  updated[idx] = { ...updated[idx], tooltip: t };
+                  const updatedItem = { ...checkboxItemsList[idx], tooltip: t };
+                  checkboxItemIdsRef.current.set(updatedItem, id);
+                  const updated = [...checkboxItemsList];
+                  updated[idx] = updatedItem;
                   updateData({ checkboxItems: updated });
                 }}
               />
               <button
+                type="button"
                 onClick={() => removeItem(idx)}
-                className="text-red-500 hover:text-red-700 px-2"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                aria-label={`Delete ${item.name || `item ${idx + 1}`}`}
+                title="Delete item"
               >
-                ×
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}
