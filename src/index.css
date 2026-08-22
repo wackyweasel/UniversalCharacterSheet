@@ -271,8 +271,19 @@ td .inline-dice-token {
     border-color: var(--color-border); 
     border-style: var(--border-style);
   }
+  .border-theme-border-soft {
+    border-color: color-mix(in srgb, var(--color-border) 40%, transparent);
+    border-style: var(--border-style);
+  }
+  .border-theme-border-soft:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  }
   .border-theme-ink { border-color: var(--color-ink); }
   .border-theme-accent { border-color: var(--color-accent); }
+  .border-theme-accent-soft {
+    border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+    border-style: var(--border-style);
+  }
   
   .shadow-theme { box-shadow: var(--shadow-style); }
   
