@@ -866,7 +866,7 @@ export const useStore = create<StoreState>((set, get) => {
           });
         };
         
-        if (viewport) {
+        if (viewport && currentWidgets.length === 0) {
           // Calculate visible area in canvas coordinates
           const visibleLeft = -viewport.pan.x / viewport.scale;
           const visibleTop = -viewport.pan.y / viewport.scale;
