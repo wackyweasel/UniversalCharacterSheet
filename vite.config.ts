@@ -58,6 +58,7 @@ export default defineConfig({
         ignoreURLParametersMatching: [/^edge-check$/, /^utm_/, /^fbclid$/],
         globPatterns: ['**/*.{js,css,html,ico,jpg,jpeg,png,svg,webp,woff,woff2}'],
         globIgnores: ['**/apple-touch-icon.png', '**/favicon.svg', '**/pwa-*.png'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),
   ],
