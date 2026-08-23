@@ -1,22 +1,32 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { NumberItem } from '../../types';
+import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { GripVerticalIcon, MinusIcon, PlusIcon, TrashIcon } from '../icons';
 
 export function NumberEditor({ widget, updateData }: EditorProps) {
   const { label, numberItems = [] } = widget.data;
   const [newItemName, setNewItemName] = useState('');
   const [boundEditorIndex, setBoundEditorIndex] = useState<number | null>(null);
-  
-  // Drag state for reordering
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartY = useRef<number>(0);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const numberItemIdsRef = useRef(new WeakMap<NumberItem, string>());
+  const nextNumberItemIdRef = useRef(0);
+  const numberItemsList = numberItems as NumberItem[];
+  const getNumberItemId = (item: NumberItem) => {
+    const existingId = numberItemIdsRef.current.get(item);
+    if (existingId) return existingId;
+    const id = `number-item-${nextNumberItemIdRef.current++}`;
+    numberItemIdsRef.current.set(item, id);
+    return id;
+  };
+  const reorderableItems = numberItemsList.map((item) => ({ id: getNumberItemId(item), item }));
+  const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
+    items: reorderableItems,
+    onReorder: (items) => updateData({ numberItems: items.map(({ item }) => item) }),
+  });
 
   useEffect(() => {
     if (boundEditorIndex === null || !containerRef.current) return;
@@ -42,20 +52,20 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
   };
 
   const updateItemName = (index: number, name: string) => {
-    const updated = [...numberItems] as NumberItem[];
-    updated[index] = { ...updated[index], name };
-    updateData({ numberItems: updated });
+    updateItem(index, { name });
   };
 
   const updateItemValue = (index: number, value: number) => {
-    const updated = [...numberItems] as NumberItem[];
-    updated[index] = { ...updated[index], value };
-    updateData({ numberItems: updated });
+    updateItem(index, { value });
   };
 
   const updateItem = (index: number, changes: Partial<NumberItem>) => {
-    const updated = [...numberItems] as NumberItem[];
-    updated[index] = { ...updated[index], ...changes };
+    const currentItem = numberItemsList[index];
+    const updatedItem = { ...currentItem, ...changes };
+    const itemId = numberItemIdsRef.current.get(currentItem);
+    if (itemId) numberItemIdsRef.current.set(updatedItem, itemId);
+    const updated = [...numberItemsList];
+    updated[index] = updatedItem;
     updateData({ numberItems: updated });
   };
 
@@ -64,150 +74,37 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
   };
 
   const clearBound = (index: number, bound: 'min' | 'max') => {
-    const updated = [...numberItems] as NumberItem[];
-    const item = updated[index];
+    const item = numberItemsList[index];
     if (bound === 'min') {
       const { minValue, minValueLabel, minValueFormula, ...withoutMinimum } = item;
+      const itemId = numberItemIdsRef.current.get(item);
+      if (itemId) numberItemIdsRef.current.set(withoutMinimum, itemId);
+      const updated = [...numberItemsList];
       updated[index] = withoutMinimum;
+      updateData({ numberItems: updated });
     } else {
       const { maxValue, maxValueLabel, maxValueFormula, ...withoutMaximum } = item;
+      const itemId = numberItemIdsRef.current.get(item);
+      if (itemId) numberItemIdsRef.current.set(withoutMaximum, itemId);
+      const updated = [...numberItemsList];
       updated[index] = withoutMaximum;
+      updateData({ numberItems: updated });
     }
-    updateData({ numberItems: updated });
   };
 
   const removeBounds = (index: number) => {
-    const updated = [...numberItems] as NumberItem[];
-    const { minValue, minValueLabel, minValueFormula, maxValue, maxValueLabel, maxValueFormula, ...withoutBounds } = updated[index];
+    const item = numberItemsList[index];
+    const { minValue, minValueLabel, minValueFormula, maxValue, maxValueLabel, maxValueFormula, ...withoutBounds } = item;
+    const itemId = numberItemIdsRef.current.get(item);
+    if (itemId) numberItemIdsRef.current.set(withoutBounds, itemId);
+    const updated = [...numberItemsList];
     updated[index] = withoutBounds;
     updateData({ numberItems: updated });
     setBoundEditorIndex(null);
   };
 
-  // Drag handlers for reordering (works with both mouse and touch via pointer events)
-  const handleDragStart = (index: number, clientY: number) => {
-    setDraggedIndex(index);
-    setIsDragging(true);
-    dragStartY.current = clientY;
-  };
-
-  const handleDragMove = (clientY: number) => {
-    if (draggedIndex === null || !containerRef.current) return;
-    
-    // Find which item we're over based on Y position
-    let newOverIndex: number | null = null;
-    itemRefs.current.forEach((ref, idx) => {
-      if (ref && idx !== draggedIndex) {
-        const rect = ref.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        if (clientY < midY && (newOverIndex === null || idx < newOverIndex)) {
-          newOverIndex = idx;
-        } else if (clientY >= midY && clientY < rect.bottom) {
-          newOverIndex = idx + 1;
-        }
-      }
-    });
-    
-    // If below all items
-    if (newOverIndex === null && clientY > 0) {
-      const lastRef = itemRefs.current[itemRefs.current.length - 1];
-      if (lastRef) {
-        const rect = lastRef.getBoundingClientRect();
-        if (clientY > rect.bottom) {
-          newOverIndex = numberItems.length;
-        }
-      }
-    }
-    
-    setDragOverIndex(newOverIndex);
-  };
-
-  const handleDragEnd = () => {
-    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
-      const updated = [...numberItems] as NumberItem[];
-      const [draggedItem] = updated.splice(draggedIndex, 1);
-      const adjustedIndex = dragOverIndex > draggedIndex ? dragOverIndex - 1 : dragOverIndex;
-      updated.splice(adjustedIndex, 0, draggedItem);
-      updateData({ numberItems: updated });
-    }
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    setIsDragging(false);
-  };
-
-  // Pointer event handlers for unified mouse/touch support
-  const handlePointerDown = (e: React.PointerEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    handleDragStart(index, e.clientY);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (isDragging) {
-      e.preventDefault();
-      e.stopPropagation();
-      handleDragMove(e.clientY);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (isDragging) {
-      e.preventDefault();
-      e.stopPropagation();
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-      handleDragEnd();
-    }
-  };
-
-  // Also support native HTML5 drag for desktop browsers
-  const handleNativeDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleNativeDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handleNativeDragLeave = () => {
-    setDragOverIndex(null);
-  };
-
-  const handleNativeDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const fromIndex = draggedIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
-    if (isNaN(fromIndex) || fromIndex === dropIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    const updated = [...numberItems] as NumberItem[];
-    const [draggedItem] = updated.splice(fromIndex, 1);
-    const adjustedDropIndex = fromIndex < dropIndex ? dropIndex - 1 : dropIndex;
-    updated.splice(adjustedDropIndex, 0, draggedItem);
-    updateData({ numberItems: updated });
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleNativeDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--number space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -231,57 +128,59 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={widget.data.showNumberItemMax ?? false}
-          onChange={(event) => updateData({ showNumberItemMax: event.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show maximums in tracker (e.g. 5/10)</span>
-      </label>
+      <fieldset className="widget-editor__section" aria-labelledby="number-display-options-title">
+        <div className="widget-editor__section-heading">
+          <h3 id="number-display-options-title" className="widget-editor__section-title">Display options</h3>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={widget.data.showNumberItemMax ?? false}
+            onChange={(event) => updateData({ showNumberItemMax: event.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show maximums in tracker (e.g. 5/10)</span>
+        </label>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={widget.data.showIncrementButtons ?? true}
-          onChange={(event) => updateData({ showIncrementButtons: event.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show +/− buttons</span>
-      </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={widget.data.showIncrementButtons ?? true}
+            onChange={(event) => updateData({ showIncrementButtons: event.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show +/− buttons</span>
+        </label>
+      </fieldset>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Items</label>
+      <section className="widget-editor__section" aria-labelledby="number-items-title">
+        <div className="widget-editor__section-heading">
+          <h3 id="number-items-title" className="widget-editor__section-title">Items</h3>
+          <span className="widget-editor__section-count">{numberItems.length}</span>
+        </div>
         <div ref={containerRef} className="max-h-72 space-y-2 overflow-y-auto">
-          {(numberItems as NumberItem[]).map((item, idx) => {
+          {reorderableItems.map(({ id, item }, idx) => {
             const boundsVisible = item.minValue !== undefined || item.maxValue !== undefined || boundEditorIndex === idx;
 
             return (
             <div 
-              key={idx} 
-              ref={(el) => { itemRefs.current[idx] = el; }}
-              className={`rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors ${
-                dragOverIndex === idx ? 'border-t-2 border-theme-accent' : ''
-              } ${draggedIndex === idx ? 'opacity-50 bg-theme-accent/10' : ''}`}
-              onDragOver={(e) => handleNativeDragOver(e, idx)}
-              onDragLeave={handleNativeDragLeave}
-              onDrop={(e) => handleNativeDrop(e, idx)}
+              key={id}
+              ref={(element) => setRowRef(id, element)}
+              className="pointer-sort-row relative rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Tooltip content="Drag to reorder">
-                  <div 
-                    className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
-                    draggable
-                    onDragStart={(e) => handleNativeDragStart(e, idx)}
-                    onDragEnd={handleNativeDragEnd}
-                    onPointerDown={(e) => handlePointerDown(e, idx)}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                    onPointerDown={(event) => startDrag(id, event)}
+                    onKeyDown={(event) => handleReorderKey(id, event)}
+                    disabled={numberItemsList.length < 2}
+                    aria-label={`Reorder ${item.name || `item ${idx + 1}`}`}
+                    title="Drag to reorder. Arrow keys also work."
                   >
-                    ⋮⋮
-                  </div>
+                    <GripVerticalIcon className="h-4 w-4" />
+                  </button>
                 </Tooltip>
                 <input
                   className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
@@ -292,21 +191,26 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                 <TooltipEditButton
                   tooltip={item.tooltip}
                   itemName={item.name}
+                  buttonClassName="h-10 w-10"
                   onSave={(tooltip) => updateItem(idx, { tooltip })}
                 />
                 <button
+                  type="button"
                   onClick={() => removeItem(idx)}
-                  className="text-red-500 hover:text-red-700 px-2 flex-shrink-0"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                  aria-label={`Delete ${item.name || `item ${idx + 1}`}`}
+                  title="Delete item"
                 >
-                  ×
+                  <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="mt-2 flex items-center gap-2">
-                <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Current</span>
-                <LabeledNumberField
+              <div className="widget-editor__number-value-row mt-2 flex items-center gap-2">
+                <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Value</span>
+                  <LabeledNumberField
                   value={item.value}
                   onChange={(value) => updateItemValue(idx, value)}
+                    onClear={() => updateItemValue(idx, item.minValue ?? 0)}
                   fieldLabel={item.valueLabel}
                   onFieldLabelChange={(valueLabel) => updateItem(idx, { valueLabel })}
                   formula={item.valueFormula}
@@ -314,29 +218,39 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                   min={item.minValue}
                   max={item.maxValue}
                   compact
+                    controlHeight="input"
+                    allowEmpty
                   hideStepperButtons
                 />
                 {!boundsVisible ? (
-                  <button
-                    type="button"
-                    onClick={() => setBounds(idx)}
-                    className="ml-auto text-xs text-theme-accent hover:underline"
-                  >
-                    Set min or max values
-                  </button>
+                  <Tooltip content="Show min/max">
+                    <button
+                      type="button"
+                      onClick={() => setBounds(idx)}
+                      aria-label="Show min/max"
+                      className="widget-control h-10 min-h-0 flex-shrink-0 gap-1 bg-theme-paper px-2 py-1 text-xs"
+                    >
+                      <PlusIcon className="h-3 w-3" />
+                      Show min/max
+                    </button>
+                  </Tooltip>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => removeBounds(idx)}
-                    className="ml-auto text-xs text-red-500 hover:text-red-700"
-                  >
-                    Remove min and max values
-                  </button>
+                  <Tooltip content="Hide min/max">
+                    <button
+                      type="button"
+                      onClick={() => removeBounds(idx)}
+                      aria-label="Hide min/max"
+                      className="widget-control h-10 min-h-0 flex-shrink-0 gap-1 bg-theme-paper px-2 py-1 text-xs text-red-500 hover:border-red-500 hover:text-red-700"
+                    >
+                      <MinusIcon className="h-3 w-3" />
+                      Hide min/max
+                    </button>
+                  </Tooltip>
                 )}
               </div>
 
               {boundsVisible && (
-                <div className="mt-2 space-y-2 border-t border-theme-border pt-2">
+                <div className="mt-2 space-y-2 pt-2">
                   <div className="flex items-center gap-2">
                     <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Minimum</span>
                     <LabeledNumberField
@@ -349,6 +263,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                       onFormulaChange={(minValueFormula) => updateItem(idx, { minValueFormula })}
                       max={item.maxValue}
                       compact
+                      controlHeight="input"
                       hideStepperButtons
                     />
                   </div>
@@ -365,6 +280,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                       onFormulaChange={(maxValueFormula) => updateItem(idx, { maxValueFormula })}
                       min={item.minValue}
                       compact
+                      controlHeight="input"
                       hideStepperButtons
                     />
                   </div>
@@ -374,7 +290,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
             );
           })}
         </div>
-        <form onSubmit={addItem} className="flex gap-2 mt-2">
+        <form onSubmit={addItem} className="widget-editor__add-row flex gap-2 mt-2">
           <input
             type="text"
             value={newItemName}
@@ -389,7 +305,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

@@ -41,14 +41,14 @@ function SymbolInput({
   pickerLabel,
 }: SymbolInputProps) {
   return (
-    <div className="relative mt-1 flex h-9 gap-1">
+    <div className="relative mt-1 flex h-10 gap-1">
       <input
         value={value}
         onChange={(event) => onChange(limitCardSymbols(event.target.value))}
         placeholder="Symbols"
         aria-label={inputLabel}
         title={`${splitCardSymbols(value).length}/${MAX_CARD_SYMBOLS} symbols`}
-        className={`${inputClass} h-9 min-w-0 flex-1 text-center text-lg`}
+        className={`${inputClass} h-10 min-w-0 flex-1 text-left text-lg`}
       />
       <Tooltip content="Choose a symbol">
         <button
@@ -56,7 +56,7 @@ function SymbolInput({
           onClick={onTogglePicker}
           aria-expanded={pickerOpen}
           aria-label={pickerLabel}
-          className="widget-control h-9 w-9 flex-none p-0"
+          className="widget-control h-10 w-10 flex-none p-0"
         >
           <LayoutGridIcon className="h-4 w-4" />
         </button>
@@ -226,19 +226,21 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
   const positionCardIndex = positionCard ? localCards.findIndex((card) => card.id === positionCard.id) : -1;
 
   return (
-    <div className="space-y-4">
-      <label className="block text-xs font-medium text-theme-ink">
-        Deck name
-        <input
-          value={label || ''}
-          onChange={(event) => updateData({ label: event.target.value })}
-          placeholder="Draw Deck"
-          className={`${inputClass} mt-1`}
-        />
-      </label>
+    <div className="widget-editor widget-editor--card-deck space-y-4">
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Deck name
+          <input
+            value={label || ''}
+            onChange={(event) => updateData({ label: event.target.value })}
+            placeholder="Draw Deck"
+            className={`${inputClass} mt-1`}
+          />
+        </label>
+      </section>
 
-      <section aria-labelledby="card-deck-display-heading">
-        <h4 id="card-deck-display-heading" className="text-xs font-semibold text-theme-ink">Deck controls</h4>
+      <section className="widget-editor__option-group" aria-labelledby={`card-deck-display-heading-${widget.id}`}>
+        <h3 id={`card-deck-display-heading-${widget.id}`} className="widget-editor__section-title">Deck controls</h3>
         <div className="mt-2 space-y-2">
           <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
             <input
@@ -261,27 +263,21 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section className="rounded-theme border border-theme-border bg-theme-accent/5 p-3" aria-labelledby="card-deck-back-heading">
+      <section className="widget-editor__section" aria-labelledby={`card-deck-back-heading-${widget.id}`}>
         <div>
-          <h4 id="card-deck-back-heading" className="text-sm font-semibold text-theme-ink">Card back</h4>
-          <p className="mt-0.5 text-[11px] font-normal leading-4 text-theme-muted">
-            Cards created here keep this deck identity when moved.
-          </p>
+          <h3 id={`card-deck-back-heading-${widget.id}`} className="widget-editor__section-title">Card back</h3>
         </div>
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-            <label className="block text-xs font-medium text-theme-ink">
-              Color
-              <div className="mt-1 flex h-9 items-center gap-2 rounded-theme border border-theme-border bg-theme-paper px-2">
-                <input
-                  type="color"
-                  value={backDesign.color || '#374151'}
-                  onChange={(event) => updateBackDesign({ color: event.target.value })}
-                  aria-label="Card back color"
-                  className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0"
-                />
-                <span className="text-xs text-theme-muted">{backDesign.color || 'Theme color'}</span>
-              </div>
+            <label className="block text-xs font-semibold uppercase text-theme-muted">
+              <span className="block">Color</span>
+              <input
+                type="color"
+                value={backDesign.color || '#374151'}
+                onChange={(event) => updateBackDesign({ color: event.target.value })}
+                aria-label="Card back color"
+                className="mt-1 h-10 w-10 cursor-pointer rounded-button border border-theme-border bg-theme-paper p-0"
+              />
             </label>
             <button
               type="button"
@@ -293,18 +289,15 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             </button>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-            <label className="block text-xs font-medium text-theme-ink">
-              Text color
-              <div className="mt-1 flex h-9 items-center gap-2 rounded-theme border border-theme-border bg-theme-paper px-2">
-                <input
-                  type="color"
-                  value={backDesign.textColor || '#f8f4e8'}
-                  onChange={(event) => updateBackDesign({ textColor: event.target.value })}
-                  aria-label="Card back text color"
-                  className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0"
-                />
-                <span className="text-xs text-theme-muted">{backDesign.textColor || 'Theme color'}</span>
-              </div>
+            <label className="block text-xs font-semibold uppercase text-theme-muted">
+              <span className="block">Text color</span>
+              <input
+                type="color"
+                value={backDesign.textColor || '#f8f4e8'}
+                onChange={(event) => updateBackDesign({ textColor: event.target.value })}
+                aria-label="Card back text color"
+                className="mt-1 h-10 w-10 cursor-pointer rounded-button border border-theme-border bg-theme-paper p-0"
+              />
             </label>
             <button
               type="button"
@@ -316,7 +309,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-medium text-theme-ink">
+            <label className="text-xs font-semibold uppercase text-theme-muted">
               Pattern
               <select
                 value={backDesign.pattern}
@@ -330,7 +323,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                 <option value="dots">Dots</option>
               </select>
             </label>
-            <label className="text-xs font-medium text-theme-ink">
+            <label className="text-xs font-semibold uppercase text-theme-muted">
               Symbol(s) <span className="font-normal text-theme-muted">Optional</span>
               <SymbolInput
                 value={backDesign.symbol || ''}
@@ -350,18 +343,19 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
               onChange={(event) => updateBackDesign({ text: event.target.value.slice(0, 80) || undefined })}
               placeholder="The Night Deck"
               maxLength={80}
-              className={`${inputClass} mt-1`}
+              className={`${inputClass} mt-1 font-normal`}
             />
           </label>
         </div>
       </section>
 
-      <section className="rounded-theme border border-theme-border bg-theme-accent/5 p-3">
-        <div className="flex items-center justify-between gap-2">
+      <section className="widget-editor__section" aria-labelledby={`card-deck-cards-heading-${widget.id}`}>
+        <div className="widget-editor__section-heading">
           <div>
-            <h4 className="text-xs font-semibold text-theme-ink">Cards</h4>
+            <h3 id={`card-deck-cards-heading-${widget.id}`} className="widget-editor__section-title">Cards</h3>
           </div>
-          <div className="flex flex-nowrap justify-end gap-1.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <span className="widget-editor__section-count">{cards.length}</span>
             <button
               type="button"
               onClick={() => appendCards([{ title: '', symbol: '', body: '' }], true)}
@@ -397,7 +391,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             </div>
           )}
           {cards.map((card, index) => (
-            <div key={card.id} className="rounded-theme border border-theme-border bg-theme-background p-2">
+            <div key={card.id} className="rounded-theme border border-theme-border bg-theme-paper p-2">
               <div className="mb-2 flex items-center gap-1.5">
                 <span className="min-w-0 flex-1 truncate text-xs font-semibold text-theme-ink">
                   {localCards[0]?.id === card.id ? 'Top card' : `Card ${index + 1}`}

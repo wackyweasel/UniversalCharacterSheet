@@ -14,6 +14,7 @@ import {
   getWidgetDragState,
   startWidgetDrag,
   subscribeWidgetDragState,
+  WIDGET_CONTROLS_DISMISS_EVENT,
 } from './widgetDragRegistry';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
@@ -229,8 +230,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
   const isSelected = selectedWidgetId === widget.id;
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
-  const isImageEditButtonHidden = widget.type === 'IMAGE' && widget.data.hideWidgetHeader === true;
-  const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isImageEditButtonHidden;
+  const hasEditableWidgetHeader = !isWidgetHeaderHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
   const renderedWidget = {
     ...widget,
@@ -268,14 +268,6 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
   const buildControlScale = Math.min(1, 1 / scale);
 
-  // Auto-open dropdown for the original form tutorial step only. Automation edit steps keep
-  // the dropdown opened by the widget the user actually clicked.
-  useEffect(() => {
-    if (tutorialStep === 17 && widget.type === 'FORM') {
-      openDropdown();
-    }
-  }, [openDropdown, tutorialStep, widget.type]);
-
   useEffect(() => {
     const handleWidgetOptionsOpen = (event: Event) => {
       const openedWidgetId = (event as CustomEvent<string>).detail;
@@ -297,13 +289,15 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     return () => window.removeEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
   }, [widget.id]);
 
+  useEffect(() => {
+    const dismissHoverControls = () => setIsHovered(false);
+    window.addEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
+    return () => window.removeEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
+  }, []);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      // Don't close dropdown during the original form tutorial step that points inside it.
-      if (tutorialStep === 17 && widget.type === 'FORM') {
-        return;
-      }
       const target = e.target as Node;
       if (!dropdownRef.current?.contains(target) && !dropdownMenuRef.current?.contains(target)) {
         setShowDropdown(false);
@@ -806,17 +800,17 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
       case 'LABEL': return <LabelWidget widget={renderedWidget} />;
       case 'LIST': return <ListWidget {...props} />;
-      case 'TEXT': return <TextWidget {...props} />;
+      case 'TEXT': return <TextWidget {...props} sheetScale={scale} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} />;
-      case 'DICE_ROLLER': return <DiceRollerWidget {...props} />;
-      case 'DICE_TRAY': return <DiceTrayWidget {...props} />;
+      case 'DICE_ROLLER': return <DiceRollerWidget {...props} sheetScale={scale} />;
+      case 'DICE_TRAY': return <DiceTrayWidget {...props} sheetScale={scale} />;
       case 'SPELL_SLOT': return <SpellSlotWidget {...props} />;
       case 'IMAGE': return <ImageWidget {...props} />;
       case 'POOL': return <PoolWidget {...props} />;
       case 'TOGGLE': return <ToggleWidget {...props} />;
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
-      case 'TABLE': return <TableWidget {...props} />;
+      case 'TABLE': return <TableWidget {...props} sheetScale={scale} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
       case 'FORM': return <FormWidget {...props} />;
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;

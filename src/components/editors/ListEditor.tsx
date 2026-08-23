@@ -5,7 +5,7 @@ export function ListEditor({ widget, updateData }: EditorProps) {
   const { label, itemCount = 5, wrapText = true } = widget.data;
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--list space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -29,8 +29,12 @@ export function ListEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Number of Item Slots</label>
+      <section className="widget-editor__section" aria-labelledby="list-behavior-title">
+        <div className="widget-editor__section-heading">
+          <h3 id="list-behavior-title" className="widget-editor__section-title">List behavior</h3>
+          <span className="widget-editor__section-count">{itemCount || 0}</span>
+        </div>
+        <label className="block text-sm font-medium text-theme-ink mb-1">Number of item slots</label>
         <input
           type="number"
           min="1"
@@ -40,18 +44,18 @@ export function ListEditor({ widget, updateData }: EditorProps) {
           onChange={(e) => updateData({ itemCount: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
           onBlur={(e) => updateData({ itemCount: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)) })}
         />
-        <p className="text-xs text-theme-muted mt-1">Items can be filled in during play mode</p>
-      </div>
+        <p className="widget-editor__hint text-xs text-theme-muted mt-2">Items can be filled in during play mode</p>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-theme-ink">
-        <input
-          type="checkbox"
-          checked={wrapText}
-          onChange={(e) => updateData({ wrapText: e.target.checked })}
-          className="h-4 w-4 accent-theme-accent"
-        />
-        Wrap text
-      </label>
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-theme-ink">
+          <input
+            type="checkbox"
+            checked={wrapText}
+            onChange={(e) => updateData({ wrapText: e.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Wrap text
+        </label>
+      </section>
     </div>
   );
 }

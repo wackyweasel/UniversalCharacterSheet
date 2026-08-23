@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StepDiceItem } from '../../types';
 import { DiceStep, formatDiceStep, normalizeDiceExpression } from '../../utils/diceExpression';
+import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
+import { Tooltip } from '../Tooltip';
+import { GripVerticalIcon, TrashIcon } from '../icons';
 
 const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
@@ -11,9 +14,22 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [newItemName, setNewItemName] = useState('');
   const [newDiceExpression, setNewDiceExpression] = useState('');
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
   const normalizedNewDiceExpression = normalizeDiceExpression(newDiceExpression);
+  const stepDiceItemsList = stepDiceItems as StepDiceItem[];
+  const stepDiceItemIdsRef = useRef(new WeakMap<StepDiceItem, string>());
+  const nextStepDiceItemIdRef = useRef(0);
+  const getStepDiceItemId = (item: StepDiceItem) => {
+    const existingId = stepDiceItemIdsRef.current.get(item);
+    if (existingId) return existingId;
+    const id = `step-dice-item-${nextStepDiceItemIdRef.current++}`;
+    stepDiceItemIdsRef.current.set(item, id);
+    return id;
+  };
+  const reorderableItems = stepDiceItemsList.map((item) => ({ id: getStepDiceItemId(item), item }));
+  const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
+    items: reorderableItems,
+    onReorder: (items) => updateData({ stepDiceItems: items.map(({ item }) => item) }),
+  });
 
   const addItem = (name: string) => {
     if (name.trim()) {
@@ -30,26 +46,35 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
   };
 
   const removeItem = (index: number) => {
-    const updated = [...stepDiceItems];
+    const updated = [...stepDiceItemsList];
     updated.splice(index, 1);
     updateData({ stepDiceItems: updated });
   };
 
   const updateItemName = (index: number, name: string) => {
-    const updated = [...stepDiceItems] as StepDiceItem[];
-    updated[index] = { ...updated[index], name };
+    const updatedItem = { ...stepDiceItemsList[index], name };
+    const itemId = stepDiceItemIdsRef.current.get(stepDiceItemsList[index]);
+    if (itemId) stepDiceItemIdsRef.current.set(updatedItem, itemId);
+    const updated = [...stepDiceItemsList];
+    updated[index] = updatedItem;
     updateData({ stepDiceItems: updated });
   };
 
   const updateItemStep = (index: number, currentStep: number) => {
-    const updated = [...stepDiceItems] as StepDiceItem[];
-    updated[index] = { ...updated[index], currentStep };
+    const updatedItem = { ...stepDiceItemsList[index], currentStep };
+    const itemId = stepDiceItemIdsRef.current.get(stepDiceItemsList[index]);
+    if (itemId) stepDiceItemIdsRef.current.set(updatedItem, itemId);
+    const updated = [...stepDiceItemsList];
+    updated[index] = updatedItem;
     updateData({ stepDiceItems: updated });
   };
 
   const updateItemTooltip = (index: number, tooltip: string | undefined) => {
-    const updated = [...stepDiceItems] as StepDiceItem[];
-    updated[index] = { ...updated[index], tooltip };
+    const updatedItem = { ...stepDiceItemsList[index], tooltip };
+    const itemId = stepDiceItemIdsRef.current.get(stepDiceItemsList[index]);
+    if (itemId) stepDiceItemIdsRef.current.set(updatedItem, itemId);
+    const updated = [...stepDiceItemsList];
+    updated[index] = updatedItem;
     updateData({ stepDiceItems: updated });
   };
 
@@ -60,52 +85,8 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
     setNewDiceExpression('');
   };
 
-  // Drag-and-drop handlers
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedIndex === null) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const mid = rect.top + rect.height / 2;
-    setInsertionIndex(e.clientY < mid ? index : index + 1);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
-      setInsertionIndex(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const fromIndex = draggedIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10);
-    const toIndex = insertionIndex;
-    setDraggedIndex(null);
-    setInsertionIndex(null);
-    if (toIndex === null || isNaN(fromIndex)) return;
-    if (toIndex === fromIndex || toIndex === fromIndex + 1) return;
-    const updated = [...stepDiceItems] as StepDiceItem[];
-    const [moved] = updated.splice(fromIndex, 1);
-    const adjustedDrop = fromIndex < toIndex ? toIndex - 1 : toIndex;
-    updated.splice(adjustedDrop, 0, moved);
-    updateData({ stepDiceItems: updated });
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setInsertionIndex(null);
-  };
-
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--step-dice space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
@@ -117,8 +98,11 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
       </div>
 
       {/* Dice chain editor */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Dice Chain</label>
+      <section className="widget-editor__section" aria-labelledby={`dice-chain-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`dice-chain-title-${widget.id}`} className="widget-editor__section-title">Dice chain</h3>
+          <span className="widget-editor__section-count">{diceChain.length}</span>
+        </div>
         <div className="flex flex-wrap items-center gap-1 mb-2">
           {diceChain.map((step: DiceStep, idx: number) => (
             <React.Fragment key={idx}>
@@ -129,7 +113,7 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
                   onClick={() => {
                     const updated = diceChain.filter((_: DiceStep, i: number) => i !== idx);
                     // Clamp trait steps that are now out of range
-                    const clampedItems = stepDiceItems.map((item: StepDiceItem) => ({
+                    const clampedItems = stepDiceItemsList.map((item: StepDiceItem) => ({
                       ...item,
                       currentStep: Math.min(item.currentStep, Math.max(0, updated.length - 1))
                     }));
@@ -143,9 +127,9 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             </React.Fragment>
           ))}
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="widget-editor__add-row flex items-center gap-2">
           <input
-            className="w-40 px-2 py-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            className="h-10 w-40 px-2 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
             value={newDiceExpression}
             onChange={(e) => setNewDiceExpression(e.target.value)}
             placeholder="2d6 or 1d12 + 1d20 - 2"
@@ -160,7 +144,7 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             type="button"
             onClick={addDiceStep}
             disabled={!normalizedNewDiceExpression}
-            className="px-2 py-1 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-xs"
+            className="h-10 px-3 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-xs"
           >
             Add Step
           </button>
@@ -174,42 +158,45 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
                 }));
                 updateData({ stepDiceChain: undefined, stepDiceItems: clampedItems });
               }}
-              className="px-2 py-1 text-xs text-theme-muted hover:text-theme-ink border border-theme-border rounded-button transition-colors"
+              className="h-10 px-3 text-xs text-theme-muted hover:text-theme-ink border border-theme-border rounded-button transition-colors"
             >
               Reset
             </button>
           )}
         </div>
-      </div>
+      </section>
 
       {/* Existing items */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">
-          Items ({stepDiceItems.length})
-        </label>
+      <section className="widget-editor__section" aria-labelledby={`step-items-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`step-items-title-${widget.id}`} className="widget-editor__section-title">Items</h3>
+          <span className="widget-editor__section-count">{stepDiceItems.length}</span>
+        </div>
         <div className="space-y-1">
-          {stepDiceItems.map((item: StepDiceItem, i: number) => (
-            <React.Fragment key={i}>
-              {insertionIndex === i && draggedIndex !== null && draggedIndex !== i && draggedIndex !== i - 1 && (
-                <div className="h-0.5 bg-theme-accent rounded-full mx-2" />
-              )}
+          {reorderableItems.map(({ id, item }, i) => (
               <div
-                className={`flex items-center gap-2 p-2 border border-theme-border rounded-button bg-theme-paper ${
-                  draggedIndex === i ? 'opacity-50' : ''
-                }`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, i)}
-                onDragOver={(e) => handleDragOver(e, i)}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onDragEnd={handleDragEnd}
+                key={id}
+                ref={(element) => setRowRef(id, element)}
+                className="pointer-sort-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-1 text-sm"
               >
                 {/* Drag handle */}
-                <span className="cursor-grab text-theme-muted text-xs select-none">⠿</span>
+                <Tooltip content="Drag to reorder">
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                    onPointerDown={(event) => startDrag(id, event)}
+                    onKeyDown={(event) => handleReorderKey(id, event)}
+                    disabled={reorderableItems.length < 2}
+                    aria-label={`Reorder ${item.name || `item ${i + 1}`}`}
+                    title="Drag to reorder. Arrow keys also work."
+                  >
+                    <GripVerticalIcon className="h-4 w-4" />
+                  </button>
+                </Tooltip>
 
                 {/* Item name */}
                 <input
-                  className="flex-1 min-w-0 px-2 py-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                  className="flex-1 min-w-0 h-10 px-2 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
                   value={item.name}
                   onChange={(e) => updateItemName(i, e.target.value)}
                   placeholder="Item name"
@@ -217,7 +204,7 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
 
                 {/* Starting die selector */}
                 <select
-                  className="px-1 py-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                  className="h-10 px-1 text-sm border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
                   value={item.currentStep}
                   onChange={(e) => updateItemStep(i, parseInt(e.target.value))}
                 >
@@ -231,40 +218,38 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
                   tooltip={item.tooltip}
                   onSave={(text) => updateItemTooltip(i, text || undefined)}
                   itemName={item.name}
+                  buttonClassName="h-10 w-10"
                 />
 
                 {/* Remove button */}
                 <button
+                  type="button"
                   onClick={() => removeItem(i)}
-                  className="w-6 h-6 flex items-center justify-center text-theme-muted hover:text-red-500 transition-colors flex-shrink-0"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                  aria-label={`Delete ${item.name || `item ${i + 1}`}`}
+                  title="Delete item"
                 >
-                  ✕
+                  <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
-            </React.Fragment>
           ))}
-          {insertionIndex === stepDiceItems.length && draggedIndex !== null && draggedIndex !== stepDiceItems.length - 1 && (
-            <div className="h-0.5 bg-theme-accent rounded-full mx-2" />
-          )}
         </div>
-      </div>
-
-      {/* Add new item */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          className="flex-1 px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          placeholder="Add item..."
-        />
-        <button
-          type="submit"
-          disabled={!newItemName.trim()}
-          className="px-3 py-2 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-sm"
-        >
-          Add
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="widget-editor__add-row flex gap-2">
+          <input
+            className="h-10 flex-1 px-3 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            placeholder="Add item..."
+          />
+          <button
+            type="submit"
+            disabled={!newItemName.trim()}
+            className="h-10 px-3 bg-theme-accent text-white rounded-button hover:bg-theme-accentHover disabled:opacity-50 transition-colors text-sm"
+          >
+            Add
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

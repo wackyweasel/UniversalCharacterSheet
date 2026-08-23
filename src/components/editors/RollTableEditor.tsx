@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { TrashIcon } from '../icons';
 
 interface RollTableItem {
   text: string;
@@ -8,6 +10,7 @@ interface RollTableItem {
 
 export function RollTableEditor({ widget, updateData }: EditorProps) {
   const { label, rollTableItems = [{ text: '', weight: 1 }], showRollTableItems = true } = widget.data;
+  const [weightDrafts, setWeightDrafts] = useState<Record<number, string>>({});
 
   const updateItem = (index: number, field: 'text' | 'weight', value: string | number) => {
     const newItems = [...rollTableItems];
@@ -23,6 +26,20 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
   const addItem = () => {
     const newItems = [...rollTableItems, { text: '', weight: 1 }];
     updateData({ rollTableItems: newItems });
+  };
+
+  const updateWeight = (index: number, value: string) => {
+    setWeightDrafts((current) => ({ ...current, [index]: value }));
+    updateItem(index, 'weight', value);
+  };
+
+  const commitWeight = (index: number) => {
+    setWeightDrafts((current) => {
+      if (!(index in current)) return current;
+      const next = { ...current };
+      delete next[index];
+      return next;
+    });
   };
 
   const removeItem = (index: number) => {
@@ -42,9 +59,10 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+    <div className="widget-editor widget-editor--roll-table space-y-4">
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Widget label
         <div className="relative">
           <input
             className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -64,71 +82,88 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </label>
+      </section>
 
-      <div>
-        <label className="flex items-center gap-2 cursor-pointer">
+      <section className="widget-editor__option-group" aria-labelledby={`roll-table-display-heading-${widget.id}`}>
+        <h3 id={`roll-table-display-heading-${widget.id}`} className="widget-editor__section-title">Display</h3>
+        <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
             checked={showRollTableItems}
             onChange={(e) => updateData({ showRollTableItems: e.target.checked })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
           />
-          <span className="text-sm text-theme-ink">Show items in widget</span>
+          <span className="min-w-0 text-xs text-theme-ink">
+            <span className="block font-medium">Show items in widget</span>
+            <span className="mt-0.5 block text-[11px] leading-4 text-theme-muted">When unchecked, only the roll button and result will be visible.</span>
+          </span>
         </label>
-        <p className="text-xs text-theme-muted mt-1 mb-4">When unchecked, only the roll button and result will be visible</p>
-      </div>
+      </section>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Table Items</label>
-        <p className="text-xs text-theme-muted mb-2">
-          Add items with weights. Higher weights = higher probability. All weights are normalized when rolling.
-        </p>
+      <section className="widget-editor__section" aria-labelledby={`roll-table-items-heading-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <div>
+            <h3 id={`roll-table-items-heading-${widget.id}`} className="widget-editor__section-title">Table items</h3>
+            <p className="widget-editor__hint mt-2 text-[11px] leading-4 text-theme-muted">
+              Add items with weights. Higher weights = higher probability.
+            </p>
+          </div>
+          <span className="widget-editor__section-count">{rollTableItems.length}</span>
+        </div>
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {rollTableItems.map((item: RollTableItem, idx: number) => (
-            <div key={idx} className="flex items-center gap-2 p-2 bg-theme-background rounded-button">
-              <span className="text-xs text-theme-muted w-6">{idx + 1}.</span>
+            <div key={idx} className="widget-editor__roll-table-item-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-paper p-2">
+              <span className="widget-editor__weighted-item-index text-xs text-theme-muted w-6">{idx + 1}.</span>
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                className="widget-editor__weighted-item-text h-10 flex-1 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                 value={item.text}
                 onChange={(e) => updateItem(idx, 'text', e.target.value)}
                 placeholder="Item text..."
               />
-              <div className="flex items-center gap-1">
+              <div className="widget-editor__weighted-item-weight flex items-center gap-1">
                 <label className="text-xs text-theme-muted">Weight:</label>
                 <input
                   type="number"
                   min="0"
                   step="1"
-                  className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
-                  value={item.weight}
-                  onChange={(e) => updateItem(idx, 'weight', e.target.value)}
+                  inputMode="numeric"
+                  className="roll-table-weight-input h-10 w-16 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
+                  value={weightDrafts[idx] ?? item.weight}
+                  onChange={(e) => updateWeight(idx, e.target.value)}
+                  onBlur={() => commitWeight(idx)}
                 />
               </div>
-              <span className="text-xs text-theme-muted w-10 text-right">
+              <span className="widget-editor__weighted-item-percentage text-xs text-theme-muted w-10 text-right">
                 {getPercentage(item.weight)}%
               </span>
               <button
+                type="button"
                 onClick={() => removeItem(idx)}
                 disabled={rollTableItems.length <= 1}
-                className="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed px-1"
+                aria-label={`Remove item ${idx + 1}`}
+                title="Delete item"
+                className="widget-editor__weighted-item-delete flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
               >
-                ×
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}
         </div>
 
-        <button
-          onClick={addItem}
-          className="mt-2 w-full px-3 py-2 text-sm border border-dashed border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-accent transition-colors"
-        >
-          + Add Item
-        </button>
-      </div>
+        <div className="widget-editor__add-row">
+          <button
+            type="button"
+            onClick={addItem}
+            className="widget-control w-full px-3 py-2 text-sm"
+          >
+            + Add item
+          </button>
+        </div>
+      </section>
 
-      <div className="text-xs text-theme-muted bg-theme-background p-2 rounded-button">
+      <div className="widget-editor__hint text-xs text-theme-muted">
         <strong>How it works:</strong> When you roll, each item's probability is calculated as 
         (item weight / total weight). For example, if you have items with weights 1, 2, and 3, 
         they have ~17%, ~33%, and ~50% chance respectively.

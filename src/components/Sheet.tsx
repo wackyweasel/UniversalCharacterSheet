@@ -34,6 +34,7 @@ import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
+import { WIDGET_CONTROLS_DISMISS_EVENT } from './widgetDragRegistry';
 
 // Helper to get active sheet widgets
 function getActiveSheetWidgets(character: { sheets: { id: string; widgets: Widget[] }[]; activeSheetId: string }): Widget[] {
@@ -342,6 +343,7 @@ export default function Sheet() {
       if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
     }
 
+    window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
     setSelectedWidgetId(null);
     if (preserveOverlayFocus) return;
 
@@ -819,28 +821,34 @@ export default function Sheet() {
     window.print();
   }, [isLandscape, paperFormat, printArea, recordSheetWorkflowEvent]);
 
-  // Handle tutorial step 22 -> 23: load tutorial preset
+  // Handle the transition from the complete-sheet prompt to the play step.
   useEffect(() => {
-    if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
-      // We just advanced to step 23, load the tutorial preset as a transient character.
-      setPlayLayout('canvas');
-      createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
-      // If in dark mode, set theme to classic-dark
-      // We need to get the new character ID after creation
-      setTimeout(() => {
-        const newCharId = useStore.getState().activeCharacterId;
-        if (newCharId && darkMode) {
-          updateCharacterTheme(newCharId, 'classic-dark');
-        }
-      }, 0);
-      // Switch to edit mode first so they can see the sheet
-      setMode('edit');
-      // Fit widgets after a short delay
+    if (!isCurrentTutorialStep('switch-to-play')) return;
+
+    setPlayLayout('canvas');
+    setMode('edit');
+
+    // Creating the transient character remounts Sheet. The new instance must not create it again.
+    // The starter character is transient too, so compare against the full preset widget count.
+    const tutorialWidgetCount = TUTORIAL_PRESET.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0);
+    if (activeCharacterId && transientCharacterIds.includes(activeCharacterId) && activeSheetWidgets.length >= tutorialWidgetCount) {
       setTimeout(() => {
         handleFitAllWidgets();
       }, 200);
+      return;
     }
-  }, [tutorialStep, createTransientCharacterFromPreset, darkMode, handleFitAllWidgets, setMode, setPlayLayout, updateCharacterTheme]);
+
+    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    setTimeout(() => {
+      const newCharId = useStore.getState().activeCharacterId;
+      if (newCharId && darkMode) {
+        updateCharacterTheme(newCharId, 'classic-dark');
+      }
+    }, 0);
+    setTimeout(() => {
+      handleFitAllWidgets();
+    }, 200);
+  }, [activeCharacterId, createTransientCharacterFromPreset, darkMode, handleFitAllWidgets, setMode, setPlayLayout, transientCharacterIds, tutorialStep, updateCharacterTheme]);
 
   // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
   useEffect(() => {
@@ -978,7 +986,13 @@ export default function Sheet() {
   const autoFitCharacterIdsRef = useRef(new Set<string>());
   useEffect(() => {
     if (!activeCharacterId || autoFitCharacterIdsRef.current.has(activeCharacterId)) return;
-    if (initialFitComplete || viewLocked || activeSheetWidgets.length === 0) return;
+    if (initialFitComplete || viewLocked) return;
+
+    if (activeSheetWidgets.length === 0) {
+      completeInitialFit();
+      autoFitCharacterIdsRef.current.add(activeCharacterId);
+      return;
+    }
 
     const timer = window.setTimeout(() => {
       if (!viewLockedRef.current) {

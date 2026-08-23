@@ -5,7 +5,7 @@ export function TextEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--text space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -28,9 +28,7 @@ export function TextEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
       </div>
-      <p className="text-xs text-theme-muted">
-        Use the resize handle on the widget in edit mode to adjust the size.
-      </p>
+
     </div>
   );
 }

@@ -265,7 +265,7 @@ export default function CustomThemeEditor({ theme, onSave, onCancel, onDelete }:
                 50% { outline-color: #ffb347; }
               }
             `}</style>
-            <h3 className="text-[11px] font-bold text-theme-muted mb-2 uppercase tracking-wider font-heading">Live Preview</h3>
+            <h3 className="text-[11px] font-bold text-theme-muted mb-2 uppercase tracking-wider font-heading">Preview</h3>
             <div className="max-w-md mx-auto lg:max-w-none">
               {renderPreviewCard()}
               <button

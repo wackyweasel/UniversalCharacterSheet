@@ -33,8 +33,20 @@ export function InlineDiceRichText({ html, widget }: Props) {
     if (!ALLOWED_TAGS.has(tagName)) return children;
 
     const props: { key: string; style?: CSSProperties } = { key };
-    if (tagName === 'span' && element.style.color) {
-      props.style = { color: element.style.color };
+    if (tagName === 'span' && (element.style.color || element.style.fontSize)) {
+      props.style = {
+        ...(element.style.color ? { color: element.style.color } : {}),
+        ...(element.style.fontSize ? { fontSize: element.style.fontSize } : {}),
+      };
+    }
+    if (tagName === 'li') {
+      const directParagraphs = Array.from(element.children).filter((child) => child.tagName.toLowerCase() === 'p');
+      const fontSizeElement = directParagraphs
+        .map((paragraph) => paragraph.querySelector<HTMLElement>('[style*="font-size"]'))
+        .find((child): child is HTMLElement => Boolean(child));
+      if (element.style.fontSize || fontSizeElement?.style.fontSize) {
+        props.style = { fontSize: element.style.fontSize || fontSizeElement?.style.fontSize };
+      }
     }
     return VOID_TAGS.has(tagName)
       ? createElement(tagName, props)

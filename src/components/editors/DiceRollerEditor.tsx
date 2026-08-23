@@ -4,6 +4,7 @@ import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
+import { TrashIcon } from '../icons';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -229,7 +230,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--dice-roller space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -253,24 +254,32 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showRollDetailsButton}
-          onChange={(e) => updateData({
-            showRollDetailsButton: e.target.checked,
-            showRollDetails: e.target.checked ? widget.data.showRollDetails : false,
-          })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show roll details control</span>
-      </label>
+      <section className="widget-editor__section" aria-labelledby={`dice-display-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`dice-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
+        </div>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showRollDetailsButton}
+            onChange={(e) => updateData({
+              showRollDetailsButton: e.target.checked,
+              showRollDetails: e.target.checked ? widget.data.showRollDetails : false,
+            })}
+            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show roll details control</span>
+        </label>
+      </section>
       
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Dice Groups</label>
+      <section className="widget-editor__section" aria-labelledby={`dice-groups-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`dice-groups-title-${widget.id}`} className="widget-editor__section-title">Dices</h3>
+          <span className="widget-editor__section-count">{diceGroups.length}</span>
+        </div>
         <div className="space-y-2">
           {diceGroups.map((group: DiceGroup, index: number) => (
-            <div key={index} className="flex flex-col gap-1">
+            <div key={index} className="flex flex-col gap-1 rounded-button border border-theme-border bg-theme-paper p-2">
               <LabeledNumberField
                 value={group.count}
                 onChange={(v) => updateDiceGroup(index, 'count', Math.max(1, v))}
@@ -280,6 +289,8 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                 onFormulaChange={(f) => updateDiceGroupAutomation(index, { countFormula: f })}
                 min={1}
                 compact
+                controlHeight="input"
+                allowEmpty
                 hideStepperButtons
                 renderRow={({ controls }) => (
                   <div className="flex items-center gap-2 flex-wrap">
@@ -291,14 +302,15 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                       value={group.faces}
                       onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                       onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="h-10 w-16 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       disabled={!!group.customFaces?.length}
                       title={group.customFaces?.length ? 'Faces set by custom faces' : ''}
                     />
                     <Tooltip content="Set custom faces">
                       <button
+                        type="button"
                         onClick={() => openCustomFacesModal(index)}
-                        className={`px-2 py-1 border border-theme-border rounded-button text-xs hover:bg-theme-accent hover:text-theme-paper ${
+                        className={`h-10 px-2 border border-theme-border rounded-button text-xs hover:bg-theme-accent hover:text-theme-paper ${
                           group.customFaces?.length ? 'bg-theme-accent text-theme-paper' : 'bg-theme-paper text-theme-ink'
                         }`}
                       >
@@ -308,14 +320,15 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                     {group.customFaces?.length ? (
                       <Tooltip content="Clear custom faces">
                         <button
+                          type="button"
                           onClick={() => clearCustomFaces(index)}
-                          className="text-orange-500 hover:text-orange-700 px-1 text-xs"
+                          className="flex h-10 w-10 items-center justify-center rounded-button border border-theme-border text-orange-500 hover:border-orange-500 hover:text-orange-700"
                         >
                           ✕
                         </button>
                       </Tooltip>
                     ) : null}
-                      <label className="inline-flex h-7 items-center gap-1 px-2 border border-theme-border rounded-button text-xs text-theme-ink hover:border-theme-accent cursor-pointer">
+                      <label className="inline-flex h-10 items-center gap-1 px-2 border border-theme-border rounded-button text-xs text-theme-ink hover:border-theme-accent cursor-pointer">
                         <input
                           type="checkbox"
                           checked={!!group.explodes}
@@ -325,12 +338,16 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                         <span>Explode</span>
                       </label>
                     {diceGroups.length > 1 && (
-                      <button
-                        onClick={() => removeDiceGroup(index)}
-                        className="text-red-500 hover:text-red-700 px-2"
-                      >
-                        ×
-                      </button>
+                      <Tooltip content="Delete dice group">
+                        <button
+                          type="button"
+                          onClick={() => removeDiceGroup(index)}
+                          aria-label={`Delete dice group ${index + 1}`}
+                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
                 )}
@@ -347,7 +364,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
               {group.explodes ? (
                 <div className="ml-2 flex flex-wrap items-start gap-2 text-xs">
                   <details className="relative">
-                    <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:border-theme-accent">
+                    <summary className="inline-flex h-10 list-none items-center [&::-webkit-details-marker]:hidden cursor-pointer select-none px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:border-theme-accent">
                       Triggers: {describeExplodeFaces(group)}
                     </summary>
                     <div className="mt-1 w-44 max-h-36 overflow-y-auto border border-theme-border rounded-button bg-theme-paper p-1 shadow-sm">
@@ -367,7 +384,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
                       ))}
                     </div>
                   </details>
-                  <label className="inline-flex items-center gap-1 px-2 py-1 border border-theme-border rounded-button text-theme-ink hover:border-theme-accent cursor-pointer">
+                  <label className="inline-flex h-10 items-center gap-1 px-2 border border-theme-border rounded-button text-theme-ink hover:border-theme-accent cursor-pointer">
                     <input
                       type="checkbox"
                       checked={group.explodeAgain ?? true}
@@ -381,26 +398,32 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-        <button
-          onClick={addDiceGroup}
-          className="mt-2 px-3 py-1 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-        >
-          + Add Dice
-        </button>
-      </div>
+        <div className="widget-editor__add-row">
+          <button
+            onClick={addDiceGroup}
+            className="h-10 rounded-button border border-theme-border px-3 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+          >
+            + Add Dice
+          </button>
+        </div>
+      </section>
       
-      <div>
+      <section className="widget-editor__section" aria-labelledby={`modifier-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`modifier-title-${widget.id}`} className="widget-editor__section-title">Modifier</h3>
+        </div>
         <LabeledNumberField
-          displayLabel="Modifier"
           value={modifier}
           onChange={(v) => updateData({ modifier: v })}
+          controlHeight="input"
+          allowEmpty
           tutorialTargetPrefix="automation-dice-modifier"
           fieldLabel={fieldLabels['modifier']}
           onFieldLabelChange={(l) => setFieldLabel('modifier', l)}
           formula={fieldFormulas['modifier']}
           onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
-      </div>
+      </section>
 
       {/* Custom Faces Modal */}
       {customFacesModal.open && (

@@ -20,7 +20,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
-  const { label, formItems = [], labelWidth = 33 } = widget.data;
+  const { label, formItems = [], labelWidth = 33, itemSpacing = 2 } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
@@ -158,8 +158,8 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
 
       {/* Form Items */}
       <div 
-        className={`flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden flex-1 pr-1`}
-        style={{ maxHeight: `${itemsHeight}px` }}
+        className="flex flex-col overflow-y-auto overflow-x-hidden flex-1 pr-1"
+        style={{ maxHeight: `${itemsHeight}px`, rowGap: `${itemSpacing}px` }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight) {

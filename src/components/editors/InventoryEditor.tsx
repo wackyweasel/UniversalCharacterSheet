@@ -117,35 +117,51 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-2">
-        <label className="text-xs font-medium text-theme-ink">Container name</label>
-        <input
-          value={label || ''}
-          onChange={(event) => updateData({ label: event.target.value })}
-          placeholder="Backpack"
-          className={inputClass}
-        />
-      </section>
+    <div className="widget-editor widget-editor--inventory space-y-4">
+      <div>
+        <label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label>
+        <div className="relative">
+          <input
+            className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
+            value={label || ''}
+            onChange={(event) => updateData({ label: event.target.value })}
+            placeholder="Backpack"
+          />
+          {label && (
+            <Tooltip content="Clear label">
+              <button
+                type="button"
+                onClick={() => updateData({ label: '' })}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted transition-colors hover:text-theme-ink"
+              >
+                ×
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </div>
 
-      <section>
-        <div className="flex items-center justify-between gap-2">
+      <section className="widget-editor__section" aria-labelledby={`inventory-attributes-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
           <div>
-            <h4 className="text-xs font-semibold text-theme-ink">New item attributes</h4>
+            <h3 id={`inventory-attributes-title-${widget.id}`} className="widget-editor__section-title">New item attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
               Added to every new item and customizable on each item.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => updateData({
-              inventoryDefaultFields: [...inventoryDefaultFields, createInventoryFieldTemplate('New attribute', 'text')],
-            })}
-            className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]"
-          >
-            <PlusIcon className="h-3.5 w-3.5" />
-            Add attribute
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="widget-editor__section-count">{inventoryDefaultFields.length}</span>
+            <button
+              type="button"
+              onClick={() => updateData({
+                inventoryDefaultFields: [...inventoryDefaultFields, createInventoryFieldTemplate('New attribute', 'text')],
+              })}
+              className="widget-control flex h-10 items-center gap-1 px-2 py-1 text-[11px]"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              Add attribute
+            </button>
+          </div>
         </div>
 
         <div className="mt-1.5 border-y border-theme-border">
@@ -171,7 +187,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
                   disabled={inventoryDefaultFields.length < 2}
                   aria-label={`Reorder ${field.name}`}
                   title="Drag to reorder. Arrow keys also work."
-                  className="inventory-attribute-drag-handle flex h-8 w-6 touch-none items-center justify-center rounded-button text-theme-muted hover:text-theme-ink disabled:cursor-default disabled:opacity-30"
+                  className="inventory-attribute-drag-handle flex h-10 w-6 touch-none items-center justify-center rounded-button text-theme-muted hover:text-theme-ink disabled:cursor-default disabled:opacity-30"
                 >
                   <GripVerticalIcon className="h-3.5 w-3.5" />
                 </button>
@@ -199,7 +215,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
                     type="button"
                     disabled={Boolean(field.reserved)}
                     onClick={() => updateData({ inventoryDefaultFields: inventoryDefaultFields.filter((entry) => entry.id !== field.id) })}
-                    className="inventory-field-row__delete widget-control h-7 w-7 text-red-500"
+                    className="inventory-field-row__delete widget-control h-10 w-10 text-red-500"
                     aria-label={`Remove ${field.name}`}
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
@@ -210,7 +226,10 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section>
+      <section className="widget-editor__section" aria-labelledby={`inventory-weight-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`inventory-weight-title-${widget.id}`} className="widget-editor__section-title">Weight &amp; encumbrance</h3>
+        </div>
         <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
@@ -248,6 +267,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
                   step={0.1}
                   placeholder="No limit"
                   hideStepperButtons
+                  controlHeight="input"
                   renderRow={({ controls }) => (
                     <div>
                       <span className="mb-0.5 block text-[11px] font-medium text-theme-ink">Capacity</span>
@@ -313,6 +333,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
                     step={0.1}
                     placeholder="No limit"
                     hideStepperButtons
+                    controlHeight="input"
                     className="pl-6"
                     renderRow={({ controls }) => (
                       <div className="grid gap-1 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center sm:gap-2">

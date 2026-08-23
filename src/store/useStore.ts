@@ -866,7 +866,7 @@ export const useStore = create<StoreState>((set, get) => {
           });
         };
         
-        if (viewport) {
+        if (viewport && currentWidgets.length === 0) {
           // Calculate visible area in canvas coordinates
           const visibleLeft = -viewport.pan.x / viewport.scale;
           const visibleTop = -viewport.pan.y / viewport.scale;
@@ -981,6 +981,22 @@ export const useStore = create<StoreState>((set, get) => {
               showPoolCount: false,
             } : {}),
             ...(type === 'TOGGLE' ? { toggleState: false, inlineLabel: true } : {}),
+            ...(type === 'TIME_TRACKER' ? {
+              effectSuggestions: [
+                'Poisoned',
+                'Burning',
+                'Blinded',
+                'Charmed',
+                'Frightened',
+                'Stunned',
+                'Prone',
+                'Restrained',
+                'Slowed',
+                'Hasted',
+                'Invisible',
+                'Blessed',
+              ],
+            } : {}),
             ...(type === 'MIXED_FIELDS' ? { mixedFields: [], labelWidth: 33 } : {}),
             ...(type === 'GRID_MAP' ? {
               gridMapTokens: [],

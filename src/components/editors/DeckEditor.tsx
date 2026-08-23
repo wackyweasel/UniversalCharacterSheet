@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { TrashIcon } from '../icons';
 
 interface DeckCard {
   name: string;
@@ -8,6 +10,7 @@ interface DeckCard {
 
 export function DeckEditor({ widget, updateData }: EditorProps) {
   const { label, deckCards = [{ name: '', amount: 1 }] } = widget.data;
+  const [amountDrafts, setAmountDrafts] = useState<Record<number, string>>({});
 
   const updateCard = (index: number, field: 'name' | 'amount', value: string | number) => {
     const newCards = [...deckCards];
@@ -25,10 +28,25 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
     updateData({ deckCards: newCards, deckState: null });
   };
 
+  const updateAmount = (index: number, value: string) => {
+    setAmountDrafts((current) => ({ ...current, [index]: value }));
+    updateCard(index, 'amount', value);
+  };
+
+  const commitAmount = (index: number) => {
+    setAmountDrafts((current) => {
+      if (!(index in current)) return current;
+      const next = { ...current };
+      delete next[index];
+      return next;
+    });
+  };
+
   const removeCard = (index: number) => {
     if (deckCards.length <= 1) return;
     const newCards = deckCards.filter((_: DeckCard, i: number) => i !== index);
     updateData({ deckCards: newCards, deckState: null });
+    setAmountDrafts({});
   };
 
   const getTotalCards = () => {
@@ -43,9 +61,10 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+    <div className="widget-editor widget-editor--legacy-deck space-y-4">
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Widget label
         <div className="relative">
           <input
             className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -65,59 +84,73 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </label>
+      </section>
 
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">Deck Cards</label>
-        <p className="text-xs text-theme-muted mb-2">
-          Add cards with amounts. When you draw, a card is removed from the deck and added to the discard pile.
-        </p>
+      <section className="widget-editor__section" aria-labelledby={`legacy-deck-cards-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <div>
+            <h3 id={`legacy-deck-cards-title-${widget.id}`} className="widget-editor__section-title">Deck cards</h3>
+            <p className="widget-editor__hint mt-2 text-[11px] leading-4 text-theme-muted">
+              Add cards with amounts. When you draw, a card is removed from the deck and added to the discard pile.
+            </p>
+          </div>
+          <span className="widget-editor__section-count">{deckCards.length}</span>
+        </div>
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {deckCards.map((card: DeckCard, idx: number) => (
-            <div key={idx} className="flex items-center gap-2 p-2 bg-theme-background rounded-button">
-              <span className="text-xs text-theme-muted w-6">{idx + 1}.</span>
+            <div key={idx} className="widget-editor__deck-card-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-paper p-2">
+              <span className="widget-editor__weighted-item-index text-xs text-theme-muted w-6">{idx + 1}.</span>
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                className="widget-editor__weighted-item-text h-10 flex-1 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                 value={card.name}
                 onChange={(e) => updateCard(idx, 'name', e.target.value)}
                 placeholder="Card name..."
               />
-              <div className="flex items-center gap-1">
+              <div className="widget-editor__weighted-item-weight flex items-center gap-1">
                 <label className="text-xs text-theme-muted">×</label>
                 <input
                   type="number"
                   min="0"
                   step="1"
-                  className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
-                  value={card.amount}
-                  onChange={(e) => updateCard(idx, 'amount', e.target.value)}
+                  inputMode="numeric"
+                  className="deck-amount-input h-10 w-16 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center focus:outline-none focus:border-theme-accent"
+                  value={amountDrafts[idx] ?? card.amount}
+                  onChange={(e) => updateAmount(idx, e.target.value)}
+                  onBlur={() => commitAmount(idx)}
                 />
               </div>
-              <span className="text-xs text-theme-muted w-10 text-right">
+              <span className="widget-editor__weighted-item-percentage text-xs text-theme-muted w-10 text-right">
                 {getPercentage(card.amount, card.name)}%
               </span>
               <button
+                type="button"
                 onClick={() => removeCard(idx)}
                 disabled={deckCards.length <= 1}
-                className="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed px-1"
+                aria-label={`Remove card ${idx + 1}`}
+                title="Delete card"
+                className="widget-editor__weighted-item-delete flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
               >
-                ×
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}
         </div>
 
-        <button
-          onClick={addCard}
-          className="mt-2 w-full px-3 py-2 text-sm border border-dashed border-theme-border rounded-button text-theme-muted hover:text-theme-ink hover:border-theme-accent transition-colors"
-        >
-          + Add Card
-        </button>
-      </div>
+        <div className="widget-editor__add-row">
+          <button
+            type="button"
+            onClick={addCard}
+            className="widget-control w-full px-3 py-2 text-sm"
+          >
+            + Add card
+          </button>
+        </div>
+      </section>
 
       {getTotalCards() > 0 && (
-        <div className="text-xs text-theme-ink bg-theme-accent/10 p-2 rounded-button">
+        <div className="widget-editor__hint text-xs text-theme-ink">
           <strong>Total cards in deck:</strong> {getTotalCards()}
         </div>
       )}

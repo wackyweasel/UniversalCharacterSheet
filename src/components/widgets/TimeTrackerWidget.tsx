@@ -313,7 +313,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                   <button
                     key={index}
                     type="button"
-                    className="px-2 py-1 text-xs bg-theme-border/30 text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body"
+                    className="rounded-button border border-theme-border bg-theme-border/30 px-2 py-1 text-xs text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper font-body"
                     onClick={() => setNewEffectName(suggestion)}
                   >
                     {suggestion}

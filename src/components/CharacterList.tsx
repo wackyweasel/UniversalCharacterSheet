@@ -32,24 +32,48 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.4.0',
+    changes: [
+      'Reworked all widget editors to be visually more consistent.',
+      'Previews are now shown on the right side on desktop.',
+      {
+        text: 'Added several options throughout the app, including:',
+        items: [
+          'Vertical spacing sliders for Fields & Stats, Mixed Fields, and related widgets.',
+          'Additional customization options for the Spell Slots widget.',
+          'Several other small options and improvements.',
+        ],
+      },
+      'Notes widget: Removed the toolbar at the top and replaced it with a contextual toolbar that appears only while typing.',
+      'Dice roller and dice tray: Detailed results now appear in an overlay box so they no longer overflow the widget.',
+      'Fixed multiple number inputs that prevented users from completely erasing the number before entering a new one.',
+    ],
+  },
+  {
+    version: '1.3.1',
+    changes: [
+      'Fixed an issue on touch devices where some buttons would never disappear.',
+    ],
+  },
+  {
     version: '1.3.0',
     changes: [
       'Most widgets that contain text now support formulas. Write your formula in curly brackets; for example, {10 + @str} renders as 10 plus the value labeled @str.',
       'Added multiple customization options for the image widget.',
-      'Fixed an issue causing the attachment buttons to not display in build mode.',
+      'Fixed an issue causing the attachment buttons not to be displayed in build mode.',
     ],
   },
   {
     version: '1.2.0',
     changes: [
       'Exported characters now include their custom theme.',
-      'Importing a character that has a custom theme that is not in the library lets the user choose if they want to import and apply the custom theme as well.',
-      'If not, the default theme will now consider if the dark or light theme is selected in the app.',
+      'Importing a character with a custom theme that is not in the library lets users choose whether to import and apply the custom theme as well.',
+      'If they do not, the default theme now reflects whether the app is using the dark or light theme.',
       {
         text: 'Made several improvements to the theme selection panel:',
         items: [
-          'Export and import from JSON',
-          'Community themes directly selectable from theme',
+          'Export and import as JSON',
+          'Community themes are directly selectable from the theme panel',
           'Many small tweaks',
         ],
       },
@@ -58,7 +82,7 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.1.1',
     changes: [
-      'Fix several issues related to the z ordering of widgets (logic to choose which widget is rendered on top of the others)',
+      'Fixed several issues related to the z-ordering of widgets (the logic that determines which widget is rendered on top of the others).',
       'Fixed several menus not using the correct corner radius',
       'Added this changelog button',
     ],
@@ -85,8 +109,8 @@ const CHANGELOG_ENTRIES = [
     changes: [
       'Added logo',
       'The app is now a PWA app that you can install on your device',
-      'Store the camera view for each character sheet. If you setup your view in canvas mode with a precise zoom level and switch character of switch sheet, then come back, it will restore it as is.',
-      'Pop up windows should not be hidden behind virtual keyboard on touch devices anymore (hopefully? Touch is annoying)',
+      'The camera view is stored for each character sheet. If you set up your view in canvas mode with a precise zoom level and switch characters or sheets, then return, it will be restored exactly as it was.',
+      'Pop-up windows should no longer be hidden behind the virtual keyboard on touch devices (hopefully? Touch is annoying).',
       'Added optional secondary numbers to the number display widget. You can type in any number manually, or select automatic calculations of modifiers (example, an intelligence of 15 yields a +3 mod). These mods support labeling, so you can use them in formulas.',
       {
         text: 'You can now add dice roll buttons directly in the text of some widgets. For example, type "strength test {d20+@str}" and in play mode, it will render as a dice button you can click. Supported widgets:',

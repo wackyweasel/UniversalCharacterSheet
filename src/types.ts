@@ -246,7 +246,7 @@ interface MixedFieldBase {
 
 export type MixedField = MixedFieldBase & (
   | { type: 'text'; value: string }
-  | { type: 'number'; value: number; valueLabel?: string; valueFormula?: string; minValue?: number; minValueLabel?: string; minValueFormula?: string; maxValue?: number; maxValueLabel?: string; maxValueFormula?: string }
+  | { type: 'number'; value: number; valueLabel?: string; valueFormula?: string; minValue?: number; minValueLabel?: string; minValueFormula?: string; maxValue?: number; maxValueLabel?: string; maxValueFormula?: string; showIncrementButtons?: boolean }
   | { type: 'progress'; current: number; currentLabel?: string; currentFormula?: string; min?: number; minLabel?: string; minFormula?: string; max: number; maxLabel?: string; maxFormula?: string; showPercentage?: boolean; showValues?: boolean; fillColor?: string }
   | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }
   | { type: 'step-dice'; currentStep: number; diceChain?: DiceStep[] }
@@ -354,6 +354,11 @@ export interface WidgetData {
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
   spellLevels?: SpellLevel[];
+  spellSlotShape?: 'circle' | 'square' | 'diamond';
+  spellSlotSize?: number;
+  spellSlotHorizontalSpacing?: number;
+  spellSlotVerticalSpacing?: number;
+  showResetButton?: boolean;
   // Number
   numberItems?: NumberItem[];
   // Number Display
@@ -366,7 +371,9 @@ export interface WidgetData {
   secondaryDisplayModifierRanges?: ModifierRange[];
   // Form
   formItems?: FormItem[];
+  // Form & Mixed Fields
   labelWidth?: number;
+  itemSpacing?: number;
   // Mixed Fields
   mixedFields?: MixedField[];
   // Image

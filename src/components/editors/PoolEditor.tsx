@@ -3,6 +3,8 @@ import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { ResourceStylePicker } from '../ResourceStylePicker';
+import { ChevronDownIcon, ChevronUpIcon, TrashIcon } from '../icons';
 
 export function PoolEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -47,6 +49,14 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     updateData({ poolResources: updated });
   };
 
+  const moveResource = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= resources.length) return;
+    const updated = [...resources];
+    [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+    updateData({ poolResources: updated });
+  };
+
   const updateResource = (index: number, field: string, value: string | number) => {
     const updated = [...resources];
     updated[index] = { ...updated[index], [field]: value };
@@ -57,33 +67,8 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
     updateData({ poolResources: updated });
   };
 
-  const styleOptions = (
-    <>
-      <optgroup label="Basic">
-        <option value="dots">● Dots</option>
-        <option value="boxes">■ Boxes</option>
-        <option value="stars">★ Stars</option>
-        <option value="diamonds">◆ Diamonds</option>
-        <option value="crosses">✖ Crosses</option>
-        <option value="checkmarks">✔ Checkmarks</option>
-      </optgroup>
-      <optgroup label="Themed">
-        <option value="hearts">❤️ Hearts</option>
-        <option value="flames">🔥 Flames</option>
-        <option value="skulls">💀 Skulls</option>
-        <option value="shields">🛡️ Shields</option>
-        <option value="swords">⚔️ Swords</option>
-        <option value="lightning">⚡ Lightning</option>
-        <option value="moons">🌙 Moons</option>
-        <option value="suns">☀️ Suns</option>
-        <option value="coins">🪙 Coins</option>
-        <option value="gems">💎 Gems</option>
-      </optgroup>
-    </>
-  );
-
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--pool space-y-4">
       <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
@@ -107,12 +92,41 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
         </div>
       </div>
 
-      <div className="space-y-3 max-h-64 overflow-y-auto">
+      <section className="widget-editor__section" aria-labelledby={`resources-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`resources-title-${widget.id}`} className="widget-editor__section-title">Resources</h3>
+          <span className="widget-editor__section-count">{resources.length}</span>
+        </div>
+        <div className="max-h-64 space-y-3 overflow-y-auto">
             {resources.map((resource: PoolResource, idx: number) => (
               <div key={idx} className="border border-theme-border rounded-theme p-3 space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-shrink-0 gap-1">
+                    <Tooltip content="Move up">
+                      <button
+                        type="button"
+                        onClick={() => moveResource(idx, -1)}
+                        disabled={idx === 0}
+                        aria-label={`Move ${resource.name || `resource ${idx + 1}`} up`}
+                        className="widget-control h-10 w-10 min-h-0 p-1 disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        <ChevronUpIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Move down">
+                      <button
+                        type="button"
+                        onClick={() => moveResource(idx, 1)}
+                        disabled={idx === resources.length - 1}
+                        aria-label={`Move ${resource.name || `resource ${idx + 1}`} down`}
+                        className="widget-control h-10 w-10 min-h-0 p-1 disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        <ChevronDownIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </Tooltip>
+                  </div>
                   <input
-                    className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                    className="h-10 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                     value={resource.name}
                     onChange={(e) => updateResource(idx, 'name', e.target.value)}
                     placeholder="Resource name"
@@ -120,6 +134,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                   <TooltipEditButton
                     tooltip={resource.tooltip}
                     itemName={resource.name}
+                    buttonClassName="h-10 w-10"
                     onSave={(t) => {
                       const updated = [...resources];
                       updated[idx] = { ...updated[idx], tooltip: t };
@@ -127,39 +142,19 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                     }}
                   />
                   <button
+                    type="button"
                     onClick={() => removeResource(idx)}
                     disabled={resources.length <= 1}
                     aria-label={`Remove ${resource.name || `resource ${idx + 1}`}`}
-                    className="ml-2 px-2 text-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
+                    title="Delete resource"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
                   >
-                    ×
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-xs text-theme-muted mb-1">Max</label>
-                    <LabeledNumberField
-                      value={resource.max}
-                      onChange={(v) => updateResource(idx, 'max', Math.max(1, Math.min(100, v)))}
-                      fieldLabel={resource.maxLabel}
-                      onFieldLabelChange={(l) => {
-                        const updated = [...resources];
-                        updated[idx] = { ...updated[idx], maxLabel: l };
-                        updateData({ poolResources: updated });
-                      }}
-                      formula={resource.maxFormula}
-                      onFormulaChange={(f) => {
-                        const updated = [...resources];
-                        updated[idx] = { ...updated[idx], maxFormula: f };
-                        updateData({ poolResources: updated });
-                      }}
-                      min={1}
-                      max={100}
-                      compact
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-theme-muted mb-1">Current</label>
+                    <label className="mb-1 block text-xs text-theme-muted">Current</label>
                     <LabeledNumberField
                       value={resource.current}
                       onChange={(v) => updateResource(idx, 'current', Math.max(0, Math.min(resource.max, v)))}
@@ -178,49 +173,74 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                       min={0}
                       max={resource.max}
                       compact
+                      controlHeight="input"
+                      allowEmpty
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-theme-muted">Maximum</label>
+                    <LabeledNumberField
+                      value={resource.max}
+                      onChange={(v) => updateResource(idx, 'max', Math.max(1, Math.min(100, v)))}
+                      fieldLabel={resource.maxLabel}
+                      onFieldLabelChange={(l) => {
+                        const updated = [...resources];
+                        updated[idx] = { ...updated[idx], maxLabel: l };
+                        updateData({ poolResources: updated });
+                      }}
+                      formula={resource.maxFormula}
+                      onFormulaChange={(f) => {
+                        const updated = [...resources];
+                        updated[idx] = { ...updated[idx], maxFormula: f };
+                        updateData({ poolResources: updated });
+                      }}
+                      min={1}
+                      max={100}
+                      compact
+                      controlHeight="input"
+                      allowEmpty
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-theme-muted mb-1">Style</label>
-                  <select
-                    value={resource.style}
-                    onChange={(e) => updateResource(idx, 'style', e.target.value)}
-                    className="w-full px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
-                  >
-                    {styleOptions}
-                  </select>
-                </div>
+                <ResourceStylePicker value={resource.style} onChange={(style) => updateResource(idx, 'style', style)} />
               </div>
             ))}
-      </div>
+        </div>
 
-      <button
-        onClick={addResource}
-        className="w-full px-3 py-2 border border-theme-border rounded-button text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
-      >
-        + Add Resource
-      </button>
+        <div className="widget-editor__add-row">
+          <button
+            onClick={addResource}
+            className="w-full rounded-button border border-theme-border px-3 py-2 text-sm text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper"
+          >
+            + Add Resource
+          </button>
+        </div>
+      </section>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showPoolCount}
-          onChange={(e) => updateData({ showPoolCount: e.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Show Counter (e.g., 3 / 5)</span>
-      </label>
+      <fieldset className="widget-editor__section" aria-labelledby={`pool-display-title-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`pool-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
+        </div>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showPoolCount}
+            onChange={(e) => updateData({ showPoolCount: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Show counter (e.g., 3 / 5)</span>
+        </label>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={inlineLabels}
-          onChange={(e) => updateData({ inlineLabels: e.target.checked })}
-          className="w-4 h-4 accent-theme-accent"
-        />
-        <span className="text-sm text-theme-ink">Inline labels with icons</span>
-      </label>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={inlineLabels}
+            onChange={(e) => updateData({ inlineLabels: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Inline labels with icons</span>
+        </label>
+      </fieldset>
     </div>
   );
 }

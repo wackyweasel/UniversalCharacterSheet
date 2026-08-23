@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { ResourceStylePicker } from '../ResourceStylePicker';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
@@ -15,25 +16,6 @@ interface Props {
   showFieldControls?: boolean;
   interactive?: boolean;
 }
-
-const POOL_STYLES = [
-  ['dots', '● Dots'],
-  ['boxes', '■ Boxes'],
-  ['stars', '★ Stars'],
-  ['diamonds', '◆ Diamonds'],
-  ['crosses', '✖ Crosses'],
-  ['checkmarks', '✔ Checkmarks'],
-  ['hearts', '❤️ Hearts'],
-  ['flames', '🔥 Flames'],
-  ['skulls', '💀 Skulls'],
-  ['shields', '🛡️ Shields'],
-  ['swords', '⚔️ Swords'],
-  ['lightning', '⚡ Lightning'],
-  ['moons', '🌙 Moons'],
-  ['suns', '☀️ Suns'],
-  ['coins', '🪙 Coins'],
-  ['gems', '💎 Gems'],
-] as const;
 
 // Helper to get symbol for a style
 const getSymbolForStyle = (filled: boolean, style: string) => {
@@ -141,15 +123,9 @@ function AddResourceModal({ resourceNumber, onConfirm, onCancel }: { resourceNum
           onChange={(event) => setAmount(event.target.value)}
           className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center font-bold text-theme-ink focus:border-theme-accent focus:outline-none"
         />
-        <label className="mt-3 block text-sm font-medium" htmlFor="pool-resource-style">Style</label>
-        <select
-          id="pool-resource-style"
-          value={style}
-          onChange={(event) => setStyle(event.target.value)}
-          className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-theme-ink focus:border-theme-accent focus:outline-none"
-        >
-          {POOL_STYLES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-        </select>
+        <div className="mt-3">
+          <ResourceStylePicker value={style} onChange={setStyle} />
+        </div>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
           <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Add resource</button>

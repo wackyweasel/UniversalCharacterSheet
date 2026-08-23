@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Widget, DiceGroup } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -17,6 +18,7 @@ interface Props {
   width: number;
   height: number;
   interactive?: boolean;
+  sheetScale?: number;
 }
 
 interface RollGroupResult {
@@ -42,17 +44,81 @@ interface AggregatedResult {
 }
 
 const MAX_EXPLOSION_ROLLS = 100;
+const DETAILS_VIEWPORT_PADDING = 8;
+const DETAILS_OFFSET = 4;
+const MIN_DETAILS_WIDTH = 180;
+const MAX_DETAILS_WIDTH = 240;
 
-export default function DiceRollerWidget({ widget, mode, interactive = true }: Props) {
+export default function DiceRollerWidget({ widget, mode, interactive = true, sheetScale = 1 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showRollDetails = false, showRollDetailsButton = true } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const resultSummaryRef = useRef<HTMLDivElement>(null);
+  const detailsDropdownRef = useRef<HTMLDivElement>(null);
+  const [detailsPosition, setDetailsPosition] = useState({ left: 0, top: 0, width: 0, maxHeight: 0 });
   const controlsVisible = interactive && mode !== 'print';
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   const isAttackDiceRoller = String(label || '').toLowerCase() === 'attack';
+
+  useLayoutEffect(() => {
+    if (!showRollDetails || !result || isRolling) return;
+
+    const updateDetailsPosition = () => {
+      const anchor = resultSummaryRef.current;
+      if (!anchor) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const viewportWidth = Math.max(0, window.innerWidth - DETAILS_VIEWPORT_PADDING * 2);
+      const width = Math.min(Math.max(anchorRect.width, MIN_DETAILS_WIDTH), viewportWidth, MAX_DETAILS_WIDTH);
+      const maxHeight = Math.max(0, window.innerHeight - DETAILS_VIEWPORT_PADDING * 2);
+      const dropdownHeight = Math.min(
+        detailsDropdownRef.current?.getBoundingClientRect().height ?? 0,
+        maxHeight,
+      );
+      const below = anchorRect.bottom + DETAILS_OFFSET;
+      const top = below + dropdownHeight <= window.innerHeight - DETAILS_VIEWPORT_PADDING
+        ? below
+        : Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.top - dropdownHeight - DETAILS_OFFSET);
+      const left = Math.min(
+        Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.left),
+        Math.max(DETAILS_VIEWPORT_PADDING, window.innerWidth - width - DETAILS_VIEWPORT_PADDING),
+      );
+
+      setDetailsPosition({ left, top, width, maxHeight });
+    };
+
+    updateDetailsPosition();
+    window.addEventListener('resize', updateDetailsPosition);
+    window.addEventListener('scroll', updateDetailsPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateDetailsPosition);
+      window.removeEventListener('scroll', updateDetailsPosition, true);
+    };
+  }, [isRolling, result, showRollDetails, sheetScale]);
+
+  useEffect(() => {
+    if (!showRollDetails || !result || isRolling) return;
+
+    const closeDetails = () => updateWidgetData(widget.id, { showRollDetails: false });
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (detailsDropdownRef.current?.contains(target) || resultSummaryRef.current?.contains(target)) return;
+      closeDetails();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeDetails();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isRolling, result, showRollDetails, updateWidgetData, widget.id]);
 
   // Check if a string is purely numeric
   const isNumericString = (val: string | number): boolean => {
@@ -154,11 +220,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
   const shouldExplode = (group: DiceGroup, roll: number | string): boolean => {
     const explodeOn = getExplodeOn(group);
     return explodeOn.length > 0 && explodeOn.includes(String(roll));
-  };
-
-  const rollDieSequence = (group: DiceGroup): (number | string)[] => {
-    let roll = rollSingleDie(group);
-    return rollDieSequenceFromInitial(group, roll);
   };
 
   const rollDieSequenceFromInitial = (group: DiceGroup, initialRoll: number | string): (number | string)[] => {
@@ -334,10 +395,17 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
     addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', desc, '🎲');
   };
 
-  const rerollDie = (groupIdx: number, dieIdx: number) => {
-    if (!result) return;
+  const rerollDie = async (groupIdx: number, dieIdx: number) => {
+    if (!result || isRolling) return;
     const group = result.groups[groupIdx];
-    const newRollsForDie = rollDieSequence(group.configuration);
+    setIsRolling(true);
+
+    const physicalDice = getPhysicalDiceRequests(group.configuration);
+    const physicalValues = physicalDice.length > 0
+      ? await rollPhysicalDice(physicalDice)
+      : null;
+    const { roll: initialRoll } = getPhysicalInitialRoll(group.configuration, physicalValues, 0);
+    const newRollsForDie = rollDieSequenceFromInitial(group.configuration, initialRoll);
 
     const newGroups = result.groups.map((g, gi) => {
       if (gi !== groupIdx) return g;
@@ -352,6 +420,7 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
     const newTotal = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
 
     setResult({ groups: newGroups, modifier: result.modifier, total: newTotal, aggregatedResults: aggregated });
+    setIsRolling(false);
 
     const dieName = group.customFaces && group.customFaces.length > 0
       ? group.configuration.customDiceName || 'custom'
@@ -426,12 +495,12 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
 
       {/* Result Display - Always visible to maintain consistent height */}
       <div
-        className={`text-center flex-1 flex flex-col min-h-0 overflow-y-auto ${showRollDetails ? 'justify-start' : 'justify-center'}`}
+        className="text-center flex-1 flex flex-col min-h-0 justify-center"
         onWheel={(e) => e.stopPropagation()}
       >
         {result && !isRolling ? (
           <>
-            <div className="relative flex min-h-5 items-center justify-center">
+            <div ref={resultSummaryRef} className="relative flex min-h-5 items-center justify-center">
               <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
                 {formatAggregatedResult() || '—'}
               </div>
@@ -450,48 +519,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
                 </Tooltip>
               )}
             </div>
-            {showRollDetails && (
-              <div className="mt-1 flex flex-col gap-0.5">
-                {result.groups.flatMap((g, gi) =>
-                  g.diceRolls.map((rolls, dieIndex) => {
-                  const dieLabel = g.customFaces && g.customFaces.length > 0
-                      ? g.configuration.customDiceName || 'custom'
-                    : `d${g.faces}`;
-                  return (
-                    <div
-                      key={`${gi}-${dieIndex}`}
-                      className="flex items-center justify-between gap-1 px-1 py-0.5 border-b border-theme-border/30 last:border-b-0"
-                    >
-                      <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>{dieLabel}</span>
-                      <span className={`text-base font-bold text-theme-ink font-heading flex-1 text-center truncate`}>
-                        {rolls.map(String).join(' → ')}
-                      </span>
-                      {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
-                        <button
-                          onClick={() => rerollDie(gi, dieIndex)}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          className="p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0"
-                          aria-label={`Re-roll ${dieLabel} ${dieIndex + 1}`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                        </button>
-                      </Tooltip> : <span className="w-4 flex-shrink-0" />}
-                    </div>
-                  );
-                }))}
-                {result.modifier !== 0 && (
-                  <div className="flex items-center justify-between gap-1 px-1 py-0.5">
-                    <span className={`${smallTextClass} text-theme-muted font-body flex-shrink-0`}>modifier</span>
-                    <span className="flex-1 text-center font-heading text-base font-bold text-theme-ink">
-                      {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
-                    </span>
-                    <span className="w-4 flex-shrink-0" />
-                  </div>
-                )}
-              </div>
-            )}
             {/* Critical roll detection for single d20 (only for standard dice) */}
             {result.groups.length === 1 && 
              result.groups[0].rolls.length === 1 && 
@@ -514,6 +541,71 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
           </>
         )}
       </div>
+      {showRollDetails && result && !isRolling && createPortal(
+        <div
+          id={`dice-roll-details-${widget.id}`}
+          ref={detailsDropdownRef}
+          role="region"
+          aria-label="Roll details"
+          className="fixed z-[10020] max-w-[calc(100vw-16px)] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-0.5 shadow-theme font-body animate-dropdown-in"
+          style={{
+            left: detailsPosition.left,
+            top: detailsPosition.top,
+            width: detailsPosition.width || undefined,
+            maxHeight: detailsPosition.maxHeight || undefined,
+          }}
+          data-touch-camera-ignore="true"
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="mt-1 flex flex-col gap-0.5">
+            {result.groups.flatMap((g, gi) =>
+              g.diceRolls.map((rolls, dieIndex) => {
+                const dieLabel = g.customFaces && g.customFaces.length > 0
+                  ? g.configuration.customDiceName || 'custom'
+                  : `d${g.faces}`;
+                return (
+                  <div
+                    key={`${gi}-${dieIndex}`}
+                    className="flex items-center justify-between gap-0 px-0 py-0.5 border-b border-theme-border/30 last:border-b-0"
+                  >
+                    <span className="text-sm text-theme-muted font-body flex-shrink-0">{dieLabel}</span>
+                    <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center truncate">
+                      {rolls.map((roll, index) => (
+                        <span key={index}>
+                          {index > 0 && <span className="text-theme-muted"> → </span>}
+                          {String(roll)}
+                        </span>
+                      ))}
+                    </span>
+                    {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
+                      <button
+                        onClick={() => rerollDie(gi, dieIndex)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0"
+                        aria-label={`Re-roll ${dieLabel} ${dieIndex + 1}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    </Tooltip> : <span className="w-4 flex-shrink-0" />}
+                  </div>
+                );
+              }))}
+            {result.modifier !== 0 && (
+              <div className="flex items-center justify-between gap-0 px-0 py-0.5">
+                <span className="text-sm text-theme-muted font-body flex-shrink-0">modifier</span>
+                <span className="flex-1 text-center font-heading text-xl font-bold text-theme-ink">
+                  {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
+                </span>
+                <span className="w-4 flex-shrink-0" />
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

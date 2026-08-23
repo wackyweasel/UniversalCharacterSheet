@@ -36,7 +36,7 @@ export default function CardDeckPositionDialog({ cardLabel, currentPosition, dec
   return createPortal(
     <div
       data-touch-camera-ignore="true"
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-3 animate-fade-in"
+      className="widget-edit-modal__backdrop fixed inset-0 z-[10000] flex items-center justify-center p-3 animate-fade-in"
       onClick={onClose}
       onMouseDown={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
@@ -46,7 +46,7 @@ export default function CardDeckPositionDialog({ cardLabel, currentPosition, dec
         role="dialog"
         aria-modal="true"
         aria-labelledby="card-deck-position-dialog-title"
-        className="w-full max-w-sm overflow-hidden rounded-theme border border-theme-border bg-theme-paper shadow-theme animate-modal-in"
+        className="widget-edit-modal__aux-dialog w-full max-w-sm overflow-hidden animate-modal-in"
         onSubmit={(event) => {
           event.preventDefault();
           if (!positionIsValid) return;
@@ -55,9 +55,10 @@ export default function CardDeckPositionDialog({ cardLabel, currentPosition, dec
         }}
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-theme-border px-4 py-3">
+        <header className="widget-edit-modal__header flex items-center justify-between border-b border-theme-border">
           <div className="min-w-0">
-            <h2 id="card-deck-position-dialog-title" className="font-heading text-base font-bold text-theme-ink">Move card</h2>
+            <span className="widget-edit-modal__eyebrow">Deck tools</span>
+            <h2 id="card-deck-position-dialog-title" className="widget-edit-modal__title font-heading font-bold text-theme-ink">Move card</h2>
             <p className="mt-0.5 truncate text-xs text-theme-muted">{cardLabel} · position {currentPosition} of {deckSize}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close move card dialog" className="widget-control h-8 w-8 flex-none">
@@ -87,7 +88,7 @@ export default function CardDeckPositionDialog({ cardLabel, currentPosition, dec
           )}
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-theme-border px-4 py-3">
+        <footer className="widget-edit-modal__footer flex justify-end gap-2 border-t border-theme-border">
           <button type="button" onClick={onClose} className="widget-control px-3 py-2 text-xs font-semibold">Cancel</button>
           <button type="submit" disabled={!positionIsValid} className="widget-control flex items-center gap-1.5 bg-theme-accent px-3 py-2 text-xs font-semibold text-theme-paper disabled:opacity-40">
             <CheckIcon className="h-4 w-4" />

@@ -45,7 +45,7 @@ export default function CardDeckBulkDeleteDialog({ cards, onDelete, onClose }: P
   return createPortal(
     <div
       data-touch-camera-ignore="true"
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-3 animate-fade-in"
+      className="widget-edit-modal__backdrop fixed inset-0 z-[10000] flex items-center justify-center p-3 animate-fade-in"
       onClick={onClose}
       onMouseDown={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
@@ -55,12 +55,13 @@ export default function CardDeckBulkDeleteDialog({ cards, onDelete, onClose }: P
         role="dialog"
         aria-modal="true"
         aria-labelledby="bulk-delete-cards-title"
-        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-theme border border-theme-border bg-theme-paper shadow-theme animate-modal-in"
+        className="widget-edit-modal__aux-dialog flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden animate-modal-in"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-theme-border px-4 py-3">
+        <header className="widget-edit-modal__header flex items-center justify-between border-b border-theme-border">
           <div>
-            <h2 id="bulk-delete-cards-title" className="font-heading text-lg font-bold text-theme-ink">Delete cards in bulk</h2>
+            <span className="widget-edit-modal__eyebrow">Deck tools</span>
+            <h2 id="bulk-delete-cards-title" className="widget-edit-modal__title font-heading font-bold text-theme-ink">Delete cards in bulk</h2>
             <p className="mt-0.5 text-xs text-theme-muted">Choose the cards to remove from this deck.</p>
           </div>
           <button ref={closeButtonRef} type="button" onClick={onClose} aria-label="Close bulk delete dialog" className="widget-control h-8 w-8 flex-none">
@@ -124,7 +125,7 @@ export default function CardDeckBulkDeleteDialog({ cards, onDelete, onClose }: P
           </div>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-theme-border px-4 py-3">
+        <footer className="widget-edit-modal__footer flex items-center justify-between gap-3 border-t border-theme-border">
           {confirmingDelete ? (
             <p className="text-xs font-semibold text-red-600">Delete {selectedCount} selected card{selectedCount === 1 ? '' : 's'}? This can be undone.</p>
           ) : <span className="text-xs text-theme-muted">Deletion can be undone from the sheet toolbar.</span>}

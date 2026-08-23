@@ -1,14 +1,26 @@
 import React, { useState, useRef } from 'react';
 import { InitiativeEncounterEntry, InitiativeParticipant } from '../../types';
+import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
+import { GripVerticalIcon, PencilIcon, TrashIcon } from '../icons';
 
 function generateEncounterId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2, 11);
+}
+
+function parseNumberDraft(value: string, fallback: number): number {
+  if (value.trim() === '') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseIntegerDraft(value: string, fallback: number): number {
+  return Math.trunc(parseNumberDraft(value, fallback));
 }
 
 export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
@@ -24,25 +36,56 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   } = widget.data;
 
   const [newName, setNewName] = useState('');
-  const [newDiceFaces, setNewDiceFaces] = useState(20);
-  const [newFlatBonus, setNewFlatBonus] = useState(0);
+  const [newDiceFaces, setNewDiceFaces] = useState('20');
+  const [newFlatBonus, setNewFlatBonus] = useState('0');
   const [newFlatBonusLabel, setNewFlatBonusLabel] = useState<string | undefined>(undefined);
   const [newFlatBonusFormula, setNewFlatBonusFormula] = useState<string | undefined>(undefined);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingDiceFaces, setEditingDiceFaces] = useState(20);
-  const [editingFlatBonus, setEditingFlatBonus] = useState(0);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [editingDiceFaces, setEditingDiceFaces] = useState('20');
+  const [editingFlatBonus, setEditingFlatBonus] = useState('0');
+  const [advanceTimeAmountDraft, setAdvanceTimeAmountDraft] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const initiativePoolList = initiativePool as InitiativeParticipant[];
+  const participantIdsRef = useRef(new WeakMap<InitiativeParticipant, string>());
+  const nextParticipantIdRef = useRef(0);
+  const getParticipantId = (participant: InitiativeParticipant) => {
+    const existingId = participantIdsRef.current.get(participant);
+    if (existingId) return existingId;
+    const id = `initiative-participant-${nextParticipantIdRef.current++}`;
+    participantIdsRef.current.set(participant, id);
+    return id;
+  };
+  const reorderableParticipants = initiativePoolList.map((participant) => ({
+    id: getParticipantId(participant),
+    item: participant,
+  }));
+  const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
+    items: reorderableParticipants,
+    onReorder: (items) => updateData({ initiativePool: items.map(({ item }) => item) }),
+  });
+
+  const updateAdvanceTimeAmount = (rawValue: string) => {
+    setAdvanceTimeAmountDraft(rawValue);
+    if (rawValue !== '') {
+      updateData({ initiativeAdvanceTimeAmount: Math.max(0, parseIntegerDraft(rawValue, 0)) });
+    }
+  };
+
+  const commitAdvanceTimeAmount = () => {
+    if (advanceTimeAmountDraft === null) return;
+    const value = Math.max(0, parseIntegerDraft(advanceTimeAmountDraft, 0));
+    setAdvanceTimeAmountDraft(null);
+    updateData({ initiativeAdvanceTimeAmount: value });
+  };
 
   const addParticipant = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
       const newParticipant: InitiativeParticipant = {
         name: newName.trim(),
-        diceFaces: newDiceFaces,
-        flatBonus: newFlatBonus,
+        diceFaces: Math.max(1, parseIntegerDraft(newDiceFaces, 20)),
+        flatBonus: parseNumberDraft(newFlatBonus, 0),
         flatBonusLabel: newFlatBonusLabel,
         flatBonusFormula: newFlatBonusFormula
       };
@@ -61,15 +104,15 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
         ],
       });
       setNewName('');
-      setNewDiceFaces(20);
-      setNewFlatBonus(0);
+      setNewDiceFaces('20');
+      setNewFlatBonus('0');
       setNewFlatBonusLabel(undefined);
       setNewFlatBonusFormula(undefined);
     }
   };
 
   const removeParticipant = (index: number) => {
-    const updated = [...initiativePool] as InitiativeParticipant[];
+    const updated = [...initiativePoolList];
     updated.splice(index, 1);
     updateData({ initiativePool: updated });
     if (editingIndex === index) {
@@ -78,30 +121,33 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   };
 
   const startEditing = (index: number) => {
-    const participant = initiativePool[index] as InitiativeParticipant;
+    const participant = initiativePoolList[index];
     setEditingIndex(index);
     setEditingName(participant.name);
-    setEditingDiceFaces(participant.diceFaces);
-    setEditingFlatBonus(participant.flatBonus);
+    setEditingDiceFaces(String(participant.diceFaces));
+    setEditingFlatBonus(String(participant.flatBonus));
     setTimeout(() => editInputRef.current?.focus(), 0);
   };
 
   const saveEdit = () => {
     if (editingIndex !== null && editingName.trim()) {
-      const updated = [...initiativePool] as InitiativeParticipant[];
+      const updated = [...initiativePoolList];
       const existing = updated[editingIndex];
-      updated[editingIndex] = {
+      const updatedParticipant = {
         ...existing,
         name: editingName.trim(),
-        diceFaces: editingDiceFaces,
-        flatBonus: editingFlatBonus
+        diceFaces: Math.max(1, parseIntegerDraft(editingDiceFaces, 20)),
+        flatBonus: parseNumberDraft(editingFlatBonus, 0),
       };
+      const participantId = participantIdsRef.current.get(existing);
+      if (participantId) participantIdsRef.current.set(updatedParticipant, participantId);
+      updated[editingIndex] = updatedParticipant;
       updateData({ initiativePool: updated });
     }
     setEditingIndex(null);
     setEditingName('');
-    setEditingDiceFaces(20);
-    setEditingFlatBonus(0);
+    setEditingDiceFaces('20');
+    setEditingFlatBonus('0');
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
@@ -113,56 +159,12 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
     }
   };
 
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.stopPropagation();
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.stopPropagation();
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const dragIdx = draggedIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10);
-    
-    if (isNaN(dragIdx) || dragIdx === dropIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    const updated = [...initiativePool] as InitiativeParticipant[];
-    const [draggedItem] = updated.splice(dragIdx, 1);
-    updated.splice(dropIndex, 0, draggedItem);
-    updateData({ initiativePool: updated });
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
   return (
-    <div className="space-y-4">
+    <div className="widget-editor widget-editor--initiative-tracker space-y-4">
       {/* Widget Label */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
+      <section className="widget-editor__section">
+        <label className="block text-xs font-semibold text-theme-ink">
+          Widget label
         <div className="relative">
           <input
             className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -180,134 +182,136 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             </button>
           )}
         </div>
-      </div>
-
-      {/* Show Roll Initiative Button Toggle */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="showRollButton"
-          checked={initiativeShowRollButton}
-          onChange={(e) => updateData({ initiativeShowRollButton: e.target.checked })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <label htmlFor="showRollButton" className="text-sm text-theme-ink">
-          Include "Roll Initiative" button
         </label>
-      </div>
+      </section>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="showInitiativeTimer"
-          checked={initiativeShowTimer}
-          onChange={(e) => updateData({ initiativeShowTimer: e.target.checked })}
-          className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-        />
-        <label htmlFor="showInitiativeTimer" className="text-sm text-theme-ink">
-          Include turn timer
-        </label>
-      </div>
-
-      {/* Advance Time Trackers on New Round */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
+      <section className="widget-editor__option-group" aria-labelledby={`initiative-behavior-heading-${widget.id}`}>
+        <h3 id={`initiative-behavior-heading-${widget.id}`} className="widget-editor__section-title">Tracker behavior</h3>
+        <label className="flex cursor-pointer items-start gap-2">
           <input
             type="checkbox"
-            id="advanceTimeTrackers"
-            checked={initiativeAdvanceTimeTrackers}
-            onChange={(e) => updateData({ initiativeAdvanceTimeTrackers: e.target.checked })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+            id="showRollButton"
+            checked={initiativeShowRollButton}
+            onChange={(e) => updateData({ initiativeShowRollButton: e.target.checked })}
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
           />
-          <label htmlFor="advanceTimeTrackers" className="text-sm text-theme-ink">
-            Advance Time Trackers on new round
+          <span className="text-xs text-theme-ink">Include "Roll Initiative" button</span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2">
+          <input
+            type="checkbox"
+            id="showInitiativeTimer"
+            checked={initiativeShowTimer}
+            onChange={(e) => updateData({ initiativeShowTimer: e.target.checked })}
+            className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
+          />
+          <span className="text-xs text-theme-ink">Include turn timer</span>
+        </label>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              id="advanceTimeTrackers"
+              checked={initiativeAdvanceTimeTrackers}
+              onChange={(e) => updateData({ initiativeAdvanceTimeTrackers: e.target.checked })}
+              className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
+            />
+            <span className="text-xs text-theme-ink">Advance Time Trackers on new round</span>
           </label>
-        </div>
 
-        {initiativeAdvanceTimeTrackers && (
-          <div className="ml-6 p-2 border border-theme-border rounded bg-theme-background/50 space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="advanceByRound"
-                checked={initiativeAdvanceByRound}
-                onChange={(e) => updateData({ initiativeAdvanceByRound: e.target.checked })}
-                className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-              />
-              <label htmlFor="advanceByRound" className="text-sm text-theme-ink">
-                Advance by 1 round (for round-mode trackers)
+          {initiativeAdvanceTimeTrackers && (
+            <div className="ml-6 space-y-2 border-l-2 border-theme-accent pl-3">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="advanceByRound"
+                  checked={initiativeAdvanceByRound}
+                  onChange={(e) => updateData({ initiativeAdvanceByRound: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 flex-none accent-theme-accent"
+                />
+                <span className="text-xs text-theme-ink">Advance by 1 round (for round-mode trackers)</span>
               </label>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-theme-ink">Also advance by:</label>
-              <input
-                type="number"
-                min={0}
-                value={initiativeAdvanceTimeAmount}
-                onChange={(e) => updateData({ initiativeAdvanceTimeAmount: Math.max(0, parseInt(e.target.value) || 0) })}
-                className="w-16 px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-              />
-              <select
-                value={initiativeAdvanceTimeUnit}
-                onChange={(e) => updateData({ initiativeAdvanceTimeUnit: e.target.value })}
-                className="px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-              >
-                <option value="seconds">seconds</option>
-                <option value="minutes">minutes</option>
-                <option value="hours">hours</option>
-                <option value="days">days</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-theme-ink">Also advance by:</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={advanceTimeAmountDraft ?? initiativeAdvanceTimeAmount}
+                  onChange={(e) => updateAdvanceTimeAmount(e.target.value)}
+                  onBlur={commitAdvanceTimeAmount}
+                  className="h-10 w-16 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <select
+                  value={initiativeAdvanceTimeUnit}
+                  onChange={(e) => updateData({ initiativeAdvanceTimeUnit: e.target.value })}
+                  className="rounded border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+                >
+                  <option value="seconds">seconds</option>
+                  <option value="minutes">minutes</option>
+                  <option value="hours">hours</option>
+                  <option value="days">days</option>
+                </select>
+              </div>
+              <p className="widget-editor__hint text-xs leading-4 text-theme-muted">
+                Time Trackers will be updated when the turn cycles back to the first participant.
+              </p>
             </div>
-            <p className="text-xs text-theme-muted">
-              Time Trackers will be updated when the turn cycles back to the first participant.
-            </p>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </section>
 
       {/* Participant Pool */}
-      <div>
-        <label className="block text-sm font-medium text-theme-ink mb-2">
-          Participant Pool
-        </label>
+      <section className="widget-editor__section" aria-labelledby={`initiative-pool-heading-${widget.id}`}>
+        <div className="widget-editor__section-heading">
+          <h3 id={`initiative-pool-heading-${widget.id}`} className="widget-editor__section-title">Participant pool</h3>
+          <span className="widget-editor__section-count">{initiativePool.length}</span>
+        </div>
 
         {/* Add new participant form */}
-        <form onSubmit={addParticipant} className="mb-3 p-2 border border-theme-border rounded bg-theme-background/50">
+        <form onSubmit={addParticipant} className="widget-editor__option-group mb-3">
           <div className="flex flex-col gap-2">
+            <label htmlFor={`initiative-new-participant-name-${widget.id}`} className="text-xs font-semibold uppercase text-theme-muted">
+              Create a new participant
+            </label>
             <input
+              id={`initiative-new-participant-name-${widget.id}`}
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Participant name..."
-              className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+              className="h-10 w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
             />
             
             {initiativeShowRollButton && (
-              <div className="flex gap-10">
+              <div className="widget-editor__initiative-new-stats flex gap-10">
                 <div className="flex-1">
-                  <label className="text-xs text-theme-muted">Die</label>
+                  <label htmlFor={`initiative-new-die-${widget.id}`} className="text-xs font-semibold uppercase text-theme-muted">Die</label>
                   <div className="flex items-center gap-1">
                     <span className="text-sm text-theme-ink">d</span>
                     <input
+                      id={`initiative-new-die-${widget.id}`}
                       type="number"
                       min={1}
                       value={newDiceFaces}
-                      onChange={(e) => setNewDiceFaces(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                      onChange={(e) => setNewDiceFaces(e.target.value)}
+                      className="h-10 w-16 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-theme-muted">Initiative Bonus</label>
+                  <span className="text-xs font-semibold uppercase text-theme-muted">Initiative bonus</span>
                   <LabeledNumberField
-                    value={newFlatBonus}
-                    onChange={(v) => setNewFlatBonus(v)}
+                    value={parseNumberDraft(newFlatBonus, 0)}
+                    onChange={(v) => setNewFlatBonus(String(v))}
+                    onClear={() => setNewFlatBonus('')}
                     fieldLabel={newFlatBonusLabel}
                     onFieldLabelChange={(l) => setNewFlatBonusLabel(l)}
                     formula={newFlatBonusFormula}
                     onFormulaChange={(f) => setNewFlatBonusFormula(f)}
                     compact
+                    controlHeight="input"
+                    allowEmpty
                   />
                 </div>
               </div>
@@ -315,7 +319,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             
             <button
               type="submit"
-              className="w-full px-3 py-1 text-sm bg-theme-accent text-theme-paper rounded hover:opacity-90 transition-opacity"
+              className="h-10 w-full rounded-button bg-theme-accent px-3 py-1 text-sm text-theme-paper transition-opacity hover:opacity-90"
             >
               Add to Pool
             </button>
@@ -329,18 +333,11 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
           </div>
         ) : (
           <div className="space-y-1 max-h-[200px] overflow-y-auto">
-            {(initiativePool as InitiativeParticipant[]).map((participant, index) => (
+            {reorderableParticipants.map(({ id, item: participant }, index) => (
               <div
-                key={index}
-                draggable={editingIndex !== index}
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={(e) => handleDragLeave(e)}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`flex items-center gap-2 p-2 border border-theme-border rounded bg-theme-paper transition-colors ${
-                  dragOverIndex === index ? 'ring-2 ring-theme-accent' : ''
-                } ${draggedIndex === index ? 'opacity-50' : ''}`}
+                key={id}
+                ref={(element) => setRowRef(id, element)}
+                className="widget-editor__initiative-participant-row pointer-sort-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
               >
                 {editingIndex === index ? (
                   // Edit mode
@@ -354,7 +351,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                       className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
                     />
                     {initiativeShowRollButton && (
-                      <div className="flex items-end gap-10">
+                      <div className="widget-editor__initiative-edit-stats flex items-end gap-10">
                         <div>
                           <span className="text-xs text-theme-muted">Die</span>
                           <div className="flex items-center gap-1">
@@ -363,17 +360,18 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                               type="number"
                               min={1}
                               value={editingDiceFaces}
-                              onChange={(e) => setEditingDiceFaces(Math.max(1, parseInt(e.target.value) || 1))}
+                              onChange={(e) => setEditingDiceFaces(e.target.value)}
                               onKeyDown={handleEditKeyDown}
-                              className="w-14 px-1 h-7 text-xs border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
+                              className="h-10 w-14 rounded-button border border-theme-border bg-theme-paper px-1 text-xs text-theme-ink focus:border-theme-accent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                           </div>
                         </div>
                         <div className="flex-1">
                           <span className="text-xs text-theme-muted">Initiative Bonus</span>
                           <LabeledNumberField
-                            value={editingFlatBonus}
-                            onChange={(v) => setEditingFlatBonus(v)}
+                            value={parseNumberDraft(editingFlatBonus, 0)}
+                            onChange={(v) => setEditingFlatBonus(String(v))}
+                            onClear={() => setEditingFlatBonus('')}
                             fieldLabel={editingIndex !== null ? (initiativePool[editingIndex] as InitiativeParticipant)?.flatBonusLabel : undefined}
                             onFieldLabelChange={(l) => {
                               if (editingIndex !== null) {
@@ -391,6 +389,8 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                               }
                             }}
                             compact
+                            controlHeight="input"
+                            allowEmpty
                           />
                         </div>
                       </div>
@@ -413,14 +413,24 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                 ) : (
                   // View mode
                   <>
-                    <span 
-                      className="text-theme-muted cursor-grab active:cursor-grabbing select-none"
-                    >⠿</span>
-                    <span className="flex-1 text-sm text-theme-ink truncate">
+                    <Tooltip content="Drag to reorder">
+                      <button
+                        type="button"
+                        className="widget-editor__initiative-reorder flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                        onPointerDown={(event) => startDrag(id, event)}
+                        onKeyDown={(event) => handleReorderKey(id, event)}
+                        disabled={editingIndex !== null || reorderableParticipants.length < 2}
+                        aria-label={`Reorder ${participant.name || `participant ${index + 1}`}`}
+                        title="Drag to reorder. Arrow keys also work."
+                      >
+                        <GripVerticalIcon className="h-4 w-4" />
+                      </button>
+                    </Tooltip>
+                      <span className="widget-editor__initiative-name flex-1 text-sm text-theme-ink truncate">
                       {participant.name}
                     </span>
                     {initiativeShowRollButton && (
-                      <span className="text-xs text-theme-muted flex items-center gap-0.5">
+                      <span className="widget-editor__initiative-stats text-xs text-theme-muted flex items-center gap-0.5">
                         d{participant.diceFaces}+{participant.flatBonus}
                         {(participant as InitiativeParticipant).flatBonusLabel && (
                           <span className="text-[9px] bg-theme-accent/15 text-theme-accent px-1 rounded">@{(participant as InitiativeParticipant).flatBonusLabel}</span>
@@ -430,20 +440,24 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                         )}
                       </span>
                     )}
-                    <Tooltip content="Edit">
+                    <Tooltip content="Edit participant">
                       <button
+                        type="button"
                         onClick={() => startEditing(index)}
-                        className="text-theme-muted hover:text-theme-ink text-sm"
+                        className="widget-editor__initiative-edit widget-control h-10 w-10 flex-shrink-0 p-0"
+                        aria-label={`Edit ${participant.name || `participant ${index + 1}`}`}
                       >
-                        ✎
+                        <PencilIcon className="h-4 w-4" />
                       </button>
                     </Tooltip>
-                    <Tooltip content="Remove">
+                    <Tooltip content="Delete participant">
                       <button
+                        type="button"
                         onClick={() => removeParticipant(index)}
-                        className="text-theme-muted hover:text-red-500 text-sm"
+                        className="widget-editor__initiative-delete flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                        aria-label={`Delete ${participant.name || `participant ${index + 1}`}`}
                       >
-                        ✕
+                        <TrashIcon className="h-4 w-4" />
                       </button>
                     </Tooltip>
                   </>
@@ -452,7 +466,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -81,7 +81,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     startClientY: number;
     startCrop: ImageCropInsets;
   } | null>(null);
-  const [imageSize, setImageSize] = useState({ width: 4, height: 3 });
+  const [imageSize, setImageSize] = useState({ source: '', width: 4, height: 3 });
 
   const clearImage = () => {
     updateData({ imageUrl: '' });
@@ -92,10 +92,11 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
   };
 
   const hasCustomCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
-  const imageAspectRatio = imageSize.width / imageSize.height;
+  const hasCurrentImageSize = imageSize.source === imageUrl;
+  const imageAspectRatio = hasCurrentImageSize ? imageSize.width / imageSize.height : 4 / 3;
   const cropPreviewStyle = {
     aspectRatio: `${imageSize.width} / ${imageSize.height}`,
-    width: imageAspectRatio >= 1 ? '100%' : `min(100%, ${14 * imageAspectRatio}rem)`,
+    width: `min(100%, ${14 * imageAspectRatio}rem)`,
   };
 
   const updateCropEdge = (edge: CropEdge, value: number) => {
@@ -156,10 +157,101 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
   };
 
   return (
-    <div className="image-editor space-y-5">
-      <section className="image-editor__section">
-        <div className="image-editor__section-heading">
-          <h3 className="image-editor__section-title">Title</h3>
+    <div className="widget-editor widget-editor--image image-editor space-y-5">
+      <section className="widget-editor__section">
+        <div className="widget-editor__section-heading">
+          <h3 className="widget-editor__section-title">Artwork</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ImageUploadButton
+            onImageReady={(dataUrl) => updateData({
+              imageUrl: dataUrl,
+              imageCropTop: 0,
+              imageCropRight: 0,
+              imageCropBottom: 0,
+              imageCropLeft: 0,
+            })}
+            className="inline-flex min-h-10 min-w-[12rem] flex-1 items-center justify-center gap-2 rounded-button bg-theme-accent px-3 py-2 text-sm text-theme-paper hover:opacity-90"
+          >
+            <ImagePlus className="h-4 w-4" aria-hidden="true" />
+            {imageUrl ? 'Replace image' : 'Upload image or GIF'}
+          </ImageUploadButton>
+          {imageUrl && (
+            <button
+              type="button"
+              onClick={clearImage}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-button border border-theme-border px-3 py-2 text-sm text-theme-ink hover:border-red-500 hover:bg-red-500 hover:text-white"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Remove
+            </button>
+          )}
+        </div>
+        {imageUrl && (
+          <div className="image-editor__crop mt-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="image-editor__control-label">Crop</span>
+              <Tooltip content="Reset crop">
+                <button
+                  type="button"
+                  aria-label="Reset crop"
+                  disabled={!hasCustomCrop}
+                  onClick={resetCrop}
+                  className="widget-control h-8 w-8 p-0"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </Tooltip>
+            </div>
+            <div
+              ref={cropPreviewRef}
+              className="image-crop-editor mx-auto overflow-hidden bg-theme-background"
+              style={cropPreviewStyle}
+            >
+              <img
+                src={imageUrl}
+                alt="Crop preview"
+                className="image-widget__media block h-full w-full"
+                style={{ objectFit: 'contain' }}
+                data-effect={imageEffect}
+                draggable={false}
+                onLoad={(event) => {
+                  setImageSize({
+                    source: imageUrl,
+                    width: event.currentTarget.naturalWidth,
+                    height: event.currentTarget.naturalHeight,
+                  });
+                }}
+              />
+              <div
+                className="image-crop-editor__selection"
+                style={{ top: `${crop.top}%`, right: `${crop.right}%`, bottom: `${crop.bottom}%`, left: `${crop.left}%` }}
+              >
+                {(['top', 'right', 'bottom', 'left'] as CropEdge[]).map((edge) => (
+                  <button
+                    key={edge}
+                    type="button"
+                    aria-label={`Crop ${edge} edge`}
+                    className={CROP_HANDLE_CLASSES[edge]}
+                    onPointerDown={(event) => startCropDrag(edge, event)}
+                    onPointerMove={moveCropDrag}
+                    onPointerUp={finishCropDrag}
+                    onPointerCancel={finishCropDrag}
+                    onKeyDown={(event) => nudgeCropEdge(edge, event)}
+                  >
+                    <span />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {!imageUrl && <div className="image-editor__empty-state">No image selected</div>}
+      </section>
+
+      <section className="widget-editor__section">
+        <div className="widget-editor__section-heading">
+          <h3 className="widget-editor__section-title">Name</h3>
         </div>
         <div className="relative">
           <input
@@ -167,7 +259,6 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
             className="h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
             value={label || ''}
             onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Portrait"
           />
           {label && (
             <Tooltip content="Clear label">
@@ -242,98 +333,9 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
         </div>
       </section>
 
-      <section className="image-editor__section">
-        <div className="image-editor__section-heading">
-          <h3 className="image-editor__section-title">Artwork</h3>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ImageUploadButton
-            onImageReady={(dataUrl) => updateData({
-              imageUrl: dataUrl,
-              imageCropTop: 0,
-              imageCropRight: 0,
-              imageCropBottom: 0,
-              imageCropLeft: 0,
-            })}
-            className="inline-flex min-h-10 min-w-[12rem] flex-1 items-center justify-center gap-2 rounded-button bg-theme-accent px-3 py-2 text-sm text-theme-paper hover:opacity-90"
-          >
-            <ImagePlus className="h-4 w-4" aria-hidden="true" />
-            {imageUrl ? 'Replace image' : 'Upload image or GIF'}
-          </ImageUploadButton>
-          {imageUrl && (
-            <button
-              type="button"
-              onClick={clearImage}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-button border border-theme-border px-3 py-2 text-sm text-theme-ink hover:border-red-500 hover:bg-red-500 hover:text-white"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Remove
-            </button>
-          )}
-        </div>
-        {imageUrl && (
-          <div className="image-editor__crop mt-4">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="image-editor__control-label">Crop</span>
-              <Tooltip content="Reset crop">
-                <button
-                  type="button"
-                  aria-label="Reset crop"
-                  disabled={!hasCustomCrop}
-                  onClick={resetCrop}
-                  className="widget-control h-8 w-8 p-0"
-                >
-                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
-            </div>
-            <div
-              ref={cropPreviewRef}
-              className="image-crop-editor mx-auto overflow-hidden bg-theme-background"
-              style={cropPreviewStyle}
-            >
-              <img
-                src={imageUrl}
-                alt="Crop preview"
-                className="image-widget__media block h-full w-full"
-                data-effect={imageEffect}
-                draggable={false}
-                onLoad={(event) => {
-                  setImageSize({
-                    width: event.currentTarget.naturalWidth,
-                    height: event.currentTarget.naturalHeight,
-                  });
-                }}
-              />
-              <div
-                className="image-crop-editor__selection"
-                style={{ top: `${crop.top}%`, right: `${crop.right}%`, bottom: `${crop.bottom}%`, left: `${crop.left}%` }}
-              >
-                {(['top', 'right', 'bottom', 'left'] as CropEdge[]).map((edge) => (
-                  <button
-                    key={edge}
-                    type="button"
-                    aria-label={`Crop ${edge} edge`}
-                    className={CROP_HANDLE_CLASSES[edge]}
-                    onPointerDown={(event) => startCropDrag(edge, event)}
-                    onPointerMove={moveCropDrag}
-                    onPointerUp={finishCropDrag}
-                    onPointerCancel={finishCropDrag}
-                    onKeyDown={(event) => nudgeCropEdge(edge, event)}
-                  >
-                    <span />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-        {!imageUrl && <div className="image-editor__empty-state">No image selected</div>}
-      </section>
-
-      <section className="image-editor__section">
-        <div className="image-editor__section-heading">
-          <h3 className="image-editor__section-title">Style</h3>
+      <section className="widget-editor__section">
+        <div className="widget-editor__section-heading">
+          <h3 className="widget-editor__section-title">Style</h3>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

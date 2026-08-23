@@ -234,7 +234,7 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
   return createPortal(
     <div
       data-touch-camera-ignore="true"
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-3 animate-fade-in"
+      className="widget-edit-modal__backdrop fixed inset-0 z-[10000] flex items-center justify-center p-3 animate-fade-in"
       onClick={onClose}
       onMouseDown={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
@@ -244,12 +244,13 @@ export default function CardDeckBulkAddDialog({ onAdd, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="bulk-card-dialog-title"
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-theme border border-theme-border bg-theme-paper shadow-theme animate-modal-in"
+        className="widget-edit-modal__aux-dialog flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden animate-modal-in"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-theme-border px-4 py-3">
+        <header className="widget-edit-modal__header flex items-center justify-between border-b border-theme-border">
           <div>
-            <h2 id="bulk-card-dialog-title" className="font-heading text-lg font-bold text-theme-ink">Add cards in bulk</h2>
+            <span className="widget-edit-modal__eyebrow">Deck tools</span>
+            <h2 id="bulk-card-dialog-title" className="widget-edit-modal__title font-heading font-bold text-theme-ink">Add cards in bulk</h2>
             <p className="mt-0.5 text-xs text-theme-muted">Choose a recipe, review the result, then add it to the bottom of this deck.</p>
           </div>
           <button ref={closeButtonRef} type="button" onClick={onClose} aria-label="Close bulk card dialog" className="widget-control h-8 w-8 flex-none">
