@@ -47,6 +47,7 @@ const CHANGELOG_ENTRIES = [
       'Notes widget: Removed the toolbar at the top and replaced it with a contextual toolbar that appears only while typing.',
       'Dice roller and dice tray: Detailed results now appear in an overlay box so they no longer overflow the widget.',
       'Fixed multiple number inputs that prevented users from completely erasing the number before entering a new one.',
+      'Fixed an issue with the new 3D cards causing a white screen of death.',
     ],
   },
   {

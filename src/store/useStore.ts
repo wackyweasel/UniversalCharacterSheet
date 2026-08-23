@@ -7,7 +7,7 @@ import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
 import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
-import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
+import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins, normalizeCardTableWidgetData } from '../utils/cardTable';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -59,9 +59,10 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
 }
 
 function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['data'] {
-  const backDesign = getCardTableBackDesign(data);
-  const activeCards = getCardTableCards(data);
-  const discardedCards = getCardTableDiscardedCards(data);
+  const normalizedData = normalizeCardTableWidgetData(data, widgetId);
+  const backDesign = getCardTableBackDesign(normalizedData);
+  const activeCards = getCardTableCards(normalizedData);
+  const discardedCards = getCardTableDiscardedCards(normalizedData);
   const cloneCards = (cards: CardTableCard[], orderOffset: number) => cards.map((card, index) => ({
     ...card,
     id: uuidv4(),
@@ -92,23 +93,26 @@ function migrateLegacyWidgetHeader(widget: Widget): Widget {
   const migratedWidget = (widget.type as string) === 'CARD_TABLE'
     ? { ...widget, type: 'DECK_OF_CARDS' as const }
     : widget;
-  const label = migratedWidget.data?.label;
+  const normalizedWidget = migratedWidget.type === 'DECK_OF_CARDS'
+    ? { ...migratedWidget, data: normalizeCardTableWidgetData(migratedWidget.data, migratedWidget.id) }
+    : migratedWidget;
+  const label = normalizedWidget.data?.label;
   const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
   const hidLegacyHeaderControls =
-    migratedWidget.data?.showFieldControls === false ||
-    (migratedWidget.type === 'TABLE' && migratedWidget.data?.showTableEditButton === false);
+    normalizedWidget.data?.showFieldControls === false ||
+    (normalizedWidget.type === 'TABLE' && normalizedWidget.data?.showTableEditButton === false);
   if (
-    migratedWidget.data?.hideWidgetHeader === undefined &&
+    normalizedWidget.data?.hideWidgetHeader === undefined &&
     hidLegacyHeaderControls &&
     hasNoLabel
   ) {
     return {
-      ...migratedWidget,
-      data: { ...migratedWidget.data, hideWidgetHeader: true },
+      ...normalizedWidget,
+      data: { ...normalizedWidget.data, hideWidgetHeader: true },
     };
   }
 
-  return migratedWidget;
+  return normalizedWidget;
 }
 
 // Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
