@@ -145,13 +145,13 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             <div 
               key={id}
               ref={(element) => setRowRef(id, element)}
-              className="pointer-sort-row relative flex items-center gap-2 rounded px-1 transition-colors"
+              className="widget-editor__form-item-row pointer-sort-row relative flex items-center gap-2 rounded px-1 transition-colors"
             >
               {/* Drag Handle - works with both touch and mouse */}
               <Tooltip content="Drag to reorder">
                 <button
                   type="button"
-                  className="flex h-8 w-7 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                  className="widget-editor__form-item-reorder flex h-8 w-7 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
                   onPointerDown={(event) => startDrag(id, event)}
                   onKeyDown={(event) => handleReorderKey(id, event)}
                   disabled={formItemsList.length < 2}
@@ -162,14 +162,14 @@ export function FormEditor({ widget, updateData }: EditorProps) {
                 </button>
               </Tooltip>
               <input
-                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                className="widget-editor__form-item-name flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={item.name}
                 onChange={(e) => updateItemName(idx, e.target.value)}
                 placeholder="Name"
               />
               <input
                 type="text"
-                className="flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
+                className="widget-editor__form-item-value flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={item.value}
                 onChange={(e) => updateItemValue(idx, e.target.value)}
                 placeholder="Value"
@@ -177,13 +177,13 @@ export function FormEditor({ widget, updateData }: EditorProps) {
               <TooltipEditButton
                 tooltip={item.tooltip}
                 itemName={item.name}
-                buttonClassName="h-10 w-10"
+                buttonClassName="widget-editor__form-item-tooltip h-10 w-10"
                 onSave={(t) => updateItem(idx, { ...formItemsList[idx], tooltip: t })}
               />
               <button
                 type="button"
                 onClick={() => removeItem(idx)}
-                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                className="widget-editor__form-item-delete flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
                 aria-label={`Delete ${item.name || `field ${idx + 1}`}`}
                 title="Delete field"
               >

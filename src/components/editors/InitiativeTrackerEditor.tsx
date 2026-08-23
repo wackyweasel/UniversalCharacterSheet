@@ -284,7 +284,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             />
             
             {initiativeShowRollButton && (
-              <div className="flex gap-10">
+              <div className="widget-editor__initiative-new-stats flex gap-10">
                 <div className="flex-1">
                   <label htmlFor={`initiative-new-die-${widget.id}`} className="text-xs font-semibold uppercase text-theme-muted">Die</label>
                   <div className="flex items-center gap-1">
@@ -337,7 +337,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
               <div
                 key={id}
                 ref={(element) => setRowRef(id, element)}
-                className="pointer-sort-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
+                className="widget-editor__initiative-participant-row pointer-sort-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
               >
                 {editingIndex === index ? (
                   // Edit mode
@@ -351,7 +351,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                       className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
                     />
                     {initiativeShowRollButton && (
-                      <div className="flex items-end gap-10">
+                      <div className="widget-editor__initiative-edit-stats flex items-end gap-10">
                         <div>
                           <span className="text-xs text-theme-muted">Die</span>
                           <div className="flex items-center gap-1">
@@ -416,7 +416,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                     <Tooltip content="Drag to reorder">
                       <button
                         type="button"
-                        className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                        className="widget-editor__initiative-reorder flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
                         onPointerDown={(event) => startDrag(id, event)}
                         onKeyDown={(event) => handleReorderKey(id, event)}
                         disabled={editingIndex !== null || reorderableParticipants.length < 2}
@@ -426,11 +426,11 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                         <GripVerticalIcon className="h-4 w-4" />
                       </button>
                     </Tooltip>
-                    <span className="flex-1 text-sm text-theme-ink truncate">
+                      <span className="widget-editor__initiative-name flex-1 text-sm text-theme-ink truncate">
                       {participant.name}
                     </span>
                     {initiativeShowRollButton && (
-                      <span className="text-xs text-theme-muted flex items-center gap-0.5">
+                      <span className="widget-editor__initiative-stats text-xs text-theme-muted flex items-center gap-0.5">
                         d{participant.diceFaces}+{participant.flatBonus}
                         {(participant as InitiativeParticipant).flatBonusLabel && (
                           <span className="text-[9px] bg-theme-accent/15 text-theme-accent px-1 rounded">@{(participant as InitiativeParticipant).flatBonusLabel}</span>
@@ -444,7 +444,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                       <button
                         type="button"
                         onClick={() => startEditing(index)}
-                        className="widget-control h-10 w-10 flex-shrink-0 p-0"
+                        className="widget-editor__initiative-edit widget-control h-10 w-10 flex-shrink-0 p-0"
                         aria-label={`Edit ${participant.name || `participant ${index + 1}`}`}
                       >
                         <PencilIcon className="h-4 w-4" />
@@ -454,7 +454,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                       <button
                         type="button"
                         onClick={() => removeParticipant(index)}
-                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                        className="widget-editor__initiative-delete flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
                         aria-label={`Delete ${participant.name || `participant ${index + 1}`}`}
                       >
                         <TrashIcon className="h-4 w-4" />

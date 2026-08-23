@@ -100,15 +100,15 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
         
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {deckCards.map((card: DeckCard, idx: number) => (
-            <div key={idx} className="flex items-center gap-2 rounded-button border border-theme-border bg-theme-paper p-2">
-              <span className="text-xs text-theme-muted w-6">{idx + 1}.</span>
+            <div key={idx} className="widget-editor__deck-card-row flex items-center gap-2 rounded-button border border-theme-border bg-theme-paper p-2">
+              <span className="widget-editor__weighted-item-index text-xs text-theme-muted w-6">{idx + 1}.</span>
               <input
-                className="h-10 flex-1 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
+                className="widget-editor__weighted-item-text h-10 flex-1 px-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent"
                 value={card.name}
                 onChange={(e) => updateCard(idx, 'name', e.target.value)}
                 placeholder="Card name..."
               />
-              <div className="flex items-center gap-1">
+              <div className="widget-editor__weighted-item-weight flex items-center gap-1">
                 <label className="text-xs text-theme-muted">×</label>
                 <input
                   type="number"
@@ -121,7 +121,7 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
                   onBlur={() => commitAmount(idx)}
                 />
               </div>
-              <span className="text-xs text-theme-muted w-10 text-right">
+              <span className="widget-editor__weighted-item-percentage text-xs text-theme-muted w-10 text-right">
                 {getPercentage(card.amount, card.name)}%
               </span>
               <button
@@ -130,7 +130,7 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
                 disabled={deckCards.length <= 1}
                 aria-label={`Remove card ${idx + 1}`}
                 title="Delete card"
-                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
+                className="widget-editor__weighted-item-delete flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <TrashIcon className="h-4 w-4" />
               </button>

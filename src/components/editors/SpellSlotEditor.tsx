@@ -108,12 +108,12 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             <div
               key={id}
               ref={(element) => setRowRef(id, element)}
-              className="pointer-sort-row relative flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
+              className="widget-editor__spell-level-row pointer-sort-row relative flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
             >
               <Tooltip content="Drag to reorder">
                 <button
                   type="button"
-                  className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                  className="widget-editor__spell-level-reorder flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
                   onPointerDown={(event) => startDrag(id, event)}
                   onKeyDown={(event) => handleReorderKey(id, event)}
                   disabled={spellLevelsList.length < 2}
@@ -123,30 +123,34 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
                   <GripVerticalIcon className="h-4 w-4" />
                 </button>
               </Tooltip>
-              <span className="text-xs font-bold uppercase text-theme-muted">Level</span>
-              <input
-                type="number"
-                value={levelData.level}
-                onChange={(e) => updateLevelNumber(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                onBlur={(e) => updateLevelNumber(levelIdx, Math.max(1, Math.min(9, parseInt(e.target.value) || 1)))}
-                className="h-10 w-20 flex-shrink-0 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-sm text-theme-ink [appearance:textfield] focus:border-theme-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                min={1}
-                max={9}
-              />
-              <span className="text-xs font-bold uppercase text-theme-muted">Max Slots</span>
-              <input
-                type="number"
-                value={levelData.max}
-                onChange={(e) => updateLevelMax(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                onBlur={(e) => updateLevelMax(levelIdx, Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                className="h-10 w-20 flex-shrink-0 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-sm text-theme-ink [appearance:textfield] focus:border-theme-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                min={1}
-                max={10}
-              />
+              <div className="widget-editor__spell-level-control widget-editor__spell-level-control--level">
+                <span className="text-xs font-bold uppercase text-theme-muted">Level</span>
+                <input
+                  type="number"
+                  value={levelData.level}
+                  onChange={(e) => updateLevelNumber(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                  onBlur={(e) => updateLevelNumber(levelIdx, Math.max(1, Math.min(9, parseInt(e.target.value) || 1)))}
+                  className="h-10 w-20 flex-shrink-0 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-sm text-theme-ink [appearance:textfield] focus:border-theme-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  min={1}
+                  max={9}
+                />
+              </div>
+              <div className="widget-editor__spell-level-control widget-editor__spell-level-control--max">
+                <span className="text-xs font-bold uppercase text-theme-muted">Max Slots</span>
+                <input
+                  type="number"
+                  value={levelData.max}
+                  onChange={(e) => updateLevelMax(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                  onBlur={(e) => updateLevelMax(levelIdx, Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                  className="h-10 w-20 flex-shrink-0 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-sm text-theme-ink [appearance:textfield] focus:border-theme-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  min={1}
+                  max={10}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => removeLevel(levelIdx)}
-                className="ml-auto flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                className="widget-editor__spell-level-delete ml-auto flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
                 aria-label={`Delete spell level ${levelData.level}`}
                 title="Delete spell level"
               >

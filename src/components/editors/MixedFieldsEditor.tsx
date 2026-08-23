@@ -158,7 +158,7 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
         const showMaximum = isBoundVisible(index, 'maximum', field.maxValue, field.maxValueLabel, field.maxValueFormula);
         return (
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="widget-editor__mixed-number-value-row flex items-center gap-2">
               <span className="w-16 flex-shrink-0 text-xs text-theme-muted">Value</span>
               <LabeledNumberField
                 value={field.value}
@@ -239,7 +239,7 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
         const showMaximum = isBoundVisible(index, 'maximum', field.max, field.maxLabel, field.maxFormula);
         return (
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="widget-editor__mixed-number-value-row flex items-center gap-2">
               <span className="w-16 flex-shrink-0 text-xs text-theme-muted">Value</span>
               <LabeledNumberField
                 value={field.current}

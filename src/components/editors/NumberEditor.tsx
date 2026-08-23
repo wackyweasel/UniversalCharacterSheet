@@ -205,7 +205,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                 </button>
               </div>
 
-              <div className="mt-2 flex items-center gap-2">
+              <div className="widget-editor__number-value-row mt-2 flex items-center gap-2">
                 <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Value</span>
                   <LabeledNumberField
                   value={item.value}

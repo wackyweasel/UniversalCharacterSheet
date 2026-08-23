@@ -721,6 +721,10 @@ td .inline-dice-token {
     background: color-mix(in srgb, var(--color-paper) 76%, var(--color-background));
   }
 
+  .widget-editor__spell-level-control {
+    display: contents;
+  }
+
   .roll-table-weight-input,
   .deck-amount-input {
     appearance: textfield;
@@ -768,6 +772,150 @@ td .inline-dice-token {
       max-height: none;
       max-width: 100%;
     }
+
+      .widget-editor__number-value-row,
+      .widget-editor__mixed-number-value-row {
+        flex-wrap: wrap;
+      }
+
+      .widget-editor__number-value-row > .widget-control,
+      .widget-editor__mixed-number-value-row > .widget-control {
+        flex-basis: 100%;
+        width: 100%;
+      }
+
+      .widget-editor__add-row {
+        min-width: 0;
+      }
+
+      .widget-editor__add-row > input,
+      .widget-editor__add-row > select,
+      .widget-editor__add-row > textarea {
+        min-width: 0;
+      }
+
+      .widget-editor__add-row > button {
+        flex-shrink: 0;
+        max-width: 100%;
+      }
+
+      .widget-editor__form-item-row {
+        display: grid;
+        grid-template-areas:
+          "reorder name delete"
+          "reorder value tooltip";
+        grid-template-columns: 2rem minmax(0, 1fr) 2.5rem;
+        min-width: 0;
+        row-gap: 0.5rem;
+      }
+
+      .widget-editor__form-item-reorder { grid-area: reorder; }
+      .widget-editor__form-item-name { grid-area: name; }
+      .widget-editor__form-item-value { grid-area: value; }
+      .widget-editor__form-item-tooltip { grid-area: tooltip; }
+      .widget-editor__form-item-delete { grid-area: delete; }
+
+      .widget-editor__form-item-row > input {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .widget-editor__spell-level-row {
+        align-items: start;
+        display: grid;
+        grid-template-areas:
+          "reorder level delete"
+          "reorder max delete";
+        grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+        min-width: 0;
+        row-gap: 0.5rem;
+      }
+
+      .widget-editor__spell-level-control {
+        align-items: stretch;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
+      }
+
+      .widget-editor__spell-level-control--level { grid-area: level; }
+      .widget-editor__spell-level-control--max { grid-area: max; }
+      .widget-editor__spell-level-reorder { grid-area: reorder; }
+      .widget-editor__spell-level-delete { grid-area: delete; }
+
+      .widget-editor__spell-level-control input {
+        width: 100%;
+      }
+
+      .widget-editor__roll-table-item-row,
+      .widget-editor__deck-card-row {
+        align-items: center;
+        display: grid;
+        grid-template-areas:
+          "index text delete"
+          ". weight percentage";
+        grid-template-columns: 1.5rem minmax(0, 1fr) 2.5rem;
+        min-width: 0;
+        row-gap: 0.5rem;
+      }
+
+      .widget-editor__weighted-item-index { grid-area: index; }
+      .widget-editor__weighted-item-text {
+        grid-area: text;
+        min-width: 0;
+        width: 100%;
+      }
+      .widget-editor__weighted-item-weight {
+        grid-area: weight;
+        min-width: 0;
+      }
+      .widget-editor__weighted-item-percentage {
+        grid-area: percentage;
+        width: auto;
+      }
+      .widget-editor__weighted-item-delete {
+        align-self: start;
+        grid-area: delete;
+        grid-row: 1 / span 2;
+      }
+
+      .widget-editor__initiative-participant-row {
+        align-items: center;
+        display: grid;
+        grid-template-areas:
+          "reorder name edit delete"
+          "reorder stats stats delete";
+        grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem 2.5rem;
+        min-width: 0;
+        row-gap: 0.5rem;
+      }
+
+      .widget-editor__initiative-reorder { grid-area: reorder; }
+      .widget-editor__initiative-name {
+        grid-area: name;
+        min-width: 0;
+      }
+      .widget-editor__initiative-stats {
+        grid-area: stats;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .widget-editor__initiative-edit { grid-area: edit; }
+      .widget-editor__initiative-delete { grid-area: delete; }
+
+      .widget-editor__initiative-new-stats,
+      .widget-editor__initiative-edit-stats {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .widget-editor__initiative-new-stats > div,
+      .widget-editor__initiative-edit-stats > div {
+        width: 100%;
+      }
   }
 
   .widget-surface {
