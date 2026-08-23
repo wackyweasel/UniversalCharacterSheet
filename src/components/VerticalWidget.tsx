@@ -83,6 +83,7 @@ export default function VerticalWidget({
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
+  const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
   const renderedWidget = {
     ...widget,
     data: {
@@ -270,7 +271,7 @@ export default function VerticalWidget({
           )}
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            {(widget.type !== 'LABEL' || isBuildMode) && (
+            {(widget.type !== 'LABEL' || isBuildMode) && !isWidgetEditButtonHidden && (
               <Tooltip content={`Edit ${getWidgetLabel()}`}>
                 <button
                   type="button"

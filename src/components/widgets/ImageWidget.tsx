@@ -95,6 +95,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
     imageFrameThickness,
     imageFrameColor,
     imageEffect = 'none',
+    hideImageTitle = false,
     imageTitleAlignment = 'left',
     imageTitlePosition = 'above',
   } = widget.data;
@@ -125,12 +126,13 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const gapSize = 4;
   const padding = 0;
 
-  const titleSpace = label ? labelHeight + gapSize : 0;
+  const hasVisibleTitle = !!label && !hideImageTitle;
+  const titleSpace = hasVisibleTitle ? labelHeight + gapSize : 0;
   const canvasWidgetWidth = widget.w && widget.w > 0 ? widget.w : 200;
   const canvasWidgetHeight = widget.h && widget.h > 0 ? widget.h : 120;
   const canvasSurfaceBorder = 2;
   const canvasContentPaddingX = 16;
-  const canvasContentPaddingTop = !label && widget.data.hideWidgetHeader !== true ? 28 : 6;
+  const canvasContentPaddingTop = 6;
   const canvasContentPaddingBottom = 8;
   const canvasFrameWidth = Math.max(20, canvasWidgetWidth - canvasSurfaceBorder - canvasContentPaddingX);
   const canvasFrameHeight = Math.max(
@@ -342,7 +344,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
     setWebpPaused(true);
   };
 
-  const title = label ? (
+  const title = hasVisibleTitle ? (
     <div
       className="widget-header image-widget__title flex-shrink-0"
       data-alignment={imageTitleAlignment}

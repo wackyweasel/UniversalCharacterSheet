@@ -968,6 +968,10 @@ td .inline-dice-token {
     padding-top: 28px;
   }
 
+  .widget-content.widget-content--editable-header:has(.image-widget) {
+    padding-top: 6px;
+  }
+
   .widget-content.widget-content--editable-header.widget-content--progress-inline-edit {
     padding-bottom: 0;
     padding-right: 30px;

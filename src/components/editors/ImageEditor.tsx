@@ -68,6 +68,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     imageFrameThickness,
     imageFrameColor,
     imageEffect = 'none',
+    hideImageTitle = false,
     imageTitleAlignment = 'left',
     imageTitlePosition = 'above',
   } = widget.data;
@@ -253,26 +254,35 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
         <div className="widget-editor__section-heading">
           <h3 className="widget-editor__section-title">Name</h3>
         </div>
-        <div className="relative">
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
-            aria-label="Name"
-            className="h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
+            type="checkbox"
+            checked={hideImageTitle}
+            onChange={(event) => updateData({ hideImageTitle: event.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
           />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted transition-colors hover:text-theme-ink"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <span className="text-sm text-theme-ink">Hide name</span>
+        </label>
+        {!hideImageTitle && <div className="relative mt-3">
+            <input
+              aria-label="Name"
+              className="h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
+              value={label || ''}
+              onChange={(e) => updateData({ label: e.target.value })}
+            />
+            {label && (
+              <Tooltip content="Clear label">
+                <button
+                  type="button"
+                  onClick={() => updateData({ label: '' })}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted transition-colors hover:text-theme-ink"
+                >
+                  ×
+                </button>
+              </Tooltip>
+            )}
+          </div>}
+        {!hideImageTitle && <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="image-editor__control-group">
             <span className="image-editor__control-label">Alignment</span>
             <div className="flex overflow-hidden rounded-button border border-theme-border">
@@ -330,7 +340,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
               </Tooltip>
             </div>
           </div>
-        </div>
+        </div>}
       </section>
 
       <section className="widget-editor__section">

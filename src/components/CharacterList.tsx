@@ -32,6 +32,12 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.4.1',
+    changes: [
+      'Added options to hide the name and/or the edit button for the image widget',
+    ],
+  },
+  {
     version: '1.4.0',
     changes: [
       'Reworked all widget editors to be visually more consistent.',

@@ -311,6 +311,7 @@ export interface WidgetData {
   label?: string;
   value?: number;
   hideWidgetHeader?: boolean;
+  hideWidgetEditButton?: boolean;
   showFieldControls?: boolean;
   showNumberItemMax?: boolean;
   showMaxControl?: boolean;
@@ -383,6 +384,7 @@ export interface WidgetData {
   imageFrameThickness?: number;
   imageFrameColor?: string;
   imageEffect?: 'none' | 'grayscale' | 'sepia' | 'vivid' | 'moody';
+  hideImageTitle?: boolean;
   imageTitleAlignment?: 'left' | 'center' | 'right';
   imageTitlePosition?: 'above' | 'below';
   imageCropTop?: number;

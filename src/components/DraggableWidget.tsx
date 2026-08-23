@@ -230,7 +230,8 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
 
   const isSelected = selectedWidgetId === widget.id;
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
-  const hasEditableWidgetHeader = !isWidgetHeaderHidden;
+  const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
+  const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isWidgetEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
   const renderedWidget = {
     ...widget,

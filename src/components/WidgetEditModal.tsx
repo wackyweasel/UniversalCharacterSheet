@@ -150,7 +150,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const [previewScale, setPreviewScale] = useState(1);
   const isImageWidget = widget.type === 'IMAGE';
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && localData.hideWidgetHeader === true;
-  const hasEditableWidgetHeader = widget.type !== 'LABEL' && !isWidgetHeaderHidden;
+  const isWidgetEditButtonHidden = localData.hideWidgetEditButton === true;
+  const hasEditableWidgetHeader = widget.type !== 'LABEL' && !isWidgetHeaderHidden && !isWidgetEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && localData.inlineLabel === true;
   const isAutomationCloseStep =
     tutorialStep !== null &&
@@ -226,6 +227,18 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         className="h-4 w-4 accent-theme-accent"
       />
       Hide header (Canvas view)
+    </label>
+  );
+
+  const renderEditButtonVisibilitySetting = () => (
+    <label className="widget-edit-modal__global-setting">
+      <input
+        type="checkbox"
+        checked={isWidgetEditButtonHidden}
+        onChange={(event) => handleUpdateData({ hideWidgetEditButton: event.target.checked })}
+        className="h-4 w-4 accent-theme-accent"
+      />
+      Hide edit button (Canvas view)
     </label>
   );
 
@@ -367,6 +380,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
             {/* Editor Section */}
             <section className="widget-edit-modal__settings min-w-0" aria-label="Settings">
               {widget.type !== 'LABEL' && widget.type !== 'IMAGE' && renderHeaderVisibilitySetting()}
+              {renderEditButtonVisibilitySetting()}
               <div className={`widget-edit-modal__editor-content ${isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : ''}`}>
                 {renderEditor()}
               </div>
