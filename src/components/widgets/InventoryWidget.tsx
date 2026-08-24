@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -37,6 +37,10 @@ interface ActiveDrag {
   startScrollTop: number;
   scaleX: number;
   scaleY: number;
+  draggedHeight: number;
+  rowsByZone: Map<HTMLElement, HTMLElement[]>;
+  zoneGaps: Map<HTMLElement, number>;
+  rowScaleY: Map<HTMLElement, number>;
   didMove: boolean;
   target: DragTarget | null;
 }
@@ -102,71 +106,107 @@ export default function InventoryWidget({
   showFieldControls = true,
   interactive = true,
 }: InventoryWidgetProps) {
+  const { label, inventoryItems = [], inventoryDefaultFields = [] } = widget.data;
+  const encumbrance = widget.data.inventoryEncumbrance;
+  const showGlobalCounter = encumbrance?.enabled === true && encumbrance.showGlobalCounter === true;
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const moveInventoryItem = useStore((state) => state.moveInventoryItem);
   const saveInventoryItem = useStore((state) => state.saveInventoryItem);
-  const characters = useStore((state) => state.characters);
-  const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const activeCharacter = characters.find((character) => character.id === activeCharacterId);
-
-  const { label, inventoryItems = [], inventoryDefaultFields = [] } = widget.data;
-  const encumbrance = widget.data.inventoryEncumbrance;
+  const activeCharacter = useStore((state) => {
+    if (!showGlobalCounter) return undefined;
+    return state.characters.find((character) => character.id === state.activeCharacterId);
+  });
   const isPrintMode = mode === 'print';
   const canInteract = interactive && !isPrintMode;
   const controlsVisible = canInteract && showFieldControls && widget.data.showFieldControls !== false;
-  const localLoad = getInventoryLoad(inventoryItems);
-  const globalLoad = getCharacterGlobalInventoryLoad(activeCharacter);
+  const localLoad = useMemo(
+    () => encumbrance?.enabled ? getInventoryLoad(inventoryItems) : 0,
+    [encumbrance?.enabled, inventoryItems],
+  );
+  const globalLoad = useMemo(
+    () => showGlobalCounter ? getCharacterGlobalInventoryLoad(activeCharacter) : 0,
+    [activeCharacter, showGlobalCounter],
+  );
   const [dialogItem, setDialogItem] = useState<InventoryItem | null | undefined>(undefined);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
   const dragRef = useRef<ActiveDrag | null>(null);
   const removeDragListenersRef = useRef<(() => void) | null>(null);
   const activeDropZoneRef = useRef<HTMLElement | null>(null);
+  const activePreviewRowsRef = useRef<Set<HTMLElement>>(new Set());
+  const dragPreviewFrameRef = useRef<number | null>(null);
+  const pendingDragPointRef = useRef<{ clientX: number; clientY: number } | null>(null);
 
   const clearDragPreview = () => {
-    document.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]').forEach((element) => {
+    activePreviewRowsRef.current.forEach((element) => {
       element.classList.remove('inventory-item--preview-shift');
       element.style.removeProperty('transform');
     });
+    activePreviewRowsRef.current.clear();
     activeDropZoneRef.current?.classList.remove('inventory-drop-zone--active');
     activeDropZoneRef.current = null;
   };
 
-  const shiftItem = (element: HTMLElement, viewportOffsetY: number) => {
-    const rect = element.getBoundingClientRect();
-    const scaleY = element.offsetHeight > 0 ? rect.height / element.offsetHeight : 1;
+  const shiftItem = (drag: ActiveDrag, element: HTMLElement, viewportOffsetY: number) => {
+    let scaleY = drag.rowScaleY.get(element);
+    if (scaleY === undefined) {
+      const rect = element.getBoundingClientRect();
+      scaleY = element.offsetHeight > 0 ? rect.height / element.offsetHeight : 1;
+      drag.rowScaleY.set(element, scaleY);
+    }
     element.classList.add('inventory-item--preview-shift');
     element.style.transform = `translate3d(0, ${viewportOffsetY / scaleY}px, 0)`;
+    activePreviewRowsRef.current.add(element);
+  };
+
+  const getRowsForZone = (drag: ActiveDrag, zone: HTMLElement) => {
+    const cachedRows = drag.rowsByZone.get(zone);
+    if (cachedRows) return cachedRows;
+    const rows = Array.from(zone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
+    drag.rowsByZone.set(zone, rows);
+    return rows;
+  };
+
+  const getGapForZone = (drag: ActiveDrag, zone: HTMLElement) => {
+    const cachedGap = drag.zoneGaps.get(zone);
+    if (cachedGap !== undefined) return cachedGap;
+    const gap = parseFloat(getComputedStyle(zone).rowGap || '0');
+    drag.zoneGaps.set(zone, gap);
+    return gap;
   };
 
   const updateDragPreview = (drag: ActiveDrag, target: DragTarget | null) => {
+    const previousDropZone = activeDropZoneRef.current;
+    const targetZone = previousDropZone?.dataset.inventoryWidgetId === target?.widgetId
+      ? previousDropZone
+      : target
+        ? Array.from(document.querySelectorAll<HTMLElement>('[data-inventory-drop-zone="true"]'))
+          .find((zone) => zone.dataset.inventoryWidgetId === target.widgetId)
+        : undefined;
     clearDragPreview();
     if (!target) return;
 
-    const targetZone = Array.from(document.querySelectorAll<HTMLElement>('[data-inventory-drop-zone="true"]'))
-      .find((zone) => zone.dataset.inventoryWidgetId === target.widgetId);
     if (!targetZone) return;
     targetZone.classList.add('inventory-drop-zone--active');
     activeDropZoneRef.current = targetZone;
 
-    const sourceRows = Array.from(drag.sourceZone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
-    const targetRows = Array.from(targetZone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
-    const draggedHeight = drag.sourceElement.getBoundingClientRect().height;
-    const sourceGap = parseFloat(getComputedStyle(drag.sourceZone).rowGap || '0');
-    const targetGap = parseFloat(getComputedStyle(targetZone).rowGap || '0');
+    const sourceRows = getRowsForZone(drag, drag.sourceZone);
+    const targetRows = getRowsForZone(drag, targetZone);
+    const sourceGap = getGapForZone(drag, drag.sourceZone);
+    const targetGap = getGapForZone(drag, targetZone);
 
     if (target.widgetId === widget.id) {
       const destinationIndex = target.index > drag.sourceIndex ? target.index - 1 : target.index;
       if (destinationIndex < drag.sourceIndex) {
-        sourceRows.slice(destinationIndex, drag.sourceIndex).forEach((element) => shiftItem(element, draggedHeight + sourceGap));
+        sourceRows.slice(destinationIndex, drag.sourceIndex).forEach((element) => shiftItem(drag, element, drag.draggedHeight + sourceGap));
       } else if (destinationIndex > drag.sourceIndex) {
-        sourceRows.slice(drag.sourceIndex + 1, destinationIndex + 1).forEach((element) => shiftItem(element, -(draggedHeight + sourceGap)));
+        sourceRows.slice(drag.sourceIndex + 1, destinationIndex + 1).forEach((element) => shiftItem(drag, element, -(drag.draggedHeight + sourceGap)));
       }
       return;
     }
 
-    sourceRows.slice(drag.sourceIndex + 1).forEach((element) => shiftItem(element, -(draggedHeight + sourceGap)));
-    targetRows.slice(target.index).forEach((element) => shiftItem(element, draggedHeight + targetGap));
+    sourceRows.slice(drag.sourceIndex + 1).forEach((element) => shiftItem(drag, element, -(drag.draggedHeight + sourceGap)));
+    targetRows.slice(target.index).forEach((element) => shiftItem(drag, element, drag.draggedHeight + targetGap));
   };
 
   const captureItemRects = () => new Map(
@@ -194,7 +234,7 @@ export default function InventoryWidget({
     }));
   };
 
-  const resolveDropTarget = (clientX: number, clientY: number): DragTarget | null => {
+  const resolveDropTarget = (drag: ActiveDrag, clientX: number, clientY: number): DragTarget | null => {
     const zone = document.elementsFromPoint(clientX, clientY)
       .map((element) => element.closest<HTMLElement>('[data-inventory-drop-zone="true"]'))
       .find((element): element is HTMLElement => Boolean(element?.dataset.inventoryWidgetId));
@@ -212,7 +252,7 @@ export default function InventoryWidget({
       else if (clientY > zoneRect.bottom - 28) zone.scrollTop += 12;
     }
 
-    const rows = Array.from(zone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
+    const rows = getRowsForZone(drag, zone);
     const targetIndex = rows.findIndex((row) => clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
     const index = targetIndex < 0 ? rows.length : targetIndex;
     return {
@@ -221,11 +261,41 @@ export default function InventoryWidget({
     };
   };
 
+  const processPendingDragPreview = () => {
+    dragPreviewFrameRef.current = null;
+    const drag = dragRef.current;
+    const point = pendingDragPointRef.current;
+    pendingDragPointRef.current = null;
+    if (!drag || !point || !drag.didMove) return;
+
+    const target = resolveDropTarget(drag, point.clientX, point.clientY);
+    const targetChanged = drag.target?.widgetId !== target?.widgetId || drag.target?.index !== target?.index;
+    if (!targetChanged) return;
+    drag.target = target;
+    updateDragPreview(drag, target);
+  };
+
+  const cancelPendingDragPreview = () => {
+    if (dragPreviewFrameRef.current !== null) {
+      window.cancelAnimationFrame(dragPreviewFrameRef.current);
+      dragPreviewFrameRef.current = null;
+    }
+  };
+
+  const scheduleDragPreview = (clientX: number, clientY: number) => {
+    pendingDragPointRef.current = { clientX, clientY };
+    if (dragPreviewFrameRef.current !== null) return;
+    dragPreviewFrameRef.current = window.requestAnimationFrame(processPendingDragPreview);
+  };
+
   function finishDrag(pointerId?: number, commit = true) {
     const drag = dragRef.current;
     if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
     removeDragListenersRef.current?.();
     removeDragListenersRef.current = null;
+    cancelPendingDragPreview();
+    if (drag?.didMove && pendingDragPointRef.current) processPendingDragPreview();
+    pendingDragPointRef.current = null;
     if (drag) {
       const previousRects = captureItemRects();
       if (drag.ghostElement) previousRects.set(drag.item.id, drag.ghostElement.getBoundingClientRect());
@@ -268,8 +338,7 @@ export default function InventoryWidget({
     }
     const sourceScrollDelta = drag.sourceZone.scrollTop - drag.startScrollTop;
     drag.ghostElement!.style.transform = `translate3d(${event.clientX - drag.startX}px, ${event.clientY - drag.startY + sourceScrollDelta}px, 0) scale(${drag.scaleX * 1.02}, ${drag.scaleY * 1.02}) rotate(0.35deg)`;
-    drag.target = resolveDropTarget(event.clientX, event.clientY);
-    updateDragPreview(drag, drag.target);
+    scheduleDragPreview(event.clientX, event.clientY);
   };
 
   const startDrag = (item: InventoryItem, event: React.PointerEvent<HTMLButtonElement>) => {
@@ -295,6 +364,10 @@ export default function InventoryWidget({
       startScrollTop: sourceZone.scrollTop,
       scaleX: sourceElement.offsetWidth > 0 ? sourceRect.width / sourceElement.offsetWidth : 1,
       scaleY: sourceElement.offsetHeight > 0 ? sourceRect.height / sourceElement.offsetHeight : 1,
+      draggedHeight: sourceRect.height,
+      rowsByZone: new Map([[sourceZone, sourceRows]]),
+      zoneGaps: new Map(),
+      rowScaleY: new Map(),
       didMove: false,
       target: null,
     };
@@ -316,7 +389,11 @@ export default function InventoryWidget({
   };
 
   useTouchCameraPinchCancellation(() => finishDrag(undefined, false));
-  useEffect(() => () => removeDragListenersRef.current?.(), []);
+  useEffect(() => () => {
+    removeDragListenersRef.current?.();
+    cancelPendingDragPreview();
+    pendingDragPointRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!removeDialogOpen) return;

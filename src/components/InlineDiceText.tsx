@@ -14,13 +14,18 @@ interface Props {
 
 export function InlineDiceText({ text, widget, className = '' }: Props) {
   const mode = useStore((state) => state.mode);
-  const { closeResult, resolveExpression, rollExpression, rollState } = useInlineDiceRoll(widget);
+  const isInteractiveMode = mode === 'play' || mode === 'vertical';
+  const segments = isInteractiveMode ? tokenizeInlineDiceText(text) : [];
+  const hasInlineDice = segments.some((segment) => segment.type !== 'text');
+  const { closeResult, resolveExpression, rollExpression, rollState } = useInlineDiceRoll(
+    widget,
+    isInteractiveMode && hasInlineDice,
+  );
 
-  if (mode !== 'play' && mode !== 'vertical') {
+  if (!isInteractiveMode) {
     return <span className={className}>{text}</span>;
   }
 
-  const segments = tokenizeInlineDiceText(text);
   return (
     <>
       <span className={`inline-dice-text ${className}`}>

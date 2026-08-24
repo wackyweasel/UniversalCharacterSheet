@@ -9,7 +9,7 @@ import {
 import { collectLabels } from '../utils/formulaEngine';
 import { useStore } from '../store/useStore';
 import { addTimelineEvent } from '../store/useTimelineStore';
-import type { Widget } from '../types';
+import type { Character, Widget } from '../types';
 
 export interface InlineDiceRollState {
   anchor: HTMLElement;
@@ -20,11 +20,26 @@ export interface InlineDiceRollState {
   rolling: boolean;
 }
 
-export function useInlineDiceRoll(widget: Widget) {
-  const characters = useStore((state) => state.characters);
-  const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const activeCharacter = characters.find((character) => character.id === activeCharacterId);
-  const labels = activeCharacter ? collectLabels(activeCharacter) : {};
+const EMPTY_CHARACTERS: Character[] = [];
+const EMPTY_LABELS: Record<string, number> = {};
+const labelsByCharacter = new WeakMap<Character, Record<string, number>>();
+
+function getLabelsForCharacter(character: Character): Record<string, number> {
+  const cachedLabels = labelsByCharacter.get(character);
+  if (cachedLabels) return cachedLabels;
+
+  const labels = collectLabels(character);
+  labelsByCharacter.set(character, labels);
+  return labels;
+}
+
+export function useInlineDiceRoll(widget: Widget, enabled = true) {
+  const characters = useStore((state) => enabled ? state.characters : EMPTY_CHARACTERS);
+  const activeCharacterId = useStore((state) => enabled ? state.activeCharacterId : null);
+  const activeCharacter = enabled
+    ? characters.find((character) => character.id === activeCharacterId)
+    : undefined;
+  const labels = activeCharacter ? getLabelsForCharacter(activeCharacter) : EMPTY_LABELS;
   const [rollState, setRollState] = useState<InlineDiceRollState | null>(null);
   const requestIdRef = useRef(0);
 
