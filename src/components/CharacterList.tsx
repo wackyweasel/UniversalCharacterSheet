@@ -32,12 +32,6 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
-    version: '1.4.2',
-    changes: [
-      'Improved performance when displaying and dragging items in the inventory widget.',
-    ],
-  },
-  {
     version: '1.4.1',
     changes: [
       'Added options to hide the name and/or the edit button for the image widget',
