@@ -6,7 +6,7 @@ import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
-import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
+import { cloneInventoryData, ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins, normalizeCardTableWidgetData } from '../utils/cardTable';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
@@ -86,7 +86,9 @@ function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['dat
 function cloneWidgetData(type: WidgetType, data: Widget['data'], widgetId: string): Widget['data'] {
   return type === 'DECK_OF_CARDS'
     ? cloneCardTableData(data, widgetId)
-    : JSON.parse(JSON.stringify(data));
+    : type === 'INVENTORY'
+      ? cloneInventoryData(JSON.parse(JSON.stringify(data)))
+      : JSON.parse(JSON.stringify(data));
 }
 
 function migrateLegacyWidgetHeader(widget: Widget): Widget {

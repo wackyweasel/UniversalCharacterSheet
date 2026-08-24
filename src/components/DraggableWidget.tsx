@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
@@ -61,6 +61,7 @@ const GRID_SIZE = 10;
 const BUILD_CONTROL_Z_INDEX = 10001;
 const BUILD_MENU_Z_INDEX = 10003;
 const WIDGET_OPTIONS_OPEN_EVENT = 'widget-options-open';
+const DROPDOWN_ESTIMATED_HEIGHT = 240;
 
 // Minimum dimensions per widget type
 const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
@@ -143,11 +144,12 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const contentRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownMenuRef = useRef<HTMLDivElement>(null);
+  const dropdownMenuRef = useRef<HTMLDivElement | null>(null);
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
+  const [dropdownVerticalAlign, setDropdownVerticalAlign] = useState<'above' | 'below'>('below');
   const [dropdownViewportPosition, setDropdownViewportPosition] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [showPrintSettings, setShowPrintSettings] = useState(false);
@@ -166,15 +168,32 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
 
-  const positionDropdownFromTrigger = useCallback((rect = dropdownTriggerRef.current?.getBoundingClientRect()) => {
+  const positionDropdownFromTrigger = useCallback((
+    rect = dropdownTriggerRef.current?.getBoundingClientRect(),
+    menuHeight = dropdownMenuRef.current?.getBoundingClientRect().height ?? DROPDOWN_ESTIMATED_HEIGHT,
+  ) => {
     if (!rect) return;
     const align = rect.right < 198 ? 'left' : 'right';
+    const gap = 4;
+    const viewportPadding = 8;
+    const opensAbove = rect.bottom + gap + menuHeight > window.innerHeight - viewportPadding;
     setDropdownAlign(align);
+    setDropdownVerticalAlign(opensAbove ? 'above' : 'below');
     setDropdownViewportPosition({
       x: align === 'left' ? rect.left : rect.right,
-      y: rect.bottom + 4,
+      y: opensAbove ? rect.top - gap : rect.bottom + gap,
     });
   }, []);
+
+  const setDropdownMenuRef = useCallback((menu: HTMLDivElement | null) => {
+    dropdownMenuRef.current = menu;
+    if (!menu) return;
+    window.requestAnimationFrame(() => {
+      const trigger = dropdownTriggerRef.current;
+      if (!trigger || dropdownMenuRef.current !== menu) return;
+      positionDropdownFromTrigger(trigger.getBoundingClientRect(), menu.getBoundingClientRect().height);
+    });
+  }, [positionDropdownFromTrigger]);
 
   const openDropdown = useCallback(() => {
     window.dispatchEvent(new CustomEvent(WIDGET_OPTIONS_OPEN_EVENT, { detail: widget.id }));
@@ -330,6 +349,34 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       positionDropdownFromTrigger();
     }
   }, [contextMenuPosition, dropdownViewportPosition, positionDropdownFromTrigger, showDropdown]);
+
+  useLayoutEffect(() => {
+    if (!showDropdown || contextMenuPosition !== null) return;
+    let resizeObserver: ResizeObserver | null = null;
+    const reposition = () => {
+      const menu = dropdownMenuRef.current;
+      const trigger = dropdownTriggerRef.current;
+      if (!menu || !trigger) return;
+      positionDropdownFromTrigger(trigger.getBoundingClientRect(), menu.getBoundingClientRect().height);
+    };
+    let measurementFrame = 0;
+    const animationFrame = window.requestAnimationFrame(() => {
+      measurementFrame = window.requestAnimationFrame(() => {
+      const menu = dropdownMenuRef.current;
+      if (!menu) return;
+      reposition();
+      resizeObserver = new ResizeObserver(reposition);
+      resizeObserver.observe(menu);
+      });
+    });
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(measurementFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', reposition);
+    };
+  }, [contextMenuPosition, positionDropdownFromTrigger, showDropdown]);
 
   // Close print settings dropdown when clicking outside
   useEffect(() => {
@@ -957,12 +1004,12 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
               {/* Dropdown Menu with Tabs */}
               {showDropdown && dropdownViewportPosition && createPortal(
                 <div
-                  ref={dropdownMenuRef}
-                  className="widget-options-menu fixed z-[10003] min-w-[190px] overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme font-body"
+                  ref={setDropdownMenuRef}
+                  className="widget-options-menu fixed z-[10003] max-h-[calc(100dvh-16px)] min-w-[190px] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme font-body"
                   style={{
                     left: `${dropdownViewportPosition.x}px`,
                     top: `${dropdownViewportPosition.y}px`,
-                    transform: dropdownAlign === 'left' ? 'none' : 'translateX(-100%)',
+                    transform: `${dropdownAlign === 'left' ? '' : 'translateX(-100%)'}${dropdownVerticalAlign === 'above' ? ' translateY(-100%)' : ''}`.trim() || 'none',
                   }}
                 >
                   {/* Tab Header - only show if widget is part of a group */}

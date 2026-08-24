@@ -2263,19 +2263,20 @@ td .inline-dice-token {
 }
 
 .inventory-item {
-  background: color-mix(in srgb, var(--color-background) 38%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
-  border-left-color: color-mix(in srgb, var(--color-accent) 46%, var(--color-border));
+  background-color: var(--color-paper);
+  background-image: var(--card-texture);
+  background-blend-mode: multiply;
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   border-radius: var(--border-radius);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 20%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .inventory-item:hover,
 .inventory-item:focus-within {
-  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-background));
-  border-color: color-mix(in srgb, var(--color-accent) 54%, var(--color-border));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 24%, transparent), 0 2px 5px rgb(0 0 0 / 0.1);
+  background-color: color-mix(in srgb, var(--color-accent) 8%, var(--color-paper));
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 32%, transparent), 0 2px 5px rgb(0 0 0 / 0.1);
 }
 
 .inventory-item--dragging {
@@ -2411,10 +2412,12 @@ td .inline-dice-token {
 }
 
 .inventory-load {
-  background: color-mix(in srgb, var(--color-background) 48%, transparent);
+  background-color: var(--color-paper);
+  background-image: var(--card-texture);
+  background-blend-mode: multiply;
   border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-  border-radius: var(--button-radius);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 16%, transparent);
+  border-radius: var(--border-radius);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
   min-width: 0;
   padding: 4px 6px 5px;
 }

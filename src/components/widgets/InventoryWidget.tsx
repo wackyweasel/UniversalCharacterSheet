@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { InventoryItem, Widget } from '../../types';
+import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { getCharacterGlobalInventoryLoad, getInventoryLoad } from '../../utils/inventory';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
@@ -50,6 +50,10 @@ function formatFieldValue(item: InventoryItem, fieldIndex: number): string {
     return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 3 }) : '0';
   }
   return String(field.value) || '-';
+}
+
+function isInventoryFieldEmpty(field: InventoryItemField): boolean {
+  return (field.type === 'text' || field.type === 'textarea') && String(field.value).trim() === '';
 }
 
 function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?: number; unit: string; label: string }) {
@@ -450,6 +454,7 @@ export default function InventoryWidget({
               <h3 className="min-w-0 self-center break-words font-heading text-xs font-bold leading-4 [overflow-wrap:anywhere]">{item.name}</h3>
               <dl className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5">
                 {item.fields.map((field, fieldIndex) => (
+                  isInventoryFieldEmpty(field) ? null : (
                   <div key={field.id} className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1 text-[9px] leading-3">
                     <dt className="min-w-0 break-words text-theme-muted [overflow-wrap:anywhere]">{field.name}</dt>
                     <dd className={`min-w-0 whitespace-pre-wrap break-words font-medium [overflow-wrap:anywhere] ${field.type === 'number' ? 'font-mono tabular-nums' : ''}`}>
@@ -458,6 +463,7 @@ export default function InventoryWidget({
                       ) : formatFieldValue(item, fieldIndex)}
                     </dd>
                   </div>
+                  )
                 ))}
               </dl>
               {canInteract && (

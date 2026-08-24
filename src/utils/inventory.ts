@@ -105,6 +105,20 @@ export function createInventoryItem(
   };
 }
 
+export function cloneInventoryData(data: WidgetData): WidgetData {
+  return {
+    ...data,
+    inventoryItems: data.inventoryItems?.map((item) => ({
+      ...item,
+      id: uuidv4(),
+      fields: item.fields.map((field) => ({
+        ...field,
+        id: uuidv4(),
+      })),
+    })),
+  };
+}
+
 export function linkInventoryFieldsToTemplates(
   fields: InventoryItemField[],
   templates: InventoryFieldTemplate[],
