@@ -1129,7 +1129,7 @@ export default function CharacterList() {
             />
             <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z" />
           </svg>
-          <div className="min-w-0 flex-1 pl-3 sm:pl-4">
+          <div className="min-w-0 flex-1 pl-1 sm:pl-2">
             <h1 className={`font-heading text-lg font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
               Universal Character Sheet
             </h1>
