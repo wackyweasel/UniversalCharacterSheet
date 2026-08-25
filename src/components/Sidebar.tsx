@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useTemplateStore, isGroupTemplate } from '../store/useTemplateStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -39,6 +39,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [sharingTemplateId, setSharingTemplateId] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState('');
+  const suppressWidgetClickUntilRef = useRef(0);
 
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -77,8 +78,21 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   };
 
   const handleDragStart = (e: React.DragEvent, type: WidgetType) => {
+    suppressWidgetClickUntilRef.current = Number.POSITIVE_INFINITY;
     e.dataTransfer.setData('widgetType', type);
     e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragEnd = () => {
+    suppressWidgetClickUntilRef.current = performance.now() + 500;
+  };
+
+  const handleWidgetClick = (type: WidgetType) => {
+    if (performance.now() < suppressWidgetClickUntilRef.current) {
+      suppressWidgetClickUntilRef.current = 0;
+      return;
+    }
+    handleAdd(type);
   };
 
   const sharingTemplate = templates.find((template) => template.id === sharingTemplateId) || null;
@@ -120,21 +134,8 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
         onSubmit={handleSubmitTemplateShare}
       />
 
-      {/* Overlay backdrop */}
-      {!collapsed && (
-        <div 
-          className="fixed inset-0 bg-black/30 z-40"
-          onClick={() => {
-            onToggle();
-            // If tutorial is on step 9 (close-toolbox), advance
-            if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
-              advanceTutorial();
-            }
-          }}
-        />
-      )}
-      
       <div 
+        data-touch-camera-panel="true"
         className={`fixed left-0 top-0 bottom-0 w-[88vw] max-w-[360px] bg-theme-paper border-r-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? '-translate-x-full' : 'translate-x-0'
         }`}
@@ -220,7 +221,8 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                           data-tutorial={`widget-${type}`}
                           draggable
                           onDragStart={(e) => handleDragStart(e, type)}
-                          onClick={() => handleAdd(type)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => handleWidgetClick(type)}
                           className={`min-h-12 p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold active:translate-y-px cursor-pointer flex items-center bg-theme-background text-theme-ink rounded-button relative ${isHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
                         >
                           <span className="text-[11px] leading-tight font-body">+ {label}</span>

@@ -521,6 +521,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
       
       <div 
         data-tutorial="theme-panel"
+        data-touch-camera-panel="true"
         className={`fixed right-0 top-0 bottom-0 w-[88vw] max-w-[360px] bg-theme-paper border-l-[length:var(--border-width)] border-theme-border z-50 flex flex-col p-3 shadow-theme overflow-hidden transition-transform duration-300 ease-in-out safe-area-bottom touch-pan-y ${
           collapsed ? 'translate-x-full' : 'translate-x-0'
         }`}

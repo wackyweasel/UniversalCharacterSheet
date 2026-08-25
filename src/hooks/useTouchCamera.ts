@@ -259,7 +259,10 @@ export function useTouchCamera({
     // Check if the target is inside the sidebar
     const isOnSidebar = (el: Element | null): boolean => {
       while (el && el !== document.body) {
-        if (el.classList.contains('fixed') && (el.classList.contains('left-0') || el.classList.contains('right-0'))) {
+        if (
+          (el as HTMLElement).dataset?.touchCameraPanel === 'true' ||
+          (el.classList.contains('fixed') && (el.classList.contains('left-0') || el.classList.contains('right-0')))
+        ) {
           return true;
         }
         el = el.parentElement;

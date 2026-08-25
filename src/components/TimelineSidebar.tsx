@@ -255,9 +255,10 @@ export default function TimelineSidebar() {
     <aside
       id="timeline-panel"
       data-tutorial="timeline-panel"
+      data-touch-camera-panel="true"
       aria-labelledby="timeline-title"
       aria-describedby="timeline-summary"
-      className="fixed inset-x-0 bottom-0 h-[72dvh] sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-0 sm:h-auto sm:w-[390px] z-40 flex flex-col overflow-hidden bg-theme-paper text-theme-ink border-t-[length:var(--border-width)] sm:border-t-0 sm:border-l-[length:var(--border-width)] border-theme-border shadow-2xl"
+      className="fixed inset-x-0 bottom-0 h-[72dvh] sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-0 sm:h-auto sm:w-[390px] z-40 flex flex-col overflow-hidden bg-theme-paper text-theme-ink border-t-[length:var(--border-width)] sm:border-t-0 sm:border-l-[length:var(--border-width)] border-theme-border shadow-2xl touch-pan-y"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {/* Header */}

@@ -32,6 +32,14 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.4.3',
+    changes: [
+      'Fixed a few issues with the list view (multi columns should better fill the screen, can now drop in any position as expected, some widget were not properly displayed)',
+      'You can keep interacting with your character sheet while the add widget panel is opened.',
+      'You can drag and drop widget directly in the character sheet.',
+    ],
+  },
+  {
     version: '1.4.2',
     changes: [
       'Fixed a few rendering and theme consistency issues.',

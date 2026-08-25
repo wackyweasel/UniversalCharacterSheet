@@ -1034,8 +1034,11 @@ export default function Sheet() {
     e.preventDefault();
     const type = e.dataTransfer.getData('widgetType') as WidgetType;
     if (type) {
-      const rawX = (e.clientX - pan.x) / scale;
-      const rawY = (e.clientY - pan.y) / scale;
+      const canvasRect = containerRef.current?.getBoundingClientRect();
+      const viewportX = e.clientX - (canvasRect?.left ?? 0);
+      const viewportY = e.clientY - (canvasRect?.top ?? 0);
+      const rawX = (viewportX - pan.x) / scale;
+      const rawY = (viewportY - pan.y) / scale;
 
       const GRID_SIZE = 10;
       const snap = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
@@ -1043,7 +1046,7 @@ export default function Sheet() {
       const x = snap(rawX);
       const y = snap(rawY);
 
-      addWidget(type, x, y);
+      addWidget(type, x, y, undefined, 'exact');
     }
   };
 
@@ -1187,15 +1190,16 @@ export default function Sheet() {
     const targetIndexes = drag.order
       .map((widgetId, index) => ({ widgetId, index }))
       .filter(({ widgetId }) => widgetId !== drag.widgetId && listColumnAssignments[widgetId] === parsedTargetColumn);
-    const targetIndex = targetIndexes.length > 0
-      ? targetIndexes.reduce((closest, candidate) => {
-        const candidateRect = drag.slotRects[candidate.index];
-        const closestRect = drag.slotRects[closest.index];
-        const candidateDistance = Math.abs(event.clientY - (candidateRect.top - scrollDeltaY + candidateRect.height / 2));
-        const closestDistance = Math.abs(event.clientY - (closestRect.top - scrollDeltaY + closestRect.height / 2));
-        return candidateDistance < closestDistance ? candidate : closest;
-      }).index
-      : drag.order.length;
+    const draggedIndex = drag.order.indexOf(drag.widgetId);
+    const targetBeforePointer = targetIndexes.find((candidate) => {
+      const candidateRect = drag.slotRects[candidate.index];
+      return event.clientY < candidateRect.top - scrollDeltaY + candidateRect.height / 2;
+    });
+    const targetIndex = targetBeforePointer
+      ? targetBeforePointer.index - (draggedIndex < targetBeforePointer.index ? 1 : 0)
+      : targetIndexes.length > 0
+        ? targetIndexes[targetIndexes.length - 1].index + 1 - (draggedIndex < targetIndexes[targetIndexes.length - 1].index + 1 ? 1 : 0)
+      : drag.order.length - 1;
     if (targetIndex === drag.targetIndex && parsedTargetColumn === drag.targetColumn) return;
 
     drag.targetIndex = targetIndex;
@@ -1566,12 +1570,13 @@ export default function Sheet() {
 
         {/* Vertical Mode Container - scrollable */}
         <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
-          <div className={`mx-auto px-3 py-4 pb-24 sm:px-5 sm:py-6 ${renderedListColumnCount > 1 ? 'max-w-6xl' : 'max-w-2xl'}`}>
+          <div className="w-full px-3 py-4 pb-24 sm:px-5 sm:py-6">
             {/* Widgets in vertical layout */}
             <div
-              className={renderedListColumnCount > 1 ? 'grid gap-x-5' : undefined}
+              className={renderedListColumnCount > 1 ? 'mx-auto grid w-full gap-x-5' : undefined}
               style={renderedListColumnCount > 1 ? {
                 gridTemplateColumns: `repeat(${renderedListColumnCount}, minmax(0, 1fr))`,
+                maxWidth: `calc(${renderedListColumnCount} * 42rem + ${renderedListColumnCount - 1} * 1.25rem)`,
               } : undefined}
             >
               {listWidgetColumns.map((columnWidgets, columnIndex) => (

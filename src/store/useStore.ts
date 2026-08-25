@@ -258,7 +258,7 @@ interface StoreState {
   renameSheet: (sheetId: string, name: string) => void;
   
   // Widget Actions (for active character's active sheet)
-  addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
+  addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }, placement?: 'smart' | 'exact') => void;
   cloneWidget: (widgetId: string) => void;
   addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   addGroupFromTemplate: (template: { widgets: { type: WidgetType; relativeX: number; relativeY: number; w?: number; h?: number; data: any }[]; attachments: [number, number][] }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
@@ -838,7 +838,7 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    addWidget: (type, x, y, viewport) => {
+    addWidget: (type, x, y, viewport, placement = 'smart') => {
       // Take snapshot before the change
       get()._takeSnapshot('Add widget');
       
@@ -872,7 +872,7 @@ export const useStore = create<StoreState>((set, get) => {
           });
         };
         
-        if (viewport && currentWidgets.length === 0) {
+        if (placement !== 'exact' && viewport && currentWidgets.length === 0) {
           // Calculate visible area in canvas coordinates
           const visibleLeft = -viewport.pan.x / viewport.scale;
           const visibleTop = -viewport.pan.y / viewport.scale;
@@ -910,11 +910,11 @@ export const useStore = create<StoreState>((set, get) => {
             finalX = Math.round((visibleLeft + visibleWidth / 2 - newWidgetWidth / 2) / GRID_SIZE) * GRID_SIZE;
             finalY = Math.round((visibleTop + visibleHeight / 2 - newWidgetHeight / 2) / GRID_SIZE) * GRID_SIZE;
           }
-        } else if (currentWidgets.length === 0) {
+        } else if (placement !== 'exact' && currentWidgets.length === 0) {
           // No widgets and no viewport - place in center of viewport (roughly)
           finalX = Math.round(400 / GRID_SIZE) * GRID_SIZE;
           finalY = Math.round(300 / GRID_SIZE) * GRID_SIZE;
-        } else {
+        } else if (placement !== 'exact') {
           // Fallback: Find the bounding box of all existing widgets
           const minX = Math.min(...currentWidgets.map(w => w.x));
           const maxX = Math.max(...currentWidgets.map(w => w.x + (w.w || DEFAULT_WIDTH)));

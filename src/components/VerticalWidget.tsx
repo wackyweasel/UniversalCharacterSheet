@@ -83,7 +83,6 @@ export default function VerticalWidget({
   const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
   const hasImageTexture = isImageTexture(textureKey);
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
-  const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
   const renderedWidget = {
     ...widget,
     data: {
@@ -94,7 +93,7 @@ export default function VerticalWidget({
     },
   };
   const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && !isWidgetHeaderHidden;
-  const hasInternalHeaderLabel = widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
+  const hasInternalHeaderLabel = !isWidgetHeaderHidden && widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -271,7 +270,7 @@ export default function VerticalWidget({
           )}
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            {(widget.type !== 'LABEL' || isBuildMode) && !isWidgetEditButtonHidden && (
+            {(widget.type !== 'LABEL' || isBuildMode) && (
               <Tooltip content={`Edit ${getWidgetLabel()}`}>
                 <button
                   type="button"

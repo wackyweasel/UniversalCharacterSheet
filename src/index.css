@@ -2275,8 +2275,11 @@ td .inline-dice-token {
 
 /* Vertical mode styles */
 .vertical-widget {
+  margin-inline: auto;
+  max-width: 42rem;
   user-select: none;
   -webkit-user-select: none;
+  width: 100%;
 }
 
 .vertical-widget--card-table .card-table-widget {
@@ -2286,9 +2289,7 @@ td .inline-dice-token {
 }
 
 .vertical-widget-sort-item {
-  transform: translate(0, 0);
   transition: filter 180ms ease, opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
 }
 
 .vertical-widget-sort-item--dragging {
