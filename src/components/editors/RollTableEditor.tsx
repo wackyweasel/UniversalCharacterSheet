@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface RollTableItem {
   text: string;
@@ -60,7 +61,7 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--roll-table space-y-4">
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
         <div className="relative">
@@ -83,9 +84,9 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__option-group" aria-labelledby={`roll-table-display-heading-${widget.id}`}>
+      <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`roll-table-display-heading-${widget.id}`} className="widget-editor__section-title">Display</h3>
         <label className="flex cursor-pointer items-start gap-2">
           <input
@@ -99,9 +100,9 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
             <span className="mt-0.5 block text-[11px] leading-4 text-theme-muted">When unchecked, only the roll button and result will be visible.</span>
           </span>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`roll-table-items-heading-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
             <h3 id={`roll-table-items-heading-${widget.id}`} className="widget-editor__section-title">Table items</h3>
@@ -161,7 +162,7 @@ export function RollTableEditor({ widget, updateData }: EditorProps) {
             + Add item
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
       <div className="widget-editor__hint text-xs text-theme-muted">
         <strong>How it works:</strong> When you roll, each item's probability is calculated as 

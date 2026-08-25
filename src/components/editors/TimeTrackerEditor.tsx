@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
   const { label, roundMode = false, effectSuggestions = [] } = widget.data;
   const [newSuggestion, setNewSuggestion] = useState('');
-  const [showHelp, setShowHelp] = useState(false);
 
   const addSuggestion = () => {
     if (newSuggestion.trim() && !effectSuggestions.includes(newSuggestion.trim())) {
@@ -23,30 +23,19 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--time-tracker space-y-4">
-      <div className="widget-editor__hint text-xs text-theme-muted" style={{ marginBottom: '-0.5rem', marginTop: '0.5rem' }}>
-        <div className="flex items-center justify-between gap-3">
+      <CollapsibleSection title="Help">
+        <div className="widget-editor__hint text-xs text-theme-muted">
           <p>Use this widget to track timed effects in your game.</p>
-          <button
-            type="button"
-            aria-expanded={showHelp}
-            aria-controls={`time-tracker-help-${widget.id}`}
-            onClick={() => setShowHelp((expanded) => !expanded)}
-            className="widget-control flex-none px-2 py-1 text-[11px] font-semibold"
-          >
-            {showHelp ? 'less' : 'more'}
-          </button>
-        </div>
-        {showHelp && (
-          <ul id={`time-tracker-help-${widget.id}`} className="ml-4 mt-2 list-disc space-y-1">
+          <ul className="ml-4 mt-2 list-disc space-y-1">
             <li>Add effects with their remaining duration</li>
             <li>{roundMode ? 'Use "Pass Round" to advance all timers by 1 round' : 'Use the "Pass Time" controls to advance all timers at once'}</li>
             <li>Expired effects will be highlighted</li>
             <li>Time can also be tracked from the Initiative Tracker and Rest button</li>
           </ul>
-        )}
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
         <div className="relative">
@@ -69,9 +58,9 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__option-group" aria-labelledby={`time-mode-heading-${widget.id}`}>
+      <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`time-mode-heading-${widget.id}`} className="widget-editor__section-title">Time mode</h3>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Time mode options">
           <button
@@ -105,9 +94,9 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
             </span>
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`time-tracker-suggestions-heading-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
             <h3 id={`time-tracker-suggestions-heading-${widget.id}`} className="widget-editor__section-title">Effect suggestions</h3>
@@ -161,7 +150,7 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
             ))}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
       
     </div>
   );

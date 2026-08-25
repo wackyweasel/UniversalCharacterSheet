@@ -375,7 +375,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         </div>
 
         {/* Content */}
-        <div className="widget-edit-modal__body flex-1 overflow-auto">
+        <div className="widget-edit-modal__body flex-1">
           <div className={`widget-edit-modal__layout ${isImageWidget ? 'widget-edit-modal__layout--image' : ''}`}>
             {/* Editor Section */}
             <section className="widget-edit-modal__settings min-w-0" aria-label="Settings">
@@ -387,7 +387,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
             </section>
 
             {/* Preview Section */}
-            <aside className={`widget-edit-modal__preview-pane flex-shrink-0 ${isImageWidget ? 'lg:sticky lg:top-0' : ''}`} aria-labelledby="widget-edit-modal-preview-title">
+            <aside className="widget-edit-modal__preview-pane flex-shrink-0" aria-labelledby="widget-edit-modal-preview-title">
               <div className="widget-edit-modal__pane-heading">
                 <h3 id="widget-edit-modal-preview-title">{isImageWidget ? 'Canvas preview' : 'Preview'}</h3>
               </div>

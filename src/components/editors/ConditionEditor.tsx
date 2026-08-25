@@ -5,6 +5,7 @@ import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function ConditionEditor({ widget, updateData }: EditorProps) {
   const { label, toggleItems = [] } = widget.data;
@@ -56,7 +57,8 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--conditions space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -77,9 +79,11 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
       
-      <section className="widget-editor__section" aria-labelledby={`conditions-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`conditions-title-${widget.id}`} className="widget-editor__section-title">Conditions</h3>
           <span className="widget-editor__section-count">{toggleItems.length}</span>
@@ -160,7 +164,7 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { CollapsibleSection } from './CollapsibleSection';
 
 const ALIGNMENT_OPTIONS = [
   { value: 'left', label: 'Align left', Icon: AlignLeft },
@@ -13,7 +14,8 @@ export function LabelEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--label space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="mb-1 block text-sm font-medium text-theme-ink">Label</label>
         <div className="relative">
           <input
@@ -34,9 +36,11 @@ export function LabelEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby="label-style-title">
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="label-style-title" className="widget-editor__section-title">Style</h3>
         </div>
@@ -92,7 +96,7 @@ export function LabelEditor({ widget, updateData }: EditorProps) {
             )}
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

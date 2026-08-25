@@ -1,5 +1,6 @@
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function ToggleEditor({ widget, updateData }: EditorProps) {
   const {
@@ -18,7 +19,8 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--toggle space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label>
         <div className="relative">
           <input
@@ -39,9 +41,10 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby="toggle-logic-title">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="toggle-logic-title" className="widget-editor__section-title">Logic &amp; color</h3>
         </div>
@@ -86,10 +89,9 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
             )}
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <div className="rounded-theme border border-theme-border p-3">
-        <h4 className="mb-3 font-medium text-theme-ink">Display Options</h4>
+      <CollapsibleSection title="Display options">
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
@@ -99,7 +101,7 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show label inline with switch</span>
         </label>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }

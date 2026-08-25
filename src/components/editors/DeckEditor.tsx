@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface DeckCard {
   name: string;
@@ -62,7 +63,7 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--legacy-deck space-y-4">
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
         <div className="relative">
@@ -85,9 +86,9 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`legacy-deck-cards-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
             <h3 id={`legacy-deck-cards-title-${widget.id}`} className="widget-editor__section-title">Deck cards</h3>
@@ -147,13 +148,13 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
             + Add card
           </button>
         </div>
-      </section>
+        {getTotalCards() > 0 && (
+          <div className="widget-editor__hint text-xs text-theme-ink">
+            <strong>Total cards in deck:</strong> {getTotalCards()}
+          </div>
+        )}
+      </CollapsibleSection>
 
-      {getTotalCards() > 0 && (
-        <div className="widget-editor__hint text-xs text-theme-ink">
-          <strong>Total cards in deck:</strong> {getTotalCards()}
-        </div>
-      )}
     </div>
   );
 }

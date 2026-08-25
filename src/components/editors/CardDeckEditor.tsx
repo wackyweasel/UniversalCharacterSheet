@@ -10,6 +10,7 @@ import CardDeckBulkAddDialog, { type BulkCardDraft } from './CardDeckBulkAddDial
 import CardDeckBulkDeleteDialog from './CardDeckBulkDeleteDialog';
 import CardDeckPositionDialog from './CardDeckPositionDialog';
 import type { EditorProps } from './types';
+import { CollapsibleSection } from './CollapsibleSection';
 
 const inputClass = 'w-full rounded-theme border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
 
@@ -227,7 +228,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--card-deck space-y-4">
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Deck name
           <input
@@ -237,9 +238,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             className={`${inputClass} mt-1`}
           />
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__option-group" aria-labelledby={`card-deck-display-heading-${widget.id}`}>
+      <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`card-deck-display-heading-${widget.id}`} className="widget-editor__section-title">Deck controls</h3>
         <div className="mt-2 space-y-2">
           <label className="flex cursor-pointer items-center gap-2 text-xs text-theme-ink">
@@ -261,9 +262,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             Show grab-all button
           </label>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`card-deck-back-heading-${widget.id}`}>
+      <CollapsibleSection>
         <div>
           <h3 id={`card-deck-back-heading-${widget.id}`} className="widget-editor__section-title">Card back</h3>
         </div>
@@ -347,9 +348,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             />
           </label>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`card-deck-cards-heading-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
             <h3 id={`card-deck-cards-heading-${widget.id}`} className="widget-editor__section-title">Cards</h3>
@@ -497,7 +498,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-      </section>
+      </CollapsibleSection>
 
       {bulkAddOpen && (
         <CardDeckBulkAddDialog

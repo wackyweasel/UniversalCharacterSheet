@@ -32,6 +32,15 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.4.2',
+    changes: [
+      'Fixed a few rendering and theme consistency issues.',
+      'Added a few customization options, including rounded corners for tables, dice size in the dice tray, and size of number containers in the number display.',
+      'Preview in editor windows now stays visible all the time for desktop',
+      'Sections in the editors are now collapsable',
+    ],
+  },
+  {
     version: '1.4.1',
     changes: [
       'Added options to hide the name and/or the edit button for the image widget',

@@ -1,6 +1,7 @@
 import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function HealthBarEditor({ widget, updateData }: EditorProps) {
   const { label, maxValue = 10, currentValue = 0, showIncrementButtons = true, fillColor, fieldLabels = {}, fieldFormulas = {} } = widget.data;
@@ -21,7 +22,8 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--health-bar space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -42,9 +44,11 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
       
-      <section className="widget-editor__section" aria-labelledby={`health-values-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`health-values-title-${widget.id}`} className="widget-editor__section-title">Health values</h3>
         </div>
@@ -75,9 +79,9 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             allowEmpty
           />
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`health-appearance-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`health-appearance-title-${widget.id}`} className="widget-editor__section-title">Appearance</h3>
         </div>
@@ -112,9 +116,9 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             <span className="text-sm text-theme-muted">Theme color</span>
           )}
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <fieldset className="widget-editor__option-group">
+      <CollapsibleSection className="widget-editor__option-group">
         <legend>Interaction</legend>
         <label className="flex cursor-pointer items-center gap-2">
           <input
@@ -142,7 +146,7 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             />
           </>
         )}
-      </fieldset>
+      </CollapsibleSection>
     </div>
   );
 }

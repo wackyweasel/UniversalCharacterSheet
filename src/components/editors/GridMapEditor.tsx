@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EditorProps } from './types';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface ColorControlProps {
   id: string;
@@ -71,7 +72,7 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--grid-map space-y-4">
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label htmlFor={`grid-map-label-${widget.id}`} className="block text-xs font-semibold text-theme-ink">
           Widget label
         </label>
@@ -82,9 +83,9 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
           placeholder="Grid Map"
           className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
         />
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`grid-map-layout-heading-${widget.id}`}>
+      <CollapsibleSection>
         <h3 id={`grid-map-layout-heading-${widget.id}`} className="widget-editor__section-title">Grid layout</h3>
         <div className="mt-3 space-y-3">
           <div>
@@ -152,9 +153,9 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
             <p className="widget-editor__hint mt-2 text-[11px] leading-4 text-theme-muted">Measurements use straight-line grid distance.</p>
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`grid-map-appearance-heading-${widget.id}`}>
+      <CollapsibleSection>
         <h3 id={`grid-map-appearance-heading-${widget.id}`} className="widget-editor__section-title">Appearance</h3>
         <div className="mt-3 space-y-3">
           <ColorControl
@@ -194,7 +195,7 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
             onChange={(value) => updateData({ gridMapDefaultTokenColor: value })}
           />
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

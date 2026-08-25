@@ -1,4 +1,5 @@
 import { EditorProps } from './types';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function TimerEditor({ widget, updateData }: EditorProps) {
   const {
@@ -18,7 +19,7 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--timer space-y-4">
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
           <input
@@ -28,9 +29,9 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
             placeholder="Timer"
           />
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__option-group" aria-labelledby={`timer-mode-heading-${widget.id}`}>
+      <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`timer-mode-heading-${widget.id}`} className="widget-editor__section-title">Timer mode</h3>
         <label className="flex cursor-pointer items-start gap-2">
           <input
@@ -72,7 +73,7 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

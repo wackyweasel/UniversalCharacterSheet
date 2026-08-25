@@ -13,6 +13,7 @@ import { EditorProps } from './types';
 import { getImageCrop, ImageCropInsets } from '../../utils/imageCrop';
 import { Tooltip } from '../Tooltip';
 import { ImageUploadButton } from '../ImageUploadButton';
+import { CollapsibleSection } from './CollapsibleSection';
 import {
   IMAGE_FRAME_THICKNESS_DEFAULT,
   IMAGE_FRAME_THICKNESS_MAX,
@@ -159,7 +160,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--image image-editor space-y-5">
-      <section className="widget-editor__section">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 className="widget-editor__section-title">Artwork</h3>
         </div>
@@ -248,9 +249,9 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
           </div>
         )}
         {!imageUrl && <div className="image-editor__empty-state">No image selected</div>}
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 className="widget-editor__section-title">Name</h3>
         </div>
@@ -341,9 +342,9 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         </div>}
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 className="widget-editor__section-title">Style</h3>
         </div>
@@ -472,7 +473,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
           </div>
         )}
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

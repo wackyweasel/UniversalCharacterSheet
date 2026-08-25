@@ -5,6 +5,7 @@ import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, PencilIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 function generateEncounterId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -162,7 +163,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   return (
     <div className="widget-editor widget-editor--initiative-tracker space-y-4">
       {/* Widget Label */}
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
         <div className="relative">
@@ -183,9 +184,9 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__option-group" aria-labelledby={`initiative-behavior-heading-${widget.id}`}>
+      <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`initiative-behavior-heading-${widget.id}`} className="widget-editor__section-title">Tracker behavior</h3>
         <label className="flex cursor-pointer items-start gap-2">
           <input
@@ -259,10 +260,10 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             </div>
           )}
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* Participant Pool */}
-      <section className="widget-editor__section" aria-labelledby={`initiative-pool-heading-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`initiative-pool-heading-${widget.id}`} className="widget-editor__section-title">Participant pool</h3>
           <span className="widget-editor__section-count">{initiativePool.length}</span>
@@ -466,7 +467,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             ))}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

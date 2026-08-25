@@ -11,6 +11,7 @@ import { GripVerticalIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { LabeledNumberField } from './LabeledNumberField';
 import { EditorProps } from './types';
+import { CollapsibleSection } from './CollapsibleSection';
 
 const FIELD_TYPES: { value: InventoryFieldType; label: string }[] = [
   { value: 'text', label: 'Text' },
@@ -118,7 +119,8 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--inventory space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label>
         <div className="relative">
           <input
@@ -139,9 +141,11 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby={`inventory-attributes-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
             <h3 id={`inventory-attributes-title-${widget.id}`} className="widget-editor__section-title">New item attributes</h3>
@@ -224,9 +228,9 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`inventory-weight-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`inventory-weight-title-${widget.id}`} className="widget-editor__section-title">Weight &amp; encumbrance</h3>
         </div>
@@ -347,7 +351,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

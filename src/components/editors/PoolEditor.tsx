@@ -5,6 +5,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { ResourceStylePicker } from '../ResourceStylePicker';
 import { ChevronDownIcon, ChevronUpIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function PoolEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -69,7 +70,8 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--pool space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -90,9 +92,11 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby={`resources-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`resources-title-${widget.id}`} className="widget-editor__section-title">Resources</h3>
           <span className="widget-editor__section-count">{resources.length}</span>
@@ -215,9 +219,9 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             + Add Resource
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <fieldset className="widget-editor__section" aria-labelledby={`pool-display-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`pool-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
@@ -240,7 +244,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Inline labels with icons</span>
         </label>
-      </fieldset>
+      </CollapsibleSection>
     </div>
   );
 }

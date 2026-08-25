@@ -1,12 +1,14 @@
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function TextEditor({ widget, updateData }: EditorProps) {
   const { label } = widget.data;
 
   return (
     <div className="widget-editor widget-editor--text space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -27,7 +29,8 @@ export function TextEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
+      </CollapsibleSection>
 
     </div>
   );

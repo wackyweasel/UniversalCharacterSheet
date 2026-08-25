@@ -6,9 +6,11 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { Plus, Trash2 } from 'lucide-react';
 import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue, getModifierRangeIssue } from '../../utils/modifierRanges';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   const { label, displayNumbers = [], displayLayout = 'horizontal' } = widget.data;
+  const numberBoxScale = Math.min(100, Math.max(50, widget.data.numberBoxScale ?? 100));
   const showSecondaryNumbers = widget.data.showSecondaryDisplayNumbers ?? false;
   const automaticModifiers = widget.data.secondaryDisplayAutoCompute ?? false;
   const modifierRanges = widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES;
@@ -269,7 +271,8 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--number-display space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -290,83 +293,112 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
-
-      <fieldset className="widget-editor__option-group">
-        <legend>Display layout</legend>
-        <div className="widget-editor__segmented-group" role="radiogroup" aria-label="Display layout">
-          <label className={`widget-editor__segment ${displayLayout === 'horizontal' ? 'widget-editor__segment--selected' : ''}`}>
-            <input
-              type="radio"
-              name="displayLayout"
-              value="horizontal"
-              checked={displayLayout === 'horizontal'}
-              onChange={(e) => updateData({ displayLayout: e.target.value })}
-            />
-            <span>Horizontal</span>
-          </label>
-          <label className={`widget-editor__segment ${displayLayout === 'vertical' ? 'widget-editor__segment--selected' : ''}`}>
-            <input
-              type="radio"
-              name="displayLayout"
-              value="vertical"
-              checked={displayLayout === 'vertical'}
-              onChange={(e) => updateData({ displayLayout: e.target.value })}
-            />
-            <span>Vertical</span>
-          </label>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={widget.data.showDisplayNumberMax ?? false}
-            onChange={(event) => updateData({ showDisplayNumberMax: event.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show maximums in display (e.g. 5/10)</span>
-        </label>
 
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={widget.data.showDisplayNumberLabels ?? true}
-            onChange={(event) => updateData({ showDisplayNumberLabels: event.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show names under numbers</span>
-        </label>
-      </fieldset>
+      </CollapsibleSection>
 
-      <label className="flex items-start gap-2 cursor-pointer rounded-theme border border-theme-border bg-theme-accent/5 p-3">
-        <input
-          type="checkbox"
-          checked={showSecondaryNumbers}
-          onChange={(event) => toggleSecondaryNumbers(event.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-theme-accent"
-        />
-        <span>
-          <span className="block text-sm font-medium text-theme-ink">Show secondary numbers</span>
-          <span className="block text-xs text-theme-muted">Adds a compact value box to the bottom-right corner of each number.</span>
-        </span>
-      </label>
+      <CollapsibleSection>
+        <div className="widget-editor__section-heading">
+          <h3 id={`display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
+        </div>
+        <div className="space-y-3">
+          <div className="widget-editor__segmented-group" role="radiogroup" aria-label="Display layout">
+            <label className={`widget-editor__segment ${displayLayout === 'horizontal' ? 'widget-editor__segment--selected' : ''}`}>
+              <input
+                type="radio"
+                name="displayLayout"
+                value="horizontal"
+                checked={displayLayout === 'horizontal'}
+                onChange={(e) => updateData({ displayLayout: e.target.value })}
+              />
+              <span>Horizontal</span>
+            </label>
+            <label className={`widget-editor__segment ${displayLayout === 'vertical' ? 'widget-editor__segment--selected' : ''}`}>
+              <input
+                type="radio"
+                name="displayLayout"
+                value="vertical"
+                checked={displayLayout === 'vertical'}
+                onChange={(e) => updateData({ displayLayout: e.target.value })}
+              />
+              <span>Vertical</span>
+            </label>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.showDisplayNumberMax ?? false}
+              onChange={(event) => updateData({ showDisplayNumberMax: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show maximums in display (e.g. 5/10)</span>
+          </label>
 
-      {showSecondaryNumbers && (
-        <div className="rounded-theme border border-theme-border bg-theme-accent/5 p-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.showDisplayNumberLabels ?? true}
+              onChange={(event) => updateData({ showDisplayNumberLabels: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show names under numbers</span>
+          </label>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor={`number-box-size-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">
+                Number box size
+              </label>
+              <span className="widget-editor__section-count">{numberBoxScale}%</span>
+            </div>
+            <input
+              id={`number-box-size-${widget.id}`}
+              type="range"
+              min="50"
+              max="100"
+              step="5"
+              value={numberBoxScale}
+              onChange={(event) => updateData({ numberBoxScale: Number(event.target.value) })}
+              className="w-full accent-theme-accent"
+            />
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
+        <div className="widget-editor__section-heading">
+          <h3 id={`secondary-numbers-title-${widget.id}`} className="widget-editor__section-title">Secondary numbers</h3>
+        </div>
+        <div className="space-y-3">
           <label className="flex cursor-pointer items-start gap-2">
             <input
               type="checkbox"
-              checked={automaticModifiers}
-              onChange={(event) => toggleAutomaticModifiers(event.target.checked)}
+              checked={showSecondaryNumbers}
+              onChange={(event) => toggleSecondaryNumbers(event.target.checked)}
               className="mt-0.5 h-4 w-4 accent-theme-accent"
             />
             <span>
-              <span className="block text-sm font-medium text-theme-ink">Automatic modifiers</span>
-              <span className="block text-xs text-theme-muted">Use one score table for every secondary number in this widget.</span>
+              <span className="block text-sm font-medium text-theme-ink">Show secondary numbers</span>
+              <span className="block text-xs text-theme-muted">Adds a compact value box to the bottom-right corner of each number.</span>
             </span>
           </label>
 
-          {automaticModifiers && (
-            <div className="mt-3 rounded-theme border border-theme-border bg-theme-paper p-2">
+          {showSecondaryNumbers && (
+            <div className="space-y-3">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={automaticModifiers}
+                  onChange={(event) => toggleAutomaticModifiers(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-theme-accent"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-theme-ink">Automatic modifiers</span>
+                  <span className="block text-xs text-theme-muted">Use one score table for every secondary number in this widget.</span>
+                </span>
+              </label>
+
+              {automaticModifiers && (
+                <div className="rounded-theme border border-theme-border bg-theme-paper p-2">
               <div className="mb-1.5 grid grid-cols-[1fr_1fr_1fr_28px] gap-1 text-[10px] font-medium uppercase text-theme-muted">
                 <span>Score from</span>
                 <span>Through</span>
@@ -422,12 +454,14 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                 <span className="text-xs text-theme-muted">Scores 1–30</span>
               </div>
               {modifierRangeIssue && <p className="mt-1.5 text-xs text-red-500">{modifierRangeIssue}</p>}
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby="display-numbers-title">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="display-numbers-title" className="widget-editor__section-title">Numbers</h3>
           <span className="widget-editor__section-count">{displayNumbers.length}</span>
@@ -585,7 +619,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
@@ -87,7 +88,8 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--step-dice space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <input
           className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -95,10 +97,11 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
           onChange={(e) => updateData({ label: e.target.value })}
           placeholder="Step Dice"
         />
-      </div>
+        </div>
 
       {/* Dice chain editor */}
-      <section className="widget-editor__section" aria-labelledby={`dice-chain-title-${widget.id}`}>
+      </CollapsibleSection>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-chain-title-${widget.id}`} className="widget-editor__section-title">Dice chain</h3>
           <span className="widget-editor__section-count">{diceChain.length}</span>
@@ -164,10 +167,10 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             </button>
           )}
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* Existing items */}
-      <section className="widget-editor__section" aria-labelledby={`step-items-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`step-items-title-${widget.id}`} className="widget-editor__section-title">Items</h3>
           <span className="widget-editor__section-count">{stepDiceItems.length}</span>
@@ -249,7 +252,7 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

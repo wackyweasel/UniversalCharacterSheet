@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { DiceGroup, CustomDie } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { LabeledNumberField } from './LabeledNumberField';
+import { CollapsibleSection } from './CollapsibleSection';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -11,7 +12,8 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export function DiceTrayEditor({ widget, updateData }: EditorProps) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, fieldLabels = {}, fieldFormulas = {}, showTrayRollDetailsButton = true } = widget.data;
+  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, fieldLabels = {}, fieldFormulas = {}, showTrayRollDetailsButton = true, diceButtonScale: diceButtonScaleSetting = 100 } = widget.data;
+  const diceButtonScale = Math.min(100, Math.max(50, diceButtonScaleSetting));
   const [newDiceFaces, setNewDiceFaces] = useState('');
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; faces: string[]; diceName: string; editIndex: number | null }>({ 
     open: false, 
@@ -219,7 +221,8 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--dice-tray space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -240,9 +243,11 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby={`tray-display-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`tray-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
@@ -258,9 +263,27 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show roll details control</span>
         </label>
-      </section>
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor={`tray-dice-button-size-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">
+              Dice button size
+            </label>
+            <span className="widget-editor__section-count">{diceButtonScale}%</span>
+          </div>
+          <input
+            id={`tray-dice-button-size-${widget.id}`}
+            type="range"
+            min="50"
+            max="100"
+            step="5"
+            value={diceButtonScale}
+            onChange={(e) => updateData({ diceButtonScale: Number(e.target.value) })}
+            className="w-full accent-theme-accent"
+          />
+        </div>
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby={`dice-selection-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-selection-title-${widget.id}`} className="widget-editor__section-title">Dice selection</h3>
           <span className="widget-editor__section-count">{availableDice.length}</span>
@@ -361,9 +384,9 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
             </button>
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`tray-modifier-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`tray-modifier-title-${widget.id}`} className="widget-editor__section-title">Modifier</h3>
         </div>
@@ -376,7 +399,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
           formula={fieldFormulas['modifier']}
           onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
-      </section>
+      </CollapsibleSection>
 
       {/* Custom Faces Modal */}
       {customFacesModal.open && (

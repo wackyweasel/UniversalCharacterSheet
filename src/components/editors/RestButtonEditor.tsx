@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { PoolResource, PoolRestoreTarget } from '../../types';
 import { collectLabels, evaluateFormula, getAvailableLabels } from '../../utils/formulaEngine';
 import { TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 interface PoolTargetInfo {
   widgetId: string;
@@ -180,7 +181,8 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--rest-button space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Button Text</label>
         <input
           className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
@@ -188,9 +190,11 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
           onChange={(e) => updateData({ buttonText: e.target.value })}
           placeholder="Rest"
         />
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby={`healing-options-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`healing-options-title-${widget.id}`} className="widget-editor__section-title">Healing options</h3>
         </div>
@@ -267,9 +271,9 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             </div>
           </>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`resource-pools-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`resource-pools-title-${widget.id}`} className="widget-editor__section-title">Resource pools</h3>
           {poolTargets.length > 0 && (
@@ -427,9 +431,9 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             })}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`other-actions-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`other-actions-title-${widget.id}`} className="widget-editor__section-title">Other actions</h3>
         </div>
@@ -493,7 +497,7 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

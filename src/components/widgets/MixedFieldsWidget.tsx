@@ -423,21 +423,27 @@ export default function MixedFieldsWidget({
         return (
           <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5">
             {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => adjustNumber(index, field, -1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
-            <input
-              type="number"
-              value={field.value}
-              min={field.minValue}
-              max={field.maxValue}
-              onChange={(event) => {
-                if (hasValueFormula) return;
-                const parsed = Number(event.target.value);
-                if (Number.isFinite(parsed)) updateField(index, { ...field, value: clampMixedFieldValue(parsed, field.minValue ?? Number.NEGATIVE_INFINITY, field.maxValue ?? Number.POSITIVE_INFINITY) });
-              }}
-              onBlur={() => { if (!hasValueFormula) announceChange(field, `set to ${field.value}`); }}
-              onMouseDown={(event) => event.stopPropagation()}
-              readOnly={!canInteract || hasValueFormula}
-              className={`h-6 w-16 rounded-button border border-theme-border px-1 text-center text-xs font-bold font-body text-theme-ink outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${hasValueFormula ? 'cursor-default bg-theme-accent/10' : 'bg-theme-paper'}`}
-            />
+              {hasValueFormula ? (
+                <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button border border-theme-border bg-theme-accent/10 px-1 text-center text-xs font-bold font-body text-theme-ink">
+                  {field.value}
+                  {isFormulaBroken(field.valueFormula!, labels) && <span className="ml-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.valueFormula}`}>⚠</span>}
+                </span>
+              ) : (
+                <input
+                  type="number"
+                  value={field.value}
+                  min={field.minValue}
+                  max={field.maxValue}
+                  onChange={(event) => {
+                    const parsed = Number(event.target.value);
+                    if (Number.isFinite(parsed)) updateField(index, { ...field, value: clampMixedFieldValue(parsed, field.minValue ?? Number.NEGATIVE_INFINITY, field.maxValue ?? Number.POSITIVE_INFINITY) });
+                  }}
+                  onBlur={() => announceChange(field, `set to ${field.value}`)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  readOnly={!canInteract}
+                  className="h-6 w-16 rounded-button border border-theme-border bg-theme-paper px-1 text-center text-xs font-bold font-body text-theme-ink outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              )}
             {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Increase ${field.name}`} onClick={() => adjustNumber(index, field, 1)} disabled={!canInteract || hasValueFormula || atMaximum} className="widget-control h-6 w-6 min-h-0 text-xs">+</button>}
           </div>
         );

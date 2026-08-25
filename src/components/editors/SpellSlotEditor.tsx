@@ -4,6 +4,7 @@ import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function SpellSlotEditor({ widget, updateData }: EditorProps) {
   const { label, spellLevels = [{ level: 1, max: 4, used: 0 }], fillColor, spellSlotShape = 'circle', spellSlotSize = 20, spellSlotHorizontalSpacing = 4, spellSlotVerticalSpacing = 4, showResetButton = true } = widget.data;
@@ -75,7 +76,8 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--spell-slots space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -96,9 +98,11 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
       
-      <section className="widget-editor__section" aria-labelledby={`spell-levels-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`spell-levels-title-${widget.id}`} className="widget-editor__section-title">Spell levels</h3>
           <span className="widget-editor__section-count">{spellLevels.length}</span>
@@ -169,9 +173,9 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             </button>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`spell-style-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`spell-style-title-${widget.id}`} className="widget-editor__section-title">Style</h3>
         </div>
@@ -298,9 +302,9 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             />
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`spell-interaction-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`spell-interaction-title-${widget.id}`} className="widget-editor__section-title">Interaction</h3>
         </div>
@@ -313,7 +317,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show Reset All button</span>
         </label>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

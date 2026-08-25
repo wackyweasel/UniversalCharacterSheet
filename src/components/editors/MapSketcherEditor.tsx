@@ -1,5 +1,6 @@
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function MapSketcherEditor({ widget, updateData }: EditorProps) {
   const { 
@@ -13,7 +14,7 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--map-sketcher space-y-4">
-      <section className="widget-editor__section">
+      <CollapsibleSection title="General">
         <label className="block text-xs font-semibold text-theme-ink">
           Widget label
         <div className="relative">
@@ -36,9 +37,9 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`map-sketcher-style-heading-${widget.id}`}>
+      <CollapsibleSection>
         <h3 id={`map-sketcher-style-heading-${widget.id}`} className="widget-editor__section-title">Drawing style</h3>
         <div className="mt-3 space-y-3">
           <div>
@@ -86,9 +87,9 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
             <div className="text-center text-xs text-theme-muted">{corridorWidth}px</div>
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <fieldset className="widget-editor__option-group" aria-labelledby={`map-sketcher-grid-heading-${widget.id}`}>
+      <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`map-sketcher-grid-heading-${widget.id}`} className="widget-editor__section-title">Grid display</h3>
         <label className="flex cursor-pointer items-start gap-2">
           <input
@@ -115,7 +116,7 @@ export function MapSketcherEditor({ widget, updateData }: EditorProps) {
             <div className="text-center text-xs text-theme-muted">{gridSize}px</div>
           </div>
         )}
-      </fieldset>
+      </CollapsibleSection>
     </div>
   );
 }

@@ -60,6 +60,7 @@ const MAX_DETAILS_WIDTH = 240;
 export default function DiceTrayWidget({ widget, mode, interactive = true, sheetScale = 1 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0 } = widget.data;
+  const diceButtonScale = Math.min(100, Math.max(50, widget.data.diceButtonScale ?? 100)) / 100;
   const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
   const showTrayRollDetailsButton = widget.data.showTrayRollDetailsButton ?? true;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
@@ -132,6 +133,11 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
 
   // Fixed small sizing
   const buttonClass = 'py-1 px-2 text-xs';
+  const diceButtonStyle = {
+    fontSize: `${0.75 * diceButtonScale}rem`,
+    padding: `${0.25 * diceButtonScale}rem ${0.5 * diceButtonScale}rem`,
+    minWidth: `${40 * diceButtonScale}px`,
+  };
   const resultClass = 'text-xl';
   const smallTextClass = 'text-[10px]';
   const gapClass = 'gap-1';
@@ -503,6 +509,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
                   onClick={() => addDieToPool(die)}
                   onMouseDown={(e) => e.stopPropagation()}
                   disabled={!controlsVisible}
+                  style={diceButtonStyle}
                   className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
                 >
                   {die.name}
@@ -516,6 +523,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
                   onClick={() => addDieToPool(die)}
                   onMouseDown={(e) => e.stopPropagation()}
                   disabled={!controlsVisible}
+                  style={diceButtonStyle}
                   className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper min-w-[40px] font-body`}
                 >
                   d{die}

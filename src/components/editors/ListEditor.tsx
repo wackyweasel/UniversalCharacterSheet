@@ -1,12 +1,14 @@
 import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function ListEditor({ widget, updateData }: EditorProps) {
   const { label, itemCount = 5, wrapText = true } = widget.data;
 
   return (
     <div className="widget-editor widget-editor--list space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -27,9 +29,11 @@ export function ListEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
       
-      <section className="widget-editor__section" aria-labelledby="list-behavior-title">
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="list-behavior-title" className="widget-editor__section-title">List behavior</h3>
           <span className="widget-editor__section-count">{itemCount || 0}</span>
@@ -55,7 +59,7 @@ export function ListEditor({ widget, updateData }: EditorProps) {
           />
           Wrap text
         </label>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

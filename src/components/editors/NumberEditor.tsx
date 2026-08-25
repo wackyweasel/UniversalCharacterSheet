@@ -6,6 +6,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, MinusIcon, PlusIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function NumberEditor({ widget, updateData }: EditorProps) {
   const { label, numberItems = [] } = widget.data;
@@ -105,7 +106,8 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--number space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -126,9 +128,11 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <fieldset className="widget-editor__section" aria-labelledby="number-display-options-title">
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="number-display-options-title" className="widget-editor__section-title">Display options</h3>
         </div>
@@ -151,9 +155,9 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show +/− buttons</span>
         </label>
-      </fieldset>
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby="number-items-title">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="number-items-title" className="widget-editor__section-title">Items</h3>
           <span className="widget-editor__section-count">{numberItems.length}</span>
@@ -305,7 +309,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

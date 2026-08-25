@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -231,7 +232,8 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--dice-roller space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -252,9 +254,11 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby={`dice-display-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
@@ -270,9 +274,9 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show roll details control</span>
         </label>
-      </section>
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby={`dice-groups-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-groups-title-${widget.id}`} className="widget-editor__section-title">Dices</h3>
           <span className="widget-editor__section-count">{diceGroups.length}</span>
@@ -406,9 +410,9 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             + Add Dice
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby={`modifier-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`modifier-title-${widget.id}`} className="widget-editor__section-title">Modifier</h3>
         </div>
@@ -423,7 +427,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
           formula={fieldFormulas['modifier']}
           onFormulaChange={(f) => setFieldFormula('modifier', f)}
         />
-      </section>
+      </CollapsibleSection>
 
       {/* Custom Faces Modal */}
       {customFacesModal.open && (

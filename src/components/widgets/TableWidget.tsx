@@ -748,6 +748,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     tableColumnSettings = [],
     tableRowSettings = [],
     hideTableHeader = false,
+    tableCornerRadius = false,
     showTableEditButton = true
   } = widget.data;
   
@@ -929,6 +930,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   const gapClass = 'gap-1';
   const showHeader = !!label || (!isPrintMode && showTableEditButton);
   const showTableHeader = !hideTableHeader || showTableControls;
+  const hasTableCornerRadius = tableCornerRadius === true && !showTableControls;
   
   // Calculate table area height
   const labelHeight = showHeader ? 16 : 0;
@@ -1617,7 +1619,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
 
       {/* Table */}
       <div 
-        className="overflow-auto flex-1"
+        className={`overflow-auto flex-1 ${hasTableCornerRadius ? 'rounded-theme' : ''}`}
         style={{ maxHeight: `${tableHeight}px` }}
         onWheel={(e) => {
           const el = e.currentTarget;
@@ -1663,7 +1665,9 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
                     ...getCellStyle(columnFormat),
                     ...textColorStyle,
                     ...getColumnWidthStyle(idx),
-                    borderLeftWidth: idx === 0 ? 1 : 0
+                    borderLeftWidth: idx === 0 ? 1 : 0,
+                    borderTopLeftRadius: hasTableCornerRadius && idx === 0 ? 'var(--border-radius)' : undefined,
+                    borderTopRightRadius: hasTableCornerRadius && idx === columns.length - 1 ? 'var(--border-radius)' : undefined,
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
@@ -1845,6 +1849,10 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
                         ...getColumnWidthStyle(colIdx),
                         borderTopWidth: rowIdx === 0 && !showTableHeader ? 1 : 0,
                         borderLeftWidth: colIdx === 0 ? 1 : 0,
+                        borderTopLeftRadius: hasTableCornerRadius && rowIdx === 0 && !showTableHeader && colIdx === 0 ? 'var(--border-radius)' : undefined,
+                        borderTopRightRadius: hasTableCornerRadius && rowIdx === 0 && !showTableHeader && colIdx === columns.length - 1 ? 'var(--border-radius)' : undefined,
+                        borderBottomLeftRadius: hasTableCornerRadius && rowIdx === rows.length - 1 && colIdx === 0 ? 'var(--border-radius)' : undefined,
+                        borderBottomRightRadius: hasTableCornerRadius && rowIdx === rows.length - 1 && colIdx === columns.length - 1 ? 'var(--border-radius)' : undefined,
                       }}
                     >
                       <div 

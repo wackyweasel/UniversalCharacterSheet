@@ -28,6 +28,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     label,
     displayNumbers = [],
     displayLayout = 'horizontal',
+    numberBoxScale: numberBoxScaleSetting = 100,
     printSettings,
     showDisplayNumberMax = false,
     showDisplayNumberLabels = true,
@@ -222,6 +223,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   }, [fieldDialog]);
 
   const isHorizontal = displayLayout === 'horizontal';
+  const numberBoxScale = Math.min(100, Math.max(50, numberBoxScaleSetting)) / 100;
   const itemCount = displayNumbers.length || 1;
   
   // Font sizes based on available space
@@ -288,10 +290,15 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
           return (
           <div 
             key={idx} 
-            className={`relative flex flex-col items-center justify-center border-2 border-theme-border rounded-theme bg-theme-paper/50 overflow-visible ${isHorizontal ? 'flex-1 max-w-[70px]' : 'flex-1 max-h-[55px]'}`}
+            className={`relative flex flex-col items-center justify-center border-[length:var(--border-width)] border-theme-border rounded-theme bg-theme-paper/50 overflow-visible ${isHorizontal ? 'flex-1' : 'flex-1'}`}
             style={{ 
-              minWidth: isHorizontal ? '30px' : undefined,
-              minHeight: !isHorizontal ? '30px' : undefined,
+              minWidth: isHorizontal ? `${30 * numberBoxScale}px` : undefined,
+              maxWidth: isHorizontal ? `${70 * numberBoxScale}px` : undefined,
+              minHeight: !isHorizontal ? `${30 * numberBoxScale}px` : undefined,
+              maxHeight: !isHorizontal ? `${55 * numberBoxScale}px` : undefined,
+              width: !isHorizontal ? `${100 * numberBoxScale}%` : undefined,
+              height: isHorizontal ? `${100 * numberBoxScale}%` : undefined,
+              padding: `${0.25 * numberBoxScale}rem`,
             }}
           >
             {/* Value - editable on click */}
@@ -365,12 +372,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                   onMouseDown={(event) => event.stopPropagation()}
                   autoFocus
                   aria-label={`Edit ${item.label || 'number'} secondary value`}
-                  className="absolute -bottom-1 -right-1 z-[1] h-6 w-12 rounded-theme border-2 border-theme-border bg-theme-paper px-1 text-center font-body font-bold leading-none text-theme-ink outline-none ring-1 ring-theme-ink"
+                  className="absolute -bottom-1 -right-1 z-[1] h-6 w-12 rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1 text-center font-body font-bold leading-none text-theme-ink outline-none ring-1 ring-theme-ink"
                   style={{ fontSize: `${secondaryFontSize}px` }}
                 />
               ) : secondaryDisplayAutoCompute || item.secondaryValueFormula || isPrintMode ? (
                 <span
-                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border-2 border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink"
+                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink"
                   style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                   data-print-hide={hideValues ? 'true' : undefined}
                   aria-label={`${item.label || 'Number'} secondary value ${item.secondaryValue ?? 0}`}
@@ -392,7 +399,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                     }
                   }}
                   aria-label={`Set ${item.label || 'number'} secondary value, currently ${item.secondaryValue ?? 0}`}
-                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border-2 border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink transition-shadow hover:ring-1 hover:ring-theme-ink focus:outline-none focus:ring-1 focus:ring-theme-ink"
+                  className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-none text-theme-ink transition-shadow hover:ring-1 hover:ring-theme-ink focus:outline-none focus:ring-1 focus:ring-theme-ink"
                   style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                   data-print-hide={hideValues ? 'true' : undefined}
                 >

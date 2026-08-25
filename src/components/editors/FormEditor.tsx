@@ -6,6 +6,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../../store/useTutorialStore';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function FormEditor({ widget, updateData }: EditorProps) {
   const { label, formItems = [] } = widget.data;
@@ -69,7 +70,8 @@ export function FormEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--form space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -91,9 +93,11 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <section className="widget-editor__section" aria-labelledby="form-layout-title">
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="form-layout-title" className="widget-editor__section-title">Field layout</h3>
         </div>
@@ -133,9 +137,9 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             />
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby="form-items-title">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="form-items-title" className="widget-editor__section-title">Items</h3>
           <span className="widget-editor__section-count">{formItems.length}</span>
@@ -215,7 +219,7 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

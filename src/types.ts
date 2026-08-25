@@ -350,6 +350,7 @@ export interface WidgetData {
   // Dice Tray
   showTrayRollDetails?: boolean;
   showTrayRollDetailsButton?: boolean;
+  diceButtonScale?: number;
   // Legacy setting used to initialize details for existing saved widgets.
   showIndividualResults?: boolean;
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
@@ -365,6 +366,7 @@ export interface WidgetData {
   // Number Display
   displayNumbers?: DisplayNumber[];
   displayLayout?: 'horizontal' | 'vertical';
+  numberBoxScale?: number;
   showDisplayNumberMax?: boolean;
   showDisplayNumberLabels?: boolean;
   showSecondaryDisplayNumbers?: boolean;
@@ -414,6 +416,7 @@ export interface WidgetData {
   tableColumnSettings?: TableColumnSettings[];
   tableRowSettings?: TableRowSettings[];
   hideTableHeader?: boolean;
+  tableCornerRadius?: boolean;
   showTableEditButton?: boolean;
   // Time Tracker
   timedEffects?: TimedEffect[];

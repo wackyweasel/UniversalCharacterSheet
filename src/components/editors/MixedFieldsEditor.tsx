@@ -10,6 +10,7 @@ import {
 import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { TooltipEditButton } from './TooltipEditButton';
+import { CollapsibleSection } from './CollapsibleSection';
 import { LabeledNumberField } from './LabeledNumberField';
 import type { EditorProps } from './types';
 
@@ -376,8 +377,10 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--mixed-fields space-y-4">
-      <div><label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label><input value={label || ''} onChange={(event) => updateData({ label: event.target.value })} placeholder="Mixed fields" className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 font-body text-theme-ink focus:border-theme-accent focus:outline-none" /></div>
-      <section className="widget-editor__section" aria-labelledby="mixed-fields-layout-title">
+      <CollapsibleSection title="General">
+        <div><label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label><input value={label || ''} onChange={(event) => updateData({ label: event.target.value })} placeholder="Mixed fields" className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 font-body text-theme-ink focus:border-theme-accent focus:outline-none" /></div>
+      </CollapsibleSection>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="mixed-fields-layout-title" className="widget-editor__section-title">Field layout</h3>
         </div>
@@ -397,9 +400,9 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
             <input id="mixed-fields-item-spacing" type="range" min="0" max="16" value={itemSpacing} onChange={(event) => updateData({ itemSpacing: Number(event.target.value) })} className="w-full accent-theme-accent" />
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby="mixed-fields-title">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="mixed-fields-title" className="widget-editor__section-title">Fields</h3>
           <span className="widget-editor__section-count">{mixedFields.length}</span>
@@ -428,7 +431,7 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
           <select value={newFieldType} onChange={(event) => setNewFieldType(event.target.value as MixedFieldType)} className="h-9 w-28 rounded-button border border-theme-border bg-theme-paper px-1 text-sm font-body text-theme-ink">{MIXED_FIELD_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           <button type="submit" disabled={!newFieldName.trim()} className="rounded-button bg-theme-accent px-3 py-1 text-sm text-theme-paper disabled:opacity-50">Add</button>
         </form>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

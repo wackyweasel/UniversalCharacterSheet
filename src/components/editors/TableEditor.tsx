@@ -4,6 +4,7 @@ import { TableCell, TableRow } from '../../types';
 import { usePointerReorder } from '../../hooks';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon, XIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 type LabelScope = 'column' | 'row';
 
@@ -125,7 +126,7 @@ function getTableCellValue(cell: string | TableCell): string {
 }
 
 export function TableEditor({ widget, updateData }: EditorProps) {
-  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [], hideTableHeader = false } = widget.data;
+  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [], hideTableHeader = false, tableCornerRadius = false } = widget.data;
   const [editingLabel, setEditingLabel] = useState<{ scope: LabelScope; index: number } | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [expandedCell, setExpandedCell] = useState<{ rowId: string; columnId: string } | null>(null);
@@ -287,7 +288,8 @@ export function TableEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--table space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -308,9 +310,11 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
 
-      <fieldset className="widget-editor__section" aria-labelledby={`display-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
@@ -323,9 +327,18 @@ export function TableEditor({ widget, updateData }: EditorProps) {
           />
           Show column headers
         </label>
-      </fieldset>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-theme-ink">
+            <input
+              type="checkbox"
+              checked={tableCornerRadius}
+              onChange={(event) => updateData({ tableCornerRadius: event.target.checked })}
+              className="h-4 w-4 accent-theme-accent"
+            />
+            Use the theme corner radius
+          </label>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`columns-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`columns-title-${widget.id}`} className="widget-editor__section-title">Columns</h3>
           <span className="widget-editor__section-count">{columns.length}</span>
@@ -401,9 +414,9 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             + Add Column
           </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="widget-editor__section" aria-labelledby={`rows-title-${widget.id}`}>
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`rows-title-${widget.id}`} className="widget-editor__section-title">Rows</h3>
           <span className="widget-editor__section-count">{rows.length}</span>
@@ -536,7 +549,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             </button>
           )}
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

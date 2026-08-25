@@ -5,6 +5,7 @@ import { EditorProps } from './types';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function CheckboxEditor({ widget, updateData }: EditorProps) {
   const { label, checkboxItems = [], checklistSettings } = widget.data;
@@ -77,7 +78,8 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--checkbox space-y-4">
-      <div>
+      <CollapsibleSection title="General">
+        <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
         <div className="relative">
           <input
@@ -98,9 +100,11 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
             </Tooltip>
           )}
         </div>
-      </div>
+        </div>
       
-      <fieldset className="widget-editor__section" aria-labelledby={`checkbox-style-title-${widget.id}`}>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`checkbox-style-title-${widget.id}`} className="widget-editor__section-title">Style</h3>
         </div>
@@ -113,9 +117,9 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
           />
           Strike through checked items
         </label>
-      </fieldset>
+      </CollapsibleSection>
       
-      <section className="widget-editor__section" aria-labelledby="checkbox-items-title">
+      <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="checkbox-items-title" className="widget-editor__section-title">Checkbox Items</h3>
           <span className="widget-editor__section-count">{checkboxItems.length}</span>
@@ -199,7 +203,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
             Add
           </button>
         </form>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }
