@@ -10,7 +10,6 @@ import { CollapsibleSection } from './CollapsibleSection';
 
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   const { label, displayNumbers = [], displayLayout = 'horizontal' } = widget.data;
-  const numberBoxScale = Math.min(100, Math.max(50, widget.data.numberBoxScale ?? 100));
   const showSecondaryNumbers = widget.data.showSecondaryDisplayNumbers ?? false;
   const automaticModifiers = widget.data.secondaryDisplayAutoCompute ?? false;
   const modifierRanges = widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES;
@@ -343,24 +342,6 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             />
             <span className="text-sm text-theme-ink">Show names under numbers</span>
           </label>
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label htmlFor={`number-box-size-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">
-                Number box size
-              </label>
-              <span className="widget-editor__section-count">{numberBoxScale}%</span>
-            </div>
-            <input
-              id={`number-box-size-${widget.id}`}
-              type="range"
-              min="50"
-              max="100"
-              step="5"
-              value={numberBoxScale}
-              onChange={(event) => updateData({ numberBoxScale: Number(event.target.value) })}
-              className="w-full accent-theme-accent"
-            />
-          </div>
         </div>
       </CollapsibleSection>
 
