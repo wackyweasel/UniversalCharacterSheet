@@ -786,7 +786,12 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   if (element) encounterEntryRefs.current.set(entry.id, element);
                   else encounterEntryRefs.current.delete(entry.id);
                 }}
-                className="initiative-entry relative flex min-h-7 items-center gap-1 rounded-button border border-theme-border bg-theme-paper px-1 py-0.5 text-theme-ink hover:bg-theme-border/30"
+                className={`initiative-entry relative flex min-h-7 items-center gap-1 rounded-button border px-1 py-0.5 ${
+                  index === initiativeCurrentIndex
+                    ? 'border-theme-accent bg-theme-accent text-theme-paper'
+                    : 'border-theme-border bg-theme-paper text-theme-ink hover:bg-theme-border/30'
+                }`}
+                aria-current={index === initiativeCurrentIndex ? 'true' : undefined}
               >
                 {/* Drag Handle */}
                 <button
@@ -797,7 +802,9 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   }}
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => handleReorderKey(index, event)}
-                  className="initiative-entry__drag-handle flex h-6 w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded text-theme-muted cursor-grab active:cursor-grabbing"
+                  className={`initiative-entry__drag-handle flex h-6 w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded cursor-grab active:cursor-grabbing ${
+                    index === initiativeCurrentIndex ? 'text-theme-paper/70' : 'text-theme-muted'
+                  }`}
                   aria-label={`Reorder ${entry.name}`}
                   title="Drag to reorder. Arrow keys also work."
                 >
@@ -811,7 +818,9 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
 
                 {initiativeShowTimer && (index === initiativeCurrentIndex || timerSecondsByParticipant[entry.id] !== undefined) && (
                   <span
-                    className="text-[10px] font-mono font-body tabular-nums text-theme-muted"
+                    className={`text-[10px] font-mono font-body tabular-nums ${
+                      index === initiativeCurrentIndex ? 'text-theme-paper/65' : 'text-theme-muted'
+                    }`}
                     aria-label={`Turn time ${formatTimer(timerSecondsByParticipant[entry.id] ?? 0)}`}
                   >
                     {formatTimer(timerSecondsByParticipant[entry.id] ?? 0)}
