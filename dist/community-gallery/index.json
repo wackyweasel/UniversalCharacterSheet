@@ -151,6 +151,14 @@
       "description": "OVA Character Sheet",
       "file": "presets/ova_character_sheet_v3.json",
       "gameSystem": "OVA: The Anime RPG"
+    },
+    {
+      "id": "20",
+      "name": "League of Dungeoneers v2",
+      "author": "@WackyWeasel",
+      "description": "Improved by making good use of the new mixed fields and inventory widgets",
+      "file": "presets/league_of_dungeoneers_v2.json",
+      "gameSystem": "League of Dungeoneers"
     }
   ],
   "themes": [
