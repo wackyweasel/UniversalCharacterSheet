@@ -1669,7 +1669,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
                   onMouseDown={(event) => event.stopPropagation()}
                   onTouchStart={(event) => event.stopPropagation()}
                   aria-label={`Edit ${widget.data.label || 'widget'}`}
-                  className="widget-header-edit-button widget-control widget-control--subtle"
+                  className={`widget-header-edit-button widget-control widget-control--subtle ${mode === 'play' && widget.type === 'IMAGE' ? 'widget-header-edit-button--image-play' : ''}`}
                 >
                   <PencilIcon className="h-3 w-3" />
                 </button>

@@ -111,6 +111,8 @@ export default function RestButtonWidget({ widget }: Props) {
   
   const { 
     buttonText = 'Rest',
+    buttonColor,
+    buttonTextColor,
     healToFull = false,
     healRandomDice = [],
     healFlatAmount = 0,
@@ -270,13 +272,17 @@ export default function RestButtonWidget({ widget }: Props) {
   })();
 
   return (
-    <div className="flex flex-col gap-1 w-full h-full items-center justify-center p-1">
+    <div className="rest-button-widget flex flex-col gap-1 w-full h-full items-center justify-center p-1">
       {canPlanRest ? (
         <Tooltip content={restTooltip}>
           <button
             onClick={handleRest}
             onMouseDown={(e) => e.stopPropagation()}
-            className={`widget-control widget-control--primary w-full h-full min-w-0 px-3 py-2 font-bold text-xs shadow-theme truncate ${isAnimating ? 'scale-95' : ''}`}
+            className={`widget-control w-full h-full min-w-0 px-3 py-2 text-xs truncate ${isAnimating ? 'scale-95' : ''}`}
+            style={{
+              ...(buttonColor ? { backgroundColor: buttonColor } : {}),
+              ...(buttonTextColor ? { color: buttonTextColor } : {}),
+            }}
           >
             {buttonText}
           </button>

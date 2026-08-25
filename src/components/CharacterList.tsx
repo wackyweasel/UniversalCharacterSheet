@@ -34,9 +34,10 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.4.3',
     changes: [
-      'Fixed a few issues with the list view (multi columns should better fill the screen, can now drop in any position as expected, some widget were not properly displayed)',
+      'Fixed a few issues with the list view (multiple columns now fill the screen better, widgets can now be dropped in any position as expected, and some widgets were not properly displayed).',
+      'Adjusted style consistency of many elements (mostly buttons and the inventory widget).',
       'You can keep interacting with your character sheet while the add widget panel is opened.',
-      'You can drag and drop widget directly in the character sheet.',
+      'You can drag and drop widgets directly into the character sheet.',
     ],
   },
   {
@@ -44,15 +45,15 @@ const CHANGELOG_ENTRIES = [
     changes: [
       'Fixed a few rendering and theme consistency issues.',
       'Added a few customization options, including rounded corners for tables, dice size in the dice tray, and size of number containers in the number display.',
-      'Preview in editor windows now stays visible all the time for desktop',
-      'Sections in the editors are now collapsable',
+      'Preview in editor windows now stays visible at all times on desktop.',
+      'Sections in the editors are now collapsible.',
     ],
   },
   {
     version: '1.4.1',
     changes: [
       'Added options to hide the name and/or the edit button for the image widget',
-      'Items in the inventory widget should better match themes',
+      'Items in the inventory widget now better match themes.',
     ],
   },
   {
@@ -108,7 +109,7 @@ const CHANGELOG_ENTRIES = [
     version: '1.1.1',
     changes: [
       'Fixed several issues related to the z-ordering of widgets (the logic that determines which widget is rendered on top of the others).',
-      'Fixed several menus not using the correct corner radius',
+      'Fixed several menus that were not using the correct corner radius.',
       'Added this changelog button',
     ],
   },
@@ -116,7 +117,7 @@ const CHANGELOG_ENTRIES = [
     version: '1.1.0',
     changes: [
       'New Deck of Cards widget. Renders 3D cards with fancy animations.',
-      'The old deck of cards widget is renamed "Legacy Deck of Cards"',
+      'The old deck of cards widget was renamed "Legacy Deck of Cards".',
       'Option to remove the + and - buttons from the number tracker widget',
       {
         text: 'New community contributions:',

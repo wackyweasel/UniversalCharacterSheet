@@ -742,7 +742,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
             <button
               onClick={rollInitiative}
               disabled={isRolling}
-              className={`${buttonClass} border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${
+              className={`${buttonClass} widget-control font-bold ${
                 isRolling ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -756,7 +756,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
             <button
               type="button"
               onClick={() => setIsTimerRunning((isRunning) => !isRunning)}
-              className={`${buttonClass} flex h-[26px] w-7 items-center justify-center border border-theme-border text-theme-ink rounded-button hover:bg-theme-border/30 transition-colors font-body`}
+              className={`${buttonClass} widget-control flex h-[26px] w-7 items-center justify-center`}
               aria-label={isTimerRunning ? 'Pause turn timer' : 'Start turn timer'}
             >
               {isTimerRunning ? <PauseIcon className="h-3.5 w-3.5" /> : <PlayIcon className="h-3.5 w-3.5" />}
@@ -786,11 +786,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   if (element) encounterEntryRefs.current.set(entry.id, element);
                   else encounterEntryRefs.current.delete(entry.id);
                 }}
-                className={`initiative-entry relative flex min-h-7 items-center gap-1 px-1 py-0.5 rounded ${
-                  index === initiativeCurrentIndex 
-                    ? 'bg-theme-accent text-theme-paper' 
-                    : 'bg-theme-background text-theme-ink hover:bg-theme-border/30'
-                }`}
+                className="initiative-entry relative flex min-h-7 items-center gap-1 rounded-button border border-theme-border bg-theme-paper px-1 py-0.5 text-theme-ink hover:bg-theme-border/30"
               >
                 {/* Drag Handle */}
                 <button
@@ -801,9 +797,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   }}
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => handleReorderKey(index, event)}
-                  className={`initiative-entry__drag-handle flex h-6 w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded cursor-grab active:cursor-grabbing ${
-                    index === initiativeCurrentIndex ? 'text-theme-paper/70' : 'text-theme-muted'
-                  }`}
+                  className="initiative-entry__drag-handle flex h-6 w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded text-theme-muted cursor-grab active:cursor-grabbing"
                   aria-label={`Reorder ${entry.name}`}
                   title="Drag to reorder. Arrow keys also work."
                 >
@@ -817,9 +811,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
 
                 {initiativeShowTimer && (index === initiativeCurrentIndex || timerSecondsByParticipant[entry.id] !== undefined) && (
                   <span
-                    className={`text-[10px] font-mono font-body tabular-nums ${
-                      index === initiativeCurrentIndex ? 'text-theme-paper/65' : 'text-theme-muted'
-                    }`}
+                    className="text-[10px] font-mono font-body tabular-nums text-theme-muted"
                     aria-label={`Turn time ${formatTimer(timerSecondsByParticipant[entry.id] ?? 0)}`}
                   >
                     {formatTimer(timerSecondsByParticipant[entry.id] ?? 0)}
@@ -855,7 +847,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
           <Tooltip content="Go to the previous participant">
             <button
               onClick={goBack}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+              className={`${buttonClass} widget-control flex-1`}
             >
               ◀ Back
             </button>
@@ -863,7 +855,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
           <Tooltip content="Advance to the next participant">
             <button
               onClick={goNext}
-              className={`${buttonClass} flex-1 border border-theme-border text-theme-ink rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors font-body`}
+              className={`${buttonClass} widget-control flex-1`}
             >
               Next ▶
             </button>

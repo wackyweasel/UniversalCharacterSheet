@@ -449,7 +449,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
             onClick={() => !hasCurrentFormula && setShowDamageModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`health-bar__action health-bar__action--damage ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`health-bar__action widget-control health-bar__action--damage ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Damage
           </button>
@@ -459,7 +459,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
             onClick={() => !hasCurrentFormula && setShowHealModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`health-bar__action health-bar__action--heal ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`health-bar__action widget-control health-bar__action--heal ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Heal
           </button>
@@ -469,7 +469,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
             onClick={() => !hasCurrentFormula && fullHeal()}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={hasCurrentFormula}
-            className={`health-bar__action ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`health-bar__action widget-control ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Full
           </button>

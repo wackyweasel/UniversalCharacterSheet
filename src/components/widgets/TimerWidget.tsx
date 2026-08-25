@@ -102,9 +102,6 @@ export default function TimerWidget({ widget, mode }: Props) {
   const isFinished = timerCountDown && displayMs >= timerDuration;
 
   const isPrint = mode === 'print';
-  const btnBase =
-    'px-2 py-1 text-xs font-body rounded-button transition-colors border border-theme-border';
-
   return (
     <div className="flex h-full w-full flex-col gap-1 select-none">
       {label && (
@@ -132,7 +129,7 @@ export default function TimerWidget({ widget, mode }: Props) {
                 onClick={handleStart}
                 disabled={isFinished}
                 aria-label="Start timer"
-                className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80 disabled:opacity-40`}
+                className="widget-control px-2 py-1 text-xs disabled:opacity-40"
               >
                 <PlayIcon className="w-3.5 h-3.5" />
               </button>
@@ -140,7 +137,7 @@ export default function TimerWidget({ widget, mode }: Props) {
               <button
                 onClick={handlePause}
                 aria-label="Pause timer"
-                className={`${btnBase} bg-theme-accent text-theme-paper hover:opacity-80`}
+                className="widget-control widget-control--primary px-2 py-1 text-xs"
               >
                 <PauseIcon className="w-3.5 h-3.5" />
               </button>
@@ -148,7 +145,7 @@ export default function TimerWidget({ widget, mode }: Props) {
             <button
               onClick={handleReset}
               aria-label="Reset timer"
-              className={`${btnBase} text-theme-ink hover:bg-theme-accent/20`}
+              className="widget-control px-2 py-1 text-xs"
             >
               <ResetIcon className="w-3.5 h-3.5" />
             </button>

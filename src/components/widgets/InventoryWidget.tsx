@@ -435,7 +435,7 @@ export default function InventoryWidget({
             data-inventory-item-id={item.id}
             className="inventory-item group relative px-1.5 py-1.5 text-theme-ink"
           >
-            <div className="grid min-w-0 grid-cols-[20px_minmax(62px,0.8fr)_minmax(0,1.7fr)_22px] items-start gap-1">
+            <div className="grid min-w-0 grid-cols-[20px_minmax(62px,0.8fr)_minmax(0,1.7fr)_22px] items-center gap-1">
               {canInteract && (
                 <button
                   type="button"
@@ -451,13 +451,13 @@ export default function InventoryWidget({
                 </button>
               )}
               {!canInteract && <span />}
-              <h3 className="min-w-0 self-center break-words font-heading text-xs font-bold leading-4 [overflow-wrap:anywhere]">{item.name}</h3>
-              <dl className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5">
+              <h3 className="-translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">{item.name}</h3>
+              <dl className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body">
                 {item.fields.map((field, fieldIndex) => (
                   isInventoryFieldEmpty(field) ? null : (
                   <div key={field.id} className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1 text-[9px] leading-3">
-                    <dt className="min-w-0 break-words text-theme-muted [overflow-wrap:anywhere]">{field.name}</dt>
-                    <dd className={`min-w-0 whitespace-pre-wrap break-words font-medium [overflow-wrap:anywhere] ${field.type === 'number' ? 'font-mono tabular-nums' : ''}`}>
+                    <dt className="min-w-0 break-words font-body text-theme-muted [overflow-wrap:anywhere]">{field.name}</dt>
+                    <dd className={`min-w-0 whitespace-pre-wrap break-words font-body font-medium [overflow-wrap:anywhere] ${field.type === 'number' ? 'tabular-nums' : ''}`}>
                       {field.type === 'text' || field.type === 'textarea' ? (
                         <InlineDiceText text={formatFieldValue(item, fieldIndex)} widget={widget} />
                       ) : formatFieldValue(item, fieldIndex)}

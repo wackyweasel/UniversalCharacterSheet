@@ -424,6 +424,8 @@ export interface WidgetData {
   effectSuggestions?: string[];
   // Rest Button
   buttonText?: string;
+  buttonColor?: string;
+  buttonTextColor?: string;
   healToFull?: boolean;
   healRandomDice?: DiceGroup[];
   healFlatAmount?: number;

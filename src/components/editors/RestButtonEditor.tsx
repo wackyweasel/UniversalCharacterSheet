@@ -21,6 +21,8 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
 
   const { 
     buttonText = 'Rest',
+    buttonColor,
+    buttonTextColor,
     healToFull = false,
     healRandomDice = [],
     healFlatAmount = 0,
@@ -192,6 +194,82 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         />
         </div>
 
+      </CollapsibleSection>
+
+      <CollapsibleSection>
+        <div className="widget-editor__section-heading">
+          <h3 className="widget-editor__section-title">Appearance</h3>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label htmlFor={`rest-button-color-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">
+              Button color
+            </label>
+            <div className="flex items-center gap-2">
+              <div
+                className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-button border border-theme-border bg-theme-accent"
+                style={buttonColor ? { backgroundColor: buttonColor } : undefined}
+              >
+                <input
+                  id={`rest-button-color-${widget.id}`}
+                  type="color"
+                  value={buttonColor || '#2563eb'}
+                  onChange={(event) => updateData({ buttonColor: event.target.value })}
+                  className="absolute -inset-1 h-12 w-12 cursor-pointer opacity-0"
+                />
+              </div>
+              {buttonColor ? (
+                <>
+                  <span className="flex-1 text-sm text-theme-ink">{buttonColor.toUpperCase()}</span>
+                  <button
+                    type="button"
+                    onClick={() => updateData({ buttonColor: undefined })}
+                    className="widget-control px-3 py-2 text-sm"
+                  >
+                    Use theme color
+                  </button>
+                </>
+              ) : (
+                <span className="text-sm text-theme-muted">Theme color</span>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor={`rest-button-text-color-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">
+              Label color
+            </label>
+            <div className="flex items-center gap-2">
+              <div
+                className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-button border border-theme-border bg-theme-accent"
+                style={buttonTextColor ? { backgroundColor: buttonTextColor } : undefined}
+              >
+                <input
+                  id={`rest-button-text-color-${widget.id}`}
+                  type="color"
+                  value={buttonTextColor || '#2563eb'}
+                  onChange={(event) => updateData({ buttonTextColor: event.target.value })}
+                  className="absolute -inset-1 h-12 w-12 cursor-pointer opacity-0"
+                />
+              </div>
+              {buttonTextColor ? (
+                <>
+                  <span className="flex-1 text-sm text-theme-ink">{buttonTextColor.toUpperCase()}</span>
+                  <button
+                    type="button"
+                    onClick={() => updateData({ buttonTextColor: undefined })}
+                    className="widget-control px-3 py-2 text-sm"
+                  >
+                    Use theme color
+                  </button>
+                </>
+              ) : (
+                <span className="text-sm text-theme-muted">Theme color</span>
+              )}
+            </div>
+          </div>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection>

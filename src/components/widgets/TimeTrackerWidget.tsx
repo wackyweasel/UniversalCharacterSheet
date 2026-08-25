@@ -4,6 +4,7 @@ import { Widget, TimedEffect } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { TrashIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
@@ -223,7 +224,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             className={`flex items-center gap-2 px-2 py-1 rounded-button border ${
               effect.remainingSeconds <= 0 
                 ? 'bg-theme-accent/20 border-theme-accent animate-pulse' 
-                : 'bg-theme-paper/50 border-theme-border'
+                : 'bg-theme-paper border-theme-border'
             }`}
           >
             <span className={`flex-1 min-w-0 truncate font-medium text-xs font-body ${effect.remainingSeconds <= 0 ? 'text-theme-accent' : 'text-theme-ink'}`}>
@@ -232,29 +233,32 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <span className={`flex-shrink-0 text-xs font-body ${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
               {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
             </span>
-            <Tooltip content="Reset to initial duration">
-              <button 
-                onClick={() => {
-                  const updated = [...timedEffects];
-                  updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
-                  updateWidgetData(widget.id, { timedEffects: updated });
-                  addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Reset: ${effect.name}`, '\ud83d\udd04');
-                }}
-                className={`flex-shrink-0 px-2 py-0.5 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                ↺
-              </button>
-            </Tooltip>
-            <Tooltip content="Remove effect">
-              <button 
-                onClick={() => removeEffect(idx)}
-                className={`flex-shrink-0 px-2 py-0.5 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                ×
-              </button>
-            </Tooltip>
+            <div className="flex flex-shrink-0 items-center gap-0.5">
+              <Tooltip content="Reset to initial duration">
+                <button 
+                  onClick={() => {
+                    const updated = [...timedEffects];
+                    updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
+                    updateWidgetData(widget.id, { timedEffects: updated });
+                    addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Reset: ${effect.name}`, '\ud83d\udd04');
+                  }}
+                  className={`flex h-6 w-6 flex-shrink-0 items-center justify-center p-0 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  ↺
+                </button>
+              </Tooltip>
+              <Tooltip content="Remove effect">
+                <button 
+                  onClick={() => removeEffect(idx)}
+                  aria-label="Remove effect"
+                  className={`flex h-6 w-6 flex-shrink-0 items-center justify-center p-0 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         ))}
         {timedEffects.length === 0 && !showAddForm && (

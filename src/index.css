@@ -1056,7 +1056,8 @@ td .inline-dice-token {
     padding-top: 28px;
   }
 
-  .widget-content.widget-content--editable-header:has(.image-widget) {
+  .widget-content.widget-content--editable-header:has(.image-widget),
+  .widget-content.widget-content--editable-header:has(.rest-button-widget) {
     padding-top: 6px;
   }
 
@@ -1596,6 +1597,15 @@ td .inline-dice-token {
     font-variant-numeric: tabular-nums;
   }
 
+  .health-bar__readout,
+  .progress-bar__readout {
+    background: var(--color-paper);
+    border-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    box-shadow: none;
+    color: var(--color-ink);
+  }
+
   .bar-readout--print {
     background: transparent;
     border-color: transparent;
@@ -1619,8 +1629,9 @@ td .inline-dice-token {
     font-size: 9px;
     font-weight: 700;
     justify-content: center;
+    line-height: 1;
     min-height: 22px;
-    padding: 1px 5px;
+    padding: 0 5px;
   }
 
   .health-bar__action:hover:not(:disabled) {
@@ -1642,7 +1653,7 @@ td .inline-dice-token {
 
   .widget-control {
     align-items: center;
-    background: color-mix(in srgb, var(--color-background) 38%, transparent);
+    background: var(--color-paper);
     border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
     border-radius: var(--button-radius);
     color: var(--color-ink);
@@ -1865,6 +1876,25 @@ td .inline-dice-token {
   .widget-control--subtle {
     background: transparent;
     color: var(--color-muted);
+  }
+
+  .widget-content .widget-structure-controls .widget-control--subtle,
+  .widget-content .widget-header-edit-button.widget-control--subtle {
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  .widget-content .widget-header-edit-button.widget-header-edit-button--image-play {
+    background: transparent;
+    border-color: transparent;
+    border-width: 0;
+    box-shadow: none;
+  }
+
+  .widget-content .widget-header-edit-button.widget-header-edit-button--image-play:hover:not(:disabled) {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-accent);
   }
 
   .widget-empty-state {
@@ -2355,7 +2385,7 @@ td .inline-dice-token {
   background-color: var(--color-paper);
   background-image: var(--card-texture);
   background-blend-mode: multiply;
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
   border-radius: var(--border-radius);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -2504,7 +2534,7 @@ td .inline-dice-token {
   background-color: var(--color-paper);
   background-image: var(--card-texture);
   background-blend-mode: multiply;
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
   border-radius: var(--border-radius);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
   min-width: 0;
@@ -2512,7 +2542,7 @@ td .inline-dice-token {
 }
 
 .inventory-load__summary {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   gap: 5px;
   min-width: 0;
@@ -2533,9 +2563,12 @@ td .inline-dice-token {
 }
 
 .inventory-load__value {
+  align-items: center;
   color: var(--color-ink);
-  font-family: var(--font-mono);
+  display: inline-flex;
+  font-family: var(--font-body);
   font-size: 9px;
+  gap: 3px;
   line-height: 12px;
   margin-left: auto;
   min-width: 0;

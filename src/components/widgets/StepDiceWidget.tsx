@@ -185,7 +185,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
                 onClick={() => rollDie(i)}
                 disabled={!isValidExpression}
                 aria-label={`Roll ${item.name}: ${expression}`}
-                className={`min-w-[52px] max-w-[112px] h-6 px-1.5 flex items-center justify-center text-xs font-bold rounded-button border border-theme-border text-theme-ink hover:bg-theme-accent hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-theme-ink transition-colors flex-shrink-0 truncate ${isRolling ? 'animate-pulse bg-theme-accent/20' : ''}`}
+                className={`widget-control min-w-[52px] max-w-[112px] h-6 px-1.5 text-xs font-bold flex-shrink-0 truncate disabled:opacity-30 ${isRolling ? 'animate-pulse bg-theme-accent/20' : ''}`}
               >
                 {expression}
               </button>
