@@ -38,6 +38,7 @@ const CHANGELOG_ENTRIES = [
       'Adjusted style consistency of many elements (mostly buttons and the inventory widget).',
       'You can keep interacting with your character sheet while the add widget panel is opened.',
       'You can drag and drop widgets directly into the character sheet.',
+      'Added the attribute "Amount" to cards in the deck of cards widget to have several copies of the same card.',
     ],
   },
   {

@@ -10,6 +10,15 @@ function normalizeCardText(value: unknown): string {
   return typeof value === 'string' ? value : value == null ? '' : String(value);
 }
 
+export function normalizeCardTableAmount(value: unknown): number {
+  const amount = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(amount) ? Math.max(1, Math.floor(amount)) : 1;
+}
+
+export function getCardTableCardGroupId(card: CardTableCard): string {
+  return card.cardGroupId || card.id;
+}
+
 function normalizeCardPattern(value: unknown): CardTableCard['originBackPattern'] {
   return value === 'none' || value === 'crosshatch' || value === 'diamonds' || value === 'stripes' || value === 'dots'
     ? value
@@ -28,6 +37,8 @@ export function normalizeCardTableCards(cards: unknown, idPrefix: string): CardT
       title: normalizeCardText(value.title),
       symbol: normalizeCardText(value.symbol),
       body: normalizeCardText(value.body),
+      amount: normalizeCardTableAmount(value.amount),
+      cardGroupId: typeof value.cardGroupId === 'string' && value.cardGroupId.trim() ? value.cardGroupId : undefined,
       faceUp: value.faceUp === true,
       originWidgetId: typeof value.originWidgetId === 'string' && value.originWidgetId ? value.originWidgetId : undefined,
       originOrder: typeof value.originOrder === 'number' && Number.isFinite(value.originOrder) ? value.originOrder : undefined,
@@ -99,6 +110,8 @@ export function normalizeCardTableOrigins(
     const hasOrigin = Boolean(card.originWidgetId);
     return {
       ...card,
+      amount: normalizeCardTableAmount(card.amount),
+      cardGroupId: getCardTableCardGroupId(card),
       originWidgetId: card.originWidgetId ?? widgetId,
       originOrder: card.originOrder ?? index,
       originBackColor: hasOrigin ? card.originBackColor : backDesign.color,

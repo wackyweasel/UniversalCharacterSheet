@@ -88,6 +88,8 @@ export interface CardTableCard {
   title: string;
   symbol: string;
   body: string;
+  amount?: number;
+  cardGroupId?: string;
   faceUp: boolean;
   originWidgetId?: string;
   originOrder?: number;

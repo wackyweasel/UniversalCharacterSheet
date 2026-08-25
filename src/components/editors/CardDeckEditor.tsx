@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { CardTableBackDesign, CardTableBackPattern, CardTableCard } from '../../types';
-import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../../utils/cardTable';
+import { getCardTableBackDesign, getCardTableCardGroupId, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableAmount, normalizeCardTableOrigins } from '../../utils/cardTable';
 import { limitCardSymbols, MAX_CARD_SYMBOLS, splitCardSymbols } from '../../utils/cardSymbols';
 import { useStore } from '../../store/useStore';
 import { ChevronsDownIcon, ChevronsUpIcon, ChevronDownIcon, ChevronUpIcon, LayoutGridIcon, ListOrderedIcon, PlusIcon, TrashIcon } from '../icons';
@@ -13,6 +13,11 @@ import type { EditorProps } from './types';
 import { CollapsibleSection } from './CollapsibleSection';
 
 const inputClass = 'w-full rounded-theme border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
+
+function resizeCardTextArea(element: HTMLTextAreaElement) {
+  element.style.height = 'auto';
+  element.style.height = `${element.scrollHeight}px`;
+}
 
 const CARD_SYMBOLS = [
   '✦', '✧', '✶', '☀', '☾', '☽', '☄', '⟡',
@@ -99,7 +104,12 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
     .filter((candidate) => candidate.type === 'DECK_OF_CARDS')
     .flatMap((candidate) => getCardTableCards(candidate.data).map((card) => ({ card, hostWidgetId: candidate.id })))
     .filter(({ card, hostWidgetId }) => card.originWidgetId === widget.id || (!card.originWidgetId && hostWidgetId === widget.id));
-  const cards = [...ownedCardEntries]
+  const ownedDiscardedEntries = activeSheetWidgets
+    .filter((candidate) => candidate.type === 'DECK_OF_CARDS')
+    .flatMap((candidate) => getCardTableDiscardedCards(candidate.data).map((card) => ({ card, hostWidgetId: candidate.id })))
+    .filter(({ card, hostWidgetId }) => card.originWidgetId === widget.id || (!card.originWidgetId && hostWidgetId === widget.id));
+  const ownedCardLocations = [...ownedCardEntries, ...ownedDiscardedEntries];
+  const sortedOwnedCards = [...ownedCardLocations]
     .sort((left, right) => {
       const leftLocalIndex = localCards.findIndex((card) => card.id === left.card.id);
       const rightLocalIndex = localCards.findIndex((card) => card.id === right.card.id);
@@ -111,10 +121,28 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
       return (left.card.originOrder ?? Number.MAX_SAFE_INTEGER) - (right.card.originOrder ?? Number.MAX_SAFE_INTEGER);
     })
     .map((entry) => entry.card);
+  const cards = Array.from(sortedOwnedCards.reduce((groups, card) => {
+    const groupId = getCardTableCardGroupId(card);
+    const group = groups.get(groupId) ?? [];
+    group.push(card);
+    groups.set(groupId, group);
+    return groups;
+  }, new Map<string, CardTableCard[]>()).values()).map((group) => ({
+    ...group[0],
+    amount: normalizeCardTableAmount(group[0].amount),
+  }));
   const [symbolPickerCardId, setSymbolPickerCardId] = useState<string | null>(null);
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [positionCardId, setPositionCardId] = useState<string | null>(null);
+  const textAreaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+
+  useEffect(() => {
+    cards.forEach((card) => {
+      const element = textAreaRefs.current[card.id];
+      if (element) resizeCardTextArea(element);
+    });
+  }, [cards]);
 
   const setLocalCards = (nextCards: CardTableCard[]) => updateData({
     cardTableCards: normalizeCardTableOrigins(nextCards, widget.id, backDesign),
@@ -149,14 +177,80 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
   };
 
   const updateCard = (cardId: string, update: Partial<CardTableCard>) => {
-    const entry = ownedCardEntries.find((candidate) => candidate.card.id === cardId);
-    const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === entry?.hostWidgetId);
-    if (!entry || !hostWidget || hostWidget.type !== 'DECK_OF_CARDS') return;
-    const nextCards = getCardTableCards(hostWidget.data).map((card) => (
-      card.id === cardId ? { ...card, ...update } : card
-    ));
-    if (hostWidget.id === widget.id) setLocalCards(nextCards);
-    else updateWidgetData(hostWidget.id, { cardTableCards: nextCards });
+    const selectedCard = cards.find((card) => card.id === cardId);
+    if (!selectedCard) return;
+    const groupId = getCardTableCardGroupId(selectedCard);
+    const groupCardIds = new Set(
+      ownedCardLocations
+        .filter((entry) => getCardTableCardGroupId(entry.card) === groupId)
+        .map((entry) => entry.card.id),
+    );
+    const hostWidgetIds = new Set(
+      ownedCardLocations
+        .filter((entry) => groupCardIds.has(entry.card.id))
+        .map((entry) => entry.hostWidgetId),
+    );
+    hostWidgetIds.forEach((hostWidgetId) => {
+      const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === hostWidgetId);
+      if (!hostWidget || hostWidget.type !== 'DECK_OF_CARDS') return;
+      const nextCards = getCardTableCards(hostWidget.data).map((card) => (
+        groupCardIds.has(card.id) ? { ...card, ...update } : card
+      ));
+      const nextDiscardedCards = getCardTableDiscardedCards(hostWidget.data).map((card) => (
+        groupCardIds.has(card.id) ? { ...card, ...update } : card
+      ));
+      const nextData = {
+        cardTableCards: normalizeCardTableOrigins(nextCards, hostWidget.id, getCardTableBackDesign(hostWidget.data)),
+        cardTableDiscardedCards: normalizeCardTableOrigins(nextDiscardedCards, hostWidget.id, getCardTableBackDesign(hostWidget.data)),
+      };
+      if (hostWidget.id === widget.id) updateData(nextData);
+      else updateWidgetData(hostWidget.id, nextData);
+    });
+  };
+
+  const updateCardAmount = (cardId: string, value: string) => {
+    const selectedCard = cards.find((card) => card.id === cardId);
+    if (!selectedCard) return;
+    const groupId = getCardTableCardGroupId(selectedCard);
+    const groupEntries = ownedCardLocations.filter((entry) => getCardTableCardGroupId(entry.card) === groupId);
+    if (groupEntries.length === 0) return;
+    const amount = normalizeCardTableAmount(value);
+    const retainedIds = new Set(groupEntries.slice(0, amount).map((entry) => entry.card.id));
+    const groupIds = new Set(groupEntries.map((entry) => entry.card.id));
+    const additions = amount > groupEntries.length
+      ? Array.from({ length: amount - groupEntries.length }, (_, index) => ({
+          ...groupEntries[0].card,
+          id: uuidv4(),
+          amount,
+          cardGroupId: groupId,
+          faceUp: false,
+          originWidgetId: widget.id,
+          originOrder: Math.max(-1, ...ownedCardLocations.map((entry) => entry.card.originOrder ?? -1)) + index + 1,
+        }))
+      : [];
+
+    activeSheetWidgets
+      .filter((candidate) => candidate.type === 'DECK_OF_CARDS')
+      .forEach((hostWidget) => {
+        const nextCards = getCardTableCards(hostWidget.data)
+          .filter((card) => !groupIds.has(card.id) || retainedIds.has(card.id))
+          .map((card) => groupIds.has(card.id) ? { ...card, amount } : card);
+        const nextDiscardedCards = getCardTableDiscardedCards(hostWidget.data)
+          .filter((card) => !groupIds.has(card.id) || retainedIds.has(card.id))
+          .map((card) => groupIds.has(card.id) ? { ...card, amount } : card);
+        const hasGroupCards = groupEntries.some((entry) => entry.hostWidgetId === hostWidget.id);
+        if (!hasGroupCards && hostWidget.id !== widget.id) return;
+        const nextData = {
+          cardTableCards: normalizeCardTableOrigins(
+            hostWidget.id === widget.id ? [...nextCards, ...additions] : nextCards,
+            hostWidget.id,
+            getCardTableBackDesign(hostWidget.data),
+          ),
+          cardTableDiscardedCards: normalizeCardTableOrigins(nextDiscardedCards, hostWidget.id, getCardTableBackDesign(hostWidget.data)),
+        };
+        if (hostWidget.id === widget.id) updateData(nextData);
+        else updateWidgetData(hostWidget.id, nextData);
+      });
   };
 
   const appendCards = (drafts: BulkCardDraft[], addToTop = false) => {
@@ -165,7 +259,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
       : Date.now();
     const nextCards = drafts.map((draft, index) => ({
       id: uuidv4(),
+      cardGroupId: uuidv4(),
       ...draft,
+      amount: 1,
       faceUp: false,
       originWidgetId: widget.id,
       originOrder: originOrderStart + index,
@@ -210,16 +306,28 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
   };
 
   const removeCards = (cardIds: Set<string>) => {
+    const groupIds = new Set(
+      cards.filter((card) => cardIds.has(card.id)).map((card) => getCardTableCardGroupId(card)),
+    );
+    const ownedCardIds = new Set(
+      ownedCardLocations
+        .filter((entry) => groupIds.has(getCardTableCardGroupId(entry.card)))
+        .map((entry) => entry.card.id),
+    );
     const hostWidgetIds = new Set(
-      ownedCardEntries.filter((entry) => cardIds.has(entry.card.id)).map((entry) => entry.hostWidgetId),
+      ownedCardLocations.filter((entry) => ownedCardIds.has(entry.card.id)).map((entry) => entry.hostWidgetId),
     );
     hostWidgetIds.forEach((hostWidgetId) => {
       const hostWidget = activeSheetWidgets.find((candidate) => candidate.id === hostWidgetId);
       if (!hostWidget || hostWidget.type !== 'DECK_OF_CARDS') return;
-      const nextCards = getCardTableCards(hostWidget.data).filter((card) => !cardIds.has(card.id));
-      if (nextCards.length === getCardTableCards(hostWidget.data).length) return;
-      if (hostWidget.id === widget.id) setLocalCards(nextCards);
-      else updateWidgetData(hostWidget.id, { cardTableCards: nextCards });
+      const nextCards = getCardTableCards(hostWidget.data).filter((card) => !ownedCardIds.has(card.id));
+      const nextDiscardedCards = getCardTableDiscardedCards(hostWidget.data).filter((card) => !ownedCardIds.has(card.id));
+      const nextData = {
+        cardTableCards: normalizeCardTableOrigins(nextCards, hostWidget.id, getCardTableBackDesign(hostWidget.data)),
+        cardTableDiscardedCards: normalizeCardTableOrigins(nextDiscardedCards, hostWidget.id, getCardTableBackDesign(hostWidget.data)),
+      };
+      if (hostWidget.id === widget.id) updateData(nextData);
+      else updateWidgetData(hostWidget.id, nextData);
     });
   };
 
@@ -463,8 +571,9 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                   </button>
                 </Tooltip>
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_128px] gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_72px] gap-2">
                 <label className="text-[11px] font-medium text-theme-muted">
+                  NAME
                   <input
                     value={card.title}
                     onChange={(event) => updateCard(card.id, { title: event.target.value })}
@@ -474,6 +583,7 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                   />
                 </label>
                 <label className="text-[11px] font-medium text-theme-muted">
+                  SYMBOL(S)
                   <SymbolInput
                     value={card.symbol}
                     onChange={(symbol) => updateCard(card.id, { symbol })}
@@ -484,11 +594,32 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
                     pickerLabel={`Choose a symbol for ${card.title || 'card'}`}
                   />
                 </label>
+                <label className="text-[11px] font-medium text-theme-muted">
+                  AMOUNT
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={card.amount ?? 1}
+                    onChange={(event) => updateCardAmount(card.id, event.target.value)}
+                    aria-label={`Amount for ${card.title || 'card'}`}
+                    className={`${inputClass} mt-1 h-10 text-center`}
+                  />
+                </label>
               </div>
               <label className="mt-2 block text-[11px] font-medium text-theme-muted">
+                TEXT
                 <textarea
+                  ref={(element) => {
+                    textAreaRefs.current[card.id] = element;
+                    if (element) resizeCardTextArea(element);
+                  }}
                   value={card.body}
-                  onChange={(event) => updateCard(card.id, { body: event.target.value })}
+                  onChange={(event) => {
+                    resizeCardTextArea(event.currentTarget);
+                    updateCard(card.id, { body: event.currentTarget.value });
+                  }}
                   placeholder="Multiline rules or story text"
                   aria-label={`Card text for ${card.title || 'card'}`}
                   rows={2}
