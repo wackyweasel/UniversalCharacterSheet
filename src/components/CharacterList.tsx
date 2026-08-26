@@ -33,7 +33,10 @@ const TUTORIAL_DESCRIPTIONS = {
 const CHANGELOG_ENTRIES = [
   {
     version: '1.4.4',
-    changes: ['New formula editor'],
+    changes: [
+      'New formula editor',
+      'You can now directly edit the min and max values of numbers in the Number Tracker, Number Display, and Mixed Fields widgets.',
+    ],
   },
   {
     version: '1.4.3',

@@ -16,6 +16,19 @@ interface Props {
   showFieldControls?: boolean;
 }
 
+interface NumberEditDialog {
+  index: number;
+  current: string;
+  minimum: string;
+  maximum: string;
+}
+
+const parseOptionalNumber = (value: string) => {
+  if (value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
 export default function NumberWidget({ widget, mode, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
@@ -24,9 +37,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [rangeIssue, setRangeIssue] = useState<string | null>(null);
+  const [numberDialog, setNumberDialog] = useState<NumberEditDialog | null>(null);
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
   const [minimumDraft, setMinimumDraft] = useState('');
@@ -64,13 +75,32 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
     return value;
   };
 
-  const getRangeIssueMessage = (item: NumberItem) => {
-    if (item.minValue !== undefined && item.maxValue !== undefined) {
-      return `Value must be between ${item.minValue} and ${item.maxValue}.`;
-    }
-    if (item.minValue !== undefined) return `Value must be at least ${item.minValue}.`;
-    return `Value must be at most ${item.maxValue}.`;
+  const getRangeIssueMessage = (minimum?: number, maximum?: number) => {
+    if (minimum !== undefined && maximum !== undefined) return `Value must be between ${minimum} and ${maximum}.`;
+    if (minimum !== undefined) return `Value must be at least ${minimum}.`;
+    return `Value must be at most ${maximum}.`;
   };
+
+  const numberDialogItem = numberDialog ? (numberItems as NumberItem[])[numberDialog.index] : undefined;
+  const numberDialogMinimum = numberDialog ? parseOptionalNumber(numberDialog.minimum) : undefined;
+  const numberDialogMaximum = numberDialog ? parseOptionalNumber(numberDialog.maximum) : undefined;
+  const numberDialogCurrent = numberDialog ? Number(numberDialog.current) : undefined;
+  const numberDialogHasInvalidBounds = Boolean(
+    numberDialog && (
+      Number.isNaN(numberDialogMinimum)
+      || Number.isNaN(numberDialogMaximum)
+      || (numberDialogMinimum !== undefined && numberDialogMaximum !== undefined && numberDialogMinimum > numberDialogMaximum)
+    )
+  );
+  const numberDialogHasInvalidCurrent = Boolean(
+    numberDialog && (numberDialog.current.trim() === '' || !Number.isFinite(numberDialogCurrent))
+  );
+  const numberDialogRangeIssue = numberDialog && numberDialogCurrent !== undefined && Number.isFinite(numberDialogCurrent)
+    && !numberDialogHasInvalidBounds
+    && ((numberDialogMinimum !== undefined && numberDialogCurrent < numberDialogMinimum)
+      || (numberDialogMaximum !== undefined && numberDialogCurrent > numberDialogMaximum))
+    ? getRangeIssueMessage(numberDialogMinimum, numberDialogMaximum)
+    : null;
 
   const adjustItemValue = (index: number, delta: number) => {
     const item = (numberItems as NumberItem[])[index];
@@ -86,45 +116,37 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
 
   const handleValueClick = (index: number, currentValue: number) => {
     const item = (numberItems as NumberItem[])[index];
-    if (item.valueFormula) return;
-    setRangeIssue(null);
-    setEditingIndex(index);
-    setEditValue(String(currentValue));
+    if (isPrintMode || item.valueFormula) return;
+    setNumberDialog({
+      index,
+      current: String(currentValue),
+      minimum: item.minValue === undefined ? '' : String(item.minValue),
+      maximum: item.maxValue === undefined ? '' : String(item.maxValue),
+    });
   };
 
-  const handleValueChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const nextValue = event.target.value;
-    const parsedValue = parseInt(nextValue, 10);
-    const item = (numberItems as NumberItem[])[index];
-    setEditValue(nextValue);
-    setRangeIssue(!isNaN(parsedValue) && parsedValue !== constrainItemValue(parsedValue, item) ? getRangeIssueMessage(item) : null);
+  const closeNumberDialog = () => {
+    setNumberDialog(null);
   };
 
-  const handleValueBlur = (index: number) => {
-    const newValue = parseInt(editValue, 10);
-    if (!isNaN(newValue)) {
-      const updated = [...numberItems] as NumberItem[];
-      const oldVal = updated[index].value;
-      const constrainedValue = constrainItemValue(newValue, updated[index]);
-      updated[index] = { ...updated[index], value: constrainedValue };
-      updateWidgetData(widget.id, { numberItems: updated });
-      if (oldVal !== constrainedValue) {
-        addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updated[index].name}: ${oldVal} → ${constrainedValue}`, '🔢');
-      }
+  const saveNumberDialog = () => {
+    if (!numberDialog || !numberDialogItem || numberDialogHasInvalidBounds || numberDialogHasInvalidCurrent) return;
+
+    const currentValue = numberDialogCurrent as number;
+    const updatedItemWithBounds: NumberItem = {
+      ...numberDialogItem,
+      minValue: numberDialogMinimum,
+      maxValue: numberDialogMaximum,
+    };
+    const constrainedValue = constrainItemValue(currentValue, updatedItemWithBounds);
+    const updatedItem = { ...updatedItemWithBounds, value: constrainedValue };
+    const updated = [...numberItems] as NumberItem[];
+    updated[numberDialog.index] = updatedItem;
+    updateWidgetData(widget.id, { numberItems: updated });
+    if (numberDialogItem.value !== constrainedValue) {
+      addTimelineEvent(label || 'Number Tracker', 'NUMBER', `${updatedItem.name}: ${numberDialogItem.value} → ${constrainedValue}`, '🔢');
     }
-    setEditingIndex(null);
-    setEditValue('');
-    setRangeIssue(null);
-  };
-
-  const handleValueKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Enter') {
-      handleValueBlur(index);
-    } else if (e.key === 'Escape') {
-      setEditingIndex(null);
-      setEditValue('');
-      setRangeIssue(null);
-    }
+    closeNumberDialog();
   };
 
   const addField = () => {
@@ -148,8 +170,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const removeSelectedFields = () => {
     if (selectedFields.size === 0) return;
     const updated = (numberItems as NumberItem[]).filter((_, index) => !selectedFields.has(index));
-    setEditingIndex(null);
-    setEditValue('');
+    setNumberDialog(null);
     updateWidgetData(widget.id, { numberItems: updated });
     setSelectedFields(new Set());
     setFieldDialog(null);
@@ -183,6 +204,17 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [fieldDialog]);
+
+  useEffect(() => {
+    if (!numberDialog) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeNumberDialog();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [numberDialog]);
 
   // Flexible width for the value controls section
   const controlsSectionWidth = '';
@@ -276,55 +308,27 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                   </button>
                 </Tooltip>
               )}
-              {editingIndex === idx ? (
-                <div className={`relative flex-shrink-0 ${showNumberItemMax ? 'w-[5.5rem]' : 'w-[4.5rem]'}`}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={editValue}
-                    onChange={(event) => handleValueChange(event, idx)}
-                    onBlur={() => handleValueBlur(idx)}
-                    onKeyDown={(e) => handleValueKeyDown(e, idx)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    autoFocus
-                    aria-invalid={rangeIssue ? true : undefined}
-                    className={`w-full ${valueClass} ${rangeIssue ? 'pr-5 border-red-500 focus:border-red-500' : ''} text-center font-bold text-theme-ink bg-theme-paper border border-theme-border rounded-button outline-none focus:border-theme-accent`}
-                  />
-                  {rangeIssue && (
-                    <Tooltip content={rangeIssue}>
-                      <span
-                        role="img"
-                        aria-label={rangeIssue}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 text-xs font-bold leading-none text-red-500"
-                      >
-                        !
-                      </span>
-                    </Tooltip>
-                  )}
-                </div>
-              ) : (
-                <span 
-                  className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 rounded-button font-body whitespace-nowrap ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:bg-theme-accent/20'}`}
-                  style={hideValues ? { visibility: 'hidden' } : undefined}
-                  data-print-hide={hideValues ? 'true' : undefined}
-                  onClick={() => handleValueClick(idx, item.value)}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  role={item.valueFormula ? undefined : 'button'}
-                  tabIndex={item.valueFormula ? undefined : 0}
-                  aria-label={item.valueFormula ? undefined : `Set ${item.name || 'value'}, currently ${item.value}`}
-                  onKeyDown={(e) => {
-                    if (!item.valueFormula && (e.key === 'Enter' || e.key === ' ')) {
-                      e.preventDefault();
-                      handleValueClick(idx, item.value);
-                    }
-                  }}
-                >
-                  {displayedValue}
-                  {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
-                    <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
-                  )}
-                </span>
-              )}
+              <span 
+                className={`${valueClass} text-center font-bold text-theme-ink flex-shrink-0 rounded-button font-body whitespace-nowrap ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:bg-theme-accent/20'}`}
+                style={hideValues ? { visibility: 'hidden' } : undefined}
+                data-print-hide={hideValues ? 'true' : undefined}
+                onClick={() => handleValueClick(idx, item.value)}
+                onMouseDown={(e) => e.stopPropagation()}
+                role={item.valueFormula ? undefined : 'button'}
+                tabIndex={item.valueFormula ? undefined : 0}
+                aria-label={item.valueFormula ? undefined : `Edit ${item.name || 'value'}, currently ${item.value}`}
+                onKeyDown={(e) => {
+                  if (!item.valueFormula && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleValueClick(idx, item.value);
+                  }
+                }}
+              >
+                {displayedValue}
+                {item.valueFormula && isFormulaBroken(item.valueFormula, labels) && (
+                  <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
+                )}
+              </span>
               {showIncrementButtons && (
                 <Tooltip content="Increase value">
                   <button
@@ -347,6 +351,101 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           <WidgetEmptyState title="No trackers yet" hint={controlsVisible ? 'Use + to add a tracker.' : undefined} compact />
         )}
       </div>
+
+      {numberDialog && numberDialogItem && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={closeNumberDialog}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`number-edit-dialog-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={`number-edit-dialog-title-${widget.id}`} className="font-heading text-base font-bold">
+              Edit {numberDialogItem.name || 'number'}
+            </h3>
+            <form
+              className="mt-3 space-y-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveNumberDialog();
+              }}
+            >
+              <label className="block text-sm font-medium">
+                <span className="mb-1 block">Current value</span>
+                <input
+                  autoFocus
+                  type="number"
+                  step="1"
+                  value={numberDialog.current}
+                  onChange={(event) => setNumberDialog((current) => current ? { ...current, current: event.target.value } : current)}
+                  className={`w-full rounded-button border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:outline-none ${numberDialogHasInvalidCurrent ? 'border-red-500 focus:border-red-500' : 'border-theme-border focus:border-theme-accent'}`}
+                  aria-label="Current value"
+                  aria-invalid={numberDialogHasInvalidCurrent || Boolean(numberDialogRangeIssue) ? true : undefined}
+                />
+              </label>
+
+              <div className="border-t border-theme-border pt-3">
+                <p className="text-sm font-medium">Bounds <span className="font-normal text-theme-muted">(optional)</span></p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <label className="text-sm">
+                    <span className="mb-1 block">Minimum{numberDialogItem.minValueFormula && <span className="ml-1 text-xs font-normal text-theme-muted">(computed)</span>}</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={numberDialog.minimum}
+                      onChange={(event) => setNumberDialog((current) => current ? { ...current, minimum: event.target.value } : current)}
+                      disabled={Boolean(numberDialogItem.minValueFormula)}
+                      placeholder="No minimum"
+                      className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label="Minimum value"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="mb-1 block">Maximum{numberDialogItem.maxValueFormula && <span className="ml-1 text-xs font-normal text-theme-muted">(computed)</span>}</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={numberDialog.maximum}
+                      onChange={(event) => setNumberDialog((current) => current ? { ...current, maximum: event.target.value } : current)}
+                      disabled={Boolean(numberDialogItem.maxValueFormula)}
+                      placeholder="No maximum"
+                      className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                      aria-label="Maximum value"
+                    />
+                  </label>
+                </div>
+                {numberDialogHasInvalidBounds && (
+                  <p className="mt-2 text-xs text-red-500">Minimum must not exceed maximum.</p>
+                )}
+                {numberDialogRangeIssue && !numberDialogHasInvalidBounds && (
+                  <p className="mt-2 text-xs text-theme-muted">{numberDialogRangeIssue} The value will be clamped when saved.</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={closeNumberDialog} className="widget-control px-3 py-1.5 text-sm">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={numberDialogHasInvalidBounds || numberDialogHasInvalidCurrent}
+                  className="widget-control widget-control--primary px-3 py-1.5 text-sm"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {fieldDialog && createPortal(
         <div

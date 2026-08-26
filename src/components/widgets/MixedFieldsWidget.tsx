@@ -83,6 +83,216 @@ function MixedProgressValueModal({ field, currentEditable, minEditable, maxEdita
   );
 }
 
+type MixedNumberField = Extract<MixedField, { type: 'number' }>;
+
+interface MixedNumberValueModalProps {
+  field: MixedNumberField;
+  minEditable: boolean;
+  maxEditable: boolean;
+  onConfirm: (current: number, min?: number, max?: number) => void;
+  onCancel: () => void;
+}
+
+function MixedNumberValueModal({ field, minEditable, maxEditable, onConfirm, onCancel }: MixedNumberValueModalProps) {
+  const [currentDraft, setCurrentDraft] = useState(String(field.value));
+  const [minDraft, setMinDraft] = useState(field.minValue === undefined ? '' : String(field.minValue));
+  const [maxDraft, setMaxDraft] = useState(field.maxValue === undefined ? '' : String(field.maxValue));
+  const currentValue = Number(currentDraft);
+  const minValue = minDraft.trim() === '' ? undefined : Number(minDraft);
+  const maxValue = maxDraft.trim() === '' ? undefined : Number(maxDraft);
+  const invalidCurrent = currentDraft.trim() === '' || !Number.isFinite(currentValue);
+  const invalidBounds = Number.isNaN(minValue) || Number.isNaN(maxValue)
+    || (minValue !== undefined && maxValue !== undefined && minValue > maxValue);
+  const rangeIssue = !invalidCurrent && !invalidBounds
+    && ((minValue !== undefined && currentValue < minValue) || (maxValue !== undefined && currentValue > maxValue))
+    ? minValue !== undefined && maxValue !== undefined
+      ? `Value must be between ${minValue} and ${maxValue}.`
+      : minValue !== undefined
+        ? `Value must be at least ${minValue}.`
+        : `Value must be at most ${maxValue}.`
+    : null;
+
+  const submit = () => {
+    if (invalidCurrent || invalidBounds) return;
+    const nextMin = minEditable ? minValue : field.minValue;
+    const nextMax = maxEditable ? maxValue : field.maxValue;
+    const nextCurrent = clampMixedFieldValue(
+      currentValue,
+      nextMin ?? Number.NEGATIVE_INFINITY,
+      nextMax ?? Number.POSITIVE_INFINITY,
+    );
+    onConfirm(nextCurrent, nextMin, nextMax);
+  };
+
+  return (
+    <div
+      data-touch-camera-ignore="true"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+      onClick={onCancel}
+      onMouseDown={(event) => event.stopPropagation()}
+      onWheel={(event) => event.stopPropagation()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mixed-number-edit-dialog-title"
+        className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h3 id="mixed-number-edit-dialog-title" className="font-heading text-base font-bold">
+          Edit {field.name || 'number'}
+        </h3>
+        <form
+          className="mt-3 space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <label className="block text-sm font-medium">
+            <span className="mb-1 block">Current value</span>
+            <input
+              autoFocus
+              type="number"
+              step="1"
+              value={currentDraft}
+              onChange={(event) => setCurrentDraft(event.target.value)}
+              className={`w-full rounded-button border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:outline-none ${invalidCurrent ? 'border-red-500 focus:border-red-500' : 'border-theme-border focus:border-theme-accent'}`}
+              aria-label="Current value"
+              aria-invalid={invalidCurrent || Boolean(rangeIssue) ? true : undefined}
+            />
+          </label>
+
+          <div className="border-t border-theme-border pt-3">
+            <p className="text-sm font-medium">Bounds <span className="font-normal text-theme-muted">(optional)</span></p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="text-sm">
+                <span className="mb-1 block">Minimum{field.minValueFormula && <span className="ml-1 text-xs font-normal text-theme-muted">(computed)</span>}</span>
+                <input
+                  type="number"
+                  step="any"
+                  value={minDraft}
+                  disabled={!minEditable}
+                  onChange={(event) => setMinDraft(event.target.value)}
+                  placeholder="No minimum"
+                  className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Minimum value"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block">Maximum{field.maxValueFormula && <span className="ml-1 text-xs font-normal text-theme-muted">(computed)</span>}</span>
+                <input
+                  type="number"
+                  step="any"
+                  value={maxDraft}
+                  disabled={!maxEditable}
+                  onChange={(event) => setMaxDraft(event.target.value)}
+                  placeholder="No maximum"
+                  className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Maximum value"
+                />
+              </label>
+            </div>
+            {invalidBounds && <p className="mt-2 text-xs text-red-500">Minimum must not exceed maximum.</p>}
+            {rangeIssue && !invalidBounds && <p className="mt-2 text-xs text-theme-muted">{rangeIssue} The value will be clamped when saved.</p>}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">
+              Cancel
+            </button>
+            <button type="submit" disabled={invalidCurrent || invalidBounds} className="widget-control widget-control--primary px-3 py-1.5 text-sm">
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function MixedNumberControl({
+  field,
+  canInteract,
+  isPrintMode,
+  labels,
+  onUpdate,
+  onAdjust,
+  onAnnounce,
+}: {
+  field: MixedNumberField;
+  canInteract: boolean;
+  isPrintMode: boolean;
+  labels: Record<string, number>;
+  onUpdate: (field: MixedField) => void;
+  onAdjust: (delta: number) => void;
+  onAnnounce: (detail: string) => void;
+}) {
+  const [showValueModal, setShowValueModal] = useState(false);
+  const hasValueFormula = !!field.valueFormula;
+  const atMinimum = field.minValue !== undefined && field.value <= field.minValue;
+  const atMaximum = field.maxValue !== undefined && field.value >= field.maxValue;
+  const showIncrementButtons = field.showIncrementButtons !== false;
+  const openValueModal = () => {
+    if (canInteract && !hasValueFormula) setShowValueModal(true);
+  };
+
+  return (
+    <>
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5">
+        {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => onAdjust(-1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
+        {hasValueFormula ? (
+          <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-accent/10 px-1 text-center text-xs font-bold font-body text-theme-ink">
+            {field.value}
+            {isFormulaBroken(field.valueFormula!, labels) && <span className="ml-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.valueFormula}`}>⚠</span>}
+          </span>
+        ) : isPrintMode || !canInteract ? (
+          <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-paper px-1 text-center text-xs font-bold font-body text-theme-ink">
+            {field.value}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={openValueModal}
+            onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openValueModal();
+              }
+            }}
+            aria-label={`Edit ${field.name || 'number'}, currently ${field.value}`}
+            className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-paper px-1 text-center text-xs font-bold font-body text-theme-ink transition-colors hover:bg-theme-accent/20 focus:outline-none focus:ring-1 focus:ring-theme-ink"
+          >
+            {field.value}
+          </button>
+        )}
+        {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Increase ${field.name}`} onClick={() => onAdjust(1)} disabled={!canInteract || hasValueFormula || atMaximum} className="widget-control h-6 w-6 min-h-0 text-xs">+</button>}
+      </div>
+      {showValueModal && createPortal(
+        <MixedNumberValueModal
+          field={field}
+          minEditable={canInteract && !field.minValueFormula}
+          maxEditable={canInteract && !field.maxValueFormula}
+          onConfirm={(current, min, max) => {
+            const changes: string[] = [];
+            if (current !== field.value) changes.push(`${field.value} → ${current}`);
+            if (min !== field.minValue) changes.push(`minimum ${field.minValue ?? 'none'} → ${min ?? 'none'}`);
+            if (max !== field.maxValue) changes.push(`maximum ${field.maxValue ?? 'none'} → ${max ?? 'none'}`);
+            if (changes.length > 0) {
+              onUpdate({ ...field, value: current, minValue: min, maxValue: max });
+              onAnnounce(changes.join(', '));
+            }
+            setShowValueModal(false);
+          }}
+          onCancel={() => setShowValueModal(false)}
+        />,
+        document.body
+      )}
+    </>
+  );
+}
+
 function MixedProgressControl({
   field,
   canInteract,
@@ -416,37 +626,7 @@ export default function MixedFieldsWidget({
           </div>
         );
       case 'number': {
-        const hasValueFormula = !!field.valueFormula;
-        const atMinimum = field.minValue !== undefined && field.value <= field.minValue;
-        const atMaximum = field.maxValue !== undefined && field.value >= field.maxValue;
-        const showIncrementButtons = field.showIncrementButtons !== false;
-        return (
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5">
-            {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => adjustNumber(index, field, -1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
-              {hasValueFormula ? (
-                <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button border border-theme-border bg-theme-accent/10 px-1 text-center text-xs font-bold font-body text-theme-ink">
-                  {field.value}
-                  {isFormulaBroken(field.valueFormula!, labels) && <span className="ml-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.valueFormula}`}>⚠</span>}
-                </span>
-              ) : (
-                <input
-                  type="number"
-                  value={field.value}
-                  min={field.minValue}
-                  max={field.maxValue}
-                  onChange={(event) => {
-                    const parsed = Number(event.target.value);
-                    if (Number.isFinite(parsed)) updateField(index, { ...field, value: clampMixedFieldValue(parsed, field.minValue ?? Number.NEGATIVE_INFINITY, field.maxValue ?? Number.POSITIVE_INFINITY) });
-                  }}
-                  onBlur={() => announceChange(field, `set to ${field.value}`)}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  readOnly={!canInteract}
-                  className="h-6 w-16 rounded-button border border-theme-border bg-theme-paper px-1 text-center text-xs font-bold font-body text-theme-ink outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-              )}
-            {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Increase ${field.name}`} onClick={() => adjustNumber(index, field, 1)} disabled={!canInteract || hasValueFormula || atMaximum} className="widget-control h-6 w-6 min-h-0 text-xs">+</button>}
-          </div>
-        );
+        return <MixedNumberControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAdjust={(delta) => adjustNumber(index, field, delta)} onAnnounce={(detail) => announceChange(field, detail)} />;
       }
       case 'progress':
         return <MixedProgressControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAnnounce={(detail) => announceChange(field, detail)} />;
