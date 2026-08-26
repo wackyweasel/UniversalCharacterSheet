@@ -1,6 +1,16 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
+interface Window {
+  goatcounter?: {
+    count: (variables: {
+      path: string;
+      event: boolean;
+      no_session: boolean;
+    }) => void;
+  };
+}
+
 declare module '*.jpg' {
   const src: string;
   export default src;

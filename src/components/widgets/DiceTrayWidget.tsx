@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { ChevronDownIcon, ChevronUpIcon } from '../icons';
+import { trackGoatCounterEvent } from '../../utils/goatCounter';
 import {
   isPhysicalDieSupported,
   rollPhysicalDice,
@@ -369,6 +370,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     setLastRolledPool(pool);
     setDicePool([]);
     setNextId(1);
+    trackGoatCounterEvent('roll-dice');
 
     const notation = buildPoolNotation(pool, modifier);
     const desc = total !== null ? `Rolled ${notation} = ${total}` : `Rolled ${notation}`;
@@ -390,6 +392,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
     setDicePool([]);
+    trackGoatCounterEvent('roll-dice');
 
     const rerollNotation = buildPoolNotation(pool, modifier);
     const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
@@ -420,6 +423,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
 
     setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
+    trackGoatCounterEvent('roll-dice');
 
     const dieFacesLabel = Array.isArray(dieToReroll.faces)
       ? (dieToReroll.customDieName || 'custom')

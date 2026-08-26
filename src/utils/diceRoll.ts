@@ -8,6 +8,7 @@ import {
   rollPhysicalDice,
   type PhysicalDieRequest,
 } from '../components/DicePhysicsOverlay';
+import { trackGoatCounterEvent } from './goatCounter';
 
 const getPhysicalDiceRequests = (terms: DiceExpressionTerm[]): PhysicalDieRequest[] => (
   terms.flatMap((term) => {
@@ -63,6 +64,10 @@ export const rollDiceTerms = async (terms: DiceExpressionTerm[]): Promise<DiceEx
     total += signedTotal;
     return { term, rolls, signedTotal };
   });
+
+  if (terms.some((term) => term.type === 'dice')) {
+    trackGoatCounterEvent('roll-dice');
+  }
 
   return {
     expression: formatDiceExpression(terms),
