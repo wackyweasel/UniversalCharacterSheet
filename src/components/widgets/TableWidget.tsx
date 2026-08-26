@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 're
 import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat, TableColumnSettings, TableRowSettings } from '../../types';
 import { useStore } from '../../store/useStore';
-import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference, isFormulaBroken } from '../../utils/formulaEngine';
+import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { InlineDiceText } from '../InlineDiceText';
-import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
+import { FormulaEditorDialog } from '../FormulaEditorDialog';
 import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, ResetIcon, TrashIcon } from '../icons';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 
@@ -139,45 +139,12 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(cellLabel || '');
-  const [formulaDraft, setFormulaDraft] = useState(cellFormula || '');
 
   const isNumeric = cellValue === '' || !isNaN(Number(cellValue));
   const canAssignLabel = canAssignLabelOverride ?? isNumeric;
   const isLabelButtonDisabled = !!labelDisabledReason || (!canAssignLabel && !cellLabel);
   const labelTooltip = labelDisabledReason || (cellLabel ? (labelScope === 'column' ? `Column labels: @${cellLabel}1, @${cellLabel}2...` : labelScope === 'row' ? `Row labels: @${cellLabel}1, @${cellLabel}2...` : `Label: @${cellLabel}`) : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label');
   const selfReferenceLabels = formulaSourceLabels.length > 0 ? formulaSourceLabels : (cellLabel ? [cellLabel] : []);
-  const excludedFormulaLabelSet = useMemo(() => new Set(excludedFormulaLabels), [excludedFormulaLabels]);
-
-  const availableLabels = useMemo(
-    () => character ? getAvailableLabels(character) : [],
-    [character]
-  );
-
-  const formulaPreview = useMemo(() => {
-    if (!formulaDraft || !character) return null;
-    const labels = collectLabels(character);
-    return evaluateFormula(formulaDraft, labels);
-  }, [formulaDraft, character]);
-
-  // Self-reference check
-  const isSelfReferencing = useMemo(() => {
-    if (!formulaDraft || selfReferenceLabels.length === 0) return false;
-    const refs = formulaDraft.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g);
-    if (!refs) return false;
-    return refs.some(r => selfReferenceLabels.includes(r.slice(1)));
-  }, [formulaDraft, selfReferenceLabels]);
-
-  // Circular reference check
-  const circularPath = useMemo(() => {
-    if (!formulaDraft || selfReferenceLabels.length === 0 || !character || isSelfReferencing) return null;
-    for (const sourceLabel of selfReferenceLabels) {
-      const cycle = detectCircularReference(sourceLabel, formulaDraft, character);
-      if (cycle) return cycle;
-    }
-    return null;
-  }, [formulaDraft, selfReferenceLabels, character, isSelfReferencing]);
-
-  const isCircular = isSelfReferencing || circularPath !== null;
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
@@ -233,6 +200,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest('[data-formula-editor-dialog="true"]')) return;
       if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -553,7 +522,6 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
               setShowLabelInput(false);
               setShowColorPicker(false);
               setShowTextColorPicker(false);
-              setFormulaDraft(cellFormula || '');
             }}
           >
             <span className="italic" style={{ fontSize: '11px' }}>fx</span>
@@ -628,107 +596,32 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         </div>
       )}
 
-      {/* Formula input panel */}
+      {/* Formula editor */}
       {showFormulaInput && (
-        <div className="px-2 pb-2 border-t border-theme-border/50">
-          <div className="flex items-center gap-1 mt-1.5 mb-1">
-            <span className="italic font-bold text-theme-accent text-[10px]">fx</span>
-            <span className="text-[10px] font-medium text-theme-ink">Formula</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <input
-              type="text"
-              value={formulaDraft}
-              onChange={(e) => setFormulaDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !isCircular) {
-                  const trimmed = formulaDraft.trim();
-                  onFormulaChange(trimmed || undefined);
-                  setShowFormulaInput(false);
-                }
-                if (e.key === 'Escape') setShowFormulaInput(false);
-              }}
-              placeholder="e.g. @str * 2 + 5"
-              className="flex-1 px-1.5 py-0.5 border border-theme-border rounded bg-theme-paper text-theme-ink text-[10px] font-mono focus:outline-none focus:border-theme-accent"
-              autoFocus
-              onMouseDown={(e) => e.stopPropagation()}
-            />
-            <button
-              onClick={() => {
-                if (isCircular) return;
-                const trimmed = formulaDraft.trim();
-                onFormulaChange(trimmed || undefined);
-                setShowFormulaInput(false);
-              }}
-              disabled={isCircular}
-              className={`px-1.5 py-0.5 bg-theme-accent text-theme-paper rounded text-[10px] hover:opacity-90 ${isCircular ? 'opacity-40 cursor-not-allowed' : ''}`}
-            >
-              Set
-            </button>
-            {cellFormula && (
-              <button
-                onClick={() => {
-                  setFormulaDraft('');
-                  onFormulaChange(undefined);
-                  setShowFormulaInput(false);
-                }}
-                className="px-1.5 py-0.5 border border-red-300 text-red-500 rounded text-[10px] hover:bg-red-50"
-              >
-                ×
-              </button>
-            )}
-          </div>
-
-          {/* Self-reference warning */}
-          {isSelfReferencing && (
-            <p className="text-[9px] text-red-500 mt-0.5">
-              {labelScope === 'column' ? 'A column formula cannot reference labels generated by that same column' : labelScope === 'row' ? 'A row formula cannot reference labels generated by that same row' : `A formula cannot reference its own label (@${cellLabel})`}
-            </p>
-          )}
-
-          {/* Circular reference warning */}
-          {!isSelfReferencing && circularPath && (
-            <p className="text-[9px] text-red-500 mt-0.5">
-              Circular reference: {circularPath.map(l => `@${l}`).join(' → ')}
-            </p>
-          )}
-
-          {/* Formula preview */}
-          {formulaDraft && !isCircular && (
-            <div className="mt-0.5 flex items-center gap-1">
-              <span className="text-[9px] text-theme-muted">Result:</span>
-              <span className={`text-[10px] font-bold ${formulaPreview !== null ? 'text-theme-accent' : 'text-red-500'}`}>
-                {formulaPreview !== null ? formulaPreview : 'Invalid'}
-              </span>
-            </div>
-          )}
-
-          {/* Available labels */}
-          {availableLabels.length > 0 && (
-            <div className="mt-1">
-              <p className="text-[9px] text-theme-muted mb-0.5">Available labels (click to insert):</p>
-              <div className="flex flex-wrap gap-0.5 max-h-16 overflow-y-auto">
-                {availableLabels.filter(l => l.label !== cellLabel && !excludedFormulaLabelSet.has(l.label)).map((l, i) => (
-                  <button
-                    key={`${l.label}-${i}`}
-                    type="button"
-                    onClick={() => setFormulaDraft(prev => prev + `@${l.label}`)}
-                    className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] bg-theme-accent/10 text-theme-accent border border-theme-accent/20 hover:bg-theme-accent/25 transition-colors cursor-pointer"
-                    title={`${l.widgetLabel} (${l.sheetName}) = ${l.value}`}
-                  >
-                    @{l.label}
-                    <span className="text-theme-muted ml-0.5">={l.value}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[9px] text-theme-muted">
-            <span>Use @label to reference values. Supports math functions, IF(), SWITCH(), ranges like 1..5, THRESHOLD(), VALUE(@column, row), SUM(@column), and SUM(@qty * @weight)</span>
-            <FormulaHelpDetailsButton className="text-[9px]" />
-          </div>
-        </div>
+        <FormulaEditorDialog
+          formula={cellFormula}
+          character={character}
+          sourceLabels={selfReferenceLabels}
+          excludedLabels={excludedFormulaLabels}
+          selfReferenceMessage={
+            labelScope === 'column'
+              ? 'A column formula cannot reference labels generated by that same column.'
+              : labelScope === 'row'
+                ? 'A row formula cannot reference labels generated by that same row.'
+                : cellLabel
+                  ? `A formula cannot reference its own label (@${cellLabel}).`
+                  : undefined
+          }
+          onApply={(nextFormula) => {
+            onFormulaChange(nextFormula);
+            setShowFormulaInput(false);
+          }}
+          onClear={cellFormula ? () => {
+            onFormulaChange(undefined);
+            setShowFormulaInput(false);
+          } : undefined}
+          onCancel={() => setShowFormulaInput(false)}
+        />
       )}
     </div>
   );

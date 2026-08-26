@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
-import { evaluateFormula, collectLabels, getAvailableLabels, detectCircularReference } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
-import { FormulaHelpDetailsButton } from '../FormulaHelpDetailsButton';
+import { FormulaEditorDialog } from '../FormulaEditorDialog';
 import { XIcon } from '../icons';
 
 interface LabeledNumberFieldProps {
@@ -81,7 +80,6 @@ export function LabeledNumberField({
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(fieldLabel || '');
-  const [formulaDraft, setFormulaDraft] = useState(formula || '');
   const [valueDraft, setValueDraft] = useState(() => value === undefined ? '' : String(value));
   const editingValueRef = useRef(false);
   const controlHeightClass = controlHeight === 'input' ? 'h-10' : 'h-7';
@@ -105,42 +103,13 @@ export function LabeledNumberField({
     [characters, activeCharacterId]
   );
 
-  const availableLabels = useMemo(
-    () => activeChar ? getAvailableLabels(activeChar) : [],
-    [activeChar]
-  );
-
-  // Check for self-referencing formula
-  const isSelfReferencing = useMemo(() => {
-    if (!formulaDraft || !fieldLabel) return false;
-    const refs = formulaDraft.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g);
-    if (!refs) return false;
-    return refs.some(r => r.slice(1) === fieldLabel);
-  }, [formulaDraft, fieldLabel]);
-
-  // Check for circular references
-  const circularPath = useMemo(() => {
-    if (!formulaDraft || !fieldLabel || !activeChar || isSelfReferencing) return null;
-    return detectCircularReference(fieldLabel, formulaDraft, activeChar);
-  }, [formulaDraft, fieldLabel, activeChar, isSelfReferencing]);
-
-  const isCircular = isSelfReferencing || circularPath !== null;
-
-  // Preview formula evaluation
-  const formulaPreview = useMemo(() => {
-    if (!formulaDraft || !activeChar) return null;
-    if (isCircular) return null;
-    const labels = collectLabels(activeChar);
-    return evaluateFormula(formulaDraft, labels);
-  }, [formulaDraft, activeChar, isCircular]);
-
-  const hasFormula = !!formula;
+  const hasLabel = Boolean(fieldLabel?.trim());
+  const hasFormula = Boolean(formula?.trim());
   const hasValidLabelDraft = labelDraft.trim().replace(/\s+/g, '_').length > 0;
-  const hasValidFormulaDraft = formulaDraft.trim().length > 0 && !isCircular && formulaPreview !== null;
   const shouldHighlightStrengthTagButton = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-strength-tag-button');
   const shouldHighlightStrengthTagConfirm = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag') && hasValidLabelDraft;
   const shouldHighlightDiceFormulaButton = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button');
-  const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula') && hasValidFormulaDraft;
+  const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula');
   const radiusClass = radius === 'theme' ? 'rounded-theme' : 'rounded-button';
 
   const handleIncrement = () => {
@@ -217,18 +186,15 @@ export function LabeledNumberField({
     setShowLabelInput(false);
   };
 
-  const confirmFormula = () => {
-    if (isCircular) return;
-    const trimmed = formulaDraft.trim();
-    onFormulaChange(trimmed || undefined);
+  const confirmFormula = (nextFormula: string) => {
+    onFormulaChange(nextFormula);
     setShowFormulaInput(false);
-    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula') && hasValidFormulaDraft) {
+    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula')) {
       advanceTutorial();
     }
   };
 
   const clearFormula = () => {
-    setFormulaDraft('');
     onFormulaChange(undefined);
     setShowFormulaInput(false);
   };
@@ -243,7 +209,6 @@ export function LabeledNumberField({
   };
 
   const openFormulaInput = () => {
-    setFormulaDraft(formula || '');
     setShowFormulaInput(true);
     setShowLabelInput(false);
     if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button')) {
@@ -310,11 +275,12 @@ export function LabeledNumberField({
             data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-tag-button` : undefined}
             type="button"
             onClick={openLabelInput}
+            aria-pressed={hasLabel}
             className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border rounded-button text-xs transition-colors ${
               showLabelInput
                 ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
-                : fieldLabel
-                  ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
+                : hasLabel
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper shadow-theme'
                   : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
                 } ${shouldHighlightStrengthTagButton ? 'ring-4 ring-blue-500 ring-offset-1 bg-blue-500 text-white border-blue-500' : ''}`}
           >
@@ -331,11 +297,12 @@ export function LabeledNumberField({
             data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-fx-button` : undefined}
             type="button"
             onClick={openFormulaInput}
+            aria-pressed={hasFormula}
             className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
               showFormulaInput
                 ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
-                : formula
-                  ? 'border-theme-accent bg-theme-accent/20 text-theme-accent'
+                : hasFormula
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper shadow-theme'
                   : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
                 } ${shouldHighlightDiceFormulaButton ? 'ring-4 ring-blue-500 ring-offset-1 bg-blue-500 text-white border-blue-500' : ''}`}
           >
@@ -432,99 +399,18 @@ export function LabeledNumberField({
         </div>
       )}
 
-      {/* Formula input popover */}
+      {/* Formula editor */}
       {showFormulaInput && (
-        <div className={`mt-1.5 p-2 border border-theme-accent/50 ${radiusClass} bg-theme-paper shadow-sm`}>
-          <div className="flex items-center gap-1 mb-1.5">
-            <span className="italic font-bold text-theme-accent text-xs">fx</span>
-            <span className="text-xs font-medium text-theme-ink">Formula</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <input
-              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidFormulaDraft ? 'formula-input' : 'formula-target'}` : undefined}
-              type="text"
-              value={formulaDraft}
-              onChange={(e) => setFormulaDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') confirmFormula();
-                if (e.key === 'Escape') setShowFormulaInput(false);
-              }}
-              placeholder="e.g. @str * 2 + 5"
-              className={`flex-1 px-2 py-1 border border-theme-border ${radiusClass} bg-theme-paper text-theme-ink text-xs font-mono focus:outline-none focus:border-theme-accent`}
-              autoFocus
-            />
-            <button
-              data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${hasValidFormulaDraft ? 'formula-target' : 'formula-confirm'}` : undefined}
-              type="button"
-              onClick={confirmFormula}
-              disabled={isCircular}
-              className={`px-2 py-1 bg-theme-accent text-theme-paper rounded-button text-xs hover:opacity-90 ${
-                isCircular ? 'opacity-40 cursor-not-allowed' : ''
-              } ${shouldHighlightDiceFormulaConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
-            >
-              Set
-            </button>
-            {formula && (
-              <button
-                type="button"
-                onClick={clearFormula}
-                className="px-2 py-1 border border-red-300 text-red-500 rounded-button text-xs hover:bg-red-50"
-              >
-                ×
-              </button>
-            )}
-          </div>
-
-          {/* Self-reference warning */}
-          {isSelfReferencing && (
-            <p className="text-[10px] text-red-500 mt-1">
-              A formula cannot reference its own label (@{fieldLabel})
-            </p>
-          )}
-
-          {/* Circular reference warning */}
-          {!isSelfReferencing && circularPath && (
-            <p className="text-[10px] text-red-500 mt-1">
-              Circular reference detected: {circularPath.map(l => `@${l}`).join(' → ')}
-            </p>
-          )}
-
-          {/* Formula preview */}
-          {formulaDraft && !isCircular && (
-            <div className="mt-1.5 flex items-center gap-2">
-              <span className="text-[10px] text-theme-muted">Result:</span>
-              <span className={`text-xs font-bold ${formulaPreview !== null ? 'text-theme-accent' : 'text-red-500'}`}>
-                {formulaPreview !== null ? formulaPreview : 'Invalid'}
-              </span>
-            </div>
-          )}
-
-          {/* Available labels */}
-          {availableLabels.length > 0 && (
-            <div className="mt-1.5">
-              <p className="text-[10px] text-theme-muted mb-1">Available labels (click to insert):</p>
-              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                {availableLabels.filter(l => l.label !== fieldLabel).map((l, i) => (
-                  <button
-                    key={`${l.label}-${i}`}
-                    type="button"
-                    onClick={() => setFormulaDraft(prev => prev + `@${l.label}`)}
-                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-theme-accent/10 text-theme-accent border border-theme-accent/20 hover:bg-theme-accent/25 transition-colors cursor-pointer"
-                    title={`${l.widgetLabel} (${l.sheetName}) = ${l.value}`}
-                  >
-                    @{l.label}
-                    <span className="text-theme-muted ml-0.5">={l.value}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] text-theme-muted">
-            <span>Use @label to reference values. Supports math functions, IF(), SWITCH(), ranges like 1..5, THRESHOLD(), VALUE(@column, row), SUM(@column), and SUM(@qty * @weight)</span>
-            <FormulaHelpDetailsButton className="text-[10px]" />
-          </div>
-        </div>
+        <FormulaEditorDialog
+          formula={formula}
+          character={activeChar}
+          sourceLabels={fieldLabel ? [fieldLabel] : []}
+          tutorialTargetPrefix={tutorialTargetPrefix}
+          highlightApply={shouldHighlightDiceFormulaConfirm}
+          onApply={confirmFormula}
+          onClear={formula ? clearFormula : undefined}
+          onCancel={() => setShowFormulaInput(false)}
+        />
       )}
     </>
   );

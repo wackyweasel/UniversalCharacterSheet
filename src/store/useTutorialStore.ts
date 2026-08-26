@@ -13,6 +13,7 @@ export interface TutorialStep {
   title: string;
   message: string;
   targetSelector?: string;
+  scrollTargetIntoView?: boolean;
   position: 'left' | 'right' | 'top' | 'bottom' | 'center';
   dock?: 'top';
   page: 'character-list' | 'sheet';
@@ -390,6 +391,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Tag Strength',
     message: 'Click the tag button on the Strength row. A tag gives this value a formula name.',
     targetSelector: '[data-tutorial="automation-strength-tag-button"]',
+    scrollTargetIntoView: true,
     position: 'left',
     page: 'sheet',
   },
@@ -430,6 +432,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Add a Formula to the Modifier',
     message: 'Click the fx button beside Modifier. This makes the modifier calculated instead of manually typed.',
     targetSelector: '[data-tutorial="automation-dice-modifier-fx-button"]',
+    scrollTargetIntoView: true,
     position: 'left',
     page: 'sheet',
   },
@@ -443,8 +446,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'automation-formula-operations',
-    title: 'Formula Operations',
-    message: 'Formulas can use + to add, - to subtract, * to multiply, / to divide, and parentheses for order. They also support floor(x), ceil(x), round(x), min(a,b), max(a,b), abs(x), IF(condition, trueValue, falseValue) with comparisons, SWITCH(value, case1, result1, default) with ranges like 1..5, THRESHOLD(value, @columnLabel, start), VALUE(@columnLabel, index, fallback), SUM(@columnLabel), and row-wise sums like SUM(@qty * @weight) for generated table-column labels.',
+    title: 'Formula Reference',
+    message: 'The formula editor includes every available label and an organized reference for operators, conditions, math functions, and table commands. Select any reference item to see how it works and review practical examples.',
     position: 'center',
     page: 'sheet',
     requiresManualAdvance: true,

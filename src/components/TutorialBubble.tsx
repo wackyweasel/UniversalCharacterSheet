@@ -19,6 +19,7 @@ interface TutorialBubbleProps {
 }
 
 type TutorialStep = NonNullable<typeof TUTORIAL_STEPS[number]>;
+type TutorialPosition = NonNullable<TutorialStep['position']>;
 
 const TUTORIAL_SECTIONS = [
   { name: 'Basic', startId: TUTORIAL_STEPS[0].id },
@@ -190,6 +191,32 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (!step?.scrollTargetIntoView || !step.targetSelector) return;
+
+    let frameId: number;
+    let remainingAttempts = 60;
+    const scrollToTarget = () => {
+      const target = Array.from(document.querySelectorAll(step.targetSelector!)).find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+
+      remainingAttempts -= 1;
+      if (remainingAttempts > 0) {
+        frameId = requestAnimationFrame(scrollToTarget);
+      }
+    };
+
+    frameId = requestAnimationFrame(scrollToTarget);
+    return () => cancelAnimationFrame(frameId);
+  }, [step]);
+
   if (!step) return null;
 
   // Steps that should show at top on narrow screens (e.g., when Done button is at bottom)
@@ -207,7 +234,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
       <div
         data-tutorial-bubble="true"
         onMouseDown={(event) => event.stopPropagation()}
-        className="fixed z-[100] left-0 right-0 px-4"
+        className="fixed z-[12000] left-0 right-0 px-4"
         style={showAtTopOnNarrow ? { top: BUBBLE_PADDING + 50 } : { bottom: BUBBLE_PADDING }}
       >
         <div className="mx-auto max-w-[400px]">
@@ -245,6 +272,7 @@ function PositionedBubble({
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [adjustedTransform, setAdjustedTransform] = useState('');
   const [isCentered, setIsCentered] = useState(false);
+  const [effectivePosition, setEffectivePosition] = useState<TutorialPosition>(step.position || 'center');
   const bubbleRef = useRef<HTMLDivElement>(null);
   const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete' || step.id === 'automation-complete' || step.id === 'various-complete';
 
@@ -256,6 +284,7 @@ function PositionedBubble({
         left: window.innerWidth / 2,
       });
       setAdjustedTransform('translateX(-50%)');
+      setEffectivePosition('top');
       return;
     }
 
@@ -267,6 +296,7 @@ function PositionedBubble({
         left: window.innerWidth / 2,
       });
       setAdjustedTransform('translate(-50%, -50%)');
+      setEffectivePosition('center');
       return;
     }
 
@@ -284,6 +314,7 @@ function PositionedBubble({
           left: window.innerWidth / 2,
         });
         setAdjustedTransform('translate(-50%, -50%)');
+        setEffectivePosition('center');
         return;
       }
 
@@ -295,13 +326,39 @@ function PositionedBubble({
         const bubbleWidth = bubbleRef.current?.offsetWidth || BUBBLE_WIDTH;
         const bubbleHeight = bubbleRef.current?.offsetHeight || 180;
         const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+        const gap = 12;
+        const space = {
+          left: rect.left - BUBBLE_PADDING,
+          right: viewportWidth - rect.right - BUBBLE_PADDING,
+          top: rect.top - BUBBLE_PADDING,
+          bottom: viewportHeight - rect.bottom - BUBBLE_PADDING,
+        };
+        const fits = {
+          left: space.left >= bubbleWidth + gap,
+          right: space.right >= bubbleWidth + gap,
+          top: space.top >= bubbleHeight + gap,
+          bottom: space.bottom >= bubbleHeight + gap,
+        };
+        const preferred = step.position || 'center';
+        let placement: TutorialPosition = preferred;
+
+        if (preferred === 'left' && !fits.left) {
+          placement = fits.right ? 'right' : fits.bottom ? 'bottom' : fits.top ? 'top' : 'center';
+        } else if (preferred === 'right' && !fits.right) {
+          placement = fits.left ? 'left' : fits.bottom ? 'bottom' : fits.top ? 'top' : 'center';
+        } else if (preferred === 'top' && !fits.top) {
+          placement = fits.bottom ? 'bottom' : fits.right ? 'right' : fits.left ? 'left' : 'center';
+        } else if (preferred === 'bottom' && !fits.bottom) {
+          placement = fits.top ? 'top' : fits.right ? 'right' : fits.left ? 'left' : 'center';
+        }
+
         let top = 0;
         let left = 0;
         let transform = '';
 
-        switch (step.position) {
+        switch (placement) {
           case 'bottom':
-            top = rect.bottom + 12;
+            top = rect.bottom + gap;
             left = rect.left + rect.width / 2;
             // Check if bubble would go off left edge
             if (left - BUBBLE_WIDTH / 2 < BUBBLE_PADDING) {
@@ -318,7 +375,7 @@ function PositionedBubble({
             }
             break;
           case 'top':
-            top = rect.top - 12;
+            top = rect.top - gap;
             left = rect.left + rect.width / 2;
             // Check if bubble would go off left edge
             if (left - BUBBLE_WIDTH / 2 < BUBBLE_PADDING) {
@@ -336,18 +393,24 @@ function PositionedBubble({
             break;
           case 'left':
             top = clamp(rect.top + rect.height / 2 - bubbleHeight / 2, BUBBLE_PADDING, viewportHeight - bubbleHeight - BUBBLE_PADDING);
-            left = clamp(rect.left - 12 - bubbleWidth, BUBBLE_PADDING, viewportWidth - bubbleWidth - BUBBLE_PADDING);
+            left = rect.left - gap - bubbleWidth;
             transform = '';
             break;
           case 'right':
             top = clamp(rect.top + rect.height / 2 - bubbleHeight / 2, BUBBLE_PADDING, viewportHeight - bubbleHeight - BUBBLE_PADDING);
-            left = clamp(rect.right + 12, BUBBLE_PADDING, viewportWidth - bubbleWidth - BUBBLE_PADDING);
+            left = rect.right + gap;
             transform = '';
+            break;
+          case 'center':
+            top = window.innerHeight / 2;
+            left = window.innerWidth / 2;
+            transform = 'translate(-50%, -50%)';
             break;
         }
 
         setPosition({ top, left });
         setAdjustedTransform(transform);
+        setEffectivePosition(placement);
       }
     };
 
@@ -381,7 +444,7 @@ function PositionedBubble({
 
     const borderColor = darkMode ? 'rgba(255,255,255,0.3)' : '#e5e7eb';
 
-    switch (step.position) {
+    switch (effectivePosition) {
       case 'center':
         return { display: 'none' };
       case 'bottom':
@@ -429,7 +492,7 @@ function PositionedBubble({
     <div
       data-tutorial-bubble="true"
       onMouseDown={(event) => event.stopPropagation()}
-      className="fixed z-[100]"
+      className="fixed z-[12000]"
       style={{
         top: position.top,
         left: position.left,
@@ -438,7 +501,7 @@ function PositionedBubble({
     >
       <div ref={bubbleRef} className="relative w-[320px] max-w-[calc(100vw-32px)]">
         {/* Arrow */}
-        {!isCentered && <div style={getArrowStyle()} />}
+        {!isCentered && effectivePosition !== 'center' && <div style={getArrowStyle()} />}
         <TutorialCard
           step={step}
           stepIndex={stepIndex}

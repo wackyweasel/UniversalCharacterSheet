@@ -32,6 +32,10 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.4.4',
+    changes: ['New formula editor'],
+  },
+  {
     version: '1.4.3',
     changes: [
       'Fixed a few issues with the list view (multiple columns now fill the screen better, widgets can now be dropped in any position as expected, and some widgets were not properly displayed).',
