@@ -6,6 +6,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { XIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { trackGoatCounterEvent } from '../../utils/goatCounter';
 
 interface Props {
   widget: Widget;
@@ -181,6 +182,7 @@ export default function RestButtonWidget({ widget }: Props) {
       resultMessage = 'Healed to full!';
     } else if (plan.heal && healRandomDice.length > 0) {
       const rolled = rollDice(healRandomDice);
+      trackGoatCounterEvent('roll-dice');
       healAmount = rolled + (healFlatAmount ?? 0);
       resultMessage = `Healed ${healAmount} HP (${formatDiceGroups(healRandomDice)}${healFlatAmount ? ` + ${healFlatAmount}` : ''})`;
     } else if (plan.heal && healFlatAmount && healFlatAmount > 0) {

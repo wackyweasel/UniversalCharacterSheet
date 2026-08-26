@@ -6,6 +6,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { ChevronDownIcon, ChevronUpIcon } from '../icons';
+import { trackGoatCounterEvent } from '../../utils/goatCounter';
 import {
   isPhysicalDieSupported,
   rollPhysicalDice,
@@ -388,6 +389,7 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
     
     setResult({ groups, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
+    trackGoatCounterEvent('roll-dice');
 
     // Timeline event
     const notation = buildDiceNotation();
@@ -421,6 +423,7 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
 
     setResult({ groups: newGroups, modifier: result.modifier, total: newTotal, aggregatedResults: aggregated });
     setIsRolling(false);
+    trackGoatCounterEvent('roll-dice');
 
     const dieName = group.customFaces && group.customFaces.length > 0
       ? group.configuration.customDiceName || 'custom'

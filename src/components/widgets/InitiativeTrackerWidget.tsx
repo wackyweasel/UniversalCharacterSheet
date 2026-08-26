@@ -6,6 +6,7 @@ import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle } from './StructureDialogControls';
+import { trackGoatCounterEvent } from '../../utils/goatCounter';
 
 interface Props {
   widget: Widget;
@@ -455,6 +456,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         initiativeEncounter: sorted,
         initiativeCurrentIndex: 0
       });
+      trackGoatCounterEvent('roll-dice');
       
       setIsRolling(false);
     }, 300);
@@ -474,6 +476,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
       initiativeEncounter: sorted,
       initiativeCurrentIndex: activeParticipantIndex >= 0 ? activeParticipantIndex : 0,
     });
+    trackGoatCounterEvent('roll-dice');
   };
 
   // Navigate to next participant
