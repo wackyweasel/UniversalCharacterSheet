@@ -371,7 +371,7 @@ export function FormulaEditorDialog({
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 sm:p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5 lg:overflow-hidden">
-          <div className="flex min-h-0 flex-col">
+          <div className={`flex min-h-0 flex-col ${mobilePanel === 'labels' ? 'flex-1 overflow-y-auto' : 'flex-none'}`}>
             <section className="flex-none" aria-labelledby="formula-expression-title">
               <div className="mb-1.5 flex items-end justify-between gap-3">
                 <h3 id="formula-expression-title" className="text-sm font-bold text-theme-ink">Expression</h3>
@@ -390,7 +390,7 @@ export function FormulaEditorDialog({
                 }}
                 rows={3}
                 spellCheck={false}
-                className="min-h-20 max-h-40 w-full resize-y rounded-theme border bg-theme-paper px-3 py-2.5 font-mono text-sm leading-6 text-theme-ink"
+                className="h-20 min-h-20 max-h-40 w-full resize-y rounded-theme border bg-theme-paper px-3 py-2.5 font-mono text-sm leading-6 text-theme-ink sm:h-auto"
                 aria-labelledby="formula-expression-title"
                 aria-invalid={status.kind !== 'empty' && status.kind !== 'valid'}
                 aria-describedby="formula-status"
