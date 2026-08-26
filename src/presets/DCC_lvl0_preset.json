@@ -1,125 +1,25 @@
 {
-  "id": "df15ba6d-2da1-4d94-b9f9-f96ff1958741",
-  "name": "sfdg",
-  "theme": "classic-dark",
+  "id": "5499735f-858b-4f99-ac77-9435c24b2317",
+  "name": "New DCC preset",
+  "theme": "default",
   "sheets": [
     {
-      "id": "3bf2203a-4118-4864-9274-dfc7fb149b4e",
+      "id": "64e7a56f-9e04-48bb-931c-8560e9ff02e3",
       "name": "Main",
       "widgets": [
         {
-          "id": "feadff3f-1915-4689-9cb6-2f08c90c2e1b",
-          "type": "FORM",
-          "x": -250,
-          "y": -130,
-          "w": 270,
-          "h": 160,
-          "data": {
-            "label": "Character Info",
-            "formItems": [
-              {
-                "name": "Name",
-                "value": ""
-              },
-              {
-                "name": "Occupation",
-                "value": ""
-              },
-              {
-                "name": "Title",
-                "value": ""
-              },
-              {
-                "name": "Class",
-                "value": ""
-              },
-              {
-                "name": "Alignment",
-                "value": ""
-              }
-            ]
-          },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
-          "attachedTo": [
-            "1d59a07a-f999-4400-b671-e6108fc9f046",
-            "8787bd92-e49a-4ede-80a8-5e683dba473c",
-            "2d10a31a-ec6c-427a-ae1c-674cc01faabd"
-          ]
-        },
-        {
-          "id": "7a4e55b5-5781-4eb5-96bc-7b2bb460828a",
+          "id": "13eef0e5-8000-44a8-990d-889dc1afcf98",
           "type": "NUMBER_DISPLAY",
-          "x": 170,
-          "y": -130,
-          "w": 80,
-          "h": 70,
-          "data": {
-            "label": "",
-            "displayNumbers": [
-              {
-                "label": "Level",
-                "value": 0,
-                "valueFormula": "threshold(@xp, @thres)",
-                "valueLabel": "lvl"
-              }
-            ],
-            "showFieldControls": false,
-            "hideWidgetHeader": true
-          },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
-          "attachedTo": [
-            "2d10a31a-ec6c-427a-ae1c-674cc01faabd",
-            "8787bd92-e49a-4ede-80a8-5e683dba473c"
-          ]
-        },
-        {
-          "id": "2d10a31a-ec6c-427a-ae1c-674cc01faabd",
-          "type": "PROGRESS_BAR",
-          "x": 20,
-          "y": -130,
-          "w": 150,
-          "h": 70,
-          "data": {
-            "label": "XP",
-            "showPercentage": false,
-            "currentValue": 0,
-            "fieldLabels": {
-              "currentValue": "xp"
-            },
-            "fieldFormulas": {
-              "maxValue": "value(@thres, @lvl+1, 0)"
-            },
-            "maxValue": 10,
-            "allowOutOfRange": true,
-            "verticalBar": false,
-            "showValues": true,
-            "showMaxControl": false,
-            "inlineLabel": false
-          },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
-          "attachedTo": [
-            "feadff3f-1915-4689-9cb6-2f08c90c2e1b",
-            "8787bd92-e49a-4ede-80a8-5e683dba473c",
-            "7a4e55b5-5781-4eb5-96bc-7b2bb460828a"
-          ]
-        },
-        {
-          "id": "1d59a07a-f999-4400-b671-e6108fc9f046",
-          "type": "NUMBER_DISPLAY",
-          "x": -250,
-          "y": 30,
-          "w": 270,
-          "h": 70,
+          "x": 720,
+          "y": -210,
+          "w": 90,
+          "h": 260,
           "data": {
             "label": "",
             "displayNumbers": [
               {
                 "label": "AC",
                 "value": 10
-              },
-              {
-                "label": "Speed",
-                "value": 25
               },
               {
                 "label": "Reflex",
@@ -135,213 +35,44 @@
               }
             ],
             "showFieldControls": false,
-            "hideWidgetHeader": true
+            "hideWidgetHeader": true,
+            "displayLayout": "vertical"
           },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
+          "zIndex": 306,
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
           "attachedTo": [
-            "feadff3f-1915-4689-9cb6-2f08c90c2e1b",
-            "845a39c6-c382-439c-a632-5b63727b9055",
-            "8787bd92-e49a-4ede-80a8-5e683dba473c"
+            "6bd9c31e-1b18-40a3-a56f-cd83eea2b459",
+            "53acd3d4-c2fc-473c-b6f0-5e682469b5df",
+            "2a909f51-a1d8-4612-a4c0-14a8281a828b",
+            "fd6a485b-7efb-4311-882f-b4b762c229e3",
+            "73f8deda-615a-4fab-b188-66f149ea0396"
           ]
         },
         {
-          "id": "845a39c6-c382-439c-a632-5b63727b9055",
+          "id": "53acd3d4-c2fc-473c-b6f0-5e682469b5df",
           "type": "HEALTH_BAR",
-          "x": -250,
-          "y": 100,
-          "w": 270,
-          "h": 100,
+          "x": 720,
+          "y": -330,
+          "w": 300,
+          "h": 120,
           "data": {
             "label": "Health"
           },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
+          "zIndex": 306,
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
           "attachedTo": [
-            "1d59a07a-f999-4400-b671-e6108fc9f046",
-            "8787bd92-e49a-4ede-80a8-5e683dba473c",
-            "8fea33e8-96f7-423e-a519-27b8022975a8",
-            "34278a64-154b-4d9f-95be-4348fb302953",
-            "cafd9b18-89d5-499a-85e9-915572e62459"
+            "13eef0e5-8000-44a8-990d-889dc1afcf98",
+            "6bd9c31e-1b18-40a3-a56f-cd83eea2b459",
+            "fd6a485b-7efb-4311-882f-b4b762c229e3",
+            "73f8deda-615a-4fab-b188-66f149ea0396"
           ]
         },
         {
-          "id": "8787bd92-e49a-4ede-80a8-5e683dba473c",
-          "type": "TABLE",
-          "x": 20,
-          "y": -60,
-          "w": 230,
-          "h": 190,
-          "data": {
-            "label": "",
-            "columns": [
-              "Stat",
-              "Max",
-              "Current",
-              "Modifier"
-            ],
-            "rows": [
-              {
-                "cells": [
-                  {
-                    "value": "Strength",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {},
-                    "label": "str"
-                  },
-                  {
-                    "value": "0",
-                    "format": {},
-                    "formula": "switch(@str, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)"
-                  }
-                ]
-              },
-              {
-                "cells": [
-                  {
-                    "value": "Agility",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {},
-                    "label": "agi"
-                  },
-                  {
-                    "value": "0",
-                    "format": {},
-                    "formula": "switch(@agi, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)"
-                  }
-                ]
-              },
-              {
-                "cells": [
-                  {
-                    "value": "Stamina",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {},
-                    "label": "sta"
-                  },
-                  {
-                    "value": "0",
-                    "format": {},
-                    "formula": "switch(@sta, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)"
-                  }
-                ]
-              },
-              {
-                "cells": [
-                  {
-                    "value": "Personality",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {},
-                    "label": "per"
-                  },
-                  {
-                    "value": "0",
-                    "format": {},
-                    "formula": "switch(@per, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)"
-                  }
-                ]
-              },
-              {
-                "cells": [
-                  {
-                    "value": "Intelligence",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {},
-                    "label": "int"
-                  },
-                  {
-                    "value": "0",
-                    "format": {},
-                    "formula": "switch(@int, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)"
-                  }
-                ]
-              },
-              {
-                "cells": [
-                  {
-                    "value": "Luck",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {}
-                  },
-                  {
-                    "value": "10",
-                    "format": {},
-                    "label": "luck"
-                  },
-                  {
-                    "value": "0",
-                    "format": {},
-                    "formula": "switch(@luck, -1000..3, -3, 4..5, -2, 6..8, -1, 9..12, 0, 13..15, 1, 16..17, 2, 18..1000, 3)"
-                  }
-                ]
-              }
-            ],
-            "tableColumnSettings": [
-              {}
-            ],
-            "tableRowSettings": [
-              {},
-              {},
-              {},
-              {},
-              {},
-              {}
-            ],
-            "showTableEditButton": false,
-            "hideWidgetHeader": true
-          },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
-          "attachedTo": [
-            "feadff3f-1915-4689-9cb6-2f08c90c2e1b",
-            "1d59a07a-f999-4400-b671-e6108fc9f046",
-            "845a39c6-c382-439c-a632-5b63727b9055",
-            "2d10a31a-ec6c-427a-ae1c-674cc01faabd",
-            "7a4e55b5-5781-4eb5-96bc-7b2bb460828a",
-            "8fea33e8-96f7-423e-a519-27b8022975a8"
-          ]
-        },
-        {
-          "id": "a6ed465a-3386-4a85-b3ac-a732c6c4de86",
+          "id": "31e6d376-3593-499a-8ba2-bde8cab50895",
           "type": "DICE_TRAY",
-          "x": 270,
-          "y": -130,
-          "w": 360,
+          "x": 230,
+          "y": -90,
+          "w": 180,
           "h": 200,
           "data": {
             "label": "Dice Tray",
@@ -361,87 +92,44 @@
               30,
               100
             ],
-            "showTrayRollDetails": false
-          }
-        },
-        {
-          "id": "8fea33e8-96f7-423e-a519-27b8022975a8",
-          "type": "FORM",
-          "x": 20,
-          "y": 130,
-          "w": 230,
-          "h": 160,
-          "data": {
-            "label": "Combat",
-            "formItems": [
-              {
-                "name": "Initiative",
-                "value": ""
-              },
-              {
-                "name": "Action Dice",
-                "value": ""
-              },
-              {
-                "name": "Attack",
-                "value": ""
-              },
-              {
-                "name": "Crit Die",
-                "value": ""
-              },
-              {
-                "name": "Crit Table",
-                "value": ""
-              }
-            ]
+            "showTrayRollDetails": false,
+            "diceButtonScale": 50
           },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
+          "zIndex": 306,
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
           "attachedTo": [
-            "845a39c6-c382-439c-a632-5b63727b9055",
-            "8787bd92-e49a-4ede-80a8-5e683dba473c",
-            "15fce8d4-4dc5-4895-874f-b1b9cda21359",
-            "34278a64-154b-4d9f-95be-4348fb302953",
-            "cafd9b18-89d5-499a-85e9-915572e62459"
+            "ebd8a2ea-f09e-4340-8b83-e48d25a7c65b",
+            "23f74cc7-4f3a-4678-a429-422729ec9121",
+            "ef5f1c7e-010b-4aa0-93d4-840ea74fc526"
           ]
         },
         {
-          "id": "15fce8d4-4dc5-4895-874f-b1b9cda21359",
-          "type": "TIME_TRACKER",
-          "x": 20,
-          "y": 290,
-          "w": 230,
-          "h": 180,
-          "data": {
-            "label": "Temporary Effects"
-          },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
-          "attachedTo": [
-            "8fea33e8-96f7-423e-a519-27b8022975a8",
-            "34278a64-154b-4d9f-95be-4348fb302953",
-            "cafd9b18-89d5-499a-85e9-915572e62459"
-          ]
-        },
-        {
-          "id": "57c2e4df-730d-4c03-8a49-665c667557eb",
+          "id": "ef5f1c7e-010b-4aa0-93d4-840ea74fc526",
           "type": "TEXT",
-          "x": 270,
-          "y": 90,
-          "w": 360,
-          "h": 240,
+          "x": 230,
+          "y": 110,
+          "w": 400,
+          "h": 260,
           "data": {
             "label": "Notes",
             "richText": "<p></p>",
             "text": ""
-          }
+          },
+          "zIndex": 306,
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
+          "attachedTo": [
+            "23f74cc7-4f3a-4678-a429-422729ec9121",
+            "31e6d376-3593-499a-8ba2-bde8cab50895",
+            "2a909f51-a1d8-4612-a4c0-14a8281a828b"
+          ]
         },
         {
-          "id": "cafd9b18-89d5-499a-85e9-915572e62459",
+          "id": "2a909f51-a1d8-4612-a4c0-14a8281a828b",
           "type": "INVENTORY",
-          "x": -250,
-          "y": 200,
-          "w": 270,
-          "h": 270,
+          "x": 630,
+          "y": 50,
+          "w": 390,
+          "h": 320,
           "data": {
             "label": "Inventory",
             "value": 0,
@@ -469,21 +157,310 @@
               "showGlobalCounter": false
             }
           },
-          "groupId": "bb271bd7-1de4-42f0-ade0-49bb229c1055",
+          "zIndex": 306,
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
           "attachedTo": [
-            "845a39c6-c382-439c-a632-5b63727b9055",
-            "8fea33e8-96f7-423e-a519-27b8022975a8",
-            "15fce8d4-4dc5-4895-874f-b1b9cda21359"
+            "13eef0e5-8000-44a8-990d-889dc1afcf98",
+            "6bd9c31e-1b18-40a3-a56f-cd83eea2b459",
+            "23f74cc7-4f3a-4678-a429-422729ec9121",
+            "ef5f1c7e-010b-4aa0-93d4-840ea74fc526",
+            "fd6a485b-7efb-4311-882f-b4b762c229e3",
+            "73f8deda-615a-4fab-b188-66f149ea0396"
+          ]
+        },
+        {
+          "id": "ebd8a2ea-f09e-4340-8b83-e48d25a7c65b",
+          "type": "IMAGE",
+          "x": 230,
+          "y": -330,
+          "w": 180,
+          "h": 240,
+          "zIndex": 306,
+          "data": {
+            "label": "Name",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "imageTitleAlignment": "center",
+            "imageTitlePosition": "above",
+            "imageShape": "rectangle"
+          },
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
+          "attachedTo": [
+            "3c49467b-e370-47dc-8a19-f29b8ac70383",
+            "31e6d376-3593-499a-8ba2-bde8cab50895"
+          ]
+        },
+        {
+          "id": "3c49467b-e370-47dc-8a19-f29b8ac70383",
+          "type": "MIXED_FIELDS",
+          "x": 410,
+          "y": -330,
+          "w": 220,
+          "h": 240,
+          "zIndex": 306,
+          "data": {
+            "label": "Character Info",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              {
+                "type": "text",
+                "name": "Occupation",
+                "value": ""
+              },
+              {
+                "type": "text",
+                "name": "Title",
+                "value": ""
+              },
+              {
+                "type": "number",
+                "name": "Level",
+                "value": 0,
+                "showIncrementButtons": false,
+                "valueLabel": "lvl",
+                "valueFormula": "threshold(@xp, @thres)"
+              },
+              {
+                "type": "progress",
+                "name": "XP",
+                "current": 0,
+                "min": 0,
+                "max": 10,
+                "showValues": true,
+                "maxFormula": "value(@thres, @lvl+1, 0)",
+                "currentLabel": "xp"
+              },
+              {
+                "type": "text",
+                "name": "Class",
+                "value": ""
+              },
+              {
+                "type": "menu",
+                "name": "Alignment",
+                "value": "Neutral",
+                "options": [
+                  "Lawful",
+                  "Neutral",
+                  "Chaotic"
+                ]
+              }
+            ],
+            "labelWidth": 45
+          },
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
+          "attachedTo": [
+            "ebd8a2ea-f09e-4340-8b83-e48d25a7c65b",
+            "6bd9c31e-1b18-40a3-a56f-cd83eea2b459",
+            "23f74cc7-4f3a-4678-a429-422729ec9121"
+          ]
+        },
+        {
+          "id": "6bd9c31e-1b18-40a3-a56f-cd83eea2b459",
+          "type": "NUMBER_DISPLAY",
+          "x": 630,
+          "y": -330,
+          "w": 90,
+          "h": 380,
+          "zIndex": 306,
+          "data": {
+            "label": "Stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "STR",
+                "value": 10,
+                "valueLabel": "str",
+                "secondaryValue": 0,
+                "maxValue": 10
+              },
+              {
+                "label": "AGI",
+                "value": 10,
+                "valueLabel": "agi",
+                "secondaryValue": 0,
+                "maxValue": 10
+              },
+              {
+                "label": "STA",
+                "value": 10,
+                "valueLabel": "sta",
+                "secondaryValue": 0,
+                "maxValue": 10
+              },
+              {
+                "label": "PER",
+                "value": 10,
+                "valueLabel": "per",
+                "secondaryValue": 0,
+                "maxValue": 10
+              },
+              {
+                "label": "INT",
+                "value": 10,
+                "valueLabel": "int",
+                "secondaryValue": 0,
+                "maxValue": 10
+              },
+              {
+                "label": "LUCK",
+                "value": 10,
+                "valueLabel": "luck",
+                "secondaryValue": 0,
+                "maxValue": 10
+              }
+            ],
+            "showSecondaryDisplayNumbers": true,
+            "secondaryDisplayAutoCompute": true,
+            "secondaryDisplayModifierRanges": [
+              {
+                "min": -1000,
+                "max": 3,
+                "modifier": -3
+              },
+              {
+                "min": 4,
+                "max": 5,
+                "modifier": -2
+              },
+              {
+                "min": 6,
+                "max": 8,
+                "modifier": -1
+              },
+              {
+                "min": 9,
+                "max": 12,
+                "modifier": 0
+              },
+              {
+                "min": 13,
+                "max": 15,
+                "modifier": 1
+              },
+              {
+                "min": 16,
+                "max": 17,
+                "modifier": 2
+              },
+              {
+                "min": 18,
+                "max": 1000,
+                "modifier": 3
+              }
+            ],
+            "displayLayout": "vertical",
+            "showDisplayNumberMax": true,
+            "hideWidgetHeader": true
+          },
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
+          "attachedTo": [
+            "3c49467b-e370-47dc-8a19-f29b8ac70383",
+            "23f74cc7-4f3a-4678-a429-422729ec9121",
+            "13eef0e5-8000-44a8-990d-889dc1afcf98",
+            "53acd3d4-c2fc-473c-b6f0-5e682469b5df",
+            "2a909f51-a1d8-4612-a4c0-14a8281a828b"
+          ]
+        },
+        {
+          "id": "23f74cc7-4f3a-4678-a429-422729ec9121",
+          "type": "MIXED_FIELDS",
+          "x": 410,
+          "y": -90,
+          "w": 220,
+          "h": 200,
+          "zIndex": 306,
+          "data": {
+            "label": "Combat Stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              {
+                "type": "number",
+                "name": "Initiative",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "name": "Movement",
+                "value": 0
+              },
+              {
+                "type": "text",
+                "name": "Action Dice",
+                "value": ""
+              },
+              {
+                "type": "number",
+                "name": "Attack Bonus",
+                "value": 0
+              },
+              {
+                "type": "text",
+                "name": "Crit Die/Table",
+                "value": ""
+              }
+            ],
+            "labelWidth": 53
+          },
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
+          "attachedTo": [
+            "3c49467b-e370-47dc-8a19-f29b8ac70383",
+            "6bd9c31e-1b18-40a3-a56f-cd83eea2b459",
+            "31e6d376-3593-499a-8ba2-bde8cab50895",
+            "2a909f51-a1d8-4612-a4c0-14a8281a828b",
+            "ef5f1c7e-010b-4aa0-93d4-840ea74fc526"
+          ]
+        },
+        {
+          "id": "73f8deda-615a-4fab-b188-66f149ea0396",
+          "type": "TIME_TRACKER",
+          "x": 810,
+          "y": -210,
+          "w": 210,
+          "h": 260,
+          "zIndex": 306,
+          "data": {
+            "label": "Temporary Effects",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "effectSuggestions": [
+              "Poisoned",
+              "Burning",
+              "Blinded",
+              "Charmed",
+              "Frightened",
+              "Stunned",
+              "Prone",
+              "Restrained",
+              "Slowed",
+              "Hasted",
+              "Invisible",
+              "Blessed"
+            ]
+          },
+          "groupId": "590309cb-434c-4315-92c6-4b9b8ba34f74",
+          "attachedTo": [
+            "53acd3d4-c2fc-473c-b6f0-5e682469b5df",
+            "13eef0e5-8000-44a8-990d-889dc1afcf98",
+            "2a909f51-a1d8-4612-a4c0-14a8281a828b"
           ]
         }
       ]
     },
     {
-      "id": "914afb89-1b4e-458c-9952-7981e46ce3f9",
+      "id": "c1b38682-18bf-400f-825b-a1be58b5191d",
       "name": "Tables",
       "widgets": [
         {
-          "id": "3df5d7cc-b81d-459f-b8c0-e03648945fd6",
+          "id": "2e1960aa-fc41-453d-b3df-0635464accd8",
           "type": "TABLE",
           "x": 200,
           "y": 40,
@@ -611,5 +588,5 @@
       ]
     }
   ],
-  "activeSheetId": "3bf2203a-4118-4864-9274-dfc7fb149b4e"
+  "activeSheetId": "64e7a56f-9e04-48bb-931c-8560e9ff02e3"
 }
