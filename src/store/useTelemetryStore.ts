@@ -136,7 +136,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
     },
     
     sendTelemetry: (character: Character) => {
-      const { shouldSend, lastSent } = get();
+      const { shouldSend, lastSent, lastVisitTime } = get();
       
       // Check rate limit
       if (!shouldSend(character.id)) {
@@ -152,7 +152,10 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       
       // Persist to localStorage
       try {
-        localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify({ lastSent: newLastSent }));
+        localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify({
+          lastSent: newLastSent,
+          lastVisitTime,
+        }));
       } catch (e) {
         console.error('Failed to persist telemetry state', e);
       }
