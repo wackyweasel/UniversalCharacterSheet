@@ -54,6 +54,36 @@ function getClientId(): string {
 }
 
 const sessionId = createRandomId();
+let visitRequestQueue: Promise<void> = Promise.resolve();
+
+function postTelemetryEvent(event: TelemetryEventInput): Promise<void> {
+  const payload = {
+    kind: 'event',
+    clientTimestamp: new Date().toISOString(),
+    eventName: event.eventName,
+    category: event.category,
+    sessionId,
+    clientId: getClientId(),
+    characterId: event.characterId ?? null,
+    sheetId: event.sheetId ?? null,
+    mode: event.mode ?? null,
+    widgetType: event.widgetType ?? null,
+    source: event.source ?? null,
+    metadata: event.metadata ?? {},
+  };
+
+  return fetch(TELEMETRY_ENDPOINT, {
+    method: 'POST',
+    mode: 'no-cors',
+    keepalive: true,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  }).then(() => undefined).catch((e) => {
+    console.debug('Telemetry event send failed (this is okay):', e);
+  });
+}
 
 interface TelemetryState {
   // Map of characterId -> timestamp of last send
@@ -166,47 +196,22 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
         console.error('Failed to persist visit telemetry state', e);
       }
 
-      const recordEvent = get().recordEvent;
       windowsToSend.forEach(({ key, eventName, durationMs }) => {
-        recordEvent({
+        const event = {
           eventName,
-          category: 'view',
+          category: 'view' as const,
           source: 'visit_window',
           metadata: {
             window: key,
             windowMilliseconds: durationMs,
           },
-        });
+        };
+        visitRequestQueue = visitRequestQueue.then(() => postTelemetryEvent(event));
       });
     },
 
     recordEvent: (event) => {
-      const payload = {
-        kind: 'event',
-        clientTimestamp: new Date().toISOString(),
-        eventName: event.eventName,
-        category: event.category,
-        sessionId,
-        clientId: getClientId(),
-        characterId: event.characterId ?? null,
-        sheetId: event.sheetId ?? null,
-        mode: event.mode ?? null,
-        widgetType: event.widgetType ?? null,
-        source: event.source ?? null,
-        metadata: event.metadata ?? {},
-      };
-
-      fetch(TELEMETRY_ENDPOINT, {
-        method: 'POST',
-        mode: 'no-cors',
-        keepalive: true,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }).catch((e) => {
-        console.debug('Telemetry event send failed (this is okay):', e);
-      });
+      void postTelemetryEvent(event);
     },
   };
 });
