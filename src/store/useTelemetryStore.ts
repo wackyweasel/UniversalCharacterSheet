@@ -7,6 +7,17 @@ const TELEMETRY_CLIENT_ID_KEY = 'ucs:telemetry:clientId';
 const TELEMETRY_ENDPOINT = 'https://script.google.com/macros/s/AKfycby8xvlrO8encU4T1lLWXxRf7YglX-NvmlCKvQn5YPabdUXIhllx-7NtM8dlKk4dE8XGvg/exec';
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
+const VISIT_WINDOWS = [
+  { key: '1h', eventName: 'visit_1h', durationMs: 60 * 60 * 1000 },
+  { key: '8h', eventName: 'visit_8h', durationMs: 8 * 60 * 60 * 1000 },
+  { key: '24h', eventName: 'visit_24h', durationMs: 24 * 60 * 60 * 1000 },
+  { key: '7d', eventName: 'visit_7d', durationMs: 7 * 24 * 60 * 60 * 1000 },
+  { key: '1m', eventName: 'visit_1m', durationMs: 30 * 24 * 60 * 60 * 1000 },
+] as const;
+
+type VisitWindowKey = typeof VISIT_WINDOWS[number]['key'];
+type LastVisitTime = Partial<Record<VisitWindowKey, number>>;
+
 type TelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'gallery' | 'print' | 'timeline' | 'view' | 'app';
 
 type TelemetryMetadata = Record<string, string | number | boolean | null | undefined>;
@@ -47,12 +58,18 @@ const sessionId = createRandomId();
 interface TelemetryState {
   // Map of characterId -> timestamp of last send
   lastSent: Record<string, number>;
+
+  // Map of visit window -> timestamp of the last event sent for that window
+  lastVisitTime: LastVisitTime;
   
   // Check if we should send telemetry for this character (24h rate limit)
   shouldSend: (characterId: string) => boolean;
   
   // Send telemetry for a character (respects rate limit)
   sendTelemetry: (character: Character) => void;
+
+  // Record visit events, with one independent rate limit per visit window
+  recordVisit: () => void;
 
   // Record a workflow event in the Telemetry sheet (not rate-limited)
   recordEvent: (event: TelemetryEventInput) => void;
@@ -63,16 +80,24 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
   const persisted = (() => {
     try {
       const raw = localStorage.getItem(TELEMETRY_STORAGE_KEY);
-      if (!raw) return { lastSent: {} };
-      return JSON.parse(raw) as { lastSent: Record<string, number> };
+      if (!raw) return { lastSent: {}, lastVisitTime: {} };
+      const data = JSON.parse(raw) as {
+        lastSent?: Record<string, number>;
+        lastVisitTime?: LastVisitTime;
+      };
+      return {
+        lastSent: data.lastSent ?? {},
+        lastVisitTime: data.lastVisitTime ?? {},
+      };
     } catch (e) {
       console.error('Failed to load telemetry state', e);
-      return { lastSent: {} };
+      return { lastSent: {}, lastVisitTime: {} };
     }
   })();
 
   return {
     lastSent: persisted.lastSent,
+    lastVisitTime: persisted.lastVisitTime,
     
     shouldSend: (characterId: string) => {
       const lastSent = get().lastSent[characterId];
@@ -113,6 +138,45 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => {
       }).catch((e) => {
         // Silently fail - telemetry is not critical
         console.debug('Telemetry send failed (this is okay):', e);
+      });
+    },
+
+    recordVisit: () => {
+      const { lastSent, lastVisitTime } = get();
+      const now = Date.now();
+      const windowsToSend = VISIT_WINDOWS.filter(({ key, durationMs }) => {
+        const lastSentTime = lastVisitTime[key];
+        return lastSentTime === undefined || now - lastSentTime >= durationMs;
+      });
+
+      if (windowsToSend.length === 0) return;
+
+      const newLastVisitTime = { ...lastVisitTime };
+      windowsToSend.forEach(({ key }) => {
+        newLastVisitTime[key] = now;
+      });
+      set({ lastVisitTime: newLastVisitTime });
+
+      try {
+        localStorage.setItem(TELEMETRY_STORAGE_KEY, JSON.stringify({
+          lastSent,
+          lastVisitTime: newLastVisitTime,
+        }));
+      } catch (e) {
+        console.error('Failed to persist visit telemetry state', e);
+      }
+
+      const recordEvent = get().recordEvent;
+      windowsToSend.forEach(({ key, eventName, durationMs }) => {
+        recordEvent({
+          eventName,
+          category: 'view',
+          source: 'visit_window',
+          metadata: {
+            window: key,
+            windowMilliseconds: durationMs,
+          },
+        });
       });
     },
 

@@ -5,6 +5,7 @@ import DicePhysicsOverlay from './components/DicePhysicsOverlay';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
 import UpdatePrompt from './components/UpdatePrompt';
+import { useTelemetryStore } from './store/useTelemetryStore';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -50,6 +51,11 @@ class SheetErrorBoundary extends Component<SheetErrorBoundaryProps, SheetErrorBo
 
 function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
+  const recordVisit = useTelemetryStore((state) => state.recordVisit);
+
+  useEffect(() => {
+    recordVisit();
+  }, [activeCharacterId, recordVisit]);
 
   useEffect(() => {
     const visualViewport = window.visualViewport;
