@@ -236,12 +236,11 @@ export default function ShareExportMenu({
             <div className="border-b border-theme-border/50 px-3 py-2.5">
               <p className="mb-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Settings</p>
               <div>
-                <div className="flex min-h-12 items-center justify-between gap-3 py-1.5">
+                <div className="flex h-9 items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <DiceIcon className="h-4 w-4 shrink-0 text-theme-muted" />
+                    <DiceIcon className="h-4 w-4 shrink-0 text-theme-ink" />
                     <div className="min-w-0">
                       <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>
-                      <span className="block truncate text-[11px] font-body text-theme-muted">Physics dice simulation</span>
                     </div>
                   </div>
                   <Tooltip content={threeDDiceEnabled ? 'Disable physics-based 3D dice' : 'Enable physics-based 3D dice'} placement="below"><button
@@ -256,12 +255,11 @@ export default function ShareExportMenu({
                     <span className="sr-only">{threeDDiceEnabled ? 'On' : 'Off'}</span>
                   </button></Tooltip>
                 </div>
-                <div className="flex min-h-12 items-center justify-between gap-3 py-1.5">
+                <div className="flex h-9 items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <LinkIcon className="h-4 w-4 shrink-0 text-theme-muted" />
+                    <LinkIcon className="h-4 w-4 shrink-0 text-theme-ink" />
                     <div className="min-w-0">
                       <span className="block text-sm font-semibold font-body text-theme-ink">Attachment controls</span>
-                      <span className="block truncate text-[11px] font-body text-theme-muted">Show attach and detach buttons</span>
                     </div>
                   </div>
                   <Tooltip content={attachmentControlsVisible ? 'Hide attach and detach controls' : 'Show attach and detach controls'} placement="below"><button
