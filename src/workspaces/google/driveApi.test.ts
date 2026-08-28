@@ -35,6 +35,7 @@ describe('Google Drive workspace requests', () => {
     const firstUrl = new URL(String(fetchImpl.mock.calls[0][0]));
     expect(firstUrl.searchParams.get('q')).toContain('appProperties');
     expect(firstUrl.searchParams.get('q')).toContain('properties');
+    expect(firstUrl.searchParams.get('fields')).toContain('md5Checksum');
     expect(new URL(String(fetchImpl.mock.calls[1][0])).searchParams.get('pageToken')).toBe('next-page');
     expect(fetchImpl.mock.calls[0][1]?.headers).toEqual({ Authorization: 'Bearer token' });
   });

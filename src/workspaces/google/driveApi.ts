@@ -12,6 +12,7 @@ export interface DriveFileMetadata {
   name: string;
   modifiedTime: string;
   version: string;
+  md5Checksum?: string;
   size?: string;
 }
 
@@ -34,6 +35,7 @@ async function requireSuccessfulResponse(response: Response): Promise<Response> 
 }
 
 export function getDriveFingerprint(metadata: DriveFileMetadata): string {
+  if (metadata.md5Checksum) return `md5:${metadata.md5Checksum}`;
   return `${metadata.version}:${metadata.modifiedTime}`;
 }
 
@@ -47,7 +49,7 @@ export async function listDriveWorkspaceFiles(
   do {
     const parameters = new URLSearchParams({
       q: "trashed = false and (appProperties has { key='ucsFormat' and value='workspace' } or properties has { key='ucsFormat' and value='workspace' })",
-      fields: 'nextPageToken,files(id,name,modifiedTime,version,size)',
+      fields: 'nextPageToken,files(id,name,modifiedTime,version,md5Checksum,size)',
       orderBy: 'modifiedTime desc',
       pageSize: '1000',
     });
@@ -69,7 +71,7 @@ export async function getDriveFileMetadata(
   fetchImpl: typeof fetch = fetch,
 ): Promise<DriveFileMetadata> {
   const response = await fetchImpl(
-    `${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?fields=id,name,modifiedTime,version,size&supportsAllDrives=true`,
+    `${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?fields=id,name,modifiedTime,version,md5Checksum,size&supportsAllDrives=true`,
     { headers: authorizationHeaders(accessToken) },
   );
   return requireSuccessfulResponse(response).then((result) => result.json());
@@ -95,7 +97,7 @@ export async function tagDriveWorkspaceFile(options: {
 }): Promise<DriveFileMetadata> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const response = await fetchImpl(
-    `${DRIVE_FILES_URL}/${encodeURIComponent(options.fileId)}?fields=id,name,modifiedTime,version,size&supportsAllDrives=true`,
+    `${DRIVE_FILES_URL}/${encodeURIComponent(options.fileId)}?fields=id,name,modifiedTime,version,md5Checksum,size&supportsAllDrives=true`,
     {
       method: 'PATCH',
       headers: {
@@ -174,7 +176,7 @@ export async function createDriveWorkspaceFile(options: {
   if (new Blob([serializedDocument]).size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
     return uploadResumable({
       method: 'POST',
-      url: `${DRIVE_UPLOAD_URL}?uploadType=resumable&fields=id,name,modifiedTime,version,size`,
+      url: `${DRIVE_UPLOAD_URL}?uploadType=resumable&fields=id,name,modifiedTime,version,md5Checksum,size`,
       metadata,
       serializedDocument,
       accessToken: options.accessToken,
@@ -183,7 +185,7 @@ export async function createDriveWorkspaceFile(options: {
   }
 
   const boundary = `ucs-${crypto.randomUUID()}`;
-  const response = await fetchImpl(`${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name,modifiedTime,version,size`, {
+  const response = await fetchImpl(`${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name,modifiedTime,version,md5Checksum,size`, {
     method: 'POST',
     headers: {
       ...authorizationHeaders(options.accessToken),
@@ -207,7 +209,7 @@ export async function updateDriveWorkspaceFile(options: {
   if (new Blob([serializedDocument]).size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
     return uploadResumable({
       method: 'PATCH',
-      url: `${DRIVE_UPLOAD_URL}/${encodedFileId}?uploadType=resumable&fields=id,name,modifiedTime,version,size&supportsAllDrives=true`,
+      url: `${DRIVE_UPLOAD_URL}/${encodedFileId}?uploadType=resumable&fields=id,name,modifiedTime,version,md5Checksum,size&supportsAllDrives=true`,
       serializedDocument,
       accessToken: options.accessToken,
       fetchImpl,
@@ -215,7 +217,7 @@ export async function updateDriveWorkspaceFile(options: {
   }
 
   const response = await fetchImpl(
-    `${DRIVE_UPLOAD_URL}/${encodedFileId}?uploadType=media&fields=id,name,modifiedTime,version,size&supportsAllDrives=true`,
+    `${DRIVE_UPLOAD_URL}/${encodedFileId}?uploadType=media&fields=id,name,modifiedTime,version,md5Checksum,size&supportsAllDrives=true`,
     {
       method: 'PATCH',
       headers: {

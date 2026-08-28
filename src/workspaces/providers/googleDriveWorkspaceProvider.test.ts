@@ -12,7 +12,13 @@ const workspace = {
   lastOpenedAt: '2026-08-27T00:00:00.000Z',
 };
 const document = createWorkspaceDocument({ workspaceId: workspace.id, name: workspace.name });
-const metadata = { id: 'file-1', name: 'Campaign.json', modifiedTime: '2026-08-27T00:00:00.000Z', version: '1' };
+const metadata = {
+  id: 'file-1',
+  name: 'Campaign.json',
+  modifiedTime: '2026-08-27T00:00:00.000Z',
+  version: '1',
+  md5Checksum: 'checksum-1',
+};
 
 describe('Google Drive workspace provider', () => {
   it('requires a live access token', async () => {
@@ -28,7 +34,7 @@ describe('Google Drive workspace provider', () => {
 
     const result = await provider.load(workspace);
 
-    expect(result).toEqual({ document, fingerprint: `1:${metadata.modifiedTime}` });
+    expect(result).toEqual({ document, fingerprint: `md5:${metadata.md5Checksum}` });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[0][1]?.headers).toEqual({ Authorization: 'Bearer token' });
   });
@@ -36,25 +42,44 @@ describe('Google Drive workspace provider', () => {
   it('loads the remote document and raises a conflict before upload', async () => {
     const remoteDocument = { ...document, revision: 2 };
     const fetchImpl = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ...metadata, version: '2' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...metadata, version: '2', md5Checksum: 'checksum-2' }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(remoteDocument), { status: 200 }));
     const provider = createGoogleDriveWorkspaceProvider(() => 'token', fetchImpl);
 
-    await expect(provider.save(workspace, { ...document, revision: 1 }, `1:${metadata.modifiedTime}`))
+    await expect(provider.save(workspace, { ...document, revision: 1 }, `md5:${metadata.md5Checksum}`))
       .rejects.toBeInstanceOf(WorkspaceConflictError);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it('does not treat a metadata-only Drive revision as a conflict', async () => {
+    const metadataOnlyRevision = { ...metadata, version: '2', modifiedTime: '2026-08-27T00:01:00.000Z' };
+    const savedMetadata = { ...metadataOnlyRevision, version: '3', md5Checksum: 'checksum-2' };
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(metadataOnlyRevision), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(savedMetadata), { status: 200 }));
+    const provider = createGoogleDriveWorkspaceProvider(() => 'token', fetchImpl);
+
+    const result = await provider.save(workspace, { ...document, revision: 1 }, `md5:${metadata.md5Checksum}`);
+
+    expect(result.fingerprint).toBe(`md5:${savedMetadata.md5Checksum}`);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it('updates a small workspace with a media upload', async () => {
-    const savedMetadata = { ...metadata, modifiedTime: '2026-08-27T00:01:00.000Z', version: '2' };
+    const savedMetadata = {
+      ...metadata,
+      modifiedTime: '2026-08-27T00:01:00.000Z',
+      version: '2',
+      md5Checksum: 'checksum-2',
+    };
     const fetchImpl = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify(metadata), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(savedMetadata), { status: 200 }));
     const provider = createGoogleDriveWorkspaceProvider(() => 'token', fetchImpl);
 
-    const result = await provider.save(workspace, { ...document, revision: 1 }, `1:${metadata.modifiedTime}`);
+    const result = await provider.save(workspace, { ...document, revision: 1 }, `md5:${metadata.md5Checksum}`);
 
-    expect(result.fingerprint).toBe(`2:${savedMetadata.modifiedTime}`);
+    expect(result.fingerprint).toBe(`md5:${savedMetadata.md5Checksum}`);
     expect(String(fetchImpl.mock.calls[1][0])).toContain('uploadType=media');
     expect(fetchImpl.mock.calls[1][1]?.method).toBe('PATCH');
   });

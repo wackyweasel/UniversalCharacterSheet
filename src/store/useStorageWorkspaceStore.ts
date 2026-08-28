@@ -337,7 +337,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       createdAt: timestamp,
       lastOpenedAt: timestamp,
     };
-    const fingerprint = `${metadata.version}:${metadata.modifiedTime}`;
+    const fingerprint = getDriveFingerprint(metadata);
     await registry.putWorkspace(workspace);
     await registry.setCache({ workspaceId, document, fingerprint, pendingSync: false });
     set({ workspaces: [...get().workspaces, workspace] });
