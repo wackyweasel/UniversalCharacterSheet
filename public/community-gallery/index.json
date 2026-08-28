@@ -159,6 +159,14 @@
       "description": "Improved by making good use of the new mixed fields and inventory widgets",
       "file": "presets/league_of_dungeoneers_v2.json",
       "gameSystem": "League of Dungeoneers"
+    },
+    {
+      "id": "21",
+      "name": "D&D 5.5e Preset",
+      "author": "@JoacoBusse",
+      "description": "5.5e preset for D&D",
+      "file": "presets/dnd_5_5e_preset.json",
+      "gameSystem": "Dungeon and Dragons"
     }
   ],
   "themes": [

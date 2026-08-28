@@ -36,6 +36,7 @@ const CHANGELOG_ENTRIES = [
     changes: [
       'New formula editor',
       'You can now directly edit the min and max values of numbers in the Number Tracker, Number Display, and Mixed Fields widgets.',
+      'Added D&D 5.5e preset in the community contributions',
     ],
   },
   {
