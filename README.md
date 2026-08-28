@@ -5,6 +5,7 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
 ## Features
 
 - **Character Management**: Create and manage multiple characters.
+- **Storage Workspaces**: Isolate characters in browser storage, a local directory, or Google Drive on supported browsers.
 - **Infinite Canvas**: Pan and zoom to organize your sheet however you like.
 - **Widget System**: Add Number Trackers, Lists, and Text Areas.
 - **Drag & Drop**: Arrange widgets freely with grid snapping.
@@ -26,6 +27,8 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
    ```
 
 3. Open your browser to the URL shown (usually `http://localhost:5173`).
+
+Google Drive workspaces require local environment configuration. See [docs/workspaces.md](docs/workspaces.md) for browser support, storage behavior, and Google Cloud setup.
 
 ## Controls
 

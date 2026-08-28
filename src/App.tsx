@@ -6,6 +6,8 @@ import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
 import UpdatePrompt from './components/UpdatePrompt';
 import { useTelemetryStore } from './store/useTelemetryStore';
+import { useStorageWorkspaceStore } from './store/useStorageWorkspaceStore';
+import WorkspaceConflictDialog from './components/WorkspaceConflictDialog';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -52,6 +54,12 @@ class SheetErrorBoundary extends Component<SheetErrorBoundaryProps, SheetErrorBo
 function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const recordVisit = useTelemetryStore((state) => state.recordVisit);
+  const isWorkspaceHydrated = useStorageWorkspaceStore((state) => state.isHydrated);
+  const initializeWorkspaces = useStorageWorkspaceStore((state) => state.initialize);
+
+  useEffect(() => {
+    void initializeWorkspaces();
+  }, [initializeWorkspaces]);
 
   useEffect(() => {
     recordVisit();
@@ -88,7 +96,12 @@ function App() {
     <div className="h-full bg-gray-100 text-ink font-mono overflow-hidden">
       <UpdatePrompt />
       <StorageWarning />
-      {activeCharacterId ? (
+      <WorkspaceConflictDialog />
+      {!isWorkspaceHydrated ? (
+        <main className="h-full flex items-center justify-center bg-gray-100 p-6">
+          <p className="font-bold">Loading workspace...</p>
+        </main>
+      ) : activeCharacterId ? (
         <SheetErrorBoundary key={activeCharacterId}>
           <Sheet />
         </SheetErrorBoundary>

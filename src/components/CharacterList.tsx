@@ -19,6 +19,11 @@ import { stripImages } from '../utils/stripImages';
 import { getCharacterTransferData, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
+import StorageWorkspaceMenu from './StorageWorkspaceMenu';
+import CopyCharacterWorkspaceDialog from './CopyCharacterWorkspaceDialog';
+import { supportsDirectoryWorkspaces } from '../workspaces/providers/directoryWorkspaceProvider';
+import { Copy } from 'lucide-react';
+import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -267,6 +272,7 @@ export default function CharacterList() {
   const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
   const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
+  const replaceActiveWorkspaceCharacters = useStorageWorkspaceStore((state) => state.replaceActiveWorkspaceCharacters);
   
   // Tutorial state from store
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -320,6 +326,7 @@ export default function CharacterList() {
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
   const [pendingCharacterImport, setPendingCharacterImport] = useState<PendingCharacterImport | null>(null);
+  const [copyWorkspaceCharacter, setCopyWorkspaceCharacter] = useState<Character | null>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
@@ -1057,7 +1064,7 @@ export default function CharacterList() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const backupData = JSON.parse(event.target?.result as string) as BackupData;
         
@@ -1080,11 +1087,7 @@ export default function CharacterList() {
         
         if (!confirmRestore) return;
         
-        // Restore characters
-        localStorage.setItem('ucs:store', JSON.stringify({
-          characters: backupData.characters,
-          activeCharacterId: null
-        }));
+        await replaceActiveWorkspaceCharacters(backupData.characters);
         
         // Restore custom themes if present
         if (backupData.customThemes) {
@@ -1129,6 +1132,13 @@ export default function CharacterList() {
 
   return (
     <div ref={listScrollRef} className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+      {copyWorkspaceCharacter && (
+        <CopyCharacterWorkspaceDialog
+          character={copyWorkspaceCharacter}
+          darkMode={darkMode}
+          onClose={() => setCopyWorkspaceCharacter(null)}
+        />
+      )}
       <input
         ref={fileInputRef}
         type="file"
@@ -1208,6 +1218,7 @@ export default function CharacterList() {
             </button>
           </div>
         </header>
+        <StorageWorkspaceMenu darkMode={darkMode} />
         <div className="w-full">
           <div className={`grid grid-cols-3 gap-1.5 lg:gap-2 ${
             installAvailability === 'prompt' || installAvailability === 'instructions'
@@ -1926,6 +1937,33 @@ export default function CharacterList() {
                           Duplicate
                         </button>
                       </Tooltip>
+                      {supportsDirectoryWorkspaces() && (
+                        <Tooltip content="Copy this character to another workspace" placement="left">
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setCopyWorkspaceCharacter(char);
+                              setOpenDropdown(null);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                            style={{
+                              color: 'var(--card-ink)',
+                              backgroundColor: 'var(--card-background)'
+                            }}
+                            onMouseEnter={(event) => {
+                              event.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                              event.currentTarget.style.color = 'var(--card-background)';
+                            }}
+                            onMouseLeave={(event) => {
+                              event.currentTarget.style.backgroundColor = 'var(--card-background)';
+                              event.currentTarget.style.color = 'var(--card-ink)';
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy to Workspace
+                          </button>
+                        </Tooltip>
+                      )}
                       <Tooltip content="Save this character as a reusable preset (Presets are selectable at character creation)" placement="left">
                         <button
                           onClick={(e) => {

@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { CardTableCard, Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
-import { cloneInventoryData, ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
-import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins, normalizeCardTableWidgetData } from '../utils/cardTable';
+import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
+import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
+import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -55,137 +56,6 @@ function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widg
         ? { ...s, widgets: updateFn(s.widgets) }
         : s
     )
-  };
-}
-
-function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['data'] {
-  const normalizedData = normalizeCardTableWidgetData(data, widgetId);
-  const backDesign = getCardTableBackDesign(normalizedData);
-  const activeCards = getCardTableCards(normalizedData);
-  const discardedCards = getCardTableDiscardedCards(normalizedData);
-  const cloneCards = (cards: CardTableCard[], orderOffset: number) => cards.map((card, index) => ({
-    ...card,
-    id: uuidv4(),
-    originWidgetId: widgetId,
-    originOrder: orderOffset + index,
-    originBackColor: backDesign.color,
-    originBackTextColor: backDesign.textColor,
-    originBackSymbol: backDesign.symbol,
-    originBackText: backDesign.text,
-    originBackPattern: backDesign.pattern,
-  }));
-
-  return {
-    ...data,
-    cardTableCards: cloneCards(activeCards, 0),
-    cardTableDiscardedCards: cloneCards(discardedCards, activeCards.length),
-    cardTableSpots: undefined,
-  };
-}
-
-function cloneWidgetData(type: WidgetType, data: Widget['data'], widgetId: string): Widget['data'] {
-  return type === 'DECK_OF_CARDS'
-    ? cloneCardTableData(data, widgetId)
-    : type === 'INVENTORY'
-      ? cloneInventoryData(JSON.parse(JSON.stringify(data)))
-      : JSON.parse(JSON.stringify(data));
-}
-
-function migrateLegacyWidgetHeader(widget: Widget): Widget {
-  const migratedWidget = (widget.type as string) === 'CARD_TABLE'
-    ? { ...widget, type: 'DECK_OF_CARDS' as const }
-    : widget;
-  const normalizedWidget = migratedWidget.type === 'DECK_OF_CARDS'
-    ? { ...migratedWidget, data: normalizeCardTableWidgetData(migratedWidget.data, migratedWidget.id) }
-    : migratedWidget;
-  const label = normalizedWidget.data?.label;
-  const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
-  const hidLegacyHeaderControls =
-    normalizedWidget.data?.showFieldControls === false ||
-    (normalizedWidget.type === 'TABLE' && normalizedWidget.data?.showTableEditButton === false);
-  if (
-    normalizedWidget.data?.hideWidgetHeader === undefined &&
-    hidLegacyHeaderControls &&
-    hasNoLabel
-  ) {
-    return {
-      ...normalizedWidget,
-      data: { ...normalizedWidget.data, hideWidgetHeader: true },
-    };
-  }
-
-  return normalizedWidget;
-}
-
-// Helper to remap all IDs in a character's sheets/widgets to avoid conflicts
-function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): {
-  sheets: Sheet[];
-  activeSheetId: string;
-} {
-  const sheetIdMap = new Map<string, string>();
-  const widgetIdMap = new Map<string, string>();
-  const groupIdMap = new Map<string, string>();
-
-  // First pass: generate all new IDs
-  source.sheets.forEach(sheet => {
-    sheetIdMap.set(sheet.id, uuidv4());
-    sheet.widgets.forEach(widget => {
-      widgetIdMap.set(widget.id, uuidv4());
-      if (widget.groupId && !groupIdMap.has(widget.groupId)) {
-        groupIdMap.set(widget.groupId, uuidv4());
-      }
-    });
-  });
-
-  // Second pass: create new sheets with remapped IDs
-  const newSheets = source.sheets.map(sheet => ({
-    ...sheet,
-    id: sheetIdMap.get(sheet.id)!,
-    widgets: sheet.widgets.map(widget => {
-      const migratedWidget = migrateLegacyWidgetHeader(widget);
-      const newWidgetId = widgetIdMap.get(widget.id)!;
-      return {
-        ...migratedWidget,
-        id: newWidgetId,
-        groupId: widget.groupId ? groupIdMap.get(widget.groupId) : undefined,
-        attachedTo: widget.attachedTo?.map(id => widgetIdMap.get(id) || id),
-        data: cloneWidgetData(migratedWidget.type, migratedWidget.data, newWidgetId),
-      };
-    })
-  }));
-
-  return {
-    sheets: newSheets,
-    activeSheetId: sheetIdMap.get(source.activeSheetId) || newSheets[0]?.id
-  };
-}
-
-// Migration helper: convert old character format to new sheets format
-function migrateCharacter(char: any): Character {
-  // Existing sheet-based characters still need widget-level migrations.
-  if (char.sheets && char.sheets.length > 0) {
-    return {
-      ...char,
-      sheets: char.sheets.map((sheet: Sheet) => ({
-        ...sheet,
-        widgets: sheet.widgets.map(migrateLegacyWidgetHeader),
-      })),
-    } as Character;
-  }
-  
-  // Migrate: create a default sheet with the old widgets
-  const defaultSheet: Sheet = {
-    id: uuidv4(),
-    name: 'Main',
-    widgets: (char.widgets || []).map(migrateLegacyWidgetHeader)
-  };
-  
-  return {
-    id: char.id,
-    name: char.name,
-    theme: char.theme,
-    sheets: [defaultSheet],
-    activeSheetId: defaultSheet.id
   };
 }
 
@@ -325,39 +195,19 @@ interface StoreState {
   
   // Replace character state (used by undo/redo)
   _replaceCharacter: (characterId: string, character: Character) => void;
+  _replaceWorkspaceState: (state: {
+    characters: Character[];
+    activeCharacterId: string | null;
+    mode: Mode;
+  }) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => {
-  // Try to load persisted state from localStorage
-  const persisted = (() => {
-    try {
-      const raw = localStorage.getItem('ucs:store');
-      if (!raw) return null;
-      const data = JSON.parse(raw) as { characters: any[]; activeCharacterId: string | null; mode?: Mode };
-      // Migrate all characters to new format
-      const characters = data.characters.map(migrateCharacter);
-      return {
-        characters,
-        activeCharacterId: characters.some((character) => character.id === data.activeCharacterId)
-          ? data.activeCharacterId
-          : null,
-        mode: data.mode
-      };
-    } catch (e) {
-      console.error('Failed to load persisted store', e);
-      return null;
-    }
-  })();
-
-  const initialCharacters = persisted?.characters ?? [];
-  const initialActive = persisted?.activeCharacterId ?? null;
-  const initialMode = persisted?.mode ?? 'play';
-
   const api: StoreState = {
-    characters: initialCharacters,
+    characters: [],
     transientCharacterIds: [],
-    activeCharacterId: initialActive,
-    mode: initialMode,
+    activeCharacterId: null,
+    mode: 'play',
     editingWidgetId: null,
     selectedWidgetId: null,
     characterCreatorRequest: null,
@@ -650,6 +500,8 @@ export const useStore = create<StoreState>((set, get) => {
             widgetCount: character.sheets.reduce((count, sheet) => count + sheet.widgets.length, 0),
           },
         });
+        useTimelineStore.getState().clearEvents(id);
+        useUndoStore.getState().clearHistory(id);
       }
 
       return {
@@ -2905,41 +2757,17 @@ export const useStore = create<StoreState>((set, get) => {
       if (!state.activeCharacterId) return false;
       return useUndoStore.getState().canRedo(state.activeCharacterId);
     },
+
+    _replaceWorkspaceState: (workspaceState) => set({
+      characters: workspaceState.characters.map(migrateCharacter),
+      transientCharacterIds: [],
+      activeCharacterId: workspaceState.activeCharacterId,
+      mode: workspaceState.mode,
+      editingWidgetId: null,
+      selectedWidgetId: null,
+      characterCreatorRequest: null,
+    }),
   };
 
   return api;
 });
-
-// Subscribe to store changes and persist state to localStorage with debounce
-{
-  let saveTimeout: number | null = null;
-  (useStore as any).subscribe(() => {
-    if (saveTimeout) window.clearTimeout(saveTimeout);
-    saveTimeout = window.setTimeout(() => {
-      try {
-        const state = (useStore as any).getState();
-        const transientIds = new Set(state.transientCharacterIds ?? []);
-        const persistedCharacters = state.characters.filter((character: Character) => !transientIds.has(character.id));
-        const activeCharacterId = state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId;
-        const data = { characters: persistedCharacters, activeCharacterId, mode: activeCharacterId ? state.mode : 'play' };
-        localStorage.setItem('ucs:store', JSON.stringify(data));
-        
-        // Refresh storage warning after successful save
-        import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().refresh()).catch(() => {});
-        
-        // Send telemetry for active character (rate-limited to once per 24h)
-        if (activeCharacterId) {
-          const activeCharacter = persistedCharacters.find((c: Character) => c.id === activeCharacterId);
-          if (activeCharacter) {
-            useTelemetryStore.getState().sendTelemetry(activeCharacter);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to persist store', e);
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-          import('./useStorageWarningStore').then(m => m.useStorageWarningStore.getState().reportSaveFailure());
-        }
-      }
-    }, 150);
-  });
-}
