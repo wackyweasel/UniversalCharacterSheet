@@ -36,7 +36,7 @@ Permission requests occur only after an explicit user action. If access expires,
 
 A Drive workspace is a visible JSON file in the user's Drive. The app requests only the non-sensitive `https://www.googleapis.com/auth/drive.file` scope and can access files created by or explicitly selected for the app. New files carry private application properties so **Connect Google Drive** can discover and register the user's available workspaces on another device. Files created by older versions remain discoverable through their legacy property.
 
-Access tokens remain in memory and expire. Cached Drive workspaces remain editable in IndexedDB while offline or disconnected. Reconnect explicitly to synchronize pending edits.
+Access tokens remain in memory and expire. On a new app session, the app silently requests a new token for an active Drive workspace when the browser still has a signed-in Google session and a prior grant. If Google requires interaction, cookies are blocked, or the grant was revoked, use **Reconnect Google Drive**. Cached Drive workspaces remain editable in IndexedDB while offline or disconnected.
 
 Files up to 5 MB use a multipart or media upload. Larger files use a resumable upload.
 

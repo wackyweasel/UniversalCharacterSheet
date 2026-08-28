@@ -4,6 +4,7 @@ const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
 
 interface TokenResponse {
   access_token?: string;
+  expires_in?: number;
   error?: string;
 }
 
@@ -57,8 +58,10 @@ type GoogleWindow = Window & {
 };
 
 let accessToken: string | null = null;
+let accessTokenExpiresAt = 0;
 let tokenClient: TokenClient | null = null;
 let librariesPromise: Promise<void> | null = null;
+let tokenRequestPromise: Promise<string> | null = null;
 
 function loadScript(id: string, source: string): Promise<void> {
   const existing = document.getElementById(id) as HTMLScriptElement | null;
@@ -111,31 +114,64 @@ export function isGoogleDriveConfigured(): boolean {
 }
 
 export function getGoogleDriveAccessToken(): string | null {
+  if (accessToken && Date.now() >= accessTokenExpiresAt) {
+    accessToken = null;
+    accessTokenExpiresAt = 0;
+  }
   return accessToken;
 }
 
-export async function authorizeGoogleDrive(): Promise<string> {
-  const configuration = getConfiguration();
-  if (!isGoogleDriveConfigured()) throw new Error('Google Drive is not configured for this deployment.');
-  await loadGoogleLibraries();
-  const google = (window as unknown as GoogleWindow).google!;
-  tokenClient ??= google.accounts.oauth2.initTokenClient({
-    client_id: configuration.clientId,
-    scope: DRIVE_SCOPE,
-    callback: () => undefined,
-  });
+export function clearGoogleDriveAccessToken(): void {
+  accessToken = null;
+  accessTokenExpiresAt = 0;
+}
 
-  return new Promise<string>((resolve, reject) => {
-    tokenClient!.callback = (response) => {
-      if (response.error || !response.access_token) {
-        reject(new Error(response.error || 'Google Drive authorization was cancelled.'));
-        return;
-      }
-      accessToken = response.access_token;
-      resolve(response.access_token);
-    };
-    tokenClient!.requestAccessToken({ prompt: '' });
-  });
+async function requestGoogleDriveAccessToken(prompt: '' | 'none'): Promise<string> {
+  const existingToken = getGoogleDriveAccessToken();
+  if (existingToken) return existingToken;
+  if (tokenRequestPromise) return tokenRequestPromise;
+
+  tokenRequestPromise = (async () => {
+    const configuration = getConfiguration();
+    if (!isGoogleDriveConfigured()) throw new Error('Google Drive is not configured for this deployment.');
+    await loadGoogleLibraries();
+    const google = (window as unknown as GoogleWindow).google!;
+    tokenClient ??= google.accounts.oauth2.initTokenClient({
+      client_id: configuration.clientId,
+      scope: DRIVE_SCOPE,
+      callback: () => undefined,
+    });
+
+    return new Promise<string>((resolve, reject) => {
+      tokenClient!.callback = (response) => {
+        if (response.error || !response.access_token) {
+          reject(new Error(response.error || 'Google Drive authorization was cancelled.'));
+          return;
+        }
+        accessToken = response.access_token;
+        accessTokenExpiresAt = Date.now() + Math.max(0, (response.expires_in ?? 3600) - 60) * 1000;
+        resolve(response.access_token);
+      };
+      tokenClient!.requestAccessToken({ prompt });
+    });
+  })();
+  try {
+    return await tokenRequestPromise;
+  } finally {
+    tokenRequestPromise = null;
+  }
+}
+
+export async function restoreGoogleDriveAccessToken(): Promise<string | null> {
+  try {
+    return await requestGoogleDriveAccessToken('none');
+  } catch {
+    return null;
+  }
+}
+
+export async function authorizeGoogleDrive(): Promise<string> {
+  return requestGoogleDriveAccessToken('');
 }
 
 export async function pickGoogleDriveWorkspace(): Promise<PickerDocument | null> {

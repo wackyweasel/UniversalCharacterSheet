@@ -34,8 +34,10 @@ import {
 } from '../workspaces/google/driveApi';
 import {
   authorizeGoogleDrive,
+  clearGoogleDriveAccessToken,
   getGoogleDriveAccessToken,
   pickGoogleDriveWorkspace,
+  restoreGoogleDriveAccessToken,
 } from '../workspaces/google/googleClient';
 
 type WorkspaceSyncStatus = 'idle' | 'loading' | 'saving' | 'synced' | 'pending' | 'reconnect' | 'conflict' | 'error';
@@ -173,6 +175,9 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
   useStorageWorkspaceStore.setState({ syncStatus: 'loading', error: null, conflict: null });
   const cache = workspace.provider === 'browser' ? null : await registry.getCache(workspace.id);
   try {
+    if (workspace.provider === 'google-drive' && !getGoogleDriveAccessToken()) {
+      await restoreGoogleDriveAccessToken();
+    }
     const result = await getProvider(workspace).load(workspace);
 
     if (cache?.pendingSync) {
@@ -447,6 +452,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   },
 
   reconnectGoogleDriveWorkspace: async (workspaceId) => {
+    clearGoogleDriveAccessToken();
     await authorizeGoogleDrive();
     if (workspaceId === get().activeWorkspaceId) {
       const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
