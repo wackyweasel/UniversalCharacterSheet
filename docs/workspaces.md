@@ -34,7 +34,7 @@ Permission requests occur only after an explicit user action. If access expires,
 
 ### Google Drive
 
-A Drive workspace is a visible JSON file in the user's Drive. The app requests only the non-sensitive `https://www.googleapis.com/auth/drive.file` scope and can access files created by or explicitly selected for the app.
+A Drive workspace is a visible JSON file in the user's Drive. The app requests only the non-sensitive `https://www.googleapis.com/auth/drive.file` scope and can access files created by or explicitly selected for the app. New files carry private application properties so **Connect Google Drive** can discover and register the user's available workspaces on another device. Files created by older versions remain discoverable through their legacy property.
 
 Access tokens remain in memory and expire. Cached Drive workspaces remain editable in IndexedDB while offline or disconnected. Reconnect explicitly to synchronize pending edits.
 
@@ -56,9 +56,8 @@ Workspace controls require all of the following:
 
 - A secure context (`https`, or localhost during development)
 - IndexedDB
-- The File System Access API `showDirectoryPicker`
 
-When these capabilities are absent, all workspace and cross-workspace-copy controls are hidden and the app continues using Browser storage exactly as before. Google Drive controls additionally require the deployment variables below.
+When these capabilities are absent, all workspace and cross-workspace-copy controls are hidden and the app continues using Browser storage exactly as before. Local-directory controls additionally require the File System Access API `showDirectoryPicker`. Google Drive controls require the deployment variables below, but do not depend on directory-picker support.
 
 ## Google Cloud Setup
 

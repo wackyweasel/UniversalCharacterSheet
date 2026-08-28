@@ -134,7 +134,7 @@ export async function authorizeGoogleDrive(): Promise<string> {
       accessToken = response.access_token;
       resolve(response.access_token);
     };
-    tokenClient!.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+    tokenClient!.requestAccessToken({ prompt: '' });
   });
 }
 

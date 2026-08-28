@@ -21,7 +21,7 @@ import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
 import StorageWorkspaceMenu from './StorageWorkspaceMenu';
 import CopyCharacterWorkspaceDialog from './CopyCharacterWorkspaceDialog';
-import { supportsDirectoryWorkspaces } from '../workspaces/providers/directoryWorkspaceProvider';
+import { supportsStorageWorkspaces } from '../workspaces/capabilities';
 import { Copy } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 
@@ -1937,7 +1937,7 @@ export default function CharacterList() {
                           Duplicate
                         </button>
                       </Tooltip>
-                      {supportsDirectoryWorkspaces() && (
+                      {supportsStorageWorkspaces() && (
                         <Tooltip content="Copy this character to another workspace" placement="left">
                           <button
                             onClick={(event) => {

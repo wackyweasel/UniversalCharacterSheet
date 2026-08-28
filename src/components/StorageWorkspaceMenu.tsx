@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Cloud, CloudDownload, CloudUpload, FolderOpen, HardDrive, LoaderCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronDown, Cloud, CloudDownload, CloudUpload, FolderOpen, FolderSearch, HardDrive, LoaderCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 import {
-  supportsDirectoryWorkspaces,
   type WorkspaceDirectoryHandle,
 } from '../workspaces/providers/directoryWorkspaceProvider';
 import { isGoogleDriveConfigured } from '../workspaces/google/googleClient';
+import { supportsDirectoryWorkspaces, supportsStorageWorkspaces } from '../workspaces/capabilities';
 
 interface StorageWorkspaceMenuProps {
   darkMode: boolean;
@@ -22,13 +22,16 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
   const error = useStorageWorkspaceStore((state) => state.error);
   const switchWorkspace = useStorageWorkspaceStore((state) => state.switchWorkspace);
   const addDirectoryWorkspace = useStorageWorkspaceStore((state) => state.addDirectoryWorkspace);
+  const openDirectoryWorkspace = useStorageWorkspaceStore((state) => state.openDirectoryWorkspace);
   const reconnectDirectoryWorkspace = useStorageWorkspaceStore((state) => state.reconnectDirectoryWorkspace);
   const addGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.addGoogleDriveWorkspace);
+  const connectGoogleDrive = useStorageWorkspaceStore((state) => state.connectGoogleDrive);
   const openGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.openGoogleDriveWorkspace);
   const reconnectGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.reconnectGoogleDriveWorkspace);
   const forgetWorkspace = useStorageWorkspaceStore((state) => state.forgetWorkspace);
   const [isOpen, setIsOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,9 +43,10 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
   }, [isOpen]);
 
-  if (!supportsDirectoryWorkspaces()) return null;
+  if (!supportsStorageWorkspaces()) return null;
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  const directorySupported = supportsDirectoryWorkspaces();
   const requiresReconnect = syncStatus === 'reconnect' && activeWorkspace?.provider === 'directory';
   const requiresDriveReconnect = syncStatus === 'reconnect' && activeWorkspace?.provider === 'google-drive';
   const driveConfigured = isGoogleDriveConfigured();
@@ -60,10 +64,13 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
 
   const run = async (operation: () => Promise<void>) => {
     setIsBusy(true);
+    setOperationError(null);
     try {
       await operation();
-    } catch (operationError) {
-      console.error('Workspace operation failed', operationError);
+    } catch (caughtError) {
+      if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return;
+      console.error('Workspace operation failed', caughtError);
+      setOperationError(caughtError instanceof Error ? caughtError.message : 'The workspace operation failed.');
     } finally {
       setIsBusy(false);
     }
@@ -146,7 +153,7 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
           ))}
 
           <div className={`border-t p-2 ${darkMode ? 'border-white/20' : 'border-gray-200'}`}>
-            {requiresReconnect && (
+            {requiresReconnect && directorySupported && (
               <button
                 type="button"
                 role="menuitem"
@@ -175,21 +182,52 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
                 Reconnect Google Drive
               </button>
             )}
-            <button
-              type="button"
-              role="menuitem"
-              className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-              onClick={() => void run(async () => {
-                const handle = await chooseDirectory();
-                await addDirectoryWorkspace(handle);
-                setIsOpen(false);
-              })}
-            >
-              <FolderOpen className="h-4 w-4" />
-              New local directory
-            </button>
+            {directorySupported && (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                  onClick={() => void run(async () => {
+                    const handle = await chooseDirectory();
+                    await addDirectoryWorkspace(handle);
+                    setIsOpen(false);
+                  })}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  New local directory
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                  onClick={() => void run(async () => {
+                    const handle = await chooseDirectory();
+                    await openDirectoryWorkspace(handle);
+                    setIsOpen(false);
+                  })}
+                >
+                  <FolderSearch className="h-4 w-4" />
+                  Open local workspace
+                </button>
+              </>
+            )}
             {driveConfigured && (
               <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                  onClick={() => void run(async () => {
+                    const discoveredCount = await connectGoogleDrive();
+                    if (discoveredCount === 0) {
+                      throw new Error('No Google Drive workspaces were found. Create one or open an existing workspace file.');
+                    }
+                  })}
+                >
+                  <Cloud className="h-4 w-4" />
+                  Connect Google Drive
+                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -221,9 +259,9 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
               </>
             )}
           </div>
-          {error && (
+          {(operationError || error) && (
             <p className={`border-t px-3 py-2 text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
-              {error}
+              {operationError || error}
             </p>
           )}
         </div>

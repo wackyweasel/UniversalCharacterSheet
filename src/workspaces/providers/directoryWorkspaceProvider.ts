@@ -57,6 +57,16 @@ export async function reconnectDirectoryWorkspace(handle: WorkspaceDirectoryHand
   return await handle.requestPermission({ mode: 'readwrite' }) === 'granted';
 }
 
+export async function openDirectoryWorkspace(handle: WorkspaceDirectoryHandle): Promise<{
+  document: WorkspaceDocument;
+  fingerprint: string;
+}> {
+  const hasPermission = await reconnectDirectoryWorkspace(handle);
+  if (!hasPermission) throw new WorkspaceReconnectRequiredError('Directory access was not granted.');
+  const fileHandle = await handle.getFileHandle(DIRECTORY_WORKSPACE_FILE_NAME);
+  return readWorkspaceFile(fileHandle);
+}
+
 export async function createDirectoryWorkspace(options: {
   handle: WorkspaceDirectoryHandle;
   workspaceId: string;
@@ -118,11 +128,4 @@ export function createDirectoryWorkspaceProvider(
       return { fingerprint: getFileFingerprint(savedFile) };
     },
   };
-}
-
-export function supportsDirectoryWorkspaces(): boolean {
-  return typeof window !== 'undefined'
-    && window.isSecureContext
-    && typeof indexedDB !== 'undefined'
-    && 'showDirectoryPicker' in window;
 }

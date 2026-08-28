@@ -15,6 +15,11 @@ export interface DriveFileMetadata {
   size?: string;
 }
 
+interface DriveFileListResponse {
+  files?: DriveFileMetadata[];
+  nextPageToken?: string;
+}
+
 function authorizationHeaders(accessToken: string): Record<string, string> {
   return { Authorization: `Bearer ${accessToken}` };
 }
@@ -30,6 +35,32 @@ async function requireSuccessfulResponse(response: Response): Promise<Response> 
 
 export function getDriveFingerprint(metadata: DriveFileMetadata): string {
   return `${metadata.version}:${metadata.modifiedTime}`;
+}
+
+export async function listDriveWorkspaceFiles(
+  accessToken: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<DriveFileMetadata[]> {
+  const files: DriveFileMetadata[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const parameters = new URLSearchParams({
+      q: "trashed = false and (appProperties has { key='ucsFormat' and value='workspace' } or properties has { key='ucsFormat' and value='workspace' })",
+      fields: 'nextPageToken,files(id,name,modifiedTime,version,size)',
+      orderBy: 'modifiedTime desc',
+      pageSize: '1000',
+    });
+    if (pageToken) parameters.set('pageToken', pageToken);
+    const response = await fetchImpl(`${DRIVE_FILES_URL}?${parameters}`, {
+      headers: authorizationHeaders(accessToken),
+    });
+    const page = await requireSuccessfulResponse(response).then((result) => result.json()) as DriveFileListResponse;
+    files.push(...(page.files ?? []));
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+
+  return files;
 }
 
 export async function getDriveFileMetadata(
@@ -54,6 +85,29 @@ export async function downloadDriveWorkspace(
     { headers: authorizationHeaders(accessToken) },
   );
   return parseWorkspaceDocument(await requireSuccessfulResponse(response).then((result) => result.json()));
+}
+
+export async function tagDriveWorkspaceFile(options: {
+  fileId: string;
+  workspaceVersion: number;
+  accessToken: string;
+  fetchImpl?: typeof fetch;
+}): Promise<DriveFileMetadata> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(
+    `${DRIVE_FILES_URL}/${encodeURIComponent(options.fileId)}?fields=id,name,modifiedTime,version,size&supportsAllDrives=true`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...authorizationHeaders(options.accessToken),
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: JSON.stringify({
+        appProperties: { ucsFormat: 'workspace', ucsVersion: String(options.workspaceVersion) },
+      }),
+    },
+  );
+  return requireSuccessfulResponse(response).then((result) => result.json());
 }
 
 function createMultipartBody(metadata: Record<string, unknown>, serializedDocument: string, boundary: string): string {
@@ -114,7 +168,7 @@ export async function createDriveWorkspaceFile(options: {
   const metadata = {
     name: options.name.toLowerCase().endsWith('.json') ? options.name : `${options.name}.json`,
     mimeType: DRIVE_WORKSPACE_MIME_TYPE,
-    properties: { ucsFormat: 'workspace', ucsVersion: String(options.document.version) },
+    appProperties: { ucsFormat: 'workspace', ucsVersion: String(options.document.version) },
   };
 
   if (new Blob([serializedDocument]).size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {

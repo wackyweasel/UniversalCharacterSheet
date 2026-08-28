@@ -15,6 +15,8 @@ import {
 import {
   createDirectoryWorkspace,
   createDirectoryWorkspaceProvider,
+  openDirectoryWorkspace,
+  reconnectDirectoryWorkspace,
   type WorkspaceDirectoryHandle,
 } from '../workspaces/providers/directoryWorkspaceProvider';
 import {
@@ -23,7 +25,13 @@ import {
   type WorkspaceProvider,
 } from '../workspaces/providers/types';
 import { createGoogleDriveWorkspaceProvider } from '../workspaces/providers/googleDriveWorkspaceProvider';
-import { createDriveWorkspaceFile } from '../workspaces/google/driveApi';
+import {
+  createDriveWorkspaceFile,
+  downloadDriveWorkspace,
+  getDriveFingerprint,
+  listDriveWorkspaceFiles,
+  tagDriveWorkspaceFile,
+} from '../workspaces/google/driveApi';
 import {
   authorizeGoogleDrive,
   getGoogleDriveAccessToken,
@@ -42,7 +50,9 @@ interface StorageWorkspaceState {
   initialize: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   addDirectoryWorkspace: (handle: WorkspaceDirectoryHandle) => Promise<void>;
+  openDirectoryWorkspace: (handle: WorkspaceDirectoryHandle) => Promise<void>;
   addGoogleDriveWorkspace: (name: string) => Promise<void>;
+  connectGoogleDrive: () => Promise<number>;
   openGoogleDriveWorkspace: () => Promise<void>;
   reconnectDirectoryWorkspace: (workspaceId: string, handle: WorkspaceDirectoryHandle) => Promise<void>;
   reconnectGoogleDriveWorkspace: (workspaceId: string) => Promise<void>;
@@ -278,6 +288,39 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     await get().switchWorkspace(workspaceId);
   },
 
+  openDirectoryWorkspace: async (handle) => {
+    const loaded = await openDirectoryWorkspace(handle);
+    const timestamp = new Date().toISOString();
+    const existingWorkspace = get().workspaces.find((candidate) => candidate.id === loaded.document.workspaceId);
+    const workspace: StorageWorkspace = {
+      id: loaded.document.workspaceId,
+      name: loaded.document.name,
+      provider: 'directory',
+      createdAt: existingWorkspace?.createdAt ?? timestamp,
+      lastOpenedAt: timestamp,
+    };
+
+    await registry.setDirectoryHandle(workspace.id, handle);
+    await registry.putWorkspace(workspace);
+    await registry.setCache({
+      workspaceId: workspace.id,
+      document: loaded.document,
+      fingerprint: loaded.fingerprint,
+      pendingSync: false,
+    });
+
+    const workspaces = existingWorkspace
+      ? get().workspaces.map((candidate) => candidate.id === workspace.id ? workspace : candidate)
+      : [...get().workspaces, workspace];
+    set({ workspaces });
+
+    if (workspace.id === get().activeWorkspaceId) {
+      await loadWorkspace(workspace);
+    } else {
+      await get().switchWorkspace(workspace.id);
+    }
+  },
+
   addGoogleDriveWorkspace: async (name) => {
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error('Enter a workspace name.');
@@ -301,6 +344,55 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     await get().switchWorkspace(workspaceId);
   },
 
+  connectGoogleDrive: async () => {
+    const accessToken = await authorizeGoogleDrive();
+    const files = await listDriveWorkspaceFiles(accessToken);
+    const timestamp = new Date().toISOString();
+    const discovered = await Promise.allSettled(files.map(async (metadata) => {
+      const document = await downloadDriveWorkspace(metadata.id, accessToken);
+      const existing = get().workspaces.find((workspace) => workspace.id === document.workspaceId);
+      const workspace: StorageWorkspace = {
+        id: document.workspaceId,
+        name: document.name,
+        provider: 'google-drive',
+        driveFileId: metadata.id,
+        createdAt: existing?.createdAt ?? timestamp,
+        lastOpenedAt: existing?.lastOpenedAt ?? timestamp,
+      };
+      return { workspace, document, fingerprint: getDriveFingerprint(metadata) };
+    }));
+    const discoveredWorkspaceIds = new Set<string>();
+    const validWorkspaces = discovered.flatMap((result) => {
+      if (result.status !== 'fulfilled' || discoveredWorkspaceIds.has(result.value.workspace.id)) return [];
+      discoveredWorkspaceIds.add(result.value.workspace.id);
+      return [result.value];
+    });
+
+    for (const discoveredWorkspace of validWorkspaces) {
+      await registry.putWorkspace(discoveredWorkspace.workspace);
+      const existingCache = await registry.getCache(discoveredWorkspace.workspace.id);
+      if (!existingCache?.pendingSync) {
+        await registry.setCache({
+          workspaceId: discoveredWorkspace.workspace.id,
+          document: discoveredWorkspace.document,
+          fingerprint: discoveredWorkspace.fingerprint,
+          pendingSync: false,
+        });
+      }
+    }
+
+    const workspacesById = new Map(get().workspaces.map((workspace) => [workspace.id, workspace]));
+    for (const discoveredWorkspace of validWorkspaces) {
+      workspacesById.set(discoveredWorkspace.workspace.id, discoveredWorkspace.workspace);
+    }
+    set({ workspaces: [...workspacesById.values()], error: null });
+
+    if (files.length > 0 && validWorkspaces.length === 0) {
+      throw new Error('Google Drive workspace files were found, but none contained a supported workspace document.');
+    }
+    return validWorkspaces.length;
+  },
+
   openGoogleDriveWorkspace: async () => {
     const selectedFile = await pickGoogleDriveWorkspace();
     if (!selectedFile) return;
@@ -313,13 +405,25 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       lastOpenedAt: new Date().toISOString(),
     };
     const loaded = await googleDriveProvider.load(temporaryWorkspace);
+    const accessToken = getGoogleDriveAccessToken();
+    if (!accessToken) throw new WorkspaceReconnectRequiredError('Connect Google Drive to open this workspace.');
+    const taggedMetadata = await tagDriveWorkspaceFile({
+      fileId: selectedFile.id,
+      workspaceVersion: loaded.document.version,
+      accessToken,
+    });
     const workspace: StorageWorkspace = {
       ...temporaryWorkspace,
       id: loaded.document.workspaceId,
       name: loaded.document.name,
     };
     await registry.putWorkspace(workspace);
-    await registry.setCache({ workspaceId: workspace.id, document: loaded.document, fingerprint: loaded.fingerprint, pendingSync: false });
+    await registry.setCache({
+      workspaceId: workspace.id,
+      document: loaded.document,
+      fingerprint: getDriveFingerprint(taggedMetadata),
+      pendingSync: false,
+    });
     const existingIndex = get().workspaces.findIndex((candidate) => candidate.id === workspace.id);
     const workspaces = existingIndex >= 0
       ? get().workspaces.map((candidate) => candidate.id === workspace.id ? workspace : candidate)
@@ -331,6 +435,8 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   reconnectDirectoryWorkspace: async (workspaceId, handle) => {
     const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace || workspace.provider !== 'directory') throw new Error('Directory workspace not found.');
+    const hasPermission = await reconnectDirectoryWorkspace(handle);
+    if (!hasPermission) throw new WorkspaceReconnectRequiredError('Directory access was not granted.');
     const selectedProvider = createDirectoryWorkspaceProvider(async () => handle);
     const selected = await selectedProvider.load(workspace);
     if (selected.document.workspaceId !== workspaceId) {

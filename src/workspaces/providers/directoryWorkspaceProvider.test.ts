@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createWorkspaceDocument } from '../workspaceDocument';
 import {
   createDirectoryWorkspaceProvider,
+  openDirectoryWorkspace,
   type WorkspaceDirectoryHandle,
   type WorkspaceFileHandle,
 } from './directoryWorkspaceProvider';
@@ -69,6 +70,21 @@ function createEmptyMockDirectory() {
 const workspace = { ...createBrowserWorkspace(), id: 'directory-1', name: 'Campaign', provider: 'directory' as const };
 
 describe('directory workspace provider', () => {
+  it('requests permission before opening an existing workspace', async () => {
+    const directory = createMockDirectory();
+    let permission: PermissionState = 'prompt';
+    directory.handle.queryPermission = async () => permission;
+    directory.handle.requestPermission = async () => {
+      permission = 'granted';
+      return permission;
+    };
+
+    const opened = await openDirectoryWorkspace(directory.handle);
+
+    expect(permission).toBe('granted');
+    expect(opened.document.workspaceId).toBe('directory-1');
+  });
+
   it('creates a managed file only when the directory does not already contain one', async () => {
     const { createDirectoryWorkspace } = await import('./directoryWorkspaceProvider');
     const created = await createDirectoryWorkspace({ handle: createEmptyMockDirectory(), workspaceId: 'new-workspace' });
