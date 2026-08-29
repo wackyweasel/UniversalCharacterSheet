@@ -2,6 +2,7 @@ const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
 const SILENT_TOKEN_TIMEOUT_MS = 5000;
+const SESSION_TOKEN_STORAGE_KEY = 'ucs:google-drive-session-token';
 
 interface TokenResponse {
   access_token?: string;
@@ -65,6 +66,37 @@ let identityLibraryPromise: Promise<void> | null = null;
 let pickerLibraryPromise: Promise<void> | null = null;
 let tokenRequestPromise: Promise<string> | null = null;
 
+function readSessionToken(): { token: string; expiresAt: number } | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as { token?: unknown; expiresAt?: unknown };
+    if (typeof value.token !== 'string' || typeof value.expiresAt !== 'number' || Date.now() >= value.expiresAt) {
+      sessionStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+      return null;
+    }
+    return { token: value.token, expiresAt: value.expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionToken(token: string, expiresAt: number): void {
+  try {
+    sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, JSON.stringify({ token, expiresAt }));
+  } catch {
+    // The in-memory token still works when session storage is unavailable.
+  }
+}
+
+function removeSessionToken(): void {
+  try {
+    sessionStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+  } catch {
+    // Nothing else is required when session storage is unavailable.
+  }
+}
+
 function loadScript(id: string, source: string): Promise<void> {
   const existing = document.getElementById(id) as HTMLScriptElement | null;
   if (existing?.dataset.loaded === 'true') return Promise.resolve();
@@ -125,9 +157,17 @@ export function isGoogleDriveConfigured(): boolean {
 }
 
 export function getGoogleDriveAccessToken(): string | null {
+  if (!accessToken) {
+    const sessionToken = readSessionToken();
+    if (sessionToken) {
+      accessToken = sessionToken.token;
+      accessTokenExpiresAt = sessionToken.expiresAt;
+    }
+  }
   if (accessToken && Date.now() >= accessTokenExpiresAt) {
     accessToken = null;
     accessTokenExpiresAt = 0;
+    removeSessionToken();
   }
   return accessToken;
 }
@@ -135,6 +175,7 @@ export function getGoogleDriveAccessToken(): string | null {
 export function clearGoogleDriveAccessToken(): void {
   accessToken = null;
   accessTokenExpiresAt = 0;
+  removeSessionToken();
 }
 
 async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: number): Promise<string> {
@@ -161,6 +202,7 @@ async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: nu
         }
         accessToken = response.access_token;
         accessTokenExpiresAt = Date.now() + Math.max(0, (response.expires_in ?? 3600) - 60) * 1000;
+        writeSessionToken(accessToken, accessTokenExpiresAt);
         resolve(response.access_token);
       };
       tokenClient!.requestAccessToken({ prompt });

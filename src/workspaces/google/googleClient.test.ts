@@ -35,6 +35,16 @@ function installGoogleLibraries(responses: Array<{ access_token?: string; expire
   return prompts;
 }
 
+function installSessionStorage() {
+  const values = new Map<string, string>();
+  vi.stubGlobal('sessionStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  });
+  return values;
+}
+
 describe('Google Drive authorization', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -57,6 +67,34 @@ describe('Google Drive authorization', () => {
     await expect(authorizeGoogleDrive()).resolves.toBe('restored-token');
 
     expect(prompts).toEqual(['none']);
+  });
+
+  it('restores a live token from session storage after a page reload', async () => {
+    installSessionStorage();
+    const prompts = installGoogleLibraries([{ access_token: 'session-token', expires_in: 3600 }]);
+    const firstPage = await import('./googleClient');
+
+    await expect(firstPage.authorizeGoogleDrive()).resolves.toBe('session-token');
+    vi.resetModules();
+
+    const reloadedPage = await import('./googleClient');
+    expect(reloadedPage.getGoogleDriveAccessToken()).toBe('session-token');
+    await expect(reloadedPage.restoreGoogleDriveAccessToken()).resolves.toBe('session-token');
+    expect(prompts).toEqual(['']);
+  });
+
+  it('discards an expired session token before restoring authorization', async () => {
+    const sessionValues = installSessionStorage();
+    sessionValues.set('ucs:google-drive-session-token', JSON.stringify({
+      token: 'expired-token',
+      expiresAt: Date.now() - 1,
+    }));
+    const prompts = installGoogleLibraries([{ access_token: 'restored-token', expires_in: 3600 }]);
+    const { restoreGoogleDriveAccessToken } = await import('./googleClient');
+
+    await expect(restoreGoogleDriveAccessToken()).resolves.toBe('restored-token');
+    expect(prompts).toEqual(['none']);
+    expect(sessionValues.get('ucs:google-drive-session-token')).toContain('restored-token');
   });
 
   it('falls back to interactive authorization after silent restoration is unavailable', async () => {
