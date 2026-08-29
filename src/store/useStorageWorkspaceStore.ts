@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from './useStore';
 import { useTimelineStore } from './useTimelineStore';
 import { useUndoStore } from './useUndoStore';
+import { useCustomThemeStore } from './useCustomThemeStore';
+import { useTemplateStore } from './useTemplateStore';
+import { useUserPresetStore } from './useUserPresetStore';
 import type { Character } from '../types';
 import { cloneCharacterForWorkspace } from '../utils/characterClone';
 import type { StorageWorkspace, WorkspaceDocument } from '../workspaces/types';
@@ -77,6 +80,11 @@ let suppressPersistence = true;
 let subscriptionsStarted = false;
 let saveTimeout: number | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
+let legacyLibrarySeed = {
+  customThemes: useCustomThemeStore.getState().customThemes,
+  templates: useTemplateStore.getState().templates,
+  userPresets: useUserPresetStore.getState().userPresets,
+};
 
 function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
   if (workspace.provider === 'browser') return browserProvider;
@@ -86,6 +94,15 @@ function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
 
 function applyWorkspaceDocument(document: WorkspaceDocument): void {
   useUndoStore.getState().clearAllHistory();
+  if (document.customThemes !== undefined) {
+    useCustomThemeStore.getState().replaceCustomThemes(document.customThemes);
+  }
+  if (document.templates !== undefined) {
+    useTemplateStore.getState().replaceTemplates(document.templates);
+  }
+  if (document.userPresets !== undefined) {
+    useUserPresetStore.getState().replaceUserPresets(document.userPresets);
+  }
   useStore.getState()._replaceWorkspaceState({
     characters: document.characters,
     activeCharacterId: document.activeCharacterId,
@@ -109,8 +126,33 @@ function captureWorkspaceDocument(workspace: StorageWorkspace): WorkspaceDocumen
     eventsByCharacter: useTimelineStore.getState().eventsByCharacter,
     activeCharacterId,
     mode: characterState.mode,
+    customThemes: useCustomThemeStore.getState().customThemes,
+    templates: useTemplateStore.getState().templates,
+    userPresets: useUserPresetStore.getState().userPresets,
     revision: (currentDocument?.revision ?? 0) + 1,
   });
+}
+
+function adoptLegacyWorkspaceLibraries(document: WorkspaceDocument): {
+  document: WorkspaceDocument;
+  migrated: boolean;
+} {
+  const migrated = document.customThemes === undefined
+    || document.templates === undefined
+    || document.userPresets === undefined;
+  if (!migrated) return { document, migrated: false };
+
+  return {
+    document: {
+      ...document,
+      customThemes: document.customThemes ?? legacyLibrarySeed.customThemes,
+      templates: document.templates ?? legacyLibrarySeed.templates,
+      userPresets: document.userPresets ?? legacyLibrarySeed.userPresets,
+      revision: document.revision + 1,
+      updatedAt: new Date().toISOString(),
+    },
+    migrated: true,
+  };
 }
 
 async function persistActiveWorkspace(): Promise<void> {
@@ -168,6 +210,9 @@ function startSubscriptions(): void {
   subscriptionsStarted = true;
   useStore.subscribe(scheduleSave);
   useTimelineStore.subscribe(scheduleSave);
+  useCustomThemeStore.subscribe(scheduleSave);
+  useTemplateStore.subscribe(scheduleSave);
+  useUserPresetStore.subscribe(scheduleSave);
 }
 
 async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
@@ -181,9 +226,10 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
     const result = await getProvider(workspace).load(workspace);
 
     if (cache?.pendingSync) {
-      currentDocument = cache.document;
+      const cached = adoptLegacyWorkspaceLibraries(cache.document).document;
+      currentDocument = cached;
       currentFingerprint = cache.fingerprint;
-      applyWorkspaceDocument(cache.document);
+      applyWorkspaceDocument(cached);
 
       if (result.fingerprint !== cache.fingerprint) {
         const conflict = new WorkspaceConflictError(undefined, result.document, result.fingerprint);
@@ -191,11 +237,11 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
         return;
       }
 
-      const saved = await getProvider(workspace).save(workspace, cache.document, cache.fingerprint);
+      const saved = await getProvider(workspace).save(workspace, cached, cache.fingerprint);
       currentFingerprint = saved.fingerprint;
       await registry.setCache({
         workspaceId: workspace.id,
-        document: cache.document,
+        document: cached,
         fingerprint: saved.fingerprint,
         pendingSync: false,
       });
@@ -203,18 +249,31 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
       return;
     }
 
-    currentDocument = result.document;
-    currentFingerprint = result.fingerprint;
+    const loaded = adoptLegacyWorkspaceLibraries(result.document);
+    const fingerprint = loaded.migrated
+      ? (await getProvider(workspace).save(workspace, loaded.document, result.fingerprint)).fingerprint
+      : result.fingerprint;
+    currentDocument = loaded.document;
+    currentFingerprint = fingerprint;
     if (workspace.provider !== 'browser') {
-      await registry.setCache({ workspaceId: workspace.id, document: result.document, fingerprint: result.fingerprint, pendingSync: false });
+      await registry.setCache({ workspaceId: workspace.id, document: loaded.document, fingerprint, pendingSync: false });
     }
-    applyWorkspaceDocument(result.document);
+    applyWorkspaceDocument(loaded.document);
     useStorageWorkspaceStore.setState({ syncStatus: 'synced' });
   } catch (error) {
     if (!cache) throw error;
-    currentDocument = cache.document;
+    const cached = adoptLegacyWorkspaceLibraries(cache.document);
+    currentDocument = cached.document;
     currentFingerprint = cache.fingerprint;
-    applyWorkspaceDocument(cache.document);
+    applyWorkspaceDocument(cached.document);
+    if (cached.migrated) {
+      await registry.setCache({
+        workspaceId: workspace.id,
+        document: cached.document,
+        fingerprint: cache.fingerprint,
+        pendingSync: true,
+      });
+    }
     useStorageWorkspaceStore.setState({
       syncStatus: error instanceof WorkspaceReconnectRequiredError ? 'reconnect' : 'pending',
       error: error instanceof Error ? error.message : 'The cached workspace was loaded.',
@@ -236,15 +295,22 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     if (get().isHydrated || get().syncStatus === 'loading') return;
     startSubscriptions();
     const workspaces = await registry.initialize();
+    const browserWorkspace = workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
+    const browserDocument = (await browserProvider.load(browserWorkspace)).document;
+    legacyLibrarySeed = {
+      customThemes: browserDocument.customThemes ?? [],
+      templates: browserDocument.templates ?? [],
+      userPresets: browserDocument.userPresets ?? [],
+    };
+    await browserProvider.save(browserWorkspace, browserDocument, null);
     const preferredId = registry.getActiveWorkspaceId();
     const workspace = workspaces.find((candidate) => candidate.id === preferredId)
-      ?? workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
+      ?? browserWorkspace;
     set({ workspaces, activeWorkspaceId: workspace.id, syncStatus: 'loading' });
     try {
       await loadWorkspace(workspace);
       set({ isHydrated: true });
     } catch (error) {
-      const browserWorkspace = workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
       registry.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
       await loadWorkspace(browserWorkspace);
       set({
@@ -487,6 +553,9 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       eventsByCharacter,
       activeCharacterId: loaded.document.activeCharacterId,
       mode: loaded.document.mode,
+      customThemes: loaded.document.customThemes ?? useCustomThemeStore.getState().customThemes,
+      templates: loaded.document.templates ?? useTemplateStore.getState().templates,
+      userPresets: loaded.document.userPresets ?? useUserPresetStore.getState().userPresets,
       revision: loaded.document.revision + 1,
     });
 
@@ -601,7 +670,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       createdAt: timestamp,
       lastOpenedAt: timestamp,
     };
-    const fingerprint = `${metadata.version}:${metadata.modifiedTime}`;
+    const fingerprint = getDriveFingerprint(metadata);
     await registry.putWorkspace(workspace);
     await registry.setCache({ workspaceId, document, fingerprint, pendingSync: false });
     registry.setActiveWorkspaceId(workspaceId);

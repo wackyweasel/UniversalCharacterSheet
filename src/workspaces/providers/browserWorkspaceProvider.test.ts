@@ -40,6 +40,20 @@ describe('browser workspace provider', () => {
     expect(result.document.eventsByCharacter[character.id]).toEqual({ events: [], nextId: 1 });
   });
 
+  it('adopts legacy libraries until the Browser workspace has its own snapshot', async () => {
+    const storage = createMemoryStorage({
+      'ucs:custom-themes': JSON.stringify([{ id: 'theme-1' }]),
+      'ucs:templates': JSON.stringify({ templates: [{ id: 'template-1' }] }),
+      'ucs:userPresets': JSON.stringify({ userPresets: [{ id: 'preset-1' }] }),
+    });
+
+    const result = await createBrowserWorkspaceProvider(storage).load(createBrowserWorkspace());
+
+    expect(result.document.customThemes).toEqual([{ id: 'theme-1' }]);
+    expect(result.document.templates).toEqual([{ id: 'template-1' }]);
+    expect(result.document.userPresets).toEqual([{ id: 'preset-1' }]);
+  });
+
   it('saves workspace data without replacing global timeline preferences', async () => {
     const storage = createMemoryStorage({
       'ucs:timeline': JSON.stringify({ eventsByCharacter: {}, orderNewestFirst: true, showFormulas: false }),
@@ -59,6 +73,11 @@ describe('browser workspace provider', () => {
       eventsByCharacter: { [character.id]: { events: [], nextId: 2 } },
       orderNewestFirst: true,
       showFormulas: false,
+    });
+    expect(JSON.parse(storage.values.get('ucs:browser-workspace-libraries')!)).toEqual({
+      customThemes: [],
+      templates: [],
+      userPresets: [],
     });
   });
 });

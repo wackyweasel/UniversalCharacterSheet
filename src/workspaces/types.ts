@@ -1,4 +1,7 @@
 import type { Character } from '../types';
+import type { CustomTheme } from '../store/useCustomThemeStore';
+import type { AnyTemplate } from '../store/useTemplateStore';
+import type { UserPreset } from '../store/useUserPresetStore';
 
 export type StorageWorkspaceProvider = 'browser' | 'directory' | 'google-drive';
 export type WorkspaceMode = 'play' | 'edit' | 'vertical' | 'print';
@@ -37,4 +40,7 @@ export interface WorkspaceDocument {
   eventsByCharacter: Record<string, WorkspaceCharacterTimeline>;
   activeCharacterId: string | null;
   mode: WorkspaceMode;
+  customThemes?: CustomTheme[];
+  templates?: AnyTemplate[];
+  userPresets?: UserPreset[];
 }

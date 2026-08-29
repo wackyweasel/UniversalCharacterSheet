@@ -19,6 +19,7 @@ interface UserPresetStoreState {
   addPreset: (character: Character, name?: string, includeTheme?: boolean) => void;
   removePreset: (id: string) => void;
   renamePreset: (id: string, name: string) => void;
+  replaceUserPresets: (userPresets: UserPreset[]) => void;
 }
 
 export const useUserPresetStore = create<UserPresetStoreState>((set) => {
@@ -85,6 +86,11 @@ export const useUserPresetStore = create<UserPresetStoreState>((set) => {
         persistUserPresets(newUserPresets);
         return { userPresets: newUserPresets };
       });
+    },
+
+    replaceUserPresets: (userPresets) => {
+      persistUserPresets(userPresets);
+      set({ userPresets });
     },
   };
 });

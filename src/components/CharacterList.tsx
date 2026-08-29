@@ -175,7 +175,7 @@ interface BackupData {
   version: 1;
   timestamp: string;
   characters: Character[];
-  customThemes: Record<string, any>;
+  customThemes?: CustomTheme[];
   templates?: AnyTemplate[];
   userPresets?: UserPreset[];
 }
@@ -244,12 +244,15 @@ export default function CharacterList() {
   // Subscribe to custom theme changes so cards update when themes are edited
   const customThemes = useCustomThemeStore((state) => state.customThemes);
   const addCustomTheme = useCustomThemeStore((state) => state.addCustomTheme);
+  const replaceCustomThemes = useCustomThemeStore((state) => state.replaceCustomThemes);
   // Subscribe to template changes for backup
   const templates = useTemplateStore((state) => state.templates);
+  const replaceTemplates = useTemplateStore((state) => state.replaceTemplates);
   // Subscribe to user presets for backup and preset selection
   const userPresets = useUserPresetStore((state) => state.userPresets);
   const addUserPreset = useUserPresetStore((state) => state.addPreset);
   const removeUserPreset = useUserPresetStore((state) => state.removePreset);
+  const replaceUserPresets = useUserPresetStore((state) => state.replaceUserPresets);
   
   const characters = useStore((state) => state.characters);
   const createCharacter = useStore((state) => state.createCharacter);
@@ -1089,19 +1092,16 @@ export default function CharacterList() {
         
         await replaceActiveWorkspaceCharacters(backupData.characters);
         
-        // Restore custom themes if present
-        if (backupData.customThemes) {
-          localStorage.setItem('ucs:customThemes', JSON.stringify(backupData.customThemes));
+        if (backupData.customThemes && Array.isArray(backupData.customThemes)) {
+          replaceCustomThemes(backupData.customThemes);
         }
-        
-        // Restore templates if present
+
         if (backupData.templates && Array.isArray(backupData.templates)) {
-          localStorage.setItem('ucs:templates', JSON.stringify({ templates: backupData.templates }));
+          replaceTemplates(backupData.templates);
         }
-        
-        // Restore user presets if present
+
         if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
-          localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
+          replaceUserPresets(backupData.userPresets);
         }
 
         recordCharacterListEvent({
@@ -1115,8 +1115,6 @@ export default function CharacterList() {
           },
         });
         
-        // Reload the page to apply changes
-        window.setTimeout(() => window.location.reload(), 250);
       } catch (err) {
         alert('Failed to parse backup file');
         console.error(err);

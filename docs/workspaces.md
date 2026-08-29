@@ -9,16 +9,20 @@ Workspace-specific data:
 - Characters and their ordering
 - Active character and character mode
 - Character timeline events
+- Custom themes
+- Widget and group templates
+- User presets
 
 Shared browser data:
 
-- Built-in and custom themes
-- Templates and user presets
+- Built-in theme definitions
 - Global settings and timeline display preferences
 - Telemetry client identifiers and timestamps
 - Per-sheet Build, Play, and Print layout preferences
 
 Copying a character to another workspace creates new character, sheet, widget, group, and card IDs. The visible name and timeline history are retained.
+
+Workspace files created before themes, templates, and presets became workspace-specific adopt the browser's current libraries the first time they are opened, then persist that migration to keep the collections isolated.
 
 ## Providers
 

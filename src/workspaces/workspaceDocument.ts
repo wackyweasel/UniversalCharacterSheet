@@ -1,4 +1,7 @@
 import type { Character, Sheet, Widget } from '../types';
+import { isCustomTheme, type CustomTheme } from '../store/useCustomThemeStore';
+import type { AnyTemplate } from '../store/useTemplateStore';
+import type { UserPreset } from '../store/useUserPresetStore';
 import type { WorkspaceDocument, WorkspaceMode } from './types';
 
 export const WORKSPACE_FORMAT = 'universal-character-sheet/workspace';
@@ -44,6 +47,56 @@ function isCharacter(value: unknown): value is Character {
     && value.sheets.every(isSheet);
 }
 
+function isTemplate(value: unknown): value is AnyTemplate {
+  if (!isRecord(value)
+    || typeof value.id !== 'string'
+    || typeof value.name !== 'string'
+    || typeof value.createdAt !== 'number') return false;
+
+  if (value.isGroup === true) {
+    return Array.isArray(value.widgets)
+      && value.widgets.every((widget) => isRecord(widget)
+        && typeof widget.type === 'string'
+        && typeof widget.relativeX === 'number'
+        && typeof widget.relativeY === 'number'
+        && isRecord(widget.data))
+      && Array.isArray(value.attachments)
+      && value.attachments.every((attachment) => Array.isArray(attachment)
+        && attachment.length === 2
+        && attachment.every(Number.isInteger));
+  }
+
+  return typeof value.type === 'string' && isRecord(value.data);
+}
+
+function isUserPreset(value: unknown): value is UserPreset {
+  if (!isRecord(value)
+    || typeof value.id !== 'string'
+    || typeof value.name !== 'string'
+    || typeof value.createdAt !== 'number'
+    || !isRecord(value.preset)) return false;
+
+  const preset = value.preset;
+  return typeof preset.name === 'string'
+    && typeof preset.activeSheetId === 'string'
+    && Array.isArray(preset.sheets)
+    && preset.sheets.length > 0
+    && preset.sheets.every(isSheet)
+    && (value.theme === undefined || typeof value.theme === 'string');
+}
+
+function parseOptionalLibrary<T>(
+  value: Record<string, unknown>,
+  key: string,
+  isItem: (item: unknown) => item is T,
+  errorMessage: string,
+): T[] | undefined {
+  if (!(key in value)) return undefined;
+  const library = value[key];
+  if (!Array.isArray(library) || !library.every(isItem)) throw new WorkspaceDocumentError(errorMessage);
+  return library;
+}
+
 function parseEventsByCharacter(value: unknown): WorkspaceDocument['eventsByCharacter'] {
   if (!isRecord(value)) throw new WorkspaceDocumentError('Workspace timeline data is invalid.');
 
@@ -74,6 +127,9 @@ export function createWorkspaceDocument(options: {
   eventsByCharacter?: WorkspaceDocument['eventsByCharacter'];
   activeCharacterId?: string | null;
   mode?: WorkspaceMode;
+  customThemes?: CustomTheme[];
+  templates?: AnyTemplate[];
+  userPresets?: UserPreset[];
   revision?: number;
   updatedAt?: string;
 }): WorkspaceDocument {
@@ -93,6 +149,9 @@ export function createWorkspaceDocument(options: {
     eventsByCharacter: options.eventsByCharacter ?? {},
     activeCharacterId,
     mode: activeCharacterId ? options.mode ?? 'play' : 'play',
+    customThemes: options.customThemes ?? [],
+    templates: options.templates ?? [],
+    userPresets: options.userPresets ?? [],
   };
 }
 
@@ -122,7 +181,11 @@ export function parseWorkspaceDocument(value: unknown): WorkspaceDocument {
     throw new WorkspaceDocumentError('Active character is invalid.');
   }
 
-  return createWorkspaceDocument({
+  const customThemes = parseOptionalLibrary(value, 'customThemes', isCustomTheme, 'Workspace custom themes are invalid.');
+  const templates = parseOptionalLibrary(value, 'templates', isTemplate, 'Workspace templates are invalid.');
+  const userPresets = parseOptionalLibrary(value, 'userPresets', isUserPreset, 'Workspace user presets are invalid.');
+
+  const document = createWorkspaceDocument({
     workspaceId: value.workspaceId,
     name: value.name,
     revision: value.revision as number,
@@ -131,5 +194,12 @@ export function parseWorkspaceDocument(value: unknown): WorkspaceDocument {
     eventsByCharacter: parseEventsByCharacter(value.eventsByCharacter),
     activeCharacterId: value.activeCharacterId,
     mode: value.mode as WorkspaceMode,
+    customThemes,
+    templates,
+    userPresets,
   });
+  if (customThemes === undefined) delete document.customThemes;
+  if (templates === undefined) delete document.templates;
+  if (userPresets === undefined) delete document.userPresets;
+  return document;
 }

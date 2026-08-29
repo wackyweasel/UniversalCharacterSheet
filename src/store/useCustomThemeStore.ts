@@ -87,6 +87,7 @@ interface CustomThemeState {
   addCustomTheme: (theme: CustomTheme) => void;
   updateCustomTheme: (id: string, theme: CustomTheme) => void;
   deleteCustomTheme: (id: string) => void;
+  replaceCustomThemes: (themes: CustomTheme[]) => void;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,6 +159,11 @@ export const useCustomThemeStore = create<CustomThemeState>((set, get) => ({
     const newThemes = get().customThemes.filter(t => t.id !== id);
     saveCustomThemes(newThemes);
     set({ customThemes: newThemes });
+  },
+
+  replaceCustomThemes: (themes) => {
+    saveCustomThemes(themes);
+    set({ customThemes: themes });
   },
 }));
 
