@@ -8,6 +8,7 @@ import { useTemplateStore } from './useTemplateStore';
 import { useUserPresetStore } from './useUserPresetStore';
 import type { Character } from '../types';
 import { cloneCharacterForWorkspace } from '../utils/characterClone';
+import type { RestorableWorkspaceFile } from '../utils/workspaceBackup';
 import type { StorageWorkspace, WorkspaceDocument } from '../workspaces/types';
 import { createWorkspaceDocument } from '../workspaces/workspaceDocument';
 import { WorkspaceRegistry } from '../workspaces/workspaceRegistry';
@@ -65,7 +66,7 @@ interface StorageWorkspaceState {
   resolveConflict: (resolution: 'remote' | 'local') => Promise<void>;
   saveConflictAsNewDirectory: (handle: WorkspaceDirectoryHandle) => Promise<void>;
   saveConflictAsNewGoogleDrive: (name: string) => Promise<void>;
-  replaceActiveWorkspaceCharacters: (characters: Character[]) => Promise<void>;
+  restoreActiveWorkspace: (source: RestorableWorkspaceFile) => Promise<void>;
   forgetWorkspace: (workspaceId: string) => Promise<void>;
 }
 
@@ -80,11 +81,6 @@ let suppressPersistence = true;
 let subscriptionsStarted = false;
 let saveTimeout: number | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
-let legacyLibrarySeed = {
-  customThemes: useCustomThemeStore.getState().customThemes,
-  templates: useTemplateStore.getState().templates,
-  userPresets: useUserPresetStore.getState().userPresets,
-};
 
 function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
   if (workspace.provider === 'browser') return browserProvider;
@@ -94,15 +90,9 @@ function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
 
 function applyWorkspaceDocument(document: WorkspaceDocument): void {
   useUndoStore.getState().clearAllHistory();
-  if (document.customThemes !== undefined) {
-    useCustomThemeStore.getState().replaceCustomThemes(document.customThemes);
-  }
-  if (document.templates !== undefined) {
-    useTemplateStore.getState().replaceTemplates(document.templates);
-  }
-  if (document.userPresets !== undefined) {
-    useUserPresetStore.getState().replaceUserPresets(document.userPresets);
-  }
+  useCustomThemeStore.getState().replaceCustomThemes(document.customThemes);
+  useTemplateStore.getState().replaceTemplates(document.templates);
+  useUserPresetStore.getState().replaceUserPresets(document.userPresets);
   useStore.getState()._replaceWorkspaceState({
     characters: document.characters,
     activeCharacterId: document.activeCharacterId,
@@ -131,28 +121,6 @@ function captureWorkspaceDocument(workspace: StorageWorkspace): WorkspaceDocumen
     userPresets: useUserPresetStore.getState().userPresets,
     revision: (currentDocument?.revision ?? 0) + 1,
   });
-}
-
-function adoptLegacyWorkspaceLibraries(document: WorkspaceDocument): {
-  document: WorkspaceDocument;
-  migrated: boolean;
-} {
-  const migrated = document.customThemes === undefined
-    || document.templates === undefined
-    || document.userPresets === undefined;
-  if (!migrated) return { document, migrated: false };
-
-  return {
-    document: {
-      ...document,
-      customThemes: document.customThemes ?? legacyLibrarySeed.customThemes,
-      templates: document.templates ?? legacyLibrarySeed.templates,
-      userPresets: document.userPresets ?? legacyLibrarySeed.userPresets,
-      revision: document.revision + 1,
-      updatedAt: new Date().toISOString(),
-    },
-    migrated: true,
-  };
 }
 
 async function persistActiveWorkspace(): Promise<void> {
@@ -226,7 +194,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
     const result = await getProvider(workspace).load(workspace);
 
     if (cache?.pendingSync) {
-      const cached = adoptLegacyWorkspaceLibraries(cache.document).document;
+      const cached = cache.document;
       currentDocument = cached;
       currentFingerprint = cache.fingerprint;
       applyWorkspaceDocument(cached);
@@ -249,31 +217,18 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
       return;
     }
 
-    const loaded = adoptLegacyWorkspaceLibraries(result.document);
-    const fingerprint = loaded.migrated
-      ? (await getProvider(workspace).save(workspace, loaded.document, result.fingerprint)).fingerprint
-      : result.fingerprint;
-    currentDocument = loaded.document;
-    currentFingerprint = fingerprint;
+    currentDocument = result.document;
+    currentFingerprint = result.fingerprint;
     if (workspace.provider !== 'browser') {
-      await registry.setCache({ workspaceId: workspace.id, document: loaded.document, fingerprint, pendingSync: false });
+      await registry.setCache({ workspaceId: workspace.id, document: result.document, fingerprint: result.fingerprint, pendingSync: false });
     }
-    applyWorkspaceDocument(loaded.document);
+    applyWorkspaceDocument(result.document);
     useStorageWorkspaceStore.setState({ syncStatus: 'synced' });
   } catch (error) {
     if (!cache) throw error;
-    const cached = adoptLegacyWorkspaceLibraries(cache.document);
-    currentDocument = cached.document;
+    currentDocument = cache.document;
     currentFingerprint = cache.fingerprint;
-    applyWorkspaceDocument(cached.document);
-    if (cached.migrated) {
-      await registry.setCache({
-        workspaceId: workspace.id,
-        document: cached.document,
-        fingerprint: cache.fingerprint,
-        pendingSync: true,
-      });
-    }
+    applyWorkspaceDocument(cache.document);
     useStorageWorkspaceStore.setState({
       syncStatus: error instanceof WorkspaceReconnectRequiredError ? 'reconnect' : 'pending',
       error: error instanceof Error ? error.message : 'The cached workspace was loaded.',
@@ -297,11 +252,6 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     const workspaces = await registry.initialize();
     const browserWorkspace = workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
     const browserDocument = (await browserProvider.load(browserWorkspace)).document;
-    legacyLibrarySeed = {
-      customThemes: browserDocument.customThemes ?? [],
-      templates: browserDocument.templates ?? [],
-      userPresets: browserDocument.userPresets ?? [],
-    };
     await browserProvider.save(browserWorkspace, browserDocument, null);
     const preferredId = registry.getActiveWorkspaceId();
     const workspace = workspaces.find((candidate) => candidate.id === preferredId)
@@ -349,6 +299,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       id: workspaceId,
       name: created.document.name,
       provider: 'directory',
+      locationName: handle.name,
       createdAt: timestamp,
       lastOpenedAt: timestamp,
     };
@@ -367,6 +318,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       id: loaded.document.workspaceId,
       name: loaded.document.name,
       provider: 'directory',
+      locationName: handle.name,
       createdAt: existingWorkspace?.createdAt ?? timestamp,
       lastOpenedAt: timestamp,
     };
@@ -405,6 +357,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       name: trimmedName,
       provider: 'google-drive',
       driveFileId: metadata.id,
+      locationName: metadata.name,
       createdAt: timestamp,
       lastOpenedAt: timestamp,
     };
@@ -427,6 +380,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
         name: document.name,
         provider: 'google-drive',
         driveFileId: metadata.id,
+        locationName: metadata.name,
         createdAt: existing?.createdAt ?? timestamp,
         lastOpenedAt: existing?.lastOpenedAt ?? timestamp,
       };
@@ -472,6 +426,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       name: selectedFile.name.replace(/\.json$/i, ''),
       provider: 'google-drive',
       driveFileId: selectedFile.id,
+      locationName: selectedFile.name,
       createdAt: new Date().toISOString(),
       lastOpenedAt: new Date().toISOString(),
     };
@@ -553,9 +508,9 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       eventsByCharacter,
       activeCharacterId: loaded.document.activeCharacterId,
       mode: loaded.document.mode,
-      customThemes: loaded.document.customThemes ?? useCustomThemeStore.getState().customThemes,
-      templates: loaded.document.templates ?? useTemplateStore.getState().templates,
-      userPresets: loaded.document.userPresets ?? useUserPresetStore.getState().userPresets,
+      customThemes: loaded.document.customThemes,
+      templates: loaded.document.templates,
+      userPresets: loaded.document.userPresets,
       revision: loaded.document.revision + 1,
     });
 
@@ -624,6 +579,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       id: workspaceId,
       name: handle.name,
       provider: 'directory',
+      locationName: handle.name,
       createdAt: document.updatedAt,
       lastOpenedAt: document.updatedAt,
     };
@@ -667,6 +623,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       name: trimmedName,
       provider: 'google-drive',
       driveFileId: metadata.id,
+      locationName: metadata.name,
       createdAt: timestamp,
       lastOpenedAt: timestamp,
     };
@@ -685,20 +642,40 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     });
   },
 
-  replaceActiveWorkspaceCharacters: async (characters) => {
-    const characterIds = new Set(characters.map((character) => character.id));
+  restoreActiveWorkspace: async (source) => {
+    const characterIds = new Set(source.characters.map((character) => character.id));
+    const sourceEvents = source.eventsByCharacter ?? useTimelineStore.getState().eventsByCharacter;
     const eventsByCharacter = Object.fromEntries(
-      Object.entries(useTimelineStore.getState().eventsByCharacter)
+      Object.entries(sourceEvents)
         .filter(([characterId]) => characterIds.has(characterId)),
     );
+    const activeCharacterId = source.activeCharacterId && characterIds.has(source.activeCharacterId)
+      ? source.activeCharacterId
+      : null;
     suppressPersistence = true;
-    useUndoStore.getState().clearAllHistory();
-    useStore.getState()._replaceWorkspaceState({ characters, activeCharacterId: null, mode: 'play' });
-    useTimelineStore.getState().replaceWorkspaceEvents(eventsByCharacter);
-    suppressPersistence = false;
+    try {
+      useUndoStore.getState().clearAllHistory();
+      if (source.customThemes !== undefined) {
+        useCustomThemeStore.getState().replaceCustomThemes(source.customThemes);
+      }
+      if (source.templates !== undefined) {
+        useTemplateStore.getState().replaceTemplates(source.templates);
+      }
+      if (source.userPresets !== undefined) {
+        useUserPresetStore.getState().replaceUserPresets(source.userPresets);
+      }
+      useStore.getState()._replaceWorkspaceState({
+        characters: source.characters,
+        activeCharacterId,
+        mode: activeCharacterId ? source.mode ?? 'play' : 'play',
+      });
+      useTimelineStore.getState().replaceWorkspaceEvents(eventsByCharacter);
+    } finally {
+      suppressPersistence = false;
+    }
     await persistActiveWorkspace();
     if (useStorageWorkspaceStore.getState().syncStatus !== 'synced') {
-      throw new Error(useStorageWorkspaceStore.getState().error || 'The restored characters could not be saved.');
+      throw new Error(useStorageWorkspaceStore.getState().error || 'The restored workspace could not be saved.');
     }
   },
 

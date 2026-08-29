@@ -2,7 +2,7 @@ import type { Character, Sheet, Widget } from '../types';
 import { isCustomTheme, type CustomTheme } from '../store/useCustomThemeStore';
 import type { AnyTemplate } from '../store/useTemplateStore';
 import type { UserPreset } from '../store/useUserPresetStore';
-import type { WorkspaceDocument, WorkspaceMode } from './types';
+import type { RestorableWorkspaceData, WorkspaceData, WorkspaceDocument, WorkspaceMode } from './types';
 
 export const WORKSPACE_FORMAT = 'universal-character-sheet/workspace';
 export const WORKSPACE_VERSION = 1;
@@ -85,13 +85,14 @@ function isUserPreset(value: unknown): value is UserPreset {
     && (value.theme === undefined || typeof value.theme === 'string');
 }
 
-function parseOptionalLibrary<T>(
+function parseLibrary<T>(
   value: Record<string, unknown>,
   key: string,
   isItem: (item: unknown) => item is T,
   errorMessage: string,
+  optional = false,
 ): T[] | undefined {
-  if (!(key in value)) return undefined;
+  if (!(key in value) && optional) return undefined;
   const library = value[key];
   if (!Array.isArray(library) || !library.every(isItem)) throw new WorkspaceDocumentError(errorMessage);
   return library;
@@ -118,6 +119,35 @@ function parseEventsByCharacter(value: unknown): WorkspaceDocument['eventsByChar
     parsed[characterId] = timeline as unknown as WorkspaceDocument['eventsByCharacter'][string];
   }
   return parsed;
+}
+
+export function parseWorkspaceData(value: unknown): WorkspaceData {
+  if (!isRecord(value)) throw new WorkspaceDocumentError('Workspace data is not a JSON object.');
+  if (!Array.isArray(value.characters) || !value.characters.every(isCharacter)) {
+    throw new WorkspaceDocumentError('Workspace characters are invalid.');
+  }
+
+  return {
+    characters: value.characters,
+    eventsByCharacter: parseEventsByCharacter(value.eventsByCharacter),
+    customThemes: parseLibrary(value, 'customThemes', isCustomTheme, 'Workspace custom themes are invalid.')!,
+    templates: parseLibrary(value, 'templates', isTemplate, 'Workspace templates are invalid.')!,
+    userPresets: parseLibrary(value, 'userPresets', isUserPreset, 'Workspace user presets are invalid.')!,
+  };
+}
+
+export function parseLegacyRestorableWorkspaceData(value: unknown): RestorableWorkspaceData {
+  if (!isRecord(value) || !Array.isArray(value.characters) || !value.characters.every(isCharacter)) {
+    throw new WorkspaceDocumentError('Workspace characters are invalid.');
+  }
+
+  return {
+    characters: value.characters,
+    eventsByCharacter: value.eventsByCharacter === undefined ? undefined : parseEventsByCharacter(value.eventsByCharacter),
+    customThemes: parseLibrary(value, 'customThemes', isCustomTheme, 'Workspace custom themes are invalid.', true),
+    templates: parseLibrary(value, 'templates', isTemplate, 'Workspace templates are invalid.', true),
+    userPresets: parseLibrary(value, 'userPresets', isUserPreset, 'Workspace user presets are invalid.', true),
+  };
 }
 
 export function createWorkspaceDocument(options: {
@@ -171,9 +201,6 @@ export function parseWorkspaceDocument(value: unknown): WorkspaceDocument {
   if (!Number.isInteger(value.revision) || (value.revision as number) < 0 || typeof value.updatedAt !== 'string') {
     throw new WorkspaceDocumentError('Workspace revision metadata is invalid.');
   }
-  if (!Array.isArray(value.characters) || !value.characters.every(isCharacter)) {
-    throw new WorkspaceDocumentError('Workspace characters are invalid.');
-  }
   if (typeof value.mode !== 'string' || !WORKSPACE_MODES.has(value.mode as WorkspaceMode)) {
     throw new WorkspaceDocumentError('Workspace mode is invalid.');
   }
@@ -181,25 +208,16 @@ export function parseWorkspaceDocument(value: unknown): WorkspaceDocument {
     throw new WorkspaceDocumentError('Active character is invalid.');
   }
 
-  const customThemes = parseOptionalLibrary(value, 'customThemes', isCustomTheme, 'Workspace custom themes are invalid.');
-  const templates = parseOptionalLibrary(value, 'templates', isTemplate, 'Workspace templates are invalid.');
-  const userPresets = parseOptionalLibrary(value, 'userPresets', isUserPreset, 'Workspace user presets are invalid.');
+  const data = parseWorkspaceData(value);
 
   const document = createWorkspaceDocument({
     workspaceId: value.workspaceId,
     name: value.name,
     revision: value.revision as number,
     updatedAt: value.updatedAt,
-    characters: value.characters as Character[],
-    eventsByCharacter: parseEventsByCharacter(value.eventsByCharacter),
+    ...data,
     activeCharacterId: value.activeCharacterId,
     mode: value.mode as WorkspaceMode,
-    customThemes,
-    templates,
-    userPresets,
   });
-  if (customThemes === undefined) delete document.customThemes;
-  if (templates === undefined) delete document.templates;
-  if (userPresets === undefined) delete document.userPresets;
   return document;
 }

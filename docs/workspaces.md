@@ -22,7 +22,9 @@ Shared browser data:
 
 Copying a character to another workspace creates new character, sheet, widget, group, and card IDs. The visible name and timeline history are retained.
 
-Workspace files created before themes, templates, and presets became workspace-specific adopt the browser's current libraries the first time they are opened, then persist that migration to keep the collections isolated.
+Workspace files and new backup files use the same validated data fields for characters, timeline events, custom themes, templates, and user presets. Workspace files add identity, revision, active-character, and mode metadata used by providers and conflict detection.
+
+Backups can be restored into any active workspace. The restore picker also accepts a workspace file and imports its shared data while retaining the destination workspace's identity and provider association. Older backup files without timeline data remain valid and leave the matching characters' existing timelines unchanged.
 
 ## Providers
 

@@ -60,17 +60,11 @@ describe('workspace documents', () => {
     expect(document.mode).toBe('play');
   });
 
-  it('preserves absent library fields from legacy workspace files', () => {
+  it('requires the complete shared data payload', () => {
     const document = createWorkspaceDocument({ workspaceId: 'workspace-1', name: 'Campaign' });
-    delete document.customThemes;
-    delete document.templates;
-    delete document.userPresets;
+    const { customThemes: _customThemes, ...documentWithoutCustomThemes } = document;
 
-    const parsed = parseWorkspaceDocument(document);
-
-    expect(parsed.customThemes).toBeUndefined();
-    expect(parsed.templates).toBeUndefined();
-    expect(parsed.userPresets).toBeUndefined();
+    expect(() => parseWorkspaceDocument(documentWithoutCustomThemes)).toThrow('Workspace custom themes are invalid.');
   });
 
   it('rejects documents from a newer application version', () => {

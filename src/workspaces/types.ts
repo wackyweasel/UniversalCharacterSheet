@@ -13,6 +13,7 @@ export interface StorageWorkspace {
   createdAt: string;
   lastOpenedAt: string;
   driveFileId?: string;
+  locationName?: string;
 }
 
 export interface WorkspaceTimelineEvent {
@@ -29,18 +30,31 @@ export interface WorkspaceCharacterTimeline {
   nextId: number;
 }
 
-export interface WorkspaceDocument {
+export interface WorkspaceData {
+  characters: Character[];
+  eventsByCharacter: Record<string, WorkspaceCharacterTimeline>;
+  customThemes: CustomTheme[];
+  templates: AnyTemplate[];
+  userPresets: UserPreset[];
+}
+
+export interface RestorableWorkspaceData {
+  characters: Character[];
+  eventsByCharacter?: Record<string, WorkspaceCharacterTimeline>;
+  customThemes?: CustomTheme[];
+  templates?: AnyTemplate[];
+  userPresets?: UserPreset[];
+  activeCharacterId?: string | null;
+  mode?: WorkspaceMode;
+}
+
+export interface WorkspaceDocument extends WorkspaceData {
   format: 'universal-character-sheet/workspace';
   version: 1;
   workspaceId: string;
   name: string;
   revision: number;
   updatedAt: string;
-  characters: Character[];
-  eventsByCharacter: Record<string, WorkspaceCharacterTimeline>;
   activeCharacterId: string | null;
   mode: WorkspaceMode;
-  customThemes?: CustomTheme[];
-  templates?: AnyTemplate[];
-  userPresets?: UserPreset[];
 }

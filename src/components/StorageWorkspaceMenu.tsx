@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Cloud, CloudDownload, CloudUpload, FolderOpen, FolderSearch, HardDrive, LoaderCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronDown, FolderOpen, FolderSearch, HardDrive, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
-import {
-  type WorkspaceDirectoryHandle,
-} from '../workspaces/providers/directoryWorkspaceProvider';
-import { isGoogleDriveConfigured } from '../workspaces/google/googleClient';
+import type { StorageWorkspace } from '../workspaces/types';
 import { supportsDirectoryWorkspaces, supportsStorageWorkspaces } from '../workspaces/capabilities';
+import type { WorkspaceDirectoryHandle } from '../workspaces/providers/directoryWorkspaceProvider';
+import AddWorkspaceDialog from './AddWorkspaceDialog';
+import { GoogleDriveIcon } from './icons';
 
 interface StorageWorkspaceMenuProps {
   darkMode: boolean;
@@ -15,41 +15,56 @@ type DirectoryPickerWindow = Window & {
   showDirectoryPicker: () => Promise<WorkspaceDirectoryHandle>;
 };
 
+function WorkspaceIcon({ workspace, className = 'h-4 w-4' }: { workspace: StorageWorkspace; className?: string }) {
+  if (workspace.provider === 'directory') return <FolderOpen className={className} />;
+  if (workspace.provider === 'google-drive') return <GoogleDriveIcon className={className} />;
+  return <HardDrive className={className} />;
+}
+
+function workspaceDescription(workspace: StorageWorkspace): string {
+  if (workspace.provider === 'browser') return 'Stored in this browser on this device.';
+  if (workspace.provider === 'directory') return `This device / ${workspace.locationName ?? workspace.name}`;
+  const fileName = workspace.locationName ?? `${workspace.name}.json`;
+  return `Google Drive / ${fileName.toLowerCase().endsWith('.json') ? fileName : `${fileName}.json`}`;
+}
+
 export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuProps) {
   const workspaces = useStorageWorkspaceStore((state) => state.workspaces);
   const activeWorkspaceId = useStorageWorkspaceStore((state) => state.activeWorkspaceId);
   const syncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
   const error = useStorageWorkspaceStore((state) => state.error);
   const switchWorkspace = useStorageWorkspaceStore((state) => state.switchWorkspace);
-  const addDirectoryWorkspace = useStorageWorkspaceStore((state) => state.addDirectoryWorkspace);
-  const openDirectoryWorkspace = useStorageWorkspaceStore((state) => state.openDirectoryWorkspace);
   const reconnectDirectoryWorkspace = useStorageWorkspaceStore((state) => state.reconnectDirectoryWorkspace);
-  const addGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.addGoogleDriveWorkspace);
-  const connectGoogleDrive = useStorageWorkspaceStore((state) => state.connectGoogleDrive);
-  const openGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.openGoogleDriveWorkspace);
   const reconnectGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.reconnectGoogleDriveWorkspace);
   const forgetWorkspace = useStorageWorkspaceStore((state) => state.forgetWorkspace);
   const [isOpen, setIsOpen] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [operationError, setOperationError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    const closeOnOutsideClick = (event: MouseEvent) => {
+    const closeOnOutsideClick = (event: PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) setIsOpen(false);
     };
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
   }, [isOpen]);
 
   if (!supportsStorageWorkspaces()) return null;
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
-  const directorySupported = supportsDirectoryWorkspaces();
-  const requiresReconnect = syncStatus === 'reconnect' && activeWorkspace?.provider === 'directory';
-  const requiresDriveReconnect = syncStatus === 'reconnect' && activeWorkspace?.provider === 'google-drive';
-  const driveConfigured = isGoogleDriveConfigured();
   const statusText = syncStatus === 'saving'
     ? 'Saving'
     : syncStatus === 'pending'
@@ -58,9 +73,16 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
         ? 'Reconnect required'
         : syncStatus === 'conflict'
           ? 'Conflict'
-          : syncStatus === 'synced'
-            ? 'Saved'
-            : null;
+          : syncStatus === 'error'
+            ? 'Error'
+            : syncStatus === 'synced'
+              ? 'Saved'
+              : null;
+  const statusColor = syncStatus === 'conflict' || syncStatus === 'error'
+    ? 'bg-red-500'
+    : syncStatus === 'pending' || syncStatus === 'reconnect'
+      ? 'bg-amber-500'
+      : 'bg-emerald-500';
 
   const run = async (operation: () => Promise<void>) => {
     setIsBusy(true);
@@ -69,7 +91,6 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
       await operation();
     } catch (caughtError) {
       if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return;
-      console.error('Workspace operation failed', caughtError);
       setOperationError(caughtError instanceof Error ? caughtError.message : 'The workspace operation failed.');
     } finally {
       setIsBusy(false);
@@ -79,207 +100,143 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
   const chooseDirectory = () => (window as unknown as DirectoryPickerWindow).showDirectoryPicker();
 
   return (
-    <div ref={menuRef} className="relative w-full sm:w-auto">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        disabled={isBusy || syncStatus === 'loading'}
-        onClick={() => setIsOpen((open) => !open)}
-        className={`flex h-10 w-full items-center gap-2 rounded-button border px-3 text-left font-body text-sm transition-colors sm:w-auto sm:min-w-[230px] ${
-          darkMode
-            ? 'border-white/30 bg-black text-white hover:bg-white/10'
-            : 'border-theme-border bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-        }`}
-      >
-        {activeWorkspace?.provider === 'directory'
-          ? <FolderOpen className="h-4 w-4" />
-          : activeWorkspace?.provider === 'google-drive'
-            ? <Cloud className="h-4 w-4" />
-            : <HardDrive className="h-4 w-4" />}
-        <span className="min-w-0 flex-1 truncate">{activeWorkspace?.name ?? 'Browser'}</span>
-        {statusText && <span className="text-[10px] opacity-70">{statusText}</span>}
-        {isBusy || syncStatus === 'loading'
-          ? <LoaderCircle className="h-4 w-4 animate-spin" />
-          : <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
-      </button>
-
-      {isOpen && (
-        <div
-          role="menu"
-          aria-label="Storage workspaces"
-          className={`absolute left-0 top-full z-50 mt-2 w-full min-w-[280px] overflow-hidden rounded-button border shadow-lg animate-dropdown-in sm:w-[340px] ${
-            darkMode ? 'border-white/30 bg-black text-white' : 'border-gray-300 bg-white text-gray-800'
+    <>
+      <div ref={menuRef} className="relative min-w-0">
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          disabled={isBusy || syncStatus === 'loading'}
+          onClick={() => setIsOpen((open) => !open)}
+          title={`${activeWorkspace?.name ?? 'Browser'}${statusText ? `: ${statusText}` : ''}`}
+          className={`flex h-14 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-button border px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
+            darkMode
+              ? 'border-white/30 bg-black text-white hover:bg-white/10'
+              : 'border-theme-border bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
           }`}
         >
-          <div className={`px-3 py-2 text-[10px] font-bold uppercase ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>
-            Workspaces
-          </div>
-          {workspaces.map((workspace) => (
-            <div key={workspace.id} className={`flex items-center ${workspace.id === activeWorkspaceId ? (darkMode ? 'bg-white/10' : 'bg-gray-100') : ''}`}>
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={workspace.id === activeWorkspaceId}
-                className={`flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left text-sm ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                onClick={() => void run(async () => {
-                  await switchWorkspace(workspace.id);
-                  setIsOpen(false);
-                })}
-              >
-                {workspace.provider === 'directory'
-                  ? <FolderOpen className="h-4 w-4 flex-none" />
-                  : workspace.provider === 'google-drive'
-                    ? <Cloud className="h-4 w-4 flex-none" />
-                    : <HardDrive className="h-4 w-4 flex-none" />}
-                <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                {workspace.id === activeWorkspaceId && <span className="text-[10px] font-bold uppercase">Current</span>}
-              </button>
-              {workspace.provider !== 'browser' && (
-                <button
-                  type="button"
-                  aria-label={`Forget ${workspace.name}`}
-                  title="Forget from this browser"
-                  className={`flex h-9 w-9 flex-none items-center justify-center ${darkMode ? 'hover:bg-white/10' : 'hover:bg-red-50 hover:text-red-600'}`}
-                  onClick={() => {
-                    if (!window.confirm(`Forget ${workspace.name} from this browser? The workspace file will not be deleted.`)) return;
-                    void run(() => forgetWorkspace(workspace.id));
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          ))}
+          {activeWorkspace && <WorkspaceIcon workspace={activeWorkspace} className="h-5 w-5 flex-none" />}
+          <span className="flex min-w-0 flex-col items-start leading-none">
+            <span className="max-w-full truncate text-[10px] sm:text-sm">{activeWorkspace?.name ?? 'Browser'}</span>
+            <span className="mt-1 flex max-w-full items-center gap-1 text-[9px] opacity-70 sm:text-[10px]">
+              {isBusy || syncStatus === 'loading'
+                ? <LoaderCircle className="h-3 w-3 flex-none animate-spin" />
+                : statusText && <span className={`h-1.5 w-1.5 flex-none rounded-full ${statusColor}`} />}
+              {(isBusy || statusText) && <span className="truncate">{isBusy ? 'Working' : statusText}</span>}
+            </span>
+          </span>
+          <ChevronDown className={`hidden h-3.5 w-3.5 flex-none transition-transform sm:block ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-          <div className={`border-t p-2 ${darkMode ? 'border-white/20' : 'border-gray-200'}`}>
-            {requiresReconnect && directorySupported && (
+        {isOpen && (
+          <div
+            role="menu"
+            aria-label="Storage workspaces"
+            className={`absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-button border shadow-lg animate-dropdown-in ${
+              darkMode ? 'border-white/30 bg-black text-white' : 'border-gray-300 bg-white text-gray-800'
+            }`}
+          >
+            <div className={`px-3 py-2 text-[10px] font-bold uppercase ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>Workspaces</div>
+            {workspaces.map((workspace) => {
+              const isCurrent = workspace.id === activeWorkspaceId;
+              const requiresDirectoryReconnect = isCurrent && syncStatus === 'reconnect' && workspace.provider === 'directory';
+              const requiresDriveReconnect = isCurrent && syncStatus === 'reconnect' && workspace.provider === 'google-drive';
+              return (
+                <div key={workspace.id} className={`${isCurrent ? darkMode ? 'bg-white/10' : 'bg-gray-100' : ''}`}>
+                  <div className="flex items-stretch">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={isCurrent}
+                      className={`flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                      onClick={() => void run(async () => {
+                        await switchWorkspace(workspace.id);
+                        setIsOpen(false);
+                      })}
+                    >
+                      <WorkspaceIcon workspace={workspace} className="mt-0.5 h-4 w-4 flex-none" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2 font-body text-sm font-bold">
+                          <span className="truncate">{workspace.name}</span>
+                          {isCurrent && <span className="flex-none text-[9px] uppercase opacity-60">Current</span>}
+                        </span>
+                        <span className="mt-0.5 block truncate font-body text-xs opacity-55">{workspaceDescription(workspace)}</span>
+                      </span>
+                    </button>
+                    {workspace.provider !== 'browser' && (
+                      <button
+                        type="button"
+                        aria-label={`Forget ${workspace.name}`}
+                        title="Forget from this browser"
+                        className={`flex w-10 flex-none items-center justify-center ${darkMode ? 'hover:bg-white/10' : 'hover:bg-red-50 hover:text-red-600'}`}
+                        onClick={() => {
+                          if (!window.confirm(`Forget ${workspace.name} from this browser? The workspace file will not be deleted.`)) return;
+                          void run(() => forgetWorkspace(workspace.id));
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {(requiresDirectoryReconnect || requiresDriveReconnect) && (
+                    <div className={`flex flex-wrap gap-1 border-t px-3 py-2 ${darkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                      <button
+                        type="button"
+                        className={`flex items-center gap-2 rounded-button px-2 py-1.5 font-body text-xs font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-white'}`}
+                        onClick={() => void run(async () => {
+                          if (requiresDirectoryReconnect) await reconnectDirectoryWorkspace(workspace.id);
+                          if (requiresDriveReconnect) await reconnectGoogleDriveWorkspace(workspace.id);
+                          setIsOpen(false);
+                        })}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Reconnect
+                      </button>
+                      {requiresDirectoryReconnect && supportsDirectoryWorkspaces() && (
+                        <button
+                          type="button"
+                          className={`flex items-center gap-2 rounded-button px-2 py-1.5 font-body text-xs ${darkMode ? 'hover:bg-white/10' : 'hover:bg-white'}`}
+                          onClick={() => void run(async () => {
+                            await reconnectDirectoryWorkspace(workspace.id, await chooseDirectory());
+                            setIsOpen(false);
+                          })}
+                        >
+                          <FolderSearch className="h-3.5 w-3.5" />
+                          Choose directory again
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className={`border-t p-2 ${darkMode ? 'border-white/20' : 'border-gray-200'}`}>
               <button
                 type="button"
                 role="menuitem"
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                onClick={() => void run(async () => {
-                  await reconnectDirectoryWorkspace(activeWorkspaceId);
+                className={`flex w-full items-center gap-3 rounded-button px-3 py-2.5 text-left font-body text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                onClick={() => {
                   setIsOpen(false);
-                })}
+                  setShowAddDialog(true);
+                }}
               >
-                <RefreshCw className="h-4 w-4" />
-                Reconnect directory
+                <Plus className="h-4 w-4" />
+                Add workspace
               </button>
-            )}
-            {requiresReconnect && directorySupported && (
-              <button
-                type="button"
-                role="menuitem"
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                onClick={() => void run(async () => {
-                  const handle = await chooseDirectory();
-                  await reconnectDirectoryWorkspace(activeWorkspaceId, handle);
-                  setIsOpen(false);
-                })}
-              >
-                <FolderSearch className="h-4 w-4" />
-                Choose directory again
-              </button>
-            )}
-            {requiresDriveReconnect && driveConfigured && (
-              <button
-                type="button"
-                role="menuitem"
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                onClick={() => void run(async () => {
-                  await reconnectGoogleDriveWorkspace(activeWorkspaceId);
-                  setIsOpen(false);
-                })}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Reconnect Google Drive
-              </button>
-            )}
-            {directorySupported && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                  onClick={() => void run(async () => {
-                    const handle = await chooseDirectory();
-                    await addDirectoryWorkspace(handle);
-                    setIsOpen(false);
-                  })}
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  New local directory
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                  onClick={() => void run(async () => {
-                    const handle = await chooseDirectory();
-                    await openDirectoryWorkspace(handle);
-                    setIsOpen(false);
-                  })}
-                >
-                  <FolderSearch className="h-4 w-4" />
-                  Open local workspace
-                </button>
-              </>
-            )}
-            {driveConfigured && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                  onClick={() => void run(async () => {
-                    const discoveredCount = await connectGoogleDrive();
-                    if (discoveredCount === 0) {
-                      throw new Error('No Google Drive workspaces were found. Create one or open an existing workspace file.');
-                    }
-                  })}
-                >
-                  <Cloud className="h-4 w-4" />
-                  Connect Google Drive
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                  onClick={() => {
-                    const name = window.prompt('Workspace name');
-                    if (!name) return;
-                    void run(async () => {
-                      await addGoogleDriveWorkspace(name);
-                      setIsOpen(false);
-                    });
-                  }}
-                >
-                  <CloudUpload className="h-4 w-4" />
-                  New Google Drive workspace
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                  onClick={() => void run(async () => {
-                    await openGoogleDriveWorkspace();
-                    setIsOpen(false);
-                  })}
-                >
-                  <CloudDownload className="h-4 w-4" />
-                  Open Google Drive workspace
-                </button>
-              </>
+            </div>
+
+            {(operationError || error) && (
+              <p role="alert" className={`border-t px-3 py-2 font-body text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
+                {operationError || error}
+              </p>
             )}
           </div>
-          {(operationError || error) && (
-            <p className={`border-t px-3 py-2 text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
-              {operationError || error}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      {showAddDialog && <AddWorkspaceDialog darkMode={darkMode} onClose={() => setShowAddDialog(false)} />}
+    </>
   );
 }
