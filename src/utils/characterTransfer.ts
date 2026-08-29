@@ -9,16 +9,34 @@ function cloneCustomTheme(theme: CustomTheme): CustomTheme {
   };
 }
 
-export function getCharacterTransferData(character: Character): Character {
-  const { customTheme: _embeddedTheme, ...characterData } = character;
-  const libraryTheme = character.theme ? getCustomTheme(character.theme) : undefined;
+export function getCharacterCustomTheme(character: Character, customThemes: CustomTheme[]): CustomTheme | undefined {
+  const libraryTheme = character.theme
+    ? customThemes.find((theme) => theme.id === character.theme)
+    : undefined;
   const embeddedTheme = isCustomTheme(character.customTheme) && character.customTheme.id === character.theme
     ? character.customTheme
     : undefined;
   const customTheme = libraryTheme || embeddedTheme;
+  return customTheme ? cloneCustomTheme(customTheme) : undefined;
+}
+
+export function includeCharacterCustomTheme(
+  character: Character,
+  sourceThemes: CustomTheme[],
+  targetThemes: CustomTheme[],
+): CustomTheme[] {
+  if (!character.theme || targetThemes.some((theme) => theme.id === character.theme)) return targetThemes;
+  const customTheme = getCharacterCustomTheme(character, sourceThemes);
+  return customTheme ? [...targetThemes, customTheme] : targetThemes;
+}
+
+export function getCharacterTransferData(character: Character): Character {
+  const { customTheme: _embeddedTheme, ...characterData } = character;
+  const libraryTheme = character.theme ? getCustomTheme(character.theme) : undefined;
+  const customTheme = getCharacterCustomTheme(character, libraryTheme ? [libraryTheme] : []);
 
   return customTheme
-    ? { ...characterData, customTheme: cloneCustomTheme(customTheme) }
+    ? { ...characterData, customTheme }
     : characterData;
 }
 

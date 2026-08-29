@@ -8,6 +8,7 @@ import { useTemplateStore } from './useTemplateStore';
 import { useUserPresetStore } from './useUserPresetStore';
 import type { Character } from '../types';
 import { cloneCharacterForWorkspace } from '../utils/characterClone';
+import { includeCharacterCustomTheme } from '../utils/characterTransfer';
 import type { RestorableWorkspaceFile } from '../utils/workspaceBackup';
 import type { StorageWorkspace, WorkspaceDocument } from '../workspaces/types';
 import { createWorkspaceDocument } from '../workspaces/workspaceDocument';
@@ -524,6 +525,11 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     const provider = getProvider(targetWorkspace);
     const loaded = await provider.load(targetWorkspace);
     const clonedCharacter = cloneCharacterForWorkspace(sourceCharacter);
+    const targetCustomThemes = includeCharacterCustomTheme(
+      sourceCharacter,
+      useCustomThemeStore.getState().customThemes,
+      loaded.document.customThemes,
+    );
     const sourceTimeline = useTimelineStore.getState().eventsByCharacter[characterId];
     const eventsByCharacter = {
       ...loaded.document.eventsByCharacter,
@@ -536,7 +542,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       eventsByCharacter,
       activeCharacterId: loaded.document.activeCharacterId,
       mode: loaded.document.mode,
-      customThemes: loaded.document.customThemes,
+      customThemes: targetCustomThemes,
       templates: loaded.document.templates,
       userPresets: loaded.document.userPresets,
       revision: loaded.document.revision + 1,
