@@ -56,7 +56,7 @@ interface StorageWorkspaceState {
   addGoogleDriveWorkspace: (name: string) => Promise<void>;
   connectGoogleDrive: () => Promise<number>;
   openGoogleDriveWorkspace: () => Promise<void>;
-  reconnectDirectoryWorkspace: (workspaceId: string, handle: WorkspaceDirectoryHandle) => Promise<void>;
+  reconnectDirectoryWorkspace: (workspaceId: string, handle?: WorkspaceDirectoryHandle) => Promise<void>;
   reconnectGoogleDriveWorkspace: (workspaceId: string) => Promise<void>;
   copyCharacterToWorkspace: (characterId: string, targetWorkspaceId: string) => Promise<void>;
   resolveConflict: (resolution: 'remote' | 'local') => Promise<void>;
@@ -440,14 +440,18 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   reconnectDirectoryWorkspace: async (workspaceId, handle) => {
     const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace || workspace.provider !== 'directory') throw new Error('Directory workspace not found.');
-    const hasPermission = await reconnectDirectoryWorkspace(handle);
+    const selectedHandle = handle ?? await registry.getDirectoryHandle(workspaceId);
+    if (!selectedHandle) {
+      throw new WorkspaceReconnectRequiredError('The saved directory handle is unavailable. Choose the workspace directory again.');
+    }
+    const hasPermission = await reconnectDirectoryWorkspace(selectedHandle);
     if (!hasPermission) throw new WorkspaceReconnectRequiredError('Directory access was not granted.');
-    const selectedProvider = createDirectoryWorkspaceProvider(async () => handle);
+    const selectedProvider = createDirectoryWorkspaceProvider(async () => selectedHandle);
     const selected = await selectedProvider.load(workspace);
     if (selected.document.workspaceId !== workspaceId) {
       throw new Error('The selected directory belongs to a different workspace.');
     }
-    await registry.setDirectoryHandle(workspaceId, handle);
+    await registry.setDirectoryHandle(workspaceId, selectedHandle);
     if (workspaceId === get().activeWorkspaceId) await loadWorkspace(workspace);
   },
 

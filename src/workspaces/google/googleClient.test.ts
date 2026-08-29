@@ -2,14 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type TokenCallback = (response: { access_token?: string; expires_in?: number; error?: string }) => void;
 
-function installGoogleLibraries(responses: Array<{ access_token?: string; expires_in?: number; error?: string }>) {
+function installGoogleLibraries(responses: Array<{ access_token?: string; expires_in?: number; error?: string } | null>) {
   const prompts: string[] = [];
   const tokenClient = {
     callback: (() => undefined) as TokenCallback,
     requestAccessToken: ({ prompt }: { prompt: string }) => {
       prompts.push(prompt);
       const response = responses.shift();
-      if (!response) throw new Error('Missing token response.');
+      if (response === undefined) throw new Error('Missing token response.');
+      if (response === null) return;
       queueMicrotask(() => tokenClient.callback(response));
     },
   };
@@ -43,6 +44,7 @@ describe('Google Drive authorization', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
@@ -68,5 +70,17 @@ describe('Google Drive authorization', () => {
     await expect(authorizeGoogleDrive()).resolves.toBe('interactive-token');
 
     expect(prompts).toEqual(['none', '']);
+  });
+
+  it('stops waiting when silent authorization does not respond', async () => {
+    vi.useFakeTimers();
+    const prompts = installGoogleLibraries([null]);
+    const { restoreGoogleDriveAccessToken } = await import('./googleClient');
+
+    const restoration = restoreGoogleDriveAccessToken();
+    await vi.advanceTimersByTimeAsync(5000);
+
+    await expect(restoration).resolves.toBeNull();
+    expect(prompts).toEqual(['none']);
   });
 });

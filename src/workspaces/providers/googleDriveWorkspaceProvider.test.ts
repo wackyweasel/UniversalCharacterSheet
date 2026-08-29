@@ -39,6 +39,19 @@ describe('Google Drive workspace provider', () => {
     expect(fetchImpl.mock.calls[0][1]?.headers).toEqual({ Authorization: 'Bearer token' });
   });
 
+  it('stops waiting when Google Drive does not respond while loading', async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(() => new Promise<Response>(() => undefined));
+    const provider = createGoogleDriveWorkspaceProvider(() => 'token', fetchImpl, 10000);
+
+    const loading = expect(provider.load(workspace))
+      .rejects.toThrow('Google Drive did not respond while loading the workspace.');
+    await vi.advanceTimersByTimeAsync(10000);
+
+    await loading;
+    vi.useRealTimers();
+  });
+
   it('loads the remote document and raises a conflict before upload', async () => {
     const remoteDocument = { ...document, revision: 2 };
     const fetchImpl = vi.fn<typeof fetch>()

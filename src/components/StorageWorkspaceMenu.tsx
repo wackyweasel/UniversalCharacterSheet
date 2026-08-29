@@ -159,13 +159,27 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
                 role="menuitem"
                 className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-bold ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
                 onClick={() => void run(async () => {
-                  const handle = await chooseDirectory();
-                  await reconnectDirectoryWorkspace(activeWorkspaceId, handle);
+                  await reconnectDirectoryWorkspace(activeWorkspaceId);
                   setIsOpen(false);
                 })}
               >
                 <RefreshCw className="h-4 w-4" />
                 Reconnect directory
+              </button>
+            )}
+            {requiresReconnect && directorySupported && (
+              <button
+                type="button"
+                role="menuitem"
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                onClick={() => void run(async () => {
+                  const handle = await chooseDirectory();
+                  await reconnectDirectoryWorkspace(activeWorkspaceId, handle);
+                  setIsOpen(false);
+                })}
+              >
+                <FolderSearch className="h-4 w-4" />
+                Choose directory again
               </button>
             )}
             {requiresDriveReconnect && driveConfigured && (

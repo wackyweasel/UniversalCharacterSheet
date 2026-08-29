@@ -7,9 +7,26 @@ import {
   updateDriveWorkspaceFile,
 } from '../google/driveApi';
 
+const DRIVE_LOAD_TIMEOUT_MS = 10000;
+
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_resolve, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Google Drive did not respond while loading the workspace.')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
+}
+
 export function createGoogleDriveWorkspaceProvider(
   getAccessToken: () => string | null,
   fetchImpl: typeof fetch = fetch,
+  loadTimeoutMs = DRIVE_LOAD_TIMEOUT_MS,
 ): WorkspaceProvider {
   const requireAccessToken = () => {
     const accessToken = getAccessToken();
@@ -21,10 +38,13 @@ export function createGoogleDriveWorkspaceProvider(
     async load(workspace) {
       if (!workspace.driveFileId) throw new Error('Google Drive workspace is missing its file ID.');
       const accessToken = requireAccessToken();
-      const [metadata, document] = await Promise.all([
-        getDriveFileMetadata(workspace.driveFileId, accessToken, fetchImpl),
-        downloadDriveWorkspace(workspace.driveFileId, accessToken, fetchImpl),
-      ]);
+      const [metadata, document] = await withTimeout(
+        Promise.all([
+          getDriveFileMetadata(workspace.driveFileId, accessToken, fetchImpl),
+          downloadDriveWorkspace(workspace.driveFileId, accessToken, fetchImpl),
+        ]),
+        loadTimeoutMs,
+      );
       return { document, fingerprint: getDriveFingerprint(metadata) };
     },
 

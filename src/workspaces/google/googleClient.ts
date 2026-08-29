@@ -1,6 +1,7 @@
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
+const SILENT_TOKEN_TIMEOUT_MS = 5000;
 
 interface TokenResponse {
   access_token?: string;
@@ -60,7 +61,8 @@ type GoogleWindow = Window & {
 let accessToken: string | null = null;
 let accessTokenExpiresAt = 0;
 let tokenClient: TokenClient | null = null;
-let librariesPromise: Promise<void> | null = null;
+let identityLibraryPromise: Promise<void> | null = null;
+let pickerLibraryPromise: Promise<void> | null = null;
 let tokenRequestPromise: Promise<string> | null = null;
 
 function loadScript(id: string, source: string): Promise<void> {
@@ -92,20 +94,29 @@ function getConfiguration() {
   };
 }
 
-async function loadGoogleLibraries(): Promise<void> {
-  if (librariesPromise) return librariesPromise;
-  librariesPromise = Promise.all([
-    loadScript('ucs-google-identity', GIS_SCRIPT_URL),
+async function loadGoogleIdentityLibrary(): Promise<void> {
+  if (identityLibraryPromise) return identityLibraryPromise;
+  identityLibraryPromise = loadScript('ucs-google-identity', GIS_SCRIPT_URL).then(() => {
+    const googleWindow = window as unknown as GoogleWindow;
+    if (!googleWindow.google) throw new Error('Google Identity Services did not initialize.');
+  });
+  return identityLibraryPromise;
+}
+
+async function loadGooglePickerLibrary(): Promise<void> {
+  if (pickerLibraryPromise) return pickerLibraryPromise;
+  pickerLibraryPromise = Promise.all([
+    loadGoogleIdentityLibrary(),
     loadScript('ucs-google-api', GAPI_SCRIPT_URL),
   ]).then(() => new Promise<void>((resolve, reject) => {
     const googleWindow = window as unknown as GoogleWindow;
-    if (!googleWindow.gapi || !googleWindow.google) {
-      reject(new Error('Google services did not initialize.'));
+    if (!googleWindow.gapi) {
+      reject(new Error('Google Picker did not initialize.'));
       return;
     }
     googleWindow.gapi.load('picker', resolve);
   }));
-  return librariesPromise;
+  return pickerLibraryPromise;
 }
 
 export function isGoogleDriveConfigured(): boolean {
@@ -126,15 +137,15 @@ export function clearGoogleDriveAccessToken(): void {
   accessTokenExpiresAt = 0;
 }
 
-async function requestGoogleDriveAccessToken(prompt: '' | 'none'): Promise<string> {
+async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: number): Promise<string> {
   const existingToken = getGoogleDriveAccessToken();
   if (existingToken) return existingToken;
   if (tokenRequestPromise) return tokenRequestPromise;
 
-  tokenRequestPromise = (async () => {
+  const request = (async () => {
     const configuration = getConfiguration();
     if (!isGoogleDriveConfigured()) throw new Error('Google Drive is not configured for this deployment.');
-    await loadGoogleLibraries();
+    await loadGoogleIdentityLibrary();
     const google = (window as unknown as GoogleWindow).google!;
     tokenClient ??= google.accounts.oauth2.initTokenClient({
       client_id: configuration.clientId,
@@ -155,16 +166,26 @@ async function requestGoogleDriveAccessToken(prompt: '' | 'none'): Promise<strin
       tokenClient!.requestAccessToken({ prompt });
     });
   })();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  tokenRequestPromise = timeoutMs === undefined
+    ? request
+    : Promise.race([
+      request,
+      new Promise<string>((_resolve, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Google Drive session restoration timed out.')), timeoutMs);
+      }),
+    ]);
   try {
     return await tokenRequestPromise;
   } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
     tokenRequestPromise = null;
   }
 }
 
 export async function restoreGoogleDriveAccessToken(): Promise<string | null> {
   try {
-    return await requestGoogleDriveAccessToken('none');
+    return await requestGoogleDriveAccessToken('none', SILENT_TOKEN_TIMEOUT_MS);
   } catch {
     return null;
   }
@@ -176,6 +197,7 @@ export async function authorizeGoogleDrive(): Promise<string> {
 
 export async function pickGoogleDriveWorkspace(): Promise<PickerDocument | null> {
   const accessToken = await authorizeGoogleDrive();
+  await loadGooglePickerLibrary();
   const configuration = getConfiguration();
   const google = (window as unknown as GoogleWindow).google!;
 
