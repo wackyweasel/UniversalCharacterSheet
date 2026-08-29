@@ -15,6 +15,7 @@ import { WorkspaceRegistry } from '../workspaces/workspaceRegistry';
 import {
   BROWSER_WORKSPACE_ID,
   createBrowserWorkspaceProvider,
+  resetBrowserWorkspaceStorage,
 } from '../workspaces/providers/browserWorkspaceProvider';
 import {
   createDirectoryWorkspace,
@@ -54,6 +55,7 @@ interface StorageWorkspaceState {
   error: string | null;
   conflict: WorkspaceConflictError | null;
   initialize: () => Promise<void>;
+  resetBrowserWorkspace: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   addDirectoryWorkspace: (handle: WorkspaceDirectoryHandle) => Promise<void>;
   openDirectoryWorkspace: (handle: WorkspaceDirectoryHandle) => Promise<void>;
@@ -249,24 +251,50 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   initialize: async () => {
     if (get().isHydrated || get().syncStatus === 'loading') return;
     startSubscriptions();
-    const workspaces = await registry.initialize();
-    const browserWorkspace = workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
-    const browserDocument = (await browserProvider.load(browserWorkspace)).document;
-    await browserProvider.save(browserWorkspace, browserDocument, null);
-    const preferredId = registry.getActiveWorkspaceId();
-    const workspace = workspaces.find((candidate) => candidate.id === preferredId)
-      ?? browserWorkspace;
-    set({ workspaces, activeWorkspaceId: workspace.id, syncStatus: 'loading' });
+    set({ syncStatus: 'loading', error: null });
     try {
-      await loadWorkspace(workspace);
-      set({ isHydrated: true });
+      const workspaces = await registry.initialize();
+      const browserWorkspace = workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
+      const browserDocument = (await browserProvider.load(browserWorkspace)).document;
+      await browserProvider.save(browserWorkspace, browserDocument, null);
+      const preferredId = registry.getActiveWorkspaceId();
+      const workspace = workspaces.find((candidate) => candidate.id === preferredId)
+        ?? browserWorkspace;
+      set({ workspaces, activeWorkspaceId: workspace.id });
+      try {
+        await loadWorkspace(workspace);
+        set({ isHydrated: true });
+      } catch (error) {
+        if (workspace.id === BROWSER_WORKSPACE_ID) throw error;
+        registry.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
+        await loadWorkspace(browserWorkspace);
+        set({
+          activeWorkspaceId: BROWSER_WORKSPACE_ID,
+          isHydrated: true,
+          error: error instanceof Error ? error.message : 'The selected workspace could not be loaded.',
+        });
+      }
     } catch (error) {
-      registry.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
-      await loadWorkspace(browserWorkspace);
+      suppressPersistence = false;
       set({
-        activeWorkspaceId: BROWSER_WORKSPACE_ID,
-        isHydrated: true,
-        error: error instanceof Error ? error.message : 'The selected workspace could not be loaded.',
+        isHydrated: false,
+        syncStatus: 'error',
+        error: error instanceof Error ? error.message : 'Workspace initialization failed.',
+      });
+    }
+  },
+
+  resetBrowserWorkspace: async () => {
+    try {
+      resetBrowserWorkspaceStorage();
+      registry.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
+      set({ isHydrated: false, syncStatus: 'idle', error: null, conflict: null });
+      await get().initialize();
+    } catch (error) {
+      set({
+        isHydrated: false,
+        syncStatus: 'error',
+        error: error instanceof Error ? error.message : 'The Browser workspace could not be reset.',
       });
     }
   },

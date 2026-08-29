@@ -56,7 +56,14 @@ function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const recordVisit = useTelemetryStore((state) => state.recordVisit);
   const isWorkspaceHydrated = useStorageWorkspaceStore((state) => state.isHydrated);
+  const workspaceSyncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
+  const workspaceError = useStorageWorkspaceStore((state) => state.error);
   const initializeWorkspaces = useStorageWorkspaceStore((state) => state.initialize);
+  const resetBrowserWorkspace = useStorageWorkspaceStore((state) => state.resetBrowserWorkspace);
+  const storedDarkMode = localStorage.getItem('ucs:darkMode');
+  const darkMode = storedDarkMode !== null
+    ? storedDarkMode === 'true'
+    : window.matchMedia('(prefers-color-scheme: dark)').matches;
 
   useEffect(() => {
     void initializeWorkspaces();
@@ -94,13 +101,44 @@ function App() {
   }, []);
 
   return (
-    <div className="h-full bg-gray-100 text-ink font-mono overflow-hidden">
+    <div className={`h-full font-mono overflow-hidden ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
       <UpdatePrompt />
       <StorageWarning />
       <WorkspaceConflictDialog />
       {!isWorkspaceHydrated ? (
-        <main className="h-full flex items-center justify-center bg-gray-100 p-6">
-          <p className="font-bold">Loading workspace...</p>
+        <main className={`h-full flex items-center justify-center p-6 ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
+          {workspaceSyncStatus === 'error' ? (
+            <section className={`w-full max-w-lg border p-6 ${darkMode ? 'border-white/30 bg-black' : 'border-gray-300 bg-white'}`}>
+              <h1 className="text-xl font-bold">Workspace could not be loaded</h1>
+              <p role="alert" className={`mt-3 text-sm ${darkMode ? 'text-amber-300' : 'text-red-700'}`}>
+                {workspaceError ?? 'The workspace data is invalid or unavailable.'}
+              </p>
+              <p className={`mt-3 text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
+                Try again, or reset the Browser workspace if its saved data is damaged. Directory and Google Drive workspace files will not be deleted.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void initializeWorkspaces()}
+                  className={`border px-4 py-2 font-bold ${darkMode ? 'border-white/40 hover:bg-white/10' : 'border-gray-400 hover:bg-gray-100'}`}
+                >
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm('Reset the Browser workspace? Its characters, timelines, themes, templates, and presets stored in this browser will be permanently deleted.')) return;
+                    void resetBrowserWorkspace();
+                  }}
+                  className={`border px-4 py-2 font-bold ${darkMode ? 'border-red-400 text-red-300 hover:bg-red-500/10' : 'border-red-500 text-red-700 hover:bg-red-50'}`}
+                >
+                  Reset Browser workspace
+                </button>
+              </div>
+            </section>
+          ) : (
+            <p className="font-bold">Loading workspace...</p>
+          )}
         </main>
       ) : activeCharacterId ? (
         <SheetErrorBoundary key={activeCharacterId}>

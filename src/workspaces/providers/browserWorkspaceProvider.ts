@@ -16,6 +16,14 @@ const LIBRARIES_STORAGE_KEY = 'ucs:browser-workspace-libraries';
 const LEGACY_CUSTOM_THEMES_STORAGE_KEY = 'ucs:custom-themes';
 const LEGACY_TEMPLATES_STORAGE_KEY = 'ucs:templates';
 const LEGACY_USER_PRESETS_STORAGE_KEY = 'ucs:userPresets';
+const BROWSER_WORKSPACE_STORAGE_KEYS = [
+  CHARACTER_STORAGE_KEY,
+  TIMELINE_STORAGE_KEY,
+  LIBRARIES_STORAGE_KEY,
+  LEGACY_CUSTOM_THEMES_STORAGE_KEY,
+  LEGACY_TEMPLATES_STORAGE_KEY,
+  LEGACY_USER_PRESETS_STORAGE_KEY,
+];
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -52,6 +60,10 @@ export function createBrowserWorkspace(now = new Date()): StorageWorkspace {
     createdAt: timestamp,
     lastOpenedAt: timestamp,
   };
+}
+
+export function resetBrowserWorkspaceStorage(storage: Pick<Storage, 'removeItem'> = localStorage): void {
+  BROWSER_WORKSPACE_STORAGE_KEYS.forEach((key) => storage.removeItem(key));
 }
 
 export function createBrowserWorkspaceProvider(storage: StorageLike = localStorage): WorkspaceProvider {

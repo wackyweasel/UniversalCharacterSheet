@@ -4,6 +4,7 @@ import { createWorkspaceDocument } from '../workspaceDocument';
 import {
   createBrowserWorkspace,
   createBrowserWorkspaceProvider,
+  resetBrowserWorkspaceStorage,
 } from './browserWorkspaceProvider';
 
 function createMemoryStorage(initial: Record<string, string> = {}) {
@@ -11,6 +12,7 @@ function createMemoryStorage(initial: Record<string, string> = {}) {
   return {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
     values,
   };
 }
@@ -79,5 +81,21 @@ describe('browser workspace provider', () => {
       templates: [],
       userPresets: [],
     });
+  });
+
+  it('resets only Browser workspace data', () => {
+    const storage = createMemoryStorage({
+      'ucs:store': '{broken',
+      'ucs:timeline': '{broken',
+      'ucs:browser-workspace-libraries': '{broken',
+      'ucs:custom-themes': '{broken',
+      'ucs:templates': '{broken',
+      'ucs:userPresets': '{broken',
+      'ucs:darkMode': 'true',
+    });
+
+    resetBrowserWorkspaceStorage(storage);
+
+    expect([...storage.values.entries()]).toEqual([['ucs:darkMode', 'true']]);
   });
 });
