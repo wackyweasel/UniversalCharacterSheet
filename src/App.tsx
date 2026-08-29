@@ -8,6 +8,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 import { useTelemetryStore } from './store/useTelemetryStore';
 import { useStorageWorkspaceStore } from './store/useStorageWorkspaceStore';
 import WorkspaceConflictDialog from './components/WorkspaceConflictDialog';
+import WorkspaceStatusIndicator from './components/WorkspaceStatusIndicator';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -103,7 +104,10 @@ function App() {
         </main>
       ) : activeCharacterId ? (
         <SheetErrorBoundary key={activeCharacterId}>
-          <Sheet />
+          <>
+            <Sheet />
+            <WorkspaceStatusIndicator />
+          </>
         </SheetErrorBoundary>
       ) : <CharacterList />}
       <DicePhysicsOverlay />

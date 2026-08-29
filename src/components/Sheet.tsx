@@ -1570,7 +1570,7 @@ export default function Sheet() {
 
         {/* Vertical Mode Container - scrollable */}
         <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
-          <div className="w-full px-3 py-4 pb-24 sm:px-5 sm:py-6">
+          <div className="w-full px-3 pt-14 pb-24 sm:px-5">
             {/* Widgets in vertical layout */}
             <div
               className={renderedListColumnCount > 1 ? 'mx-auto grid w-full gap-x-5' : undefined}
