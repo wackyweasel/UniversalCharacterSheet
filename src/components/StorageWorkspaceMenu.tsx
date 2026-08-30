@@ -31,6 +31,7 @@ function workspaceDescription(workspace: StorageWorkspace): string {
 export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuProps) {
   const workspaces = useStorageWorkspaceStore((state) => state.workspaces);
   const activeWorkspaceId = useStorageWorkspaceStore((state) => state.activeWorkspaceId);
+  const supportsExternalWorkspaces = useStorageWorkspaceStore((state) => state.supportsExternalWorkspaces);
   const syncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
   const error = useStorageWorkspaceStore((state) => state.error);
   const switchWorkspace = useStorageWorkspaceStore((state) => state.switchWorkspace);
@@ -62,7 +63,7 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
     };
   }, [isOpen]);
 
-  if (!supportsStorageWorkspaces()) return null;
+  if (!supportsStorageWorkspaces() || !supportsExternalWorkspaces) return null;
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
   const statusText = syncStatus === 'saving'

@@ -23,7 +23,6 @@ import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
 import StorageWorkspaceMenu from './StorageWorkspaceMenu';
 import CopyCharacterWorkspaceDialog from './CopyCharacterWorkspaceDialog';
-import { supportsStorageWorkspaces } from '../workspaces/capabilities';
 import { Copy } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 
@@ -287,6 +286,7 @@ export default function CharacterList() {
   const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const restoreActiveWorkspace = useStorageWorkspaceStore((state) => state.restoreActiveWorkspace);
+  const supportsExternalWorkspaces = useStorageWorkspaceStore((state) => state.supportsExternalWorkspaces);
   const activeStorageWorkspaceProvider = useStorageWorkspaceStore((state) => (
     state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.provider ?? 'browser'
   ));
@@ -1084,22 +1084,28 @@ export default function CharacterList() {
 
     const reader = new FileReader();
     reader.onload = async (event) => {
+      let backupData;
       try {
-        const backupData = parseRestorableWorkspaceFile(JSON.parse(event.target?.result as string));
-        
-        // Confirm restore
-        const templateCount = backupData.templates?.length || 0;
-        const userPresetCount = backupData.userPresets?.length || 0;
-        const confirmRestore = window.confirm(
-          `This will replace all your current data with the ${backupData.sourceFormat} file from ${new Date(backupData.timestamp).toLocaleString()}.\n\n` +
-          `File contains ${backupData.characters.length} character(s)` +
-          (templateCount > 0 ? `, ${templateCount} template(s)` : '') +
-          (userPresetCount > 0 ? `, ${userPresetCount} user preset(s)` : '') + `.\n\n` +
-          `Are you sure you want to continue?`
-        );
-        
-        if (!confirmRestore) return;
-        
+        backupData = parseRestorableWorkspaceFile(JSON.parse(event.target?.result as string));
+      } catch (error) {
+        alert('Failed to parse backup file');
+        console.error(error);
+        return;
+      }
+
+      const templateCount = backupData.templates?.length || 0;
+      const userPresetCount = backupData.userPresets?.length || 0;
+      const confirmRestore = window.confirm(
+        `This will replace all your current data with the ${backupData.sourceFormat} file from ${new Date(backupData.timestamp).toLocaleString()}.\n\n` +
+        `File contains ${backupData.characters.length} character(s)` +
+        (templateCount > 0 ? `, ${templateCount} template(s)` : '') +
+        (userPresetCount > 0 ? `, ${userPresetCount} user preset(s)` : '') + `.\n\n` +
+        `Are you sure you want to continue?`
+      );
+
+      if (!confirmRestore) return;
+
+      try {
         await restoreActiveWorkspace(backupData);
 
         recordCharacterListEvent({
@@ -1112,10 +1118,10 @@ export default function CharacterList() {
             userPresetCount,
           },
         });
-        
-      } catch (err) {
-        alert('Failed to parse backup file');
-        console.error(err);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The workspace could not be saved.';
+        alert(`Failed to restore workspace: ${message}`);
+        console.error(error);
       }
     };
     reader.readAsText(file);
@@ -1953,7 +1959,7 @@ export default function CharacterList() {
                           Duplicate
                         </button>
                       </Tooltip>
-                      {supportsStorageWorkspaces() && (
+                      {supportsExternalWorkspaces && (
                         <Tooltip content="Copy this character to another workspace" placement="left">
                           <button
                             onClick={(event) => {

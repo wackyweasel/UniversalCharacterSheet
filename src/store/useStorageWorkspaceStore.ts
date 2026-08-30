@@ -15,6 +15,7 @@ import { createWorkspaceDocument } from '../workspaces/workspaceDocument';
 import { WorkspaceRegistry } from '../workspaces/workspaceRegistry';
 import {
   BROWSER_WORKSPACE_ID,
+  createBrowserWorkspace,
   createBrowserWorkspaceProvider,
   resetBrowserWorkspaceStorage,
 } from '../workspaces/providers/browserWorkspaceProvider';
@@ -51,6 +52,7 @@ type WorkspaceSyncStatus = 'idle' | 'loading' | 'saving' | 'synced' | 'pending' 
 interface StorageWorkspaceState {
   workspaces: StorageWorkspace[];
   activeWorkspaceId: string;
+  supportsExternalWorkspaces: boolean;
   isHydrated: boolean;
   syncStatus: WorkspaceSyncStatus;
   error: string | null;
@@ -73,9 +75,11 @@ interface StorageWorkspaceState {
   forgetWorkspace: (workspaceId: string) => Promise<void>;
 }
 
-const registry = new WorkspaceRegistry();
+let registry = typeof indexedDB === 'undefined' ? null : new WorkspaceRegistry();
 const browserProvider = createBrowserWorkspaceProvider();
-const directoryProvider = createDirectoryWorkspaceProvider((workspaceId) => registry.getDirectoryHandle(workspaceId));
+const directoryProvider = createDirectoryWorkspaceProvider((workspaceId) => (
+  registry?.getDirectoryHandle(workspaceId) ?? Promise.resolve(null)
+));
 const googleDriveProvider = createGoogleDriveWorkspaceProvider(getGoogleDriveAccessToken);
 
 let currentDocument: WorkspaceDocument | null = null;
@@ -84,6 +88,11 @@ let suppressPersistence = true;
 let subscriptionsStarted = false;
 let saveTimeout: number | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
+
+function requireRegistry(): WorkspaceRegistry {
+  if (!registry) throw new Error('External workspaces are unavailable in this browser.');
+  return registry;
+}
 
 function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
   if (workspace.provider === 'browser') return browserProvider;
@@ -131,18 +140,18 @@ async function persistActiveWorkspace(): Promise<void> {
   const workspace = state.workspaces.find((candidate) => candidate.id === state.activeWorkspaceId);
   if (!workspace || suppressPersistence) return;
 
-  const document = captureWorkspaceDocument(workspace);
-  if (workspace.provider !== 'browser') {
-    await registry.setCache({ workspaceId: workspace.id, document, fingerprint: currentFingerprint, pendingSync: true });
-  }
   useStorageWorkspaceStore.setState({ syncStatus: 'saving', error: null });
 
   try {
+    const document = captureWorkspaceDocument(workspace);
+    if (workspace.provider !== 'browser') {
+      await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: currentFingerprint, pendingSync: true });
+    }
     const result = await getProvider(workspace).save(workspace, document, currentFingerprint);
     currentDocument = document;
     currentFingerprint = result.fingerprint;
     if (workspace.provider !== 'browser') {
-      await registry.setCache({ workspaceId: workspace.id, document, fingerprint: result.fingerprint, pendingSync: false });
+      await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: result.fingerprint, pendingSync: false });
     } else {
       void import('./useStorageWarningStore').then((module) => module.useStorageWarningStore.getState().refresh());
     }
@@ -172,8 +181,13 @@ function scheduleSave(): void {
   if (saveTimeout !== null) window.clearTimeout(saveTimeout);
   saveTimeout = window.setTimeout(() => {
     saveTimeout = null;
-    saveQueue = saveQueue.then(persistActiveWorkspace);
+    enqueueSave();
   }, 150);
+}
+
+function enqueueSave(): Promise<void> {
+  saveQueue = saveQueue.then(persistActiveWorkspace, persistActiveWorkspace);
+  return saveQueue;
 }
 
 function startSubscriptions(): void {
@@ -189,8 +203,9 @@ function startSubscriptions(): void {
 async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
   suppressPersistence = true;
   useStorageWorkspaceStore.setState({ syncStatus: 'loading', error: null, conflict: null });
-  const cache = workspace.provider === 'browser' ? null : await registry.getCache(workspace.id);
+  let cache = null;
   try {
+    cache = workspace.provider === 'browser' ? null : await requireRegistry().getCache(workspace.id);
     if (workspace.provider === 'google-drive' && !getGoogleDriveAccessToken()) {
       await restoreGoogleDriveAccessToken();
     }
@@ -210,7 +225,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
 
       const saved = await getProvider(workspace).save(workspace, cached, cache.fingerprint);
       currentFingerprint = saved.fingerprint;
-      await registry.setCache({
+      await requireRegistry().setCache({
         workspaceId: workspace.id,
         document: cached,
         fingerprint: saved.fingerprint,
@@ -223,7 +238,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
     currentDocument = result.document;
     currentFingerprint = result.fingerprint;
     if (workspace.provider !== 'browser') {
-      await registry.setCache({ workspaceId: workspace.id, document: result.document, fingerprint: result.fingerprint, pendingSync: false });
+      await requireRegistry().setCache({ workspaceId: workspace.id, document: result.document, fingerprint: result.fingerprint, pendingSync: false });
     }
     applyWorkspaceDocument(result.document);
     useStorageWorkspaceStore.setState({ syncStatus: 'synced' });
@@ -244,6 +259,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
 export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get) => ({
   workspaces: [],
   activeWorkspaceId: BROWSER_WORKSPACE_ID,
+  supportsExternalWorkspaces: registry !== null,
   isHydrated: false,
   syncStatus: 'idle',
   error: null,
@@ -254,11 +270,29 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     startSubscriptions();
     set({ syncStatus: 'loading', error: null });
     try {
-      const workspaces = await registry.initialize();
+      if (!registry) {
+        const browserWorkspace = createBrowserWorkspace();
+        set({ workspaces: [browserWorkspace], activeWorkspaceId: BROWSER_WORKSPACE_ID, supportsExternalWorkspaces: false });
+        await loadWorkspace(browserWorkspace);
+        set({ isHydrated: true });
+        return;
+      }
+
+      let workspaces: StorageWorkspace[];
+      try {
+        workspaces = await registry.initialize();
+      } catch {
+        registry = null;
+        const browserWorkspace = createBrowserWorkspace();
+        set({ workspaces: [browserWorkspace], activeWorkspaceId: BROWSER_WORKSPACE_ID, supportsExternalWorkspaces: false });
+        await loadWorkspace(browserWorkspace);
+        set({ isHydrated: true });
+        return;
+      }
       const browserWorkspace = workspaces.find((candidate) => candidate.id === BROWSER_WORKSPACE_ID)!;
       const browserDocument = (await browserProvider.load(browserWorkspace)).document;
       await browserProvider.save(browserWorkspace, browserDocument, null);
-      const preferredId = registry.getActiveWorkspaceId();
+      const preferredId = requireRegistry().getActiveWorkspaceId();
       const workspace = workspaces.find((candidate) => candidate.id === preferredId)
         ?? browserWorkspace;
       set({ workspaces, activeWorkspaceId: workspace.id });
@@ -267,7 +301,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
         set({ isHydrated: true });
       } catch (error) {
         if (workspace.id === BROWSER_WORKSPACE_ID) throw error;
-        registry.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
+        requireRegistry().setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
         await loadWorkspace(browserWorkspace);
         set({
           activeWorkspaceId: BROWSER_WORKSPACE_ID,
@@ -288,7 +322,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   resetBrowserWorkspace: async () => {
     try {
       resetBrowserWorkspaceStorage();
-      registry.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
+      registry?.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
       set({ isHydrated: false, syncStatus: 'idle', error: null, conflict: null });
       await get().initialize();
     } catch (error) {
@@ -307,13 +341,13 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     if (saveTimeout !== null) {
       window.clearTimeout(saveTimeout);
       saveTimeout = null;
-      saveQueue = saveQueue.then(persistActiveWorkspace);
+      enqueueSave();
     }
     await saveQueue;
     await loadWorkspace(workspace);
     const updatedWorkspace = { ...workspace, lastOpenedAt: new Date().toISOString() };
-    await registry.putWorkspace(updatedWorkspace);
-    registry.setActiveWorkspaceId(workspaceId);
+    await requireRegistry().putWorkspace(updatedWorkspace);
+    requireRegistry().setActiveWorkspaceId(workspaceId);
     set({
       activeWorkspaceId: workspaceId,
       workspaces: get().workspaces.map((candidate) => candidate.id === workspaceId ? updatedWorkspace : candidate),
@@ -332,9 +366,9 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       createdAt: timestamp,
       lastOpenedAt: timestamp,
     };
-    await registry.setDirectoryHandle(workspaceId, handle);
-    await registry.putWorkspace(workspace);
-    await registry.setCache({ workspaceId, document: created.document, fingerprint: created.fingerprint, pendingSync: false });
+    await requireRegistry().setDirectoryHandle(workspaceId, handle);
+    await requireRegistry().putWorkspace(workspace);
+    await requireRegistry().setCache({ workspaceId, document: created.document, fingerprint: created.fingerprint, pendingSync: false });
     set({ workspaces: [...get().workspaces, workspace] });
     await get().switchWorkspace(workspaceId);
   },
@@ -352,14 +386,18 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       lastOpenedAt: timestamp,
     };
 
-    await registry.setDirectoryHandle(workspace.id, handle);
-    await registry.putWorkspace(workspace);
-    await registry.setCache({
-      workspaceId: workspace.id,
-      document: loaded.document,
-      fingerprint: loaded.fingerprint,
-      pendingSync: false,
-    });
+    const workspaceRegistry = requireRegistry();
+    const existingCache = existingWorkspace ? await workspaceRegistry.getCache(workspace.id) : null;
+    await workspaceRegistry.setDirectoryHandle(workspace.id, handle);
+    await workspaceRegistry.putWorkspace(workspace);
+    if (!existingCache?.pendingSync) {
+      await workspaceRegistry.setCache({
+        workspaceId: workspace.id,
+        document: loaded.document,
+        fingerprint: loaded.fingerprint,
+        pendingSync: false,
+      });
+    }
 
     const workspaces = existingWorkspace
       ? get().workspaces.map((candidate) => candidate.id === workspace.id ? workspace : candidate)
@@ -391,8 +429,8 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       lastOpenedAt: timestamp,
     };
     const fingerprint = getDriveFingerprint(metadata);
-    await registry.putWorkspace(workspace);
-    await registry.setCache({ workspaceId, document, fingerprint, pendingSync: false });
+    await requireRegistry().putWorkspace(workspace);
+    await requireRegistry().setCache({ workspaceId, document, fingerprint, pendingSync: false });
     set({ workspaces: [...get().workspaces, workspace] });
     await get().switchWorkspace(workspaceId);
   },
@@ -423,10 +461,10 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     });
 
     for (const discoveredWorkspace of validWorkspaces) {
-      await registry.putWorkspace(discoveredWorkspace.workspace);
-      const existingCache = await registry.getCache(discoveredWorkspace.workspace.id);
+      await requireRegistry().putWorkspace(discoveredWorkspace.workspace);
+      const existingCache = await requireRegistry().getCache(discoveredWorkspace.workspace.id);
       if (!existingCache?.pendingSync) {
-        await registry.setCache({
+        await requireRegistry().setCache({
           workspaceId: discoveredWorkspace.workspace.id,
           document: discoveredWorkspace.document,
           fingerprint: discoveredWorkspace.fingerprint,
@@ -472,13 +510,17 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       id: loaded.document.workspaceId,
       name: loaded.document.name,
     };
-    await registry.putWorkspace(workspace);
-    await registry.setCache({
-      workspaceId: workspace.id,
-      document: loaded.document,
-      fingerprint: getDriveFingerprint(taggedMetadata),
-      pendingSync: false,
-    });
+    const workspaceRegistry = requireRegistry();
+    const existingCache = await workspaceRegistry.getCache(workspace.id);
+    await workspaceRegistry.putWorkspace(workspace);
+    if (!existingCache?.pendingSync) {
+      await workspaceRegistry.setCache({
+        workspaceId: workspace.id,
+        document: loaded.document,
+        fingerprint: getDriveFingerprint(taggedMetadata),
+        pendingSync: false,
+      });
+    }
     const existingIndex = get().workspaces.findIndex((candidate) => candidate.id === workspace.id);
     const workspaces = existingIndex >= 0
       ? get().workspaces.map((candidate) => candidate.id === workspace.id ? workspace : candidate)
@@ -490,7 +532,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   reconnectDirectoryWorkspace: async (workspaceId, handle) => {
     const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace || workspace.provider !== 'directory') throw new Error('Directory workspace not found.');
-    const selectedHandle = handle ?? await registry.getDirectoryHandle(workspaceId);
+    const selectedHandle = handle ?? await requireRegistry().getDirectoryHandle(workspaceId);
     if (!selectedHandle) {
       throw new WorkspaceReconnectRequiredError('The saved directory handle is unavailable. Choose the workspace directory again.');
     }
@@ -501,7 +543,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     if (selected.document.workspaceId !== workspaceId) {
       throw new Error('The selected directory belongs to a different workspace.');
     }
-    await registry.setDirectoryHandle(workspaceId, selectedHandle);
+    await requireRegistry().setDirectoryHandle(workspaceId, selectedHandle);
     if (workspaceId === get().activeWorkspaceId) await loadWorkspace(workspace);
   },
 
@@ -520,6 +562,13 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     const targetWorkspace = get().workspaces.find((workspace) => workspace.id === targetWorkspaceId);
     if (!targetWorkspace || targetWorkspace.id === get().activeWorkspaceId) {
       throw new Error('Choose another workspace.');
+    }
+
+    const targetCache = targetWorkspace.provider === 'browser'
+      ? null
+      : await requireRegistry().getCache(targetWorkspace.id);
+    if (targetCache?.pendingSync) {
+      throw new Error('Open and sync the target workspace before copying a character to it.');
     }
 
     const provider = getProvider(targetWorkspace);
@@ -550,7 +599,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
 
     const result = await provider.save(targetWorkspace, document, loaded.fingerprint);
     if (targetWorkspace.provider !== 'browser') {
-      await registry.setCache({
+      await requireRegistry().setCache({
         workspaceId: targetWorkspace.id,
         document,
         fingerprint: result.fingerprint,
@@ -567,16 +616,19 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     if (resolution === 'remote') {
       if (!conflict.remoteDocument) throw new Error('The external workspace could not be loaded.');
       suppressPersistence = true;
-      currentDocument = conflict.remoteDocument;
-      currentFingerprint = conflict.remoteFingerprint;
-      applyWorkspaceDocument(conflict.remoteDocument);
-      await registry.setCache({
-        workspaceId: workspace.id,
-        document: conflict.remoteDocument,
-        fingerprint: conflict.remoteFingerprint,
-        pendingSync: false,
-      });
-      suppressPersistence = false;
+      try {
+        currentDocument = conflict.remoteDocument;
+        currentFingerprint = conflict.remoteFingerprint;
+        applyWorkspaceDocument(conflict.remoteDocument);
+        await requireRegistry().setCache({
+          workspaceId: workspace.id,
+          document: conflict.remoteDocument,
+          fingerprint: conflict.remoteFingerprint,
+          pendingSync: false,
+        });
+      } finally {
+        suppressPersistence = false;
+      }
       set({ conflict: null, error: null, syncStatus: 'synced' });
       return;
     }
@@ -585,7 +637,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     const result = await getProvider(workspace).save(workspace, localDocument, conflict.remoteFingerprint);
     currentDocument = localDocument;
     currentFingerprint = result.fingerprint;
-    await registry.setCache({
+    await requireRegistry().setCache({
       workspaceId: workspace.id,
       document: localDocument,
       fingerprint: result.fingerprint,
@@ -617,11 +669,11 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       createdAt: document.updatedAt,
       lastOpenedAt: document.updatedAt,
     };
-    await registry.setDirectoryHandle(workspaceId, handle);
+    await requireRegistry().setDirectoryHandle(workspaceId, handle);
     const result = await directoryProvider.save(workspace, document, created.fingerprint);
-    await registry.putWorkspace(workspace);
-    await registry.setCache({ workspaceId, document, fingerprint: result.fingerprint, pendingSync: false });
-    registry.setActiveWorkspaceId(workspaceId);
+    await requireRegistry().putWorkspace(workspace);
+    await requireRegistry().setCache({ workspaceId, document, fingerprint: result.fingerprint, pendingSync: false });
+    requireRegistry().setActiveWorkspaceId(workspaceId);
     currentDocument = document;
     currentFingerprint = result.fingerprint;
     set({
@@ -662,9 +714,9 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       lastOpenedAt: timestamp,
     };
     const fingerprint = getDriveFingerprint(metadata);
-    await registry.putWorkspace(workspace);
-    await registry.setCache({ workspaceId, document, fingerprint, pendingSync: false });
-    registry.setActiveWorkspaceId(workspaceId);
+    await requireRegistry().putWorkspace(workspace);
+    await requireRegistry().setCache({ workspaceId, document, fingerprint, pendingSync: false });
+    requireRegistry().setActiveWorkspaceId(workspaceId);
     currentDocument = document;
     currentFingerprint = fingerprint;
     set({
@@ -677,6 +729,13 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   },
 
   restoreActiveWorkspace: async (source) => {
+    if (saveTimeout !== null) {
+      window.clearTimeout(saveTimeout);
+      saveTimeout = null;
+      enqueueSave();
+    }
+    await saveQueue.catch(() => undefined);
+
     const characterIds = new Set(source.characters.map((character) => character.id));
     const sourceEvents = source.eventsByCharacter ?? useTimelineStore.getState().eventsByCharacter;
     const eventsByCharacter = Object.fromEntries(
@@ -707,7 +766,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     } finally {
       suppressPersistence = false;
     }
-    await persistActiveWorkspace();
+    await enqueueSave();
     if (useStorageWorkspaceStore.getState().syncStatus !== 'synced') {
       throw new Error(useStorageWorkspaceStore.getState().error || 'The restored workspace could not be saved.');
     }
@@ -716,7 +775,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   forgetWorkspace: async (workspaceId) => {
     if (workspaceId === BROWSER_WORKSPACE_ID) return;
     if (workspaceId === get().activeWorkspaceId) await get().switchWorkspace(BROWSER_WORKSPACE_ID);
-    await registry.removeWorkspace(workspaceId);
+    await requireRegistry().removeWorkspace(workspaceId);
     set({ workspaces: get().workspaces.filter((workspace) => workspace.id !== workspaceId) });
   },
 }));

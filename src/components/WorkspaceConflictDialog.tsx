@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Cloud, FolderOpen, LoaderCircle } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
+import { supportsDirectoryWorkspaces } from '../workspaces/capabilities';
 import { isGoogleDriveConfigured } from '../workspaces/google/googleClient';
 import type { WorkspaceDirectoryHandle } from '../workspaces/providers/directoryWorkspaceProvider';
 
@@ -47,18 +48,20 @@ export default function WorkspaceConflictDialog() {
           <button type="button" disabled={isBusy} onClick={() => void run(() => resolveConflict('local'))} className="bg-theme-accent px-3 py-2 font-body text-sm font-bold text-theme-paper hover:bg-theme-accent-hover">
             Keep my changes
           </button>
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={() => void run(async () => {
-              const handle = await (window as unknown as DirectoryPickerWindow).showDirectoryPicker();
-              await saveAsNewDirectory(handle);
-            })}
-            className="flex items-center justify-center gap-2 border border-gray-400 px-3 py-2 font-body text-sm font-bold hover:bg-gray-100"
-          >
-            <FolderOpen className="h-4 w-4" />
-            Save in new directory
-          </button>
+          {supportsDirectoryWorkspaces() && (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => void run(async () => {
+                const handle = await (window as unknown as DirectoryPickerWindow).showDirectoryPicker();
+                await saveAsNewDirectory(handle);
+              })}
+              className="flex items-center justify-center gap-2 border border-gray-400 px-3 py-2 font-body text-sm font-bold hover:bg-gray-100"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Save in new directory
+            </button>
+          )}
           {isGoogleDriveConfigured() && (
             <button
               type="button"
