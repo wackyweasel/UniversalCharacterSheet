@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import packageInfo from '../../package.json';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
-import { getCustomTheme, useCustomThemeStore, type CustomTheme } from '../store/useCustomThemeStore';
+import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
 import { useTemplateStore } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -17,7 +17,7 @@ import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon, DotsVerticalIcon, Lay
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
-import { getCharacterTransferData, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
+import { getCharacterTransferData, getCustomThemeToImport, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
 import { createWorkspaceBackup, parseRestorableWorkspaceFile } from '../utils/workspaceBackup';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
@@ -174,12 +174,6 @@ function getInitialDarkMode(): boolean {
 
 type CharacterImportSource = 'json_file' | 'raw_json';
 
-interface PendingCharacterImport {
-  character: Character;
-  source: CharacterImportSource;
-  customTheme: CustomTheme;
-}
-
 // Helper to get theme colors for a character
 function getThemeStyles(themeId?: string) {
   // First check if it's a custom theme
@@ -334,7 +328,6 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
-  const [pendingCharacterImport, setPendingCharacterImport] = useState<PendingCharacterImport | null>(null);
   const [copyWorkspaceCharacter, setCopyWorkspaceCharacter] = useState<Character | null>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
@@ -995,9 +988,9 @@ export default function CharacterList() {
 
   const handleCharacterImport = (character: Character, source: CharacterImportSource) => {
     const embeddedTheme = getEmbeddedCustomTheme(character);
-    if (embeddedTheme && !customThemes.some((theme) => theme.id === embeddedTheme.id)) {
-      setPendingCharacterImport({ character, source, customTheme: embeddedTheme });
-      return;
+    const themeToImport = getCustomThemeToImport(character, customThemes);
+    if (themeToImport) {
+      addCustomTheme(themeToImport);
     }
 
     const defaultTheme = darkMode ? 'classic-dark' : 'default';
@@ -2809,76 +2802,6 @@ export default function CharacterList() {
                 }`}
               >
                 Import
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {pendingCharacterImport && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in"
-            onClick={() => setPendingCharacterImport(null)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="custom-theme-import-title"
-            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-[60] w-[90vw] max-w-[460px] animate-fade-in ${
-              darkMode
-                ? 'bg-black border border-white/30'
-                : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-            }`}
-          >
-            <h3 id="custom-theme-import-title" className={`font-heading font-bold text-xl mb-3 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-              Custom Theme Found
-            </h3>
-            <p className={`text-sm font-body ${darkMode ? 'text-white/75' : 'text-theme-ink'}`}>
-              This character contains the custom theme &ldquo;{pendingCharacterImport.customTheme.name}&rdquo;.
-            </p>
-            <p className={`text-sm font-body mt-2 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-              Add this theme to your library to keep the character&rsquo;s appearance, or use {darkMode ? 'Classic Dark' : 'Classic'} instead.
-            </p>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  importCharacterWithTheme(
-                    pendingCharacterImport.character,
-                    pendingCharacterImport.source,
-                    darkMode ? 'classic-dark' : 'default',
-                  );
-                  setPendingCharacterImport(null);
-                }}
-                className={`px-4 py-2 font-body rounded-button transition-colors ${
-                  darkMode
-                    ? 'text-white border border-white/30 hover:bg-white/10'
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
-                }`}
-              >
-                Use {darkMode ? 'Classic Dark' : 'Classic'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!customThemes.some((theme) => theme.id === pendingCharacterImport.customTheme.id)) {
-                    addCustomTheme(pendingCharacterImport.customTheme);
-                  }
-                  importCharacterWithTheme(
-                    pendingCharacterImport.character,
-                    pendingCharacterImport.source,
-                    pendingCharacterImport.customTheme.id,
-                  );
-                  setPendingCharacterImport(null);
-                }}
-                className={`px-4 py-2 font-body rounded-button transition-colors font-bold ${
-                  darkMode
-                    ? 'bg-white text-black hover:bg-white/80'
-                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-                }`}
-              >
-                Add Theme &amp; Import
               </button>
             </div>
           </div>

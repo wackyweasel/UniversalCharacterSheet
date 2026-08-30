@@ -13,7 +13,7 @@ export function getCharacterCustomTheme(character: Character, customThemes: Cust
   const libraryTheme = character.theme
     ? customThemes.find((theme) => theme.id === character.theme)
     : undefined;
-  const embeddedTheme = isCustomTheme(character.customTheme) && character.customTheme.id === character.theme
+  const embeddedTheme = isCustomTheme(character.customTheme)
     ? character.customTheme
     : undefined;
   const customTheme = libraryTheme || embeddedTheme;
@@ -55,6 +55,12 @@ export function getCharacterPresetData(character: Character, includeTheme: boole
 
 export function getEmbeddedCustomTheme(character: Character): CustomTheme | undefined {
   return isCustomTheme(character.customTheme) ? character.customTheme : undefined;
+}
+
+export function getCustomThemeToImport(character: Character, targetThemes: CustomTheme[]): CustomTheme | undefined {
+  const embeddedTheme = getEmbeddedCustomTheme(character);
+  if (!embeddedTheme || targetThemes.some((theme) => theme.id === embeddedTheme.id)) return undefined;
+  return cloneCustomTheme(embeddedTheme);
 }
 
 export function removeEmbeddedCustomTheme(character: Character): Character {
