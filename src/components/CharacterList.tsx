@@ -39,6 +39,20 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.5.0',
+    changes: [
+      'Added workspaces. A workspace is like a directory where you store all your UCS data.',
+      {
+        text: 'There are three types of workspaces:',
+        items: [
+          'Browser: The default option. All data is stored in the browser cache. It is the easiest to set up, but your data may be lost if you clear the cache, and it is limited to that browser and device.',
+          'Local workspace: Select a directory on your computer where your data is stored for a safer option that is still simple to use.',
+          'Google Drive: Link your Google Drive and create a workspace there to access your characters from any device. Your data synchronizes automatically.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.4.4',
     changes: [
       'New formula editor',
