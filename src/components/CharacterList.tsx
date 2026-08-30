@@ -19,6 +19,7 @@ import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { getCharacterTransferData, getCustomThemeToImport, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
 import { createWorkspaceBackup, parseRestorableWorkspaceFile } from '../utils/workspaceBackup';
+import { getCachedGalleryTheme } from '../hooks/useGallery';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
 import StorageWorkspaceMenu from './StorageWorkspaceMenu';
@@ -190,7 +191,9 @@ type CharacterImportSource = 'json_file' | 'raw_json';
 // Helper to get theme colors for a character
 function getThemeStyles(themeId?: string) {
   // First check if it's a custom theme
-  const customTheme = themeId ? getCustomTheme(themeId) : undefined;
+  const customTheme = themeId
+    ? getCustomTheme(themeId) ?? getCachedGalleryTheme(themeId)
+    : undefined;
   if (customTheme) {
     const shadowCSS = getShadowStyleCSS(customTheme.shadowStyle || 'hard', customTheme.colors.glow || 'transparent');
     const textureKey = customTheme.cardTexture || 'none';
@@ -1762,7 +1765,9 @@ export default function CharacterList() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
         {characters.map((char) => {
           const cardStyles = getThemeStyles(char.theme);
-          const customTheme = char.theme ? getCustomTheme(char.theme) : undefined;
+          const customTheme = char.theme
+            ? getCustomTheme(char.theme) ?? getCachedGalleryTheme(char.theme)
+            : undefined;
           const textureKey = customTheme?.cardTexture || 'none';
           const hasImageTexture = isImageTexture(textureKey);
           const widgetCount = char.sheets.reduce((sum, s) => sum + s.widgets.length, 0);
