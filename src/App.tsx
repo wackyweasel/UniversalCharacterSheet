@@ -56,6 +56,7 @@ function App() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const recordVisit = useTelemetryStore((state) => state.recordVisit);
   const isWorkspaceHydrated = useStorageWorkspaceStore((state) => state.isHydrated);
+  const isSwitchingWorkspace = useStorageWorkspaceStore((state) => state.isSwitchingWorkspace);
   const workspaceSyncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
   const workspaceError = useStorageWorkspaceStore((state) => state.error);
   const initializeWorkspaces = useStorageWorkspaceStore((state) => state.initialize);
@@ -104,10 +105,10 @@ function App() {
     <div className={`h-full font-mono overflow-hidden ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
       <UpdatePrompt />
       <StorageWarning />
-      <WorkspaceConflictDialog />
-      {!isWorkspaceHydrated ? (
+      {!isSwitchingWorkspace && <WorkspaceConflictDialog />}
+      {!isWorkspaceHydrated || isSwitchingWorkspace ? (
         <main className={`h-full flex items-center justify-center p-6 ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
-          {workspaceSyncStatus === 'error' ? (
+          {!isSwitchingWorkspace && workspaceSyncStatus === 'error' ? (
             <section className={`w-full max-w-lg border p-6 ${darkMode ? 'border-white/30 bg-black' : 'border-gray-300 bg-white'}`}>
               <h1 className="text-xl font-bold">Workspace could not be loaded</h1>
               <p role="alert" className={`mt-3 text-sm ${darkMode ? 'text-amber-300' : 'text-red-700'}`}>
@@ -137,7 +138,7 @@ function App() {
               </div>
             </section>
           ) : (
-            <p className="font-bold">Loading workspace...</p>
+            <p className="font-bold">{isSwitchingWorkspace ? 'Switching workspace...' : 'Loading workspace...'}</p>
           )}
         </main>
       ) : activeCharacterId ? (
@@ -148,7 +149,7 @@ function App() {
           </>
         </SheetErrorBoundary>
       ) : <CharacterList />}
-      <DicePhysicsOverlay />
+      {!isSwitchingWorkspace && <DicePhysicsOverlay />}
     </div>
   );
 }

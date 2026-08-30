@@ -40,7 +40,7 @@ Permission requests occur only after an explicit user action. Chrome may reset a
 
 ### Google Drive
 
-A Drive workspace is a visible JSON file in the user's Drive. The app requests only the non-sensitive `https://www.googleapis.com/auth/drive.file` scope and can access files created by or explicitly selected for the app. New files carry private application properties so **Connect Google Drive** can discover and register the user's available workspaces on another device. Files created by older versions remain discoverable through their legacy property.
+A Drive workspace is a visible JSON file in the user's Drive. The app requests only the non-sensitive `https://www.googleapis.com/auth/drive.file` scope and can access files created by or explicitly selected for the app. On another device, use **Open Google Drive workspace** and select each workspace file you want to register in that browser.
 
 Access tokens are short-lived and are retained only in memory and the current tab's session storage. The tab-scoped copy lets page reloads resume in browsers such as Firefox and is removed when the tab session ends or the token expires. On a new app session, the app silently requests a new token for an active Drive workspace when the browser still has a signed-in Google session and a prior grant. Startup stops waiting after five seconds if Google does not respond, loads the cached workspace, and shows **Reconnect Google Drive** instead of blocking the app. Explicit reconnect is also required when Google requires interaction, cookies are blocked, the tab session ended, or the grant was revoked. Cached Drive workspaces remain editable in IndexedDB while offline or disconnected.
 

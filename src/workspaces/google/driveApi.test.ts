@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createWorkspaceDocument } from '../workspaceDocument';
-import { createDriveWorkspaceFile, listDriveWorkspaceFiles, tagDriveWorkspaceFile } from './driveApi';
+import { createDriveWorkspaceFile, tagDriveWorkspaceFile } from './driveApi';
 
 const metadata = {
   id: 'file-1',
@@ -23,24 +23,7 @@ describe('Google Drive workspace requests', () => {
     expect(requestBody).not.toContain('"properties":{"ucsFormat"');
   });
 
-  it('discovers private and legacy workspace tags across pages', async () => {
-    const secondMetadata = { ...metadata, id: 'file-2', version: '2' };
-    const fetchImpl = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [metadata], nextPageToken: 'next-page' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ files: [secondMetadata] }), { status: 200 }));
-
-    const files = await listDriveWorkspaceFiles('token', fetchImpl);
-
-    expect(files).toEqual([metadata, secondMetadata]);
-    const firstUrl = new URL(String(fetchImpl.mock.calls[0][0]));
-    expect(firstUrl.searchParams.get('q')).toContain('appProperties');
-    expect(firstUrl.searchParams.get('q')).toContain('properties');
-    expect(firstUrl.searchParams.get('fields')).toContain('md5Checksum');
-    expect(new URL(String(fetchImpl.mock.calls[1][0])).searchParams.get('pageToken')).toBe('next-page');
-    expect(fetchImpl.mock.calls[0][1]?.headers).toEqual({ Authorization: 'Bearer token' });
-  });
-
-  it('tags a manually selected workspace for later discovery', async () => {
+  it('tags a manually selected workspace with UCS metadata', async () => {
     const taggedMetadata = { ...metadata, version: '2' };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify(taggedMetadata), { status: 200 }),

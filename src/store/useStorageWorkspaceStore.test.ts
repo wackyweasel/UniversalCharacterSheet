@@ -22,6 +22,15 @@ const directoryWorkspace: StorageWorkspace = {
   lastOpenedAt: '2026-08-29T00:00:00.000Z',
 };
 
+const driveWorkspace: StorageWorkspace = {
+  id: 'drive-1',
+  name: 'Drive Campaign',
+  provider: 'google-drive',
+  driveFileId: 'file-1',
+  createdAt: '2026-08-29T00:00:00.000Z',
+  lastOpenedAt: '2026-08-29T00:00:00.000Z',
+};
+
 const character: Character = {
   id: 'character-1',
   name: 'Ada',
@@ -37,6 +46,10 @@ const harness = vi.hoisted(() => ({
   directoryLoad: vi.fn<(workspace: StorageWorkspace) => Promise<{ document: WorkspaceDocument; fingerprint: string | null }>>(),
   directorySave: vi.fn<(workspace: StorageWorkspace, document: WorkspaceDocument, fingerprint: string | null) => Promise<{ fingerprint: string | null }>>(),
   openDirectory: vi.fn<(handle: WorkspaceDirectoryHandle) => Promise<{ document: WorkspaceDocument; fingerprint: string }>>(),
+  driveAccessToken: null as string | null,
+  restoreDriveToken: vi.fn<() => Promise<string | null>>(),
+  driveLoad: vi.fn<(workspace: StorageWorkspace) => Promise<{ document: WorkspaceDocument; fingerprint: string | null }>>(),
+  driveSave: vi.fn<(workspace: StorageWorkspace, document: WorkspaceDocument, fingerprint: string | null) => Promise<{ fingerprint: string | null }>>(),
 }));
 
 vi.mock('../workspaces/workspaceRegistry', () => ({
@@ -94,6 +107,21 @@ vi.mock('../workspaces/providers/directoryWorkspaceProvider', async () => {
   };
 });
 
+vi.mock('../workspaces/providers/googleDriveWorkspaceProvider', () => ({
+  createGoogleDriveWorkspaceProvider: () => ({
+    load: harness.driveLoad,
+    save: harness.driveSave,
+  }),
+}));
+
+vi.mock('../workspaces/google/googleClient', () => ({
+  authorizeGoogleDrive: vi.fn(),
+  clearGoogleDriveAccessToken: () => { harness.driveAccessToken = null; },
+  getGoogleDriveAccessToken: () => harness.driveAccessToken,
+  pickGoogleDriveWorkspace: vi.fn(),
+  restoreGoogleDriveAccessToken: harness.restoreDriveToken,
+}));
+
 function createStorage() {
   const values = new Map<string, string>();
   return {
@@ -136,6 +164,13 @@ describe('storage workspace coordinator', () => {
     harness.directoryLoad.mockReset();
     harness.directorySave.mockReset();
     harness.openDirectory.mockReset();
+    harness.driveAccessToken = null;
+    harness.restoreDriveToken.mockReset().mockImplementation(async () => {
+      harness.driveAccessToken = 'restored-token';
+      return harness.driveAccessToken;
+    });
+    harness.driveLoad.mockReset();
+    harness.driveSave.mockReset();
   });
 
   afterEach(() => {
@@ -185,7 +220,7 @@ describe('storage workspace coordinator', () => {
     expect(harness.caches.get(directoryWorkspace.id)?.document).toEqual(pendingDocument);
   });
 
-  it('recovers the save queue after an IndexedDB cache failure', async () => {
+  it('continues external persistence after an IndexedDB cache failure', async () => {
     installBrowserGlobals();
     harness.activeWorkspaceId = directoryWorkspace.id;
     const initialDocument = createWorkspaceDocument({
@@ -205,7 +240,9 @@ describe('storage workspace coordinator', () => {
       mode: 'play',
     });
     await vi.advanceTimersByTimeAsync(150);
-    expect(useStorageWorkspaceStore.getState().syncStatus).toBe('pending');
+    expect(harness.directorySave).toHaveBeenCalledTimes(1);
+    expect(harness.directorySave.mock.calls[0][1].characters[0].name).toBe('First edit');
+    expect(useStorageWorkspaceStore.getState().syncStatus).toBe('synced');
 
     useStore.getState()._replaceWorkspaceState({
       characters: [{ ...character, name: 'Second edit' }],
@@ -214,9 +251,82 @@ describe('storage workspace coordinator', () => {
     });
     await vi.advanceTimersByTimeAsync(150);
 
-    expect(harness.directorySave).toHaveBeenCalledTimes(1);
-    expect(harness.directorySave.mock.calls[0][1].characters[0].name).toBe('Second edit');
+    expect(harness.directorySave).toHaveBeenCalledTimes(2);
+    expect(harness.directorySave.mock.calls[1][1].characters[0].name).toBe('Second edit');
     expect(useStorageWorkspaceStore.getState().syncStatus).toBe('synced');
+  });
+
+  it('keeps the switching guard active until the target workspace finishes loading', async () => {
+    installBrowserGlobals();
+    const targetDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+    });
+    let finishLoad: (result: { document: WorkspaceDocument; fingerprint: string | null }) => void = () => undefined;
+    const targetLoad = new Promise<{ document: WorkspaceDocument; fingerprint: string | null }>((resolve) => {
+      finishLoad = resolve;
+    });
+    harness.directoryLoad.mockReturnValue(targetLoad);
+    const { useStorageWorkspaceStore } = await loadStores();
+    await useStorageWorkspaceStore.getState().initialize();
+
+    const switching = useStorageWorkspaceStore.getState().switchWorkspace(directoryWorkspace.id);
+    expect(useStorageWorkspaceStore.getState().isSwitchingWorkspace).toBe(true);
+
+    finishLoad({ document: targetDocument, fingerprint: 'remote-1' });
+    await switching;
+
+    expect(useStorageWorkspaceStore.getState()).toMatchObject({
+      activeWorkspaceId: directoryWorkspace.id,
+      isSwitchingWorkspace: false,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('leaves an uncached load failure in an actionable error state', async () => {
+    const storage = installBrowserGlobals();
+    harness.activeWorkspaceId = directoryWorkspace.id;
+    const initialDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+    });
+    harness.directoryLoad.mockResolvedValue({ document: initialDocument, fingerprint: 'remote-1' });
+    const { useStorageWorkspaceStore } = await loadStores();
+    await useStorageWorkspaceStore.getState().initialize();
+    storage.values.set('ucs:store', '{broken');
+
+    await expect(useStorageWorkspaceStore.getState().switchWorkspace(browserWorkspace.id)).rejects.toThrow();
+
+    expect(useStorageWorkspaceStore.getState()).toMatchObject({
+      activeWorkspaceId: directoryWorkspace.id,
+      isSwitchingWorkspace: false,
+      syncStatus: 'error',
+    });
+  });
+
+  it('silently restores Drive authorization before copying to an inactive workspace', async () => {
+    installBrowserGlobals();
+    const targetDocument = createWorkspaceDocument({
+      workspaceId: driveWorkspace.id,
+      name: driveWorkspace.name,
+    });
+    harness.driveLoad.mockResolvedValue({ document: targetDocument, fingerprint: 'remote-1' });
+    harness.driveSave.mockResolvedValue({ fingerprint: 'remote-2' });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    useStorageWorkspaceStore.setState({
+      workspaces: [browserWorkspace, driveWorkspace],
+      activeWorkspaceId: browserWorkspace.id,
+      isHydrated: true,
+    });
+    useStore.getState()._replaceWorkspaceState({ characters: [character], activeCharacterId: null, mode: 'play' });
+
+    await useStorageWorkspaceStore.getState().copyCharacterToWorkspace(character.id, driveWorkspace.id);
+
+    expect(harness.restoreDriveToken).toHaveBeenCalledOnce();
+    expect(harness.driveLoad).toHaveBeenCalledOnce();
+    expect(harness.driveSave).toHaveBeenCalledOnce();
   });
 
   it('waits for an in-flight autosave before applying and saving a restore', async () => {

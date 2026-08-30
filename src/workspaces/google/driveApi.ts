@@ -16,11 +16,6 @@ export interface DriveFileMetadata {
   size?: string;
 }
 
-interface DriveFileListResponse {
-  files?: DriveFileMetadata[];
-  nextPageToken?: string;
-}
-
 function authorizationHeaders(accessToken: string): Record<string, string> {
   return { Authorization: `Bearer ${accessToken}` };
 }
@@ -37,32 +32,6 @@ async function requireSuccessfulResponse(response: Response): Promise<Response> 
 export function getDriveFingerprint(metadata: DriveFileMetadata): string {
   if (metadata.md5Checksum) return `md5:${metadata.md5Checksum}`;
   return `${metadata.version}:${metadata.modifiedTime}`;
-}
-
-export async function listDriveWorkspaceFiles(
-  accessToken: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<DriveFileMetadata[]> {
-  const files: DriveFileMetadata[] = [];
-  let pageToken: string | undefined;
-
-  do {
-    const parameters = new URLSearchParams({
-      q: "trashed = false and (appProperties has { key='ucsFormat' and value='workspace' } or properties has { key='ucsFormat' and value='workspace' })",
-      fields: 'nextPageToken,files(id,name,modifiedTime,version,md5Checksum,size)',
-      orderBy: 'modifiedTime desc',
-      pageSize: '1000',
-    });
-    if (pageToken) parameters.set('pageToken', pageToken);
-    const response = await fetchImpl(`${DRIVE_FILES_URL}?${parameters}`, {
-      headers: authorizationHeaders(accessToken),
-    });
-    const page = await requireSuccessfulResponse(response).then((result) => result.json()) as DriveFileListResponse;
-    files.push(...(page.files ?? []));
-    pageToken = page.nextPageToken;
-  } while (pageToken);
-
-  return files;
 }
 
 export async function getDriveFileMetadata(

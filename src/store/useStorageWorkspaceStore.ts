@@ -34,9 +34,7 @@ import {
 import { createGoogleDriveWorkspaceProvider } from '../workspaces/providers/googleDriveWorkspaceProvider';
 import {
   createDriveWorkspaceFile,
-  downloadDriveWorkspace,
   getDriveFingerprint,
-  listDriveWorkspaceFiles,
   tagDriveWorkspaceFile,
 } from '../workspaces/google/driveApi';
 import {
@@ -54,6 +52,7 @@ interface StorageWorkspaceState {
   activeWorkspaceId: string;
   supportsExternalWorkspaces: boolean;
   isHydrated: boolean;
+  isSwitchingWorkspace: boolean;
   syncStatus: WorkspaceSyncStatus;
   error: string | null;
   conflict: WorkspaceConflictError | null;
@@ -63,7 +62,6 @@ interface StorageWorkspaceState {
   addDirectoryWorkspace: (handle: WorkspaceDirectoryHandle) => Promise<void>;
   openDirectoryWorkspace: (handle: WorkspaceDirectoryHandle) => Promise<void>;
   addGoogleDriveWorkspace: (name: string) => Promise<void>;
-  connectGoogleDrive: () => Promise<number>;
   openGoogleDriveWorkspace: () => Promise<void>;
   reconnectDirectoryWorkspace: (workspaceId: string, handle?: WorkspaceDirectoryHandle) => Promise<void>;
   reconnectGoogleDriveWorkspace: (workspaceId: string) => Promise<void>;
@@ -141,33 +139,51 @@ async function persistActiveWorkspace(): Promise<void> {
   if (!workspace || suppressPersistence) return;
 
   useStorageWorkspaceStore.setState({ syncStatus: 'saving', error: null });
+  let pendingCacheStored = workspace.provider === 'browser';
 
   try {
     const document = captureWorkspaceDocument(workspace);
     if (workspace.provider !== 'browser') {
-      await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: currentFingerprint, pendingSync: true });
+      try {
+        await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: currentFingerprint, pendingSync: true });
+        pendingCacheStored = true;
+      } catch {
+        pendingCacheStored = false;
+      }
     }
     const result = await getProvider(workspace).save(workspace, document, currentFingerprint);
     currentDocument = document;
     currentFingerprint = result.fingerprint;
+    let cacheWarning: string | null = null;
     if (workspace.provider !== 'browser') {
-      await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: result.fingerprint, pendingSync: false });
+      try {
+        await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: result.fingerprint, pendingSync: false });
+      } catch {
+        cacheWarning = 'Workspace saved externally, but its local offline cache could not be updated.';
+      }
     } else {
       void import('./useStorageWarningStore').then((module) => module.useStorageWarningStore.getState().refresh());
     }
-    useStorageWorkspaceStore.setState({ syncStatus: 'synced', error: null });
+    useStorageWorkspaceStore.setState({ syncStatus: 'synced', error: cacheWarning });
 
     if (document.activeCharacterId) {
       const activeCharacter = document.characters.find((character) => character.id === document.activeCharacterId);
       if (activeCharacter) useTelemetryStoreSafely(activeCharacter);
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Workspace save failed.';
+    const recoveryWarning = workspace.provider !== 'browser' && !pendingCacheStored
+      ? ' Changes are only in this tab because the local recovery cache is unavailable. Keep this tab open and try again.'
+      : '';
     if (error instanceof WorkspaceConflictError) {
-      useStorageWorkspaceStore.setState({ syncStatus: 'conflict', conflict: error, error: error.message });
+      useStorageWorkspaceStore.setState({ syncStatus: 'conflict', conflict: error, error: `${error.message}${recoveryWarning}` });
     } else if (error instanceof WorkspaceReconnectRequiredError) {
-      useStorageWorkspaceStore.setState({ syncStatus: 'reconnect', error: error.message });
+      useStorageWorkspaceStore.setState({ syncStatus: 'reconnect', error: `${error.message}${recoveryWarning}` });
     } else {
-      useStorageWorkspaceStore.setState({ syncStatus: 'pending', error: error instanceof Error ? error.message : 'Workspace save failed.' });
+      useStorageWorkspaceStore.setState({
+        syncStatus: pendingCacheStored ? 'pending' : 'error',
+        error: `${errorMessage}${recoveryWarning}`,
+      });
     }
   }
 }
@@ -243,7 +259,13 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
     applyWorkspaceDocument(result.document);
     useStorageWorkspaceStore.setState({ syncStatus: 'synced' });
   } catch (error) {
-    if (!cache) throw error;
+    if (!cache) {
+      useStorageWorkspaceStore.setState({
+        syncStatus: 'error',
+        error: error instanceof Error ? error.message : 'The workspace could not be loaded.',
+      });
+      throw error;
+    }
     currentDocument = cache.document;
     currentFingerprint = cache.fingerprint;
     applyWorkspaceDocument(cache.document);
@@ -261,6 +283,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   activeWorkspaceId: BROWSER_WORKSPACE_ID,
   supportsExternalWorkspaces: registry !== null,
   isHydrated: false,
+  isSwitchingWorkspace: false,
   syncStatus: 'idle',
   error: null,
   conflict: null,
@@ -338,20 +361,25 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     if (workspaceId === get().activeWorkspaceId) return;
     const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
     if (!workspace) throw new Error('Workspace not found.');
-    if (saveTimeout !== null) {
-      window.clearTimeout(saveTimeout);
-      saveTimeout = null;
-      enqueueSave();
+    set({ isSwitchingWorkspace: true });
+    try {
+      if (saveTimeout !== null) {
+        window.clearTimeout(saveTimeout);
+        saveTimeout = null;
+        enqueueSave();
+      }
+      await saveQueue;
+      await loadWorkspace(workspace);
+      const updatedWorkspace = { ...workspace, lastOpenedAt: new Date().toISOString() };
+      requireRegistry().setActiveWorkspaceId(workspaceId);
+      set({
+        activeWorkspaceId: workspaceId,
+        workspaces: get().workspaces.map((candidate) => candidate.id === workspaceId ? updatedWorkspace : candidate),
+      });
+      await requireRegistry().putWorkspace(updatedWorkspace);
+    } finally {
+      set({ isSwitchingWorkspace: false });
     }
-    await saveQueue;
-    await loadWorkspace(workspace);
-    const updatedWorkspace = { ...workspace, lastOpenedAt: new Date().toISOString() };
-    await requireRegistry().putWorkspace(updatedWorkspace);
-    requireRegistry().setActiveWorkspaceId(workspaceId);
-    set({
-      activeWorkspaceId: workspaceId,
-      workspaces: get().workspaces.map((candidate) => candidate.id === workspaceId ? updatedWorkspace : candidate),
-    });
   },
 
   addDirectoryWorkspace: async (handle) => {
@@ -433,56 +461,6 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     await requireRegistry().setCache({ workspaceId, document, fingerprint, pendingSync: false });
     set({ workspaces: [...get().workspaces, workspace] });
     await get().switchWorkspace(workspaceId);
-  },
-
-  connectGoogleDrive: async () => {
-    const accessToken = await authorizeGoogleDrive();
-    const files = await listDriveWorkspaceFiles(accessToken);
-    const timestamp = new Date().toISOString();
-    const discovered = await Promise.allSettled(files.map(async (metadata) => {
-      const document = await downloadDriveWorkspace(metadata.id, accessToken);
-      const existing = get().workspaces.find((workspace) => workspace.id === document.workspaceId);
-      const workspace: StorageWorkspace = {
-        id: document.workspaceId,
-        name: document.name,
-        provider: 'google-drive',
-        driveFileId: metadata.id,
-        locationName: metadata.name,
-        createdAt: existing?.createdAt ?? timestamp,
-        lastOpenedAt: existing?.lastOpenedAt ?? timestamp,
-      };
-      return { workspace, document, fingerprint: getDriveFingerprint(metadata) };
-    }));
-    const discoveredWorkspaceIds = new Set<string>();
-    const validWorkspaces = discovered.flatMap((result) => {
-      if (result.status !== 'fulfilled' || discoveredWorkspaceIds.has(result.value.workspace.id)) return [];
-      discoveredWorkspaceIds.add(result.value.workspace.id);
-      return [result.value];
-    });
-
-    for (const discoveredWorkspace of validWorkspaces) {
-      await requireRegistry().putWorkspace(discoveredWorkspace.workspace);
-      const existingCache = await requireRegistry().getCache(discoveredWorkspace.workspace.id);
-      if (!existingCache?.pendingSync) {
-        await requireRegistry().setCache({
-          workspaceId: discoveredWorkspace.workspace.id,
-          document: discoveredWorkspace.document,
-          fingerprint: discoveredWorkspace.fingerprint,
-          pendingSync: false,
-        });
-      }
-    }
-
-    const workspacesById = new Map(get().workspaces.map((workspace) => [workspace.id, workspace]));
-    for (const discoveredWorkspace of validWorkspaces) {
-      workspacesById.set(discoveredWorkspace.workspace.id, discoveredWorkspace.workspace);
-    }
-    set({ workspaces: [...workspacesById.values()], error: null });
-
-    if (files.length > 0 && validWorkspaces.length === 0) {
-      throw new Error('Google Drive workspace files were found, but none contained a supported workspace document.');
-    }
-    return validWorkspaces.length;
   },
 
   openGoogleDriveWorkspace: async () => {
@@ -572,6 +550,9 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     }
 
     const provider = getProvider(targetWorkspace);
+    if (targetWorkspace.provider === 'google-drive' && !getGoogleDriveAccessToken()) {
+      await restoreGoogleDriveAccessToken();
+    }
     const loaded = await provider.load(targetWorkspace);
     const clonedCharacter = cloneCharacterForWorkspace(sourceCharacter);
     const targetCustomThemes = includeCharacterCustomTheme(
