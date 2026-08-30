@@ -223,7 +223,15 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
   try {
     cache = workspace.provider === 'browser' ? null : await requireRegistry().getCache(workspace.id);
     if (workspace.provider === 'google-drive' && !getGoogleDriveAccessToken()) {
-      await restoreGoogleDriveAccessToken();
+      if (!cache) throw new WorkspaceReconnectRequiredError('Reconnect Google Drive to load this workspace.');
+      currentDocument = cache.document;
+      currentFingerprint = cache.fingerprint;
+      applyWorkspaceDocument(cache.document);
+      useStorageWorkspaceStore.setState({
+        syncStatus: 'reconnect',
+        error: 'Reconnect Google Drive to resume syncing this workspace.',
+      });
+      return;
     }
     const result = await getProvider(workspace).load(workspace);
 

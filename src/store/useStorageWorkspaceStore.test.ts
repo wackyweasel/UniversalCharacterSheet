@@ -192,6 +192,35 @@ describe('storage workspace coordinator', () => {
     });
   });
 
+  it('loads a cached Drive workspace without attempting background authorization', async () => {
+    installBrowserGlobals();
+    harness.workspaces = [browserWorkspace, driveWorkspace];
+    harness.activeWorkspaceId = driveWorkspace.id;
+    const cachedDocument = createWorkspaceDocument({
+      workspaceId: driveWorkspace.id,
+      name: driveWorkspace.name,
+      characters: [character],
+    });
+    harness.caches.set(driveWorkspace.id, {
+      workspaceId: driveWorkspace.id,
+      document: cachedDocument,
+      fingerprint: 'remote-1',
+      pendingSync: false,
+    });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+
+    await useStorageWorkspaceStore.getState().initialize();
+
+    expect(harness.restoreDriveToken).not.toHaveBeenCalled();
+    expect(harness.driveLoad).not.toHaveBeenCalled();
+    expect(useStore.getState().characters).toEqual([character]);
+    expect(useStorageWorkspaceStore.getState()).toMatchObject({
+      activeWorkspaceId: driveWorkspace.id,
+      isHydrated: true,
+      syncStatus: 'reconnect',
+    });
+  });
+
   it('refuses to copy over an inactive workspace with pending edits', async () => {
     installBrowserGlobals();
     const { useStorageWorkspaceStore, useStore } = await loadStores();

@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type TokenCallback = (response: { access_token?: string; expires_in?: number; error?: string }) => void;
+type TokenResult = Parameters<TokenCallback>[0] | { popupError: 'popup_failed_to_open' | 'popup_closed' | 'unknown' } | null;
 
-function installGoogleLibraries(responses: Array<{ access_token?: string; expires_in?: number; error?: string } | null>) {
+function installGoogleLibraries(responses: TokenResult[]) {
   const prompts: string[] = [];
+  let errorCallback: ((error: { type?: string }) => void) | undefined;
   const tokenClient = {
     callback: (() => undefined) as TokenCallback,
     requestAccessToken: ({ prompt }: { prompt: string }) => {
@@ -11,6 +13,10 @@ function installGoogleLibraries(responses: Array<{ access_token?: string; expire
       const response = responses.shift();
       if (response === undefined) throw new Error('Missing token response.');
       if (response === null) return;
+      if ('popupError' in response) {
+        queueMicrotask(() => errorCallback?.({ type: response.popupError }));
+        return;
+      }
       queueMicrotask(() => tokenClient.callback(response));
     },
   };
@@ -23,7 +29,10 @@ function installGoogleLibraries(responses: Array<{ access_token?: string; expire
     google: {
       accounts: {
         oauth2: {
-          initTokenClient: () => tokenClient,
+          initTokenClient: (options: { error_callback?: (error: { type?: string }) => void }) => {
+            errorCallback = options.error_callback;
+            return tokenClient;
+          },
         },
       },
     },
@@ -108,6 +117,14 @@ describe('Google Drive authorization', () => {
     await expect(authorizeGoogleDrive()).resolves.toBe('interactive-token');
 
     expect(prompts).toEqual(['none', '']);
+  });
+
+  it('rejects when the authorization popup is closed', async () => {
+    const prompts = installGoogleLibraries([{ popupError: 'popup_closed' }]);
+    const { authorizeGoogleDrive } = await import('./googleClient');
+
+    await expect(authorizeGoogleDrive()).rejects.toThrow('Google Drive authorization was cancelled.');
+    expect(prompts).toEqual(['']);
   });
 
   it('stops waiting when silent authorization does not respond', async () => {

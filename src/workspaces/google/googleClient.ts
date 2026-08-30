@@ -10,6 +10,10 @@ interface TokenResponse {
   error?: string;
 }
 
+interface TokenClientError {
+  type?: 'popup_failed_to_open' | 'popup_closed' | 'unknown';
+}
+
 interface TokenClient {
   callback: (response: TokenResponse) => void;
   requestAccessToken(options: { prompt: string }): void;
@@ -41,6 +45,7 @@ interface GoogleLibraries {
         client_id: string;
         scope: string;
         callback: (response: TokenResponse) => void;
+        error_callback?: (error: TokenClientError) => void;
       }): TokenClient;
     };
   };
@@ -65,6 +70,7 @@ let tokenClient: TokenClient | null = null;
 let identityLibraryPromise: Promise<void> | null = null;
 let pickerLibraryPromise: Promise<void> | null = null;
 let tokenRequestPromise: Promise<string> | null = null;
+let rejectTokenRequest: ((error: Error) => void) | null = null;
 
 function readSessionToken(): { token: string; expiresAt: number } | null {
   try {
@@ -192,9 +198,18 @@ async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: nu
       client_id: configuration.clientId,
       scope: DRIVE_SCOPE,
       callback: () => undefined,
+      error_callback: (error) => {
+        const message = error.type === 'popup_failed_to_open'
+          ? 'Google Drive authorization was blocked. Allow pop-ups and try again.'
+          : error.type === 'popup_closed'
+            ? 'Google Drive authorization was cancelled.'
+            : 'Google Drive authorization could not be completed.';
+        rejectTokenRequest?.(new Error(message));
+      },
     });
 
     return new Promise<string>((resolve, reject) => {
+      rejectTokenRequest = reject;
       tokenClient!.callback = (response) => {
         if (response.error || !response.access_token) {
           reject(new Error(response.error || 'Google Drive authorization was cancelled.'));
@@ -221,6 +236,7 @@ async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: nu
     return await tokenRequestPromise;
   } finally {
     if (timeoutId !== null) clearTimeout(timeoutId);
+    rejectTokenRequest = null;
     tokenRequestPromise = null;
   }
 }
