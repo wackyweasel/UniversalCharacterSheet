@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -97,7 +97,7 @@ function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?:
   );
 }
 
-export default function InventoryWidget({
+function InventoryWidget({
   widget,
   mode,
   showFieldControls = true,
@@ -115,8 +115,8 @@ export default function InventoryWidget({
   const isPrintMode = mode === 'print';
   const canInteract = interactive && !isPrintMode;
   const controlsVisible = canInteract && showFieldControls && widget.data.showFieldControls !== false;
-  const localLoad = getInventoryLoad(inventoryItems);
-  const globalLoad = getCharacterGlobalInventoryLoad(activeCharacter);
+  const localLoad = useMemo(() => getInventoryLoad(inventoryItems), [inventoryItems]);
+  const globalLoad = useMemo(() => getCharacterGlobalInventoryLoad(activeCharacter), [activeCharacter]);
   const [dialogItem, setDialogItem] = useState<InventoryItem | null | undefined>(undefined);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
@@ -565,3 +565,5 @@ export default function InventoryWidget({
     </div>
   );
 }
+
+export default memo(InventoryWidget);

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react
 const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
 const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
 const SHEET_CAMERA_STORAGE_KEY = 'ucs:sheet-camera';
+const CAMERA_SAVE_DELAY_MS = 200;
 
 function lockKey(characterId: string | null | undefined): string {
   return characterId ? `${VIEW_LOCK_STORAGE_KEY}:${characterId}` : VIEW_LOCK_STORAGE_KEY;
@@ -156,17 +157,21 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
 
   useEffect(() => {
     if (!activeCameraKey) return;
-    try {
-      localStorage.setItem(activeCameraKey, JSON.stringify({
-        locked: viewLocked,
-        pan,
-        scale,
-        wheelPanEnabled,
-        initialFitComplete,
-      }));
-    } catch {
-      // Camera state is optional when storage is unavailable.
-    }
+    const timeout = window.setTimeout(() => {
+      try {
+        localStorage.setItem(activeCameraKey, JSON.stringify({
+          locked: viewLocked,
+          pan,
+          scale,
+          wheelPanEnabled,
+          initialFitComplete,
+        }));
+      } catch {
+        // Camera state is optional when storage is unavailable.
+      }
+    }, CAMERA_SAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timeout);
   }, [activeCameraKey, initialFitComplete, pan, scale, viewLocked, wheelPanEnabled]);
 
   useEffect(() => {
