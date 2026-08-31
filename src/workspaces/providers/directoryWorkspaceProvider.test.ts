@@ -96,9 +96,22 @@ describe('directory workspace provider', () => {
     })).rejects.toThrow('already contains ucs-workspace.json');
   });
 
-  it('requires explicit reconnection instead of requesting permission during load', async () => {
+  it('uses an accessible handle when Android reports its permission as prompt', async () => {
     const directory = createMockDirectory();
     directory.handle.queryPermission = async () => 'prompt';
+    const provider = createDirectoryWorkspaceProvider(async () => directory.handle);
+
+    const loaded = await provider.load(workspace);
+    await expect(provider.save(workspace, { ...loaded.document, revision: 1 }, loaded.fingerprint)).resolves.toEqual({
+      fingerprint: expect.any(String),
+    });
+  });
+
+  it('requires reconnection when the browser denies access to the directory', async () => {
+    const directory = createMockDirectory();
+    directory.handle.getFileHandle = async () => {
+      throw new DOMException('Permission denied', 'NotAllowedError');
+    };
     const provider = createDirectoryWorkspaceProvider(async () => directory.handle);
 
     await expect(provider.load(workspace)).rejects.toBeInstanceOf(WorkspaceReconnectRequiredError);

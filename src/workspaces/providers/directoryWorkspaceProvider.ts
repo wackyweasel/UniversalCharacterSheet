@@ -36,10 +36,11 @@ function getFileFingerprint(file: WorkspaceFile): string {
   return `${file.lastModified}:${file.size}`;
 }
 
-async function requirePermission(handle: WorkspaceDirectoryHandle): Promise<void> {
-  if (await handle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+function translatePermissionError(error: unknown): never {
+  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
     throw new WorkspaceReconnectRequiredError('Allow access to this directory to reconnect the workspace.');
   }
+  throw error;
 }
 
 async function readWorkspaceFile(fileHandle: WorkspaceFileHandle): Promise<{
@@ -101,31 +102,38 @@ export function createDirectoryWorkspaceProvider(
   const getWorkspaceHandle = async (workspace: StorageWorkspace) => {
     const handle = await getHandle(workspace.id);
     if (!handle) throw new WorkspaceReconnectRequiredError('Choose the workspace directory again to reconnect it.');
-    await requirePermission(handle);
     return handle;
   };
 
   return {
     async load(workspace) {
-      const handle = await getWorkspaceHandle(workspace);
-      const fileHandle = await handle.getFileHandle(DIRECTORY_WORKSPACE_FILE_NAME);
-      return readWorkspaceFile(fileHandle);
+      try {
+        const handle = await getWorkspaceHandle(workspace);
+        const fileHandle = await handle.getFileHandle(DIRECTORY_WORKSPACE_FILE_NAME);
+        return await readWorkspaceFile(fileHandle);
+      } catch (error) {
+        translatePermissionError(error);
+      }
     },
 
     async save(workspace, document, expectedFingerprint): Promise<WorkspaceSaveResult> {
-      const handle = await getWorkspaceHandle(workspace);
-      const fileHandle = await handle.getFileHandle(DIRECTORY_WORKSPACE_FILE_NAME);
-      const remote = await readWorkspaceFile(fileHandle);
+      try {
+        const handle = await getWorkspaceHandle(workspace);
+        const fileHandle = await handle.getFileHandle(DIRECTORY_WORKSPACE_FILE_NAME);
+        const remote = await readWorkspaceFile(fileHandle);
 
-      if (expectedFingerprint !== null && remote.fingerprint !== expectedFingerprint) {
-        throw new WorkspaceConflictError(undefined, remote.document, remote.fingerprint);
+        if (expectedFingerprint !== null && remote.fingerprint !== expectedFingerprint) {
+          throw new WorkspaceConflictError(undefined, remote.document, remote.fingerprint);
+        }
+
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(document, null, 2));
+        await writable.close();
+        const savedFile = await fileHandle.getFile();
+        return { fingerprint: getFileFingerprint(savedFile) };
+      } catch (error) {
+        translatePermissionError(error);
       }
-
-      const writable = await fileHandle.createWritable();
-      await writable.write(JSON.stringify(document, null, 2));
-      await writable.close();
-      const savedFile = await fileHandle.getFile();
-      return { fingerprint: getFileFingerprint(savedFile) };
     },
   };
 }
