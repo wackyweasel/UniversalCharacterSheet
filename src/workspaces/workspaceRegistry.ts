@@ -35,6 +35,7 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 
 export class WorkspaceRegistry {
   private readonly databasePromise: Promise<IDBDatabase>;
+  private readonly directoryHandles = new Map<string, WorkspaceDirectoryHandle>();
 
   constructor(
     indexedDbFactory: IDBFactory = indexedDB,
@@ -98,6 +99,7 @@ export class WorkspaceRegistry {
     transaction.objectStore(HANDLES_STORE).delete(workspaceId);
     transaction.objectStore(CACHE_STORE).delete(workspaceId);
     await transactionDone(transaction);
+    this.directoryHandles.delete(workspaceId);
     if (this.getActiveWorkspaceId() === workspaceId) this.setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
   }
 
@@ -106,15 +108,21 @@ export class WorkspaceRegistry {
     const transaction = database.transaction(HANDLES_STORE, 'readwrite');
     transaction.objectStore(HANDLES_STORE).put({ workspaceId, handle });
     await transactionDone(transaction);
+    this.directoryHandles.set(workspaceId, handle);
   }
 
   async getDirectoryHandle(workspaceId: string): Promise<WorkspaceDirectoryHandle | null> {
+    const liveHandle = this.directoryHandles.get(workspaceId);
+    if (liveHandle) return liveHandle;
+
     const database = await this.databasePromise;
     const transaction = database.transaction(HANDLES_STORE, 'readonly');
     const result = await requestResult(transaction.objectStore(HANDLES_STORE).get(workspaceId)) as {
       handle?: WorkspaceDirectoryHandle;
     } | undefined;
-    return result?.handle ?? null;
+    const handle = result?.handle ?? null;
+    if (handle) this.directoryHandles.set(workspaceId, handle);
+    return handle;
   }
 
   async setCache(record: WorkspaceCacheRecord): Promise<void> {

@@ -41,7 +41,7 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.5.0',
     changes: [
-      'AAdded workspaces. A workspace is like a directory where you store all your UCS data.',
+      'AAAdded workspaces. A workspace is like a directory where you store all your UCS data.',
       {
         text: 'There are three types of workspaces:',
         items: [

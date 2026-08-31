@@ -353,6 +353,40 @@ describe('storage workspace coordinator', () => {
     expect(harness.directorySave.mock.calls[0][1].characters[0].name).toBe('Persisted edit');
   });
 
+  it('pauses directory access after reconnect is required while caching later edits', async () => {
+    installBrowserGlobals();
+    harness.activeWorkspaceId = directoryWorkspace.id;
+    const initialDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+    });
+    harness.directoryLoad.mockResolvedValue({ document: initialDocument, fingerprint: 'remote-1' });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    const { WorkspaceReconnectRequiredError } = await import('../workspaces/providers/types');
+    harness.directorySave.mockRejectedValue(new WorkspaceReconnectRequiredError('Reconnect directory.'));
+    await useStorageWorkspaceStore.getState().initialize();
+
+    useStore.getState().updateCharacterName(character.id, 'First pending edit');
+    await vi.advanceTimersByTimeAsync(150);
+
+    expect(harness.directorySave).toHaveBeenCalledTimes(1);
+    expect(useStorageWorkspaceStore.getState().syncStatus).toBe('reconnect');
+
+    useStore.getState().updateCharacterName(character.id, 'Latest pending edit');
+    await vi.advanceTimersByTimeAsync(150);
+
+    expect(harness.directorySave).toHaveBeenCalledTimes(1);
+    expect(harness.caches.get(directoryWorkspace.id)).toMatchObject({
+      fingerprint: 'remote-1',
+      pendingSync: true,
+      document: {
+        characters: [{ name: 'Latest pending edit' }],
+      },
+    });
+    expect(useStorageWorkspaceStore.getState().syncStatus).toBe('reconnect');
+  });
+
   it('coalesces autosaves queued behind an in-flight save to the latest state', async () => {
     installBrowserGlobals();
     harness.activeWorkspaceId = directoryWorkspace.id;

@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { createWorkspaceDocument } from './workspaceDocument';
 import { WorkspaceRegistry } from './workspaceRegistry';
+import type { WorkspaceDirectoryHandle } from './providers/directoryWorkspaceProvider';
 
 function createPreferences() {
   const values = new Map<string, string>();
@@ -43,6 +44,15 @@ describe('workspace registry', () => {
       fingerprint: '1:100',
       pendingSync: true,
     });
+  });
+
+  it('keeps the live authorized directory handle in memory', async () => {
+    const registry = new WorkspaceRegistry(new IDBFactory(), createPreferences(), 'registry-live-handle');
+    const handle = { name: 'Campaign' } as WorkspaceDirectoryHandle;
+
+    await registry.setDirectoryHandle('directory-1', handle);
+
+    expect(await registry.getDirectoryHandle('directory-1')).toBe(handle);
   });
 
   it('forgets external metadata without allowing Browser removal', async () => {

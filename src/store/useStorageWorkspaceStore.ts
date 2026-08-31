@@ -206,11 +206,28 @@ async function persistActiveWorkspace(): Promise<void> {
   const workspace = state.workspaces.find((candidate) => candidate.id === state.activeWorkspaceId);
   if (!workspace || suppressPersistence) return;
 
+  const document = captureWorkspaceDocument(workspace);
+  if (workspace.provider !== 'browser' && state.syncStatus === 'reconnect') {
+    try {
+      await requireRegistry().setCache({
+        workspaceId: workspace.id,
+        document,
+        fingerprint: currentFingerprint,
+        pendingSync: true,
+      });
+      currentDocument = document;
+    } catch {
+      useStorageWorkspaceStore.setState({
+        error: `${state.error ?? 'Reconnect the workspace to resume syncing.'} Changes are only in this tab because the local recovery cache is unavailable. Keep this tab open and try again.`,
+      });
+    }
+    return;
+  }
+
   useStorageWorkspaceStore.setState({ syncStatus: 'saving', error: null });
   let pendingCacheStored = workspace.provider === 'browser';
 
   try {
-    const document = captureWorkspaceDocument(workspace);
     if (workspace.provider !== 'browser') {
       try {
         await requireRegistry().setCache({ workspaceId: workspace.id, document, fingerprint: currentFingerprint, pendingSync: true });
