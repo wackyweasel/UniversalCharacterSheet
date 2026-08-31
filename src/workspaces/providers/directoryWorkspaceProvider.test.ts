@@ -39,6 +39,9 @@ function createMockDirectory(initialDocument = createWorkspaceDocument({ workspa
       content = JSON.stringify(document);
       lastModified += 1;
     },
+    touchMetadata() {
+      lastModified += 1;
+    },
   };
 }
 
@@ -125,6 +128,17 @@ describe('directory workspace provider', () => {
 
     await expect(provider.save(workspace, { ...loaded.document, revision: 1 }, loaded.fingerprint))
       .rejects.toBeInstanceOf(WorkspaceConflictError);
+  });
+
+  it('does not report a conflict when only file metadata changes', async () => {
+    const directory = createMockDirectory();
+    const provider = createDirectoryWorkspaceProvider(async () => directory.handle);
+    const loaded = await provider.load(workspace);
+    directory.touchMetadata();
+
+    await expect(provider.save(workspace, { ...loaded.document, revision: 1 }, loaded.fingerprint)).resolves.toEqual({
+      fingerprint: expect.any(String),
+    });
   });
 
   it('returns the new fingerprint after a successful write', async () => {
