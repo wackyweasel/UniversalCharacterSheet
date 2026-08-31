@@ -8,7 +8,7 @@ import UpdatePrompt from './components/UpdatePrompt';
 import { useTelemetryStore } from './store/useTelemetryStore';
 import { useStorageWorkspaceStore } from './store/useStorageWorkspaceStore';
 import WorkspaceConflictDialog from './components/WorkspaceConflictDialog';
-import GoogleDriveReconnectDialog from './components/GoogleDriveReconnectDialog';
+import GoogleDriveAutoReconnect from './components/GoogleDriveAutoReconnect';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -105,7 +105,7 @@ function App() {
     <div className={`h-full font-mono overflow-hidden ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
       <UpdatePrompt />
       <StorageWarning />
-      {!isSwitchingWorkspace && <GoogleDriveReconnectDialog />}
+      <GoogleDriveAutoReconnect />
       {!isSwitchingWorkspace && <WorkspaceConflictDialog />}
       {!isWorkspaceHydrated || isSwitchingWorkspace ? (
         <main className={`h-full flex items-center justify-center p-6 ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
