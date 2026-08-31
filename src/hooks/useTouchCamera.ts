@@ -15,8 +15,8 @@ export function useTouchCameraPinchCancellation(onCancel: () => void) {
 
 interface UseTouchCameraOptions {
   mode: 'play' | 'edit' | 'vertical' | 'print';
-  onPanChange: (updater: (prev: { x: number; y: number }) => { x: number; y: number }) => void;
-  onScaleChange: (scale: number) => void;
+  onCameraPreview: (pan: { x: number; y: number }, scale: number) => void;
+  onCameraCommit: (pan: { x: number; y: number }, scale: number) => void;
   onPinchingChange: (isPinching: boolean) => void;
   getScale: () => number;
   getPan: () => { x: number; y: number };
@@ -28,8 +28,8 @@ interface UseTouchCameraOptions {
 
 export function useTouchCamera({
   mode,
-  onPanChange,
-  onScaleChange,
+  onCameraPreview,
+  onCameraCommit,
   onPinchingChange,
   getScale,
   getPan,
@@ -48,6 +48,7 @@ export function useTouchCamera({
   const pinchSessionActive = useRef(false);
   const activeTouchPointers = useRef<Map<number, { target: Element | null; x: number; y: number }>>(new Map());
   const managedScroll = useRef<{ element: HTMLElement; lastX: number; lastY: number } | null>(null);
+  const cameraChanged = useRef(false);
   
   // Refs to avoid stale closures in global touch handlers
   const modeRef = useRef(mode);
@@ -60,6 +61,17 @@ export function useTouchCamera({
   useEffect(() => { isViewLockedRef.current = isViewLocked; }, [isViewLocked]);
 
   useEffect(() => {
+    const previewCamera = (pan: { x: number; y: number }, scale: number) => {
+      cameraChanged.current = true;
+      onCameraPreview(pan, scale);
+    };
+
+    const commitCamera = () => {
+      if (!cameraChanged.current) return;
+      cameraChanged.current = false;
+      onCameraCommit(getPan(), getScale());
+    };
+
     const syncActiveTouches = (touches: TouchList) => {
       activeTouches.current.clear();
       for (let i = 0; i < touches.length; i++) {
@@ -149,11 +161,10 @@ export function useTouchCamera({
       const canvasX = (lastTouchCenter.current.x - currentPan.x) / currentScale;
       const canvasY = (lastTouchCenter.current.y - currentPan.y) / currentScale;
 
-      onScaleChange(newScale);
-      onPanChange(() => ({
+      previewCamera({
         x: newCenter.x - canvasX * newScale,
         y: newCenter.y - canvasY * newScale,
-      }));
+      }, newScale);
 
       lastTouchDistance.current = newDistance;
       lastTouchCenter.current = newCenter;
@@ -433,7 +444,8 @@ export function useTouchCamera({
           const dx = touch.x - lastTouchCenter.current.x;
           const dy = touch.y - lastTouchCenter.current.y;
           
-          onPanChange(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+          const currentPan = getPan();
+          previewCamera({ x: currentPan.x + dx, y: currentPan.y + dy }, getScale());
           lastTouchCenter.current = { x: touch.x, y: touch.y };
         }
       }
@@ -443,6 +455,7 @@ export function useTouchCamera({
       syncActiveTouches(e.touches);
       
       if (activeTouches.current.size === 0) {
+        commitCamera();
         lastTouchDistance.current = null;
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
@@ -485,7 +498,7 @@ export function useTouchCamera({
       window.removeEventListener('touchend', handleTouchEnd, { capture: true });
       window.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
     };
-  }, [onPanChange, onScaleChange, onPinchingChange, getScale, getPan, minScale, maxScale]);
+  }, [onCameraPreview, onCameraCommit, onPinchingChange, getScale, getPan, minScale, maxScale]);
 
   return {
     isTouchPanning,

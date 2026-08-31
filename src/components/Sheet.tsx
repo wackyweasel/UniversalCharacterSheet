@@ -458,6 +458,20 @@ export default function Sheet() {
   const getPan = useCallback(() => panRef.current, []);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
 
+  const previewTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    if (printAreaRef.current) {
+      printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
+    }
+  }, []);
+
+  const commitTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    previewTouchCamera(nextPan, nextScale);
+    setPan(nextPan);
+    setScale(nextScale);
+  }, [previewTouchCamera, setPan, setScale]);
+
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
       if (viewLockedRef.current) return;
       const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(MIN_CANVAS_SCALE, requestedScale));
@@ -483,8 +497,8 @@ export default function Sheet() {
   
   const { isTouchPanning } = useTouchCamera({
     mode,
-    onPanChange: setPan,
-    onScaleChange: setScale,
+    onCameraPreview: previewTouchCamera,
+    onCameraCommit: commitTouchCamera,
     onPinchingChange: setIsPinching,
     getScale,
     getPan,

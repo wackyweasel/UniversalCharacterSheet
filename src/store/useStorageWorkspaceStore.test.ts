@@ -327,6 +327,32 @@ describe('storage workspace coordinator', () => {
     expect(useStorageWorkspaceStore.getState().syncStatus).toBe('synced');
   });
 
+  it('ignores transient UI state changes but persists character changes', async () => {
+    installBrowserGlobals();
+    harness.activeWorkspaceId = directoryWorkspace.id;
+    const initialDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+    });
+    harness.directoryLoad.mockResolvedValue({ document: initialDocument, fingerprint: 'remote-1' });
+    harness.directorySave.mockResolvedValue({ fingerprint: 'remote-2' });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    await useStorageWorkspaceStore.getState().initialize();
+
+    useStore.getState().setSelectedWidgetId('transient-selection');
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(harness.directorySave).not.toHaveBeenCalled();
+    expect(useStorageWorkspaceStore.getState().syncStatus).toBe('synced');
+
+    useStore.getState().updateCharacterName(character.id, 'Persisted edit');
+    await vi.advanceTimersByTimeAsync(150);
+
+    expect(harness.directorySave).toHaveBeenCalledTimes(1);
+    expect(harness.directorySave.mock.calls[0][1].characters[0].name).toBe('Persisted edit');
+  });
+
   it('coalesces autosaves queued behind an in-flight save to the latest state', async () => {
     installBrowserGlobals();
     harness.activeWorkspaceId = directoryWorkspace.id;

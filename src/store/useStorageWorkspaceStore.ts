@@ -290,11 +290,28 @@ function enqueueSave(): Promise<void> {
 function startSubscriptions(): void {
   if (subscriptionsStarted) return;
   subscriptionsStarted = true;
-  useStore.subscribe(scheduleSave);
-  useTimelineStore.subscribe(scheduleSave);
-  useCustomThemeStore.subscribe(scheduleSave);
-  useTemplateStore.subscribe(scheduleSave);
-  useUserPresetStore.subscribe(scheduleSave);
+  useStore.subscribe((state, previousState) => {
+    if (
+      state.characters !== previousState.characters ||
+      state.transientCharacterIds !== previousState.transientCharacterIds ||
+      state.activeCharacterId !== previousState.activeCharacterId ||
+      state.mode !== previousState.mode
+    ) {
+      scheduleSave();
+    }
+  });
+  useTimelineStore.subscribe((state, previousState) => {
+    if (state.eventsByCharacter !== previousState.eventsByCharacter) scheduleSave();
+  });
+  useCustomThemeStore.subscribe((state, previousState) => {
+    if (state.customThemes !== previousState.customThemes) scheduleSave();
+  });
+  useTemplateStore.subscribe((state, previousState) => {
+    if (state.templates !== previousState.templates) scheduleSave();
+  });
+  useUserPresetStore.subscribe((state, previousState) => {
+    if (state.userPresets !== previousState.userPresets) scheduleSave();
+  });
 }
 
 async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter = true): Promise<void> {
