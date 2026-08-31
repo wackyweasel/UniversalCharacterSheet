@@ -47,6 +47,13 @@ import {
 
 type WorkspaceSyncStatus = 'idle' | 'loading' | 'saving' | 'synced' | 'pending' | 'reconnect' | 'conflict' | 'error';
 
+export interface WorkspaceTransferSelection {
+  characterIds: string[];
+  presetIds: string[];
+  themeIds: string[];
+  templateIds: string[];
+}
+
 interface StorageWorkspaceState {
   workspaces: StorageWorkspace[];
   activeWorkspaceId: string;
@@ -66,6 +73,13 @@ interface StorageWorkspaceState {
   reconnectDirectoryWorkspace: (workspaceId: string, handle?: WorkspaceDirectoryHandle) => Promise<void>;
   reconnectGoogleDriveWorkspace: (workspaceId: string) => Promise<void>;
   copyCharacterToWorkspace: (characterId: string, targetWorkspaceId: string) => Promise<void>;
+  getWorkspaceContents: (workspaceId: string) => Promise<WorkspaceDocument>;
+  transferWorkspaceData: (
+    sourceWorkspaceId: string,
+    targetWorkspaceId: string,
+    selection: WorkspaceTransferSelection,
+    mode: 'copy' | 'move',
+  ) => Promise<void>;
   resolveConflict: (resolution: 'remote' | 'local') => Promise<void>;
   saveConflictAsNewDirectory: (handle: WorkspaceDirectoryHandle) => Promise<void>;
   saveConflictAsNewGoogleDrive: (name: string) => Promise<void>;
@@ -98,6 +112,58 @@ function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
   if (workspace.provider === 'browser') return browserProvider;
   if (workspace.provider === 'directory') return directoryProvider;
   return googleDriveProvider;
+}
+
+async function flushActiveWorkspaceSave(): Promise<void> {
+  if (saveTimeout !== null) {
+    window.clearTimeout(saveTimeout);
+    saveTimeout = null;
+    enqueueSave();
+  }
+  await saveQueue;
+}
+
+async function readWorkspaceDocument(workspace: StorageWorkspace): Promise<{ document: WorkspaceDocument; fingerprint: string | null }> {
+  const isActive = workspace.id === useStorageWorkspaceStore.getState().activeWorkspaceId;
+  if (isActive) {
+    await flushActiveWorkspaceSave();
+    return { document: captureWorkspaceDocument(workspace), fingerprint: currentFingerprint };
+  }
+
+  const cache = workspace.provider === 'browser' ? null : await requireRegistry().getCache(workspace.id);
+  if (cache?.pendingSync) {
+    throw new Error(`Open and sync ${workspace.name} before transferring workspace data.`);
+  }
+  if (workspace.provider === 'google-drive' && !getGoogleDriveAccessToken()) {
+    await restoreGoogleDriveAccessToken();
+  }
+  return getProvider(workspace).load(workspace);
+}
+
+async function saveWorkspaceDocument(
+  workspace: StorageWorkspace,
+  document: WorkspaceDocument,
+  fingerprint: string | null,
+): Promise<string | null> {
+  const result = await getProvider(workspace).save(workspace, document, fingerprint);
+  if (workspace.provider !== 'browser') {
+    await requireRegistry().setCache({
+      workspaceId: workspace.id,
+      document,
+      fingerprint: result.fingerprint,
+      pendingSync: false,
+    });
+  }
+  return result.fingerprint;
+}
+
+function mergeById<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  const incomingById = new Map(incoming.map((item) => [item.id, item]));
+  const existingIds = new Set(existing.map((item) => item.id));
+  return [
+    ...existing.map((item) => incomingById.get(item.id) ?? item),
+    ...incoming.filter((item) => !existingIds.has(item.id)),
+  ];
 }
 
 function applyWorkspaceDocument(document: WorkspaceDocument, restoreActiveCharacter = true): void {
@@ -609,6 +675,98 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
         fingerprint: result.fingerprint,
         pendingSync: false,
       });
+    }
+  },
+
+  getWorkspaceContents: async (workspaceId) => {
+    const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
+    if (!workspace) throw new Error('Workspace not found.');
+    return (await readWorkspaceDocument(workspace)).document;
+  },
+
+  transferWorkspaceData: async (sourceWorkspaceId, targetWorkspaceId, selection, mode) => {
+    if (sourceWorkspaceId === targetWorkspaceId) throw new Error('Choose two different workspaces.');
+    const sourceWorkspace = get().workspaces.find((workspace) => workspace.id === sourceWorkspaceId);
+    const targetWorkspace = get().workspaces.find((workspace) => workspace.id === targetWorkspaceId);
+    if (!sourceWorkspace || !targetWorkspace) throw new Error('Workspace not found.');
+
+    const hasSelection = selection.characterIds.length > 0
+      || selection.presetIds.length > 0
+      || selection.themeIds.length > 0
+      || selection.templateIds.length > 0;
+    if (!hasSelection) throw new Error(`Select at least one item to ${mode}.`);
+
+    const [source, target] = await Promise.all([
+      readWorkspaceDocument(sourceWorkspace),
+      readWorkspaceDocument(targetWorkspace),
+    ]);
+    const characterIds = new Set(selection.characterIds);
+    const presetIds = new Set(selection.presetIds);
+    const themeIds = new Set(selection.themeIds);
+    const templateIds = new Set(selection.templateIds);
+    const selectedCharacters = source.document.characters.filter((item) => characterIds.has(item.id));
+    const transferredCharacters = mode === 'copy'
+      ? selectedCharacters.map(cloneCharacterForWorkspace)
+      : selectedCharacters;
+    const transferredPresets = source.document.userPresets.filter((item) => presetIds.has(item.id));
+    const transferredThemes = source.document.customThemes.filter((item) => themeIds.has(item.id));
+    const transferredTemplates = source.document.templates.filter((item) => templateIds.has(item.id));
+
+    const targetEvents = structuredClone(target.document.eventsByCharacter);
+    selectedCharacters.forEach((selectedCharacter, index) => {
+      const transferredCharacter = transferredCharacters[index];
+      const timeline = source.document.eventsByCharacter[selectedCharacter.id];
+      if (timeline) targetEvents[transferredCharacter.id] = structuredClone(timeline);
+      else delete targetEvents[transferredCharacter.id];
+    });
+    const sourceEvents = mode === 'move' ? structuredClone(source.document.eventsByCharacter) : null;
+    if (sourceEvents) {
+      for (const selectedCharacter of selectedCharacters) delete sourceEvents[selectedCharacter.id];
+    }
+
+    const targetDocument = createWorkspaceDocument({
+      workspaceId: targetWorkspace.id,
+      name: targetWorkspace.name,
+      characters: mergeById(target.document.characters, transferredCharacters),
+      eventsByCharacter: targetEvents,
+      activeCharacterId: target.document.activeCharacterId,
+      mode: target.document.mode,
+      customThemes: mergeById(target.document.customThemes, transferredThemes),
+      templates: mergeById(target.document.templates, transferredTemplates),
+      userPresets: mergeById(target.document.userPresets, transferredPresets),
+      revision: target.document.revision + 1,
+    });
+
+    const targetFingerprint = await saveWorkspaceDocument(targetWorkspace, targetDocument, target.fingerprint);
+    let sourceDocument: WorkspaceDocument | null = null;
+    let sourceFingerprint = source.fingerprint;
+    if (mode === 'move' && sourceEvents) {
+      sourceDocument = createWorkspaceDocument({
+        workspaceId: sourceWorkspace.id,
+        name: sourceWorkspace.name,
+        characters: source.document.characters.filter((item) => !characterIds.has(item.id)),
+        eventsByCharacter: sourceEvents,
+        activeCharacterId: source.document.activeCharacterId,
+        mode: source.document.mode,
+        customThemes: source.document.customThemes.filter((item) => !themeIds.has(item.id)),
+        templates: source.document.templates.filter((item) => !templateIds.has(item.id)),
+        userPresets: source.document.userPresets.filter((item) => !presetIds.has(item.id)),
+        revision: source.document.revision + 1,
+      });
+      sourceFingerprint = await saveWorkspaceDocument(sourceWorkspace, sourceDocument, source.fingerprint);
+    }
+    const activeWorkspaceId = get().activeWorkspaceId;
+    const activeDocument = activeWorkspaceId === targetWorkspace.id
+      ? targetDocument
+      : activeWorkspaceId === sourceWorkspace.id
+        ? sourceDocument
+        : null;
+    if (activeDocument) {
+      suppressPersistence = true;
+      currentDocument = activeDocument;
+      currentFingerprint = activeWorkspaceId === sourceWorkspace.id ? sourceFingerprint : targetFingerprint;
+      applyWorkspaceDocument(activeDocument);
+      suppressPersistence = false;
     }
   },
 

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, FolderOpen, FolderSearch, HardDrive, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, ChevronDown, FolderOpen, FolderSearch, HardDrive, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 import type { StorageWorkspace } from '../workspaces/types';
 import { supportsDirectoryWorkspaces, supportsStorageWorkspaces } from '../workspaces/capabilities';
 import type { WorkspaceDirectoryHandle } from '../workspaces/providers/directoryWorkspaceProvider';
 import AddWorkspaceDialog from './AddWorkspaceDialog';
+import MoveWorkspaceDataDialog from './MoveWorkspaceDataDialog';
 import { GoogleDriveIcon } from './icons';
 
 interface StorageWorkspaceMenuProps {
@@ -40,6 +41,7 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
   const forgetWorkspace = useStorageWorkspaceStore((state) => state.forgetWorkspace);
   const [isOpen, setIsOpen] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [operationError, setOperationError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -66,6 +68,7 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
   if (!supportsStorageWorkspaces() || !supportsExternalWorkspaces) return null;
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  const showWorkspaceStatus = activeWorkspace?.provider !== 'browser';
   const statusText = syncStatus === 'saving'
     ? 'Saving'
     : syncStatus === 'pending'
@@ -110,7 +113,7 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
           aria-expanded={isOpen}
           disabled={isBusy || syncStatus === 'loading'}
           onClick={() => setIsOpen((open) => !open)}
-          title={`${activeWorkspace?.name ?? 'Browser'}${statusText ? `: ${statusText}` : ''}`}
+          title={`${activeWorkspace?.name ?? 'Browser'}${showWorkspaceStatus && statusText ? `: ${statusText}` : ''}`}
           className={`flex h-14 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-button border px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
             darkMode
               ? 'border-white/30 bg-black text-white hover:bg-white/10'
@@ -123,12 +126,14 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
               <span className="truncate text-[10px] sm:text-sm">{activeWorkspace?.name ?? 'Browser'}</span>
               <ChevronDown className="h-3.5 w-3.5 flex-none sm:hidden" />
             </span>
-            <span className="mt-1 flex max-w-full items-center gap-1 text-[9px] opacity-70 sm:text-[10px]">
-              {isBusy || syncStatus === 'loading'
-                ? <LoaderCircle className="h-3 w-3 flex-none animate-spin" />
-                : statusText && <span className={`h-1.5 w-1.5 flex-none rounded-full ${statusColor}`} />}
-              {(isBusy || statusText) && <span className="truncate">{isBusy ? 'Working' : statusText}</span>}
-            </span>
+            {showWorkspaceStatus && (
+              <span className="mt-1 flex max-w-full items-center gap-1 text-[9px] opacity-70 sm:text-[10px]">
+                {isBusy || syncStatus === 'loading'
+                  ? <LoaderCircle className="h-3 w-3 flex-none animate-spin" />
+                  : statusText && <span className={`h-1.5 w-1.5 flex-none rounded-full ${statusColor}`} />}
+                {(isBusy || statusText) && <span className="truncate">{isBusy ? 'Working' : statusText}</span>}
+              </span>
+            )}
           </span>
           <ChevronDown className={`hidden h-3.5 w-3.5 flex-none transition-transform sm:block ${isOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -229,6 +234,19 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
                 <Plus className="h-4 w-4" />
                 Add workspace
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={workspaces.length < 2}
+                className={`flex w-full items-center gap-3 rounded-button px-3 py-2.5 text-left font-body text-sm font-bold disabled:opacity-40 ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                onClick={() => {
+                  setIsOpen(false);
+                  setShowMoveDialog(true);
+                }}
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+                Transfer workspace data
+              </button>
             </div>
 
             {(operationError || error) && (
@@ -241,6 +259,7 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
       </div>
 
       {showAddDialog && <AddWorkspaceDialog darkMode={darkMode} onClose={() => setShowAddDialog(false)} />}
+      {showMoveDialog && <MoveWorkspaceDataDialog darkMode={darkMode} onClose={() => setShowMoveDialog(false)} />}
     </>
   );
 }

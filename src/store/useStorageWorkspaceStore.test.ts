@@ -4,6 +4,9 @@ import type { WorkspaceCacheRecord } from '../workspaces/workspaceRegistry';
 import type { StorageWorkspace, WorkspaceDocument } from '../workspaces/types';
 import { createWorkspaceDocument } from '../workspaces/workspaceDocument';
 import type { WorkspaceDirectoryHandle } from '../workspaces/providers/directoryWorkspaceProvider';
+import type { CustomTheme } from './useCustomThemeStore';
+import type { AnyTemplate } from './useTemplateStore';
+import type { UserPreset } from './useUserPresetStore';
 
 const browserWorkspace: StorageWorkspace = {
   id: 'browser',
@@ -36,6 +39,45 @@ const character: Character = {
   name: 'Ada',
   sheets: [{ id: 'sheet-1', name: 'Main', widgets: [] }],
   activeSheetId: 'sheet-1',
+};
+
+const customTheme: CustomTheme = {
+  id: 'theme-1',
+  name: 'Moved theme',
+  icon: 'star',
+  description: 'A test theme',
+  colors: {
+    background: '#000000', paper: '#ffffff', ink: '#111111', accent: '#ff0000', accentHover: '#cc0000',
+    border: '#222222', shadow: '#333333', muted: '#777777', glow: '#eeeeee',
+  },
+  fonts: { heading: 'serif', body: 'sans-serif' },
+  borderRadius: '4px',
+  buttonRadius: '4px',
+  borderWidth: '1px',
+  shadowStyle: 'none',
+  cardTexture: 'none',
+  textureColor: '#ffffff',
+  textureOpacity: 0,
+  borderStyle: 'solid',
+};
+
+const template: AnyTemplate = {
+  id: 'template-1',
+  name: 'Moved template',
+  type: 'TEXT',
+  data: {},
+  createdAt: 1,
+};
+
+const userPreset: UserPreset = {
+  id: 'preset-1',
+  name: 'Moved preset',
+  preset: {
+    name: 'Preset character',
+    sheets: character.sheets,
+    activeSheetId: character.activeSheetId,
+  },
+  createdAt: 1,
 };
 
 const harness = vi.hoisted(() => ({
@@ -431,6 +473,94 @@ describe('storage workspace coordinator', () => {
     expect(harness.restoreDriveToken).toHaveBeenCalledOnce();
     expect(harness.driveLoad).toHaveBeenCalledOnce();
     expect(harness.driveSave).toHaveBeenCalledOnce();
+  });
+
+  it('moves selected workspace data and leaves unselected source data in place', async () => {
+    installBrowserGlobals();
+    const remainingCharacter = { ...character, id: 'character-2', name: 'Grace' };
+    const remainingTheme = { ...customTheme, id: 'theme-2', name: 'Remaining theme' };
+    const remainingTemplate = { ...template, id: 'template-2', name: 'Remaining template' };
+    const remainingPreset = { ...userPreset, id: 'preset-2', name: 'Remaining preset' };
+    const sourceDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character, remainingCharacter],
+      eventsByCharacter: {
+        [character.id]: {
+          events: [{
+            id: 'event-1', timestamp: 1, widgetLabel: 'HP', widgetType: 'NUMBER', description: 'Changed', icon: 'heart',
+          }],
+          nextId: 2,
+        },
+      },
+      customThemes: [customTheme, remainingTheme],
+      templates: [template, remainingTemplate],
+      userPresets: [userPreset, remainingPreset],
+    });
+    harness.directoryLoad.mockResolvedValue({ document: sourceDocument, fingerprint: 'remote-1' });
+    harness.directorySave.mockResolvedValue({ fingerprint: 'remote-2' });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    useStorageWorkspaceStore.setState({
+      workspaces: [browserWorkspace, directoryWorkspace],
+      activeWorkspaceId: browserWorkspace.id,
+      isHydrated: true,
+    });
+    useStore.getState()._replaceWorkspaceState({ characters: [], activeCharacterId: null, mode: 'play' });
+
+    await useStorageWorkspaceStore.getState().transferWorkspaceData(directoryWorkspace.id, browserWorkspace.id, {
+      characterIds: [character.id],
+      presetIds: [userPreset.id],
+      themeIds: [customTheme.id],
+      templateIds: [template.id],
+    }, 'move');
+
+    const savedSource = harness.directorySave.mock.calls[0][1];
+    expect(savedSource.characters).toEqual([remainingCharacter]);
+    expect(savedSource.eventsByCharacter).toEqual({});
+    expect(savedSource.customThemes).toEqual([remainingTheme]);
+    expect(savedSource.templates).toEqual([remainingTemplate]);
+    expect(savedSource.userPresets).toEqual([remainingPreset]);
+    expect(useStore.getState().characters).toEqual([character]);
+    expect(harness.caches.get(directoryWorkspace.id)?.document).toEqual(savedSource);
+  });
+
+  it('copies selected workspace data without changing the source', async () => {
+    const storage = installBrowserGlobals();
+    const timeline = {
+      events: [{
+        id: 'event-1', timestamp: 1, widgetLabel: 'HP', widgetType: 'NUMBER', description: 'Changed', icon: 'heart',
+      }],
+      nextId: 2,
+    };
+    const sourceDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+      eventsByCharacter: { [character.id]: timeline },
+    });
+    harness.directoryLoad.mockResolvedValue({ document: sourceDocument, fingerprint: 'remote-1' });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    useStorageWorkspaceStore.setState({
+      workspaces: [browserWorkspace, directoryWorkspace],
+      activeWorkspaceId: browserWorkspace.id,
+      isHydrated: true,
+    });
+    useStore.getState()._replaceWorkspaceState({ characters: [], activeCharacterId: null, mode: 'play' });
+
+    await useStorageWorkspaceStore.getState().transferWorkspaceData(directoryWorkspace.id, browserWorkspace.id, {
+      characterIds: [character.id],
+      presetIds: [],
+      themeIds: [],
+      templateIds: [],
+    }, 'copy');
+
+    expect(harness.directorySave).not.toHaveBeenCalled();
+    const copiedCharacter = useStore.getState().characters[0];
+    expect(copiedCharacter.name).toBe(character.name);
+    expect(copiedCharacter.id).not.toBe(character.id);
+    const savedTimeline = JSON.parse(storage.values.get('ucs:timeline') ?? '{}');
+    expect(savedTimeline.eventsByCharacter[copiedCharacter.id]).toEqual(timeline);
+    expect(savedTimeline.eventsByCharacter[character.id]).toBeUndefined();
   });
 
   it('waits for an in-flight autosave before applying and saving a restore', async () => {

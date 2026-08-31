@@ -38,7 +38,7 @@ export function WorkspaceStatusDot() {
   const error = useStorageWorkspaceStore((state) => state.error);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
 
-  if (!activeWorkspace) return null;
+  if (!activeWorkspace || activeWorkspace.provider === 'browser') return null;
 
   const statusText = workspaceStatusText(syncStatus);
 
@@ -66,10 +66,10 @@ export default function WorkspaceStatusSummary() {
   const [reconnectError, setReconnectError] = useState<string | null>(null);
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
-  if (!activeWorkspace) return null;
+  if (!activeWorkspace || activeWorkspace.provider === 'browser') return null;
 
   const statusText = isReconnecting ? 'Reconnecting' : workspaceStatusText(syncStatus);
-  const canReconnect = syncStatus === 'reconnect' && activeWorkspace.provider !== 'browser';
+  const canReconnect = syncStatus === 'reconnect';
 
   const handleReconnect = async () => {
     setIsReconnecting(true);
