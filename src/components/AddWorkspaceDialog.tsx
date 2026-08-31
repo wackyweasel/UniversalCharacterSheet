@@ -156,7 +156,28 @@ export default function AddWorkspaceDialog({ darkMode, onClose }: AddWorkspaceDi
         </div>
 
         {step === 'options' && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className={`mb-5 border-b pb-5 font-body ${darkMode ? 'border-white/20' : 'border-theme-border/50'}`}>
+              <p className="text-sm leading-relaxed">
+                Workspaces keep separate collections of characters, presets, themes, and templates. Switching workspaces changes which collection you are using.
+              </p>
+              <dl className={`mt-3 grid gap-2 text-xs leading-relaxed ${darkMode ? 'text-white/65' : 'text-theme-muted'}`}>
+                <div>
+                  <dt className="inline font-bold text-inherit">Browser:</dt>{' '}
+                  <dd className="inline">The default workspace. Data stays in this browser on this device and does not sync elsewhere.</dd>
+                </div>
+                <div>
+                  <dt className="inline font-bold text-inherit">Local:</dt>{' '}
+                  <dd className="inline">Stored as a workspace file in a folder you choose, giving you direct control over the file and your own backups.</dd>
+                </div>
+                <div>
+                  <dt className="inline font-bold text-inherit">Google Drive:</dt>{' '}
+                  <dd className="inline">Stored as a file in your Drive and synced so you can open it from other devices.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
             <WorkspaceOption
               darkMode={darkMode}
               icon={<FolderPlus className="h-7 w-7" />}
@@ -189,6 +210,7 @@ export default function AddWorkspaceDialog({ darkMode, onClose }: AddWorkspaceDi
               disabledReason={driveConfigured ? undefined : 'Google Drive is not configured for this deployment.'}
               onClick={() => beginDriveIntent('open')}
             />
+            </div>
           </div>
         )}
 
