@@ -50,6 +50,7 @@ const CHANGELOG_ENTRIES = [
           'Google Drive: Link your Google Drive and create a workspace there to access your characters from any device. Your data synchronizes automatically.',
         ],
       },
+      'Greatly improved character sheet performance, especially when panning and zooming on older devices.',
     ],
   },
   {

@@ -2439,7 +2439,7 @@ export default function Sheet() {
         <button
           type="button"
           className="canvas-zoom-button"
-          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current / 1.25)}
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current / 1.125)}
           disabled={viewLocked || scale <= MIN_CANVAS_SCALE}
           aria-label="Zoom out"
         >
@@ -2471,7 +2471,7 @@ export default function Sheet() {
         <button
           type="button"
           className="canvas-zoom-button"
-          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current * 1.25)}
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current * 1.125)}
           disabled={viewLocked || scale >= MAX_CANVAS_SCALE}
           aria-label="Zoom in"
         >
