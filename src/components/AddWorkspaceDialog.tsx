@@ -171,8 +171,8 @@ export default function AddWorkspaceDialog({ darkMode, onClose }: AddWorkspaceDi
                   <dd className="inline">Stored as a workspace file in a folder you choose, giving you direct control over the file and your own backups.</dd>
                 </div>
                 <div>
-                  <dt className="inline font-bold text-inherit">Google Drive:</dt>{' '}
-                  <dd className="inline">Stored as a file in your Drive and synced so you can open it from other devices.</dd>
+                  <dt className="inline font-bold text-inherit">Google Drive (Experimental):</dt>{' '}
+                  <dd className="inline">Stored as a file in your Drive and synced so you can open it from other devices. This feature is still in development.</dd>
                 </div>
               </dl>
             </div>
