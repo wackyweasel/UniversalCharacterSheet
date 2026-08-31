@@ -32,8 +32,11 @@ export interface WorkspaceDirectoryHandle {
   getFileHandle(name: string, options?: { create?: boolean }): Promise<WorkspaceFileHandle>;
 }
 
-function getFileFingerprint(file: WorkspaceFile): string {
-  return `${file.lastModified}:${file.size}`;
+async function getDocumentFingerprint(document: WorkspaceDocument): Promise<string> {
+  const data = new TextEncoder().encode(JSON.stringify(document));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `sha256:${hash}`;
 }
 
 function translatePermissionError(error: unknown): never {
@@ -48,9 +51,10 @@ async function readWorkspaceFile(fileHandle: WorkspaceFileHandle): Promise<{
   fingerprint: string;
 }> {
   const file = await fileHandle.getFile();
+  const document = parseWorkspaceDocument(JSON.parse(await file.text()));
   return {
-    document: parseWorkspaceDocument(JSON.parse(await file.text())),
-    fingerprint: getFileFingerprint(file),
+    document,
+    fingerprint: await getDocumentFingerprint(document),
   };
 }
 
@@ -92,8 +96,8 @@ export async function createDirectoryWorkspace(options: {
   const writable = await fileHandle.createWritable();
   await writable.write(JSON.stringify(document, null, 2));
   await writable.close();
-  const file = await fileHandle.getFile();
-  return { document, fingerprint: getFileFingerprint(file) };
+  const saved = await readWorkspaceFile(fileHandle);
+  return { document, fingerprint: saved.fingerprint };
 }
 
 export function createDirectoryWorkspaceProvider(
@@ -129,8 +133,8 @@ export function createDirectoryWorkspaceProvider(
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(document, null, 2));
         await writable.close();
-        const savedFile = await fileHandle.getFile();
-        return { fingerprint: getFileFingerprint(savedFile) };
+        const saved = await readWorkspaceFile(fileHandle);
+        return { fingerprint: saved.fingerprint };
       } catch (error) {
         translatePermissionError(error);
       }
