@@ -53,7 +53,8 @@ function formatFieldValue(item: InventoryItem, fieldIndex: number): string {
 }
 
 function isInventoryFieldEmpty(field: InventoryItemField): boolean {
-  return (field.type === 'text' || field.type === 'textarea') && String(field.value).trim() === '';
+  return (field.type === 'text' || field.type === 'textarea' || field.type === 'number')
+    && String(field.value).trim() === '';
 }
 
 function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?: number; unit: string; label: string }) {
