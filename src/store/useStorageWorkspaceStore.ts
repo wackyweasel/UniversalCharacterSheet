@@ -100,15 +100,15 @@ function getProvider(workspace: StorageWorkspace): WorkspaceProvider {
   return googleDriveProvider;
 }
 
-function applyWorkspaceDocument(document: WorkspaceDocument): void {
+function applyWorkspaceDocument(document: WorkspaceDocument, restoreActiveCharacter = true): void {
   useUndoStore.getState().clearAllHistory();
   useCustomThemeStore.getState().replaceCustomThemes(document.customThemes);
   useTemplateStore.getState().replaceTemplates(document.templates);
   useUserPresetStore.getState().replaceUserPresets(document.userPresets);
   useStore.getState()._replaceWorkspaceState({
     characters: document.characters,
-    activeCharacterId: document.activeCharacterId,
-    mode: document.mode,
+    activeCharacterId: restoreActiveCharacter ? document.activeCharacterId : null,
+    mode: restoreActiveCharacter ? document.mode : 'play',
   });
   useTimelineStore.getState().replaceWorkspaceEvents(document.eventsByCharacter);
 }
@@ -231,7 +231,7 @@ function startSubscriptions(): void {
   useUserPresetStore.subscribe(scheduleSave);
 }
 
-async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
+async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter = true): Promise<void> {
   suppressPersistence = true;
   useStorageWorkspaceStore.setState({ syncStatus: 'loading', error: null, conflict: null });
   let cache = null;
@@ -241,7 +241,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
       if (!cache) throw new WorkspaceReconnectRequiredError('Reconnect Google Drive to load this workspace.');
       currentDocument = cache.document;
       currentFingerprint = cache.fingerprint;
-      applyWorkspaceDocument(cache.document);
+      applyWorkspaceDocument(cache.document, restoreActiveCharacter);
       useStorageWorkspaceStore.setState({
         syncStatus: 'reconnect',
         error: 'Reconnect Google Drive to resume syncing this workspace.',
@@ -254,7 +254,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
       const cached = cache.document;
       currentDocument = cached;
       currentFingerprint = cache.fingerprint;
-      applyWorkspaceDocument(cached);
+      applyWorkspaceDocument(cached, restoreActiveCharacter);
 
       if (result.fingerprint !== cache.fingerprint) {
         const conflict = new WorkspaceConflictError(undefined, result.document, result.fingerprint);
@@ -279,7 +279,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
     if (workspace.provider !== 'browser') {
       await requireRegistry().setCache({ workspaceId: workspace.id, document: result.document, fingerprint: result.fingerprint, pendingSync: false });
     }
-    applyWorkspaceDocument(result.document);
+    applyWorkspaceDocument(result.document, restoreActiveCharacter);
     useStorageWorkspaceStore.setState({ syncStatus: 'synced' });
   } catch (error) {
     if (!cache) {
@@ -291,7 +291,7 @@ async function loadWorkspace(workspace: StorageWorkspace): Promise<void> {
     }
     currentDocument = cache.document;
     currentFingerprint = cache.fingerprint;
-    applyWorkspaceDocument(cache.document);
+    applyWorkspaceDocument(cache.document, restoreActiveCharacter);
     useStorageWorkspaceStore.setState({
       syncStatus: error instanceof WorkspaceReconnectRequiredError ? 'reconnect' : 'pending',
       error: error instanceof Error ? error.message : 'The cached workspace was loaded.',
@@ -392,7 +392,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
         enqueueSave();
       }
       await saveQueue;
-      await loadWorkspace(workspace);
+      await loadWorkspace(workspace, false);
       const updatedWorkspace = { ...workspace, lastOpenedAt: new Date().toISOString() };
       requireRegistry().setActiveWorkspaceId(workspaceId);
       set({

@@ -365,6 +365,29 @@ describe('storage workspace coordinator', () => {
     });
   });
 
+  it('stays on the character list when switching to a workspace with an active character', async () => {
+    installBrowserGlobals();
+    const targetDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+      activeCharacterId: character.id,
+      mode: 'edit',
+    });
+    harness.directoryLoad.mockResolvedValue({ document: targetDocument, fingerprint: 'remote-1' });
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    await useStorageWorkspaceStore.getState().initialize();
+
+    await useStorageWorkspaceStore.getState().switchWorkspace(directoryWorkspace.id);
+
+    expect(useStore.getState()).toMatchObject({
+      characters: [character],
+      activeCharacterId: null,
+      mode: 'play',
+    });
+    expect(harness.directorySave).not.toHaveBeenCalled();
+  });
+
   it('leaves an uncached load failure in an actionable error state', async () => {
     const storage = installBrowserGlobals();
     harness.activeWorkspaceId = directoryWorkspace.id;

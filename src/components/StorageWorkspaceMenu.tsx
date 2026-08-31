@@ -119,7 +119,10 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
         >
           {activeWorkspace && <WorkspaceIcon workspace={activeWorkspace} className="h-5 w-5 flex-none" />}
           <span className="flex min-w-0 flex-col items-start leading-none">
-            <span className="max-w-full truncate text-[10px] sm:text-sm">{activeWorkspace?.name ?? 'Browser'}</span>
+            <span className="flex max-w-full min-w-0 items-center gap-1">
+              <span className="truncate text-[10px] sm:text-sm">{activeWorkspace?.name ?? 'Browser'}</span>
+              <ChevronDown className="h-3.5 w-3.5 flex-none sm:hidden" />
+            </span>
             <span className="mt-1 flex max-w-full items-center gap-1 text-[9px] opacity-70 sm:text-[10px]">
               {isBusy || syncStatus === 'loading'
                 ? <LoaderCircle className="h-3 w-3 flex-none animate-spin" />
