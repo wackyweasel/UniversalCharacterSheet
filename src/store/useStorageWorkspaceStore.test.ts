@@ -285,6 +285,58 @@ describe('storage workspace coordinator', () => {
     expect(useStorageWorkspaceStore.getState().syncStatus).toBe('synced');
   });
 
+  it('coalesces autosaves queued behind an in-flight save to the latest state', async () => {
+    installBrowserGlobals();
+    harness.activeWorkspaceId = directoryWorkspace.id;
+    const initialDocument = createWorkspaceDocument({
+      workspaceId: directoryWorkspace.id,
+      name: directoryWorkspace.name,
+      characters: [character],
+    });
+    harness.directoryLoad.mockResolvedValue({ document: initialDocument, fingerprint: 'remote-1' });
+    let finishFirstSave: (result: { fingerprint: string | null }) => void = () => undefined;
+    let finishTrailingSave: (result: { fingerprint: string | null }) => void = () => undefined;
+    harness.directorySave
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirstSave = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { finishTrailingSave = resolve; }));
+    const { useStorageWorkspaceStore, useStore } = await loadStores();
+    await useStorageWorkspaceStore.getState().initialize();
+
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, name: 'First edit' }],
+      activeCharacterId: null,
+      mode: 'play',
+    });
+    await vi.advanceTimersByTimeAsync(150);
+    expect(harness.directorySave).toHaveBeenCalledTimes(1);
+
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, name: 'Second edit' }],
+      activeCharacterId: null,
+      mode: 'play',
+    });
+    await vi.advanceTimersByTimeAsync(150);
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, name: 'Latest edit' }],
+      activeCharacterId: null,
+      mode: 'play',
+    });
+    await vi.advanceTimersByTimeAsync(150);
+    expect(harness.directorySave).toHaveBeenCalledTimes(1);
+
+    finishFirstSave({ fingerprint: 'remote-2' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(harness.directorySave).toHaveBeenCalledTimes(2);
+    expect(harness.directorySave.mock.calls[1][1].characters[0].name).toBe('Latest edit');
+
+    finishTrailingSave({ fingerprint: 'remote-3' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(harness.directorySave).toHaveBeenCalledTimes(2);
+    expect(useStorageWorkspaceStore.getState().syncStatus).toBe('synced');
+  });
+
   it('keeps the switching guard active until the target workspace finishes loading', async () => {
     installBrowserGlobals();
     const targetDocument = createWorkspaceDocument({

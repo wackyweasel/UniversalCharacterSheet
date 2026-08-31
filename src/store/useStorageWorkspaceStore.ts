@@ -86,6 +86,8 @@ let suppressPersistence = true;
 let subscriptionsStarted = false;
 let saveTimeout: number | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
+let saveInProgress = false;
+let saveRequested = false;
 
 function requireRegistry(): WorkspaceRegistry {
   if (!registry) throw new Error('External workspaces are unavailable in this browser.');
@@ -202,7 +204,20 @@ function scheduleSave(): void {
 }
 
 function enqueueSave(): Promise<void> {
-  saveQueue = saveQueue.then(persistActiveWorkspace, persistActiveWorkspace);
+  saveRequested = true;
+  if (saveInProgress) return saveQueue;
+
+  saveInProgress = true;
+  saveQueue = (async () => {
+    try {
+      while (saveRequested) {
+        saveRequested = false;
+        await persistActiveWorkspace();
+      }
+    } finally {
+      saveInProgress = false;
+    }
+  })();
   return saveQueue;
 }
 
