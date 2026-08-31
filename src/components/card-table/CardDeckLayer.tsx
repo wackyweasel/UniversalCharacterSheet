@@ -15,7 +15,7 @@ interface Props {
 export default function CardDeckLayer({ pan, scale, zIndex }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const faceLayerRef = useRef<HTMLDivElement>(null);
-  const version = useSyncExternalStore(
+  useSyncExternalStore(
     subscribeCardDeckRegistry,
     getCardDeckRegistryVersion,
     getCardDeckRegistryVersion,
@@ -50,7 +50,7 @@ export default function CardDeckLayer({ pan, scale, zIndex }: Props) {
   return (
     <>
       <canvas
-        key={version > 0 ? 'registered' : 'empty'}
+        key={hasDecks ? 'registered' : 'empty'}
         ref={canvasRef}
         className={`card-deck-layer${hasDecks ? ' card-deck-layer--active' : ''}${isCardDragging ? ' card-deck-layer--dragging' : ''}`}
         style={layerStyle}
