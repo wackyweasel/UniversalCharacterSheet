@@ -8,7 +8,6 @@ import UpdatePrompt from './components/UpdatePrompt';
 import { useTelemetryStore } from './store/useTelemetryStore';
 import { useStorageWorkspaceStore } from './store/useStorageWorkspaceStore';
 import WorkspaceConflictDialog from './components/WorkspaceConflictDialog';
-import WorkspaceStatusIndicator from './components/WorkspaceStatusIndicator';
 import GoogleDriveReconnectDialog from './components/GoogleDriveReconnectDialog';
 
 interface SheetErrorBoundaryProps {
@@ -145,10 +144,7 @@ function App() {
         </main>
       ) : activeCharacterId ? (
         <SheetErrorBoundary key={activeCharacterId}>
-          <>
-            <Sheet />
-            <WorkspaceStatusIndicator />
-          </>
+          <Sheet />
         </SheetErrorBoundary>
       ) : <CharacterList />}
       {!isSwitchingWorkspace && <DicePhysicsOverlay />}

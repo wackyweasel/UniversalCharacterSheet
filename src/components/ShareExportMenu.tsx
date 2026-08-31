@@ -28,6 +28,7 @@ import {
 } from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import WorkspaceStatusSummary from './WorkspaceStatusIndicator';
 
 interface ShareExportMenuProps {
   character: Character;
@@ -178,6 +179,10 @@ export default function ShareExportMenu({
         </Tooltip>
         {open && (
           <div className="absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(300px,calc(100vw-1rem))] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
+            <div className="border-b border-theme-border/50 py-1">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Workspace</p>
+              <WorkspaceStatusSummary />
+            </div>
             {hasOverflowNavigation && <div className="border-b border-theme-border/50 py-1">
               <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Quick actions</p>
             {(!inlineActionIds.has('layout') || !inlineActionIds.has('undo-redo') || (workspace === 'play' && !inlineActionIds.has('timeline'))) && (

@@ -1,8 +1,61 @@
 import { useState } from 'react';
 import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
+import { Tooltip } from './Tooltip';
 
-export default function WorkspaceStatusIndicator() {
+type WorkspaceSyncStatus = ReturnType<typeof useStorageWorkspaceStore.getState>['syncStatus'];
+
+function workspaceStatusText(syncStatus: WorkspaceSyncStatus) {
+  if (syncStatus === 'loading') return 'Loading';
+  if (syncStatus === 'saving') return 'Saving';
+  if (syncStatus === 'pending') return 'Pending sync';
+  if (syncStatus === 'reconnect') return 'Reconnect required';
+  if (syncStatus === 'conflict') return 'Conflict';
+  if (syncStatus === 'error') return 'Error';
+  if (syncStatus === 'synced') return 'Saved';
+  return 'Ready';
+}
+
+function workspaceStatusColor(syncStatus: WorkspaceSyncStatus) {
+  if (syncStatus === 'conflict' || syncStatus === 'error') return 'bg-red-500';
+  if (syncStatus === 'pending' || syncStatus === 'reconnect') return 'bg-amber-500';
+  if (syncStatus === 'loading' || syncStatus === 'saving') return 'bg-blue-500';
+  return 'bg-emerald-500';
+}
+
+function WorkspaceStatusMark({ syncStatus, busy = false }: { syncStatus: WorkspaceSyncStatus; busy?: boolean }) {
+  if (busy || syncStatus === 'loading' || syncStatus === 'saving') {
+    return <LoaderCircle className="h-3.5 w-3.5 flex-none animate-spin text-blue-500" />;
+  }
+
+  return <span className={`h-2.5 w-2.5 flex-none rounded-full ${workspaceStatusColor(syncStatus)}`} />;
+}
+
+export function WorkspaceStatusDot() {
+  const workspaces = useStorageWorkspaceStore((state) => state.workspaces);
+  const activeWorkspaceId = useStorageWorkspaceStore((state) => state.activeWorkspaceId);
+  const syncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
+  const error = useStorageWorkspaceStore((state) => state.error);
+  const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+
+  if (!activeWorkspace) return null;
+
+  const statusText = workspaceStatusText(syncStatus);
+
+  return (
+    <Tooltip content={error ?? `${activeWorkspace.name}: ${statusText}`} placement="below">
+      <span
+        role="status"
+        aria-label={`${activeWorkspace.name}: ${statusText}`}
+        className="flex h-4 w-4 shrink-0 items-center justify-center"
+      >
+        <WorkspaceStatusMark syncStatus={syncStatus} />
+      </span>
+    </Tooltip>
+  );
+}
+
+export default function WorkspaceStatusSummary() {
   const workspaces = useStorageWorkspaceStore((state) => state.workspaces);
   const activeWorkspaceId = useStorageWorkspaceStore((state) => state.activeWorkspaceId);
   const syncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
@@ -15,30 +68,7 @@ export default function WorkspaceStatusIndicator() {
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
   if (!activeWorkspace) return null;
 
-  const statusText = isReconnecting
-    ? 'Reconnecting'
-    : syncStatus === 'loading'
-      ? 'Loading'
-      : syncStatus === 'saving'
-        ? 'Saving'
-        : syncStatus === 'pending'
-          ? 'Pending sync'
-          : syncStatus === 'reconnect'
-            ? 'Reconnect required'
-            : syncStatus === 'conflict'
-              ? 'Conflict'
-              : syncStatus === 'error'
-                ? 'Error'
-                : syncStatus === 'synced'
-                  ? 'Saved'
-                  : 'Ready';
-  const statusColor = syncStatus === 'conflict' || syncStatus === 'error'
-    ? 'bg-red-500'
-    : syncStatus === 'pending' || syncStatus === 'reconnect'
-      ? 'bg-amber-500'
-      : syncStatus === 'loading' || syncStatus === 'saving' || isReconnecting
-        ? 'bg-blue-500'
-        : 'bg-emerald-500';
+  const statusText = isReconnecting ? 'Reconnecting' : workspaceStatusText(syncStatus);
   const canReconnect = syncStatus === 'reconnect' && activeWorkspace.provider !== 'browser';
 
   const handleReconnect = async () => {
@@ -61,13 +91,10 @@ export default function WorkspaceStatusIndicator() {
     <aside
       aria-label={`Workspace ${activeWorkspace.name}: ${statusText}`}
       title={reconnectError ?? error ?? `${activeWorkspace.name}: ${statusText}`}
-      className="fixed right-2 top-14 z-30 flex max-w-[min(18rem,calc(100vw-1rem))] items-center gap-2 rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper px-2.5 py-1.5 font-body text-xs text-theme-ink shadow-theme print:hidden"
+      className="flex min-w-0 items-center gap-2 px-3 py-2 font-body text-xs text-theme-ink"
     >
-      <span className={`h-2 w-2 flex-none rounded-full ${statusColor}`} />
-      {(isReconnecting || syncStatus === 'loading' || syncStatus === 'saving') && (
-        <LoaderCircle className="h-3.5 w-3.5 flex-none animate-spin text-theme-muted" />
-      )}
-      <span className="min-w-0 truncate">
+      <WorkspaceStatusMark syncStatus={syncStatus} busy={isReconnecting} />
+      <span className="min-w-0 flex-1 truncate">
         <span className="font-bold">{activeWorkspace.name}</span>
         <span className="text-theme-muted"> · {statusText}</span>
       </span>
@@ -76,7 +103,7 @@ export default function WorkspaceStatusIndicator() {
           type="button"
           disabled={isReconnecting}
           onClick={() => void handleReconnect()}
-          className="flex h-7 flex-none items-center gap-1 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-2 font-body text-[11px] font-bold text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-wait disabled:opacity-60"
+          className="flex h-7 flex-none items-center gap-1 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-2 font-body text-[11px] font-bold text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-wait disabled:opacity-60"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isReconnecting ? 'animate-spin' : ''}`} />
           Reconnect

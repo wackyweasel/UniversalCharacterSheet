@@ -5,6 +5,7 @@ import { useToolbarOverflow } from '../hooks/useToolbarOverflow';
 import ShareExportMenu from './ShareExportMenu';
 import { Tooltip } from './Tooltip';
 import { ToolbarShell } from './ToolbarShell';
+import { WorkspaceStatusDot } from './WorkspaceStatusIndicator';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -304,18 +305,18 @@ export default function SheetToolbar({
   const actions = useMemo(() => {
     const candidates = [
       ...(playLayout === 'list' ? [{ id: 'collapse-expand', labeledWidth: 188, iconWidth: 80 }] : []),
-      { id: 'layout', labeledWidth: 176, iconWidth: 80 },
       { id: 'add-widget', labeledWidth: 116, iconWidth: 42 },
-      { id: 'undo-redo', labeledWidth: 80, iconWidth: 80 },
     ];
-    if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42 });
     if (workspace === 'build') candidates.push({ id: 'theme', labeledWidth: 126, iconWidth: 42 });
     if (workspace === 'build' && playLayout === 'canvas' && onAutoStack) candidates.push({ id: 'auto-stack', labeledWidth: 110, iconWidth: 42 });
+    candidates.push({ id: 'undo-redo', labeledWidth: 80, iconWidth: 80 });
+    if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42 });
+    candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
     return candidates;
   }, [onAutoStack, playLayout, workspace]);
   const { containerRef, inlineActionIds, labeledActionIds } = useToolbarOverflow({
     actions,
-    coreWidth: (width) => width >= 640 ? 548 : width >= 480 ? 364 : 256,
+    coreWidth: 600,
     minimumExpandedWidth: 0,
   });
   const showLabel = (id: string) => labeledActionIds.has(id);
@@ -359,6 +360,7 @@ export default function SheetToolbar({
           onToggleAttachmentControls={onToggleAttachmentControls}
           inlineActionIds={inlineActionIds}
         />
+        <WorkspaceStatusDot />
         <div className="shrink-0">
           <ToolbarCharacterName
             name={character.name}
