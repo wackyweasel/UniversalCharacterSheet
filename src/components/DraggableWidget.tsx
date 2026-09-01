@@ -936,7 +936,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]`}>
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[80]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
