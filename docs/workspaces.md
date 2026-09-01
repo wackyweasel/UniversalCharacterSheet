@@ -72,8 +72,8 @@ When these capabilities are absent, all workspace and cross-workspace-copy contr
 3. Configure the OAuth consent screen and declare `https://www.googleapis.com/auth/drive.file`.
 4. Create an OAuth 2.0 Web application client.
 5. Add authorized JavaScript origins. For development, add `http://localhost:5173`. For GitHub Pages, add the site origin, such as `https://wackyweasel.github.io`. Production and preview paths use the same origin.
-6. Create an API key. Restrict it by HTTP referrer to the authorized origins and restrict API access to Google Picker and Google Drive.
-7. Find the numeric Cloud project number. This is the Picker App ID.
+6. Create an API key and select **Websites** under application restrictions. Add both the app referrers (for example, `https://wackyweasel.github.io/*` and `http://localhost:5173/*`) and `https://docs.google.com/*`. Google Picker renders from a `docs.google.com` iframe and reports **API developer key is invalid** when that referrer is absent. Restrict API access to both Google Picker API and Google Drive API.
+7. Find the numeric Cloud project number. This is the Picker App ID. The App ID and OAuth client ID must belong to the same Cloud project.
 8. Set the following Vite variables locally or as GitHub Actions repository secrets:
 
 ```dotenv
