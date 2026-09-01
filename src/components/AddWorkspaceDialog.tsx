@@ -211,6 +211,9 @@ export default function AddWorkspaceDialog({ darkMode, onClose }: AddWorkspaceDi
               onClick={() => beginDriveIntent('open')}
             />
             </div>
+            <p className={`mt-4 font-body text-xs leading-relaxed ${darkMode ? 'text-white/55' : 'text-theme-muted'}`}>
+              If Google Drive is unavailable, your workspace file remains in Drive. Download its JSON file, switch to another workspace, then restore it through Backup &amp; Restore.
+            </p>
           </div>
         )}
 
@@ -222,6 +225,9 @@ export default function AddWorkspaceDialog({ darkMode, onClose }: AddWorkspaceDi
                 Universal Character Sheet needs permission to create or open workspace files in your Google Drive. Access is limited to files you use with this app.
               </p>
             </div>
+            <p className={`mt-4 font-body text-xs leading-relaxed ${darkMode ? 'text-white/55' : 'text-theme-muted'}`}>
+              If Drive cannot connect, your existing workspace file remains in Google Drive. Download the JSON file, switch to another workspace, then restore it through Backup &amp; Restore.
+            </p>
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" disabled={isBusy} onClick={() => setStep('options')} className="rounded-button px-4 py-2 font-body text-sm font-bold opacity-70 hover:opacity-100">Back</button>
               <button
@@ -266,7 +272,16 @@ export default function AddWorkspaceDialog({ darkMode, onClose }: AddWorkspaceDi
           </form>
         )}
 
-        {error && <p role="alert" className={`mt-4 border-t pt-3 font-body text-sm ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>{error}</p>}
+        {error && (
+          <div role="alert" className={`mt-4 border-t pt-3 font-body text-sm ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
+            <p>{error}</p>
+            {driveIntent && (
+              <p className={`mt-2 text-xs leading-relaxed ${darkMode ? 'text-white/65' : 'text-theme-muted'}`}>
+                Your workspace file remains in Google Drive. To recover it, download the JSON file from Drive, switch to another workspace, then open Backup &amp; Restore and upload the workspace file.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

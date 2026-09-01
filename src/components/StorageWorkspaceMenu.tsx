@@ -250,9 +250,14 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
             </div>
 
             {(operationError || error) && (
-              <p role="alert" className={`border-t px-3 py-2 font-body text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
-                {operationError || error}
-              </p>
+              <div role="alert" className={`border-t px-3 py-2 font-body text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
+                <p>{operationError || error}</p>
+                {activeWorkspace?.provider === 'google-drive' && (syncStatus === 'reconnect' || syncStatus === 'error') && (
+                  <p className={`mt-2 leading-relaxed ${darkMode ? 'text-white/65' : 'text-gray-600'}`}>
+                    Your workspace file remains in Google Drive. Download the JSON file from Drive, switch to another workspace, then use Backup &amp; Restore to upload it.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}

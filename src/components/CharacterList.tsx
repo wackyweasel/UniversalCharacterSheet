@@ -2529,7 +2529,7 @@ export default function CharacterList() {
             <div>
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Restore from Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Replace this workspace with the characters, timelines, themes, templates, and presets from a backup or workspace file. <span className="text-red-500 font-semibold">This cannot be undone.</span>
+                Replace this workspace with the characters, timelines, themes, templates, and presets from a backup or workspace file, including a workspace JSON file downloaded from Google Drive. <span className="text-red-500 font-semibold">This cannot be undone.</span>
               </p>
               <label className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-body rounded-theme transition-colors font-bold cursor-pointer ${
                 darkMode 
