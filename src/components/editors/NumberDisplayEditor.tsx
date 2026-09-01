@@ -4,8 +4,10 @@ import { EditorProps } from './types';
 import { LabeledNumberField } from './LabeledNumberField';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
+import { TrashIcon } from '../icons';
 import { Plus, Trash2 } from 'lucide-react';
 import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue, getModifierRangeIssue } from '../../utils/modifierRanges';
+import { formatNumberWithSign } from '../../utils/numberFormatting';
 import { CollapsibleSection } from './CollapsibleSection';
 
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
@@ -54,7 +56,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
     updateData({ displayNumbers: updated });
   };
 
-  const updateItemValue = (index: number, value: number) => {
+  const updateItemValue = (index: number, value: number, showPositiveSign?: boolean) => {
     const updated = [...displayNumbers] as DisplayNumber[];
     const item = updated[index];
     const modifier = automaticModifiers
@@ -63,6 +65,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
     updated[index] = {
       ...item,
       value,
+      ...(showPositiveSign === undefined ? {} : { showPositiveSign }),
       ...(modifier !== undefined ? { secondaryValue: modifier } : {}),
     };
     updateData({ displayNumbers: updated });
@@ -465,7 +468,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
               <div className="flex items-center gap-2">
                 <Tooltip content="Drag to reorder">
                   <div 
-                    className="cursor-grab active:cursor-grabbing text-theme-muted hover:text-theme-ink px-1 select-none touch-none"
+                    className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center text-theme-muted hover:text-theme-ink select-none touch-none active:cursor-grabbing"
                     draggable
                     onDragStart={(e) => handleNativeDragStart(e, idx)}
                     onDragEnd={handleNativeDragEnd}
@@ -478,7 +481,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                   </div>
                 </Tooltip>
                 <input
-                  className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
+                  className="h-10 flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-theme bg-theme-paper text-theme-ink text-sm"
                   value={item.label}
                   onChange={(e) => updateItemLabel(idx, e.target.value)}
                   placeholder="Label"
@@ -487,16 +490,28 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                   tooltip={item.tooltip}
                   itemName={item.label}
                   onSave={(tooltip) => updateItem(idx, { tooltip })}
+                  buttonClassName="h-10 w-10"
                   radius="theme"
                 />
-                <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700 px-2 flex-shrink-0">×</button>
+                <button
+                  type="button"
+                  onClick={() => removeItem(idx)}
+                  aria-label={`Delete ${item.label || `number ${idx + 1}`}`}
+                  title="Delete number"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-theme border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Current</span>
                 <LabeledNumberField
                   value={item.value}
-                  onChange={(value) => updateItemValue(idx, value)}
+                  onChange={(value, showPositiveSign) => updateItemValue(idx, value, showPositiveSign)}
+                  preservePositiveSign
+                  showPositiveSign={item.showPositiveSign}
+                  onPositiveSignChange={(showPositiveSign) => updateItem(idx, { showPositiveSign })}
                   tutorialTargetPrefix={item.label?.toLowerCase() === 'strength' || idx === 0 ? 'automation-strength' : undefined}
                   fieldLabel={item.valueLabel}
                   onFieldLabelChange={(valueLabel) => updateItem(idx, { valueLabel })}
@@ -505,6 +520,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                   min={item.minValue}
                   max={item.maxValue}
                   compact
+                  controlHeight="input"
                   hideStepperButtons
                   radius="theme"
                 />
@@ -533,6 +549,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       onFormulaChange={(minValueFormula) => updateItem(idx, { minValueFormula })}
                       max={item.maxValue}
                       compact
+                      controlHeight="input"
                       hideStepperButtons
                       radius="theme"
                     />
@@ -549,6 +566,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       onFormulaChange={(maxValueFormula) => updateItem(idx, { maxValueFormula })}
                       min={item.minValue}
                       compact
+                      controlHeight="input"
                       hideStepperButtons
                       radius="theme"
                     />
@@ -568,6 +586,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                       formula={automaticModifiers ? undefined : item.secondaryValueFormula}
                       onFormulaChange={(secondaryValueFormula) => updateItem(idx, { secondaryValueFormula })}
                       compact
+                      controlHeight="input"
                       hideStepperButtons
                       readOnlyValue={automaticModifiers}
                       hideFormulaButton={automaticModifiers}
@@ -575,7 +594,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
                     />
                     {automaticModifiers && (
                       <span className="ml-auto text-xs text-theme-muted">
-                        {item.value} gives <strong className="text-theme-ink">{formatSignedNumber(item.secondaryValue ?? 0)}</strong>
+                        {formatNumberWithSign(item.value, item.showPositiveSign)} gives <strong className="text-theme-ink">{formatSignedNumber(item.secondaryValue ?? 0)}</strong>
                       </span>
                     )}
                   </div>
@@ -604,4 +623,3 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

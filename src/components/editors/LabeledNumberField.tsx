@@ -4,12 +4,13 @@ import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { Tooltip } from '../Tooltip';
 import { FormulaEditorDialog } from '../FormulaEditorDialog';
 import { XIcon } from '../icons';
+import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 
 interface LabeledNumberFieldProps {
   /** Current numeric value */
   value?: number;
   /** Callback when value changes (manual edit or +/- buttons) */
-  onChange: (value: number) => void;
+  onChange: (value: number, hasExplicitPositiveSign?: boolean) => void;
   /** Callback when an optional field is cleared */
   onClear?: () => void;
   /** The variable label assigned to this field (e.g. "str") */
@@ -42,6 +43,12 @@ interface LabeledNumberFieldProps {
   hideStepperButtons?: boolean;
   /** Lock the numeric value while retaining its label control */
   readOnlyValue?: boolean;
+  /** Preserve an explicitly typed + prefix for this value */
+  preservePositiveSign?: boolean;
+  /** Whether this value currently has an explicitly typed + prefix */
+  showPositiveSign?: boolean;
+  /** Callback to toggle the explicit + prefix */
+  onPositiveSignChange?: (showPositiveSign: boolean) => void;
   /** Hide formula editing for values controlled by another input */
   hideFormulaButton?: boolean;
   radius?: 'button' | 'theme';
@@ -72,6 +79,9 @@ export function LabeledNumberField({
   controlHeight = 'compact',
   hideStepperButtons = false,
   readOnlyValue = false,
+  preservePositiveSign = false,
+  showPositiveSign = false,
+  onPositiveSignChange,
   hideFormulaButton = false,
   radius = 'button',
   tutorialTargetPrefix,
@@ -80,16 +90,18 @@ export function LabeledNumberField({
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(fieldLabel || '');
-  const [valueDraft, setValueDraft] = useState(() => value === undefined ? '' : String(value));
+  const [valueDraft, setValueDraft] = useState(() => (
+    value === undefined ? '' : formatNumberWithSign(value, preservePositiveSign && showPositiveSign)
+  ));
   const editingValueRef = useRef(false);
   const controlHeightClass = controlHeight === 'input' ? 'h-10' : 'h-7';
   const controlWidthClass = controlHeight === 'input' ? 'w-10' : 'w-7';
 
   useEffect(() => {
-    if (!allowEmpty || !editingValueRef.current) {
-      setValueDraft(value === undefined ? '' : String(value));
+    if ((!allowEmpty && !preservePositiveSign) || !editingValueRef.current) {
+      setValueDraft(value === undefined ? '' : formatNumberWithSign(value, preservePositiveSign && showPositiveSign));
     }
-  }, [allowEmpty, value]);
+  }, [allowEmpty, preservePositiveSign, showPositiveSign, value]);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
@@ -124,17 +136,28 @@ export function LabeledNumberField({
     onChange(min !== undefined ? Math.max(min, newVal) : newVal);
   };
 
+  const notifyValueChange = (nextValue: number, rawValue?: string) => {
+    if (preservePositiveSign && rawValue !== undefined) {
+      onChange(nextValue, hasExplicitPositiveSign(rawValue));
+      return;
+    }
+    onChange(nextValue);
+  };
+
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (hasFormula || readOnlyValue) return;
     const rawValue = e.target.value;
-    if (allowEmpty) {
+    if (allowEmpty || preservePositiveSign) {
       setValueDraft(rawValue);
       if (rawValue === '') {
         onClear?.();
+        if (!onClear) notifyValueChange(0, preservePositiveSign ? rawValue : undefined);
         return;
       }
       const parsedValue = parseFloat(rawValue);
-      if (Number.isFinite(parsedValue)) onChange(parsedValue);
+      if (Number.isFinite(parsedValue)) {
+        notifyValueChange(parsedValue, rawValue);
+      }
       return;
     }
     if (rawValue === '' && onClear) {
@@ -142,18 +165,18 @@ export function LabeledNumberField({
       return;
     }
     const val = rawValue === '' ? 0 : parseFloat(rawValue) || 0;
-    onChange(val);
+    notifyValueChange(val, rawValue);
   };
 
   const handleValueFocus = () => {
-    if (!allowEmpty) return;
+    if (!allowEmpty && !preservePositiveSign) return;
     editingValueRef.current = true;
-    setValueDraft(value === undefined ? '' : String(value));
+    setValueDraft(value === undefined ? '' : formatNumberWithSign(value, preservePositiveSign && showPositiveSign));
   };
 
   const handleValueBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     if (hasFormula || readOnlyValue) return;
-    const rawValue = allowEmpty ? valueDraft : e.target.value;
+    const rawValue = allowEmpty || preservePositiveSign ? valueDraft : e.target.value;
     editingValueRef.current = false;
     if (rawValue === '' && onClear) {
       if (allowEmpty) setValueDraft('');
@@ -162,8 +185,11 @@ export function LabeledNumberField({
     let val = parseFloat(rawValue) || 0;
     if (min !== undefined) val = Math.max(min, val);
     if (max !== undefined) val = Math.min(max, val);
-    onChange(val);
-    if (allowEmpty) setValueDraft(String(val));
+    const nextShowPositiveSign = preservePositiveSign ? hasExplicitPositiveSign(rawValue) : undefined;
+    notifyValueChange(val, preservePositiveSign ? rawValue : undefined);
+    if (allowEmpty || preservePositiveSign) {
+      setValueDraft(formatNumberWithSign(val, nextShowPositiveSign === true));
+    }
   };
 
   const confirmLabel = () => {
@@ -235,8 +261,9 @@ export function LabeledNumberField({
       )}
 
         <input
-          type="number"
-          value={allowEmpty ? valueDraft : value ?? ''}
+          type={preservePositiveSign ? 'text' : 'number'}
+          inputMode={preservePositiveSign ? 'decimal' : undefined}
+          value={allowEmpty || preservePositiveSign ? valueDraft : value ?? ''}
           onChange={handleValueChange}
           onFocus={handleValueFocus}
           onBlur={handleValueBlur}
@@ -309,6 +336,24 @@ export function LabeledNumberField({
             <span className="italic" style={{ fontSize: '11px' }}>fx</span>
           </button>
         </Tooltip>
+        )}
+
+        {preservePositiveSign && onPositiveSignChange && (
+          <Tooltip content={showPositiveSign ? 'Hide positive sign' : 'Show positive sign'}>
+            <button
+              type="button"
+              onClick={() => onPositiveSignChange(!showPositiveSign)}
+              aria-label={showPositiveSign ? 'Hide positive sign' : 'Show positive sign'}
+              aria-pressed={showPositiveSign}
+              className={`${controlWidthClass} ${controlHeightClass} flex items-center justify-center border rounded-button text-xs font-bold transition-colors ${
+                showPositiveSign
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper shadow-theme'
+                  : 'border-theme-border text-theme-muted hover:text-theme-ink hover:border-theme-accent'
+              }`}
+            >
+              +
+            </button>
+          </Tooltip>
         )}
     </div>
   );

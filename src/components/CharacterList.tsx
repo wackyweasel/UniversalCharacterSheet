@@ -51,6 +51,7 @@ const CHANGELOG_ENTRIES = [
         ],
       },
       'Greatly improved character sheet performance, especially when panning and zooming on older devices.',
+      'Numbers in number tracker, number display and mixed fields widgets can be displayed with their + sign if they are positive (+5 instead of 5)',
     ],
   },
   {
@@ -2859,6 +2860,5 @@ export default function CharacterList() {
     </div>
   );
 }
-
 
 

@@ -7,6 +7,7 @@ import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 
 interface Props {
   widget: Widget;
@@ -119,7 +120,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
     if (isPrintMode || item.valueFormula) return;
     setNumberDialog({
       index,
-      current: String(currentValue),
+      current: formatNumberWithSign(currentValue, item.showPositiveSign),
       minimum: item.minValue === undefined ? '' : String(item.minValue),
       maximum: item.maxValue === undefined ? '' : String(item.maxValue),
     });
@@ -139,7 +140,11 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
       maxValue: numberDialogMaximum,
     };
     const constrainedValue = constrainItemValue(currentValue, updatedItemWithBounds);
-    const updatedItem = { ...updatedItemWithBounds, value: constrainedValue };
+    const updatedItem = {
+      ...updatedItemWithBounds,
+      value: constrainedValue,
+      showPositiveSign: hasExplicitPositiveSign(numberDialog.current),
+    };
     const updated = [...numberItems] as NumberItem[];
     updated[numberDialog.index] = updatedItem;
     updateWidgetData(widget.id, { numberItems: updated });
@@ -281,7 +286,8 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
         {(numberItems as NumberItem[]).map((item, idx) => {
           const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
           const atMaximum = item.maxValue !== undefined && item.value >= item.maxValue;
-          const displayedValue = showNumberItemMax && item.maxValue !== undefined ? `${item.value}/${item.maxValue}` : item.value;
+          const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
+          const displayedValue = showNumberItemMax && item.maxValue !== undefined ? `${formattedValue}/${item.maxValue}` : formattedValue;
 
           return (
           <div key={idx} className="relative">
@@ -316,7 +322,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                 onMouseDown={(e) => e.stopPropagation()}
                 role={item.valueFormula ? undefined : 'button'}
                 tabIndex={item.valueFormula ? undefined : 0}
-                aria-label={item.valueFormula ? undefined : `Edit ${item.name || 'value'}, currently ${item.value}`}
+                aria-label={item.valueFormula ? undefined : `Edit ${item.name || 'value'}, currently ${displayedValue}`}
                 onKeyDown={(e) => {
                   if (!item.valueFormula && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault();
@@ -381,7 +387,8 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                 <span className="mb-1 block">Current value</span>
                 <input
                   autoFocus
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   step="1"
                   value={numberDialog.current}
                   onChange={(event) => setNumberDialog((current) => current ? { ...current, current: event.target.value } : current)}
@@ -573,7 +580,6 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
     </div>
   );
 }
-
 
 
 

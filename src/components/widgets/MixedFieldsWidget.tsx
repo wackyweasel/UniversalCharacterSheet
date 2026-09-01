@@ -17,6 +17,7 @@ import {
 import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 
 interface Props {
   widget: Widget;
@@ -89,12 +90,12 @@ interface MixedNumberValueModalProps {
   field: MixedNumberField;
   minEditable: boolean;
   maxEditable: boolean;
-  onConfirm: (current: number, min?: number, max?: number) => void;
+  onConfirm: (current: number, min: number | undefined, max: number | undefined, showPositiveSign: boolean) => void;
   onCancel: () => void;
 }
 
 function MixedNumberValueModal({ field, minEditable, maxEditable, onConfirm, onCancel }: MixedNumberValueModalProps) {
-  const [currentDraft, setCurrentDraft] = useState(String(field.value));
+  const [currentDraft, setCurrentDraft] = useState(formatNumberWithSign(field.value, field.showPositiveSign));
   const [minDraft, setMinDraft] = useState(field.minValue === undefined ? '' : String(field.minValue));
   const [maxDraft, setMaxDraft] = useState(field.maxValue === undefined ? '' : String(field.maxValue));
   const currentValue = Number(currentDraft);
@@ -121,7 +122,7 @@ function MixedNumberValueModal({ field, minEditable, maxEditable, onConfirm, onC
       nextMin ?? Number.NEGATIVE_INFINITY,
       nextMax ?? Number.POSITIVE_INFINITY,
     );
-    onConfirm(nextCurrent, nextMin, nextMax);
+    onConfirm(nextCurrent, nextMin, nextMax, hasExplicitPositiveSign(currentDraft));
   };
 
   return (
@@ -153,7 +154,8 @@ function MixedNumberValueModal({ field, minEditable, maxEditable, onConfirm, onC
             <span className="mb-1 block">Current value</span>
             <input
               autoFocus
-              type="number"
+              type="text"
+              inputMode="decimal"
               step="1"
               value={currentDraft}
               onChange={(event) => setCurrentDraft(event.target.value)}
@@ -233,6 +235,7 @@ function MixedNumberControl({
   const atMinimum = field.minValue !== undefined && field.value <= field.minValue;
   const atMaximum = field.maxValue !== undefined && field.value >= field.maxValue;
   const showIncrementButtons = field.showIncrementButtons !== false;
+  const displayedValue = formatNumberWithSign(field.value, field.showPositiveSign);
   const openValueModal = () => {
     if (canInteract && !hasValueFormula) setShowValueModal(true);
   };
@@ -243,12 +246,12 @@ function MixedNumberControl({
         {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => onAdjust(-1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
         {hasValueFormula ? (
           <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-accent/10 px-1 text-center text-xs font-bold font-body text-theme-ink">
-            {field.value}
+            {displayedValue}
             {isFormulaBroken(field.valueFormula!, labels) && <span className="ml-0.5 text-[9px] text-red-500" title={`Broken formula: ${field.valueFormula}`}>⚠</span>}
           </span>
         ) : isPrintMode || !canInteract ? (
           <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-paper px-1 text-center text-xs font-bold font-body text-theme-ink">
-            {field.value}
+            {displayedValue}
           </span>
         ) : (
           <button
@@ -261,10 +264,10 @@ function MixedNumberControl({
                 openValueModal();
               }
             }}
-            aria-label={`Edit ${field.name || 'number'}, currently ${field.value}`}
+            aria-label={`Edit ${field.name || 'number'}, currently ${displayedValue}`}
             className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-paper px-1 text-center text-xs font-bold font-body text-theme-ink transition-colors hover:bg-theme-accent/20 focus:outline-none focus:ring-1 focus:ring-theme-ink"
           >
-            {field.value}
+            {displayedValue}
           </button>
         )}
         {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Increase ${field.name}`} onClick={() => onAdjust(1)} disabled={!canInteract || hasValueFormula || atMaximum} className="widget-control h-6 w-6 min-h-0 text-xs">+</button>}
@@ -274,13 +277,21 @@ function MixedNumberControl({
           field={field}
           minEditable={canInteract && !field.minValueFormula}
           maxEditable={canInteract && !field.maxValueFormula}
-          onConfirm={(current, min, max) => {
+          onConfirm={(current, min, max, showPositiveSign) => {
             const changes: string[] = [];
             if (current !== field.value) changes.push(`${field.value} → ${current}`);
             if (min !== field.minValue) changes.push(`minimum ${field.minValue ?? 'none'} → ${min ?? 'none'}`);
             if (max !== field.maxValue) changes.push(`maximum ${field.maxValue ?? 'none'} → ${max ?? 'none'}`);
+            const positiveSignChanged = showPositiveSign !== Boolean(field.showPositiveSign);
+            if (positiveSignChanged) changes.push(showPositiveSign ? 'positive sign added' : 'positive sign removed');
             if (changes.length > 0) {
-              onUpdate({ ...field, value: current, minValue: min, maxValue: max });
+              onUpdate({
+                ...field,
+                value: current,
+                minValue: min,
+                maxValue: max,
+                ...(positiveSignChanged ? { showPositiveSign } : {}),
+              });
               onAnnounce(changes.join(', '));
             }
             setShowValueModal(false);
