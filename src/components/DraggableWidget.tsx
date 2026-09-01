@@ -8,6 +8,7 @@ import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
+import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { DotsVerticalIcon, PencilIcon } from './icons';
 import {
   finishWidgetDrag,
@@ -57,7 +58,7 @@ interface Props {
   isSearchTarget?: boolean;
 }
 
-const GRID_SIZE = 10;
+const GRID_SIZE = WIDGET_GRID_SIZE;
 const BUILD_CONTROL_Z_INDEX = 10001;
 const BUILD_MENU_Z_INDEX = 10003;
 const WIDGET_OPTIONS_OPEN_EVENT = 'widget-options-open';
@@ -504,7 +505,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     setEditingWidgetId(null);
   };
 
-  const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+  const snapToGrid = snapWidgetCoordinate;
 
   // Calculate width based on widget type (used for both display and resize)
   const getWidgetWidth = () => {

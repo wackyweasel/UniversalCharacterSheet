@@ -34,6 +34,7 @@ import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
+import { snapWidgetCoordinate } from '../utils/widgetGeometry';
 import { WIDGET_CONTROLS_DISMISS_EVENT } from './widgetDragRegistry';
 
 // Helper to get active sheet widgets
@@ -1079,11 +1080,8 @@ export default function Sheet() {
       const rawX = (viewportX - pan.x) / scale;
       const rawY = (viewportY - pan.y) / scale;
 
-      const GRID_SIZE = 10;
-      const snap = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
-
-      const x = snap(rawX);
-      const y = snap(rawY);
+      const x = snapWidgetCoordinate(rawX);
+      const y = snapWidgetCoordinate(rawY);
 
       addWidget(type, x, y, undefined, 'exact');
     }
@@ -2530,7 +2528,6 @@ export default function Sheet() {
     </div>
   );
 }
-
 
 
 

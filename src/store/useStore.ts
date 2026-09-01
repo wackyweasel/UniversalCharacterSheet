@@ -9,6 +9,7 @@ import { useTimelineStore } from './useTimelineStore';
 import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
+import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -706,11 +707,17 @@ export const useStore = create<StoreState>((set, get) => {
         // Calculate smart position
         let finalX = x;
         let finalY = y;
-        const GRID_SIZE = 10;
+        const GRID_SIZE = WIDGET_GRID_SIZE;
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
-        const newWidgetWidth = type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH;
-        const newWidgetHeight = type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'LABEL' ? 32 : type === 'TOGGLE' ? 48 : DEFAULT_HEIGHT;
+        const newWidgetWidth = snapWidgetDimension(
+          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH,
+          DEFAULT_WIDTH,
+        ) ?? DEFAULT_WIDTH;
+        const newWidgetHeight = snapWidgetDimension(
+          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : DEFAULT_HEIGHT,
+          DEFAULT_HEIGHT,
+        ) ?? DEFAULT_HEIGHT;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -819,11 +826,13 @@ export const useStore = create<StoreState>((set, get) => {
           return defaultLabels[widgetType] || '';
         };
 
+        const snappedX = snapWidgetCoordinate(finalX);
+        const snappedY = snapWidgetCoordinate(finalY);
         const newWidget: Widget = {
           id: uuidv4(),
           type,
-          x: finalX,
-          y: finalY,
+          x: snappedX,
+          y: snappedY,
           w: newWidgetWidth,
           h: newWidgetHeight,
           zIndex: getNextWidgetZIndex(currentWidgets),
@@ -883,7 +892,7 @@ export const useStore = create<StoreState>((set, get) => {
           category: 'widget',
           widgetType: type,
           source: viewport ? 'toolbox_visible_area' : 'toolbox',
-          metadata: { x: finalX, y: finalY },
+          metadata: { x: snappedX, y: snappedY },
         });
 
         return {
@@ -914,15 +923,16 @@ export const useStore = create<StoreState>((set, get) => {
         const OFFSET = 30; // Offset the clone slightly from original
         
         const newWidgetId = uuidv4();
+        const normalizedSourceWidget = normalizeWidgetGeometry(sourceWidget);
         const newWidget: Widget = {
           id: newWidgetId,
-          type: sourceWidget.type,
-          x: sourceWidget.x + OFFSET,
-          y: sourceWidget.y + OFFSET,
-          w: sourceWidget.w,
-          h: sourceWidget.h,
+          type: normalizedSourceWidget.type,
+          x: snapWidgetCoordinate(normalizedSourceWidget.x + OFFSET),
+          y: snapWidgetCoordinate(normalizedSourceWidget.y + OFFSET),
+          w: normalizedSourceWidget.w,
+          h: normalizedSourceWidget.h,
           zIndex: getNextWidgetZIndex(currentWidgets),
-          data: cloneWidgetData(sourceWidget.type, sourceWidget.data, newWidgetId),
+          data: cloneWidgetData(normalizedSourceWidget.type, normalizedSourceWidget.data, newWidgetId),
         };
 
         recordStoreEvent(state, {
@@ -959,10 +969,10 @@ export const useStore = create<StoreState>((set, get) => {
         // Calculate smart position (same logic as addWidget)
         let finalX = 100;
         let finalY = 100;
-        const GRID_SIZE = 10;
+        const GRID_SIZE = WIDGET_GRID_SIZE;
         const GAP = 20;
-        const DEFAULT_WIDTH = template.w || 200;
-        const DEFAULT_HEIGHT = template.h || 120;
+        const DEFAULT_WIDTH = snapWidgetDimension(template.w, 200) ?? 200;
+        const DEFAULT_HEIGHT = snapWidgetDimension(template.h, 120) ?? 120;
         
         // Helper to check if a rectangle overlaps with any existing widget
         const overlapsWidget = (testX: number, testY: number, testW: number, testH: number): boolean => {
@@ -1035,10 +1045,10 @@ export const useStore = create<StoreState>((set, get) => {
         const newWidget: Widget = {
           id: newWidgetId,
           type: template.type,
-          x: finalX,
-          y: finalY,
-          w: template.w || 200,
-          h: template.h || 120,
+          x: snapWidgetCoordinate(finalX),
+          y: snapWidgetCoordinate(finalY),
+          w: DEFAULT_WIDTH,
+          h: DEFAULT_HEIGHT,
           zIndex: getNextWidgetZIndex(currentWidgets),
           data: cloneWidgetData(template.type, template.data, newWidgetId),
         };
@@ -1048,7 +1058,7 @@ export const useStore = create<StoreState>((set, get) => {
           category: 'template',
           widgetType: template.type,
           source: 'template_panel',
-          metadata: { x: finalX, y: finalY },
+          metadata: { x: snapWidgetCoordinate(finalX), y: snapWidgetCoordinate(finalY) },
         });
 
         return {
@@ -1073,13 +1083,20 @@ export const useStore = create<StoreState>((set, get) => {
         if (!activeChar) return state;
         
         const currentWidgets = getActiveSheetWidgets(activeChar);
+        const templateWidgets = template.widgets.map((widget) => ({
+          ...widget,
+          relativeX: snapWidgetCoordinate(widget.relativeX),
+          relativeY: snapWidgetCoordinate(widget.relativeY),
+          w: snapWidgetDimension(widget.w, 200) ?? 200,
+          h: snapWidgetDimension(widget.h, 120) ?? 120,
+        }));
         
         // Calculate the bounding box of the group template
         let groupWidth = 0;
         let groupHeight = 0;
-        template.widgets.forEach(w => {
-          const right = w.relativeX + (w.w || 200);
-          const bottom = w.relativeY + (w.h || 120);
+        templateWidgets.forEach(w => {
+          const right = w.relativeX + w.w;
+          const bottom = w.relativeY + w.h;
           groupWidth = Math.max(groupWidth, right);
           groupHeight = Math.max(groupHeight, bottom);
         });
@@ -1087,7 +1104,7 @@ export const useStore = create<StoreState>((set, get) => {
         // Calculate smart position (same logic as addWidget)
         let finalX = 100;
         let finalY = 100;
-        const GRID_SIZE = 10;
+        const GRID_SIZE = WIDGET_GRID_SIZE;
         const GAP = 20;
         
         // Helper to check if a rectangle overlaps with any existing widget
@@ -1159,17 +1176,17 @@ export const useStore = create<StoreState>((set, get) => {
         
         // Generate new IDs for each widget
         const newGroupId = uuidv4();
-        const widgetIds = template.widgets.map(() => uuidv4());
+        const widgetIds = templateWidgets.map(() => uuidv4());
         const groupZIndex = getNextWidgetZIndex(currentWidgets);
         
         // Create the new widgets
-        const newWidgets: Widget[] = template.widgets.map((wt, idx) => ({
+        const newWidgets: Widget[] = templateWidgets.map((wt, idx) => ({
           id: widgetIds[idx],
           type: wt.type,
-          x: finalX + wt.relativeX,
-          y: finalY + wt.relativeY,
-          w: wt.w || 200,
-          h: wt.h || 120,
+          x: snapWidgetCoordinate(finalX + wt.relativeX),
+          y: snapWidgetCoordinate(finalY + wt.relativeY),
+          w: wt.w,
+          h: wt.h,
           zIndex: groupZIndex,
           groupId: newGroupId,
           data: cloneWidgetData(wt.type, wt.data, widgetIds[idx]),
@@ -1215,12 +1232,14 @@ export const useStore = create<StoreState>((set, get) => {
     updateWidgetPosition: (id, x, y) => {
       // Take snapshot before the change (for moving widgets)
       get()._takeSnapshot('Move widget');
+      const snappedX = snapWidgetCoordinate(x);
+      const snappedY = snapWidgetCoordinate(y);
       
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
             return updateActiveSheetWidgets(c, widgets => 
-              widgets.map(w => w.id === id ? { ...w, x, y } : w)
+              widgets.map(w => w.id === id ? { ...w, x: snappedX, y: snappedY } : w)
             );
           }
           return c;
@@ -1230,11 +1249,13 @@ export const useStore = create<StoreState>((set, get) => {
 
     // Version without snapshot for batch operations (like auto-stack)
     updateWidgetPositionNoSnapshot: (id, x, y) => {
+      const snappedX = snapWidgetCoordinate(x);
+      const snappedY = snapWidgetCoordinate(y);
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id === state.activeCharacterId) {
             return updateActiveSheetWidgets(c, widgets => 
-              widgets.map(w => w.id === id ? { ...w, x, y } : w)
+              widgets.map(w => w.id === id ? { ...w, x: snappedX, y: snappedY } : w)
             );
           }
           return c;
@@ -1269,16 +1290,24 @@ export const useStore = create<StoreState>((set, get) => {
       };
     }),
 
-    updateWidgetSize: (id, w, h) => set((state) => ({
-      characters: state.characters.map(c => {
-        if (c.id === state.activeCharacterId) {
-          return updateActiveSheetWidgets(c, widgets => 
-            widgets.map(widget => widget.id === id ? { ...widget, w, h } : widget)
-          );
-        }
-        return c;
-      })
-    })),
+    updateWidgetSize: (id, w, h) => {
+      const snappedWidth = snapWidgetDimension(w);
+      const snappedHeight = snapWidgetDimension(h);
+
+      set((state) => ({
+        characters: state.characters.map(c => {
+          if (c.id === state.activeCharacterId) {
+            return updateActiveSheetWidgets(c, widgets =>
+              widgets.map(widget => widget.id === id
+                ? { ...widget, w: snappedWidth, h: snappedHeight }
+                : widget
+              )
+            );
+          }
+          return c;
+        })
+      }));
+    },
 
     updateWidgetData: (id, data) => {
       // Take snapshot for widget data changes (interactions and editing)
@@ -1978,7 +2007,7 @@ export const useStore = create<StoreState>((set, get) => {
         
         // Remove widget from attachments and groups when moving
         const widgetToMove = {
-          ...widget,
+          ...normalizeWidgetGeometry(widget),
           groupId: undefined,
           attachedTo: undefined,
         };
@@ -2103,7 +2132,11 @@ export const useStore = create<StoreState>((set, get) => {
               widgets.map(w => {
                 const isTargetWidget = targetGroupId ? w.groupId === targetGroupId : w.id === widgetId2;
                 let updatedWidget = shouldAlignTarget && isTargetWidget
-                  ? { ...w, x: w.x + targetDelta.x, y: w.y + targetDelta.y }
+                  ? {
+                      ...w,
+                      x: snapWidgetCoordinate(w.x + targetDelta.x),
+                      y: snapWidgetCoordinate(w.y + targetDelta.y),
+                    }
                   : w;
 
                 if (oldGroupId && updatedWidget.groupId === oldGroupId) {
@@ -2293,7 +2326,13 @@ export const useStore = create<StoreState>((set, get) => {
               if (c.id === state.activeCharacterId) {
                 return updateActiveSheetWidgets(c, widgets => 
                   widgets.map(w => 
-                    w.id === widgetId ? { ...w, x: w.x + deltaX, y: w.y + deltaY } : w
+                    w.id === widgetId
+                      ? {
+                          ...w,
+                          x: snapWidgetCoordinate(w.x + deltaX),
+                          y: snapWidgetCoordinate(w.y + deltaY),
+                        }
+                      : w
                   )
                 );
               }
@@ -2308,7 +2347,13 @@ export const useStore = create<StoreState>((set, get) => {
             if (c.id === state.activeCharacterId) {
               return updateActiveSheetWidgets(c, widgets => 
                 widgets.map(w => 
-                  w.groupId === groupId ? { ...w, x: w.x + deltaX, y: w.y + deltaY } : w
+                  w.groupId === groupId
+                    ? {
+                        ...w,
+                        x: snapWidgetCoordinate(w.x + deltaX),
+                        y: snapWidgetCoordinate(w.y + deltaY),
+                      }
+                    : w
                 )
               );
             }
@@ -2345,12 +2390,10 @@ export const useStore = create<StoreState>((set, get) => {
         
         // Clone all widgets with new IDs and updated attachedTo references
         const clonedWidgets: Widget[] = groupWidgets.map(w => ({
+          ...normalizeWidgetGeometry(w),
           id: idMapping.get(w.id)!,
-          type: w.type,
-          x: w.x + OFFSET,
-          y: w.y + OFFSET,
-          w: w.w,
-          h: w.h,
+          x: snapWidgetCoordinate(w.x + OFFSET),
+          y: snapWidgetCoordinate(w.y + OFFSET),
           zIndex: groupZIndex,
           groupId: newGroupId,
           attachedTo: w.attachedTo?.map(id => idMapping.get(id)).filter((id): id is string => id !== undefined),
@@ -2707,7 +2750,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
     
     _replaceCharacter: (characterId, character) => set((state) => ({
-      characters: state.characters.map(c => c.id === characterId ? character : c)
+      characters: state.characters.map(c => c.id === characterId ? migrateCharacter(character) : c)
     })),
     
     undo: () => {
