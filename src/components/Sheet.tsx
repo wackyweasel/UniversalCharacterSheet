@@ -383,10 +383,18 @@ export default function Sheet() {
   const panRef = useRef(pan);
   const viewLockedRef = useRef(viewLocked);
   const wheelPanEnabledRef = useRef(wheelPanEnabled);
+  const touchCameraFrameRef = useRef<number | null>(null);
+  const pendingTouchCameraRef = useRef<{ pan: { x: number; y: number }; scale: number } | null>(null);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   useEffect(() => { wheelPanEnabledRef.current = wheelPanEnabled; }, [wheelPanEnabled]);
+
+  useEffect(() => () => {
+    if (touchCameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(touchCameraFrameRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
@@ -461,13 +469,24 @@ export default function Sheet() {
   const previewTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
     panRef.current = nextPan;
     scaleRef.current = nextScale;
-    if (printAreaRef.current) {
-      printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
-      printAreaRef.current.classList.add('camera-gesture-active');
-    }
+    pendingTouchCameraRef.current = { pan: nextPan, scale: nextScale };
+    printAreaRef.current?.classList.add('camera-gesture-active');
+    if (touchCameraFrameRef.current !== null) return;
+
+    touchCameraFrameRef.current = window.requestAnimationFrame(() => {
+      touchCameraFrameRef.current = null;
+      const pendingCamera = pendingTouchCameraRef.current;
+      if (!pendingCamera || !printAreaRef.current) return;
+      printAreaRef.current.style.transform = `translate3d(${pendingCamera.pan.x}px, ${pendingCamera.pan.y}px, 0) scale(${pendingCamera.scale})`;
+    });
   }, []);
 
   const commitTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    if (touchCameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(touchCameraFrameRef.current);
+      touchCameraFrameRef.current = null;
+    }
+    pendingTouchCameraRef.current = null;
     panRef.current = nextPan;
     scaleRef.current = nextScale;
     if (printAreaRef.current) {
