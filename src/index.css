@@ -496,7 +496,7 @@ td .inline-dice-token {
   .widget-editor__section {
     background: color-mix(in srgb, var(--color-paper) 72%, var(--color-background));
     border: 1px solid var(--editor-divider);
-    border-radius: var(--button-radius);
+    border-radius: var(--border-radius);
     min-width: 0;
     padding: 0.875rem;
   }
@@ -693,7 +693,7 @@ td .inline-dice-token {
     align-self: start;
     background: color-mix(in srgb, var(--color-paper) 68%, var(--color-background));
     border: 1px solid var(--editor-divider);
-    border-radius: var(--button-radius);
+    border-radius: var(--border-radius);
     display: flex;
     flex-direction: column;
     min-height: 0;
