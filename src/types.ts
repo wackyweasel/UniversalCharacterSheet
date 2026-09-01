@@ -481,6 +481,7 @@ export interface WidgetData {
   // Initiative Tracker
   initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
   initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants
+  initiativeParticipantCardHeight?: number;        // Height of encounter participant cards in pixels
   initiativeShowRollButton?: boolean;               // Whether to show the Roll Initiative button
   initiativeShowTimer?: boolean;                    // Whether to show the active turn timer
   initiativeCurrentIndex?: number;                  // Index of the currently highlighted participant

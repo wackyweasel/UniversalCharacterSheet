@@ -255,6 +255,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     label,
     initiativePool = [],
     initiativeEncounter = [],
+    initiativeParticipantCardHeight = 28,
     initiativeShowRollButton = true,
     initiativeShowTimer = false,
     initiativeCurrentIndex = 0,
@@ -263,6 +264,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
     initiativeAdvanceTimeAmount = 6,
     initiativeAdvanceTimeUnit = 'seconds'
   } = widget.data;
+  const normalizedParticipantCardHeight = Math.max(16, Math.min(48, initiativeParticipantCardHeight));
 
   const [showAddParticipantModal, setShowAddParticipantModal] = useState(false);
   const [showRemoveParticipantsModal, setShowRemoveParticipantsModal] = useState(false);
@@ -789,11 +791,12 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   if (element) encounterEntryRefs.current.set(entry.id, element);
                   else encounterEntryRefs.current.delete(entry.id);
                 }}
-                className={`initiative-entry relative flex min-h-7 items-center gap-1 rounded-button border px-1 py-0.5 ${
+                className={`initiative-entry relative flex items-center gap-1 rounded-button border px-1 ${
                   index === initiativeCurrentIndex
                     ? 'border-theme-accent bg-theme-accent text-theme-paper'
                     : 'border-theme-border bg-theme-paper text-theme-ink hover:bg-theme-border/30'
                 }`}
+                style={{ height: `${normalizedParticipantCardHeight}px` }}
                 aria-current={index === initiativeCurrentIndex ? 'true' : undefined}
               >
                 {/* Drag Handle */}
@@ -805,17 +808,23 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   }}
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => handleReorderKey(index, event)}
-                  className={`initiative-entry__drag-handle flex h-6 w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded cursor-grab active:cursor-grabbing ${
+                  className={`initiative-entry__drag-handle flex w-6 flex-shrink-0 touch-none select-none items-center justify-center rounded cursor-grab active:cursor-grabbing ${
                     index === initiativeCurrentIndex ? 'text-theme-paper/70' : 'text-theme-muted'
                   }`}
+                  style={{ height: `${Math.min(24, Math.max(12, normalizedParticipantCardHeight - 2))}px` }}
                   aria-label={`Reorder ${entry.name}`}
                   title="Drag to reorder. Arrow keys also work."
                 >
-                  <GripVerticalIcon className="h-3.5 w-3.5" />
+                  <GripVerticalIcon
+                    style={{
+                      width: `${Math.min(14, Math.max(10, normalizedParticipantCardHeight - 4))}px`,
+                      height: `${Math.min(14, Math.max(10, normalizedParticipantCardHeight - 4))}px`,
+                    }}
+                  />
                 </button>
                 
                 {/* Name */}
-                <span className={`${itemClass} min-w-0 flex-1 truncate font-body`}>
+                <span className={`${itemClass} min-w-0 flex-1 truncate leading-none font-body`}>
                   {entry.name}
                 </span>
 
@@ -840,7 +849,7 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
                   <button
                     type="button"
                     onClick={() => rollParticipant(entry.id)}
-                    className={`${itemClass} mr-1 min-w-[42px] text-right font-mono font-bold tabular-nums font-body underline-offset-2 hover:underline focus-visible:rounded`}
+                    className={`${itemClass} mr-1 min-w-[42px] text-right font-mono font-bold leading-none tabular-nums font-body underline-offset-2 hover:underline focus-visible:rounded`}
                     aria-label={`${entry.rollResult === undefined ? 'Roll' : 'Reroll'} initiative for ${entry.name}`}
                   >
                     {entry.rollResult ?? formatInitiativeDice(entry)}

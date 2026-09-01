@@ -28,6 +28,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const { 
     label, 
     initiativePool = [], 
+    initiativeParticipantCardHeight = 28,
     initiativeShowRollButton = true,
     initiativeShowTimer = false,
     initiativeAdvanceTimeTrackers = false,
@@ -35,6 +36,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
     initiativeAdvanceTimeAmount = 6,
     initiativeAdvanceTimeUnit = 'seconds'
   } = widget.data;
+  const normalizedParticipantCardHeight = Math.max(16, Math.min(48, initiativeParticipantCardHeight));
 
   const [newName, setNewName] = useState('');
   const [newDiceFaces, setNewDiceFaces] = useState('20');
@@ -208,6 +210,24 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-xs text-theme-ink">Include turn timer</span>
         </label>
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor={`initiative-participant-card-height-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">
+              Participant card height
+            </label>
+            <span className="widget-editor__section-count">{normalizedParticipantCardHeight}px</span>
+          </div>
+          <input
+            id={`initiative-participant-card-height-${widget.id}`}
+            type="range"
+            min="16"
+            max="48"
+            step="2"
+            value={normalizedParticipantCardHeight}
+            onChange={(e) => updateData({ initiativeParticipantCardHeight: Number(e.target.value) })}
+            className="w-full accent-theme-accent"
+          />
+        </div>
         <div className="space-y-2">
           <label className="flex cursor-pointer items-start gap-2">
             <input
