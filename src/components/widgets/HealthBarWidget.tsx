@@ -5,6 +5,7 @@ import { Tooltip } from '../Tooltip';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { applyHealthDamage, applyHealthHealing, normalizeHealthBarValue } from '../../utils/healthBar';
 
 // Check if we're in print mode to hide interactive elements
 
@@ -18,10 +19,13 @@ interface Props {
 
 interface HealthValueModalProps {
   currentValue: number;
+  temporaryValue: number;
   maxValue: number;
   currentEditable: boolean;
+  temporaryEditable: boolean;
   maxEditable: boolean;
-  onConfirm: (currentValue: number, maxValue: number) => void;
+  showTemporaryValue: boolean;
+  onConfirm: (currentValue: number, maxValue: number, temporaryValue: number) => void;
   onCancel: () => void;
 }
 
@@ -33,26 +37,44 @@ function HealthModal({
   onConfirm, 
   onCancel,
   buttonLabel,
-  isDamage 
+  isDamage,
+  initialAmount = '',
+  allowZero = false,
+  helperText,
+  showExcessToTemporary = false,
+  disableExcessToTemporary = false,
 }: { 
-  title: string; 
-  onConfirm: (amount: number) => void; 
+  title: string;
+  onConfirm: (amount: number, putExcessInTemporary?: boolean) => void;
   onCancel: () => void;
   buttonLabel: string;
   isDamage: boolean;
+  initialAmount?: number | '';
+  allowZero?: boolean;
+  helperText?: string;
+  showExcessToTemporary?: boolean;
+  disableExcessToTemporary?: boolean;
 }) {
-  const [amount, setAmount] = useState<number | ''>('');
+  const [amount, setAmount] = useState<number | ''>(initialAmount);
+  const [putExcessInTemporary, setPutExcessInTemporary] = useState(false);
 
   const handleConfirm = () => {
-    if (amount === '' || amount <= 0) {
+    if (amount === '' || amount < 0 || (!allowZero && amount === 0)) {
       onCancel();
       return;
     }
-    onConfirm(amount);
+    onConfirm(
+      amount,
+      showExcessToTemporary && !disableExcessToTemporary ? putExcessInTemporary : false,
+    );
   };
 
   const increment = () => setAmount(prev => (prev === '' ? 1 : prev + 1));
-  const decrement = () => setAmount(prev => (prev === '' || prev <= 1 ? '' : prev - 1));
+  const decrement = () => setAmount(prev => {
+    if (prev === '') return allowZero ? 0 : '';
+    if (prev <= (allowZero ? 0 : 1)) return allowZero ? 0 : '';
+    return prev - 1;
+  });
 
   return (
     <>
@@ -71,6 +93,7 @@ function HealthModal({
         }}
       >
         <h3 className="font-heading text-theme-ink font-bold mb-3">{title}</h3>
+        {helperText && <p className="mb-3 max-w-[240px] text-xs text-theme-muted">{helperText}</p>}
         <div className="flex items-center justify-center gap-2 mb-3">
           <button
             onClick={decrement}
@@ -82,7 +105,7 @@ function HealthModal({
           </button>
           <input
             type="number"
-            min="1"
+            min={allowZero ? 0 : 1}
             className="w-16 h-10 text-center font-bold text-2xl text-theme-ink bg-theme-paper border border-theme-border rounded-button focus:outline-none focus:border-theme-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             value={amount}
             onChange={(e) => setAmount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0))}
@@ -99,7 +122,33 @@ function HealthModal({
             +
           </button>
         </div>
-        <div className="flex gap-2">
+        {showExcessToTemporary && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-theme-ink">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={putExcessInTemporary}
+              aria-label="Put healing overflow into temporary HP"
+              disabled={disableExcessToTemporary}
+              onClick={() => setPutExcessInTemporary((current) => !current)}
+              onMouseDown={(event) => event.stopPropagation()}
+              className={`relative h-6 w-11 flex-shrink-0 rounded-full border border-theme-border transition-colors ${
+                putExcessInTemporary ? 'bg-theme-accent' : 'bg-theme-background'
+              } ${disableExcessToTemporary ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+            >
+              <span
+                className={`absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-black/25 bg-theme-paper shadow-sm transition-transform ${
+                  putExcessInTemporary ? 'translate-x-[22px]' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span>
+              Put healing overflow into temporary HP
+              {disableExcessToTemporary && <span className="block text-xs text-theme-muted">Temporary HP is set by formula</span>}
+            </span>
+          </div>
+        )}
+        <div className="mt-5 flex gap-2">
           <button
             onClick={onCancel}
             className="flex-1 px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors border border-theme-border"
@@ -124,13 +173,17 @@ function HealthModal({
 
 function HealthValueModal({
   currentValue,
+  temporaryValue,
   maxValue,
   currentEditable,
+  temporaryEditable,
   maxEditable,
+  showTemporaryValue,
   onConfirm,
   onCancel,
 }: HealthValueModalProps) {
   const [currentDraft, setCurrentDraft] = useState(String(currentValue));
+  const [temporaryDraft, setTemporaryDraft] = useState(String(temporaryValue));
   const [maxDraft, setMaxDraft] = useState(String(maxValue));
 
   const submit = () => {
@@ -138,7 +191,11 @@ function HealthValueModal({
     const nextMax = maxEditable && Number.isFinite(parsedMax) ? Math.max(1, parsedMax) : maxValue;
     const parsedCurrent = Number(currentDraft);
     const nextCurrent = currentEditable && Number.isFinite(parsedCurrent) ? parsedCurrent : currentValue;
-    onConfirm(Math.max(0, Math.min(nextMax, nextCurrent)), nextMax);
+    const parsedTemporary = Number(temporaryDraft);
+    const nextTemporary = temporaryEditable && Number.isFinite(parsedTemporary)
+      ? Math.max(0, parsedTemporary)
+      : temporaryValue;
+    onConfirm(Math.max(0, Math.min(nextMax, nextCurrent)), nextMax, nextTemporary);
   };
 
   return (
@@ -173,10 +230,25 @@ function HealthValueModal({
           disabled={!currentEditable}
           className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         />
+        {showTemporaryValue && (
+          <>
+            <label htmlFor="health-temporary-value" className="mt-3 block text-sm font-medium">Temporary HP</label>
+            <input
+              id="health-temporary-value"
+              autoFocus={!currentEditable && temporaryEditable}
+              type="number"
+              min="0"
+              value={temporaryDraft}
+              onChange={(event) => setTemporaryDraft(event.target.value)}
+              disabled={!temporaryEditable}
+              className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </>
+        )}
         <label htmlFor="health-max-value" className="mt-3 block text-sm font-medium">Max value</label>
         <input
           id="health-max-value"
-          autoFocus={!currentEditable && maxEditable}
+          autoFocus={!currentEditable && (!showTemporaryValue || !temporaryEditable) && maxEditable}
           type="number"
           min="1"
           value={maxDraft}
@@ -198,24 +270,38 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, currentValue = 10, maxValue = 10, increment = 1, showIncrementButtons = true, fillColor } = widget.data;
+  const {
+    label,
+    currentValue = 10,
+    temporaryValue = 0,
+    enableTemporaryHp = true,
+    maxValue = 10,
+    increment = 1,
+    showIncrementButtons = true,
+    fillColor,
+  } = widget.data;
   const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
   
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [showHealModal, setShowHealModal] = useState(false);
+  const [showTemporaryModal, setShowTemporaryModal] = useState(false);
   const [showValueModal, setShowValueModal] = useState(false);
   const [scrubValue, setScrubValue] = useState<number | null>(null);
   const scrubbingRef = useRef(false);
-  const scrubStartRef = useRef(currentValue);
+  const scrubStartRef = useRef(normalizeHealthBarValue(currentValue, 10));
   const pointerStartXRef = useRef(0);
   const pointerLatestXRef = useRef(0);
   const holdTimerRef = useRef<number | null>(null);
   const hasCurrentFormula = !!fieldFormulas?.currentValue;
+  const hasTemporaryFormula = !!fieldFormulas?.temporaryValue;
   const hasMaxFormula = !!fieldFormulas?.maxValue;
   const controlsVisible = interactive && !isPrintMode;
   const valuesEditable = controlsVisible && (!hasCurrentFormula || !hasMaxFormula);
-  const safeMaxValue = Math.max(1, maxValue);
-  const displayedValue = scrubValue ?? currentValue;
+  const safeMaxValue = Math.max(1, normalizeHealthBarValue(maxValue, 10));
+  const normalizedCurrentValue = normalizeHealthBarValue(currentValue, 10);
+  const safeTemporaryValue = normalizeHealthBarValue(temporaryValue);
+  const effectiveTemporaryValue = enableTemporaryHp ? safeTemporaryValue : 0;
+  const displayedValue = scrubValue ?? normalizedCurrentValue;
 
   const labels = useMemo(() => {
     const char = characters.find(c => c.id === activeCharacterId);
@@ -223,9 +309,17 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
   }, [characters, activeCharacterId]);
 
   const currentBroken = hasCurrentFormula && isFormulaBroken(fieldFormulas!.currentValue, labels);
+  const temporaryBroken = enableTemporaryHp && hasTemporaryFormula && isFormulaBroken(fieldFormulas!.temporaryValue, labels);
   const maxBroken = hasMaxFormula && isFormulaBroken(fieldFormulas!.maxValue, labels);
 
   const healthPercent = Math.max(0, Math.min(100, (displayedValue / safeMaxValue) * 100));
+  const temporaryEndPercent = Math.max(0, Math.min(100, ((displayedValue + effectiveTemporaryValue) / safeMaxValue) * 100));
+  const temporaryFillPercent = Math.max(0, temporaryEndPercent - healthPercent);
+  const hasDamageFormula = hasCurrentFormula || (enableTemporaryHp && hasTemporaryFormula);
+  const canApplyDamage = !hasCurrentFormula && (!enableTemporaryHp || !hasTemporaryFormula);
+  const canUseHealthControls = controlsVisible;
+  const formatHealthState = (current: number, max: number, temporary: number) =>
+    `${current}/${max}${enableTemporaryHp && temporary > 0 ? ` + ${temporary} temp` : ''}`;
 
   useEffect(() => () => {
     if (holdTimerRef.current !== null) window.clearTimeout(holdTimerRef.current);
@@ -238,22 +332,48 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
   };
 
   const applyDamage = (amount: number) => {
-    const newVal = currentValue - amount;
-    updateWidgetData(widget.id, { currentValue: newVal });
+    if (!canApplyDamage) return;
+    const nextValues = applyHealthDamage(normalizedCurrentValue, effectiveTemporaryValue, amount);
+    updateWidgetData(widget.id, enableTemporaryHp ? nextValues : { currentValue: nextValues.currentValue });
     setShowDamageModal(false);
-    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Took ${amount} damage (${currentValue} → ${newVal})`, '💥');
+    const before = formatHealthState(normalizedCurrentValue, safeMaxValue, effectiveTemporaryValue);
+    const after = formatHealthState(nextValues.currentValue, safeMaxValue, nextValues.temporaryValue);
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Took ${amount} damage (${before} → ${after})`, '💥');
   };
 
-  const applyHeal = (amount: number) => {
-    const newVal = Math.min(maxValue, currentValue + amount);
-    updateWidgetData(widget.id, { currentValue: newVal });
+  const applyHeal = (amount: number, putExcessInTemporary = false) => {
+    if (hasCurrentFormula) return;
+    const nextValues = applyHealthHealing(
+      normalizedCurrentValue,
+      effectiveTemporaryValue,
+      safeMaxValue,
+      amount,
+      enableTemporaryHp && putExcessInTemporary && !hasTemporaryFormula,
+    );
+    const overflowAmount = nextValues.temporaryValue - effectiveTemporaryValue;
+    updateWidgetData(widget.id, {
+      currentValue: nextValues.currentValue,
+      ...(enableTemporaryHp && overflowAmount > 0 ? { temporaryValue: nextValues.temporaryValue } : {}),
+    });
     setShowHealModal(false);
-    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Healed ${amount} (${currentValue} → ${newVal})`, '💚');
+    const overflowDescription = overflowAmount > 0
+      ? `; ${overflowAmount} overflow to temporary HP (${safeTemporaryValue} → ${nextValues.temporaryValue})`
+      : '';
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Healed ${amount} (${normalizedCurrentValue} → ${nextValues.currentValue})${overflowDescription}`, '💚');
   };
 
   const fullHeal = () => {
-    updateWidgetData(widget.id, { currentValue: maxValue });
-    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Full heal (${currentValue} → ${maxValue})`, '💚');
+    if (hasCurrentFormula) return;
+    updateWidgetData(widget.id, { currentValue: safeMaxValue });
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Full heal (${normalizedCurrentValue} → ${safeMaxValue})`, '💚');
+  };
+
+  const setTemporaryHealth = (amount: number) => {
+    if (!enableTemporaryHp || hasTemporaryFormula) return;
+    const newValue = normalizeHealthBarValue(amount);
+    updateWidgetData(widget.id, { temporaryValue: newValue });
+    setShowTemporaryModal(false);
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Temporary HP (${safeTemporaryValue} → ${newValue})`, '🛡️');
   };
 
   const valueFromDrag = (clientX: number, element: HTMLDivElement) => {
@@ -267,7 +387,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
-    scrubStartRef.current = currentValue;
+    scrubStartRef.current = normalizedCurrentValue;
     pointerStartXRef.current = event.clientX;
     pointerLatestXRef.current = event.clientX;
 
@@ -320,21 +440,32 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
 
   const setFromKeyboard = (nextValue: number) => {
     const boundedValue = Math.max(0, Math.min(safeMaxValue, nextValue));
-    if (boundedValue === currentValue) return;
+    if (boundedValue === normalizedCurrentValue) return;
     updateWidgetData(widget.id, { currentValue: boundedValue });
-    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Set health (${currentValue} → ${boundedValue})`, '❤️');
+    addTimelineEvent(label || 'Health', 'HEALTH_BAR', `Set health (${normalizedCurrentValue} → ${boundedValue})`, '❤️');
   };
 
-  const setValues = (nextCurrent: number, nextMax: number) => {
-    const updatedCurrent = hasCurrentFormula ? currentValue : nextCurrent;
-    const updatedMax = hasMaxFormula ? maxValue : nextMax;
+  const setValues = (nextCurrent: number, nextMax: number, nextTemporary: number) => {
+    const updatedCurrent = hasCurrentFormula ? normalizedCurrentValue : nextCurrent;
+    const updatedMax = hasMaxFormula ? safeMaxValue : nextMax;
+    const updatedTemporary = enableTemporaryHp && !hasTemporaryFormula
+      ? normalizeHealthBarValue(nextTemporary)
+      : safeTemporaryValue;
     updateWidgetData(widget.id, {
       ...(hasCurrentFormula ? {} : { currentValue: updatedCurrent }),
       ...(hasMaxFormula ? {} : { maxValue: updatedMax }),
+      ...(enableTemporaryHp && !hasTemporaryFormula ? { temporaryValue: updatedTemporary } : {}),
     });
     setShowValueModal(false);
-    if (updatedCurrent !== currentValue || updatedMax !== maxValue) {
-      addTimelineEvent(label || 'Health', 'HEALTH_BAR', `${currentValue}/${maxValue} → ${updatedCurrent}/${updatedMax}`, '❤️');
+    const temporaryChanged = enableTemporaryHp && updatedTemporary !== safeTemporaryValue;
+    if (
+      updatedCurrent !== normalizedCurrentValue ||
+      updatedMax !== safeMaxValue ||
+      temporaryChanged
+    ) {
+      const before = formatHealthState(normalizedCurrentValue, safeMaxValue, effectiveTemporaryValue);
+      const after = formatHealthState(updatedCurrent, updatedMax, enableTemporaryHp ? updatedTemporary : 0);
+      addTimelineEvent(label || 'Health', 'HEALTH_BAR', `${before} → ${after}`, '❤️');
     }
   };
 
@@ -349,18 +480,15 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
       )}
 
       <div className="health-bar__main flex min-h-0 flex-1 items-center gap-1.5">
-        {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Decrease by ${increment}`}>
+        {showIncrementButtons && <Tooltip content={hasDamageFormula ? 'Health or temporary HP set by formula' : `Decrease by ${increment}`}>
           <button
             onClick={() => {
-              if (hasCurrentFormula) return;
-              const newVal = currentValue - increment;
-              updateWidgetData(widget.id, { currentValue: newVal });
-              addTimelineEvent(label || 'Health', 'HEALTH_BAR', `−${increment} (${currentValue} → ${newVal})`, '💥');
+              if (canUseHealthControls && canApplyDamage) applyDamage(increment);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            disabled={hasCurrentFormula}
+            disabled={!canUseHealthControls || !canApplyDamage}
             aria-label={`Decrease ${label || 'health'} by ${increment}`}
-            className={`widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${!canUseHealthControls || hasDamageFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             −
           </button>
@@ -376,7 +504,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
             aria-valuemin={0}
             aria-valuemax={safeMaxValue}
             aria-valuenow={displayedValue}
-            aria-valuetext={`${displayedValue} of ${safeMaxValue}`}
+            aria-valuetext={`${displayedValue} of ${safeMaxValue}${effectiveTemporaryValue > 0 ? `, ${effectiveTemporaryValue} temporary hit points` : ''}`}
             onPointerDown={startScrub}
             onPointerMove={moveScrub}
             onPointerUp={finishScrub}
@@ -387,16 +515,16 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 setShowValueModal(true);
-              } else if (!hasCurrentFormula && (event.key === 'ArrowLeft' || event.key === 'ArrowDown')) {
+              } else if (canUseHealthControls && canApplyDamage && (event.key === 'ArrowLeft' || event.key === 'ArrowDown')) {
                 event.preventDefault();
-                setFromKeyboard(currentValue - increment);
-              } else if (!hasCurrentFormula && (event.key === 'ArrowRight' || event.key === 'ArrowUp')) {
+                applyDamage(increment);
+              } else if (canUseHealthControls && !hasCurrentFormula && (event.key === 'ArrowRight' || event.key === 'ArrowUp')) {
                 event.preventDefault();
-                setFromKeyboard(currentValue + increment);
-              } else if (!hasCurrentFormula && event.key === 'Home') {
+                applyHeal(increment);
+              } else if (canUseHealthControls && !hasCurrentFormula && event.key === 'Home') {
                 event.preventDefault();
                 setFromKeyboard(0);
-              } else if (!hasCurrentFormula && event.key === 'End') {
+              } else if (canUseHealthControls && !hasCurrentFormula && event.key === 'End') {
                 event.preventDefault();
                 setFromKeyboard(safeMaxValue);
               }
@@ -410,6 +538,15 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
                   ...(fillColor ? { backgroundColor: fillColor } : {}),
                 }}
               />
+              {temporaryFillPercent > 0 && (
+                <div
+                  className={`health-bar__temporary-fill ${scrubValue !== null ? 'health-bar__temporary-fill--scrubbing' : ''}`}
+                  style={{
+                    left: `${healthPercent}%`,
+                    width: isPrintMode ? '0%' : `${temporaryFillPercent}%`,
+                  }}
+                />
+              )}
             </div>
             <div className={`health-bar__readout ${isPrintMode ? 'bar-readout--print' : ''}`}>
               {isPrintMode ? (
@@ -418,6 +555,8 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
                 <>
                 {currentBroken && <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${fieldFormulas!.currentValue}`}>⚠</span>}
                   <strong>{displayedValue}/{safeMaxValue}</strong>
+                  {effectiveTemporaryValue > 0 && <span className="health-bar__temporary-readout">+{effectiveTemporaryValue}</span>}
+                  {temporaryBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.temporaryValue}`}>⚠</span>}
                 {maxBroken && <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${fieldFormulas!.maxValue}`}>⚠</span>}
                 </>
               )}
@@ -428,15 +567,12 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
         {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Increase by ${increment}`}>
           <button
             onClick={() => {
-              if (hasCurrentFormula) return;
-              const newVal = Math.min(maxValue, currentValue + increment);
-              updateWidgetData(widget.id, { currentValue: newVal });
-              addTimelineEvent(label || 'Health', 'HEALTH_BAR', `+${increment} (${currentValue} → ${newVal})`, '💚');
+              if (canUseHealthControls && !hasCurrentFormula) applyHeal(increment);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            disabled={hasCurrentFormula}
+            disabled={!canUseHealthControls || hasCurrentFormula}
             aria-label={`Increase ${label || 'health'} by ${increment}`}
-            className={`widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`widget-control w-6 h-6 min-h-0 font-bold text-xs flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''} ${!canUseHealthControls || hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             +
           </button>
@@ -444,36 +580,48 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
       </div>
 
       <div className={`health-bar__actions flex flex-shrink-0 items-center gap-1 ${isPrintMode ? 'invisible' : ''}`}>
-        <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Apply a custom damage amount'}>
+        <Tooltip content={hasDamageFormula ? 'Health or temporary HP set by formula' : 'Apply a custom damage amount'}>
           <button
-            onClick={() => !hasCurrentFormula && setShowDamageModal(true)}
+            onClick={() => canUseHealthControls && !hasDamageFormula && setShowDamageModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
-            disabled={hasCurrentFormula}
-            className={`health-bar__action widget-control health-bar__action--damage ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            disabled={!canUseHealthControls || hasDamageFormula}
+            className={`health-bar__action widget-control health-bar__action--damage ${!canUseHealthControls || hasDamageFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Damage
           </button>
         </Tooltip>
         <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Heal a custom amount'}>
           <button
-            onClick={() => !hasCurrentFormula && setShowHealModal(true)}
+            onClick={() => canUseHealthControls && !hasCurrentFormula && setShowHealModal(true)}
             onMouseDown={(e) => e.stopPropagation()}
-            disabled={hasCurrentFormula}
-            className={`health-bar__action widget-control health-bar__action--heal ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            disabled={!canUseHealthControls || hasCurrentFormula}
+            className={`health-bar__action widget-control health-bar__action--heal ${!canUseHealthControls || hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Heal
           </button>
         </Tooltip>
         <Tooltip content={hasCurrentFormula ? 'Value set by formula' : 'Restore to full health'}>
           <button
-            onClick={() => !hasCurrentFormula && fullHeal()}
+            onClick={() => canUseHealthControls && !hasCurrentFormula && fullHeal()}
             onMouseDown={(e) => e.stopPropagation()}
-            disabled={hasCurrentFormula}
-            className={`health-bar__action widget-control ${hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            disabled={!canUseHealthControls || hasCurrentFormula}
+            className={`health-bar__action widget-control ${!canUseHealthControls || hasCurrentFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             Full
           </button>
         </Tooltip>
+        {enableTemporaryHp && (
+          <Tooltip content={hasTemporaryFormula ? 'Temporary HP set by formula' : 'Set temporary hit points (replaces the current amount)'}>
+            <button
+              onClick={() => canUseHealthControls && !hasTemporaryFormula && setShowTemporaryModal(true)}
+              onMouseDown={(e) => e.stopPropagation()}
+              disabled={!canUseHealthControls || hasTemporaryFormula}
+              className={`health-bar__action health-bar__action--temporary widget-control ${!canUseHealthControls || hasTemporaryFormula ? 'opacity-30 cursor-not-allowed' : ''}`}
+            >
+              Temp HP
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       {/* Damage Modal */}
@@ -496,16 +644,35 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
           onCancel={() => setShowHealModal(false)}
           buttonLabel="Heal"
           isDamage={false}
+          showExcessToTemporary={enableTemporaryHp}
+          disableExcessToTemporary={hasTemporaryFormula}
+        />,
+        document.body
+      )}
+
+      {showTemporaryModal && enableTemporaryHp && createPortal(
+        <HealthModal
+          title="Temporary HP"
+          onConfirm={setTemporaryHealth}
+          onCancel={() => setShowTemporaryModal(false)}
+          buttonLabel="Set"
+          isDamage={false}
+          initialAmount={safeTemporaryValue > 0 ? safeTemporaryValue : ''}
+          allowZero
+          helperText="This replaces the current temporary HP. Damage uses temporary HP before regular HP."
         />,
         document.body
       )}
 
       {showValueModal && createPortal(
         <HealthValueModal
-          currentValue={currentValue}
+          currentValue={normalizedCurrentValue}
+          temporaryValue={effectiveTemporaryValue}
           maxValue={safeMaxValue}
           currentEditable={!hasCurrentFormula}
+          temporaryEditable={enableTemporaryHp && !hasTemporaryFormula}
           maxEditable={!hasMaxFormula}
+          showTemporaryValue={enableTemporaryHp}
           onConfirm={setValues}
           onCancel={() => setShowValueModal(false)}
         />,
@@ -514,9 +681,3 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
     </div>
   );
 }
-
-
-
-
-
-

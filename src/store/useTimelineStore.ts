@@ -12,7 +12,7 @@ export interface TimelineEvent {
 }
 
 /** Per-character timeline data */
-interface CharacterTimeline {
+export interface CharacterTimeline {
   events: TimelineEvent[];
   nextId: number;
 }
@@ -32,6 +32,7 @@ interface TimelineState {
   setOpen: (open: boolean) => void;
   toggleOrder: () => void;
   toggleShowFormulas: () => void;
+  replaceWorkspaceEvents: (eventsByCharacter: Record<string, CharacterTimeline>) => void;
 }
 
 const STORAGE_KEY = 'ucs:timeline';
@@ -175,17 +176,27 @@ export const useTimelineStore = create<TimelineState>((set) => ({
     recordTimelineEvent('timeline_formula_visibility_changed', { showFormulas: !state.showFormulas });
     return { showFormulas: !state.showFormulas };
   }),
+  replaceWorkspaceEvents: (eventsByCharacter) => set({ eventsByCharacter }),
 }));
 
-// Persist timeline to localStorage on changes (debounced)
+// Timeline display preferences are global. Character events are persisted by the active workspace provider.
 {
   let saveTimeout: number | null = null;
   useTimelineStore.subscribe((state) => {
     if (saveTimeout) window.clearTimeout(saveTimeout);
     saveTimeout = window.setTimeout(() => {
       try {
+        const current = (() => {
+          try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as {
+              eventsByCharacter?: Record<string, CharacterTimeline>;
+            };
+          } catch {
+            return {};
+          }
+        })();
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          eventsByCharacter: state.eventsByCharacter,
+          eventsByCharacter: current.eventsByCharacter ?? {},
           orderNewestFirst: state.orderNewestFirst,
           showFormulas: state.showFormulas,
         }));

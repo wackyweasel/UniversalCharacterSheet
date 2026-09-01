@@ -383,10 +383,18 @@ export default function Sheet() {
   const panRef = useRef(pan);
   const viewLockedRef = useRef(viewLocked);
   const wheelPanEnabledRef = useRef(wheelPanEnabled);
+  const touchCameraFrameRef = useRef<number | null>(null);
+  const pendingTouchCameraRef = useRef<{ pan: { x: number; y: number }; scale: number } | null>(null);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   useEffect(() => { wheelPanEnabledRef.current = wheelPanEnabled; }, [wheelPanEnabled]);
+
+  useEffect(() => () => {
+    if (touchCameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(touchCameraFrameRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
@@ -458,6 +466,37 @@ export default function Sheet() {
   const getPan = useCallback(() => panRef.current, []);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
 
+  const previewTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    pendingTouchCameraRef.current = { pan: nextPan, scale: nextScale };
+    printAreaRef.current?.classList.add('camera-gesture-active');
+    if (touchCameraFrameRef.current !== null) return;
+
+    touchCameraFrameRef.current = window.requestAnimationFrame(() => {
+      touchCameraFrameRef.current = null;
+      const pendingCamera = pendingTouchCameraRef.current;
+      if (!pendingCamera || !printAreaRef.current) return;
+      printAreaRef.current.style.transform = `translate3d(${pendingCamera.pan.x}px, ${pendingCamera.pan.y}px, 0) scale(${pendingCamera.scale})`;
+    });
+  }, []);
+
+  const commitTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    if (touchCameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(touchCameraFrameRef.current);
+      touchCameraFrameRef.current = null;
+    }
+    pendingTouchCameraRef.current = null;
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    if (printAreaRef.current) {
+      printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
+      printAreaRef.current.classList.remove('camera-gesture-active');
+    }
+    setPan(nextPan);
+    setScale(nextScale);
+  }, [setPan, setScale]);
+
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
       if (viewLockedRef.current) return;
       const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(MIN_CANVAS_SCALE, requestedScale));
@@ -483,8 +522,8 @@ export default function Sheet() {
   
   const { isTouchPanning } = useTouchCamera({
     mode,
-    onPanChange: setPan,
-    onScaleChange: setScale,
+    onCameraPreview: previewTouchCamera,
+    onCameraCommit: commitTouchCamera,
     onPinchingChange: setIsPinching,
     getScale,
     getPan,
@@ -1570,7 +1609,7 @@ export default function Sheet() {
 
         {/* Vertical Mode Container - scrollable */}
         <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
-          <div className="w-full px-3 py-4 pb-24 sm:px-5 sm:py-6">
+          <div className="w-full px-3 pt-14 pb-24 sm:px-5">
             {/* Widgets in vertical layout */}
             <div
               className={renderedListColumnCount > 1 ? 'mx-auto grid w-full gap-x-5' : undefined}
@@ -1689,7 +1728,7 @@ export default function Sheet() {
         {/* Transformed Content */}
         <div 
           ref={printAreaRef}
-          className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${mode === 'print' ? 'pointer-events-auto' : ''}`}
+          className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${isPanning ? 'camera-gesture-active' : ''} ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
           }}
@@ -2425,7 +2464,7 @@ export default function Sheet() {
         <button
           type="button"
           className="canvas-zoom-button"
-          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current / 1.25)}
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current / 1.125)}
           disabled={viewLocked || scale <= MIN_CANVAS_SCALE}
           aria-label="Zoom out"
         >
@@ -2457,7 +2496,7 @@ export default function Sheet() {
         <button
           type="button"
           className="canvas-zoom-button"
-          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current * 1.25)}
+          onClick={() => setCanvasScaleAtViewportCenter(scaleRef.current * 1.125)}
           disabled={viewLocked || scale >= MAX_CANVAS_SCALE}
           aria-label="Zoom in"
         >

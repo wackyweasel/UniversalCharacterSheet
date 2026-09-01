@@ -1,0 +1,85 @@
+# Storage Workspaces
+
+A storage workspace is an isolated collection of characters. The Character List workspace menu can switch between registered workspaces and create new ones.
+
+## Scope
+
+Workspace-specific data:
+
+- Characters and their ordering
+- Active character and character mode
+- Character timeline events
+- Custom themes
+- Widget and group templates
+- User presets
+
+Shared browser data:
+
+- Built-in theme definitions
+- Global settings and timeline display preferences
+- Telemetry client identifiers and timestamps
+- Per-sheet Build, Play, and Print layout preferences
+
+Copying a character to another workspace creates new character, sheet, widget, group, and card IDs. The visible name and timeline history are retained.
+
+Workspace files and new backup files use the same validated data fields for characters, timeline events, custom themes, templates, and user presets. Workspace files add identity, revision, active-character, and mode metadata used by providers and conflict detection.
+
+Backups can be restored into any active workspace. The restore picker also accepts a workspace file and imports its shared data while retaining the destination workspace's identity and provider association. Older backup files without timeline data remain valid and leave the matching characters' existing timelines unchanged.
+
+## Providers
+
+### Browser
+
+The Browser workspace uses the existing `ucs:store` and `ucs:timeline` localStorage data. Existing installations require no manual migration.
+
+### Local Directory
+
+A directory workspace owns one `ucs-workspace.json` file in a directory selected through the File System Access API. Directory handles and cached workspace documents are stored in IndexedDB. Forgetting a workspace removes only its browser registration and cache; it does not delete the file.
+
+Permission requests occur only after an explicit user action. Chrome may reset an external directory's permission between browser sessions. If access expires, use **Reconnect directory** to reauthorize the saved handle with one click. Use **Choose directory again** only if the browser discarded the handle or the directory moved.
+
+### Google Drive
+
+A Drive workspace is a visible JSON file in the user's Drive. The app requests only the non-sensitive `https://www.googleapis.com/auth/drive.file` scope and can access files created by or explicitly selected for the app. On another device, use **Open Google Drive workspace** and select each workspace file you want to register in that browser.
+
+Access tokens are short-lived and are retained only in memory and the current tab's session storage. The tab-scoped copy lets page reloads resume while the tab session remains available. When the tab session ends or the token expires, the app loads the cached workspace without making a background authorization request and asks the user to reconnect. Cached Drive workspaces remain editable in IndexedDB while disconnected; changes remain pending until the user reconnects and the remote file can be checked for conflicts.
+
+Files up to 5 MB use a multipart or media upload. Larger files use a resumable upload.
+
+## Conflicts
+
+Directory and Drive saves compare the last known remote fingerprint before overwriting. If another program or device changed the file while this browser has local edits, autosave pauses and presents three choices:
+
+- Load the external version and discard pending local edits
+- Keep local changes and explicitly overwrite the external version
+- Save local changes as a new directory workspace or Drive file
+
+Malformed files and workspace versions newer than the running application are rejected without being overwritten.
+
+## Browser Support
+
+Workspace controls require all of the following:
+
+- A secure context (`https`, or localhost during development)
+- IndexedDB
+
+When these capabilities are absent, all workspace and cross-workspace-copy controls are hidden and the app continues using Browser storage exactly as before. Local-directory controls additionally require the File System Access API `showDirectoryPicker`. Google Drive controls require the deployment variables below, but do not depend on directory-picker support.
+
+## Google Cloud Setup
+
+1. Create or select a Google Cloud project.
+2. Enable the Google Drive API and Google Picker API.
+3. Configure the OAuth consent screen and declare `https://www.googleapis.com/auth/drive.file`.
+4. Create an OAuth 2.0 Web application client.
+5. Add authorized JavaScript origins. For development, add `http://localhost:5173`. For GitHub Pages, add the site origin, such as `https://wackyweasel.github.io`. Production and preview paths use the same origin.
+6. Create an API key and select **Websites** under application restrictions. Add both the app referrers (for example, `https://wackyweasel.github.io/*` and `http://localhost:5173/*`) and `https://docs.google.com/*`. Google Picker renders from a `docs.google.com` iframe and reports **API developer key is invalid** when that referrer is absent. Restrict API access to both Google Picker API and Google Drive API.
+7. Find the numeric Cloud project number. This is the Picker App ID. The App ID and OAuth client ID must belong to the same Cloud project.
+8. Set the following Vite variables locally or as GitHub Actions repository secrets:
+
+```dotenv
+VITE_GOOGLE_CLIENT_ID=example.apps.googleusercontent.com
+VITE_GOOGLE_API_KEY=example-restricted-browser-key
+VITE_GOOGLE_APP_ID=123456789012
+```
+
+These values identify a browser application and are included in the built JavaScript. They are not server secrets. The API key must therefore be protected with referrer and API restrictions. OAuth client secrets and refresh tokens must never be added to this app.

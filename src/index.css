@@ -1522,8 +1522,28 @@ td .inline-dice-token {
     transition: width 180ms ease-out;
   }
 
+  .health-bar__temporary-fill {
+    background-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-paper));
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--color-accent) 78%, var(--color-paper)) 0,
+      color-mix(in srgb, var(--color-accent) 78%, var(--color-paper)) 3px,
+      color-mix(in srgb, var(--color-accent) 42%, var(--color-paper)) 3px,
+      color-mix(in srgb, var(--color-accent) 42%, var(--color-paper)) 7px
+    );
+    bottom: 0;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 30%, transparent);
+    position: absolute;
+    top: 0;
+    transition: left 180ms ease-out, width 180ms ease-out;
+  }
+
   .health-bar__fill--scrubbing,
   .progress-bar__fill--scrubbing {
+    transition: none;
+  }
+
+  .health-bar__temporary-fill--scrubbing {
     transition: none;
   }
 
@@ -1595,6 +1615,12 @@ td .inline-dice-token {
   .progress-bar__readout strong {
     font-size: 12px;
     font-variant-numeric: tabular-nums;
+  }
+
+  .health-bar__temporary-readout {
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    margin-left: 4px;
   }
 
   .health-bar__readout,
@@ -2124,6 +2150,15 @@ td .inline-dice-token {
 .canvas-touch-surface,
 .canvas-touch-surface * {
   touch-action: none;
+}
+
+.camera-gesture-active .widget-texture-effect,
+.camera-gesture-active .widget-shadow-effect {
+  visibility: hidden;
+}
+
+.camera-gesture-active {
+  will-change: transform;
 }
 
 .canvas-workspace {

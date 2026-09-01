@@ -55,6 +55,10 @@ export default defineConfig({
         clientsClaim: false,
         skipWaiting: false,
         navigateFallback: `${base}index.html`,
+        navigateFallbackDenylist: [
+          /\/privacy\.html$/,
+          ...(base === '/UniversalCharacterSheet/' ? [/^\/UniversalCharacterSheet\/preview(?:\/|$)/] : []),
+        ],
         ignoreURLParametersMatching: [/^edge-check$/, /^utm_/, /^fbclid$/],
         globPatterns: ['**/*.{js,css,html,ico,jpg,jpeg,png,svg,webp,woff,woff2}'],
         globIgnores: ['**/apple-touch-icon.png', '**/favicon.svg', '**/pwa-*.png'],

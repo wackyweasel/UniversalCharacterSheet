@@ -75,6 +75,7 @@ interface TemplateStoreState {
   addImportedTemplate: (template: AnyTemplate) => void;
   removeTemplate: (id: string) => void;
   renameTemplate: (id: string, name: string) => void;
+  replaceTemplates: (templates: AnyTemplate[]) => void;
 }
 
 export const useTemplateStore = create<TemplateStoreState>((set) => {
@@ -227,6 +228,11 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
         persistTemplates(newTemplates);
         return { templates: newTemplates };
       });
+    },
+
+    replaceTemplates: (templates) => {
+      persistTemplates(templates);
+      set({ templates });
     },
   };
 });

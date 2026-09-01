@@ -1,4 +1,4 @@
-import { SVGProps } from 'react';
+import { ImgHTMLAttributes, SVGProps } from 'react';
 
 /**
  * Shared SVG icon set for app chrome (toolbars, modals, menus).
@@ -381,6 +381,19 @@ export function DownloadIcon(props: IconProps) {
       <path d="m7 10 5 5 5-5" />
       <path d="M5 21h14" />
     </Base>
+  );
+}
+
+export function GoogleDriveIcon({ className = '', ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      src={`${import.meta.env.BASE_URL}google-drive-logo.png`}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={`object-contain ${className}`}
+      {...props}
+    />
   );
 }
 

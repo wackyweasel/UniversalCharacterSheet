@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { memo, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
 import { Widget, WidgetType } from '../types';
@@ -96,7 +96,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'STEP_DICE': { width: 70, height: 40 },
 };
 
-export default function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
+function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
@@ -252,7 +252,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
   const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
   const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isWidgetEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
-  const renderedWidget = {
+  const renderedWidget = useMemo(() => ({
     ...widget,
     data: {
       ...widget.data,
@@ -260,7 +260,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
       showFieldControls: !isWidgetHeaderHidden,
       showTableEditButton: !isWidgetHeaderHidden,
     },
-  };
+  }), [isWidgetHeaderHidden, widget]);
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
@@ -921,7 +921,7 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
               style={{ backgroundColor: 'var(--color-paper)', ...borderRadiusStyle }}
             >
               <div
-                className="absolute inset-0"
+                className="widget-texture-effect absolute inset-0"
                 style={{
                   backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
                   ...groupTextureStyle,
@@ -1690,3 +1690,5 @@ export default function DraggableWidget({ widget, scale, isSearchTarget = false 
     </>
   );
 }
+
+export default memo(DraggableWidget);

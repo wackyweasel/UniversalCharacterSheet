@@ -56,8 +56,11 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
     updateItem(index, { name });
   };
 
-  const updateItemValue = (index: number, value: number) => {
-    updateItem(index, { value });
+  const updateItemValue = (index: number, value: number, showPositiveSign?: boolean) => {
+    updateItem(index, {
+      value,
+      ...(showPositiveSign === undefined ? {} : { showPositiveSign }),
+    });
   };
 
   const updateItem = (index: number, changes: Partial<NumberItem>) => {
@@ -213,8 +216,11 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                 <span className="w-12 flex-shrink-0 text-xs text-theme-muted">Value</span>
                   <LabeledNumberField
                   value={item.value}
-                  onChange={(value) => updateItemValue(idx, value)}
-                    onClear={() => updateItemValue(idx, item.minValue ?? 0)}
+                  onChange={(value, showPositiveSign) => updateItemValue(idx, value, showPositiveSign)}
+                    onClear={() => updateItemValue(idx, item.minValue ?? 0, false)}
+                    preservePositiveSign
+                    showPositiveSign={item.showPositiveSign}
+                    onPositiveSignChange={(showPositiveSign) => updateItemValue(idx, item.value, showPositiveSign)}
                   fieldLabel={item.valueLabel}
                   onFieldLabelChange={(valueLabel) => updateItem(idx, { valueLabel })}
                   formula={item.valueFormula}
@@ -313,4 +319,3 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

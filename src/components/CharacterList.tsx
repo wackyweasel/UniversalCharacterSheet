@@ -2,11 +2,12 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import packageInfo from '../../package.json';
 import { useStore } from '../store/useStore';
 import { THEMES, getShadowStyleCSS, getTextureCSS, isImageTexture, IMAGE_TEXTURES } from '../store/useThemeStore';
-import { getCustomTheme, useCustomThemeStore, type CustomTheme } from '../store/useCustomThemeStore';
-import { useTemplateStore, AnyTemplate } from '../store/useTemplateStore';
+import { getCustomTheme, useCustomThemeStore } from '../store/useCustomThemeStore';
+import { useTemplateStore } from '../store/useTemplateStore';
 import { useUserPresetStore, UserPreset } from '../store/useUserPresetStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { TelemetryEventInput, useTelemetryStore } from '../store/useTelemetryStore';
+import { useTimelineStore } from '../store/useTimelineStore';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import GallerySidebar from './GallerySidebar';
 import CharacterCreator from './CharacterCreator';
@@ -16,9 +17,15 @@ import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon, DotsVerticalIcon, Lay
 import { getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
-import { getCharacterTransferData, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
+import { getCharacterTransferData, getCustomThemeToImport, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
+import { createWorkspaceBackup, parseRestorableWorkspaceFile } from '../utils/workspaceBackup';
+import { getCachedGalleryTheme } from '../hooks/useGallery';
 import { useWorkspaceNavigation } from '../hooks/useWorkspaceNavigation';
 import { promptInstall, useInstallAvailability } from '../pwa/install';
+import StorageWorkspaceMenu from './StorageWorkspaceMenu';
+import CopyCharacterWorkspaceDialog from './CopyCharacterWorkspaceDialog';
+import { Copy } from 'lucide-react';
+import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
@@ -31,6 +38,23 @@ const TUTORIAL_DESCRIPTIONS = {
 };
 
 const CHANGELOG_ENTRIES = [
+  {
+    version: '1.5.0',
+    changes: [
+      'Added workspaces. A workspace is like a directory where you store all your UCS data.',
+      {
+        text: 'There are three types of workspaces:',
+        items: [
+          'Browser: The default option. All data is stored in the browser cache. It is the easiest to set up, but your data may be lost if you clear the cache, and it is limited to that browser and device.',
+          'Local workspace: Select a directory on your computer where your data is stored for a safer option that is still simple to use.',
+          'Google Drive: Link your Google Drive and create a workspace there to access your characters from any device. Your data synchronizes automatically.',
+        ],
+      },
+      'Greatly improved character sheet performance, especially when panning and zooming on older devices.',
+      'Numbers in number tracker, number display and mixed fields widgets can be displayed with their + sign if they are positive (+5 instead of 5)',
+      'Added temporary HP to the health bar widget',
+    ],
+  },
   {
     version: '1.4.4',
     changes: [
@@ -166,28 +190,14 @@ function getInitialDarkMode(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-// Backup data structure
-interface BackupData {
-  version: 1;
-  timestamp: string;
-  characters: Character[];
-  customThemes: Record<string, any>;
-  templates?: AnyTemplate[];
-  userPresets?: UserPreset[];
-}
-
 type CharacterImportSource = 'json_file' | 'raw_json';
-
-interface PendingCharacterImport {
-  character: Character;
-  source: CharacterImportSource;
-  customTheme: CustomTheme;
-}
 
 // Helper to get theme colors for a character
 function getThemeStyles(themeId?: string) {
   // First check if it's a custom theme
-  const customTheme = themeId ? getCustomTheme(themeId) : undefined;
+  const customTheme = themeId
+    ? getCustomTheme(themeId) ?? getCachedGalleryTheme(themeId)
+    : undefined;
   if (customTheme) {
     const shadowCSS = getShadowStyleCSS(customTheme.shadowStyle || 'hard', customTheme.colors.glow || 'transparent');
     const textureKey = customTheme.cardTexture || 'none';
@@ -248,6 +258,7 @@ export default function CharacterList() {
   const removeUserPreset = useUserPresetStore((state) => state.removePreset);
   
   const characters = useStore((state) => state.characters);
+  const eventsByCharacter = useTimelineStore((state) => state.eventsByCharacter);
   const createCharacter = useStore((state) => state.createCharacter);
   const createCharacterFromPreset = useStore((state) => state.createCharacterFromPreset);
   const replaceBlankCharacterFromPreset = useStore((state) => state.replaceBlankCharacterFromPreset);
@@ -264,10 +275,28 @@ export default function CharacterList() {
   const setMode = useStore((state) => state.setMode);
   const { setPlayLayout } = useWorkspaceNavigation();
   const installAvailability = useInstallAvailability();
+  const headerActionIds = [
+    'workspace',
+    ...(installAvailability === 'prompt' || installAvailability === 'instructions' ? ['install'] : []),
+    'discover',
+    'tutorials',
+    'changelog',
+    'backup',
+    'feedback',
+    'reddit',
+    'donate',
+  ];
+  const inlineHeaderActionIds = new Set(headerActionIds.slice(0, 5));
+  const overflowHeaderActionIds = new Set(headerActionIds.slice(5));
   const transientCharacterIds = useStore((state) => state.transientCharacterIds);
   const characterCreatorRequest = useStore((state) => state.characterCreatorRequest);
   const clearCharacterCreatorRequest = useStore((state) => state.clearCharacterCreatorRequest);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
+  const restoreActiveWorkspace = useStorageWorkspaceStore((state) => state.restoreActiveWorkspace);
+  const supportsExternalWorkspaces = useStorageWorkspaceStore((state) => state.supportsExternalWorkspaces);
+  const activeStorageWorkspaceProvider = useStorageWorkspaceStore((state) => (
+    state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.provider ?? 'browser'
+  ));
   
   // Tutorial state from store
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -320,7 +349,7 @@ export default function CharacterList() {
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
   const [rawImportValue, setRawImportValue] = useState('');
-  const [pendingCharacterImport, setPendingCharacterImport] = useState<PendingCharacterImport | null>(null);
+  const [copyWorkspaceCharacter, setCopyWorkspaceCharacter] = useState<Character | null>(null);
   const importDropdownRef = useRef<HTMLDivElement>(null);
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
@@ -806,7 +835,7 @@ export default function CharacterList() {
     if (isCurrentTutorialStep('various-open-backup')) {
       setShowGallery(false);
       setShowBackupModal(false);
-      setShowHeaderMenu(window.innerWidth < 640);
+      setShowHeaderMenu(overflowHeaderActionIds.has('backup'));
       setShowMobileTutorialOptions(false);
     }
 
@@ -815,7 +844,7 @@ export default function CharacterList() {
       setShowBackupModal(false);
       setShowHeaderMenu(true);
     }
-  }, [tutorialStep]);
+  }, [tutorialStep, installAvailability]);
 
   useEffect(() => {
     if (!isCurrentTutorialStep('various-print-mode')) return;
@@ -980,9 +1009,9 @@ export default function CharacterList() {
 
   const handleCharacterImport = (character: Character, source: CharacterImportSource) => {
     const embeddedTheme = getEmbeddedCustomTheme(character);
-    if (embeddedTheme && !customThemes.some((theme) => theme.id === embeddedTheme.id)) {
-      setPendingCharacterImport({ character, source, customTheme: embeddedTheme });
-      return;
+    const themeToImport = getCustomThemeToImport(character, customThemes);
+    if (themeToImport) {
+      addCustomTheme(themeToImport);
     }
 
     const defaultTheme = darkMode ? 'classic-dark' : 'default';
@@ -1022,14 +1051,17 @@ export default function CharacterList() {
   };
 
   const handleBackup = () => {
-    const backupData: BackupData = {
-      version: 1,
-      timestamp: new Date().toISOString(),
-      characters: characters,
-      customThemes: customThemes,
-      templates: templates,
-      userPresets: userPresets
-    };
+    const persistedCharacters = characters.filter((character) => !transientCharacterIds.includes(character.id));
+    const persistedCharacterIds = new Set(persistedCharacters.map((character) => character.id));
+    const backupData = createWorkspaceBackup({
+      characters: persistedCharacters,
+      eventsByCharacter: Object.fromEntries(
+        Object.entries(eventsByCharacter).filter(([characterId]) => persistedCharacterIds.has(characterId)),
+      ),
+      customThemes,
+      templates,
+      userPresets,
+    });
     
     const dataStr = JSON.stringify(backupData, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1046,7 +1078,7 @@ export default function CharacterList() {
       category: 'app',
       source: 'backup_modal',
       metadata: {
-        characterCount: characters.length,
+        characterCount: persistedCharacters.length,
         templateCount: templates.length,
         userPresetCount: userPresets.length,
       },
@@ -1058,49 +1090,30 @@ export default function CharacterList() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
+      let backupData;
       try {
-        const backupData = JSON.parse(event.target?.result as string) as BackupData;
-        
-        // Validate backup structure
-        if (!backupData.characters || !Array.isArray(backupData.characters)) {
-          alert('Invalid backup file format');
-          return;
-        }
-        
-        // Confirm restore
-        const templateCount = backupData.templates?.length || 0;
-        const userPresetCount = backupData.userPresets?.length || 0;
-        const confirmRestore = window.confirm(
-          `This will replace all your current data with the backup from ${backupData.timestamp ? new Date(backupData.timestamp).toLocaleString() : 'unknown date'}.\n\n` +
-          `Backup contains ${backupData.characters.length} character(s)` +
-          (templateCount > 0 ? `, ${templateCount} template(s)` : '') +
-          (userPresetCount > 0 ? `, ${userPresetCount} user preset(s)` : '') + `.\n\n` +
-          `Are you sure you want to continue?`
-        );
-        
-        if (!confirmRestore) return;
-        
-        // Restore characters
-        localStorage.setItem('ucs:store', JSON.stringify({
-          characters: backupData.characters,
-          activeCharacterId: null
-        }));
-        
-        // Restore custom themes if present
-        if (backupData.customThemes) {
-          localStorage.setItem('ucs:customThemes', JSON.stringify(backupData.customThemes));
-        }
-        
-        // Restore templates if present
-        if (backupData.templates && Array.isArray(backupData.templates)) {
-          localStorage.setItem('ucs:templates', JSON.stringify({ templates: backupData.templates }));
-        }
-        
-        // Restore user presets if present
-        if (backupData.userPresets && Array.isArray(backupData.userPresets)) {
-          localStorage.setItem('ucs:userPresets', JSON.stringify({ userPresets: backupData.userPresets }));
-        }
+        backupData = parseRestorableWorkspaceFile(JSON.parse(event.target?.result as string));
+      } catch (error) {
+        alert('Failed to parse backup file');
+        console.error(error);
+        return;
+      }
+
+      const templateCount = backupData.templates?.length || 0;
+      const userPresetCount = backupData.userPresets?.length || 0;
+      const confirmRestore = window.confirm(
+        `This will replace all your current data with the ${backupData.sourceFormat} file from ${new Date(backupData.timestamp).toLocaleString()}.\n\n` +
+        `File contains ${backupData.characters.length} character(s)` +
+        (templateCount > 0 ? `, ${templateCount} template(s)` : '') +
+        (userPresetCount > 0 ? `, ${userPresetCount} user preset(s)` : '') + `.\n\n` +
+        `Are you sure you want to continue?`
+      );
+
+      if (!confirmRestore) return;
+
+      try {
+        await restoreActiveWorkspace(backupData);
 
         recordCharacterListEvent({
           eventName: 'backup_restored',
@@ -1112,12 +1125,10 @@ export default function CharacterList() {
             userPresetCount,
           },
         });
-        
-        // Reload the page to apply changes
-        window.setTimeout(() => window.location.reload(), 250);
-      } catch (err) {
-        alert('Failed to parse backup file');
-        console.error(err);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The workspace could not be saved.';
+        alert(`Failed to restore workspace: ${message}`);
+        console.error(error);
       }
     };
     reader.readAsText(file);
@@ -1130,6 +1141,13 @@ export default function CharacterList() {
 
   return (
     <div ref={listScrollRef} className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+      {copyWorkspaceCharacter && (
+        <CopyCharacterWorkspaceDialog
+          character={copyWorkspaceCharacter}
+          darkMode={darkMode}
+          onClose={() => setCopyWorkspaceCharacter(null)}
+        />
+      )}
       <input
         ref={fileInputRef}
         type="file"
@@ -1157,14 +1175,17 @@ export default function CharacterList() {
             <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z" />
           </svg>
           <div className="min-w-0 flex-1 pl-1 sm:pl-2">
-            <h1 className={`font-heading text-lg font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-              Universal Character Sheet
+            <h1 className={`flex flex-wrap items-baseline gap-x-2 font-heading text-lg font-bold leading-tight sm:text-3xl ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
+              <span>Universal Character Sheet</span>
+              <span className={`font-body text-[10px] font-normal ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
+                v{packageInfo.version}
+              </span>
             </h1>
             <p className={`mt-1 hidden max-w-2xl font-body text-sm leading-relaxed sm:block ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
               Design, play, and share flexible character sheets for any tabletop RPG.
             </p>
           </div>
-          <div className="flex flex-none flex-col items-center gap-1">
+          <div className="flex flex-none items-center">
             <button
               type="button"
               role="switch"
@@ -1195,41 +1216,26 @@ export default function CharacterList() {
                 )}
               </span>
             </button>
-            <span className={`text-[10px] font-body ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
-              v{packageInfo.version}
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowChangelog(true)}
-              aria-haspopup="dialog"
-              aria-expanded={showChangelog}
-              className={`text-[10px] font-body underline underline-offset-2 transition-colors ${darkMode ? 'text-white/60 hover:text-white' : 'text-theme-accent hover:text-theme-ink'}`}
-            >
-              Changelog
-            </button>
           </div>
         </header>
         <div className="w-full">
-          <div className={`grid grid-cols-3 gap-1.5 lg:gap-2 ${
-            installAvailability === 'prompt' || installAvailability === 'instructions'
-              ? 'lg:grid-cols-7'
-              : 'lg:grid-cols-6'
-          }`}>
-            {(installAvailability === 'prompt' || installAvailability === 'instructions') && (
+          <div className="grid grid-cols-3 gap-1.5 lg:grid-cols-6 lg:gap-2">
+            <StorageWorkspaceMenu darkMode={darkMode} />
+            {inlineHeaderActionIds.has('install') && (
               <Tooltip content="Install on this device">
                 <button
                   type="button"
                   onClick={() => {
                     if (installAvailability === 'prompt') {
                       void promptInstall();
-                    } else {
+                    } else if (installAvailability === 'instructions') {
                       setShowInstallInstructions(true);
                     }
                   }}
-                  className={`col-span-3 w-full min-w-0 flex items-center justify-center gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button whitespace-nowrap transition-colors active:translate-y-px lg:col-span-1 lg:w-auto ${
+                  className={`flex h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                     darkMode
                       ? 'text-white border border-white/30 bg-black hover:bg-white/10'
-                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                      : 'text-theme-ink border border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
                   }`}
                 >
                   <DownloadIcon className="h-5 w-5" />
@@ -1247,10 +1253,10 @@ export default function CharacterList() {
                   }
                 }}
                 data-tutorial="gallery-button"
-                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                className={`flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                   darkMode 
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                    : 'text-theme-ink border border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
                 } ${isCurrentTutorialStep('various-open-gallery') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1263,26 +1269,32 @@ export default function CharacterList() {
             <div className="relative" ref={tutorialDropdownRef}>
               <Tooltip content="Tutorials">
                 <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={showTutorialDropdown}
                   onClick={() => {
                     setShowTutorialDropdown((current) => !current);
                     setShowHeaderMenu(false);
                     setShowMobileTutorialOptions(false);
                   }}
-                  className={`w-full min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                  className={`flex h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                     darkMode 
                       ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                      : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                      : 'text-theme-ink border border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  <span>Tutorials</span>
+                    <span className="flex items-center gap-1">
+                      <span>Tutorials</span>
+                      <ChevronDownIcon className={`h-3.5 w-3.5 flex-none transition-transform duration-200 ${showTutorialDropdown ? 'rotate-180' : ''}`} />
+                    </span>
                 </button>
               </Tooltip>
               {showTutorialDropdown && (
                 <div 
-                  className={`absolute left-0 sm:left-auto sm:right-0 top-full mt-2 min-w-[180px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
+                  className={`absolute left-auto right-0 top-full mt-2 min-w-[180px] max-w-[calc(100vw-1rem)] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
                     darkMode 
                       ? 'bg-black border border-white/30' 
                       : 'bg-white border border-gray-300'
@@ -1331,28 +1343,47 @@ export default function CharacterList() {
                 </div>
               )}
             </div>
-            {/* Backup Button */}
-            <Tooltip content="Backup &amp; Restore">
+            <Tooltip content="View changes by version">
               <button
-                onClick={() => {
-                  setShowBackupModal(true);
-                  if (isCurrentTutorialStep('various-open-backup')) {
-                    advanceTutorial();
-                  }
-                }}
-                data-tutorial="backup-button"
-                  className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
-                  darkMode 
-                    ? 'text-white border border-white/30 bg-black hover:bg-white/10' 
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
-                } ${isCurrentTutorialStep('various-open-backup') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                type="button"
+                onClick={() => setShowChangelog(true)}
+                aria-haspopup="dialog"
+                aria-expanded={showChangelog}
+                className={`flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-button border px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
+                  darkMode
+                    ? 'border-white/30 bg-black text-white hover:bg-white/10'
+                    : 'border-theme-border bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 4h12M6 9h12M6 14h7M5 20h14" />
                 </svg>
-                <span>Backup</span>
+                <span>Changelog</span>
               </button>
             </Tooltip>
+            {inlineHeaderActionIds.has('backup') && (
+              <Tooltip content="Backup &amp; Restore">
+                <button
+                  onClick={() => {
+                    setShowBackupModal(true);
+                    if (isCurrentTutorialStep('various-open-backup')) {
+                      advanceTutorial();
+                    }
+                  }}
+                  data-tutorial="backup-button"
+                  className={`flex h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
+                    darkMode
+                      ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                      : 'text-theme-ink border border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+                  } ${isCurrentTutorialStep('various-open-backup') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  <span>Backup</span>
+                </button>
+              </Tooltip>
+            )}
             <Tooltip content="Share feedback">
               <a
                 href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
@@ -1363,8 +1394,7 @@ export default function CharacterList() {
                   category: 'app',
                   source: 'header_menu',
                 })}
-                data-tutorial="feedback-button"
-                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                className={`hidden min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                   isCurrentTutorialStep('various-feedback')
                     ? 'bg-blue-500 text-white font-bold'
                     : darkMode
@@ -1388,7 +1418,7 @@ export default function CharacterList() {
                   category: 'app',
                   source: 'header_menu',
                 })}
-                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                className={`hidden min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                   darkMode
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10'
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -1410,7 +1440,7 @@ export default function CharacterList() {
                   category: 'app',
                   source: 'header_menu',
                 })}
-                className={`min-w-0 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 text-[10px] sm:text-sm font-body rounded-button transition-colors active:translate-y-px ${
+                className={`hidden min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                   darkMode
                     ? 'text-white border border-white/30 bg-black hover:bg-white/10'
                     : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
@@ -1422,32 +1452,41 @@ export default function CharacterList() {
                 <span>Donate</span>
               </a>
             </Tooltip>
-          </div>
-          
-          <div className="hidden relative" ref={headerMenuRef}>
-            <Tooltip content="Menu">
+
+          {overflowHeaderActionIds.size > 0 && (
+          <div className="relative min-w-0" ref={headerMenuRef}>
+            <Tooltip content="More actions">
               <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={showHeaderMenu}
                 onClick={() => {
                   setShowHeaderMenu((current) => !current);
                   setShowTutorialDropdown(false);
                   setShowMobileTutorialOptions(false);
                 }}
-                className={`flex items-center justify-center px-2 py-2 rounded-button transition-colors shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                className={`flex h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                   darkMode 
                     ? 'bg-black text-white hover:bg-white/10 border border-white/30' 
-                    : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper border-[length:var(--border-width)] border-theme-border'
+                    : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper border border-theme-border'
                 }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                  <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+                  <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+                  <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
                 </svg>
+                <span className="flex items-center gap-1">
+                  <span>More</span>
+                  <ChevronDownIcon className={`h-3.5 w-3.5 flex-none transition-transform duration-200 ${showHeaderMenu ? 'rotate-180' : ''}`} />
+                </span>
               </button>
             </Tooltip>
             
             {/* Dropdown menu */}
             {showHeaderMenu && (
               <div 
-                className={`absolute right-0 top-full mt-2 min-w-[160px] rounded-button shadow-lg overflow-hidden z-50 animate-dropdown-in ${
+                className={`absolute right-0 top-full z-50 mt-2 flex max-h-[calc(100dvh-7rem)] min-w-[190px] flex-col overflow-y-auto rounded-button shadow-lg animate-dropdown-in ${
                   darkMode 
                     ? 'bg-black border border-white/30' 
                     : 'bg-white border border-gray-300'
@@ -1458,7 +1497,7 @@ export default function CharacterList() {
                     toggleDarkMode();
                     setShowHeaderMenu(false);
                   }}
-                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`hidden w-full px-4 py-3 text-left text-sm font-body items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -1485,7 +1524,7 @@ export default function CharacterList() {
                     setShowHeaderMenu(false);
                   }}
                   data-tutorial="gallery-button-mobile"
-                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`hidden w-full px-4 py-3 text-left text-sm font-body items-center gap-3 transition-colors ${
                     isCurrentTutorialStep('various-open-gallery')
                       ? 'bg-blue-500 text-white font-bold'
                       : darkMode 
@@ -1503,7 +1542,7 @@ export default function CharacterList() {
                   onClick={() => {
                     setShowMobileTutorialOptions((current) => !current);
                   }}
-                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`hidden w-full px-4 py-3 text-left text-sm font-body items-center gap-3 transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -1574,7 +1613,7 @@ export default function CharacterList() {
                     setShowHeaderMenu(false);
                   }}
                   data-tutorial="feedback-button"
-                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`order-2 flex w-full items-center gap-3 px-4 py-3 text-left font-body text-sm transition-colors ${
                     isCurrentTutorialStep('various-feedback')
                       ? 'bg-blue-500 text-white font-bold'
                       : darkMode 
@@ -1599,7 +1638,7 @@ export default function CharacterList() {
                     });
                     setShowHeaderMenu(false);
                   }}
-                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`order-3 flex w-full items-center gap-3 px-4 py-3 text-left font-body text-sm transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -1610,28 +1649,30 @@ export default function CharacterList() {
                   </svg>
                   <span>Reddit</span>
                 </a>
-                <button
-                  onClick={() => {
-                    setShowBackupModal(true);
-                    if (isCurrentTutorialStep('various-open-backup')) {
-                      advanceTutorial();
-                    }
-                    setShowHeaderMenu(false);
-                  }}
-                  data-tutorial="backup-button-mobile"
-                  className={`sm:hidden w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
-                    isCurrentTutorialStep('various-open-backup')
-                      ? 'bg-blue-500 text-white font-bold'
-                      : darkMode 
-                        ? 'text-white hover:bg-white/10' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  <span>Backup</span>
-                </button>
+                {overflowHeaderActionIds.has('backup') && (
+                  <button
+                    onClick={() => {
+                      setShowBackupModal(true);
+                      if (isCurrentTutorialStep('various-open-backup')) {
+                        advanceTutorial();
+                      }
+                      setShowHeaderMenu(false);
+                    }}
+                    data-tutorial="backup-button"
+                    className={`order-1 flex w-full items-center gap-3 px-4 py-3 text-left font-body text-sm transition-colors ${
+                      isCurrentTutorialStep('various-open-backup')
+                        ? 'bg-blue-500 text-white font-bold'
+                        : darkMode
+                          ? 'text-white hover:bg-white/10'
+                          : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <span>Backup</span>
+                  </button>
+                )}
                 <a
                   href="https://buymeacoffee.com/wackyweasel"
                   target="_blank"
@@ -1644,7 +1685,7 @@ export default function CharacterList() {
                     });
                     setShowHeaderMenu(false);
                   }}
-                  className={`w-full px-4 py-3 text-left text-sm font-body flex items-center gap-3 transition-colors ${
+                  className={`order-4 flex w-full items-center gap-3 px-4 py-3 text-left font-body text-sm transition-colors ${
                     darkMode 
                       ? 'text-white hover:bg-white/10' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -1657,6 +1698,8 @@ export default function CharacterList() {
                 </a>
               </div>
             )}
+          </div>
+          )}
           </div>
         </div>
       </div>
@@ -1730,7 +1773,9 @@ export default function CharacterList() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
         {characters.map((char) => {
           const cardStyles = getThemeStyles(char.theme);
-          const customTheme = char.theme ? getCustomTheme(char.theme) : undefined;
+          const customTheme = char.theme
+            ? getCustomTheme(char.theme) ?? getCachedGalleryTheme(char.theme)
+            : undefined;
           const textureKey = customTheme?.cardTexture || 'none';
           const hasImageTexture = isImageTexture(textureKey);
           const widgetCount = char.sheets.reduce((sum, s) => sum + s.widgets.length, 0);
@@ -1927,6 +1972,33 @@ export default function CharacterList() {
                           Duplicate
                         </button>
                       </Tooltip>
+                      {supportsExternalWorkspaces && (
+                        <Tooltip content="Copy this character to another workspace" placement="left">
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setCopyWorkspaceCharacter(char);
+                              setOpenDropdown(null);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm font-medium flex items-center gap-2 transition-colors"
+                            style={{
+                              color: 'var(--card-ink)',
+                              backgroundColor: 'var(--card-background)'
+                            }}
+                            onMouseEnter={(event) => {
+                              event.currentTarget.style.backgroundColor = 'var(--card-accent)';
+                              event.currentTarget.style.color = 'var(--card-background)';
+                            }}
+                            onMouseLeave={(event) => {
+                              event.currentTarget.style.backgroundColor = 'var(--card-background)';
+                              event.currentTarget.style.color = 'var(--card-ink)';
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy to Workspace
+                          </button>
+                        </Tooltip>
+                      )}
                       <Tooltip content="Save this character as a reusable preset (Presets are selectable at character creation)" placement="left">
                         <button
                           onClick={(e) => {
@@ -2404,7 +2476,7 @@ export default function CharacterList() {
             </div>
             
             {/* Warning Message */}
-            <div className={`rounded-theme p-4 mb-6 ${
+            {activeStorageWorkspaceProvider === 'browser' && <div className={`rounded-theme p-4 mb-6 ${
               darkMode 
                 ? 'bg-yellow-900/30 border border-yellow-500/30' 
                 : 'bg-yellow-500/10 border border-yellow-500/30'
@@ -2430,13 +2502,13 @@ export default function CharacterList() {
                   })()}
                 </div>
               </div>
-            </div>
+            </div>}
             
             {/* Backup Section */}
             <div className="mb-4">
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Create Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Download a backup file containing all your characters and custom themes.
+                Download all characters, custom themes, templates, and presets in this workspace.
               </p>
               <button
                 onClick={handleBackup}
@@ -2459,7 +2531,7 @@ export default function CharacterList() {
             <div>
               <h4 className={`font-body font-semibold mb-2 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>Restore from Backup</h4>
               <p className={`font-body text-sm mb-3 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-                Upload a backup file to restore your characters and themes. <span className="text-red-500 font-semibold">This will replace all current data.</span>
+                Replace this workspace with the characters, timelines, themes, templates, and presets from a backup or workspace file, including a workspace JSON file downloaded from Google Drive. <span className="text-red-500 font-semibold">This cannot be undone.</span>
               </p>
               <label className={`w-full flex items-center justify-center gap-2 px-4 py-3 font-body rounded-theme transition-colors font-bold cursor-pointer ${
                 darkMode 
@@ -2769,76 +2841,6 @@ export default function CharacterList() {
         </>
       )}
 
-      {pendingCharacterImport && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-[60] animate-fade-in"
-            onClick={() => setPendingCharacterImport(null)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="custom-theme-import-title"
-            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-theme rounded-theme p-6 z-[60] w-[90vw] max-w-[460px] animate-fade-in ${
-              darkMode
-                ? 'bg-black border border-white/30'
-                : 'bg-theme-paper border-[length:var(--border-width)] border-theme-border'
-            }`}
-          >
-            <h3 id="custom-theme-import-title" className={`font-heading font-bold text-xl mb-3 ${darkMode ? 'text-white' : 'text-theme-ink'}`}>
-              Custom Theme Found
-            </h3>
-            <p className={`text-sm font-body ${darkMode ? 'text-white/75' : 'text-theme-ink'}`}>
-              This character contains the custom theme &ldquo;{pendingCharacterImport.customTheme.name}&rdquo;.
-            </p>
-            <p className={`text-sm font-body mt-2 ${darkMode ? 'text-white/60' : 'text-theme-muted'}`}>
-              Add this theme to your library to keep the character&rsquo;s appearance, or use {darkMode ? 'Classic Dark' : 'Classic'} instead.
-            </p>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  importCharacterWithTheme(
-                    pendingCharacterImport.character,
-                    pendingCharacterImport.source,
-                    darkMode ? 'classic-dark' : 'default',
-                  );
-                  setPendingCharacterImport(null);
-                }}
-                className={`px-4 py-2 font-body rounded-button transition-colors ${
-                  darkMode
-                    ? 'text-white border border-white/30 hover:bg-white/10'
-                    : 'text-theme-ink border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent/20'
-                }`}
-              >
-                Use {darkMode ? 'Classic Dark' : 'Classic'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!customThemes.some((theme) => theme.id === pendingCharacterImport.customTheme.id)) {
-                    addCustomTheme(pendingCharacterImport.customTheme);
-                  }
-                  importCharacterWithTheme(
-                    pendingCharacterImport.character,
-                    pendingCharacterImport.source,
-                    pendingCharacterImport.customTheme.id,
-                  );
-                  setPendingCharacterImport(null);
-                }}
-                className={`px-4 py-2 font-body rounded-button transition-colors font-bold ${
-                  darkMode
-                    ? 'bg-white text-black hover:bg-white/80'
-                    : 'bg-theme-accent text-theme-paper hover:bg-theme-accent-hover'
-                }`}
-              >
-                Add Theme &amp; Import
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Tutorial Bubble */}
       {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
       </div>
@@ -2859,6 +2861,4 @@ export default function CharacterList() {
     </div>
   );
 }
-
-
 

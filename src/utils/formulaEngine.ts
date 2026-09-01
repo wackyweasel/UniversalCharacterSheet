@@ -157,6 +157,7 @@ function getFieldValue(data: WidgetData, field: string): number | undefined {
     case 'minValue': return typeof data.minValue === 'number' ? data.minValue : undefined;
     case 'maxValue': return typeof data.maxValue === 'number' ? data.maxValue : undefined;
     case 'currentValue': return typeof data.currentValue === 'number' ? data.currentValue : undefined;
+    case 'temporaryValue': return typeof data.temporaryValue === 'number' ? data.temporaryValue : undefined;
     case 'increment': return typeof data.increment === 'number' ? data.increment : undefined;
     case 'maxPool': return typeof data.maxPool === 'number' ? data.maxPool : undefined;
     case 'currentPool': return typeof data.currentPool === 'number' ? data.currentPool : undefined;
@@ -811,7 +812,7 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
           }
 
           const currentVal = getFieldValue(widget.data, field);
-          const resolvedValue = field === 'localCapacity' || field === 'globalCapacity'
+          const resolvedValue = field === 'localCapacity' || field === 'globalCapacity' || field === 'temporaryValue'
             ? Math.max(0, computed)
             : computed;
           if (currentVal !== resolvedValue) {
@@ -820,6 +821,7 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
               case 'maxValue': updates.maxValue = resolvedValue; break;
               case 'minValue': updates.minValue = resolvedValue; break;
               case 'currentValue': updates.currentValue = resolvedValue; break;
+              case 'temporaryValue': updates.temporaryValue = resolvedValue; break;
               case 'increment': updates.increment = resolvedValue; break;
               case 'maxPool': updates.maxPool = resolvedValue; break;
               case 'currentPool': updates.currentPool = resolvedValue; break;

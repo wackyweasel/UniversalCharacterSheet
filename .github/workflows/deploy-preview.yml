@@ -33,6 +33,9 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_URL: /UniversalCharacterSheet/preview/
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
+          VITE_GOOGLE_APP_ID: ${{ secrets.VITE_GOOGLE_APP_ID }}
 
       - name: Deploy to GitHub Pages (preview subdirectory)
         uses: peaceiris/actions-gh-pages@v4

@@ -163,7 +163,14 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
               <span className="w-16 flex-shrink-0 text-xs text-theme-muted">Value</span>
               <LabeledNumberField
                 value={field.value}
-                onChange={(value) => updateField(index, { ...field, value: clampMixedFieldValue(value, field.minValue ?? Number.NEGATIVE_INFINITY, field.maxValue ?? Number.POSITIVE_INFINITY) })}
+                onChange={(value, showPositiveSign) => updateField(index, {
+                  ...field,
+                  value: clampMixedFieldValue(value, field.minValue ?? Number.NEGATIVE_INFINITY, field.maxValue ?? Number.POSITIVE_INFINITY),
+                  ...(showPositiveSign === undefined ? {} : { showPositiveSign }),
+                })}
+                preservePositiveSign
+                showPositiveSign={field.showPositiveSign}
+                onPositiveSignChange={(showPositiveSign) => updateField(index, { ...field, showPositiveSign })}
                 fieldLabel={field.valueLabel}
                 onFieldLabelChange={(valueLabel) => updateField(index, { ...field, valueLabel })}
                 formula={field.valueFormula}
