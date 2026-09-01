@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTimelineStore, useCurrentCharacterEvents, TimelineEvent } from '../store/useTimelineStore';
+import {
+  getTimelineDayKey,
+  useTimelineStore,
+  useCurrentCharacterEvents,
+  TimelineEvent,
+} from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
-import { XIcon } from './icons';
+import { TrashIcon, XIcon } from './icons';
 
 function formatClockTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -11,11 +16,6 @@ function formatClockTime(timestamp: number): string {
     minute: '2-digit',
     second: '2-digit',
   });
-}
-
-function getDayKey(timestamp: number): string {
-  const date = new Date(timestamp);
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
 function formatDayHeading(timestamp: number): string {
@@ -99,6 +99,7 @@ export default function TimelineSidebar() {
   const showFormulas = useTimelineStore((s) => s.showFormulas);
   const toggleShowFormulas = useTimelineStore((s) => s.toggleShowFormulas);
   const clearEvents = useTimelineStore((s) => s.clearEvents);
+  const clearEventsForDay = useTimelineStore((s) => s.clearEventsForDay);
   const removeEvent = useTimelineStore((s) => s.removeEvent);
   const restoreEvents = useTimelineStore((s) => s.restoreEvents);
   const setOpen = useTimelineStore((s) => s.setOpen);
@@ -108,6 +109,7 @@ export default function TimelineSidebar() {
   ));
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [confirmingClearDay, setConfirmingClearDay] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
   const [isAtLatest, setIsAtLatest] = useState(true);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -137,7 +139,7 @@ export default function TimelineSidebar() {
   );
 
   const eventGroups = useMemo(() => displayedEvents.reduce<EventGroup[]>((groups, event) => {
-    const key = getDayKey(event.timestamp);
+    const key = getTimelineDayKey(event.timestamp);
     const currentGroup = groups[groups.length - 1];
     if (currentGroup?.key === key) {
       currentGroup.events.push(event);
@@ -173,6 +175,8 @@ export default function TimelineSidebar() {
       if (event.key !== 'Escape') return;
       if (confirmingClear) {
         setConfirmingClear(false);
+      } else if (confirmingClearDay) {
+        setConfirmingClearDay(null);
       } else {
         setOpen(false);
       }
@@ -180,12 +184,13 @@ export default function TimelineSidebar() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmingClear, isOpen, setOpen]);
+  }, [confirmingClear, confirmingClearDay, isOpen, setOpen]);
 
   useEffect(() => {
     if (isOpen) return;
     setSearchQuery('');
     setConfirmingClear(false);
+    setConfirmingClearDay(null);
     setUndoState(null);
   }, [isOpen]);
 
@@ -231,12 +236,29 @@ export default function TimelineSidebar() {
     const removedEvents = [...events];
     clearEvents(activeCharacterId);
     setConfirmingClear(false);
+    setConfirmingClearDay(null);
     setSearchQuery('');
     setUndoState({
       events: removedEvents,
       message: `${removedEvents.length} ${removedEvents.length === 1 ? 'event' : 'events'} cleared`,
     });
   };
+
+  const handleClearDay = useCallback((dayKey: string, dayLabel: string) => {
+    if (!activeCharacterId) return;
+    const removedEvents = events.filter((event) => getTimelineDayKey(event.timestamp) === dayKey);
+    if (removedEvents.length === 0) {
+      setConfirmingClearDay(null);
+      return;
+    }
+
+    clearEventsForDay(activeCharacterId, dayKey);
+    setConfirmingClearDay(null);
+    setUndoState({
+      events: removedEvents,
+      message: `${removedEvents.length} ${removedEvents.length === 1 ? 'event' : 'events'} from ${dayLabel} cleared`,
+    });
+  }, [activeCharacterId, clearEventsForDay, events]);
 
   const handleUndo = () => {
     if (!activeCharacterId || !undoState) return;
@@ -341,7 +363,10 @@ export default function TimelineSidebar() {
 
             <button
               type="button"
-              onClick={() => setConfirmingClear(true)}
+              onClick={() => {
+                setConfirmingClearDay(null);
+                setConfirmingClear(true);
+              }}
               className="h-8 ml-auto px-2 text-xs text-theme-muted font-body hover:text-red-500 transition-colors whitespace-nowrap"
             >
               Clear all…
@@ -412,26 +437,74 @@ export default function TimelineSidebar() {
               </button>
             </div>
           ) : (
-            eventGroups.map((group) => (
-              <section key={group.key} aria-labelledby={`timeline-day-${group.key}`}>
-                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 py-2 bg-theme-paper border-b border-theme-border">
-                  <h3
-                    id={`timeline-day-${group.key}`}
-                    className="text-[11px] font-bold uppercase tracking-widest text-theme-muted font-heading"
-                  >
-                    {group.label}
-                  </h3>
-                  <span className="text-[11px] text-theme-muted font-body">
-                    {group.events.length} {group.events.length === 1 ? 'event' : 'events'}
-                  </span>
-                </div>
-                <div role="list">
-                  {group.events.map((event) => (
-                    <EventItem key={event.id} event={event} onDelete={handleDeleteEvent} />
-                  ))}
-                </div>
-              </section>
-            ))
+            eventGroups.map((group) => {
+              const dayEventCount = events.filter(
+                (event) => getTimelineDayKey(event.timestamp) === group.key,
+              ).length;
+
+              return (
+                <section key={group.key} aria-labelledby={`timeline-day-${group.key}`}>
+                  <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 py-2 bg-theme-paper border-b border-theme-border">
+                    <h3
+                      id={`timeline-day-${group.key}`}
+                      className="text-[11px] font-bold uppercase tracking-widest text-theme-muted font-heading"
+                    >
+                      {group.label}
+                    </h3>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[11px] text-theme-muted font-body">
+                        {group.events.length} {group.events.length === 1 ? 'event' : 'events'}
+                      </span>
+                      <Tooltip content={`Delete all events from ${group.label}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmingClear(false);
+                            setConfirmingClearDay((currentDay) => (
+                              currentDay === group.key ? null : group.key
+                            ));
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-button text-theme-muted hover:text-white hover:bg-red-500 transition-colors"
+                          aria-label={`Delete all events from ${group.label}`}
+                          title={`Delete all events from ${group.label}`}
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  </div>
+                  {confirmingClearDay === group.key && (
+                    <div className="px-4 py-2 border-b border-red-500 bg-theme-paper" role="alert">
+                      <p className="text-xs font-bold text-theme-ink font-heading">
+                        Delete all {dayEventCount} {dayEventCount === 1 ? 'event' : 'events'} from {group.label}?
+                      </p>
+                      <p className="mt-1 text-xs text-theme-muted font-body">You can undo this immediately afterward.</p>
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingClearDay(null)}
+                          className="h-8 px-3 text-xs text-theme-ink font-body border border-theme-border rounded-button hover:bg-theme-accent hover:text-theme-paper transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleClearDay(group.key, group.label)}
+                          className="h-8 px-3 text-xs text-white font-body bg-red-500 border border-red-500 rounded-button hover:bg-red-600 transition-colors"
+                        >
+                          Delete all
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div role="list">
+                    {group.events.map((event) => (
+                      <EventItem key={event.id} event={event} onDelete={handleDeleteEvent} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })
           )}
         </div>
 
