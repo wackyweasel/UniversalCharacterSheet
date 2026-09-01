@@ -167,6 +167,22 @@
       "description": "5.5e preset for D&D",
       "file": "presets/dnd_5_5e_preset.json",
       "gameSystem": "Dungeon and Dragons"
+    },
+    {
+      "id": "22",
+      "name": "Daggerheart preset (Portuguese)",
+      "author": "@nihnoir",
+      "description": "Amigos eba",
+      "file": "presets/daggerheart_portuguese.json",
+      "gameSystem": "Daggerheart"
+    },
+    {
+      "id": "23",
+      "name": "Daggerheart preset",
+      "author": "@nihnoir",
+      "description": "Friends yay",
+      "file": "presets/daggerheart.json",
+      "gameSystem": "Daggerheart"
     }
   ],
   "themes": [
