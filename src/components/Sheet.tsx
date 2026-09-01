@@ -463,14 +463,20 @@ export default function Sheet() {
     scaleRef.current = nextScale;
     if (printAreaRef.current) {
       printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
+      printAreaRef.current.classList.add('camera-gesture-active');
     }
   }, []);
 
   const commitTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
-    previewTouchCamera(nextPan, nextScale);
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    if (printAreaRef.current) {
+      printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
+      printAreaRef.current.classList.remove('camera-gesture-active');
+    }
     setPan(nextPan);
     setScale(nextScale);
-  }, [previewTouchCamera, setPan, setScale]);
+  }, [setPan, setScale]);
 
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
       if (viewLockedRef.current) return;
@@ -1703,7 +1709,7 @@ export default function Sheet() {
         {/* Transformed Content */}
         <div 
           ref={printAreaRef}
-          className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${mode === 'print' ? 'pointer-events-auto' : ''}`}
+          className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${isPanning ? 'camera-gesture-active' : ''} ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
           }}

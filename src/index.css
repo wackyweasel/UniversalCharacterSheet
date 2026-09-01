@@ -2126,6 +2126,11 @@ td .inline-dice-token {
   touch-action: none;
 }
 
+.camera-gesture-active .widget-texture-effect,
+.camera-gesture-active .widget-shadow-effect {
+  visibility: hidden;
+}
+
 .canvas-workspace {
   height: 100vh;
   height: 100dvh;

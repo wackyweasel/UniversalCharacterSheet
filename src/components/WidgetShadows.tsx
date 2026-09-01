@@ -186,7 +186,7 @@ export default function WidgetShadows({ widgets, scale }: Props) {
       {rects.map(rect => (
         <div
           key={`shadow-${rect.id}`}
-          className="absolute shadow-theme glow-theme"
+          className="widget-shadow-effect absolute shadow-theme glow-theme"
           style={{
             left: `${rect.x}px`,
             top: `${rect.y}px`,

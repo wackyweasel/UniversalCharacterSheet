@@ -921,7 +921,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               style={{ backgroundColor: 'var(--color-paper)', ...borderRadiusStyle }}
             >
               <div
-                className="absolute inset-0"
+                className="widget-texture-effect absolute inset-0"
                 style={{
                   backgroundImage: `url(${IMAGE_TEXTURES[textureKey]})`,
                   ...groupTextureStyle,
