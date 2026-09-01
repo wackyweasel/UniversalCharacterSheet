@@ -146,6 +146,7 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
     data: {
       label: 'Health',
       currentValue: 17,
+      temporaryValue: 5,
       maxValue: 25,
       increment: 1,
     },

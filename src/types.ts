@@ -333,6 +333,8 @@ export interface WidgetData {
   checklistSettings?: ChecklistSettings;
   // Health Bar & Progress Bar
   currentValue?: number;
+  temporaryValue?: number;
+  enableTemporaryHp?: boolean;
   minValue?: number;
   maxValue?: number;
   verticalBar?: boolean;

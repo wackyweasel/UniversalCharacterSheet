@@ -4,7 +4,17 @@ import { Tooltip } from '../Tooltip';
 import { CollapsibleSection } from './CollapsibleSection';
 
 export function HealthBarEditor({ widget, updateData }: EditorProps) {
-  const { label, maxValue = 10, currentValue = 0, showIncrementButtons = true, fillColor, fieldLabels = {}, fieldFormulas = {} } = widget.data;
+  const {
+    label,
+    maxValue = 10,
+    currentValue = 0,
+    temporaryValue = 0,
+    enableTemporaryHp = true,
+    showIncrementButtons = true,
+    fillColor,
+    fieldLabels = {},
+    fieldFormulas = {},
+  } = widget.data;
 
   const setFieldLabel = (field: string, labelName: string | undefined) => {
     const updated = { ...fieldLabels };
@@ -66,6 +76,21 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
             allowEmpty
           />
 
+          {enableTemporaryHp && (
+            <LabeledNumberField
+              displayLabel="Temporary HP"
+              value={typeof temporaryValue === 'number' ? temporaryValue : 0}
+              onChange={(v) => updateData({ temporaryValue: Math.max(0, v) })}
+              fieldLabel={fieldLabels['temporaryValue']}
+              onFieldLabelChange={(l) => setFieldLabel('temporaryValue', l)}
+              formula={fieldFormulas['temporaryValue']}
+              onFormulaChange={(f) => setFieldFormula('temporaryValue', f)}
+              min={0}
+              controlHeight="input"
+              allowEmpty
+            />
+          )}
+
           <LabeledNumberField
             displayLabel="Maximum Value"
             value={typeof maxValue === 'number' ? maxValue : 10}
@@ -123,6 +148,16 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
+            checked={enableTemporaryHp}
+            onChange={(e) => updateData({ enableTemporaryHp: e.target.checked })}
+            className="w-4 h-4 accent-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Enable temporary HP</span>
+        </label>
+
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
             checked={showIncrementButtons}
             onChange={(e) => updateData({ showIncrementButtons: e.target.checked })}
             className="w-4 h-4 accent-theme-accent"
@@ -150,4 +185,3 @@ export function HealthBarEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-
