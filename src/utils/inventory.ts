@@ -105,6 +105,44 @@ export function createInventoryItem(
   };
 }
 
+export function normalizeInventoryQuantity(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  const quantity = Number(value);
+  return Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : undefined;
+}
+
+export function getInventoryItemQuantity(item: InventoryItem): number | undefined {
+  return normalizeInventoryQuantity(item.quantity);
+}
+
+export function splitInventoryItem(
+  item: InventoryItem,
+  keptQuantity: number,
+  splitQuantity: number,
+): [InventoryItem, InventoryItem] | null {
+  const quantity = getInventoryItemQuantity(item);
+  const normalizedKeptQuantity = normalizeInventoryQuantity(keptQuantity);
+  const normalizedSplitQuantity = normalizeInventoryQuantity(splitQuantity);
+  if (
+    quantity === undefined
+    || normalizedKeptQuantity === undefined
+    || normalizedSplitQuantity === undefined
+    || normalizedKeptQuantity <= 0
+    || normalizedSplitQuantity <= 0
+    || normalizedKeptQuantity + normalizedSplitQuantity !== quantity
+  ) return null;
+
+  return [
+    { ...item, quantity: normalizedKeptQuantity },
+    {
+      ...item,
+      id: uuidv4(),
+      quantity: normalizedSplitQuantity,
+      fields: item.fields.map((field) => ({ ...field, id: uuidv4() })),
+    },
+  ];
+}
+
 export function cloneInventoryData(data: WidgetData): WidgetData {
   return {
     ...data,
@@ -227,7 +265,9 @@ export function setInventoryEncumbranceEnabled(
 export function getInventoryItemWeight(item: InventoryItem): number {
   const weightField = item.fields.find((field) => field.reserved === 'weight');
   const weight = weightField?.type === 'number' ? Number(weightField.value) : 0;
-  return Number.isFinite(weight) ? Math.max(0, weight) : 0;
+  if (!Number.isFinite(weight)) return 0;
+  const quantity = getInventoryItemQuantity(item);
+  return Math.max(0, weight) * (quantity === undefined ? 1 : quantity);
 }
 
 export function getInventoryLoad(items: InventoryItem[]): number {

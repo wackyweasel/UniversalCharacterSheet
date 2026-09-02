@@ -132,6 +132,7 @@ export interface InventoryItemField {
 export interface InventoryItem {
   id: string;
   name: string;
+  quantity?: number;
   fields: InventoryItemField[];
 }
 

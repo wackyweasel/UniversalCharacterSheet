@@ -12,6 +12,7 @@ import {
   createInventoryItemField,
   linkInventoryFieldsToTemplates,
   normalizeInventoryFieldType,
+  normalizeInventoryQuantity,
 } from '../../utils/inventory';
 import { usePointerReorder } from '../../hooks';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
@@ -110,6 +111,20 @@ export default function InventoryItemDialog({
     }));
   };
 
+  const setQuantityEnabled = (enabled: boolean) => {
+    setDraft((current) => ({
+      ...current,
+      quantity: enabled ? (normalizeInventoryQuantity(current.quantity) ?? 1) : undefined,
+    }));
+  };
+
+  const setQuantity = (value: string) => {
+    setDraft((current) => ({
+      ...current,
+      quantity: normalizeInventoryQuantity(value) ?? 0,
+    }));
+  };
+
   const renderFieldValue = (
     field: InventoryItemField,
     ariaLabel = 'Attribute value',
@@ -196,6 +211,31 @@ export default function InventoryItemDialog({
               className={inputClass}
             />
           </label>
+
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={draft.quantity !== undefined}
+                onChange={(event) => setQuantityEnabled(event.target.checked)}
+                className="h-4 w-4 accent-theme-accent"
+              />
+              Track quantity
+            </label>
+            {draft.quantity !== undefined && (
+              <label className="block max-w-32">
+                <span className="mb-0.5 block text-xs font-medium">Quantity</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={draft.quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            )}
+          </div>
 
           <section>
             <h3 className="font-heading text-xs font-bold">Default attributes</h3>

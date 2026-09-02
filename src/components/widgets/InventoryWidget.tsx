@@ -2,7 +2,11 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
-import { getCharacterGlobalInventoryLoad, getInventoryLoad } from '../../utils/inventory';
+import {
+  getCharacterGlobalInventoryLoad,
+  getInventoryItemQuantity,
+  getInventoryLoad,
+} from '../../utils/inventory';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 import { GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon } from '../icons';
 import { InlineDiceText } from '../InlineDiceText';
@@ -10,6 +14,7 @@ import { Tooltip } from '../Tooltip';
 import { SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import InventoryItemDialog from './InventoryItemDialog';
+import InventoryQuantityDialog from './InventoryQuantityDialog';
 
 interface InventoryWidgetProps {
   widget: Widget;
@@ -47,7 +52,15 @@ function formatFieldValue(item: InventoryItem, fieldIndex: number): string {
   if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
   if (field.type === 'number') {
     const value = Number(field.value);
-    return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 3 }) : '0';
+    const formattedValue = Number.isFinite(value)
+      ? value.toLocaleString(undefined, { maximumFractionDigits: 3 })
+      : '0';
+    const quantity = getInventoryItemQuantity(item);
+    if (field.reserved === 'weight' && quantity !== undefined && quantity !== 1) {
+      const multipliedValue = Number.isFinite(value) ? value * quantity : 0;
+      return `${formattedValue} (${multipliedValue.toLocaleString(undefined, { maximumFractionDigits: 3 })})`;
+    }
+    return formattedValue;
   }
   return String(field.value) || '-';
 }
@@ -97,6 +110,37 @@ function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?:
   );
 }
 
+interface InventoryQuantityProps {
+  item: InventoryItem;
+  canInteract: boolean;
+  onEdit: (item: InventoryItem) => void;
+}
+
+function InventoryQuantity({ item, canInteract, onEdit }: InventoryQuantityProps) {
+  const quantity = getInventoryItemQuantity(item);
+  if (quantity === undefined) return null;
+
+  const formattedQuantity = quantity.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (!canInteract) return <span> (x{formattedQuantity})</span>;
+
+  return (
+    <span className="whitespace-nowrap">(x<button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onEdit(item);
+      }}
+      onMouseDown={(event) => event.stopPropagation()}
+      aria-label={`Edit quantity for ${item.name}`}
+      title="Edit quantity"
+      data-touch-camera-ignore="true"
+      className="border-b border-dashed border-theme-muted font-bold text-theme-ink hover:border-theme-accent hover:text-theme-accent"
+    >
+      {formattedQuantity}
+    </button>)</span>
+  );
+}
+
 function InventoryWidget({
   widget,
   mode,
@@ -106,6 +150,7 @@ function InventoryWidget({
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const moveInventoryItem = useStore((state) => state.moveInventoryItem);
   const saveInventoryItem = useStore((state) => state.saveInventoryItem);
+  const splitInventoryItem = useStore((state) => state.splitInventoryItem);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const activeCharacter = characters.find((character) => character.id === activeCharacterId);
@@ -118,6 +163,7 @@ function InventoryWidget({
   const localLoad = useMemo(() => getInventoryLoad(inventoryItems), [inventoryItems]);
   const globalLoad = useMemo(() => getCharacterGlobalInventoryLoad(activeCharacter), [activeCharacter]);
   const [dialogItem, setDialogItem] = useState<InventoryItem | null | undefined>(undefined);
+  const [quantityDialogItem, setQuantityDialogItem] = useState<InventoryItem | null>(null);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -452,7 +498,15 @@ function InventoryWidget({
                 </button>
               )}
               {!canInteract && <span />}
-              <h3 className="-translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">{item.name}</h3>
+              <h3 className="-translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
+                {item.name}
+                {' '}
+                <InventoryQuantity
+                  item={item}
+                  canInteract={canInteract}
+                  onEdit={setQuantityDialogItem}
+                />
+              </h3>
               <dl className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body">
                 {item.fields.map((field, fieldIndex) => (
                   isInventoryFieldEmpty(field) ? null : (
@@ -501,6 +555,31 @@ function InventoryWidget({
             item,
           })}
           onDelete={dialogItem ? () => deleteItem(dialogItem.id) : undefined}
+        />
+      )}
+
+      {quantityDialogItem && canInteract && (
+        <InventoryQuantityDialog
+          key={quantityDialogItem.id}
+          item={quantityDialogItem}
+          onClose={() => setQuantityDialogItem(null)}
+          onSave={(quantity) => {
+            saveInventoryItem({
+              sourceWidgetId: widget.id,
+              targetWidgetId: widget.id,
+              item: { ...quantityDialogItem, quantity },
+            });
+            setQuantityDialogItem(null);
+          }}
+          onSplit={(keptQuantity, splitQuantity) => {
+            splitInventoryItem({
+              widgetId: widget.id,
+              itemId: quantityDialogItem.id,
+              keptQuantity,
+              splitQuantity,
+            });
+            setQuantityDialogItem(null);
+          }}
         />
       )}
 

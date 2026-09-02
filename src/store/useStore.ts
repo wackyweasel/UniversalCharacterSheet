@@ -6,7 +6,12 @@ import { useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
-import { ensureItemWeight, getDefaultInventoryData, moveInventoryItemBetweenLists } from '../utils/inventory';
+import {
+  ensureItemWeight,
+  getDefaultInventoryData,
+  moveInventoryItemBetweenLists,
+  splitInventoryItem as splitInventoryItemData,
+} from '../utils/inventory';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
@@ -157,6 +162,12 @@ interface StoreState {
     sourceWidgetId: string;
     targetWidgetId: string;
     item: import('../types').InventoryItem;
+  }) => void;
+  splitInventoryItem: (options: {
+    widgetId: string;
+    itemId: string;
+    keptQuantity: number;
+    splitQuantity: number;
   }) => void;
   removeWidget: (id: string) => void;
   toggleWidgetLock: (id: string) => void;
@@ -1863,6 +1874,48 @@ export const useStore = create<StoreState>((set, get) => {
               }
               return widget;
             }));
+          }),
+        };
+      });
+    },
+
+    splitInventoryItem: ({ widgetId, itemId, keptQuantity, splitQuantity }) => {
+      const state = get();
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
+      if (!widget || widget.type !== 'INVENTORY') return;
+
+      const items = widget.data.inventoryItems || [];
+      const itemIndex = items.findIndex((entry) => entry.id === itemId);
+      if (itemIndex < 0) return;
+
+      const item = widget.data.inventoryEncumbrance?.enabled
+        ? ensureItemWeight(items[itemIndex])
+        : items[itemIndex];
+      const splitItems = splitInventoryItemData(item, keptQuantity, splitQuantity);
+      if (!splitItems) return;
+
+      const nextItems = [...items];
+      nextItems.splice(itemIndex, 1, ...splitItems);
+      get()._takeSnapshot('Split inventory stack');
+      set((currentState) => {
+        recordStoreEvent(currentState, {
+          eventName: 'inventory_item_split',
+          category: 'widget',
+          widgetType: 'INVENTORY',
+          source: 'inventory_quantity_dialog',
+          metadata: { widgetId, itemId, keptQuantity, splitQuantity },
+        });
+
+        return {
+          characters: currentState.characters.map((entry) => {
+            if (entry.id !== currentState.activeCharacterId) return entry;
+            return updateActiveSheetWidgets(entry, (widgets) => widgets.map((entryWidget) => (
+              entryWidget.id === widgetId
+                ? { ...entryWidget, data: { ...entryWidget.data, inventoryItems: nextItems } }
+                : entryWidget
+            )));
           }),
         };
       });
