@@ -214,6 +214,36 @@ interface StoreState {
   }) => void;
 }
 
+function resolveActiveCharacterFormulas(
+  state: Pick<StoreState, 'activeCharacterId'>,
+  characters: Character[],
+): Character[] {
+  return characters.map((character) => {
+    if (character.id !== state.activeCharacterId) return character;
+
+    const resolved = resolveCharacterFormulas(character);
+    if (!resolved) return character;
+
+    const changes = (resolved as any)._formulaChanges as FormulaChange[] | undefined;
+    if (changes && changes.length > 0 && state.activeCharacterId) {
+      const characterId = state.activeCharacterId;
+      setTimeout(() => {
+        for (const change of changes) {
+          useTimelineStore.getState().addEvent(characterId, {
+            widgetLabel: change.widgetLabel,
+            widgetType: 'FORMULA',
+            description: `${change.fieldName}: ${change.oldValue} → ${change.newValue} (${change.formula})`,
+            icon: 'fx',
+          });
+        }
+      }, 0);
+    }
+
+    const { _formulaChanges, ...cleanResolved } = resolved as any;
+    return cleanResolved;
+  });
+}
+
 export const useStore = create<StoreState>((set, get) => {
   const api: StoreState = {
     characters: [],
@@ -1336,34 +1366,7 @@ export const useStore = create<StoreState>((set, get) => {
         });
 
         // Then, resolve formulas across the entire character
-        updatedCharacters = updatedCharacters.map(c => {
-          if (c.id === state.activeCharacterId) {
-            const resolved = resolveCharacterFormulas(c);
-            if (resolved) {
-              // Log formula changes to timeline
-              const changes = (resolved as any)._formulaChanges as FormulaChange[] | undefined;
-              if (changes && changes.length > 0 && state.activeCharacterId) {
-                const charId = state.activeCharacterId;
-                // Defer timeline logging to avoid state conflicts
-                setTimeout(() => {
-                  for (const change of changes) {
-                    useTimelineStore.getState().addEvent(charId, {
-                      widgetLabel: change.widgetLabel,
-                      widgetType: 'FORMULA',
-                      description: `${change.fieldName}: ${change.oldValue} → ${change.newValue} (${change.formula})`,
-                      icon: 'fx',
-                    });
-                  }
-                }, 0);
-              }
-              // Clean up the temporary _formulaChanges property
-              const { _formulaChanges, ...cleanResolved } = resolved as any;
-              return cleanResolved;
-            }
-            return c;
-          }
-          return c;
-        });
+        updatedCharacters = resolveActiveCharacterFormulas(state, updatedCharacters);
 
         return { characters: updatedCharacters };
       });
@@ -1792,8 +1795,7 @@ export const useStore = create<StoreState>((set, get) => {
           metadata: { sourceWidgetId, targetWidgetId },
         });
 
-        return {
-          characters: currentState.characters.map((entry) => {
+        const updatedCharacters = currentState.characters.map((entry) => {
             if (entry.id !== currentState.activeCharacterId) return entry;
             return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
               if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
@@ -1807,8 +1809,8 @@ export const useStore = create<StoreState>((set, get) => {
               }
               return widget;
             }));
-          }),
-        };
+          });
+        return { characters: resolveActiveCharacterFormulas(currentState, updatedCharacters) };
       });
     },
 
@@ -1859,8 +1861,7 @@ export const useStore = create<StoreState>((set, get) => {
           metadata: { sourceWidgetId, targetWidgetId },
         });
 
-        return {
-          characters: currentState.characters.map((entry) => {
+        const updatedCharacters = currentState.characters.map((entry) => {
             if (entry.id !== currentState.activeCharacterId) return entry;
             return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
               if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
@@ -1874,8 +1875,8 @@ export const useStore = create<StoreState>((set, get) => {
               }
               return widget;
             }));
-          }),
-        };
+          });
+        return { characters: resolveActiveCharacterFormulas(currentState, updatedCharacters) };
       });
     },
 
@@ -1908,16 +1909,15 @@ export const useStore = create<StoreState>((set, get) => {
           metadata: { widgetId, itemId, keptQuantity, splitQuantity },
         });
 
-        return {
-          characters: currentState.characters.map((entry) => {
+        const updatedCharacters = currentState.characters.map((entry) => {
             if (entry.id !== currentState.activeCharacterId) return entry;
             return updateActiveSheetWidgets(entry, (widgets) => widgets.map((entryWidget) => (
               entryWidget.id === widgetId
                 ? { ...entryWidget, data: { ...entryWidget.data, inventoryItems: nextItems } }
                 : entryWidget
             )));
-          }),
-        };
+          });
+        return { characters: resolveActiveCharacterFormulas(currentState, updatedCharacters) };
       });
     },
 

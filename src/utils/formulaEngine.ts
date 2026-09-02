@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
 
 /**
@@ -23,6 +23,10 @@ export function collectLabels(character: Character): Record<string, number> {
           }
         }
       }
+
+      forEachInventoryLabel(data, (labelName, value) => {
+        labels[labelName] = value;
+      });
 
       // Collect from NumberItem arrays
       if (data.numberItems) {
@@ -167,6 +171,25 @@ function getFieldValue(data: WidgetData, field: string): number | undefined {
     case 'localCapacity': return typeof data.inventoryEncumbrance?.localCapacity === 'number' ? data.inventoryEncumbrance.localCapacity : undefined;
     case 'globalCapacity': return typeof data.inventoryEncumbrance?.globalCapacity === 'number' ? data.inventoryEncumbrance.globalCapacity : undefined;
     default: return undefined;
+  }
+}
+
+function getInventoryFieldLabelValue(field: InventoryItemField): number | undefined {
+  if (!field.valueLabel || (field.type !== 'number' && field.type !== 'checkbox')) return undefined;
+  if (field.type === 'checkbox') return field.value ? 1 : 0;
+  const value = typeof field.value === 'number' ? field.value : Number(field.value);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function forEachInventoryLabel(
+  data: WidgetData,
+  callback: (labelName: string, value: number, itemId: string, field: InventoryItemField) => void,
+) {
+  for (const item of data.inventoryItems || []) {
+    for (const field of item.fields) {
+      const value = getInventoryFieldLabelValue(field);
+      if (value !== undefined) callback(field.valueLabel!, value, item.id, field);
+    }
   }
 }
 
@@ -1160,6 +1183,10 @@ export function getAvailableLabels(character: Character): { label: string; value
           }
         }
       }
+
+      forEachInventoryLabel(data, (labelName, value) => {
+        result.push({ label: labelName, value, widgetLabel, sheetName: sheet.name });
+      });
 
       if (data.numberItems) {
         for (const item of data.numberItems as NumberItem[]) {

@@ -17,6 +17,7 @@ import {
 import { usePointerReorder } from '../../hooks';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
+import { VariableLabelControl } from '../VariableLabelControl';
 import { AddMultipleToggle } from './StructureDialogControls';
 
 interface InventoryItemDialogProps {
@@ -94,6 +95,7 @@ export default function InventoryItemDialog({
     updateField(field.id, {
       type,
       value: coerceInventoryFieldValue(field.value, type),
+      ...(type === 'text' ? { valueLabel: undefined } : {}),
     });
   };
 
@@ -161,6 +163,24 @@ export default function InventoryItemDialog({
       />
     );
   };
+
+  const renderLabeledFieldValue = (
+    field: InventoryItemField,
+    ariaLabel = 'Attribute value',
+    placeholder?: string,
+  ) => (
+    <div className="flex min-w-0 items-start gap-1.5">
+      <div className="min-w-0 flex-1">
+        {renderFieldValue(field, ariaLabel, placeholder)}
+      </div>
+      {(field.type === 'number' || field.type === 'checkbox') && (
+        <VariableLabelControl
+          valueLabel={field.valueLabel}
+          onValueLabelChange={(valueLabel) => updateField(field.id, { valueLabel })}
+        />
+      )}
+    </div>
+  );
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -253,7 +273,7 @@ export default function InventoryItemDialog({
                     {field.name}
                   </span>
                   <div className="min-w-0">
-                    {renderFieldValue(field, `${field.name} value`)}
+                    {renderLabeledFieldValue(field, `${field.name} value`)}
                   </div>
                 </div>
               ))}
@@ -318,7 +338,7 @@ export default function InventoryItemDialog({
                       ))}
                     </select>
                     <div className="inventory-field-row__value min-w-0">
-                      {renderFieldValue(field, `${field.name || 'Additional attribute'} value`, 'Value')}
+                      {renderLabeledFieldValue(field, `${field.name || 'Additional attribute'} value`, 'Value')}
                     </div>
                     <Tooltip content="Remove attribute">
                       <button

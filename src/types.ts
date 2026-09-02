@@ -125,6 +125,7 @@ export interface InventoryItemField {
   name: string;
   type: InventoryFieldType;
   value: InventoryFieldValue;
+  valueLabel?: string;
   reserved?: 'weight';
   templateId?: string;
 }
