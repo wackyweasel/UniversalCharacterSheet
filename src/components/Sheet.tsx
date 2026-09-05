@@ -330,6 +330,20 @@ export default function Sheet() {
   const [isPinching, setIsPinching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) return;
+
+    const workspace = containerRef.current;
+    if (!workspace) return;
+
+    const preventBrowserZoom = (event: WheelEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.cancelable) event.preventDefault();
+    };
+
+    workspace.addEventListener('wheel', preventBrowserZoom, { capture: true, passive: false });
+    return () => workspace.removeEventListener('wheel', preventBrowserZoom, true);
+  }, [mode, playLayout]);
   
   // Clear mobile widget controls unless the touch stays on their selected widget controls.
   const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {

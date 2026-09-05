@@ -266,7 +266,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     }
     
     // Zoom with scroll wheel relative to mouse cursor
-    const zoomFactor = Math.exp(-e.deltaY * 0.001);
+    const zoomSensitivity = e.ctrlKey || e.metaKey ? 0.015 : 0.001;
+    const zoomFactor = Math.exp(-e.deltaY * zoomSensitivity);
     const newScale = Math.min(Math.max(scale * zoomFactor, minScale), maxScale);
     
     // Get mouse position relative to the viewport
