@@ -39,6 +39,20 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.6.0',
+    changes: [
+      'Added the Progress Clock widget.',
+      'Added item quantities to the inventory widget, including the ability to split a stack into two stacks.',
+      'Inventory item attributes can now be labeled for use in formulas.',
+      'Added the Daggerheart preset to the community contributions.',
+      'Added the ability to delete all timeline events from a given day.',
+      'Added a slider to control the height of participants in the initiative tracker.',
+      'Updated the Steampunk, High Magic, Necrotic, and Sci-Fi built-in themes.',
+      'Fixed an issue that made progress bar widgets impossible to drag and move when the label was inline.',
+      'Fixed an issue with the positioning of some widgets not perfectly aligning as they should.',
+    ],
+  },
+  {
     version: '1.5.0',
     changes: [
       'Added workspaces. A workspace is like a directory where you store all your UCS data.',

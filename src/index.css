@@ -245,6 +245,17 @@ td .inline-dice-token {
   button:disabled {
     cursor: not-allowed;
   }
+
+  input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 @layer utilities {
@@ -441,6 +452,11 @@ td .inline-dice-token {
 
   .widget-editor__section-content {
     min-width: 0;
+  }
+
+  .progress-clock-editor__appearance > .widget-editor__section-content {
+    display: grid;
+    gap: 1rem;
   }
 
   .widget-editor__section.widget-editor__option-group {

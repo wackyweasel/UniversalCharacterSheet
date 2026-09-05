@@ -16,6 +16,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'NUMBER', label: 'Number tracker', category: 'Character Info', keywords: 'counter value resource' },
   { type: 'NUMBER_DISPLAY', label: 'Number display', category: 'Character Info', keywords: 'formula calculated total' },
   { type: 'PROGRESS_BAR', label: 'Progress bar', category: 'Character Info', keywords: 'clock advancement track' },
+  { type: 'PROGRESS_CLOCK', label: 'Progress clocks', category: 'Character Info', keywords: 'blades in the dark pie chart segments countdown danger project track' },
   { type: 'REST_BUTTON', label: 'Rest button', category: 'Ressources and Status', keywords: 'reset recover refresh' },
   { type: 'HEALTH_BAR', label: 'Health bar', category: 'Ressources and Status', keywords: 'hp wounds damage' },
   { type: 'POOL', label: 'Resource pool', category: 'Ressources and Status', keywords: 'tokens points mana' },

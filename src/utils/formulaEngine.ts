@@ -1,5 +1,7 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
+import type { ProgressClockItem } from '../types';
+import { getClockSegments, getClockValue } from './progressClock';
 
 /**
  * Collects all labels and their current values from a character.
@@ -62,6 +64,11 @@ export function collectLabels(character: Character): Record<string, number> {
       }
 
       // Collect from PoolResource arrays
+      for (const clock of data.clockItems ?? []) {
+        if (clock.segmentsLabel) labels[clock.segmentsLabel] = getClockSegments(clock.segments);
+        if (clock.valueLabel) labels[clock.valueLabel] = getClockValue(clock.value, clock.segments);
+      }
+
       if (data.poolResources) {
         for (const res of data.poolResources as PoolResource[]) {
           if (res.maxLabel) labels[res.maxLabel] = res.max ?? 0;
@@ -745,6 +752,8 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   };
 
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'value', 'valueFormula', 'name');
+  checkArrayChanges(oldWidget.data.clockItems, newWidget.data.clockItems, 'segments', 'segmentsFormula', 'name');
+  checkArrayChanges(oldWidget.data.clockItems, newWidget.data.clockItems, 'value', 'valueFormula', 'name');
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'minValue', 'minValueFormula', 'name');
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'maxValue', 'maxValueFormula', 'name');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'value', 'valueFormula', 'label');
@@ -979,6 +988,14 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
     }
   }
 
+  if (widget.data.clockItems) {
+    const clockItems = widget.data.clockItems.map((clock) => resolveProgressClockFormulas(clock, labels));
+    if (clockItems.some((clock, index) => clock !== widget.data.clockItems![index])) {
+      changed = true;
+      updates.clockItems = clockItems;
+    }
+  }
+
   // Resolve PoolResource formulas
   if (widget.data.poolResources) {
     let itemsChanged = false;
@@ -1167,6 +1184,12 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
 /**
  * Gets a list of all available labels for display in the formula editor.
  */
+export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: Record<string, number>): ProgressClockItem {
+  const segments = getClockSegments((clock.segmentsFormula && !isFormulaBroken(clock.segmentsFormula, labels) ? evaluateFormula(clock.segmentsFormula, labels) : null) ?? clock.segments);
+  const value = getClockValue((clock.valueFormula && !isFormulaBroken(clock.valueFormula, labels) ? evaluateFormula(clock.valueFormula, labels) : null) ?? clock.value, segments);
+  return segments === clock.segments && value === clock.value ? clock : { ...clock, segments, value };
+}
+
 export function getAvailableLabels(character: Character): { label: string; value: number; widgetLabel: string; sheetName: string }[] {
   const result: { label: string; value: number; widgetLabel: string; sheetName: string }[] = [];
 
@@ -1224,6 +1247,11 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (res.maxLabel) result.push({ label: res.maxLabel, value: res.max, widgetLabel, sheetName: sheet.name });
           if (res.currentLabel) result.push({ label: res.currentLabel, value: res.current, widgetLabel, sheetName: sheet.name });
         }
+      }
+
+      for (const clock of data.clockItems ?? []) {
+        if (clock.segmentsLabel) result.push({ label: clock.segmentsLabel, value: getClockSegments(clock.segments), widgetLabel, sheetName: sheet.name });
+        if (clock.valueLabel) result.push({ label: clock.valueLabel, value: getClockValue(clock.value, clock.segments), widgetLabel, sheetName: sheet.name });
       }
 
       if (data.mixedFields) {
@@ -1389,6 +1417,11 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       }
 
       // PoolResource arrays
+      for (const clock of data.clockItems ?? []) {
+        if (clock.segmentsLabel && clock.segmentsFormula) graph[clock.segmentsLabel] = extractFormulaRefs(clock.segmentsFormula, labels);
+        if (clock.valueLabel && clock.valueFormula) graph[clock.valueLabel] = extractFormulaRefs(clock.valueFormula, labels);
+      }
+
       if (data.poolResources) {
         for (const res of data.poolResources as PoolResource[]) {
           if (res.maxLabel && res.maxFormula) graph[res.maxLabel] = extractFormulaRefs(res.maxFormula, labels);

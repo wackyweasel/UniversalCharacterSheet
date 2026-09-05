@@ -752,11 +752,11 @@ export const useStore = create<StoreState>((set, get) => {
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
         const newWidgetWidth = snapWidgetDimension(
-          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH,
+          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH,
           DEFAULT_WIDTH,
         ) ?? DEFAULT_WIDTH;
         const newWidgetHeight = snapWidgetDimension(
-          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : DEFAULT_HEIGHT,
+          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : DEFAULT_HEIGHT,
           DEFAULT_HEIGHT,
         ) ?? DEFAULT_HEIGHT;
         const GAP = 20;
@@ -854,6 +854,7 @@ export const useStore = create<StoreState>((set, get) => {
             'MIXED_FIELDS': 'Mixed Fields',
             'REST_BUTTON': 'Rest',
             'PROGRESS_BAR': 'Progress',
+            'PROGRESS_CLOCK': 'Progress clocks',
             'MAP_SKETCHER': 'Map',
             'GRID_MAP': 'Grid Map',
             'ROLL_TABLE': 'Random Table',
@@ -884,6 +885,11 @@ export const useStore = create<StoreState>((set, get) => {
             text: '',
             ...(type === 'HEALTH_BAR' ? { showIncrementButtons: true, temporaryValue: 0, enableTemporaryHp: true } : {}),
             ...(type === 'PROGRESS_BAR' ? { showPercentage: false, showIncrementButtons: false } : {}),
+            ...(type === 'PROGRESS_CLOCK' ? {
+              clockItems: [{ id: uuidv4(), name: '', segments: 6, value: 0 }],
+              clockLayout: 'horizontal' as const,
+              clockSize: 100,
+            } : {}),
             ...(type === 'POOL' ? {
               poolResources: [{ name: 'Resource 1', max: 5, current: 5, style: 'dots' }],
               showPoolCount: false,

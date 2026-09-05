@@ -8,6 +8,7 @@ export { TextEditor } from './TextEditor';
 export { LabelEditor } from './LabelEditor';
 export { CheckboxEditor } from './CheckboxEditor';
 export { ProgressBarEditor } from './ProgressBarEditor';
+export { ProgressClockEditor } from './ProgressClockEditor';
 export { HealthBarEditor } from './HealthBarEditor';
 export { DiceRollerEditor } from './DiceRollerEditor';
 export { DiceTrayEditor } from './DiceTrayEditor';

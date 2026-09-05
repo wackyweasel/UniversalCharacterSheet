@@ -28,6 +28,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
@@ -56,6 +57,7 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'NUMBER',
   'NUMBER_DISPLAY',
   'POOL',
+  'PROGRESS_CLOCK',
   'TOGGLE_GROUP',
   'INITIATIVE_TRACKER',
   'INVENTORY',
@@ -193,6 +195,7 @@ export default function VerticalWidget({
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={!isBuildMode} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;

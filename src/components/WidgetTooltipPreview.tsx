@@ -20,6 +20,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
@@ -363,6 +364,23 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       showValues: true,
     },
   },
+  PROGRESS_CLOCK: {
+    id: 'preview-progress-clock',
+    type: 'PROGRESS_CLOCK',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 170,
+    locked: true,
+    data: {
+      label: 'Progress clocks',
+      clockSize: 90,
+      clockItems: [
+        { id: 'escape', name: 'Escape', segments: 4, value: 3 },
+        { id: 'alarm', name: 'Alarm', segments: 6, value: 2, fillColor: '#b83f45' },
+      ],
+    },
+  },
   MAP_SKETCHER: {
     id: 'preview-map-sketcher',
     type: 'MAP_SKETCHER',
@@ -621,6 +639,7 @@ function renderWidget(widget: Widget) {
     case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
     case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
+    case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} showFieldControls={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
     case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;

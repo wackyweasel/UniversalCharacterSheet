@@ -101,6 +101,9 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
     case 'POOL':
       data.poolResources?.forEach((resource) => add('Resource', resource.name));
       break;
+    case 'PROGRESS_CLOCK':
+      data.clockItems?.forEach((clock) => add('Clock', clock.name));
+      break;
     case 'REST_BUTTON':
       add('Button', data.buttonText);
       break;

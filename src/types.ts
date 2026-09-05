@@ -22,6 +22,7 @@ export type WidgetType =
   | 'MIXED_FIELDS'
   | 'REST_BUTTON'
   | 'PROGRESS_BAR'
+  | 'PROGRESS_CLOCK'
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
   | 'GRID_MAP'
@@ -313,6 +314,18 @@ export interface InitiativeParticipant {
   isTemporary?: boolean; // True if added on-the-fly (not from pool)
 }
 
+export interface ProgressClockItem {
+  id: string;
+  name: string;
+  segments: number;
+  value: number;
+  segmentsLabel?: string;
+  segmentsFormula?: string;
+  valueLabel?: string;
+  valueFormula?: string;
+  fillColor?: string;
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -348,6 +361,13 @@ export interface WidgetData {
   showValues?: boolean;
   inlineLabel?: boolean;
   allowOutOfRange?: boolean;
+  clockItems?: ProgressClockItem[];
+  clockLayout?: 'horizontal' | 'vertical';
+  clockSize?: number;
+  clockShowValues?: boolean;
+  clockLabelPosition?: 'above' | 'below';
+  clockCounterClockwise?: boolean;
+  clockStartAngle?: number;
   // Dice Roller
   diceCount?: number;
   diceType?: number;

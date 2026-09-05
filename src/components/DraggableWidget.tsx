@@ -39,6 +39,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
@@ -86,6 +87,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'MIXED_FIELDS': { width: 140, height: 30 },
   'REST_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
+  'PROGRESS_CLOCK': { width: 80, height: 80 },
   'MAP_SKETCHER': { width: 100, height: 100 },
   'GRID_MAP': { width: 260, height: 240 },
   'ROLL_TABLE': { width: 70, height: 30 },
@@ -865,6 +867,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={mode === 'play'} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} sheetScale={scale} />;
       case 'GRID_MAP': return <GridMapWidget {...props} sheetScale={scale} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
@@ -936,7 +939,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[80]`}>
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[80]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
@@ -1658,7 +1661,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
             {mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button

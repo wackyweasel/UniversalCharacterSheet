@@ -16,6 +16,7 @@ import {
   LabelEditor,
   CheckboxEditor,
   ProgressBarEditor,
+  ProgressClockEditor,
   HealthBarEditor,
   DiceRollerEditor,
   DiceTrayEditor,
@@ -59,6 +60,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
@@ -93,6 +95,7 @@ const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
   'NUMBER_DISPLAY',
   'POOL',
   'PROGRESS_BAR',
+  'PROGRESS_CLOCK',
   'ROLL_TABLE',
   'SPELL_SLOT',
   'STEP_DICE',
@@ -126,6 +129,7 @@ function getWidgetTitle(type: WidgetType): string {
     'MIXED_FIELDS': 'Mixed Fields',
     'REST_BUTTON': 'Rest Button',
     'PROGRESS_BAR': 'Progress Bar',
+    'PROGRESS_CLOCK': 'Progress Clocks',
     'MAP_SKETCHER': 'Map Sketcher',
     'GRID_MAP': 'Grid Map',
     'ROLL_TABLE': 'Roll Table',
@@ -205,6 +209,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'MIXED_FIELDS': return <MixedFieldsEditor {...editorProps} />;
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockEditor {...editorProps} />;
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
       case 'GRID_MAP': return <GridMapEditor {...editorProps} />;
       case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
@@ -284,6 +289,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} showFieldControls={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
