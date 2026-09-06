@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Character, WidgetData } from '../types';
-import { collectLabels, getAvailableLabels } from './formulaEngine';
+import { collectLabels, getAvailableLabels, resolveCharacterFormulas } from './formulaEngine';
 
 function createCharacter(data: WidgetData): Character {
   return {
@@ -51,5 +51,21 @@ describe('inventory field labels', () => {
       { label: 'blank', value: 0, widgetLabel: 'Pack', sheetName: 'Inventory' },
       { label: 'invalid', value: 0, widgetLabel: 'Pack', sheetName: 'Inventory' },
     ]);
+  });
+});
+
+describe('roll table weight formulas', () => {
+  it('collects weight labels and resolves formulas into option weights', () => {
+    const character = createCharacter({
+      rollTableItems: [
+        { text: 'Base', weight: 3, weightLabel: 'base_weight' },
+        { text: 'Computed', weight: 1, weightFormula: '@base_weight * 2' },
+      ],
+    });
+
+    expect(collectLabels(character)).toMatchObject({ base_weight: 3 });
+
+    const resolved = resolveCharacterFormulas(character);
+    expect(resolved?.sheets[0].widgets[0].data.rollTableItems?.[1].weight).toBe(6);
   });
 });

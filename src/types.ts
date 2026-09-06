@@ -62,6 +62,9 @@ export interface ToggleItem {
 export interface RollTableItem {
   text: string;
   weight: number;
+  description?: string;
+  weightLabel?: string;
+  weightFormula?: string;
 }
 
 export interface DeckCard {
@@ -484,6 +487,9 @@ export interface WidgetData {
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
+  rollTableAnimate?: boolean;
+  rollTableResultCount?: number;
+  rollTableAllowRepeats?: boolean;
   // Deck of Cards
   deckCards?: DeckCard[];
   deckState?: DeckState | null;

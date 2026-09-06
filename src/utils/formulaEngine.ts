@@ -1,4 +1,4 @@
-import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField } from '../types';
+import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField, RollTableItem } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
 import type { ProgressClockItem } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
@@ -23,6 +23,13 @@ export function collectLabels(character: Character): Record<string, number> {
               labels[labelName] = value;
             }
           }
+        }
+      }
+
+      // Collect roll-table option weight labels
+      if (data.rollTableItems) {
+        for (const item of data.rollTableItems as RollTableItem[]) {
+          if (item.weightLabel) labels[item.weightLabel] = item.weight ?? 0;
         }
       }
 
@@ -761,6 +768,7 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'maxValue', 'maxValueFormula', 'label');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'secondaryValue', 'secondaryValueFormula', 'label');
   checkArrayChanges(oldWidget.data.diceGroups, newWidget.data.diceGroups, 'count', 'countFormula', 'customDiceName');
+  checkArrayChanges(oldWidget.data.rollTableItems, newWidget.data.rollTableItems, 'weight', 'weightFormula', 'text');
   checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'value', 'valueFormula', 'name');
   checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'minValue', 'minValueFormula', 'name');
   checkArrayChanges(oldWidget.data.mixedFields, newWidget.data.mixedFields, 'maxValue', 'maxValueFormula', 'name');
@@ -873,6 +881,27 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
           }
         }
       }
+    }
+  }
+
+  // Resolve roll-table option weight formulas
+  if (widget.data.rollTableItems) {
+    let itemsChanged = false;
+    const updatedItems = (widget.data.rollTableItems as RollTableItem[]).map((item) => {
+      if (!item.weightFormula) return item;
+      const computed = evaluateFormula(item.weightFormula, labels);
+      if (computed === null) return item;
+
+      const resolvedWeight = Math.max(0, computed);
+      if (resolvedWeight === item.weight) return item;
+
+      itemsChanged = true;
+      return { ...item, weight: resolvedWeight };
+    });
+
+    if (itemsChanged) {
+      changed = true;
+      updates.rollTableItems = updatedItems;
     }
   }
 
@@ -1379,6 +1408,15 @@ export function buildDependencyGraph(character: Character): Record<string, strin
         for (const [field, labelName] of Object.entries(data.fieldLabels)) {
           if (labelName && data.fieldFormulas[field]) {
             graph[labelName] = extractFormulaRefs(data.fieldFormulas[field], labels);
+          }
+        }
+      }
+
+      // Roll-table option weights
+      if (data.rollTableItems) {
+        for (const item of data.rollTableItems as RollTableItem[]) {
+          if (item.weightLabel && item.weightFormula) {
+            graph[item.weightLabel] = extractFormulaRefs(item.weightFormula, labels);
           }
         }
       }
