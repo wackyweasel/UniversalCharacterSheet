@@ -43,6 +43,7 @@ const CHANGELOG_ENTRIES = [
     changes: [
       'Revamped the roll table widget.',
       'Added the Pokemon TTRPG community preset.',
+      'Added a quick add button for the spell slots widget',
     ],
   },
   {
