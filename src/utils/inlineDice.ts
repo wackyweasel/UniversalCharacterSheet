@@ -3,6 +3,7 @@ import {
   formatDiceExpression,
 } from './diceExpression';
 import { evaluateFormula, hasUnresolvedRefs } from './formulaEngine';
+import type { FormulaLabels } from './formulaSyntax';
 
 export type InlineDiceSegment =
   | { type: 'text'; value: string }
@@ -130,7 +131,7 @@ const splitTopLevelTerms = (expression: string): ExpressionSegment[] | null => {
 
 export const resolveInlineDiceExpression = (
   sourceExpression: string,
-  labels: Record<string, number>,
+  labels: FormulaLabels,
 ): ResolvedInlineDiceExpression => {
   const expression = sourceExpression.trim();
   if (!DICE_CANDIDATE_PATTERN.test(expression)) {

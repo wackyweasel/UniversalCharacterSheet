@@ -96,3 +96,72 @@ describe('inventory store updates', () => {
     expect(numberWidget?.data.numberItems?.[0].value).toBe(7);
   });
 });
+
+describe('mixed menu formula updates', () => {
+  it('recalculates dependent formulas when a menu selection changes', () => {
+    const menuCharacter: Character = {
+      id: 'menu-character',
+      name: 'Menu Character',
+      activeSheetId: 'sheet-1',
+      sheets: [
+        {
+          id: 'sheet-1',
+          name: 'Main',
+          widgets: [{
+            id: 'menu-widget',
+            type: 'MIXED_FIELDS',
+            x: 0,
+            y: 0,
+            data: {
+              mixedFields: [{
+                type: 'menu',
+                name: 'Stance',
+                value: 'Aggressive',
+                options: ['Aggressive', 'Defensive'],
+                valueLabel: 'stance',
+              }],
+            },
+          }],
+        },
+        {
+          id: 'sheet-2',
+          name: 'Bonuses',
+          widgets: [{
+            id: 'bonus-widget',
+            type: 'MIXED_FIELDS',
+            x: 0,
+            y: 0,
+            data: {
+              mixedFields: [{
+                type: 'number',
+                name: 'Bonus',
+                value: 0,
+                valueFormula: 'IF(@stance = "Defensive", 2, 0)',
+              }],
+            },
+          }],
+        },
+      ],
+    };
+
+    useStore.getState()._replaceWorkspaceState({
+      characters: [menuCharacter],
+      activeCharacterId: menuCharacter.id,
+      mode: 'play',
+    });
+
+    useStore.getState().updateWidgetData('menu-widget', {
+      mixedFields: [{
+        type: 'menu',
+        name: 'Stance',
+        value: 'Defensive',
+        options: ['Aggressive', 'Defensive'],
+        valueLabel: 'stance',
+      }],
+    });
+
+    const updatedCharacter = useStore.getState().characters[0];
+    const bonusWidget = updatedCharacter.sheets[1].widgets[0];
+    expect(bonusWidget.data.mixedFields?.[0]).toMatchObject({ value: 2 });
+  });
+});

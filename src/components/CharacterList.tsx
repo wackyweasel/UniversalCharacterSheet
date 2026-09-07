@@ -44,6 +44,7 @@ const CHANGELOG_ENTRIES = [
       'Revamped the roll table widget.',
       'Added the Pokemon TTRPG community preset.',
       'Added a quick add button for the spell slots widget',
+      'Menus in mixed field widget can now be labeled and used in formulas (ex : if(@menu = "druid", 0, 1))',
     ],
   },
   {

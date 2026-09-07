@@ -2,13 +2,23 @@ import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource,
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
 import type { ProgressClockItem } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
+import {
+  extractFormulaLabelReferences,
+  hasFormulaStringLiteral,
+  mapOutsideFormulaStrings,
+  maskFormulaStringLiterals,
+  normalizeFormulaStringLiterals,
+  parseFormulaStringLiteral,
+  type FormulaLabels,
+  type FormulaValue,
+} from './formulaSyntax';
 
 /**
  * Collects all labels and their current values from a character.
  * Scans all sheets and all widgets.
  */
-export function collectLabels(character: Character): Record<string, number> {
-  const labels: Record<string, number> = {};
+export function collectLabels(character: Character): FormulaLabels {
+  const labels: FormulaLabels = {};
 
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
@@ -97,6 +107,9 @@ export function collectLabels(character: Character): Record<string, number> {
           }
           if (field.type === 'switch' && field.valueLabel) {
             labels[field.valueLabel] = field.value ? 1 : 0;
+          }
+          if (field.type === 'menu' && field.valueLabel) {
+            labels[field.valueLabel] = field.value;
           }
         }
       }
@@ -273,10 +286,12 @@ type FormulaFunctionName = 'IF' | 'SWITCH' | 'THRESHOLD' | 'VALUE' | 'SUM';
  * Finds the rightmost (innermost) conditional formula function in the expression.
  */
 function findInnermostFormulaFunction(expr: string): { name: FormulaFunctionName; index: number; argsStart: number } | null {
+  const maskedExpr = maskFormulaStringLiterals(expr);
+  if (maskedExpr === null) return null;
   const regex = /\b(IF|SWITCH|THRESHOLD|VALUE|SUM)\s*\(/gi;
   let lastMatch: { name: FormulaFunctionName; index: number; argsStart: number } | null = null;
   let match;
-  while ((match = regex.exec(expr)) !== null) {
+  while ((match = regex.exec(maskedExpr)) !== null) {
     lastMatch = { name: match[1].toUpperCase() as FormulaFunctionName, index: match.index, argsStart: match.index + match[0].length };
   }
   return lastMatch;
@@ -289,10 +304,26 @@ function findInnermostFormulaFunction(expr: string): { name: FormulaFunctionName
 function parseFunctionArguments(expr: string, startAfterParen: number): { args: string[]; argSpans: { start: number; end: number }[]; endIndex: number } | null {
   let depth = 1;
   let argStart = startAfterParen;
+  let inString = false;
+  let escaped = false;
   const args: string[] = [];
   const argSpans: { start: number; end: number }[] = [];
   for (let i = startAfterParen; i < expr.length; i++) {
     const ch = expr[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
     if (ch === '(') {
       depth++;
     } else if (ch === ')') {
@@ -317,17 +348,16 @@ function parseGeneratedLabelGroupReference(arg: string): string | null {
 }
 
 function extractGeneratedLabelGroupReferencesFromExpression(expr: string): string[] {
-  const refs = expr.match(/@([a-zA-Z_][a-zA-Z0-9_]*)\b/g);
-  if (!refs) return [];
-  return Array.from(new Set(refs.map(ref => ref.slice(1))));
+  const refs = extractFormulaLabelReferences(expr);
+  return refs ? Array.from(new Set(refs)) : [];
 }
 
-function getGeneratedLabelIndexes(labelPrefix: string, labels: Record<string, number>): number[] {
+function getGeneratedLabelIndexes(labelPrefix: string, labels: FormulaLabels): number[] {
   const prefixRegex = new RegExp(`^${escapeRegex(labelPrefix)}([1-9]\\d*)$`);
   return Object.entries(labels)
     .map(([label, value]) => {
       const match = label.match(prefixRegex);
-      return match && isFinite(value) ? parseInt(match[1], 10) : null;
+      return match && typeof value === 'number' && isFinite(value) ? parseInt(match[1], 10) : null;
     })
     .filter((index): index is number => index !== null)
     .sort((a, b) => a - b);
@@ -335,10 +365,12 @@ function getGeneratedLabelIndexes(labelPrefix: string, labels: Record<string, nu
 
 function stripGeneratedLabelGroupReferences(formula: string): string {
   const replacements: { start: number; end: number; value: string }[] = [];
+  const maskedFormula = maskFormulaStringLiterals(formula);
+  if (maskedFormula === null) return formula;
   const regex = /\b(THRESHOLD|VALUE|SUM)\s*\(/gi;
   let match;
 
-  while ((match = regex.exec(formula)) !== null) {
+  while ((match = regex.exec(maskedFormula)) !== null) {
     const functionName = match[1].toUpperCase();
     const parsed = parseFunctionArguments(formula, match.index + match[0].length);
     if (!parsed) continue;
@@ -347,9 +379,11 @@ function stripGeneratedLabelGroupReferences(formula: string): string {
       const span = parsed.argSpans[0];
       if (!span) continue;
       const arg = parsed.args[0] || '';
+      const maskedArg = maskFormulaStringLiterals(arg);
+      if (maskedArg === null) continue;
       const refRegex = /@([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
       let refMatch;
-      while ((refMatch = refRegex.exec(arg)) !== null) {
+      while ((refMatch = refRegex.exec(maskedArg)) !== null) {
         replacements.push({
           start: span.start + refMatch.index,
           end: span.start + refMatch.index + refMatch[0].length,
@@ -375,10 +409,12 @@ function stripGeneratedLabelGroupReferences(formula: string): string {
 
 function collectGeneratedLabelGroupReferences(formula: string): string[] {
   const references: string[] = [];
+  const maskedFormula = maskFormulaStringLiterals(formula);
+  if (maskedFormula === null) return references;
   const regex = /\b(THRESHOLD|VALUE|SUM)\s*\(/gi;
   let match;
 
-  while ((match = regex.exec(formula)) !== null) {
+  while ((match = regex.exec(maskedFormula)) !== null) {
     const functionName = match[1].toUpperCase();
     const parsed = parseFunctionArguments(formula, match.index + match[0].length);
     if (!parsed) continue;
@@ -398,8 +434,8 @@ function collectGeneratedLabelGroupReferences(formula: string): string[] {
 }
 
 function formulaReferencesLabel(formula: string, label: string): boolean {
-  const directRefs = formula.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
-  if (directRefs.some(ref => ref.slice(1) === label)) return true;
+  const directRefs = extractFormulaLabelReferences(formula) || [];
+  if (directRefs.some((ref) => ref === label)) return true;
 
   return collectGeneratedLabelGroupReferences(formula).some(labelPrefix => {
     const generatedLabelRegex = new RegExp(`^${escapeRegex(labelPrefix)}[1-9]\d*$`);
@@ -412,9 +448,11 @@ function formulaReferencesAnyLabel(formula: string, labels: string[]): boolean {
 }
 
 function findTopLevelRangeOperator(expr: string): number | null {
+  const maskedExpr = maskFormulaStringLiterals(expr);
+  if (maskedExpr === null) return null;
   let depth = 0;
-  for (let i = 0; i < expr.length - 1; i++) {
-    const ch = expr[i];
+  for (let i = 0; i < maskedExpr.length - 1; i++) {
+    const ch = maskedExpr[i];
     if (ch === '(') {
       depth++;
     } else if (ch === ')') {
@@ -426,22 +464,138 @@ function findTopLevelRangeOperator(expr: string): number | null {
   return null;
 }
 
-function buildSwitchCaseExpression(switchValue: string, caseValue: string, resultValue: string, fallbackValue: string): string | null {
+function findTopLevelComparison(expr: string): { index: number; operator: string } | null {
+  const maskedExpr = maskFormulaStringLiterals(expr);
+  if (maskedExpr === null) return null;
+  let depth = 0;
+  for (let index = 0; index < maskedExpr.length; index += 1) {
+    const char = maskedExpr[index];
+    if (char === '(') {
+      depth += 1;
+      continue;
+    }
+    if (char === ')') {
+      depth -= 1;
+      continue;
+    }
+    if (depth !== 0) continue;
+
+    const twoCharacterOperator = maskedExpr.slice(index, index + 2);
+    if (twoCharacterOperator === '<>' || twoCharacterOperator === '<=' || twoCharacterOperator === '>=') {
+      return { index, operator: twoCharacterOperator };
+    }
+    if (char === '=' || char === '<' || char === '>') {
+      return { index, operator: char };
+    }
+  }
+  return null;
+}
+
+function unwrapFormulaParentheses(expr: string): string {
+  let result = expr.trim();
+  while (result.startsWith('(') && result.endsWith(')')) {
+    let depth = 0;
+    let closesAtEnd = true;
+    for (let index = 0; index < result.length; index += 1) {
+      if (result[index] === '(') depth += 1;
+      if (result[index] === ')') depth -= 1;
+      if (depth === 0 && index < result.length - 1) {
+        closesAtEnd = false;
+        break;
+      }
+    }
+    if (!closesAtEnd) break;
+    result = result.slice(1, -1).trim();
+  }
+  return result;
+}
+
+function replaceFormulaReferences(expr: string, labels: FormulaLabels): string | null {
+  const sortedLabels = Object.entries(labels).sort((a, b) => b[0].length - a[0].length);
+  return mapOutsideFormulaStrings(expr, (segment) => {
+    let replaced = segment;
+    for (const [label, value] of sortedLabels) {
+      replaced = replaced.replace(
+        new RegExp(`@${escapeRegex(label)}\\b`, 'g'),
+        typeof value === 'string' ? JSON.stringify(value) : String(value),
+      );
+    }
+    return replaced.replace(/@[a-zA-Z_][a-zA-Z0-9_]*/g, '0');
+  });
+}
+
+function formulaContainsText(expr: string, labels: FormulaLabels): boolean {
+  if (hasFormulaStringLiteral(expr)) return true;
+  const refs = extractFormulaLabelReferences(expr) || [];
+  return refs.some((label) => typeof labels[label] === 'string');
+}
+
+function buildNumericExpression(expr: string, labels: FormulaLabels): string | null {
+  if (!expr.trim() || formulaContainsText(expr, labels)) return null;
+  return replaceFormulaReferences(expr, labels);
+}
+
+function buildConditionOperand(expr: string, labels: FormulaLabels): string | null {
+  const trimmed = expr.trim();
+  const literal = parseFormulaStringLiteral(trimmed);
+  if (literal !== null) return JSON.stringify(literal);
+
+  const referenceMatch = trimmed.match(/^@([a-zA-Z_][a-zA-Z0-9_]*)$/);
+  if (referenceMatch && typeof labels[referenceMatch[1]] === 'string') {
+    return JSON.stringify(labels[referenceMatch[1]]);
+  }
+
+  return buildNumericExpression(trimmed, labels);
+}
+
+function buildConditionExpression(condition: string, labels: FormulaLabels): string | null {
+  const normalizedCondition = unwrapFormulaParentheses(condition);
+  const comparison = findTopLevelComparison(normalizedCondition);
+  if (!comparison) return buildNumericExpression(normalizedCondition, labels);
+
+  const left = normalizedCondition.substring(0, comparison.index).trim();
+  const right = normalizedCondition.substring(comparison.index + comparison.operator.length).trim();
+  if (!left || !right) return null;
+
+  const isTextComparison = formulaContainsText(left, labels) || formulaContainsText(right, labels);
+  if (isTextComparison && comparison.operator !== '=' && comparison.operator !== '<>') return null;
+
+  const leftExpression = buildConditionOperand(left, labels);
+  const rightExpression = buildConditionOperand(right, labels);
+  if (!leftExpression || !rightExpression) return null;
+
+  const operator = comparison.operator === '=' ? '===' : comparison.operator === '<>' ? '!==' : comparison.operator;
+  return `(${leftExpression} ${operator} ${rightExpression})`;
+}
+
+function buildSwitchCaseExpression(
+  switchValue: string,
+  caseValue: string,
+  resultValue: string,
+  fallbackValue: string,
+  labels: FormulaLabels,
+): string | null {
   const rangeIndex = findTopLevelRangeOperator(caseValue);
   if (rangeIndex !== null) {
     const rangeStart = caseValue.substring(0, rangeIndex).trim();
     const rangeEnd = caseValue.substring(rangeIndex + 2).trim();
     if (!rangeStart || !rangeEnd) return null;
 
-    const lowerBound = `min((${rangeStart}), (${rangeEnd}))`;
-    const upperBound = `max((${rangeStart}), (${rangeEnd}))`;
-    return `(((${switchValue}) >= ${lowerBound}) ? ((${switchValue}) <= ${upperBound}) : 0) ? ${resultValue} : ${fallbackValue}`;
+    const switchExpression = buildNumericExpression(switchValue, labels);
+    const rangeStartExpression = buildNumericExpression(rangeStart, labels);
+    const rangeEndExpression = buildNumericExpression(rangeEnd, labels);
+    if (!switchExpression || !rangeStartExpression || !rangeEndExpression) return null;
+
+    const lowerBound = `min((${rangeStartExpression}), (${rangeEndExpression}))`;
+    const upperBound = `max((${rangeStartExpression}), (${rangeEndExpression}))`;
+    return `(((${switchExpression}) >= ${lowerBound}) ? ((${switchExpression}) <= ${upperBound}) : 0) ? ${resultValue} : ${fallbackValue}`;
   }
 
-  return `((${switchValue}) === (${caseValue}) ? ${resultValue} : ${fallbackValue})`;
+  const condition = buildConditionExpression(`${switchValue} = ${caseValue}`, labels);
+  return condition ? `(${condition} ? ${resultValue} : ${fallbackValue})` : null;
 }
 
-function buildSwitchExpression(args: string[]): string | null {
+function buildSwitchExpression(args: string[], labels: FormulaLabels): string | null {
   if (args.length < 3) return null;
 
   const switchValue = args[0].trim();
@@ -456,7 +610,7 @@ function buildSwitchExpression(args: string[]): string | null {
   for (let i = casePairs.length - 2; i >= 0; i -= 2) {
     const caseValue = casePairs[i];
     const resultValue = casePairs[i + 1];
-    const caseExpression = buildSwitchCaseExpression(switchValue, caseValue, resultValue, expression);
+    const caseExpression = buildSwitchCaseExpression(switchValue, caseValue, resultValue, expression, labels);
     if (!caseExpression) return null;
     expression = `(${caseExpression})`;
   }
@@ -464,7 +618,7 @@ function buildSwitchExpression(args: string[]): string | null {
   return `(${expression})`;
 }
 
-function buildThresholdExpression(args: string[], labels: Record<string, number>): string | null {
+function buildThresholdExpression(args: string[], labels: FormulaLabels): string | null {
   if (args.length !== 2 && args.length !== 3) return null;
 
   const valueExpression = args[0].trim();
@@ -477,7 +631,7 @@ function buildThresholdExpression(args: string[], labels: Record<string, number>
   const thresholds = Object.entries(labels)
     .map(([label, value]) => {
       const match = label.match(prefixRegex);
-      return match ? { index: parseInt(match[1], 10), value } : null;
+      return match && typeof value === 'number' ? { index: parseInt(match[1], 10), value } : null;
     })
     .filter((item): item is { index: number; value: number } => item !== null && isFinite(item.value))
     .sort((a, b) => a.index - b.index);
@@ -488,7 +642,7 @@ function buildThresholdExpression(args: string[], labels: Record<string, number>
   return `((${startValue}) + ${reachedTerms.join(' + ')})`;
 }
 
-function buildGeneratedLabelValueExpression(args: string[], labels: Record<string, number>): string | null {
+function buildGeneratedLabelValueExpression(args: string[], labels: FormulaLabels): string | null {
   if (args.length !== 2 && args.length !== 3) return null;
 
   const labelPrefix = parseGeneratedLabelGroupReference(args[0]);
@@ -501,7 +655,7 @@ function buildGeneratedLabelValueExpression(args: string[], labels: Record<strin
   const values = Object.entries(labels)
     .map(([label, value]) => {
       const match = label.match(prefixRegex);
-      return match ? { index: parseInt(match[1], 10), value } : null;
+      return match && typeof value === 'number' ? { index: parseInt(match[1], 10), value } : null;
     })
     .filter((item): item is { index: number; value: number } => item !== null && isFinite(item.value))
     .sort((a, b) => b.index - a.index);
@@ -516,7 +670,7 @@ function buildGeneratedLabelValueExpression(args: string[], labels: Record<strin
   return `(${expression})`;
 }
 
-function buildGeneratedLabelSumExpression(args: string[], labels: Record<string, number>): string | null {
+function buildGeneratedLabelSumExpression(args: string[], labels: FormulaLabels): string | null {
   if (args.length !== 1) return null;
 
   const sumExpression = args[0].trim();
@@ -542,34 +696,29 @@ function buildGeneratedLabelSumExpression(args: string[], labels: Record<string,
  * Converts Excel-style comparison operators in a condition string to JS equivalents.
  * <> → !=, standalone = → ==, <=/>=/</> kept as-is.
  */
-function convertComparison(condition: string): string {
-  condition = condition.replace(/<>/g, '!=');
-  condition = condition.replace(/(?<![<>!=])=(?!=)/g, '==');
-  return condition;
-}
-
 /**
  * Processes IF(), SWITCH(), THRESHOLD(), VALUE(), and SUM() calls in an expression,
  * converting them to JavaScript expressions. Handles nesting by processing innermost calls first.
  */
-function processFormulaFunctions(expr: string, labels: Record<string, number>): string {
+function processFormulaFunctions(expr: string, labels: FormulaLabels): string | null {
   let result = expr;
   const MAX_ITERATIONS = 20;
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     const functionMatch = findInnermostFormulaFunction(result);
     if (functionMatch === null) break;
     const parsed = parseFunctionArguments(result, functionMatch.argsStart);
-    if (!parsed) break;
+    if (!parsed) return null;
 
     let replacement: string | null = null;
     if (functionMatch.name === 'IF') {
-      if (parsed.args.length !== 3) break;
-      const condition = convertComparison(parsed.args[0].trim());
+      if (parsed.args.length !== 3) return null;
+      const condition = buildConditionExpression(parsed.args[0].trim(), labels);
+      if (!condition) return null;
       const trueVal = parsed.args[1].trim();
       const falseVal = parsed.args[2].trim();
       replacement = `(${condition} ? ${trueVal} : ${falseVal})`;
     } else if (functionMatch.name === 'SWITCH') {
-      replacement = buildSwitchExpression(parsed.args);
+      replacement = buildSwitchExpression(parsed.args, labels);
     } else if (functionMatch.name === 'THRESHOLD') {
       replacement = buildThresholdExpression(parsed.args, labels);
     } else if (functionMatch.name === 'VALUE') {
@@ -578,7 +727,7 @@ function processFormulaFunctions(expr: string, labels: Record<string, number>): 
       replacement = buildGeneratedLabelSumExpression(parsed.args, labels);
     }
 
-    if (!replacement) break;
+    if (!replacement) return null;
     result = result.substring(0, functionMatch.index) + replacement + result.substring(parsed.endIndex + 1);
   }
   return result;
@@ -596,34 +745,36 @@ function processFormulaFunctions(expr: string, labels: Record<string, number>): 
  * SUM(@qty * @weight) sums a row-wise expression across matching generated labels.
  * Returns the computed number, or null if evaluation fails.
  */
-export function evaluateFormula(formula: string, labels: Record<string, number>): number | null {
+export function evaluateFormula(formula: string, labels: FormulaLabels): number | null {
   if (!formula || !formula.trim()) return null;
 
-  let expr = formula.trim();
+  let expr: string | null = formula.trim();
 
   // Process formula functions before replacing @refs so @column can be used as a generated-label group reference.
   expr = processFormulaFunctions(expr, labels);
+  if (expr === null) return null;
 
   // Replace @label references with their values
-  // Sort labels by length descending to avoid partial matches (e.g., @str before @s)
-  const sortedLabels = Object.entries(labels).sort((a, b) => b[0].length - a[0].length);
-  for (const [label, value] of sortedLabels) {
-    expr = expr.replace(new RegExp(`@${escapeRegex(label)}\\b`, 'g'), String(value));
-  }
-
-  // Replace any remaining unresolved @refs with 0 (treat missing labels as false/0)
-  expr = expr.replace(/@[\w]+/g, '0');
+  expr = replaceFormulaReferences(expr, labels);
+  if (expr === null) return null;
+  expr = normalizeFormulaStringLiterals(expr);
+  if (expr === null) return null;
 
   // Replace floor/ceil/round with Math equivalents
-  expr = expr.replace(/\bfloor\s*\(/g, 'Math.floor(');
-  expr = expr.replace(/\bceil\s*\(/g, 'Math.ceil(');
-  expr = expr.replace(/\bround\s*\(/g, 'Math.round(');
-  expr = expr.replace(/\bmin\s*\(/g, 'Math.min(');
-  expr = expr.replace(/\bmax\s*\(/g, 'Math.max(');
-  expr = expr.replace(/\babs\s*\(/g, 'Math.abs(');
+  const expressionWithMathFunctions = mapOutsideFormulaStrings(expr, (segment) => segment
+    .replace(/\bfloor\s*\(/g, 'Math.floor(')
+    .replace(/\bceil\s*\(/g, 'Math.ceil(')
+    .replace(/\bround\s*\(/g, 'Math.round(')
+    .replace(/\bmin\s*\(/g, 'Math.min(')
+    .replace(/\bmax\s*\(/g, 'Math.max(')
+    .replace(/\babs\s*\(/g, 'Math.abs('));
+  if (expressionWithMathFunctions === null) return null;
+  expr = expressionWithMathFunctions;
 
   // Validate: only allow safe characters (digits, operators, parens, spaces, dots, commas, Math methods, and ternary/comparison operators)
-  const safeExpr = expr
+  const maskedExpr = maskFormulaStringLiterals(expr);
+  if (maskedExpr === null) return null;
+  const safeExpr = maskedExpr
     .replace(/Math\.(floor|ceil|round|min|max|abs)/g, '') // Remove known Math methods
     .replace(/[\d\s+\-*/().,?:!=<>]/g, ''); // Remove safe characters
   if (safeExpr.length > 0) return null;
@@ -641,14 +792,13 @@ export function evaluateFormula(formula: string, labels: Record<string, number>)
  * Checks whether a formula contains @label references that don't exist in the provided labels.
  * Returns true if the formula has at least one unresolved reference.
  */
-export function hasUnresolvedRefs(formula: string, labels: Record<string, number>): boolean {
+export function hasUnresolvedRefs(formula: string, labels: FormulaLabels): boolean {
   if (!formula || !formula.trim()) return false;
   const formulaWithoutGroupRefs = stripGeneratedLabelGroupReferences(formula);
-  const refs = formulaWithoutGroupRefs.match(/@([a-zA-Z_][a-zA-Z0-9_ ]*)\b/g);
+  const refs = extractFormulaLabelReferences(formulaWithoutGroupRefs);
   if (!refs) return false;
   for (const ref of refs) {
-    const name = ref.slice(1); // remove leading @
-    if (!(name in labels)) return true;
+    if (!(ref in labels)) return true;
   }
   return false;
 }
@@ -657,7 +807,7 @@ export function hasUnresolvedRefs(formula: string, labels: Record<string, number
  * Checks whether a formula is broken: either has unresolved @label references
  * or is syntactically invalid (evaluateFormula returns null).
  */
-export function isFormulaBroken(formula: string, labels: Record<string, number>): boolean {
+export function isFormulaBroken(formula: string, labels: FormulaLabels): boolean {
   if (!formula || !formula.trim()) return false;
   if (hasUnresolvedRefs(formula, labels)) return true;
   return evaluateFormula(formula, labels) === null;
@@ -836,7 +986,7 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
 /**
  * Resolves formulas in a single widget. Returns the updated widget or null if unchanged.
  */
-function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): Widget | null {
+function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | null {
   let changed = false;
   const updates: Partial<WidgetData> = {};
 
@@ -1213,14 +1363,14 @@ function resolveWidgetFormulas(widget: Widget, labels: Record<string, number>): 
 /**
  * Gets a list of all available labels for display in the formula editor.
  */
-export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: Record<string, number>): ProgressClockItem {
+export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: FormulaLabels): ProgressClockItem {
   const segments = getClockSegments((clock.segmentsFormula && !isFormulaBroken(clock.segmentsFormula, labels) ? evaluateFormula(clock.segmentsFormula, labels) : null) ?? clock.segments);
   const value = getClockValue((clock.valueFormula && !isFormulaBroken(clock.valueFormula, labels) ? evaluateFormula(clock.valueFormula, labels) : null) ?? clock.value, segments);
   return segments === clock.segments && value === clock.value ? clock : { ...clock, segments, value };
 }
 
-export function getAvailableLabels(character: Character): { label: string; value: number; widgetLabel: string; sheetName: string }[] {
-  const result: { label: string; value: number; widgetLabel: string; sheetName: string }[] = [];
+export function getAvailableLabels(character: Character): { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] {
+  const result: { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] = [];
 
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
@@ -1297,6 +1447,9 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (field.type === 'switch' && field.valueLabel) {
             result.push({ label: field.valueLabel, value: field.value ? 1 : 0, widgetLabel, sheetName: sheet.name });
           }
+          if (field.type === 'menu' && field.valueLabel) {
+            result.push({ label: field.valueLabel, value: field.value, widgetLabel, sheetName: sheet.name });
+          }
         }
       }
 
@@ -1370,10 +1523,9 @@ export function getAvailableLabels(character: Character): { label: string; value
 /**
  * Extracts @label references from a formula string.
  */
-function extractFormulaRefs(formula: string, labels: Record<string, number> = {}): string[] {
+function extractFormulaRefs(formula: string, labels: FormulaLabels = {}): string[] {
   const formulaWithoutGroupRefs = stripGeneratedLabelGroupReferences(formula);
-  const matches = formulaWithoutGroupRefs.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g);
-  const refs = matches ? matches.map(m => m.slice(1)) : [];
+  const refs = extractFormulaLabelReferences(formulaWithoutGroupRefs) || [];
 
   for (const labelPrefix of collectGeneratedLabelGroupReferences(formula)) {
     const prefixRegex = new RegExp(`^${escapeRegex(labelPrefix)}([1-9]\\d*)$`);

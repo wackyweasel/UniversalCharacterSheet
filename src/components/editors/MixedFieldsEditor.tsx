@@ -12,6 +12,7 @@ import { Tooltip } from '../Tooltip';
 import { TooltipEditButton } from './TooltipEditButton';
 import { CollapsibleSection } from './CollapsibleSection';
 import { LabeledNumberField } from './LabeledNumberField';
+import { VariableLabelControl } from '../VariableLabelControl';
 import type { EditorProps } from './types';
 
 const RESOURCE_STYLES = [
@@ -128,7 +129,13 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
       case 'menu':
         return (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className="text-xs text-theme-muted">Selected value<select value={field.value} onChange={(event) => updateField(index, { ...field, value: event.target.value })} className="mt-1 h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink"><option value="">None</option>{field.options.map((option, optionIndex) => <option key={`${option}-${optionIndex}`} value={option}>{option}</option>)}</select></label>
+            <div>
+              <div className="flex items-end gap-2">
+                <label className="min-w-0 flex-1 text-xs text-theme-muted">Selected value<select value={field.value} onChange={(event) => updateField(index, { ...field, value: event.target.value })} className="mt-1 h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink"><option value="">None</option>{field.options.map((option, optionIndex) => <option key={`${option}-${optionIndex}`} value={option}>{option}</option>)}</select></label>
+                <VariableLabelControl valueLabel={field.valueLabel} onValueLabelChange={(valueLabel) => updateField(index, { ...field, valueLabel })} />
+              </div>
+              <p className="mt-1 text-[10px] text-theme-muted">Compare the selected text in formulas, for example: <span className="font-mono">IF(@stance = "Defensive", 2, 0)</span></p>
+            </div>
             <label className="text-xs text-theme-muted">Options (one per line)<textarea value={field.options.join('\n')} onChange={(event) => { const options = event.target.value.split('\n'); updateField(index, { ...field, options, value: options.includes(field.value) ? field.value : '' }); }} rows={3} className="mt-1 w-full resize-y rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm font-body text-theme-ink" /></label>
           </div>
         );

@@ -22,7 +22,7 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     category: 'Operators',
     label: 'Label reference',
     signature: '@label',
-    description: 'Uses the current numeric value of a labelled field. Choose a label in the Labels panel to insert it at the cursor.',
+    description: 'Uses the current value of a labelled field. Menu labels contain the selected option text and can be compared in IF or SWITCH.',
     examples: [
       { formula: '@strength + 2', explanation: 'Adds 2 to the current Strength value.' },
       { formula: '@current_hp / @max_hp * 100', explanation: 'Converts remaining health to a percentage.' },
@@ -55,10 +55,11 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     category: 'Conditions',
     label: 'Comparisons',
     signature: '=  <>  <  >  <=  >=',
-    description: 'Compares two values inside an IF condition. Use = for equal and <> for not equal.',
+    description: 'Compares two values inside an IF condition. Use = for equal and <> for not equal. Menu text comparisons are exact and use double quotes.',
     examples: [
       { formula: 'IF(@hp <= 0, 0, @hp)', explanation: 'Returns 0 when HP is zero or lower.' },
       { formula: 'IF(@state <> 1, 0, 5)', explanation: 'Returns 5 only when State equals 1.' },
+      { formula: 'IF(@stance = "Defensive", 2, 0)', explanation: 'Returns 2 when the labelled menu is set to Defensive.' },
     ],
   },
   {
@@ -70,6 +71,7 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     examples: [
       { formula: 'IF(@hp <= 0, 0, @hp)', explanation: 'Prevents a displayed HP value from going below 0.' },
       { formula: 'IF(@level >= 5, @strength + 2, @strength)', explanation: 'Adds a bonus from level 5 onward.' },
+      { formula: 'IF(@stance = "", 0, 1)', explanation: 'Checks whether a labelled menu has no selection.' },
     ],
   },
   {
@@ -81,6 +83,7 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     examples: [
       { formula: 'SWITCH(@rank, 1, 2, 2, 4, 3, 6, 0)', explanation: 'Maps ranks 1, 2, and 3 to different bonuses, otherwise 0.' },
       { formula: 'SWITCH(@roll, 1..5, 0, 6..10, 1, 2)', explanation: 'Uses inclusive ranges and returns 2 outside them.' },
+      { formula: 'SWITCH(@stance, "Defensive", 2, "Aggressive", -1, 0)', explanation: 'Maps exact menu selections to different numeric results.' },
     ],
   },
   {

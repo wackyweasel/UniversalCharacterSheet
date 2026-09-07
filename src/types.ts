@@ -260,7 +260,7 @@ export type MixedField = MixedFieldBase & (
   | { type: 'progress'; current: number; currentLabel?: string; currentFormula?: string; min?: number; minLabel?: string; minFormula?: string; max: number; maxLabel?: string; maxFormula?: string; showPercentage?: boolean; showValues?: boolean; fillColor?: string }
   | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }
   | { type: 'step-dice'; currentStep: number; diceChain?: DiceStep[] }
-  | { type: 'menu'; value: string; options: string[] }
+  | { type: 'menu'; value: string; options: string[]; valueLabel?: string }
   | { type: 'switch'; value: boolean; valueLabel?: string; toggleColor?: string }
 );
 

@@ -13,6 +13,7 @@ import {
   FORMULA_REFERENCE_CATEGORIES,
   type FormulaReferenceCategory,
 } from '../utils/formulaReference';
+import { extractFormulaLabelReferences } from '../utils/formulaSyntax';
 import { SearchIcon, XIcon } from './icons';
 
 interface FormulaEditorDialogProps {
@@ -77,12 +78,12 @@ export function FormulaEditorDialog({
       return { kind: 'empty', message: 'Enter a formula to see its result.', result: null };
     }
 
-    const references = draft.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
-    const selfReference = references.find((reference) => sourceLabelSet.has(reference.slice(1)));
+    const references = extractFormulaLabelReferences(draft) || [];
+    const selfReference = references.find((reference) => sourceLabelSet.has(reference));
     if (selfReference) {
       return {
         kind: 'self',
-        message: selfReferenceMessage || `A formula cannot reference its own label (${selfReference}).`,
+        message: selfReferenceMessage || `A formula cannot reference its own label (@${selfReference}).`,
         result: null,
       };
     }
@@ -227,7 +228,7 @@ export function FormulaEditorDialog({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pr-1">
         {labelGroups.length === 0 && (
           <p className="px-2 py-6 text-center text-xs text-theme-muted">
-            {labelSearch ? 'No labels match this search.' : 'This character has no other numeric labels yet.'}
+            {labelSearch ? 'No labels match this search.' : 'This character has no other numeric labels or menu selections yet.'}
           </p>
         )}
         <div className="space-y-3">
@@ -247,7 +248,7 @@ export function FormulaEditorDialog({
                     title={`Insert @${item.label}`}
                   >
                     <span className="min-w-0 truncate font-mono text-xs font-bold text-theme-accent">@{item.label}</span>
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-theme-muted">{item.value}</span>
+                    <span className="max-w-[45%] truncate font-mono text-[11px] text-theme-muted" title={String(item.value)}>{typeof item.value === 'string' ? (item.value || '""') : item.value}</span>
                   </button>
                 ))}
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DiceExpressionRollResult } from '../../utils/diceExpression';
 import { formatDiceRollDetail, formatDiceStep, parseDiceStep } from '../../utils/diceExpression';
@@ -8,6 +8,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { InlineDiceText } from '../InlineDiceText';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import type { FormulaLabels } from '../../utils/formulaSyntax';
 import {
   clampMixedFieldValue,
   createMixedField,
@@ -18,6 +19,7 @@ import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
+import { CheckIcon, ChevronDownIcon } from '../icons';
 
 interface Props {
   widget: Widget;
@@ -48,6 +50,167 @@ const RESOURCE_SYMBOLS: Record<string, [string, string]> = {
 };
 
 const HOLD_DELAY_MS = 300;
+
+function MixedMenuControl({ field, canInteract, onChange }: {
+  field: Extract<MixedField, { type: 'menu' }>;
+  canInteract: boolean;
+  onChange: (value: string) => void;
+}) {
+  const listboxId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef({ text: '', time: 0 });
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [position, setPosition] = useState({ left: 0, top: 0, width: 160, maxHeight: 240 });
+  const options = ['', ...field.options];
+  const selectedIndex = Math.max(0, options.indexOf(field.value));
+  const expanded = open && canInteract;
+
+  const openMenu = () => {
+    setActiveIndex(selectedIndex);
+    searchRef.current = { text: '', time: 0 };
+    setOpen(true);
+  };
+
+  const selectOption = (index: number) => {
+    const value = options[index];
+    if (value !== undefined && value !== field.value) onChange(value);
+    setOpen(false);
+    triggerRef.current?.focus({ preventScroll: true });
+  };
+
+  useLayoutEffect(() => {
+    if (!expanded) return;
+    const updatePosition = () => {
+      const anchor = triggerRef.current?.getBoundingClientRect();
+      if (!anchor) return;
+      const below = Math.max(0, window.innerHeight - anchor.bottom - 12);
+      const above = Math.max(0, anchor.top - 12);
+      const desiredHeight = Math.min(240, (menuRef.current?.scrollHeight ?? 240) + 8);
+      const placeAbove = below < desiredHeight && above > below;
+      const maxHeight = Math.min(240, placeAbove ? above : below);
+      const width = Math.min(Math.max(anchor.width, 160), window.innerWidth - 16);
+      setPosition({
+        left: Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8)),
+        top: placeAbove ? anchor.top - Math.min(desiredHeight, maxHeight) - 4 : anchor.bottom + 4,
+        width,
+        maxHeight,
+      });
+    };
+    const handleScroll = (event: Event) => {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      updatePosition();
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [expanded, field.options]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', handleOutsidePointer);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointer);
+  }, [expanded]);
+
+  useEffect(() => {
+    if (expanded) menuRef.current?.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, expanded]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        role="combobox"
+        aria-label={field.name || 'Select value'}
+        aria-haspopup="listbox"
+        aria-expanded={expanded}
+        aria-controls={expanded ? listboxId : undefined}
+        aria-activedescendant={expanded ? `${listboxId}-${activeIndex}` : undefined}
+        disabled={!canInteract}
+        data-touch-camera-ignore="true"
+        className="flex h-7 min-w-0 flex-1 items-center gap-1 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1 text-left text-xs font-body text-theme-ink transition-colors enabled:hover:bg-theme-accent enabled:hover:text-theme-paper focus-visible:border-theme-accent"
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        onBlur={() => setOpen(false)}
+        onClick={() => expanded ? setOpen(false) : openMenu()}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === 'Tab') {
+            setOpen(false);
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setOpen(false);
+          } else if (event.key === 'Enter' || (event.key === ' ' && Date.now() - searchRef.current.time > 700)) {
+            event.preventDefault();
+            if (expanded) selectOption(activeIndex);
+            else openMenu();
+          } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            event.preventDefault();
+            if (!expanded) openMenu();
+            setActiveIndex((current) => {
+              if (event.key === 'Home') return 0;
+              if (event.key === 'End') return options.length - 1;
+              return Math.max(0, Math.min(options.length - 1, (expanded ? current : selectedIndex) + (event.key === 'ArrowDown' ? 1 : -1)));
+            });
+          } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            event.preventDefault();
+            const now = Date.now();
+            const text = (now - searchRef.current.time > 700 ? '' : searchRef.current.text) + event.key.toLocaleLowerCase();
+            if (!expanded) openMenu();
+            searchRef.current = { text, time: now };
+            const match = options.findIndex((option) => (option || 'Select...').toLocaleLowerCase().startsWith(text));
+            if (match >= 0) setActiveIndex(match);
+          }
+        }}
+      >
+        <span className="min-w-0 flex-1 truncate">{field.value || 'Select...'}</span>
+        <ChevronDownIcon className="h-3 w-3 shrink-0" />
+      </button>
+      {expanded && createPortal(
+        <div
+          ref={menuRef}
+          id={listboxId}
+          role="listbox"
+          aria-label={field.name || 'Select value'}
+          data-touch-camera-ignore="true"
+          className="fixed z-[10020] overflow-y-auto overscroll-contain rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-1 font-body text-xs text-theme-ink shadow-theme animate-dropdown-in"
+          style={position}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          {options.map((option, index) => (
+            <div
+              key={`${option}-${index}`}
+              id={`${listboxId}-${index}`}
+              role="option"
+              aria-selected={index === selectedIndex}
+              className={`flex min-h-7 cursor-pointer items-center gap-2 rounded-button px-2 py-1.5 ${index === activeIndex ? 'bg-theme-accent text-theme-paper' : 'hover:bg-theme-accent hover:text-theme-paper'}`}
+              onMouseMove={() => setActiveIndex(index)}
+              onClick={(event) => { event.stopPropagation(); selectOption(index); }}
+            >
+              <span className="min-w-0 flex-1 break-words">{option || 'Select...'}</span>
+              <span className="h-3 w-3 shrink-0">{index === selectedIndex && <CheckIcon className="h-3 w-3" />}</span>
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 interface MixedProgressValueModalProps {
   field: Extract<MixedField, { type: 'progress' }>;
@@ -225,7 +388,7 @@ function MixedNumberControl({
   field: MixedNumberField;
   canInteract: boolean;
   isPrintMode: boolean;
-  labels: Record<string, number>;
+  labels: FormulaLabels;
   onUpdate: (field: MixedField) => void;
   onAdjust: (delta: number) => void;
   onAnnounce: (detail: string) => void;
@@ -315,7 +478,7 @@ function MixedProgressControl({
   field: Extract<MixedField, { type: 'progress' }>;
   canInteract: boolean;
   isPrintMode: boolean;
-  labels: Record<string, number>;
+  labels: FormulaLabels;
   onUpdate: (field: MixedField) => void;
   onAnnounce: (detail: string) => void;
 }) {
@@ -592,20 +755,14 @@ export default function MixedFieldsWidget({
         );
       case 'menu':
         return (
-          <select
-            value={field.value}
-            onChange={(event) => {
-              const nextValue = event.target.value;
+          <MixedMenuControl
+            field={field}
+            canInteract={canInteract}
+            onChange={(nextValue) => {
               updateField(index, { ...field, value: nextValue });
               announceChange(field, nextValue || 'cleared');
             }}
-            onMouseDown={(event) => event.stopPropagation()}
-            disabled={!canInteract}
-            className="h-7 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-1 text-xs font-body text-theme-ink outline-none focus:border-theme-accent"
-          >
-            <option value="">Select...</option>
-            {field.options.map((option, optionIndex) => <option key={`${option}-${optionIndex}`} value={option}>{option}</option>)}
-          </select>
+          />
         );
       case 'switch':
         return (
