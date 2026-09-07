@@ -478,11 +478,20 @@ td .inline-dice-token {
     margin: 0;
   }
 
-  .widget-edit-modal__global-setting {
-    align-items: center;
+  .widget-edit-modal__visibility-settings {
     background: var(--editor-tint);
     border: 1px solid color-mix(in srgb, var(--color-accent) 30%, var(--editor-input-border));
     border-radius: var(--button-radius);
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0.625rem;
+    width: 100%;
+  }
+
+  .widget-edit-modal__global-setting {
+    align-items: center;
     color: var(--color-ink);
     cursor: pointer;
     display: flex;
@@ -490,9 +499,7 @@ td .inline-dice-token {
     font-weight: 700;
     gap: 0.625rem;
     line-height: 1.25;
-    margin-bottom: 1rem;
-    min-height: 2.75rem;
-    padding: 0.625rem 0.75rem;
+    min-height: 2.25rem;
   }
 
   .widget-edit-modal__global-setting input {

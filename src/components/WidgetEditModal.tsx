@@ -247,6 +247,13 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     </label>
   );
 
+  const renderVisibilitySettings = () => (
+    <div className="widget-edit-modal__visibility-settings">
+      {widget.type !== 'LABEL' && widget.type !== 'IMAGE' && renderHeaderVisibilitySetting()}
+      {renderEditButtonVisibilitySetting()}
+    </div>
+  );
+
   // Get actual widget dimensions for preview
   const getPreviewDimensions = () => {
     const actualWidth = localWidth || widget.w || 200;
@@ -385,8 +392,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           <div className={`widget-edit-modal__layout ${isImageWidget ? 'widget-edit-modal__layout--image' : ''}`}>
             {/* Editor Section */}
             <section className="widget-edit-modal__settings min-w-0" aria-label="Settings">
-              {widget.type !== 'LABEL' && widget.type !== 'IMAGE' && renderHeaderVisibilitySetting()}
-              {renderEditButtonVisibilitySetting()}
+              {renderVisibilitySettings()}
               <div className={`widget-edit-modal__editor-content ${isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : ''}`}>
                 {renderEditor()}
               </div>
