@@ -39,6 +39,13 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.6.1',
+    changes: [
+      'Revamped the roll table widget.',
+      'Added the Pokemon TTRPG community preset.',
+    ],
+  },
+  {
     version: '1.6.0',
     changes: [
       'Added the Progress Clock widget.',

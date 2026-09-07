@@ -183,6 +183,14 @@
       "description": "Friends yay",
       "file": "presets/daggerheart.json",
       "gameSystem": "Daggerheart"
+    },
+    {
+      "id": "24",
+      "name": "Jasper",
+      "author": "underscoreMEGA",
+      "description": "Character sheet template",
+      "file": "presets/jasper.json",
+      "gameSystem": "Pokemon TTRPG"
     }
   ],
   "themes": [
