@@ -1,7 +1,8 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField, RollTableItem } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
-import type { ProgressClockItem } from '../types';
+import type { ProgressClockItem, TableMerge } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
+import { isCoveredTableCell, validateTableMerges } from './tableCells';
 import {
   extractFormulaLabelReferences,
   hasFormulaStringLiteral,
@@ -130,11 +131,13 @@ export function collectLabels(character: Character): FormulaLabels {
 
       // Collect from Table cell and generated row/column labels
       if (data.rows) {
+        const merges = validateTableMerges(data).merges;
         const columnSettings = data.tableColumnSettings || [];
         const rowSettings = data.tableRowSettings || [];
         for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
           const rowLabel = getTableRowSetting(rowSettings, rowIndex).label;
           for (const [colIndex, cell] of row.cells.entries()) {
+            if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
             const num = parseFloat(value);
             if (typeof cell !== 'string' && cell.label) {
@@ -238,19 +241,23 @@ function getTableCellLabel(cell: TableRow['cells'][number] | undefined): string 
   return !cell || typeof cell === 'string' ? undefined : cell.label;
 }
 
-function getTableRowControlledLabels(row: TableRow, rowIndex: number, columnSettings: (TableColumnSettings | null | undefined)[], rowSetting: TableRowSettings): string[] {
+function getTableRowControlledLabels(row: TableRow, rowIndex: number, columnSettings: (TableColumnSettings | null | undefined)[], rowSetting: TableRowSettings, merges: TableMerge[] | undefined): string[] {
   const labels: string[] = [];
   if (rowSetting.label) {
     labels.push(rowSetting.label);
-    row.cells.forEach((_, colIndex) => labels.push(`${rowSetting.label}${colIndex + 1}`));
+    row.cells.forEach((_, colIndex) => {
+      if (!isCoveredTableCell(merges, rowIndex, colIndex)) labels.push(`${rowSetting.label}${colIndex + 1}`);
+    });
   }
 
-  row.cells.forEach(cell => {
+  row.cells.forEach((cell, colIndex) => {
+    if (isCoveredTableCell(merges, rowIndex, colIndex)) return;
     const cellLabel = getTableCellLabel(cell);
     if (cellLabel) labels.push(cellLabel);
   });
 
   columnSettings.forEach((_, colIndex) => {
+    if (isCoveredTableCell(merges, rowIndex, colIndex)) return;
     const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
     if (columnLabel) {
       labels.push(columnLabel, `${columnLabel}${rowIndex + 1}`);
@@ -260,14 +267,17 @@ function getTableRowControlledLabels(row: TableRow, rowIndex: number, columnSett
   return Array.from(new Set(labels));
 }
 
-function getTableColumnControlledLabels(rows: TableRow[], colIndex: number, columnSetting: TableColumnSettings, rowSettings: (TableRowSettings | null | undefined)[]): string[] {
+function getTableColumnControlledLabels(rows: TableRow[], colIndex: number, columnSetting: TableColumnSettings, rowSettings: (TableRowSettings | null | undefined)[], merges: TableMerge[] | undefined): string[] {
   const labels: string[] = [];
   if (columnSetting.label) {
     labels.push(columnSetting.label);
-    rows.forEach((_, rowIndex) => labels.push(`${columnSetting.label}${rowIndex + 1}`));
+    rows.forEach((_, rowIndex) => {
+      if (!isCoveredTableCell(merges, rowIndex, colIndex)) labels.push(`${columnSetting.label}${rowIndex + 1}`);
+    });
   }
 
   rows.forEach((row, rowIndex) => {
+    if (isCoveredTableCell(merges, rowIndex, colIndex)) return;
     const cellLabel = getTableCellLabel(row.cells[colIndex]);
     if (cellLabel) labels.push(cellLabel);
 
@@ -952,6 +962,7 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
 
   // Table cell and generated row/column formula changes
   if (oldWidget.data.rows && newWidget.data.rows) {
+    const merges = validateTableMerges(newWidget.data).merges;
     const oldRows = oldWidget.data.rows as TableRow[];
     const newRows = newWidget.data.rows as TableRow[];
     const newColumnSettings = newWidget.data.tableColumnSettings || [];
@@ -959,6 +970,7 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
     for (let r = 0; r < Math.min(oldRows.length, newRows.length); r++) {
       const rowSetting = getTableRowSetting(newRowSettings, r);
       for (let c = 0; c < Math.min(oldRows[r].cells.length, newRows[r].cells.length); c++) {
+        if (isCoveredTableCell(merges, r, c)) continue;
         const oldCell = oldRows[r].cells[c];
         const newCell = newRows[r].cells[c];
         const columnSetting = getTableColumnSetting(newColumnSettings, c);
@@ -967,8 +979,8 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
         const columnFormula = columnSetting.formula;
         const formula = cellFormula || rowFormula || columnFormula;
         if (formula) {
-          if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(newRows[r], r, newColumnSettings, rowSetting))) continue;
-          if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(newRows, c, columnSetting, newRowSettings))) continue;
+          if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(newRows[r], r, newColumnSettings, rowSetting, merges))) continue;
+          if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(newRows, c, columnSetting, newRowSettings, merges))) continue;
 
           const oldVal = typeof oldCell === 'string' ? parseFloat(oldCell) : parseFloat(oldCell.value);
           const newVal = typeof newCell === 'string' ? parseFloat(newCell) : parseFloat(newCell.value);
@@ -1317,6 +1329,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
 
   // Resolve Table cell and generated row/column formulas
   if (widget.data.rows) {
+    const merges = validateTableMerges(widget.data).merges;
     let rowsChanged = false;
     const columnSettings = widget.data.tableColumnSettings || [];
     const rowSettings = widget.data.tableRowSettings || [];
@@ -1324,14 +1337,15 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
       let rowChanged = false;
       const rowSetting = getTableRowSetting(rowSettings, rowIndex);
       const updatedCells = row.cells.map((cell, colIndex) => {
+        if (isCoveredTableCell(merges, rowIndex, colIndex)) return cell;
         const columnSetting = getTableColumnSetting(columnSettings, colIndex);
         const cellFormula = typeof cell === 'string' ? undefined : cell.formula;
         const rowFormula = rowSetting.formula;
         const columnFormula = columnSetting.formula;
         const formula = cellFormula || rowFormula || columnFormula;
         if (!formula) return cell;
-        if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(row, rowIndex, columnSettings, rowSetting))) return cell;
-        if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(widget.data.rows as TableRow[], colIndex, columnSetting, rowSettings))) return cell;
+        if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(row, rowIndex, columnSettings, rowSetting, merges))) return cell;
+        if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(widget.data.rows as TableRow[], colIndex, columnSetting, rowSettings, merges))) return cell;
 
         const computed = evaluateFormula(formula, labels);
         if (computed !== null) {
@@ -1467,11 +1481,13 @@ export function getAvailableLabels(character: Character): { label: string; value
 
       // Table cell and generated row/column labels
       if (data.rows) {
+        const merges = validateTableMerges(data).merges;
         const columnSettings = data.tableColumnSettings || [];
         const rowSettings = data.tableRowSettings || [];
         for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
           const rowLabel = getTableRowSetting(rowSettings, rowIndex).label;
           for (const [colIndex, cell] of row.cells.entries()) {
+            if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
             const num = parseFloat(value);
             if (typeof cell !== 'string' && cell.label) {
@@ -1653,12 +1669,14 @@ export function buildDependencyGraph(character: Character): Record<string, strin
 
       // Table cell and generated row/column formulas
       if (data.rows) {
+        const merges = validateTableMerges(data).merges;
         const columnSettings = data.tableColumnSettings || [];
         const rowSettings = data.tableRowSettings || [];
         for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
           const rowSetting = getTableRowSetting(rowSettings, rowIndex);
           const rowLabel = rowSetting.label;
           for (const [colIndex, cell] of row.cells.entries()) {
+            if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             if (typeof cell !== 'string' && cell.label && cell.formula) {
               graph[cell.label] = extractFormulaRefs(cell.formula, labels);
             }

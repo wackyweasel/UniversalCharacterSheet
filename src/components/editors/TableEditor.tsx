@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { EditorProps } from './types';
-import { TableCell, TableRow } from '../../types';
+import { TableRow, WidgetData } from '../../types';
 import { usePointerReorder } from '../../hooks';
+import { getTableCellOwner, isCoveredTableCell, tableCellObject, tableCellValue, transformTableAxis, validateTableMerges } from '../../utils/tableCells';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon, XIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -121,15 +123,15 @@ function TableLabelEditor({ scope, draft, hasLabel, onDraftChange, onSave, onCle
   );
 }
 
-function getTableCellValue(cell: string | TableCell): string {
-  return typeof cell === 'string' ? cell : cell.value;
-}
-
 export function TableEditor({ widget, updateData }: EditorProps) {
   const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [], hideTableHeader = false, tableCornerRadius = false } = widget.data;
   const [editingLabel, setEditingLabel] = useState<{ scope: LabelScope; index: number } | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [expandedCell, setExpandedCell] = useState<{ rowId: string; columnId: string } | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<{ axis: LabelScope; id: string; data: WidgetData } | null>(null);
+  const validation = validateTableMerges(widget.data);
+  const { merges } = validation;
   const columnIdsRef = useRef<string[]>([]);
   const nextColumnIdRef = useRef(0);
   const getColumnId = (index: number) => {
@@ -158,6 +160,17 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     row,
     index,
   }));
+  const expandedRowIndex = reorderableRows.findIndex(item => item.id === expandedCell?.rowId);
+  const expandedColumnIndex = reorderableColumns.findIndex(item => item.id === expandedCell?.columnId);
+  const expandedOwner = expandedRowIndex >= 0 && expandedColumnIndex >= 0
+    ? getTableCellOwner(merges, expandedRowIndex, expandedColumnIndex)
+    : null;
+  const visibleExpandedCell = expandedOwner ? {
+    rowId: reorderableRows[expandedOwner.row].id,
+    columnId: reorderableColumns[expandedOwner.col].id,
+  } : null;
+  const mergedRange = (merge: typeof merges[number]) =>
+    `rows ${merge.row + 1}–${merge.row + merge.rowSpan}, columns ${merge.col + 1}–${merge.col + merge.colSpan}`;
 
   const handleColumnChange = (index: number, value: string) => {
     const newColumns = [...columns];
@@ -174,19 +187,33 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     updateData({ columns: [...columns, 'New'], rows: newRows, tableColumnSettings: [...tableColumnSettings, {}] });
   };
 
+  const applyAxisChange = (axis: LabelScope, order: number[], confirmed = false) => {
+    const result = transformTableAxis(widget.data, axis, order);
+    if (!result.ok) {
+      setOperationError(result.reason);
+      return;
+    }
+    const items = axis === 'row' ? reorderableRows : reorderableColumns;
+    if (result.removesMergedCells && !confirmed) {
+      const removedItem = items.find((_, index) => !order.includes(index));
+      if (removedItem) setPendingRemoval({ axis, id: removedItem.id, data: widget.data });
+      setOperationError(null);
+      return;
+    }
+    updateData(result.data);
+    const ids = order.map(index => items[index].id);
+    if (axis === 'row') rowIdsRef.current = ids;
+    else columnIdsRef.current = ids;
+    if (order.length < items.length) setExpandedCell(null);
+    setEditingLabel(null);
+    setLabelDraft('');
+    setPendingRemoval(null);
+    setOperationError(null);
+  };
+
   const removeColumn = (index: number) => {
     if (columns.length <= 1) return;
-    const newColumns = [...columns];
-    const newColumnSettings = [...tableColumnSettings];
-    setExpandedCell(null);
-    columnIdsRef.current.splice(index, 1);
-    newColumns.splice(index, 1);
-    newColumnSettings.splice(index, 1);
-    const newRows = rows.map((row: TableRow) => ({
-      ...row,
-      cells: row.cells.filter((_, i: number) => i !== index)
-    }));
-    updateData({ columns: newColumns, rows: newRows, tableColumnSettings: newColumnSettings });
+    applyAxisChange('column', columns.map((_, i) => i).filter(i => i !== index));
   };
 
   const updateLabel = (scope: LabelScope, index: number, labelValue: string | undefined) => {
@@ -216,6 +243,12 @@ export function TableEditor({ widget, updateData }: EditorProps) {
 
   const saveLabel = () => {
     if (!editingLabel) return;
+    if (labelDraft.trim() && !(editingLabel.scope === 'column'
+      ? canAssignColumnLabel(editingLabel.index)
+      : canAssignRowLabel(editingLabel.index))) {
+      setOperationError('Only rows or columns with numeric visible cells can have a label.');
+      return;
+    }
     updateLabel(editingLabel.scope, editingLabel.index, labelDraft.trim() || undefined);
   };
 
@@ -224,49 +257,66 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     setLabelDraft('');
   };
 
-  const canAssignColumnLabel = (index: number) => rows.every((row: TableRow) => {
-    const value = getTableCellValue(row.cells[index] ?? '');
+  const canAssignColumnLabel = (index: number) => rows.every((row: TableRow, rowIndex: number) => {
+    if (isCoveredTableCell(merges, rowIndex, index)) return true;
+    const value = tableCellValue(row.cells[index]);
     return value === '' || !isNaN(Number(value));
   });
 
-  const canAssignRowLabel = (index: number) => (rows[index]?.cells || []).every((cell) => {
-    const value = getTableCellValue(cell);
+  const canAssignRowLabel = (index: number) => (rows[index]?.cells || []).every((cell, columnIndex) => {
+    if (isCoveredTableCell(merges, index, columnIndex)) return true;
+    const value = tableCellValue(cell);
     return value === '' || !isNaN(Number(value));
   });
 
   const handleRowCellChange = (rowIndex: number, columnIndex: number, value: string) => {
+    const owner = getTableCellOwner(merges, rowIndex, columnIndex);
+    rowIndex = owner.row;
+    columnIndex = owner.col;
+    if (!rows[rowIndex]) { setOperationError('The selected cell no longer exists. Please select a cell again.'); return; }
     const updatedRows = [...rows];
     const updatedCells = [...updatedRows[rowIndex].cells];
     const currentCell = updatedCells[columnIndex] ?? '';
+    const cell = tableCellObject(currentCell);
+    if (cell.formula || tableRowSettings[rowIndex]?.formula || tableColumnSettings[columnIndex]?.formula) {
+      setOperationError('This cell is controlled by a formula. Edit the formula instead.');
+      return;
+    }
+    if ((cell.label || tableRowSettings[rowIndex]?.label || tableColumnSettings[columnIndex]?.label) &&
+      value !== '' && isNaN(Number(value))) {
+      setOperationError('Cells with variable labels must contain a number.');
+      return;
+    }
     updatedCells[columnIndex] = typeof currentCell === 'string'
       ? value
       : { ...currentCell, value };
     updatedRows[rowIndex] = { ...updatedRows[rowIndex], cells: updatedCells };
     updateData({ rows: updatedRows });
+    setOperationError(null);
+  };
+
+  // Pointer drags retain their initial callback; resolve IDs against the latest table.
+  const reorderRef = useRef<(axis: LabelScope, ids: string[]) => void>(() => {});
+  reorderRef.current = (axis, ids) => {
+    const items = axis === 'row' ? reorderableRows : reorderableColumns;
+    const order = ids.map(id => items.findIndex(item => item.id === id));
+    if (order.length !== items.length || order.some(index => index < 0)) {
+      setOperationError('The table changed while dragging. Please try again.');
+      return;
+    }
+    applyAxisChange(axis, order);
   };
 
   const { setRowRef: setColumnRowRef, startDrag, handleReorderKey } = usePointerReorder({
     items: reorderableColumns,
     onReorder: (reorderedItems) => {
-      columnIdsRef.current = reorderedItems.map(({ id }) => id);
-      updateData({
-        columns: reorderedItems.map(({ index }) => columns[index]),
-        rows: rows.map((row: TableRow) => ({
-          ...row,
-          cells: reorderedItems.map(({ index }) => row.cells[index] ?? ''),
-        })),
-        tableColumnSettings: reorderedItems.map(({ index }) => tableColumnSettings[index] || {}),
-      });
+      reorderRef.current('column', reorderedItems.map(({ id }) => id));
     },
   });
   const { setRowRef: setTableRowRef, startDrag: startRowDrag, handleReorderKey: handleRowReorderKey } = usePointerReorder({
     items: reorderableRows,
     onReorder: (reorderedItems) => {
-      rowIdsRef.current = reorderedItems.map(({ id }) => id);
-      updateData({
-        rows: reorderedItems.map(({ row }) => row),
-        tableRowSettings: reorderedItems.map(({ index }) => tableRowSettings[index] || {}),
-      });
+      reorderRef.current('row', reorderedItems.map(({ id }) => id));
     },
   });
 
@@ -278,16 +328,29 @@ export function TableEditor({ widget, updateData }: EditorProps) {
 
   const removeRow = (index: number) => {
     if (rows.length <= 1) return;
-    const newRows = [...rows];
-    const newRowSettings = [...tableRowSettings];
-    rowIdsRef.current.splice(index, 1);
-    newRows.splice(index, 1);
-    newRowSettings.splice(index, 1);
-    updateData({ rows: newRows, tableRowSettings: newRowSettings });
+    applyAxisChange('row', rows.map((_, i) => i).filter(i => i !== index));
+  };
+
+  const confirmRemoval = () => {
+    if (!pendingRemoval) return;
+    const { axis, id, data } = pendingRemoval;
+    const items = axis === 'row' ? reorderableRows : reorderableColumns;
+    const index = items.findIndex(item => item.id === id);
+    if (data !== widget.data || index < 0 || items.length <= 1) {
+      setPendingRemoval(null);
+      setOperationError('The table changed. Please select the row or column to remove again.');
+      return;
+    }
+    applyAxisChange(axis, items.map((_, i) => i).filter(i => i !== index), true);
   };
 
   return (
     <div className="widget-editor widget-editor--table space-y-4">
+      {(validation.error || operationError) && (
+        <p role="alert" className="rounded-button border border-red-500 p-2 text-xs text-red-500">
+          {validation.error || operationError}
+        </p>
+      )}
       <CollapsibleSection title="General">
         <div>
         <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
@@ -426,10 +489,16 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             {reorderableRows.map(({ id, row, index }, rowIdx) => {
               const rowLabel = tableRowSettings[index]?.label;
               const isEditingRowLabel = editingLabel?.scope === 'row' && editingLabel.index === index;
-              const expandedColumn = expandedCell?.rowId === id
-                ? reorderableColumns.find(({ id: columnId }) => columnId === expandedCell.columnId)
+              const expandedColumn = visibleExpandedCell?.rowId === id
+                ? reorderableColumns.find(({ id: columnId }) => columnId === visibleExpandedCell.columnId)
                 : undefined;
               const expandedCellData = expandedColumn ? row.cells[expandedColumn.index] ?? '' : '';
+              const expandedCellFormula = expandedColumn
+                ? tableCellObject(expandedCellData).formula || tableRowSettings[index]?.formula || tableColumnSettings[expandedColumn.index]?.formula
+                : undefined;
+              const expandedMerge = expandedColumn
+                ? merges.find(merge => merge.row === index && merge.col === expandedColumn.index)
+                : undefined;
 
               return (
                 <div
@@ -455,23 +524,27 @@ export function TableEditor({ widget, updateData }: EditorProps) {
                     <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                       {reorderableColumns.map(({ id: columnId, column }, colIdx) => {
                         const columnName = column || `Column ${colIdx + 1}`;
-                        const isExpanded = expandedCell?.rowId === id && expandedCell.columnId === columnId;
+                        const owner = getTableCellOwner(merges, index, colIdx);
+                        const ownerCell = { rowId: reorderableRows[owner.row].id, columnId: reorderableColumns[owner.col].id };
+                        const merge = merges.find(merge => merge.row === owner.row && merge.col === owner.col);
+                        const rangeDescription = merge ? ` (merged ${mergedRange(merge)})` : '';
+                        const isExpanded = visibleExpandedCell?.rowId === ownerCell.rowId && visibleExpandedCell.columnId === ownerCell.columnId;
 
                         return (
                           <button
                             key={columnId}
                             type="button"
-                            onClick={() => setExpandedCell(isExpanded ? null : { rowId: id, columnId })}
+                            onClick={() => setExpandedCell(isExpanded ? null : ownerCell)}
                             aria-expanded={isExpanded}
-                            aria-label={`${isExpanded ? 'Hide' : 'Show'} ${columnName} for row ${rowIdx + 1}`}
-                            title={`${isExpanded ? 'Hide' : 'Edit'} ${columnName}`}
+                            aria-label={`${isExpanded ? 'Hide' : 'Show'} ${columnName} for row ${rowIdx + 1}${rangeDescription}`}
+                            title={`${isExpanded ? 'Hide' : 'Edit'} ${columnName}${rangeDescription}`}
                             className={`h-10 min-w-0 flex-1 truncate rounded border px-2 py-1 text-left text-[10px] font-medium transition-colors ${
                               isExpanded
                                 ? 'border-theme-accent-soft bg-theme-accent/20 text-theme-accent'
                                 : 'border-theme-border-soft text-theme-muted hover:text-theme-ink'
                             }`}
                           >
-                            {columnName}
+                            {columnName}{merge ? ' (merged)' : ''}
                           </button>
                         );
                       })}
@@ -496,23 +569,44 @@ export function TableEditor({ widget, updateData }: EditorProps) {
                     )}
                   </div>
                   {expandedColumn && (
-                    <div className="mt-2 flex items-center gap-2 pt-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 pt-2">
+                      {expandedMerge && (
+                        <p className="w-full text-[10px] text-theme-muted">
+                          Merged cell: {mergedRange(expandedMerge)}. Editing the top-left cell.
+                        </p>
+                      )}
                       <span className="min-w-0 max-w-[35%] truncate text-[10px] font-medium text-theme-muted">
                         {expandedColumn.column || `Column ${expandedColumn.index + 1}`}
                       </span>
+                      {expandedMerge ? (
+                        <textarea
+                          value={tableCellValue(expandedCellData)}
+                          onChange={(event) => handleRowCellChange(index, expandedColumn.index, event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Escape') setExpandedCell(null);
+                          }}
+                          readOnly={!!expandedCellFormula}
+                          aria-label={`Merged cell, ${mergedRange(expandedMerge)}`}
+                          rows={3}
+                          className="min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none read-only:cursor-default read-only:bg-theme-accent/10"
+                          placeholder="-"
+                          autoFocus
+                        />
+                      ) : (
                       <input
                         type="text"
-                        value={getTableCellValue(expandedCellData)}
+                        value={tableCellValue(expandedCellData)}
                         onChange={(event) => handleRowCellChange(index, expandedColumn.index, event.target.value)}
                         onKeyDown={(event) => {
                           if (event.key === 'Escape') setExpandedCell(null);
                         }}
-                        readOnly={typeof expandedCellData !== 'string' && !!expandedCellData.formula}
+                        readOnly={!!expandedCellFormula}
                         aria-label={`Row ${rowIdx + 1}, ${expandedColumn.column || `column ${expandedColumn.index + 1}`}`}
                         className="h-8 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none read-only:cursor-default read-only:bg-theme-accent/10"
                         placeholder="-"
                         autoFocus
                       />
+                      )}
                     </div>
                   )}
                   {isEditingRowLabel && (
@@ -550,7 +644,61 @@ export function TableEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
       </CollapsibleSection>
+      {pendingRemoval && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={() => setPendingRemoval(null)}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.stopPropagation();
+              setPendingRemoval(null);
+            }
+            if (event.key === 'Tab') {
+              event.preventDefault();
+              const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button');
+              const next = document.activeElement === buttons[0] ? buttons[1] : buttons[0];
+              next?.focus();
+            }
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`table-editor-remove-title-${widget.id}`}
+            aria-describedby={`table-editor-remove-description-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={`table-editor-remove-title-${widget.id}`} className="font-heading text-base font-bold">
+              Remove {pendingRemoval.axis} and merged cells?
+            </h3>
+            <p id={`table-editor-remove-description-${widget.id}`} className="mt-2 text-sm text-theme-muted">
+              This {pendingRemoval.axis} and all of its values, labels, formulas, formatting, and merged cells will be removed.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setPendingRemoval(null)}
+                className="widget-control px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemoval}
+                className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+              >
+                Remove {pendingRemoval.axis}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
-

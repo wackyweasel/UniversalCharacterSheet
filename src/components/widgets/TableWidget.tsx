@@ -8,6 +8,10 @@ import { InlineDiceText } from '../InlineDiceText';
 import { FormulaEditorDialog } from '../FormulaEditorDialog';
 import { CheckIcon, GripVerticalIcon, PencilIcon, PlusIcon, ResetIcon, TrashIcon } from '../icons';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
+import { commonTableFormat, formatTableCells, getTableCellOwner, isCoveredTableCell, logicalTableCells,
+  mergeTableCells, mixedTableFormatFields, selectedTableRectangle, tableCellKey, tableMergeBlockedReason, tableRangeSelection,
+  transformTableAxis, unmergeTableCells, validateTableMerges, type TableCoordinate } from '../../utils/tableCells';
+import { placeTableToolbar } from '../../utils/tableToolbar';
 
 interface Props {
   widget: Widget;
@@ -30,23 +34,24 @@ interface ToolbarPosition {
   x: number;
   y: number;
   avoidRect?: RectBounds;
+  avoidRects?: RectBounds[];
 }
 
 // Helper to normalize cell data (supports both legacy string and new TableCell format)
 function getCellValue(cell: string | TableCell): string {
-  return typeof cell === 'string' ? cell : cell.value;
+  return typeof cell === 'string' ? cell : cell?.value ?? '';
 }
 
 function getCellFormat(cell: string | TableCell): CellFormat {
-  return typeof cell === 'string' ? {} : (cell.format || {});
+  return typeof cell === 'string' ? {} : (cell?.format || {});
 }
 
 function getCellLabel(cell: string | TableCell): string | undefined {
-  return typeof cell === 'string' ? undefined : cell.label;
+  return typeof cell === 'string' ? undefined : cell?.label;
 }
 
 function getCellFormula(cell: string | TableCell): string | undefined {
-  return typeof cell === 'string' ? undefined : cell.formula;
+  return typeof cell === 'string' ? undefined : cell?.formula;
 }
 
 function createCell(value: string, format?: CellFormat, label?: string, formula?: string): TableCell {
@@ -127,9 +132,15 @@ interface FormatToolbarProps {
   formulaSourceLabels?: string[];
   excludedFormulaLabels?: string[];
   labelDisabledReason?: string;
+  multiple?: boolean;
+  onMerge?: () => void;
+  mergeDisabledReason?: string;
+  onUnmerge?: () => void;
+  mixedFields?: (keyof CellFormat)[];
+  showVerticalAlignment?: boolean;
 }
 
-function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character, labelScope = 'cell', canAssignLabelOverride, formulaSourceLabels = [], excludedFormulaLabels = [], labelDisabledReason }: FormatToolbarProps) {
+function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character, labelScope = 'cell', canAssignLabelOverride, formulaSourceLabels = [], excludedFormulaLabels = [], labelDisabledReason, multiple = false, onMerge, mergeDisabledReason, onUnmerge, mixedFields = [], showVerticalAlignment = false }: FormatToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState({ x: position.x, y: position.y });
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -139,6 +150,15 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   const [showLabelInput, setShowLabelInput] = useState(false);
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(cellLabel || '');
+  const [toolbarLayoutVersion, setToolbarLayoutVersion] = useState(0);
+
+  useEffect(() => {
+    const resized = () => setToolbarLayoutVersion(version => version + 1);
+    const observer = new ResizeObserver(resized);
+    if (toolbarRef.current) observer.observe(toolbarRef.current);
+    window.addEventListener('resize', resized);
+    return () => { observer.disconnect(); window.removeEventListener('resize', resized); };
+  }, []);
 
   const isNumeric = cellValue === '' || !isNaN(Number(cellValue));
   const canAssignLabel = canAssignLabelOverride ?? isNumeric;
@@ -150,53 +170,18 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
     const toolbar = toolbarRef.current;
     if (!toolbar) return;
 
-    const margin = 8;
-    const toolbarWidth = toolbar.offsetWidth;
-    const toolbarHeight = toolbar.offsetHeight;
-    const maxX = Math.max(margin, window.innerWidth - toolbarWidth - margin);
-    const maxY = Math.max(margin, window.innerHeight - toolbarHeight - margin);
-    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-    const rectsOverlap = (x: number, y: number, rect: RectBounds) => {
-      return x < rect.right + margin &&
-        x + toolbarWidth > rect.left - margin &&
-        y < rect.bottom + margin &&
-        y + toolbarHeight > rect.top - margin;
-    };
-    const overlapArea = (x: number, y: number, rect: RectBounds) => {
-      const overlapWidth = Math.max(0, Math.min(x + toolbarWidth, rect.right + margin) - Math.max(x, rect.left - margin));
-      const overlapHeight = Math.max(0, Math.min(y + toolbarHeight, rect.bottom + margin) - Math.max(y, rect.top - margin));
-      return overlapWidth * overlapHeight;
-    };
-
-    let nextPosition = {
-      x: clamp(position.x, margin, maxX),
-      y: clamp(position.y, margin, maxY),
-    };
-
-    if (position.avoidRect) {
-      const rect = position.avoidRect;
-      const centeredX = rect.left + rect.width / 2 - toolbarWidth / 2;
-      const centeredY = rect.top + rect.height / 2 - toolbarHeight / 2;
-      const candidates = [
-        { x: centeredX, y: rect.top - toolbarHeight - margin },
-        { x: centeredX, y: rect.bottom + margin },
-        { x: rect.right + margin, y: centeredY },
-        { x: rect.left - toolbarWidth - margin, y: centeredY },
-      ].map(candidate => ({
-        x: clamp(candidate.x, margin, maxX),
-        y: clamp(candidate.y, margin, maxY),
-      }));
-
-      nextPosition = candidates.find(candidate => !rectsOverlap(candidate.x, candidate.y, rect)) ||
-        candidates.reduce((best, candidate) => {
-          return overlapArea(candidate.x, candidate.y, rect) < overlapArea(best.x, best.y, rect) ? candidate : best;
-        }, candidates[0]);
-    }
-
+    const root = toolbar.getBoundingClientRect();
+    const bounds = [root, ...Array.from(toolbar.querySelectorAll<HTMLElement>('[data-toolbar-panel]')).map(el => el.getBoundingClientRect())];
+    const left = Math.min(...bounds.map(r => r.left)), top = Math.min(...bounds.map(r => r.top));
+    const width = Math.max(...bounds.map(r => r.right)) - left;
+    const height = Math.max(...bounds.map(r => r.bottom)) - top;
+    const placed = placeTableToolbar(position.avoidRects ?? (position.avoidRect ? [position.avoidRect] : []),
+      width, height, window.innerWidth, window.innerHeight, position);
+    const nextPosition = { x: placed.x + root.left - left, y: placed.y + root.top - top };
     setAdjustedPosition(current => (
       current.x === nextPosition.x && current.y === nextPosition.y ? current : nextPosition
     ));
-  }, [position, isMobile, showColorPicker, showTextColorPicker, showLabelInput, showFormulaInput]);
+  }, [position, isMobile, showColorPicker, showTextColorPicker, showLabelInput, showFormulaInput, multiple, onMerge, onUnmerge, showVerticalAlignment, toolbarLayoutVersion]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
@@ -222,18 +207,24 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   return (
     <div
       ref={toolbarRef}
+      role="toolbar"
+      aria-label="Cell formatting"
+      data-table-toolbar="true"
       className="fixed z-[9999] bg-theme-paper border border-theme-border rounded-button shadow-lg"
       style={{
         left: adjustedPosition.x,
         top: adjustedPosition.y,
+        maxWidth: 'calc(100vw - 16px)',
       }}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      <div className={`flex items-center gap-0.5 p-1 ${isMobile ? 'flex-wrap justify-center max-w-[280px]' : ''}`}>
+      <div className={`flex flex-wrap items-center gap-0.5 p-1 ${isMobile ? 'justify-center max-w-[280px]' : ''}`}>
         {/* Text Style Buttons */}
         <Tooltip content="Bold">
           <button
+            aria-label="Bold"
+            aria-pressed={mixedFields.includes('bold') ? 'mixed' : !!format.bold}
             className={`${buttonClass} ${iconSize} font-bold ${format.bold ? activeClass : 'text-theme-ink'}`}
             onClick={() => onFormatChange({ bold: !format.bold })}
           >
@@ -242,6 +233,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         </Tooltip>
         <Tooltip content="Italic">
           <button
+            aria-label="Italic"
+            aria-pressed={mixedFields.includes('italic') ? 'mixed' : !!format.italic}
             className={`${buttonClass} ${iconSize} italic ${format.italic ? activeClass : 'text-theme-ink'}`}
             onClick={() => onFormatChange({ italic: !format.italic })}
           >
@@ -250,6 +243,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         </Tooltip>
         <Tooltip content="Underline">
           <button
+            aria-label="Underline"
+            aria-pressed={mixedFields.includes('underline') ? 'mixed' : !!format.underline}
             className={`${buttonClass} ${iconSize} underline ${format.underline ? activeClass : 'text-theme-ink'}`}
             onClick={() => onFormatChange({ underline: !format.underline })}
           >
@@ -258,6 +253,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         </Tooltip>
         <Tooltip content="Strikethrough">
           <button
+            aria-label="Strikethrough"
+            aria-pressed={mixedFields.includes('strikethrough') ? 'mixed' : !!format.strikethrough}
             className={`${buttonClass} ${iconSize} line-through ${format.strikethrough ? activeClass : 'text-theme-ink'}`}
             onClick={() => onFormatChange({ strikethrough: !format.strikethrough })}
           >
@@ -272,6 +269,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         <div className="relative">
           <Tooltip content="Background Color">
             <button
+              aria-label="Background color"
               className={`${buttonClass} ${iconSize} text-theme-ink`}
               onClick={() => {
                 setShowColorPicker(!showColorPicker);
@@ -292,14 +290,14 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
             </button>
           </Tooltip>
           {showColorPicker && (
-            <div 
+            <div data-toolbar-panel="true"
               className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-button shadow-lg p-2 z-10"
-              style={{ minWidth: '160px' }}
+              style={{ minWidth: '160px', maxHeight: '70vh', overflowY: 'auto' }}
             >
               {/* No color option */}
               <Tooltip content="No color">
                 <button
-                  className={`w-full h-7 rounded border mb-1 ${!format.bgColor ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
+                  className={`w-full h-7 rounded border mb-1 ${!format.bgColor && !mixedFields.includes('bgColor') ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
                   onClick={() => {
                     onFormatChange({ bgColor: undefined, bgOpacity: undefined });
                     setShowColorPicker(false);
@@ -401,6 +399,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         <div className="relative">
           <Tooltip content="Text Color">
             <button
+              aria-label="Text color"
               className={`${buttonClass} ${iconSize} text-theme-ink`}
               onClick={() => {
                 setShowTextColorPicker(!showTextColorPicker);
@@ -419,13 +418,13 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
             </button>
           </Tooltip>
           {showTextColorPicker && (
-            <div
+            <div data-toolbar-panel="true"
               className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-theme-paper border border-theme-border rounded-button shadow-lg p-2 z-10"
-              style={{ minWidth: '160px' }}
+              style={{ minWidth: '160px', maxHeight: '70vh', overflowY: 'auto' }}
             >
               <Tooltip content="Use the theme text color">
                 <button
-                  className={`w-full h-7 rounded border mb-2 ${!format.textColor ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
+                  className={`w-full h-7 rounded border mb-2 ${!format.textColor && !mixedFields.includes('textColor') ? 'border-theme-accent ring-2 ring-theme-accent' : 'border-theme-border'} bg-theme-paper relative`}
                   onClick={() => {
                     onFormatChange({ textColor: undefined });
                     setShowTextColorPicker(false);
@@ -490,12 +489,54 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           </button>
         </Tooltip>
 
+        {/* Vertical Alignment, available for selections containing a vertical merge */}
+        {showVerticalAlignment && <>
+          <div className="w-px h-5 bg-theme-border mx-1" />
+          <Tooltip content="Align Top">
+            <button
+              aria-label="Align Top"
+              aria-pressed={mixedFields.includes('vAlign') ? 'mixed' : (format.vAlign === 'top' ? 'true' : 'false')}
+              className={`${buttonClass} ${iconSize} ${format.vAlign === 'top' ? activeClass : 'text-theme-ink'}`}
+              onClick={() => onFormatChange({ vAlign: 'top' })}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 3h16v1.5H2zM5 6h10v1.5H5zM5 8.5h10V10H5zM5 11h10v1.5H5z" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip content="Align Center">
+            <button
+              aria-label="Align Center Vertically"
+              aria-pressed={mixedFields.includes('vAlign') ? 'mixed' : (!format.vAlign || format.vAlign === 'middle' ? 'true' : 'false')}
+              className={`${buttonClass} ${iconSize} ${!format.vAlign || format.vAlign === 'middle' ? activeClass : 'text-theme-ink'}`}
+              onClick={() => onFormatChange({ vAlign: 'middle' })}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 3h16v1.5H2zM5 8h10v1.5H5zM5 10.5h10V12H5zM2 15.5h16V17H2z" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip content="Align Bottom">
+            <button
+              aria-label="Align Bottom"
+              aria-pressed={mixedFields.includes('vAlign') ? 'mixed' : (format.vAlign === 'bottom' ? 'true' : 'false')}
+              className={`${buttonClass} ${iconSize} ${format.vAlign === 'bottom' ? activeClass : 'text-theme-ink'}`}
+              onClick={() => onFormatChange({ vAlign: 'bottom' })}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5 9.5h10V11H5zM5 12h10v1.5H5zM5 14.5h10V16H5zM2 17h16v1.5H2z" />
+              </svg>
+            </button>
+          </Tooltip>
+        </>}
+
         {/* Divider */}
         <div className="w-px h-5 bg-theme-border mx-1" />
 
         {/* Label button */}
-        <Tooltip content={labelTooltip}>
+        {!multiple && <Tooltip content={labelTooltip}>
           <button
+            aria-label="Set variable label"
             className={`${buttonClass} ${iconSize} ${isLabelButtonDisabled ? 'text-theme-muted opacity-40 cursor-not-allowed' : cellLabel ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink'}`}
             onClick={() => {
               if (isLabelButtonDisabled) return;
@@ -511,11 +552,12 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
               <line x1="7" y1="7" x2="7.01" y2="7"/>
             </svg>
           </button>
-        </Tooltip>
+        </Tooltip>}
 
         {/* Formula button */}
-        <Tooltip content={cellFormula ? `Formula: ${cellFormula}` : 'Set formula'}>
+        {!multiple && <Tooltip content={cellFormula ? `Formula: ${cellFormula}` : 'Set formula'}>
           <button
+            aria-label="Set formula"
             className={`${buttonClass} ${iconSize} font-bold ${cellFormula ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink'}`}
             onClick={() => {
               setShowFormulaInput(!showFormulaInput);
@@ -526,11 +568,21 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
           >
             <span className="italic" style={{ fontSize: '11px' }}>fx</span>
           </button>
-        </Tooltip>
+        </Tooltip>}
+        {onMerge && <Tooltip content={mergeDisabledReason || 'Merge selected cells'}>
+          <button type="button" aria-label="Merge cells" disabled={!!mergeDisabledReason}
+            title={mergeDisabledReason} onClick={onMerge}
+            className={`${buttonClass} text-xs text-theme-ink disabled:opacity-40`}>Merge</button>
+        </Tooltip>}
+        {onUnmerge && <button type="button" onClick={onUnmerge} aria-label="Unmerge cell"
+          className={`${buttonClass} text-xs text-theme-ink`}>Unmerge</button>}
       </div>
+      {mixedFields.length > 0 && <div className="px-2 pb-1 text-[10px] text-theme-muted" role="status">
+        Mixed formatting
+      </div>}
 
       {/* Label input panel */}
-      {showLabelInput && (
+      {!multiple && showLabelInput && (
         <div className="px-2 pb-2 border-t border-theme-border/50">
           <div className="flex items-center gap-1 mt-1.5 mb-1">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-theme-accent shrink-0">
@@ -597,7 +649,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
       )}
 
       {/* Formula editor */}
-      {showFormulaInput && (
+      {!multiple && showFormulaInput && (
         <FormulaEditorDialog
           formula={cellFormula}
           character={character}
@@ -627,11 +679,10 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
   );
 }
 
-export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
+export default function TableWidget({ widget, height, sheetScale = 1, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
   
   const { 
@@ -647,6 +698,18 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   
   const [editingCell, setEditingCell] = useState<{row: number, col: number} | null>(null);
   const [selectedCell, setSelectedCell] = useState<{row: number, col: number} | null>(null);
+  const [selectedCells, setSelectedCells] = useState<TableCoordinate[]>([]);
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [rowPendingRemoval, setRowPendingRemoval] = useState<number | null>(null);
+  const removalDataRef = useRef<Widget['data'] | null>(null);
+  const selectionAnchorRef = useRef<TableCoordinate | null>(null);
+  const selectionDragRef = useRef<{ start: TableCoordinate; rangeAnchor: TableCoordinate | null; x: number; y: number; moved: boolean; snapshot: TableCoordinate[] } | null>(null);
+  const suppressSelectionClick = useRef(false);
+  const mergeValidation = useMemo(() => validateTableMerges(widget.data), [widget.data]);
+  const merges = mergeValidation.merges;
+  const selection = selectedCell ? logicalTableCells(selectedCells.length ? selectedCells : [selectedCell], merges)
+    .filter(cell => cell.row < rows.length && cell.col < columns.length) : [];
+  const selectionKeys = new Set(selection.map(tableCellKey));
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [showToolbar, setShowToolbar] = useState(false);
@@ -655,6 +718,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
   const [columnPendingRemoval, setColumnPendingRemoval] = useState<number | null>(null);
   const [isTableEditing, setIsTableEditing] = useState(false);
+  const selectCellsMode = isTableEditing;
   const [editingColumnHeader, setEditingColumnHeader] = useState<number | null>(null);
   const [columnWidthDraft, setColumnWidthDraft] = useState<{ column: number; width: number } | null>(null);
   const showTableControls = isTableEditing && !isPrintMode;
@@ -667,6 +731,9 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   const touchUiSnapshotRef = useRef<{
     editingCell: { row: number; col: number } | null;
     selectedCell: { row: number; col: number } | null;
+    selectedCells: TableCoordinate[];
+    selectionAnchor: TableCoordinate | null;
+    toolbarAnchor: HTMLElement | null;
     selectedColumn: number | null;
     selectedRow: number | null;
     showToolbar: boolean;
@@ -678,6 +745,9 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     touchUiSnapshotRef.current = {
       editingCell,
       selectedCell,
+      selectedCells,
+      selectionAnchor: selectionAnchorRef.current,
+      toolbarAnchor: toolbarAnchorRef.current,
       selectedColumn,
       selectedRow,
       showToolbar,
@@ -821,7 +891,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   // Fixed small sizing
   const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
-  const showHeader = !!label || (!isPrintMode && showTableEditButton);
+  const showHeader = !!label || !isPrintMode;
   const showTableHeader = !hideTableHeader || showTableControls;
   const hasTableCornerRadius = tableCornerRadius === true && !showTableControls;
   
@@ -910,46 +980,15 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   };
 
   const handleFormatChange = (rowIdx: number, colIdx: number, formatUpdate: Partial<CellFormat>) => {
-    const newRows = [...rows];
-    const currentCell = newRows[rowIdx].cells[colIdx];
-    const currentValue = getCellValue(currentCell);
-    const currentFormat = getCellFormat(currentCell);
-    const currentLabel = getCellLabel(currentCell);
-    const currentFormula = getCellFormula(currentCell);
-    
-    newRows[rowIdx] = { 
-      ...newRows[rowIdx], 
-      cells: [...newRows[rowIdx].cells]
-    };
-    
-    const newFormat = { ...currentFormat, ...formatUpdate };
-    // Clean up undefined values
-    Object.keys(newFormat).forEach(key => {
-      if (newFormat[key as keyof CellFormat] === undefined) {
-        delete newFormat[key as keyof CellFormat];
-      }
-    });
-    
-    newRows[rowIdx].cells[colIdx] = createCell(currentValue, Object.keys(newFormat).length > 0 ? newFormat : undefined, currentLabel, currentFormula);
-    updateWidgetData(widget.id, { rows: newRows });
+    updateWidgetData(widget.id, { rows: formatTableCells(widget.data,
+      selection.length ? selection : [{ row: rowIdx, col: colIdx }], formatUpdate) });
   };
 
   const handleColumnFormatChange = (colIdx: number, formatUpdate: Partial<CellFormat>) => {
     const currentColumnFormat = getColumnSetting(tableColumnSettings, colIdx).format || {};
     const nextFormat = cleanFormat({ ...currentColumnFormat, ...formatUpdate });
     const newColumnSettings = updateColumnSettings(colIdx, { format: nextFormat });
-    const newRows = rows.map((row: TableRow) => {
-      const currentCell = row.cells[colIdx] ?? '';
-      const currentValue = getCellValue(currentCell);
-      const currentLabel = getCellLabel(currentCell);
-      const currentFormula = getCellFormula(currentCell);
-      return {
-        ...row,
-        cells: row.cells.map((cell, cellIdx) => (
-          cellIdx === colIdx ? createCell(currentValue, nextFormat, currentLabel, currentFormula) : cell
-        ))
-      };
-    });
+    const newRows = formatTableCells(widget.data, rows.map((_, row) => ({ row, col: colIdx })), formatUpdate);
 
     updateWidgetData(widget.id, { rows: newRows, tableColumnSettings: newColumnSettings });
   };
@@ -958,13 +997,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     const currentRowFormat = getRowSetting(tableRowSettings, rowIdx).format || {};
     const nextFormat = cleanFormat({ ...currentRowFormat, ...formatUpdate });
     const newRowSettings = updateRowSettings(rowIdx, { format: nextFormat });
-    const newRows = rows.map((row: TableRow, currentRowIdx: number) => {
-      if (currentRowIdx !== rowIdx) return row;
-      return {
-        ...row,
-        cells: row.cells.map(cell => createCell(getCellValue(cell), nextFormat, getCellLabel(cell), getCellFormula(cell)))
-      };
-    });
+    const newRows = formatTableCells(widget.data, columns.map((_, col) => ({ row: rowIdx, col })), formatUpdate);
 
     updateWidgetData(widget.id, { rows: newRows, tableRowSettings: newRowSettings });
   };
@@ -988,13 +1021,25 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   };
 
   useLayoutEffect(() => {
-    if (!showToolbar || !toolbarAnchorRef.current) return;
+    if (!showToolbar) return;
 
     const updateToolbarPosition = () => {
-      const anchor = toolbarAnchorRef.current;
+      const elements = Array.from(tableRef.current?.querySelectorAll<HTMLElement>('[data-table-cell]') ?? [])
+        .filter(el => selectionKeys.has(el.dataset.tableCell ?? ''));
+      const anchor = elements[0] ?? toolbarAnchorRef.current;
       if (!anchor) return;
 
       const nextPosition = getToolbarPositionForElement(anchor);
+      const viewport = tableRef.current?.querySelector('[data-table-scroll]')?.getBoundingClientRect();
+      nextPosition.avoidRects = elements.map(el => {
+        const rect = el.getBoundingClientRect();
+        const left = Math.max(rect.left, viewport?.left ?? 0, 0);
+        const top = Math.max(rect.top, viewport?.top ?? 0, 0);
+        const right = Math.min(rect.right, viewport?.right ?? window.innerWidth, window.innerWidth);
+        const bottom = Math.min(rect.bottom, viewport?.bottom ?? window.innerHeight, window.innerHeight);
+        return { left, top, right, bottom, width: right - left, height: bottom - top };
+      }).filter(rect => rect.width > 0 && rect.height > 0);
+      if (!elements.length && nextPosition.avoidRect) nextPosition.avoidRects = [nextPosition.avoidRect];
       setToolbarPos((currentPosition) => {
         const currentRect = currentPosition.avoidRect;
         const nextRect = nextPosition.avoidRect;
@@ -1007,6 +1052,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
           currentRect?.left === nextRect?.left &&
           currentRect?.width === nextRect?.width &&
           currentRect?.height === nextRect?.height
+          && JSON.stringify(currentPosition.avoidRects) === JSON.stringify(nextPosition.avoidRects)
         ) {
           return currentPosition;
         }
@@ -1026,18 +1072,27 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
       window.removeEventListener('resize', updateToolbarPosition);
       window.removeEventListener('scroll', updateToolbarPosition, true);
     };
-  }, [isMobile, sheetScale, showToolbar]);
+  }, [isMobile, sheetScale, showToolbar, selectedCell, selectedCells, merges]);
 
   const handleCellClick = (rowIdx: number, colIdx: number, event: React.MouseEvent<HTMLElement>) => {
     if (mode === 'print') return;
-    // Always enter edit mode on click, show toolbar alongside
-    setEditingCell({ row: rowIdx, col: colIdx });
-    setSelectedCell({ row: rowIdx, col: colIdx });
+    if (suppressSelectionClick.current) { suppressSelectionClick.current = false; return; }
+    const cell = getTableCellOwner(merges, rowIdx, colIdx);
+    let next = [cell];
+    if (event.shiftKey && selectionAnchorRef.current) {
+      next = tableRangeSelection(selectionAnchorRef.current, cell, merges);
+    } else if (event.ctrlKey || event.metaKey || selectCellsMode) {
+      next = selectionKeys.has(tableCellKey(cell)) ? selection.filter(c => tableCellKey(c) !== tableCellKey(cell)) : [...selection, cell];
+      selectionAnchorRef.current = cell;
+    } else selectionAnchorRef.current = cell;
+    setSelectedCells(next);
+    setEditingCell(next.length === 1 && !selectCellsMode && !event.shiftKey && !event.ctrlKey && !event.metaKey ? cell : null);
+    setSelectedCell(next[0] ?? null);
     setSelectedColumn(null);
     setSelectedRow(null);
     toolbarAnchorRef.current = event.currentTarget;
     setToolbarPos(getToolbarPositionForElement(event.currentTarget));
-    setShowToolbar(true);
+    setShowToolbar(next.length > 0);
   };
 
   const handleColumnHeaderClick = (colIdx: number, event: React.MouseEvent<HTMLElement>) => {
@@ -1045,6 +1100,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     setEditingCell(null);
     setEditingColumnHeader(null);
     setSelectedCell(null);
+    setSelectedCells([]);
     setSelectedColumn(colIdx);
     setSelectedRow(null);
     toolbarAnchorRef.current = event.currentTarget;
@@ -1056,6 +1112,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     event.stopPropagation();
     setEditingCell(null);
     setSelectedCell(null);
+    setSelectedCells([]);
     setSelectedColumn(null);
     setSelectedRow(rowIdx);
     toolbarAnchorRef.current = event.currentTarget;
@@ -1067,10 +1124,87 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     // No longer needed since single click now enters edit mode
   };
 
+  const startCellSelection = (event: React.PointerEvent<HTMLElement>, cell: TableCoordinate) => {
+    if (!selectCellsMode || isPrintMode || event.button !== 0) return;
+    if (!event.isPrimary) return;
+    captureTouchUiState();
+    suppressSelectionClick.current = false;
+    event.stopPropagation();
+    if (event.pointerType === 'mouse') event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    selectionDragRef.current = { start: cell, rangeAnchor: event.shiftKey ? selectionAnchorRef.current : null,
+      x: event.clientX, y: event.clientY, moved: false, snapshot: selection };
+    setEditingCell(null);
+  };
+
+  const moveCellSelection = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = selectionDragRef.current;
+    if (!drag) return;
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 6 && !drag.moved) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-table-cell]');
+    if (!target || !tableRef.current?.contains(target)) return;
+    const cell = { row: Number(target.dataset.cellRow), col: Number(target.dataset.cellCol) };
+    drag.moved = true;
+    const next = tableRangeSelection(drag.rangeAnchor ?? drag.start, cell, merges);
+    setSelectedCells(next);
+    setSelectedCell(next[0]);
+    selectionAnchorRef.current = drag.rangeAnchor ?? drag.start;
+    toolbarAnchorRef.current = target;
+    setSelectedColumn(null);
+    setSelectedRow(null);
+    setShowToolbar(true);
+  };
+
+  const endCellSelection = (event: React.PointerEvent<HTMLElement>, cancelled = false) => {
+    const drag = selectionDragRef.current;
+    if (!drag) return;
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    let next = selection;
+    if (cancelled) next = drag.snapshot;
+    else if (!drag.moved && drag.rangeAnchor) next = tableRangeSelection(drag.rangeAnchor, drag.start, merges);
+    else if (!drag.moved) {
+      next = drag.snapshot.some(c => tableCellKey(c) === tableCellKey(drag.start))
+        ? drag.snapshot.filter(c => tableCellKey(c) !== tableCellKey(drag.start)) : [...drag.snapshot, drag.start];
+    }
+    setSelectedCells(next);
+    setSelectedCell(next[0] ?? null);
+    setSelectedColumn(null);
+    setSelectedRow(null);
+    setShowToolbar(next.length > 0);
+    toolbarAnchorRef.current = event.currentTarget;
+    selectionAnchorRef.current = drag.rangeAnchor ?? drag.start;
+    selectionDragRef.current = null;
+    suppressSelectionClick.current = true;
+    touchUiSnapshotRef.current = null;
+  };
+
+  const applyMerge = () => {
+    const reason = tableMergeBlockedReason(widget.data, selection);
+    if (reason) { setTableError(reason); return; }
+    const data = mergeTableCells(widget.data, selection);
+    const anchor = selection[0];
+    setTableError(null);
+    setSelectedCells([anchor]);
+    setSelectedCell(anchor);
+    setEditingCell(null);
+    updateWidgetData(widget.id, data);
+  };
+
+  const applyUnmerge = () => {
+    if (!selectedCell) return;
+    updateWidgetData(widget.id, unmergeTableCells(widget.data, selectedCell));
+    setSelectedCells([selectedCell]);
+    setTableError(null);
+  };
+
   const closeTableSelection = () => {
     setEditingCell(null);
     setEditingColumnHeader(null);
     setSelectedCell(null);
+    setSelectedCells([]);
+    selectionAnchorRef.current = null;
+    selectionDragRef.current = null;
     setSelectedColumn(null);
     setSelectedRow(null);
     setShowToolbar(false);
@@ -1097,65 +1231,75 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     });
   };
 
-  const removeRow = (indexToRemove: number) => {
+  const removeRow = (indexToRemove: number, confirmed = false) => {
     closeTableSelection();
-    updateWidgetData(widget.id, {
-      rows: rows.filter((_, index) => index !== indexToRemove),
-      tableRowSettings: rows
-        .map((_, index) => getRowSetting(tableRowSettings, index))
-        .filter((_, index) => index !== indexToRemove),
-    });
+    if (confirmed && removalDataRef.current !== widget.data) {
+      setRowPendingRemoval(null);
+      setTableError('The table changed. Please select the row to remove again.');
+      return;
+    }
+    const result = transformTableAxis(widget.data, 'row', rows.map((_, i) => i).filter(i => i !== indexToRemove));
+    if (!result.ok) { setTableError(result.reason); return; }
+    if (result.removesMergedCells && !confirmed) {
+      removalDataRef.current = widget.data;
+      setRowPendingRemoval(indexToRemove);
+      return;
+    }
+    setRowPendingRemoval(null);
+    setTableError(null);
+    updateWidgetData(widget.id, result.data);
   };
 
   const requestColumnRemoval = (index: number) => {
     closeTableSelection();
+    const result = transformTableAxis(widget.data, 'column', columns.map((_, i) => i).filter(i => i !== index));
+    if (!result.ok) { setTableError(result.reason); return; }
+    removalDataRef.current = widget.data;
     setColumnPendingRemoval(index);
   };
 
   const confirmColumnRemoval = () => {
     if (columnPendingRemoval === null) return;
+    if (removalDataRef.current !== widget.data) {
+      setColumnPendingRemoval(null);
+      setTableError('The table changed. Please select the column to remove again.');
+      return;
+    }
 
     if (columns.length > 1) {
-      updateWidgetData(widget.id, {
-        columns: columns.filter((_, index) => index !== columnPendingRemoval),
-        rows: rows.map((row: TableRow) => ({
-          ...row,
-          cells: columns
-            .map((_, index) => row.cells[index] ?? '')
-            .filter((_, index) => index !== columnPendingRemoval),
-        })),
-        tableColumnSettings: columns
-          .map((_, index) => getColumnSetting(tableColumnSettings, index))
-          .filter((_, index) => index !== columnPendingRemoval),
-      });
+      const result = transformTableAxis(widget.data, 'column', columns.map((_, i) => i).filter(i => i !== columnPendingRemoval));
+      if (!result.ok) { setTableError(result.reason); setColumnPendingRemoval(null); return; }
+      setTableError(null);
+      updateWidgetData(widget.id, result.data);
     }
 
     setColumnPendingRemoval(null);
   };
 
   useEffect(() => {
-    if (columnPendingRemoval === null) return;
+    if (columnPendingRemoval === null && rowPendingRemoval === null) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setColumnPendingRemoval(null);
+      if (event.key === 'Escape') { setColumnPendingRemoval(null); setRowPendingRemoval(null); }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [columnPendingRemoval]);
+  }, [columnPendingRemoval, rowPendingRemoval]);
 
   // Row drag handlers
   const moveRowToInsertion = (fromIndex: number, insertionIndex: number) => {
     if (insertionIndex === fromIndex || insertionIndex === fromIndex + 1) return;
 
-    const newRows = [...rows];
-    const newRowSettings = rows.map((_, index) => getRowSetting(tableRowSettings, index));
-    const [movedRow] = newRows.splice(fromIndex, 1);
-    const [movedRowSetting] = newRowSettings.splice(fromIndex, 1);
+    const order = rows.map((_, index) => index);
+    const [movedRow] = order.splice(fromIndex, 1);
     const adjustedIndex = insertionIndex > fromIndex ? insertionIndex - 1 : insertionIndex;
-    newRows.splice(adjustedIndex, 0, movedRow);
-    newRowSettings.splice(adjustedIndex, 0, movedRowSetting);
-    updateWidgetData(widget.id, { rows: newRows, tableRowSettings: newRowSettings });
+    order.splice(adjustedIndex, 0, movedRow);
+    const result = transformTableAxis(widget.data, 'row', order);
+    if (!result.ok) { setTableError(result.reason); return; }
+    closeTableSelection();
+    setTableError(null);
+    updateWidgetData(widget.id, result.data);
   };
 
   const handleRowDragStart = (e: React.DragEvent, index: number) => {
@@ -1363,9 +1507,11 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   // Close toolbar when clicking elsewhere
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest('[data-table-toolbar], [data-formula-editor-dialog]')) return;
       if (tableRef.current && !tableRef.current.contains(e.target as Node)) {
         setShowToolbar(false);
         setSelectedCell(null);
+        setSelectedCells([]);
         setSelectedColumn(null);
         setSelectedRow(null);
         toolbarAnchorRef.current = null;
@@ -1375,6 +1521,33 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     document.addEventListener('mousedown', handleGlobalClick);
     return () => document.removeEventListener('mousedown', handleGlobalClick);
   }, []);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || (event.target instanceof Element && event.target.closest('[data-formula-editor-dialog]'))) return;
+      closeTableSelection();
+      setIsTableEditing(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  useEffect(() => {
+    closeTableSelection();
+  }, [rows.length, columns.length]);
+
+  useEffect(() => {
+      closeTableSelection();
+      setIsTableEditing(false);
+  }, [mode, widget.id]);
+
+  useEffect(() => {
+    if (editingCell && isCoveredTableCell(merges, editingCell.row, editingCell.col)) setEditingCell(null);
+    if (selectedCell) {
+      const owner = getTableCellOwner(merges, selectedCell.row, selectedCell.col);
+      if (owner.row !== selectedCell.row || owner.col !== selectedCell.col) setSelectedCell(owner);
+    }
+  }, [merges]);
 
   // Touch long press handling
   useTouchCameraPinchCancellation(() => {
@@ -1387,10 +1560,15 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     setDraggedRowIndex(null);
     setDragOverRowIndex(null);
     setTouchStart(null);
+    if (selectionDragRef.current) suppressSelectionClick.current = true;
+    selectionDragRef.current = null;
     const snapshot = touchUiSnapshotRef.current;
     if (snapshot) {
       setEditingCell(snapshot.editingCell);
       setSelectedCell(snapshot.selectedCell);
+      setSelectedCells(snapshot.selectedCells);
+      selectionAnchorRef.current = snapshot.selectionAnchor;
+      toolbarAnchorRef.current = snapshot.toolbarAnchor;
       setSelectedColumn(snapshot.selectedColumn);
       setSelectedRow(snapshot.selectedRow);
       setShowToolbar(snapshot.showToolbar);
@@ -1400,13 +1578,15 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   });
 
   const handleTouchStart = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
-    if (mode === 'print') return;
+    if (mode === 'print' || selectCellsMode) return;
     captureTouchUiState();
     const targetElement = e.currentTarget;
     setTouchStart({ row: rowIdx, col: colIdx });
     longPressTimer.current = setTimeout(() => {
       // Long press - show toolbar
       setSelectedCell({ row: rowIdx, col: colIdx });
+      setSelectedCells([{ row: rowIdx, col: colIdx }]);
+      selectionAnchorRef.current = { row: rowIdx, col: colIdx };
       setSelectedColumn(null);
       setSelectedRow(null);
       toolbarAnchorRef.current = targetElement;
@@ -1417,7 +1597,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   };
 
   const handleTouchEnd = (rowIdx: number, colIdx: number, e: React.TouchEvent<HTMLElement>) => {
-    if (mode === 'print') return;
+    if (mode === 'print' || selectCellsMode) return;
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -1426,6 +1606,8 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
       if (touchStart?.row === rowIdx && touchStart?.col === colIdx) {
         setEditingCell({ row: rowIdx, col: colIdx });
         setSelectedCell({ row: rowIdx, col: colIdx });
+        setSelectedCells([{ row: rowIdx, col: colIdx }]);
+        selectionAnchorRef.current = { row: rowIdx, col: colIdx };
         setSelectedColumn(null);
         setSelectedRow(null);
         toolbarAnchorRef.current = e.currentTarget;
@@ -1449,8 +1631,10 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
 
   const selectedColumnSetting = selectedColumn !== null ? getColumnSetting(tableColumnSettings, selectedColumn) : null;
   const selectedColumnLabel = selectedColumnSetting?.label;
-  const selectedColumnGeneratedLabels = selectedColumnLabel ? rows.map((_, index) => `${selectedColumnLabel}${index + 1}`) : [];
-  const selectedColumnRowLabels = selectedColumn !== null ? rows.map((_, index) => getRowSetting(tableRowSettings, index).label).filter((rowLabel): rowLabel is string => !!rowLabel) : [];
+  const selectedColumnGeneratedLabels = selectedColumnLabel && selectedColumn !== null ? rows.flatMap((_, index) =>
+    isCoveredTableCell(merges, index, selectedColumn) ? [] : [`${selectedColumnLabel}${index + 1}`]) : [];
+  const selectedColumnRowLabels = selectedColumn !== null ? rows.flatMap((_, index) =>
+    isCoveredTableCell(merges, index, selectedColumn) ? [] : [getRowSetting(tableRowSettings, index).label]).filter((rowLabel): rowLabel is string => !!rowLabel) : [];
   const selectedColumnRowGeneratedLabels = selectedColumn !== null ? selectedColumnRowLabels.map(rowLabel => `${rowLabel}${selectedColumn + 1}`) : [];
   const selectedCellColumnSetting = selectedCell ? getColumnSetting(tableColumnSettings, selectedCell.col) : null;
   const selectedCellColumnLabel = selectedCellColumnSetting?.label;
@@ -1462,14 +1646,17 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
   const selectedCellFormulaLabels = [selectedCellOwnLabel, selectedCellGeneratedLabel, selectedCellColumnLabel, selectedCellRowGeneratedLabel, selectedCellRowLabel].filter((label): label is string => !!label);
   const selectedCellControlledLabels = [selectedCellGeneratedLabel, selectedCellRowGeneratedLabel].filter((label): label is string => !!label);
   const selectedCellLabelDisabledReason = selectedCellControlledLabels.length > 0 ? `Generated labels control this cell: ${selectedCellControlledLabels.map(label => `@${label}`).join(', ')}.` : undefined;
-  const selectedColumnCanAssignLabel = selectedColumn === null || rows.every((row: TableRow) => {
+  const selectedColumnCanAssignLabel = selectedColumn === null || rows.every((row: TableRow, index) => {
+    if (isCoveredTableCell(merges, index, selectedColumn)) return true;
     const value = getCellValue(row.cells[selectedColumn] ?? '');
     return value === '' || !isNaN(Number(value));
   });
   const selectedRowSetting = selectedRow !== null ? getRowSetting(tableRowSettings, selectedRow) : null;
   const selectedRowLabel = selectedRowSetting?.label;
-  const selectedRowGeneratedLabels = selectedRowLabel ? columns.map((_, index) => `${selectedRowLabel}${index + 1}`) : [];
-  const selectedRowColumnLabels = selectedRow !== null ? columns.map((_, colIndex) => getColumnSetting(tableColumnSettings, colIndex).label).filter((columnLabel): columnLabel is string => !!columnLabel) : [];
+  const selectedRowGeneratedLabels = selectedRowLabel && selectedRow !== null ? columns.flatMap((_, index) =>
+    isCoveredTableCell(merges, selectedRow, index) ? [] : [`${selectedRowLabel}${index + 1}`]) : [];
+  const selectedRowColumnLabels = selectedRow !== null ? columns.flatMap((_, colIndex) =>
+    isCoveredTableCell(merges, selectedRow, colIndex) ? [] : [getColumnSetting(tableColumnSettings, colIndex).label]).filter((columnLabel): columnLabel is string => !!columnLabel) : [];
   const selectedRowColumnGeneratedLabels = selectedRow !== null ? selectedRowColumnLabels.map(columnLabel => `${columnLabel}${selectedRow + 1}`) : [];
   const selectedRowFormulaLabels = [
     ...(selectedRowLabel ? [selectedRowLabel] : []),
@@ -1477,11 +1664,15 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     ...selectedRowColumnLabels,
     ...selectedRowColumnGeneratedLabels,
   ];
-  const selectedRowCanAssignLabel = selectedRow === null || (rows[selectedRow]?.cells || []).every(cell => {
+  const selectedRowCanAssignLabel = selectedRow === null || (rows[selectedRow]?.cells || []).every((cell, col) => {
+    if (isCoveredTableCell(merges, selectedRow, col)) return true;
     const value = getCellValue(cell);
     return value === '' || !isNaN(Number(value));
   });
   const hasDynamicColumn = columns.some((_, index) => getColumnWidth(index) === undefined);
+  const showVerticalAlignment = selectedCell !== null && selection.some(cell =>
+    merges.some(merge => merge.row === cell.row && merge.col === cell.col && merge.rowSpan > 1)
+  );
 
   return (
     <div ref={tableRef} className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -1497,8 +1688,9 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
               type="button"
               aria-pressed={isTableEditing}
               onClick={() => {
-                closeTableSelection();
-                setIsTableEditing((current) => !current);
+                const nextEditingState = !isTableEditing;
+                if (!nextEditingState) closeTableSelection();
+                setIsTableEditing(nextEditingState);
               }}
               onMouseDown={(event) => event.stopPropagation()}
               className={`widget-control ml-auto h-[18px] min-h-[18px] flex-shrink-0 gap-1 px-1.5 text-[10px] font-semibold ${isTableEditing ? 'bg-theme-accent text-theme-paper' : ''}`}
@@ -1509,9 +1701,10 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
           )}
         </div>
       )}
+      {mergeValidation.error && <div role="alert" className="text-xs text-red-600">{mergeValidation.error}</div>}
 
       {/* Table */}
-      <div 
+      <div data-table-scroll="true"
         className={`overflow-auto flex-1 ${hasTableCornerRadius ? 'rounded-theme' : ''}`}
         style={{ maxHeight: `${tableHeight}px` }}
         onWheel={(e) => {
@@ -1721,12 +1914,14 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
                   </div>
                 </td>}
                 {row.cells.map((cell, colIdx: number) => {
+                  if (isCoveredTableCell(merges, rowIdx, colIdx)) return null;
+                  const merge = merges.find(m => m.row === rowIdx && m.col === colIdx);
                   const cellValue = getCellValue(cell);
                   const columnSetting = getColumnSetting(tableColumnSettings, colIdx);
                   const rowSetting = getRowSetting(tableRowSettings, rowIdx);
                   const cellFormat = getEffectiveCellFormat(cell, columnSetting, rowSetting);
                   const cellFml = getCellFormula(cell) || rowSetting.formula || columnSetting.formula;
-                  const isSelected = selectedCell?.row === rowIdx && selectedCell?.col === colIdx;
+                  const isSelected = selectionKeys.has(tableCellKey({ row: rowIdx, col: colIdx }));
                   const isEditing = editingCell?.row === rowIdx && editingCell?.col === colIdx;
                   const needsDarkText = cellFormat.bgColor ? isLightColor(cellFormat.bgColor, cellFormat.bgOpacity ?? 1) : false;
                   // Use inline style with dark color (#1a1a1a) for light backgrounds to ensure readability
@@ -1735,17 +1930,38 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
                   return (
                     <td 
                       key={colIdx} 
+                      rowSpan={merge?.rowSpan}
+                      colSpan={merge?.colSpan}
+                      data-table-cell={tableCellKey({ row: rowIdx, col: colIdx })}
+                      data-cell-row={rowIdx}
+                      data-cell-col={colIdx}
+                      aria-selected={isSelected}
+                      onPointerDown={event => startCellSelection(event, { row: rowIdx, col: colIdx })}
+                      onPointerMove={moveCellSelection}
+                      onPointerUp={event => endCellSelection(event)}
+                      onPointerCancel={event => endCellSelection(event, true)}
+                      onMouseDown={event => event.stopPropagation()}
+                      onClickCapture={event => {
+                        if (selectCellsMode || event.shiftKey || event.ctrlKey || event.metaKey) {
+                          event.stopPropagation();
+                          event.preventDefault();
+                          handleCellClick(rowIdx, colIdx, event);
+                        }
+                      }}
                       className={`border border-theme-border ${isSelected ? 'ring-2 ring-theme-accent ring-inset' : selectedRow === rowIdx ? 'ring-1 ring-theme-accent/70 ring-inset' : ''} ${cellClass} ${needsDarkText ? '' : 'text-theme-ink'}`}
                       style={{ 
                         ...getCellStyle(cellFormat),
                         ...textColorStyle,
-                        ...getColumnWidthStyle(colIdx),
+                        ...(merge && merge.colSpan > 1 ? {} : getColumnWidthStyle(colIdx)),
+                        verticalAlign: cellFormat.vAlign || 'middle',
+                        touchAction: selectCellsMode ? 'none' : undefined,
+                        userSelect: selectCellsMode ? 'none' : undefined,
                         borderTopWidth: rowIdx === 0 && !showTableHeader ? 1 : 0,
                         borderLeftWidth: colIdx === 0 ? 1 : 0,
                         borderTopLeftRadius: hasTableCornerRadius && rowIdx === 0 && !showTableHeader && colIdx === 0 ? 'var(--border-radius)' : undefined,
-                        borderTopRightRadius: hasTableCornerRadius && rowIdx === 0 && !showTableHeader && colIdx === columns.length - 1 ? 'var(--border-radius)' : undefined,
-                        borderBottomLeftRadius: hasTableCornerRadius && rowIdx === rows.length - 1 && colIdx === 0 ? 'var(--border-radius)' : undefined,
-                        borderBottomRightRadius: hasTableCornerRadius && rowIdx === rows.length - 1 && colIdx === columns.length - 1 ? 'var(--border-radius)' : undefined,
+                        borderTopRightRadius: hasTableCornerRadius && rowIdx === 0 && !showTableHeader && colIdx + (merge?.colSpan ?? 1) === columns.length ? 'var(--border-radius)' : undefined,
+                        borderBottomLeftRadius: hasTableCornerRadius && rowIdx + (merge?.rowSpan ?? 1) === rows.length && colIdx === 0 ? 'var(--border-radius)' : undefined,
+                        borderBottomRightRadius: hasTableCornerRadius && rowIdx + (merge?.rowSpan ?? 1) === rows.length && colIdx + (merge?.colSpan ?? 1) === columns.length ? 'var(--border-radius)' : undefined,
                       }}
                     >
                       <div 
@@ -1773,6 +1989,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
                         {isEditing && (
                           <textarea
                             autoFocus
+                            aria-label={`Edit cell ${rowIdx + 1}, ${colIdx + 1}`}
                             rows={1}
                             value={cellValue}
                             onFocus={(event) => {
@@ -1787,22 +2004,14 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
                                 setEditingCell(null);
                               } else if (e.key === 'Tab') {
                                 e.preventDefault();
-                                if (e.shiftKey) {
-                                  if (colIdx > 0) {
-                                    setEditingCell({ row: rowIdx, col: colIdx - 1 });
-                                    setSelectedCell({ row: rowIdx, col: colIdx - 1 });
-                                  } else if (rowIdx > 0) {
-                                    setEditingCell({ row: rowIdx - 1, col: columns.length - 1 });
-                                    setSelectedCell({ row: rowIdx - 1, col: columns.length - 1 });
-                                  }
-                                } else {
-                                  if (colIdx < columns.length - 1) {
-                                    setEditingCell({ row: rowIdx, col: colIdx + 1 });
-                                    setSelectedCell({ row: rowIdx, col: colIdx + 1 });
-                                  } else if (rowIdx < rows.length - 1) {
-                                    setEditingCell({ row: rowIdx + 1, col: 0 });
-                                    setSelectedCell({ row: rowIdx + 1, col: 0 });
-                                  }
+                                const visible = logicalTableCells(rows.flatMap((row, r) => row.cells.map((_, c) => ({ row: r, col: c }))), merges);
+                                const index = visible.findIndex(cell => cell.row === rowIdx && cell.col === colIdx);
+                                const next = visible[index + (e.shiftKey ? -1 : 1)];
+                                if (next) {
+                                  setEditingCell(next);
+                                  setSelectedCell(next);
+                                  setSelectedCells([next]);
+                                  selectionAnchorRef.current = next;
                                 }
                               } else if (e.key === 'Escape') {
                                 setEditingCell(null);
@@ -1882,11 +2091,11 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
         </table>
       </div>
 
-      {columnPendingRemoval !== null && createPortal(
+      {(columnPendingRemoval !== null || rowPendingRemoval !== null) && createPortal(
         <div
           data-touch-camera-ignore="true"
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
-          onClick={() => setColumnPendingRemoval(null)}
+          onClick={() => { setColumnPendingRemoval(null); setRowPendingRemoval(null); }}
           onMouseDown={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
         >
@@ -1899,26 +2108,62 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id={`table-remove-title-${widget.id}`} className="font-heading text-base font-bold">
-              Remove column {columnPendingRemoval + 1}?
+              Remove {rowPendingRemoval !== null ? `row ${rowPendingRemoval + 1}` : `column ${(columnPendingRemoval ?? 0) + 1}`}?
             </h3>
             <p id={`table-remove-description-${widget.id}`} className="mt-2 text-sm text-theme-muted">
-              This column and all of its values, labels, formulas, and formatting will be removed.
+              This {rowPendingRemoval !== null ? 'row' : 'column'} and all of its values, labels, formulas, formatting, and merged cells will be removed.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 autoFocus
-                onClick={() => setColumnPendingRemoval(null)}
+                onClick={() => { setColumnPendingRemoval(null); setRowPendingRemoval(null); }}
                 className="widget-control px-3 py-1.5 text-sm"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={confirmColumnRemoval}
+                onClick={() => rowPendingRemoval !== null ? removeRow(rowPendingRemoval, true) : confirmColumnRemoval()}
                 className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
               >
-                Remove column
+                Remove {rowPendingRemoval !== null ? 'row' : 'column'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {tableError && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={() => setTableError(null)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`table-error-title-${widget.id}`}
+            aria-describedby={`table-error-description-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id={`table-error-title-${widget.id}`} className="font-heading text-base font-bold">
+              Table action unavailable
+            </h3>
+            <p id={`table-error-description-${widget.id}`} className="mt-2 text-sm text-theme-muted">
+              {tableError}
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setTableError(null)}
+                className="widget-control px-3 py-1.5 text-sm"
+              >
+                OK
               </button>
             </div>
           </div>
@@ -1927,13 +2172,21 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
       )}
 
       {/* Formatting Toolbar - rendered via portal to escape transformed container */}
-      {showToolbar && selectedCell && createPortal(
+      {!isPrintMode && showToolbar && selectedCell && createPortal(
         <FormatToolbar
-          format={getCellFormat(rows[selectedCell.row]?.cells[selectedCell.col])}
+          key={selection.length > 1 ? 'multiple' : tableCellKey(selectedCell)}
+          format={commonTableFormat(widget.data, selection)}
+          mixedFields={mixedTableFormatFields(widget.data, selection)}
+          multiple={selection.length > 1}
+          showVerticalAlignment={showVerticalAlignment}
+          onMerge={selectedTableRectangle(selection, merges) ? applyMerge : undefined}
+          mergeDisabledReason={tableMergeBlockedReason(widget.data, selection)}
+          onUnmerge={selection.length === 1 && merges.some(m => m.row === selectedCell.row && m.col === selectedCell.col) ? applyUnmerge : undefined}
           onFormatChange={(formatUpdate) => handleFormatChange(selectedCell.row, selectedCell.col, formatUpdate)}
           onClose={() => {
             setShowToolbar(false);
             setSelectedCell(null);
+            setSelectedCells([]);
             setSelectedColumn(null);
             setSelectedRow(null);
             toolbarAnchorRef.current = null;
@@ -1953,7 +2206,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
         />,
         document.body
       )}
-      {showToolbar && selectedColumn !== null && createPortal(
+      {!isPrintMode && showToolbar && selectedColumn !== null && createPortal(
         <FormatToolbar
           format={selectedColumnSetting?.format || {}}
           onFormatChange={(formatUpdate) => handleColumnFormatChange(selectedColumn, formatUpdate)}
@@ -1980,7 +2233,7 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
         />,
         document.body
       )}
-      {showToolbar && selectedRow !== null && createPortal(
+      {!isPrintMode && showToolbar && selectedRow !== null && createPortal(
         <FormatToolbar
           format={selectedRowSetting?.format || {}}
           onFormatChange={(formatUpdate) => handleRowFormatChange(selectedRow, formatUpdate)}
@@ -2010,9 +2263,3 @@ export default function TableWidget({ widget, height, sheetScale = 1 }: Props) {
     </div>
   );
 }
-
-
-
-
-
-

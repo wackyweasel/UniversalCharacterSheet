@@ -173,6 +173,13 @@ export interface TableRow {
   cells: (string | TableCell)[];  // Support both legacy string and new TableCell format
 }
 
+export interface TableMerge {
+  row: number;
+  col: number;
+  rowSpan: number;
+  colSpan: number;
+}
+
 export interface TableColumnSettings {
   format?: CellFormat;
   label?: string;
@@ -447,6 +454,7 @@ export interface WidgetData {
   // Table
   columns?: string[];
   rows?: TableRow[];
+  tableMergedCells?: TableMerge[];
   tableColumnSettings?: TableColumnSettings[];
   tableRowSettings?: TableRowSettings[];
   hideTableHeader?: boolean;
