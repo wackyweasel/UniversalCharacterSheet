@@ -37,6 +37,7 @@ import {
   CardTableEditor,
   TimerEditor,
   StepDiceEditor,
+  WidgetHeaderEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -75,37 +76,6 @@ interface Props {
   widget: Widget;
   onClose: () => void;
 }
-
-const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
-  'CHECKBOX',
-  'DECK_OF_CARDS',
-  'DECK',
-  'DICE_ROLLER',
-  'DICE_TRAY',
-  'FORM',
-  'MIXED_FIELDS',
-  'GRID_MAP',
-  'HEALTH_BAR',
-  'IMAGE',
-  'INITIATIVE_TRACKER',
-  'INVENTORY',
-  'LIST',
-  'MAP_SKETCHER',
-  'NUMBER',
-  'NUMBER_DISPLAY',
-  'POOL',
-  'PROGRESS_BAR',
-  'PROGRESS_CLOCK',
-  'ROLL_TABLE',
-  'SPELL_SLOT',
-  'STEP_DICE',
-  'TABLE',
-  'TEXT',
-  'TIME_TRACKER',
-  'TIMER',
-  'TOGGLE',
-  'TOGGLE_GROUP',
-]);
 
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
@@ -180,8 +150,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     data: {
       ...previewWidget.data,
       label: isWidgetHeaderHidden ? undefined : previewWidget.data.label,
-      showFieldControls: !isWidgetHeaderHidden,
-      showTableEditButton: !isWidgetHeaderHidden,
+      showFieldControls: isWidgetHeaderHidden ? false : previewWidget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : previewWidget.data.showTableEditButton,
     },
   };
 
@@ -223,37 +193,6 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     }
   };
 
-  const renderHeaderVisibilitySetting = () => (
-    <label className="widget-edit-modal__global-setting">
-      <input
-        type="checkbox"
-        checked={isWidgetHeaderHidden}
-        onChange={(event) => handleUpdateData({ hideWidgetHeader: event.target.checked })}
-        className="h-4 w-4 accent-theme-accent"
-      />
-      Hide header (Canvas view)
-    </label>
-  );
-
-  const renderEditButtonVisibilitySetting = () => (
-    <label className="widget-edit-modal__global-setting">
-      <input
-        type="checkbox"
-        checked={isWidgetEditButtonHidden}
-        onChange={(event) => handleUpdateData({ hideWidgetEditButton: event.target.checked })}
-        className="h-4 w-4 accent-theme-accent"
-      />
-      Hide edit button (Canvas view)
-    </label>
-  );
-
-  const renderVisibilitySettings = () => (
-    <div className="widget-edit-modal__visibility-settings">
-      {widget.type !== 'LABEL' && widget.type !== 'IMAGE' && renderHeaderVisibilitySetting()}
-      {renderEditButtonVisibilitySetting()}
-    </div>
-  );
-
   // Get actual widget dimensions for preview
   const getPreviewDimensions = () => {
     const actualWidth = localWidth || widget.w || 200;
@@ -276,10 +215,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     };
     
     switch (widget.type) {
-      case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+      case 'NUMBER': return <NumberWidget {...props} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
       case 'LABEL': return <LabelWidget widget={renderedPreviewWidget} />;
-      case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
+      case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
@@ -292,11 +231,11 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-      case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
-      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'FORM': return <FormWidget {...props} />;
+      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
-      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} showFieldControls={false} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
@@ -392,8 +331,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           <div className={`widget-edit-modal__layout ${isImageWidget ? 'widget-edit-modal__layout--image' : ''}`}>
             {/* Editor Section */}
             <section className="widget-edit-modal__settings min-w-0" aria-label="Settings">
-              {renderVisibilitySettings()}
-              <div className={`widget-edit-modal__editor-content ${isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : ''}`}>
+              <div className="widget-edit-modal__editor-content">
+                <WidgetHeaderEditor widget={previewWidget} updateData={handleUpdateData} />
                 {renderEditor()}
               </div>
             </section>

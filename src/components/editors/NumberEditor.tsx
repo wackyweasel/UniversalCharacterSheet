@@ -9,7 +9,7 @@ import { GripVerticalIcon, MinusIcon, PlusIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 
 export function NumberEditor({ widget, updateData }: EditorProps) {
-  const { label, numberItems = [] } = widget.data;
+  const { numberItems = [] } = widget.data;
   const [newItemName, setNewItemName] = useState('');
   const [boundEditorIndex, setBoundEditorIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -109,31 +109,6 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--number space-y-4">
-      <CollapsibleSection title="General">
-        <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
-        <div className="relative">
-          <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Trackers"
-          />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        </div>
-
-      </CollapsibleSection>
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">

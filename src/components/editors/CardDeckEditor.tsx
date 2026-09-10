@@ -91,7 +91,7 @@ function SymbolInput({
 }
 
 export function CardTableEditor({ widget, updateData }: EditorProps) {
-  const { label } = widget.data;
+  const { } = widget.data;
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const activeSheetWidgets = useStore((state) => {
     const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
@@ -336,17 +336,6 @@ export function CardTableEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--card-deck space-y-4">
-      <CollapsibleSection title="General">
-        <label className="block text-xs font-semibold text-theme-ink">
-          Deck name
-          <input
-            value={label || ''}
-            onChange={(event) => updateData({ label: event.target.value })}
-            placeholder="Draw Deck"
-            className={`${inputClass} mt-1`}
-          />
-        </label>
-      </CollapsibleSection>
 
       <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`card-deck-display-heading-${widget.id}`} className="widget-editor__section-title">Deck controls</h3>

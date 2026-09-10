@@ -460,6 +460,8 @@ export interface WidgetData {
   hideTableHeader?: boolean;
   tableCornerRadius?: boolean;
   showTableEditButton?: boolean;
+  showCardCount?: boolean; // Defaults to true for existing card decks.
+  hideCardCount?: boolean; // Legacy-compatible inverse accepted when loading saved decks.
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;

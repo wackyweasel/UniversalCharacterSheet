@@ -49,6 +49,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
   const discardedCards = getCardTableDiscardedCards(widget.data);
   const showDiscardPile = widget.data.cardTableShowDiscard ?? true;
   const showGrabAll = widget.data.cardTableShowGrabAll ?? true;
+  const showCardCount = widget.data.hideCardCount !== true && widget.data.showCardCount !== false;
   const backDesign = getCardTableBackDesign(widget.data);
   const topCard = cards[0];
   const topCardContentLayout = topCard ? getCardTableContentLayout(topCard) : 'empty';
@@ -190,7 +191,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
       {label && (
         <div className="widget-header flex-shrink-0">
           <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
-          <span className="card-deck-count">{cards.length}</span>
+          {showCardCount && <span className="card-deck-count">{cards.length}</span>}
         </div>
       )}
       <div className={`card-deck-play-area${controlsVisible && showDiscardPile ? '' : ' card-deck-play-area--single'}`}>

@@ -260,8 +260,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     data: {
       ...widget.data,
       label: isWidgetHeaderHidden ? undefined : widget.data.label,
-      showFieldControls: !isWidgetHeaderHidden,
-      showTableEditButton: !isWidgetHeaderHidden,
+      showFieldControls: isWidgetHeaderHidden ? false : widget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : widget.data.showTableEditButton,
     },
   }), [isWidgetHeaderHidden, widget]);
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (

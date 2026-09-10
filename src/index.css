@@ -478,36 +478,11 @@ td .inline-dice-token {
     margin: 0;
   }
 
-  .widget-edit-modal__visibility-settings {
-    background: var(--editor-tint);
-    border: 1px solid color-mix(in srgb, var(--color-accent) 30%, var(--editor-input-border));
-    border-radius: var(--button-radius);
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 1rem;
-    padding: 0.5rem 0.625rem;
-    width: 100%;
-  }
-
-  .widget-edit-modal__global-setting {
-    align-items: center;
-    color: var(--color-ink);
-    cursor: pointer;
-    display: flex;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    gap: 0.625rem;
-    line-height: 1.25;
-    min-height: 2.25rem;
-  }
-
-  .widget-edit-modal__global-setting input {
-    flex: none;
-  }
-
   .widget-edit-modal__editor-content {
     color: var(--color-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .widget-edit-modal__editor-content input::placeholder,
@@ -1395,10 +1370,6 @@ td .inline-dice-token {
 
   .widget-content--header-hidden.widget-content--header-hidden .widget-header,
   .widget-content--header-hidden.widget-content--header-hidden .widget-structure-header {
-    display: none;
-  }
-
-  .widget-editor--hide-label-setting > :first-child > :first-child {
     display: none;
   }
 

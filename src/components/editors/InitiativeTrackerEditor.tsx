@@ -26,7 +26,6 @@ function parseIntegerDraft(value: string, fallback: number): number {
 
 export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const { 
-    label, 
     initiativePool = [], 
     initiativeParticipantCardHeight = 28,
     initiativeShowRollButton = true,
@@ -164,30 +163,6 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--initiative-tracker space-y-4">
-      {/* Widget Label */}
-      <CollapsibleSection title="General">
-        <label className="block text-xs font-semibold text-theme-ink">
-          Widget label
-        <div className="relative">
-          <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Initiative Tracker"
-          />
-          {label && (
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink"
-              onClick={() => updateData({ label: '' })}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-        </label>
-      </CollapsibleSection>
-
       <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`initiative-behavior-heading-${widget.id}`} className="widget-editor__section-title">Tracker behavior</h3>
         <label className="flex cursor-pointer items-start gap-2">

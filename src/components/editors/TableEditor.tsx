@@ -124,7 +124,7 @@ function TableLabelEditor({ scope, draft, hasLabel, onDraftChange, onSave, onCle
 }
 
 export function TableEditor({ widget, updateData }: EditorProps) {
-  const { label, columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [], hideTableHeader = false, tableCornerRadius = false } = widget.data;
+  const { columns = ['Item', 'Qty', 'Weight'], rows = [], tableColumnSettings = [], tableRowSettings = [], hideTableHeader = false, tableCornerRadius = false } = widget.data;
   const [editingLabel, setEditingLabel] = useState<{ scope: LabelScope; index: number } | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [expandedCell, setExpandedCell] = useState<{ rowId: string; columnId: string } | null>(null);
@@ -351,31 +351,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
           {validation.error || operationError}
         </p>
       )}
-      <CollapsibleSection title="General">
-        <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
-        <div className="relative">
-          <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Inventory"
-          />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        </div>
-
-      </CollapsibleSection>
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">

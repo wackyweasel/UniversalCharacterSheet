@@ -139,12 +139,12 @@ function SpellSlotManagerModal({
   );
 }
 
-export default function SpellSlotWidget({ widget, height }: Props) {
+export default function SpellSlotWidget({ widget, mode, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
   const [showManager, setShowManager] = useState(false);
   const { label, spellLevels = [{ level: 1, max: 4, used: 0 }], fillColor, spellSlotShape = 'circle', spellSlotSize = 20, spellSlotHorizontalSpacing = 4, spellSlotVerticalSpacing = 4, showResetButton = true } = widget.data;
+  const showFieldControls = widget.data.showFieldControls !== false && !isPrintMode;
   const normalizedSpellSlotSize = Math.max(12, Math.min(40, spellSlotSize));
   const normalizedHorizontalSpacing = Math.max(0, Math.min(16, spellSlotHorizontalSpacing));
   const normalizedVerticalSpacing = Math.max(0, Math.min(16, spellSlotVerticalSpacing));
@@ -158,7 +158,8 @@ export default function SpellSlotWidget({ widget, height }: Props) {
     : 'rounded-full';
   
   // Calculate spell levels area height
-  const labelHeight = 16;
+  const hasHeader = Boolean(label || showFieldControls);
+  const labelHeight = hasHeader ? 16 : 0;
   const controlsHeight = 28;
   const gapSize = 4;
   const padding = 0;
@@ -191,10 +192,10 @@ export default function SpellSlotWidget({ widget, height }: Props) {
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
-      {(label || !isPrintMode) && (
-        <div className={`widget-header flex-shrink-0 ${!isPrintMode ? 'pr-4' : ''}`}>
+      {hasHeader && (
+        <div className={`widget-header flex-shrink-0 ${showFieldControls ? 'pr-4' : ''}`}>
           <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
-          {!isPrintMode && (
+          {showFieldControls && (
             <div className="spell-slot-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content="Manage spell slot levels and slots">
                 <button
@@ -306,9 +307,5 @@ export default function SpellSlotWidget({ widget, height }: Props) {
     </div>
   );
 }
-
-
-
-
 
 

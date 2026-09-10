@@ -46,6 +46,7 @@ const CHANGELOG_ENTRIES = [
       'You can merge multiple cells together.',
       'Added an option to align the checkboxes in the checklist widget to the top of a multiline item.',
       'Added an option to automatically expand roll details in the dice roller and dice tray.',
+      'Added more options to customize the header of each widget.',
     ],
   },
   {

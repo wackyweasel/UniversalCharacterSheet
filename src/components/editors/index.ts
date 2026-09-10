@@ -29,3 +29,4 @@ export { DeckEditor } from './DeckEditor';
 export { CardTableEditor } from './CardDeckEditor';
 export { TimerEditor } from './TimerEditor';
 export { StepDiceEditor } from './StepDiceEditor';
+export { WidgetHeaderEditor } from './WidgetHeaderEditor';

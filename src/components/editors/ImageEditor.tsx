@@ -62,7 +62,6 @@ const CROP_HANDLE_CLASSES: Record<CropEdge, string> = {
 
 export function ImageEditor({ widget, updateData }: EditorProps) {
   const {
-    label,
     imageUrl = '',
     imageShape = 'rectangle',
     imageBorderStyle = 'line',
@@ -264,25 +263,6 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Hide name</span>
         </label>
-        {!hideImageTitle && <div className="relative mt-3">
-            <input
-              aria-label="Name"
-              className="h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
-              value={label || ''}
-              onChange={(e) => updateData({ label: e.target.value })}
-            />
-            {label && (
-              <Tooltip content="Clear label">
-                <button
-                  type="button"
-                  onClick={() => updateData({ label: '' })}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted transition-colors hover:text-theme-ink"
-                >
-                  ×
-                </button>
-              </Tooltip>
-            )}
-          </div>}
         {!hideImageTitle && <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="image-editor__control-group">
             <span className="image-editor__control-label">Alignment</span>
@@ -477,4 +457,3 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

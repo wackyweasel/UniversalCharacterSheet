@@ -59,6 +59,8 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'POOL',
   'PROGRESS_CLOCK',
   'TOGGLE_GROUP',
+  'STEP_DICE',
+  'SPELL_SLOT',
   'INITIATIVE_TRACKER',
   'INVENTORY',
 ]);
@@ -90,11 +92,13 @@ export default function VerticalWidget({
     data: {
       ...widget.data,
       label: isWidgetHeaderHidden ? undefined : widget.data.label,
-      showFieldControls: !isWidgetHeaderHidden,
-      showTableEditButton: !isWidgetHeaderHidden,
+      showFieldControls: isWidgetHeaderHidden ? false : widget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : widget.data.showTableEditButton,
     },
   };
-  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && !isWidgetHeaderHidden;
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type)
+    && !isWidgetHeaderHidden
+    && widget.data.showFieldControls !== false;
   const hasInternalHeaderLabel = !isWidgetHeaderHidden && widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -273,7 +277,7 @@ export default function VerticalWidget({
           )}
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            {(widget.type !== 'LABEL' || isBuildMode) && (
+            {(widget.type !== 'LABEL' || isBuildMode) && !widget.data.hideWidgetEditButton && (
               <Tooltip content={`Edit ${getWidgetLabel()}`}>
                 <button
                   type="button"

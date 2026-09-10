@@ -11,7 +11,7 @@ import { CollapsibleSection } from './CollapsibleSection';
 const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
 export function StepDiceEditor({ widget, updateData }: EditorProps) {
-  const { label, stepDiceItems = [], stepDiceChain } = widget.data;
+  const { stepDiceItems = [], stepDiceChain } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [newItemName, setNewItemName] = useState('');
   const [newDiceExpression, setNewDiceExpression] = useState('');
@@ -88,19 +88,6 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--step-dice space-y-4">
-      <CollapsibleSection title="General">
-        <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
-        <input
-          className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-          value={label || ''}
-          onChange={(e) => updateData({ label: e.target.value })}
-          placeholder="Step Dice"
-        />
-        </div>
-
-      {/* Dice chain editor */}
-      </CollapsibleSection>
       <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-chain-title-${widget.id}`} className="widget-editor__section-title">Dice chain</h3>

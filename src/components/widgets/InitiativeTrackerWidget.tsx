@@ -244,10 +244,11 @@ function RemoveParticipantsModal({ participants, onClose, onRemove }: RemovePart
   );
 }
 
-export default function InitiativeTrackerWidget({ widget }: Props) {
+export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
-  const isPrintMode = mode === 'print';
+  const isPrintMode = renderMode === 'print';
+  const headerControlsVisible = widget.data.showFieldControls !== false && !isPrintMode;
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   
@@ -700,31 +701,33 @@ export default function InitiativeTrackerWidget({ widget }: Props) {
         {label && (
           <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>
         )}
-        <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
-          <Tooltip content={initiativeEncounter.length > 0 ? 'Choose participants to remove' : 'No participants to remove'}>
-            <button
-              type="button"
-              onClick={() => setShowRemoveParticipantsModal(true)}
-              onMouseDown={(event) => event.stopPropagation()}
-              disabled={initiativeEncounter.length === 0}
-              className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center disabled:opacity-35"
-              aria-label="Choose initiative participants to remove"
-            >
-              <MinusIcon className="h-3.5 w-3.5" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Add a permanent or temporary participant">
-            <button
-              type="button"
-              onClick={() => setShowAddParticipantModal(true)}
-              onMouseDown={(event) => event.stopPropagation()}
-              className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
-              aria-label="Add initiative participant"
-            >
-              <PlusIcon className="h-3.5 w-3.5" />
-            </button>
-          </Tooltip>
-        </div>
+        {headerControlsVisible && (
+          <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
+            <Tooltip content={initiativeEncounter.length > 0 ? 'Choose participants to remove' : 'No participants to remove'}>
+              <button
+                type="button"
+                onClick={() => setShowRemoveParticipantsModal(true)}
+                onMouseDown={(event) => event.stopPropagation()}
+                disabled={initiativeEncounter.length === 0}
+                className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center disabled:opacity-35"
+                aria-label="Choose initiative participants to remove"
+              >
+                <MinusIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Add a permanent or temporary participant">
+              <button
+                type="button"
+                onClick={() => setShowAddParticipantModal(true)}
+                onMouseDown={(event) => event.stopPropagation()}
+                className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
+                aria-label="Add initiative participant"
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </div>
 
       {/* Encounter controls */}

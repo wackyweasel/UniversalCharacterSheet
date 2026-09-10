@@ -70,7 +70,7 @@ function StepDiceSettings({ field, onChange }: { field: Extract<MixedField, { ty
 }
 
 export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
-  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
+  const { mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<MixedFieldType>('text');
   const [revealedBounds, setRevealedBounds] = useState<Record<number, RevealedBounds>>({});
@@ -391,9 +391,6 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--mixed-fields space-y-4">
-      <CollapsibleSection title="General">
-        <div><label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label><input value={label || ''} onChange={(event) => updateData({ label: event.target.value })} placeholder="Mixed fields" className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 font-body text-theme-ink focus:border-theme-accent focus:outline-none" /></div>
-      </CollapsibleSection>
       <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="mixed-fields-layout-title" className="widget-editor__section-title">Field layout</h3>

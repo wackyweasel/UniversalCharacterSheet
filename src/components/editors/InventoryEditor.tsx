@@ -23,7 +23,6 @@ const inputClass = 'h-8 w-full rounded-button border border-theme-border bg-them
 
 export function InventoryEditor({ widget, updateData }: EditorProps) {
   const {
-    label,
     inventoryItems = [],
     inventoryDefaultFields = [],
     fieldLabels = {},
@@ -119,31 +118,6 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--inventory space-y-4">
-      <CollapsibleSection title="General">
-        <div>
-        <label className="mb-1 block text-sm font-medium text-theme-ink">Widget Label</label>
-        <div className="relative">
-          <input
-            className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
-            value={label || ''}
-            onChange={(event) => updateData({ label: event.target.value })}
-            placeholder="Backpack"
-          />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted transition-colors hover:text-theme-ink"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        </div>
-
-      </CollapsibleSection>
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">

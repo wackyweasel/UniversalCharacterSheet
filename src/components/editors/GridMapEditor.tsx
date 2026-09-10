@@ -36,7 +36,6 @@ function ColorControl({ id, label, value, onChange }: ColorControlProps) {
 
 export function GridMapEditor({ widget, updateData }: EditorProps) {
   const {
-    label,
     gridMapGridType = 'square',
     gridMapGridSize = 32,
     gridMapGridColor = '#cbd5e1',
@@ -72,18 +71,6 @@ export function GridMapEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--grid-map space-y-4">
-      <CollapsibleSection title="General">
-        <label htmlFor={`grid-map-label-${widget.id}`} className="block text-xs font-semibold text-theme-ink">
-          Widget label
-        </label>
-        <input
-          id={`grid-map-label-${widget.id}`}
-          value={label || ''}
-          onChange={(event) => updateData({ label: event.target.value })}
-          placeholder="Grid Map"
-          className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
-        />
-      </CollapsibleSection>
 
       <CollapsibleSection>
         <h3 id={`grid-map-layout-heading-${widget.id}`} className="widget-editor__section-title">Grid layout</h3>

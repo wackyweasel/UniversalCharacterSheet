@@ -18,7 +18,7 @@ export function ProgressClockEditor({ widget, updateData }: EditorProps) {
   const character = characters.find((item) => item.id === activeCharacterId);
   const labels = character ? collectLabels(character) : {};
   const {
-    label, clockItems = [], clockLayout = 'horizontal', clockSize = 100,
+    clockItems = [], clockLayout = 'horizontal', clockSize = 100,
     clockShowValues = false, clockLabelPosition = 'below', clockCounterClockwise = false, clockStartAngle = 0,
   } = widget.data;
   const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
@@ -37,12 +37,6 @@ export function ProgressClockEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--progress-clock space-y-4">
-      <CollapsibleSection title="General">
-        <label className="block text-sm font-medium text-theme-ink">
-          Widget Label
-          <input className={`${inputClass} mt-1`} value={label || ''} onChange={(event) => updateData({ label: event.target.value })} />
-        </label>
-      </CollapsibleSection>
 
       <CollapsibleSection title="Clocks" count={clockItems.length}>
         <div className="space-y-3">
