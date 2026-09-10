@@ -379,9 +379,11 @@ export interface WidgetData {
   diceGroups?: DiceGroup[];
   showRollDetails?: boolean;
   showRollDetailsButton?: boolean;
+  autoShowRollDetails?: boolean;
   // Dice Tray
   showTrayRollDetails?: boolean;
   showTrayRollDetailsButton?: boolean;
+  autoShowTrayRollDetails?: boolean;
   diceButtonScale?: number;
   // Legacy setting used to initialize details for existing saved widgets.
   showIndividualResults?: boolean;

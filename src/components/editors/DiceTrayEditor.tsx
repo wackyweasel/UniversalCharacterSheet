@@ -12,7 +12,16 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
 };
 
 export function DiceTrayEditor({ widget, updateData }: EditorProps) {
-  const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0, fieldLabels = {}, fieldFormulas = {}, showTrayRollDetailsButton = true, diceButtonScale: diceButtonScaleSetting = 100 } = widget.data;
+  const {
+    label,
+    availableDice = [4, 6, 8, 10, 12, 20],
+    modifier = 0,
+    fieldLabels = {},
+    fieldFormulas = {},
+    showTrayRollDetailsButton = true,
+    autoShowTrayRollDetails = false,
+    diceButtonScale: diceButtonScaleSetting = 100,
+  } = widget.data;
   const diceButtonScale = Math.min(100, Math.max(50, diceButtonScaleSetting));
   const [newDiceFaces, setNewDiceFaces] = useState('');
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; faces: string[]; diceName: string; editIndex: number | null }>({ 
@@ -262,6 +271,15 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
             className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
           />
           <span className="text-sm text-theme-ink">Show roll details control</span>
+        </label>
+        <label className="mt-3 flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={autoShowTrayRollDetails}
+            onChange={(e) => updateData({ autoShowTrayRollDetails: e.target.checked })}
+            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Automatically show roll details after rolling</span>
         </label>
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between">
@@ -593,4 +611,3 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

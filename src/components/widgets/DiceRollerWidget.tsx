@@ -52,7 +52,14 @@ const MAX_DETAILS_WIDTH = 240;
 
 export default function DiceRollerWidget({ widget, mode, interactive = true, sheetScale = 1 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, showRollDetails = false, showRollDetailsButton = true } = widget.data;
+  const {
+    label,
+    diceGroups = [{ count: 1, faces: 20 }],
+    modifier = 0,
+    showRollDetails = false,
+    showRollDetailsButton = true,
+    autoShowRollDetails = false,
+  } = widget.data;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const resultSummaryRef = useRef<HTMLDivElement>(null);
@@ -389,6 +396,9 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
     
     setResult({ groups, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
+    if (autoShowRollDetails) {
+      updateWidgetData(widget.id, { showRollDetails: true });
+    }
     trackGoatCounterEvent('roll-dice');
 
     // Timeline event
@@ -423,6 +433,9 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
 
     setResult({ groups: newGroups, modifier: result.modifier, total: newTotal, aggregatedResults: aggregated });
     setIsRolling(false);
+    if (autoShowRollDetails) {
+      updateWidgetData(widget.id, { showRollDetails: true });
+    }
     trackGoatCounterEvent('roll-dice');
 
     const dieName = group.customFaces && group.customFaces.length > 0
@@ -612,8 +625,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
     </div>
   );
 }
-
-
 
 
 

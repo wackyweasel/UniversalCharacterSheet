@@ -63,7 +63,15 @@ const describeExplodeFaces = (group: DiceGroup): string => {
 };
 
 export function DiceRollerEditor({ widget, updateData }: EditorProps) {
-  const { label, diceGroups = [{ count: 1, faces: 20 }], modifier = 0, fieldLabels = {}, fieldFormulas = {}, showRollDetailsButton = true } = widget.data;
+  const {
+    label,
+    diceGroups = [{ count: 1, faces: 20 }],
+    modifier = 0,
+    fieldLabels = {},
+    fieldFormulas = {},
+    showRollDetailsButton = true,
+    autoShowRollDetails = false,
+  } = widget.data;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
 
@@ -273,6 +281,15 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
           />
           <span className="text-sm text-theme-ink">Show roll details control</span>
+        </label>
+        <label className="mt-3 flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={autoShowRollDetails}
+            onChange={(e) => updateData({ autoShowRollDetails: e.target.checked })}
+            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+          />
+          <span className="text-sm text-theme-ink">Automatically show roll details after rolling</span>
         </label>
       </CollapsibleSection>
       
@@ -560,4 +577,3 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

@@ -64,6 +64,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
   const diceButtonScale = Math.min(100, Math.max(50, widget.data.diceButtonScale ?? 100)) / 100;
   const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
   const showTrayRollDetailsButton = widget.data.showTrayRollDetailsButton ?? true;
+  const autoShowTrayRollDetails = widget.data.autoShowTrayRollDetails ?? false;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -367,6 +368,9 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
 
     setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
+    if (autoShowTrayRollDetails) {
+      updateWidgetData(widget.id, { showTrayRollDetails: true });
+    }
     setLastRolledPool(pool);
     setDicePool([]);
     setNextId(1);
@@ -391,6 +395,9 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
 
     setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
+    if (autoShowTrayRollDetails) {
+      updateWidgetData(widget.id, { showTrayRollDetails: true });
+    }
     setDicePool([]);
     trackGoatCounterEvent('roll-dice');
 
@@ -423,6 +430,9 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
 
     setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
+    if (autoShowTrayRollDetails) {
+      updateWidgetData(widget.id, { showTrayRollDetails: true });
+    }
     trackGoatCounterEvent('roll-dice');
 
     const dieFacesLabel = Array.isArray(dieToReroll.faces)
@@ -696,7 +706,6 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     </div>
   );
 }
-
 
 
 
