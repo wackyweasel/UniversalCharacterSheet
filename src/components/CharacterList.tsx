@@ -39,6 +39,16 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.6.2',
+    changes: [
+      'You can now select multiple cells from a table with Shift-click, or by clicking cells while the Edit Table button is active.',
+      'Formatting applies to every selected cell.',
+      'You can merge multiple cells together.',
+      'Added an option to align the checkboxes in the checklist widget to the top of a multiline item.',
+      'Added an option to automatically expand roll details in the dice roller and dice tray.',
+    ],
+  },
+  {
     version: '1.6.1',
     changes: [
       'Revamped the roll table widget.',
@@ -2884,4 +2894,3 @@ export default function CharacterList() {
     </div>
   );
 }
-
