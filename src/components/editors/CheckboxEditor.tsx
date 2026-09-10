@@ -29,6 +29,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
     onReorder: (items) => updateData({ checkboxItems: items.map(({ item }) => item) }),
   });
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
+  const verticalAlignment = checklistSettings?.verticalAlignment ?? 'top';
 
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +118,37 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
           />
           Strike through checked items
         </label>
+        <fieldset className="mt-3">
+          <legend className="mb-1 text-sm font-medium text-theme-ink">Checkbox alignment</legend>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Checkbox alignment">
+            <button
+              type="button"
+              aria-pressed={verticalAlignment === 'top'}
+              onClick={() => updateData({ checklistSettings: { ...checklistSettings, verticalAlignment: 'top' } })}
+              className={`flex min-h-16 flex-col items-center justify-center rounded-button border px-2 py-2 text-center transition-colors ${
+                verticalAlignment === 'top'
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper'
+                  : 'border-theme-border bg-theme-paper text-theme-ink hover:border-theme-accent'
+              }`}
+            >
+              <span className="text-sm font-semibold">Top</span>
+              <span className="text-xs opacity-80">Align with first line</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={verticalAlignment === 'center'}
+              onClick={() => updateData({ checklistSettings: { ...checklistSettings, verticalAlignment: 'center' } })}
+              className={`flex min-h-16 flex-col items-center justify-center rounded-button border px-2 py-2 text-center transition-colors ${
+                verticalAlignment === 'center'
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper'
+                  : 'border-theme-border bg-theme-paper text-theme-ink hover:border-theme-accent'
+              }`}
+            >
+              <span className="text-sm font-semibold">Center</span>
+              <span className="text-xs opacity-80">Center vertically</span>
+            </button>
+          </div>
+        </fieldset>
       </CollapsibleSection>
       
       <CollapsibleSection>
@@ -207,4 +239,3 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

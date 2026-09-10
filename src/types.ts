@@ -194,6 +194,7 @@ export interface CheckboxItem {
 
 export interface ChecklistSettings {
   strikethrough?: boolean;
+  verticalAlignment?: 'top' | 'center';
 }
 
 export interface SpellLevel {

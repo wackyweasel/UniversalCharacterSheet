@@ -15,6 +15,7 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
+  const verticalAlignment = checklistSettings?.verticalAlignment ?? 'top';
 
   // Fixed small sizing
   const itemClass = 'text-xs';
@@ -56,7 +57,7 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
         {(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <div 
             key={idx} 
-            className={`flex items-center ${gapClass} cursor-pointer group/item relative`}
+            className={`flex ${verticalAlignment === 'center' ? 'items-center' : 'items-start'} ${gapClass} cursor-pointer group/item relative`}
             onClick={() => toggleItem(idx)}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -139,7 +140,6 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
     </div>
   );
 }
-
 
 
 

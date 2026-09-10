@@ -146,6 +146,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const itemsInteractive = interactive && mode !== 'print';
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
+  const verticalAlignment = checklistSettings?.verticalAlignment ?? 'top';
 
   // Fixed small sizing
   const itemClass = 'text-xs';
@@ -235,7 +236,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
           <button
             type="button"
             key={idx} 
-            className={`w-full flex items-center text-left ${gapClass} ${itemsInteractive ? 'cursor-pointer' : 'cursor-default'}`}
+            className={`w-full flex ${verticalAlignment === 'center' ? 'items-center' : 'items-start'} text-left ${gapClass} ${itemsInteractive ? 'cursor-pointer' : 'cursor-default'}`}
             onClick={() => toggleItem(idx)}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={!itemsInteractive}
@@ -276,7 +277,6 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
     </div>
   );
 }
-
 
 
 
