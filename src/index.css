@@ -337,10 +337,6 @@ td .inline-dice-token {
     min-height: 0 !important;
   }
 
-  .widget-edit-modal__dialog--label .widget-edit-modal__body {
-    flex: none;
-  }
-
   .widget-edit-modal__dialog--label .widget-edit-modal__preview-pane {
     display: flex;
     flex-direction: column;
