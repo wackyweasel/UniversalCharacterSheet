@@ -191,6 +191,14 @@
       "description": "Character sheet template",
       "file": "presets/jasper.json",
       "gameSystem": "Pokemon TTRPG"
+    },
+    {
+      "id": "25",
+      "name": "AK5E Sheet",
+      "author": "@GuiRofl",
+      "description": "A character sheet for Arknights 5E by Knight_Of_The_Crow",
+      "file": "presets/ak5e_sheet.json",
+      "gameSystem": "Arknights 5E"
     }
   ],
   "themes": [
