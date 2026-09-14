@@ -54,6 +54,8 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
               title={label}
               onPointerDown={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              onTouchEnd={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
                 void rollExpression(segment.expression, event.currentTarget);
