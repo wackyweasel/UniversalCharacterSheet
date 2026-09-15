@@ -199,6 +199,14 @@
       "description": "A character sheet for Arknights 5E by Knight_Of_The_Crow",
       "file": "presets/ak5e_sheet.json",
       "gameSystem": "Arknights 5E"
+    },
+    {
+      "id": "26",
+      "name": "Daggerheart - Simple character sheet",
+      "author": "@JustAka",
+      "description": "This is a very simple character sheet that I made for my party to use. It does not have pre-entered data from the game and almost everything needs to be put manually.",
+      "file": "presets/daggerheart_simple.json",
+      "gameSystem": "Daggerheart"
     }
   ],
   "themes": [
