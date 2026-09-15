@@ -207,6 +207,22 @@
       "description": "This is a very simple character sheet that I made for my party to use. It does not have pre-entered data from the game and almost everything needs to be put manually.",
       "file": "presets/daggerheart_simple.json",
       "gameSystem": "Daggerheart"
+    },
+    {
+      "id": "27",
+      "name": "Destinos de Haver (Português)",
+      "author": "@DaniloMaycon",
+      "description": "Pros caba ai",
+      "file": "presets/destinos_de_haver_portugues.json",
+      "gameSystem": "Haver"
+    },
+    {
+      "id": "28",
+      "name": "Destinations of Haver",
+      "author": "@DaniloMaycon",
+      "description": "For the folks out there.",
+      "file": "presets/destinos_of_haver.json",
+      "gameSystem": "Haver"
     }
   ],
   "themes": [
