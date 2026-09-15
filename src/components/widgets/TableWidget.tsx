@@ -891,7 +891,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
   // Fixed small sizing
   const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
-  const showHeader = !!label || !isPrintMode;
+  const showHeader = !!label || (!isPrintMode && showTableEditButton);
   const showTableHeader = !hideTableHeader || showTableControls;
   const hasTableCornerRadius = tableCornerRadius === true && !showTableControls;
   

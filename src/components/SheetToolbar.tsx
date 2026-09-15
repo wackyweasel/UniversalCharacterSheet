@@ -9,6 +9,7 @@ import { WorkspaceStatusDot } from './WorkspaceStatusIndicator';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
+  CheckIcon,
   ClockIcon,
   LayersIcon,
   LayoutGridIcon,
@@ -67,6 +68,7 @@ const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.
 
 interface ToolbarCharacterNameProps {
   name: string;
+  currentCharacterId: string;
   editable: boolean;
   switchableCharacters: Character[];
   open: boolean;
@@ -77,6 +79,7 @@ interface ToolbarCharacterNameProps {
 
 function ToolbarCharacterName({
   name,
+  currentCharacterId,
   editable,
   switchableCharacters,
   open,
@@ -90,6 +93,7 @@ function ToolbarCharacterName({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const focusLastOnOpenRef = useRef(false);
+  const focusMenuOnOpenRef = useRef(false);
   const restoreFocusOnCloseRef = useRef(false);
   const menuId = useId();
 
@@ -107,9 +111,11 @@ function ToolbarCharacterName({
     if (!open) return;
 
     const focusFrame = window.requestAnimationFrame(() => {
+      if (!focusMenuOnOpenRef.current) return;
       const targetIndex = focusLastOnOpenRef.current ? switchableCharacters.length - 1 : 0;
       itemRefs.current[targetIndex]?.focus();
       focusLastOnOpenRef.current = false;
+      focusMenuOnOpenRef.current = false;
     });
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
@@ -186,10 +192,14 @@ function ToolbarCharacterName({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => onOpenChange(!open)}
+        onClick={() => {
+          focusMenuOnOpenRef.current = false;
+          onOpenChange(!open);
+        }}
         onKeyDown={(event) => {
           if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
           event.preventDefault();
+          focusMenuOnOpenRef.current = true;
           focusLastOnOpenRef.current = event.key === 'ArrowUp';
           onOpenChange(true);
         }}
@@ -197,7 +207,7 @@ function ToolbarCharacterName({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        className="group flex h-8 w-12 shrink-0 items-center gap-1 rounded-button px-1 text-left font-heading text-sm font-bold text-theme-ink transition-colors hover:bg-theme-background hover:text-theme-accent min-[480px]:w-32 min-[480px]:px-2 sm:w-40"
+        className="group flex h-8 w-12 shrink-0 items-center gap-1 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-1 text-left text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper min-[480px]:w-32 min-[480px]:px-2 sm:w-40"
       >
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180" />
@@ -225,21 +235,28 @@ function ToolbarCharacterName({
             <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Switch Character</p>
           </div>
           <div className="py-1">
-            {switchableCharacters.map((option, index) => (
-              <button
-                key={option.id}
-                ref={(element) => { itemRefs.current[index] = element; }}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onOpenChange(false);
-                  onSelectCharacter(option.id);
-                }}
-                className="block w-full truncate px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper focus:bg-theme-accent focus:text-theme-paper focus:outline-none"
-              >
-                {option.name}
-              </button>
-            ))}
+            {switchableCharacters.map((option, index) => {
+              const isCurrentCharacter = option.id === currentCharacterId;
+              return (
+                <button
+                  key={option.id}
+                  ref={(element) => { itemRefs.current[index] = element; }}
+                  type="button"
+                  role="menuitem"
+                  aria-current={isCurrentCharacter ? 'true' : undefined}
+                  onClick={() => {
+                    onOpenChange(false);
+                    onSelectCharacter(option.id);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper focus:bg-theme-accent focus:text-theme-paper focus:outline-none ${
+                    isCurrentCharacter ? 'font-semibold' : ''
+                  }`}
+                >
+                  <span className="min-w-0 truncate">{option.name}</span>
+                  {isCurrentCharacter && <CheckIcon className="h-4 w-4 shrink-0" />}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -364,6 +381,7 @@ export default function SheetToolbar({
         <div className="shrink-0">
           <ToolbarCharacterName
             name={character.name}
+            currentCharacterId={character.id}
             editable={workspace === 'build'}
             switchableCharacters={switchableCharacters}
             open={characterSwitcherOpen}

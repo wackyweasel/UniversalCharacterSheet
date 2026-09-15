@@ -39,6 +39,12 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.6.3',
+    changes: [
+      'Added new option to better control the layout of the number display widget',
+    ],
+  },
+  {
     version: '1.6.2',
     changes: [
       'You can now select multiple cells from a table with Shift-click, or by clicking cells while the Edit Table button is active.',

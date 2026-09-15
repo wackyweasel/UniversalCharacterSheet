@@ -11,7 +11,8 @@ import { formatNumberWithSign } from '../../utils/numberFormatting';
 import { CollapsibleSection } from './CollapsibleSection';
 
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
-  const { displayNumbers = [], displayLayout = 'horizontal' } = widget.data;
+  const { displayNumbers = [], displayLayout = 'horizontal', numberBoxFixedAspectRatio = false } = widget.data;
+  const numberBoxScale = Math.min(100, Math.max(50, widget.data.numberBoxScale ?? 100));
   const showSecondaryNumbers = widget.data.showSecondaryDisplayNumbers ?? false;
   const automaticModifiers = widget.data.secondaryDisplayAutoCompute ?? false;
   const modifierRanges = widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES;
@@ -279,27 +280,46 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
           <h3 id={`display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
         <div className="space-y-3">
+          <span className="block text-sm font-medium text-theme-ink">Layout</span>
           <div className="widget-editor__segmented-group" role="radiogroup" aria-label="Display layout">
-            <label className={`widget-editor__segment ${displayLayout === 'horizontal' ? 'widget-editor__segment--selected' : ''}`}>
-              <input
-                type="radio"
-                name="displayLayout"
-                value="horizontal"
-                checked={displayLayout === 'horizontal'}
-                onChange={(e) => updateData({ displayLayout: e.target.value })}
-              />
-              <span>Horizontal</span>
-            </label>
-            <label className={`widget-editor__segment ${displayLayout === 'vertical' ? 'widget-editor__segment--selected' : ''}`}>
-              <input
-                type="radio"
-                name="displayLayout"
-                value="vertical"
-                checked={displayLayout === 'vertical'}
-                onChange={(e) => updateData({ displayLayout: e.target.value })}
-              />
-              <span>Vertical</span>
-            </label>
+            {(['auto', 'horizontal', 'vertical'] as const).map((layout) => (
+              <label key={layout} className={`widget-editor__segment ${displayLayout === layout ? 'widget-editor__segment--selected' : ''}`}>
+                <input
+                  type="radio"
+                  name={`displayLayout-${widget.id}`}
+                  value={layout}
+                  checked={displayLayout === layout}
+                  onChange={() => updateData({ displayLayout: layout })}
+                />
+                <span>{layout === 'auto' ? 'Auto' : layout === 'horizontal' ? 'Horizontal' : 'Vertical'}</span>
+              </label>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={numberBoxFixedAspectRatio}
+              onChange={(event) => updateData({ numberBoxFixedAspectRatio: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Fixed aspect ratio (square boxes)</span>
+          </label>
+          <div className="grid gap-1">
+            <div className="flex items-center justify-between">
+              <label htmlFor={`number-box-size-${widget.id}`} className="text-sm text-theme-ink">Box size</label>
+              <span className="text-sm text-theme-muted">{numberBoxScale}%</span>
+            </div>
+            <input
+              id={`number-box-size-${widget.id}`}
+              type="range"
+              min="50"
+              max="100"
+              step="1"
+              value={numberBoxScale}
+              onChange={(event) => updateData({ numberBoxScale: Number(event.target.value) })}
+              className="m-0 block h-4 w-full"
+              style={{ accentColor: 'var(--color-accent)' }}
+            />
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -318,7 +338,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
               onChange={(event) => updateData({ showDisplayNumberLabels: event.target.checked })}
               className="w-4 h-4 accent-theme-accent"
             />
-            <span className="text-sm text-theme-ink">Show names under numbers</span>
+            <span className="text-sm text-theme-ink">Show labels</span>
           </label>
         </div>
       </CollapsibleSection>

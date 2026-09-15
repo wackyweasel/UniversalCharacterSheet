@@ -170,7 +170,7 @@ export default function Sheet() {
   const switchableCharacters = useMemo(() => {
     if (!activeCharacterId || transientCharacterIds.includes(activeCharacterId)) return [];
     const transientIds = new Set(transientCharacterIds);
-    return characters.filter((character) => character.id !== activeCharacterId && !transientIds.has(character.id));
+    return characters.filter((character) => !transientIds.has(character.id));
   }, [activeCharacterId, characters, transientCharacterIds]);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
@@ -2542,6 +2542,5 @@ export default function Sheet() {
     </div>
   );
 }
-
 
 

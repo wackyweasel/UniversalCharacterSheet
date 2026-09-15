@@ -406,7 +406,8 @@ export interface WidgetData {
   numberItems?: NumberItem[];
   // Number Display
   displayNumbers?: DisplayNumber[];
-  displayLayout?: 'horizontal' | 'vertical';
+  displayLayout?: 'horizontal' | 'vertical' | 'auto';
+  numberBoxFixedAspectRatio?: boolean;
   numberBoxScale?: number;
   showDisplayNumberMax?: boolean;
   showDisplayNumberLabels?: boolean;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Character } from '../types';
+import type { Character, WidgetData } from '../types';
 import { useStore } from './useStore';
 import { useUndoStore } from './useUndoStore';
 
@@ -58,6 +58,59 @@ const character: Character = {
     ],
   }],
 };
+
+describe('number display creation defaults', () => {
+  beforeEach(() => {
+    useUndoStore.getState().clearAllHistory();
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, sheets: [{ id: 'sheet-1', name: 'Main', widgets: [] }] }],
+      activeCharacterId: character.id,
+      mode: 'play',
+    });
+  });
+
+  it('uses Auto and fixed square boxes only when creating a fresh widget', () => {
+    useStore.getState().addWidget('NUMBER_DISPLAY', 0, 0, undefined, 'exact');
+    expect(useStore.getState().characters[0].sheets[0].widgets[0].data).toMatchObject({
+      displayLayout: 'auto',
+      numberBoxFixedAspectRatio: true,
+      numberBoxScale: 100,
+    });
+  });
+
+  it.each([undefined, 'horizontal', 'vertical'] as const)('preserves saved %s layout data through loading, templates, cloning and edits', (displayLayout) => {
+    const data: WidgetData = {
+      displayNumbers: [{ label: 'Strength', value: 12 }],
+      ...(displayLayout ? { displayLayout } : {}),
+      numberBoxScale: 75,
+    };
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{
+        ...character,
+        sheets: [{ id: 'sheet-1', name: 'Main', widgets: [{ id: 'old-stats', type: 'NUMBER_DISPLAY', x: 0, y: 0, data }] }],
+      }],
+      activeCharacterId: character.id,
+      mode: 'play',
+    });
+    expect(useStore.getState().characters[0].sheets[0].widgets[0].data).toEqual(data);
+    useStore.getState().cloneWidget('old-stats');
+    useStore.getState().addWidgetFromTemplate({ type: 'NUMBER_DISPLAY', data });
+    expect(useStore.getState().characters[0].sheets[0].widgets.map((widget) => widget.data)).toEqual([data, data, data]);
+    useStore.getState().updateWidgetData('old-stats', { label: 'Renamed' });
+    expect(useStore.getState().characters[0].sheets[0].widgets[0].data).toEqual({ ...data, label: 'Renamed' });
+  });
+
+  it('retains the new settings through workspace reload', () => {
+    useStore.getState().addWidget('NUMBER_DISPLAY', 0, 0, undefined, 'exact');
+    const saved = JSON.parse(JSON.stringify(useStore.getState().characters)) as Character[];
+    useStore.getState()._replaceWorkspaceState({ characters: saved, activeCharacterId: character.id, mode: 'play' });
+    expect(useStore.getState().characters[0].sheets[0].widgets[0].data).toMatchObject({
+      displayLayout: 'auto',
+      numberBoxFixedAspectRatio: true,
+      numberBoxScale: 100,
+    });
+  });
+});
 
 describe('inventory store updates', () => {
   beforeEach(() => {

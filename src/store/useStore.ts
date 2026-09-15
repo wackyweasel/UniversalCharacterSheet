@@ -883,6 +883,11 @@ export const useStore = create<StoreState>((set, get) => {
             value: 0,
             items: [],
             text: '',
+            ...(type === 'NUMBER_DISPLAY' ? {
+              displayLayout: 'auto' as const,
+              numberBoxFixedAspectRatio: true,
+              numberBoxScale: 100,
+            } : {}),
             ...(type === 'HEALTH_BAR' ? { showIncrementButtons: true, temporaryValue: 0, enableTemporaryHp: true } : {}),
             ...(type === 'PROGRESS_BAR' ? { showPercentage: false, showIncrementButtons: false } : {}),
             ...(type === 'DICE_ROLLER' ? { autoShowRollDetails: false } : {}),
