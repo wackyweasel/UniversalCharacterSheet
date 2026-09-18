@@ -223,6 +223,22 @@
       "description": "For the folks out there.",
       "file": "presets/destinos_of_haver.json",
       "gameSystem": "Haver"
+    },
+    {
+      "id": "29",
+      "name": "Ficha Destinos de Haver",
+      "author": "@eoreka",
+      "description": "Ficha limpa para Destinos de Haver",
+      "file": "presets/ficha_destinos_de_haver_portugues.json",
+      "gameSystem": "Haver"
+    },
+    {
+      "id": "30",
+      "name": "Carolina Radlands",
+      "author": "@Disowad",
+      "description": "Character sheet for Carolina Radlands LARP",
+      "file": "presets/carolina_radlands.json",
+      "gameSystem": "Carolina Radlands"
     }
   ],
   "themes": [
