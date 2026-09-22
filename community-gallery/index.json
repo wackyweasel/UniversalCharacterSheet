@@ -239,6 +239,14 @@
       "description": "Character sheet for Carolina Radlands LARP",
       "file": "presets/carolina_radlands.json",
       "gameSystem": "Carolina Radlands"
+    },
+    {
+      "id": "31",
+      "name": "Sequence Character Sheet Template",
+      "author": "@Meriad_Discord",
+      "description": "For the Sequence TTRPG",
+      "file": "presets/sequence_character_sheet_template.json",
+      "gameSystem": "Sequence"
     }
   ],
   "themes": [
