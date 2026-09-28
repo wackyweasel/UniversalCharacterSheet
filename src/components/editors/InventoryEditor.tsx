@@ -21,7 +21,11 @@ const FIELD_TYPES: { value: InventoryFieldType; label: string }[] = [
 
 const inputClass = 'h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-xs text-theme-ink focus:border-theme-accent focus:outline-none';
 
-export function InventoryEditor({ widget, updateData }: EditorProps) {
+export function InventoryEditor({
+  widget,
+  updateData,
+  weightOptionsOnly = false,
+}: EditorProps & { weightOptionsOnly?: boolean }) {
   const {
     inventoryItems = [],
     inventoryDefaultFields = [],
@@ -119,7 +123,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
   return (
     <div className="widget-editor widget-editor--inventory space-y-4">
 
-      <CollapsibleSection>
+      {!weightOptionsOnly && <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
             <h3 id={`inventory-attributes-title-${widget.id}`} className="widget-editor__section-title">New item attributes</h3>
@@ -202,7 +206,7 @@ export function InventoryEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-      </CollapsibleSection>
+      </CollapsibleSection>}
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">

@@ -18,6 +18,7 @@ import {
 import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { MixedFieldsEditor } from '../editors/MixedFieldsEditor';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 import { CheckIcon, ChevronDownIcon } from '../icons';
 
@@ -648,6 +649,7 @@ export default function MixedFieldsWidget({
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [rollResults, setRollResults] = useState<Record<number, DiceExpressionRollResult>>({});
   const [editingTextIndex, setEditingTextIndex] = useState<number | null>(null);
+  const [renamingFieldIndex, setRenamingFieldIndex] = useState<number | null>(null);
   const previousTextValues = useRef<Record<number, string>>({});
   const labels = useMemo(() => {
     const character = characters.find((item) => item.id === activeCharacterId);
@@ -659,6 +661,32 @@ export default function MixedFieldsWidget({
     updated[index] = field;
     updateWidgetData(widget.id, { mixedFields: updated });
   };
+
+  const openRenameField = (index: number) => {
+    if (!canInteract) return;
+    setRenamingFieldIndex(index);
+  };
+
+  const closeRenameField = () => {
+    setRenamingFieldIndex(null);
+  };
+
+  const updateEditedFieldData = (data: Partial<Widget['data']>) => {
+    if (renamingFieldIndex === null || !data.mixedFields) return;
+    const updated = [...mixedFields];
+    if (data.mixedFields.length === 0) {
+      updated.splice(renamingFieldIndex, 1);
+      closeRenameField();
+    } else {
+      updated[renamingFieldIndex] = data.mixedFields[0];
+    }
+    updateWidgetData(widget.id, { mixedFields: updated });
+  };
+
+  const selectedField = renamingFieldIndex === null ? undefined : mixedFields[renamingFieldIndex];
+  const selectedFieldWidget = selectedField
+    ? { ...widget, data: { ...widget.data, mixedFields: [selectedField] } }
+    : null;
 
   const announceChange = (field: MixedField, detail: string) => {
     addTimelineEvent(label || 'Mixed fields', 'MIXED_FIELDS', `${field.name}: ${detail}`, '✎');
@@ -864,9 +892,18 @@ export default function MixedFieldsWidget({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px`, rowGap: `${itemSpacing}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
         {mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
-            <span className="flex-shrink-0 truncate text-xs font-body text-theme-ink" style={{ width: `${labelWidth}%` }}>
+            <button
+              type="button"
+              disabled={!canInteract}
+              aria-label={`Rename field ${field.name || `Field ${index + 1}`}`}
+              onClick={() => openRenameField(index)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              className="min-w-0 flex-shrink-0 truncate border-0 bg-transparent p-0 text-left text-xs font-body text-theme-ink enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
+              style={{ width: `${labelWidth}%` }}
+            >
               {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span>{field.name}</span></Tooltip> : field.name}
-            </span>
+            </button>
             {renderFieldControl(field, index)}
           </div>
         ))}
@@ -892,6 +929,36 @@ export default function MixedFieldsWidget({
               </div>
             )}
           </div>
+        </div>,
+        document.body,
+      )}
+      {selectedFieldWidget && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeRenameField();
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`mixed-field-edit-title-${widget.id}`}
+            className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-theme border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') closeRenameField();
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id={`mixed-field-edit-title-${widget.id}`} className="font-heading text-lg font-bold">Edit field</h2>
+              <button type="button" onClick={closeRenameField} className="widget-control px-3 py-1.5 text-sm">Close</button>
+            </div>
+            <MixedFieldsEditor widget={selectedFieldWidget} updateData={updateEditedFieldData} fieldEditorOnly />
+          </section>
         </div>,
         document.body,
       )}

@@ -8,7 +8,7 @@ import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, MinusIcon, PlusIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 
-export function NumberEditor({ widget, updateData }: EditorProps) {
+export function NumberEditor({ widget, updateData, itemEditorOnly = false }: EditorProps & { itemEditorOnly?: boolean }) {
   const { numberItems = [] } = widget.data;
   const [newItemName, setNewItemName] = useState('');
   const [boundEditorIndex, setBoundEditorIndex] = useState<number | null>(null);
@@ -110,7 +110,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
   return (
     <div className="widget-editor widget-editor--number space-y-4">
 
-      <CollapsibleSection>
+      {!itemEditorOnly && <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="number-display-options-title" className="widget-editor__section-title">Display options</h3>
         </div>
@@ -133,13 +133,13 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Show +/− buttons</span>
         </label>
-      </CollapsibleSection>
+      </CollapsibleSection>}
       
-      <CollapsibleSection>
-        <div className="widget-editor__section-heading">
+      <CollapsibleSection title={itemEditorOnly ? 'Tracker settings' : undefined}>
+        {!itemEditorOnly && <div className="widget-editor__section-heading">
           <h3 id="number-items-title" className="widget-editor__section-title">Items</h3>
           <span className="widget-editor__section-count">{numberItems.length}</span>
-        </div>
+        </div>}
         <div ref={containerRef} className="max-h-72 space-y-2 overflow-y-auto">
           {reorderableItems.map(({ id, item }, idx) => {
             const boundsVisible = item.minValue !== undefined || item.maxValue !== undefined || boundEditorIndex === idx;
@@ -151,7 +151,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
               className="pointer-sort-row relative rounded-button border border-theme-border bg-theme-accent/5 p-2 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Tooltip content="Drag to reorder">
+                {!itemEditorOnly && <Tooltip content="Drag to reorder">
                   <button
                     type="button"
                     className="flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
@@ -163,7 +163,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
                   >
                     <GripVerticalIcon className="h-4 w-4" />
                   </button>
-                </Tooltip>
+                </Tooltip>}
                 <input
                   className="flex-1 min-w-0 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                   value={item.name}
@@ -275,7 +275,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
             );
           })}
         </div>
-        <form onSubmit={addItem} className="widget-editor__add-row flex gap-2 mt-2">
+        {!itemEditorOnly && <form onSubmit={addItem} className="widget-editor__add-row flex gap-2 mt-2">
           <input
             type="text"
             value={newItemName}
@@ -289,7 +289,7 @@ export function NumberEditor({ widget, updateData }: EditorProps) {
           >
             Add
           </button>
-        </form>
+        </form>}
       </CollapsibleSection>
     </div>
   );

@@ -69,7 +69,7 @@ function StepDiceSettings({ field, onChange }: { field: Extract<MixedField, { ty
   );
 }
 
-export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
+export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false }: EditorProps & { fieldEditorOnly?: boolean }) {
   const { mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<MixedFieldType>('text');
@@ -391,7 +391,7 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--mixed-fields space-y-4">
-      <CollapsibleSection>
+      {!fieldEditorOnly && <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id="mixed-fields-layout-title" className="widget-editor__section-title">Field layout</h3>
         </div>
@@ -411,21 +411,21 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
             <input id="mixed-fields-item-spacing" type="range" min="0" max="16" value={itemSpacing} onChange={(event) => updateData({ itemSpacing: Number(event.target.value) })} className="w-full accent-theme-accent" />
           </div>
         </div>
-      </CollapsibleSection>
+      </CollapsibleSection>}
 
-      <CollapsibleSection>
-        <div className="widget-editor__section-heading">
+      <CollapsibleSection title={fieldEditorOnly ? 'Field settings' : undefined}>
+        {!fieldEditorOnly && <div className="widget-editor__section-heading">
           <h3 id="mixed-fields-title" className="widget-editor__section-title">Fields</h3>
           <span className="widget-editor__section-count">{mixedFields.length}</span>
-        </div>
-        <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
+        </div>}
+        <div className={`${fieldEditorOnly ? 'space-y-2' : 'max-h-[26rem] space-y-2 overflow-y-auto pr-1'}`}>
           {mixedFields.map((field, index) => (
             <div key={index} className="rounded-theme border border-theme-border p-2">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-shrink-0 gap-0.5">
+                {!fieldEditorOnly && <div className="flex flex-shrink-0 gap-0.5">
                   <Tooltip content="Move up"><button type="button" onClick={() => moveField(index, -1)} disabled={index === 0} className="widget-control h-10 w-10 min-h-0 p-1"><ChevronUpIcon className="h-3.5 w-3.5" /></button></Tooltip>
                   <Tooltip content="Move down"><button type="button" onClick={() => moveField(index, 1)} disabled={index === mixedFields.length - 1} className="widget-control h-10 w-10 min-h-0 p-1"><ChevronDownIcon className="h-3.5 w-3.5" /></button></Tooltip>
-                </div>
+                </div>}
                 <input value={field.name} onChange={(event) => updateField(index, { ...field, name: event.target.value })} placeholder="Field name" className="order-first mb-1 h-10 w-full min-w-0 rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink sm:order-none sm:mb-0 sm:w-auto sm:flex-1" />
                 <select value={field.type} onChange={(event) => changeFieldType(index, event.target.value as MixedFieldType)} className="h-10 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-1 text-sm font-body text-theme-ink sm:w-28 sm:flex-none">{MIXED_FIELD_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
                 <TooltipEditButton tooltip={field.tooltip} itemName={field.name} buttonClassName="h-10 w-10" onSave={(tooltip) => updateField(index, { ...field, tooltip })} />
@@ -437,11 +437,11 @@ export function MixedFieldsEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-        <form onSubmit={(event) => { event.preventDefault(); const name = newFieldName.trim(); if (!name) return; updateData({ mixedFields: [...mixedFields, createMixedField(newFieldType, name)] }); setNewFieldName(''); }} className="widget-editor__add-row mt-2 flex gap-2">
+        {!fieldEditorOnly && <form onSubmit={(event) => { event.preventDefault(); const name = newFieldName.trim(); if (!name) return; updateData({ mixedFields: [...mixedFields, createMixedField(newFieldType, name)] }); setNewFieldName(''); }} className="widget-editor__add-row mt-2 flex gap-2">
           <input value={newFieldName} onChange={(event) => setNewFieldName(event.target.value)} placeholder="Add field..." className="h-9 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink" />
           <select value={newFieldType} onChange={(event) => setNewFieldType(event.target.value as MixedFieldType)} className="h-9 w-28 rounded-button border border-theme-border bg-theme-paper px-1 text-sm font-body text-theme-ink">{MIXED_FIELD_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           <button type="submit" disabled={!newFieldName.trim()} className="rounded-button bg-theme-accent px-3 py-1 text-sm text-theme-paper disabled:opacity-50">Add</button>
-        </form>
+        </form>}
       </CollapsibleSection>
     </div>
   );

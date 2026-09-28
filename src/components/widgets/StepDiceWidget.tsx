@@ -14,6 +14,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { RenameItemDialog } from './RenameItemDialog';
 
 interface Props {
   widget: Widget;
@@ -37,6 +38,8 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
   const [addMultiple, setAddMultiple] = useState(false);
   const [itemNameDraft, setItemNameDraft] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
 
   const stepUp = (index: number) => {
@@ -98,6 +101,25 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
     setSelectedItems(new Set());
     setShowRemoveDialog(false);
     addTimelineEvent(label || 'Step Dice', 'STEP_DICE', `Removed: ${removedNames.join(', ')}`, '➖');
+  };
+
+  const openRenameDialog = (index: number) => {
+    if (!interactive || mode === 'print') return;
+    setRenameDraft(stepDiceItems[index].name);
+    setRenamingIndex(index);
+  };
+
+  const closeRenameDialog = () => {
+    setRenamingIndex(null);
+    setRenameDraft('');
+  };
+
+  const saveDieTrackName = (name: string) => {
+    if (renamingIndex === null) return;
+    const updated = [...stepDiceItems] as StepDiceItem[];
+    updated[renamingIndex] = { ...updated[renamingIndex], name };
+    updateWidgetData(widget.id, { stepDiceItems: updated });
+    closeRenameDialog();
   };
 
   const toggleItemSelection = (index: number) => {
@@ -163,9 +185,18 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
         const row = (
           <div key={i} className="flex items-center gap-1 min-h-[28px]">
             {/* Item name */}
-            <div className="text-xs text-theme-ink font-body truncate min-w-0 flex-shrink" style={{ flex: '1 1 0' }}>
+            <button
+              type="button"
+              disabled={!interactive || mode === 'print'}
+              aria-label={`Rename die track ${item.name || `Die track ${i + 1}`}`}
+              onClick={() => openRenameDialog(i)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              className="min-w-0 flex-shrink truncate border-0 bg-transparent p-0 text-left text-xs text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
+              style={{ flex: '1 1 0' }}
+            >
               {item.name}
-            </div>
+            </button>
 
             {/* Step down button */}
             {mode !== 'print' && (
@@ -311,6 +342,16 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
           </div>
         </div>,
         document.body
+      )}
+      {renamingIndex !== null && (
+        <RenameItemDialog
+          id={`step-die-track-${widget.id}`}
+          itemType="Die track"
+          value={renameDraft}
+          onChange={setRenameDraft}
+          onSave={saveDieTrackName}
+          onCancel={closeRenameDialog}
+        />
       )}
     </div>
   );

@@ -3120,11 +3120,11 @@ td .inline-dice-token {
 }
 
 .card-deck-layer--dragging {
-  z-index: 1000 !important;
+  z-index: 2147483647 !important;
 }
 
 .print-canvas-content:has(.widget-surface--dragging.widget-surface--card-table) .card-deck-layer {
-  z-index: 1000 !important;
+  z-index: 2147483647 !important;
 }
 
 .card-deck-dom-layer {
@@ -3137,11 +3137,11 @@ td .inline-dice-token {
 }
 
 .card-deck-dom-layer--dragging {
-  z-index: 1000 !important;
+  z-index: 2147483647 !important;
 }
 
 .print-canvas-content:has(.widget-surface--dragging.widget-surface--card-table) .card-deck-dom-layer {
-  z-index: 1000 !important;
+  z-index: 2147483647 !important;
 }
 
 .card-deck-controls-layer {
@@ -3160,11 +3160,11 @@ td .inline-dice-token {
 }
 
 .card-deck-controls-layer--dragging {
-  z-index: 1000 !important;
+  z-index: 2147483647 !important;
 }
 
 .print-canvas-content:has(.widget-surface--dragging.widget-surface--card-table) .card-deck-controls-layer {
-  z-index: 1000 !important;
+  z-index: 2147483647 !important;
 }
 
 .card-deck-controls-layer--dragging .card-deck-grab-all {

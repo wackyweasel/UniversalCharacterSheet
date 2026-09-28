@@ -1834,6 +1834,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
                       title={`Drag to resize ${col} column`}
                       onClick={(event) => event.stopPropagation()}
                       onPointerDown={(event) => handleColumnResizeStart(event, idx)}
+                      data-camera-pan-ignore="true"
                       onPointerMove={handleColumnResizeMove}
                       onPointerUp={(event) => finishColumnResize(event, true)}
                       onPointerCancel={(event) => finishColumnResize(event, false)}
@@ -1935,6 +1936,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
                       data-table-cell={tableCellKey({ row: rowIdx, col: colIdx })}
                       data-cell-row={rowIdx}
                       data-cell-col={colIdx}
+                      data-camera-pan-ignore={selectCellsMode && !isPrintMode ? 'true' : undefined}
                       aria-selected={isSelected}
                       onPointerDown={event => startCellSelection(event, { row: rowIdx, col: colIdx })}
                       onPointerMove={moveCellSelection}

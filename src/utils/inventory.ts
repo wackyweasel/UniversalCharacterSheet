@@ -267,7 +267,7 @@ export function getInventoryItemWeight(item: InventoryItem): number {
   const weight = weightField?.type === 'number' ? Number(weightField.value) : 0;
   if (!Number.isFinite(weight)) return 0;
   const quantity = getInventoryItemQuantity(item);
-  return Math.max(0, weight) * (quantity === undefined ? 1 : quantity);
+  return weight * (quantity === undefined ? 1 : quantity);
 }
 
 export function getInventoryLoad(items: InventoryItem[]): number {

@@ -24,6 +24,8 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
+  const [editingNameIndex, setEditingNameIndex] = useState<number | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const [editingValueIndex, setEditingValueIndex] = useState<number | null>(null);
@@ -90,6 +92,27 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
     setFieldDialog('remove');
   };
 
+  const openRenameFieldDialog = (index: number) => {
+    if (isPrintMode) return;
+    setNameDraft((formItems as FormItem[])[index]?.name || '');
+    setEditingNameIndex(index);
+  };
+
+  const closeRenameFieldDialog = () => {
+    setEditingNameIndex(null);
+    setNameDraft('');
+  };
+
+  const renameField = () => {
+    if (editingNameIndex === null) return;
+    const name = nameDraft.trim();
+    if (!name) return;
+    const updated = [...formItems] as FormItem[];
+    updated[editingNameIndex] = { ...updated[editingNameIndex], name };
+    updateWidgetData(widget.id, { formItems: updated });
+    closeRenameFieldDialog();
+  };
+
   const closeFieldDialog = () => {
     setFieldDialog(null);
     setFieldNameDraft('');
@@ -107,15 +130,18 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   };
 
   useEffect(() => {
-    if (!fieldDialog) return;
+    if (!fieldDialog && editingNameIndex === null) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeFieldDialog();
+      if (event.key === 'Escape') {
+        if (editingNameIndex !== null) closeRenameFieldDialog();
+        else closeFieldDialog();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [fieldDialog]);
+  }, [fieldDialog, editingNameIndex]);
 
   return (
     <div className={`form-widget flex flex-col ${gapClass} w-full h-full`}>
@@ -170,14 +196,20 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
         {(formItems as FormItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
-            <span 
-              className={`${itemClass} text-theme-ink font-body truncate flex-shrink-0`}
+            <button
+              type="button"
+              className={`${itemClass} min-w-0 truncate flex-shrink-0 border-0 bg-transparent p-0 text-left text-theme-ink font-body ${isPrintMode ? 'cursor-default' : 'cursor-pointer hover:underline'}`}
               style={{ width: `${labelWidth}%` }}
+              onClick={() => openRenameFieldDialog(idx)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              disabled={isPrintMode}
+              aria-label={`Rename field ${item.name || `Field ${idx + 1}`}`}
             >
               {mode === 'play' && item.tooltip ? (
                 <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
               ) : item.name}
-            </span>
+            </button>
 
             {mode === 'edit' || editingValueIndex === idx ? (
               <input
@@ -304,6 +336,56 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
               </div>
             )}
           </div>
+        </div>,
+        document.body
+      )}
+
+      {editingNameIndex !== null && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeRenameFieldDialog();
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`form-rename-dialog-title-${widget.id}`}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              renameField();
+            }}
+          >
+            <h3 id={`form-rename-dialog-title-${widget.id}`} className="font-heading text-base font-bold">
+              Rename field
+            </h3>
+            <label htmlFor={`form-rename-field-name-${widget.id}`} className="mt-3 block text-sm font-medium">Field name</label>
+            <input
+              id={`form-rename-field-name-${widget.id}`}
+              autoFocus
+              type="text"
+              value={nameDraft}
+              onChange={(event) => setNameDraft(event.target.value)}
+              className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={closeRenameFieldDialog} className="widget-control px-3 py-1.5 text-sm">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!nameDraft.trim()}
+                className="widget-control widget-control--primary px-3 py-1.5 text-sm"
+              >
+                Save
+              </button>
+            </div>
+          </form>
         </div>,
         document.body
       )}

@@ -8,7 +8,8 @@ import {
   getInventoryLoad,
 } from '../../utils/inventory';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
-import { GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon } from '../icons';
+import { InventoryEditor } from '../editors/InventoryEditor';
+import { GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
 import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import { SelectionActions } from './StructureDialogControls';
@@ -164,6 +165,7 @@ function InventoryWidget({
   const globalLoad = useMemo(() => getCharacterGlobalInventoryLoad(activeCharacter), [activeCharacter]);
   const [dialogItem, setDialogItem] = useState<InventoryItem | null | undefined>(undefined);
   const [quantityDialogItem, setQuantityDialogItem] = useState<InventoryItem | null>(null);
+  const [weightOptionsOpen, setWeightOptionsOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -377,6 +379,15 @@ function InventoryWidget({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [removeDialogOpen]);
 
+  useEffect(() => {
+    if (!weightOptionsOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setWeightOptionsOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [weightOptionsOpen]);
+
   const handleReorderKey = (index: number, event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
     event.preventDefault();
@@ -414,6 +425,25 @@ function InventoryWidget({
       inventoryItems: inventoryItems.filter((item) => !selectedItemIds.has(item.id)),
     });
     closeRemoveDialog();
+  };
+
+  const renderLoadMeter = (props: { value: number; capacity?: number; unit: string; label: string }) => {
+    const meter = <LoadMeter {...props} />;
+    if (!canInteract) return meter;
+    return (
+      <Tooltip content="Edit weight and encumbrance options">
+        <button
+          type="button"
+          onClick={() => setWeightOptionsOpen(true)}
+          onMouseDown={(event) => event.stopPropagation()}
+          aria-label={`Edit ${props.label.toLowerCase()} and encumbrance options`}
+          data-touch-camera-ignore="true"
+          className="block w-full min-w-0 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-theme-accent"
+        >
+          {meter}
+        </button>
+      </Tooltip>
+    );
   };
 
   return (
@@ -454,9 +484,9 @@ function InventoryWidget({
 
       {encumbrance?.enabled && (
         <div className={`grid flex-shrink-0 gap-1 px-[3px] ${encumbrance.showGlobalCounter ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
-          <LoadMeter value={localLoad} capacity={encumbrance.localCapacity} unit={encumbrance.unit || 'kg'} label="Total weight" />
+          {renderLoadMeter({ value: localLoad, capacity: encumbrance.localCapacity, unit: encumbrance.unit || 'kg', label: 'Total weight' })}
           {encumbrance.showGlobalCounter && (
-            <LoadMeter value={globalLoad} capacity={encumbrance.globalCapacity} unit={encumbrance.unit || 'kg'} label="Global weight" />
+            renderLoadMeter({ value: globalLoad, capacity: encumbrance.globalCapacity, unit: encumbrance.unit || 'kg', label: 'Global weight' })
           )}
         </div>
       )}
@@ -581,6 +611,49 @@ function InventoryWidget({
             setQuantityDialogItem(null);
           }}
         />
+      )}
+
+      {weightOptionsOpen && canInteract && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4 animate-fade-in"
+          onClick={() => setWeightOptionsOpen(false)}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`inventory-weight-options-title-${widget.id}`}
+            className="flex max-h-[min(90vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-theme-border px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Inventory</p>
+                <h2 id={`inventory-weight-options-title-${widget.id}`} className="mt-0.5 font-heading text-lg font-bold">
+                  Weight &amp; encumbrance
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWeightOptionsOpen(false)}
+                aria-label="Close weight options"
+                className="widget-control flex h-7 w-7 flex-shrink-0 items-center justify-center"
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
+              <InventoryEditor
+                widget={widget}
+                updateData={(data) => updateWidgetData(widget.id, data)}
+                weightOptionsOnly
+              />
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
 
       {removeDialogOpen && canInteract && createPortal(

@@ -154,6 +154,7 @@ function ProgressClock({ clock, index, enabled, showValues, labelPosition, count
         ref={buttonRef}
         type="button"
         role="slider"
+        data-camera-pan-ignore={enabled ? 'true' : undefined}
         data-touch-camera-ignore="true"
         aria-label={name}
         aria-valuemin={0}

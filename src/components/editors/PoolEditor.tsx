@@ -7,7 +7,7 @@ import { ResourceStylePicker } from '../ResourceStylePicker';
 import { ChevronDownIcon, ChevronUpIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 
-export function PoolEditor({ widget, updateData }: EditorProps) {
+export function PoolEditor({ widget, updateData, resourceEditorOnly = false, canDeleteResource = true }: EditorProps & { resourceEditorOnly?: boolean; canDeleteResource?: boolean }) {
   const { 
     maxPool = 5, 
     currentPool = 5,
@@ -70,16 +70,16 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
   return (
     <div className="widget-editor widget-editor--pool space-y-4">
 
-      <CollapsibleSection>
-        <div className="widget-editor__section-heading">
+      <CollapsibleSection title={resourceEditorOnly ? 'Resource settings' : undefined}>
+        {!resourceEditorOnly && <div className="widget-editor__section-heading">
           <h3 id={`resources-title-${widget.id}`} className="widget-editor__section-title">Resources</h3>
           <span className="widget-editor__section-count">{resources.length}</span>
-        </div>
+        </div>}
         <div className="max-h-64 space-y-3 overflow-y-auto">
             {resources.map((resource: PoolResource, idx: number) => (
               <div key={idx} className="border border-theme-border rounded-theme p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="flex flex-shrink-0 gap-1">
+                  {!resourceEditorOnly && <div className="flex flex-shrink-0 gap-1">
                     <Tooltip content="Move up">
                       <button
                         type="button"
@@ -102,7 +102,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                         <ChevronDownIcon className="h-3.5 w-3.5" />
                       </button>
                     </Tooltip>
-                  </div>
+                  </div>}
                   <input
                     className="h-10 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
                     value={resource.name}
@@ -122,7 +122,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
                   <button
                     type="button"
                     onClick={() => removeResource(idx)}
-                    disabled={resources.length <= 1}
+                    disabled={resourceEditorOnly ? !canDeleteResource : resources.length <= 1}
                     aria-label={`Remove ${resource.name || `resource ${idx + 1}`}`}
                     title="Delete resource"
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
@@ -185,17 +185,17 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
             ))}
         </div>
 
-        <div className="widget-editor__add-row">
+        {!resourceEditorOnly && <div className="widget-editor__add-row">
           <button
             onClick={addResource}
             className="w-full rounded-button border border-theme-border px-3 py-2 text-sm text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper"
           >
             + Add Resource
           </button>
-        </div>
+        </div>}
       </CollapsibleSection>
 
-      <CollapsibleSection>
+      {!resourceEditorOnly && <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`pool-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
@@ -218,7 +218,7 @@ export function PoolEditor({ widget, updateData }: EditorProps) {
           />
           <span className="text-sm text-theme-ink">Inline labels with icons</span>
         </label>
-      </CollapsibleSection>
+      </CollapsibleSection>}
     </div>
   );
 }

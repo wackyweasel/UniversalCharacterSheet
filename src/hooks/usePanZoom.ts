@@ -107,6 +107,17 @@ function isInteractiveCanvasTarget(target: EventTarget | null): boolean {
   return !['auto', 'default', 'grab', 'grabbing'].includes(cursor);
 }
 
+const CAMERA_PAN_DRAG_TARGET_SELECTOR = [
+  '[data-camera-pan-ignore="true"]',
+  '[data-card-deck-grab-all-widget-id]',
+  '.card-deck-hit-target',
+  '[class*="drag-handle"]',
+].join(', ');
+
+function isCameraPanDragTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(CAMERA_PAN_DRAG_TARGET_SELECTOR));
+}
+
 function isScrollableCanvasTarget(target: EventTarget | null, canvas: Element): boolean {
   let element = target instanceof Element ? target : null;
   while (element && element !== canvas) {
@@ -128,7 +139,12 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   const [viewLocked, setViewLockedState] = useState(initial.locked);
   const [wheelPanEnabled, setWheelPanEnabled] = useState(initial.wheelPanEnabled);
   const [isPanning, setIsPanning] = useState(false);
+  const mousePanActive = useRef(false);
+  const mousePanMoved = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const mousePanStartPos = useRef({ x: 0, y: 0 });
+  const mousePanStartedOnInteractiveTarget = useRef(false);
+  const suppressNextInteractiveClick = useRef(false);
   const lastTouchStartTime = useRef(0);
   const viewLockedRef = useRef(viewLocked);
   const panRef = useRef(pan);
@@ -182,27 +198,44 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     return () => window.removeEventListener('touchstart', handleTouchStart, { capture: true });
   }, []);
 
-  // Global mouse handlers for panning outside window
+  // Use one capture-phase mouse handler so panning works over controls and outside the canvas.
   useEffect(() => {
-    const handleGlobalMouseUp = () => setIsPanning(false);
+    const handleGlobalMouseUp = () => {
+      mousePanActive.current = false;
+      mousePanMoved.current = false;
+      setIsPanning(false);
+      mousePanStartedOnInteractiveTarget.current = false;
+      window.setTimeout(() => { suppressNextInteractiveClick.current = false; }, 0);
+    };
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (isPanning) {
-        if (viewLockedRef.current) return;
-        const dx = e.clientX - lastMousePos.current.x;
-        const dy = e.clientY - lastMousePos.current.y;
-        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
+      if (!mousePanActive.current || viewLockedRef.current) return;
+      if (!mousePanMoved.current) {
+        if (Math.hypot(e.clientX - mousePanStartPos.current.x, e.clientY - mousePanStartPos.current.y) < 4) return;
+        mousePanMoved.current = true;
+        setIsPanning(true);
       }
+      if (mousePanStartedOnInteractiveTarget.current) {
+        suppressNextInteractiveClick.current = true;
+        e.preventDefault();
+      }
+      const dx = e.clientX - lastMousePos.current.x;
+      const dy = e.clientY - lastMousePos.current.y;
+      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
     };
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp, true);
+    window.addEventListener('mousemove', handleGlobalMouseMove, true);
     return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp, true);
+      window.removeEventListener('mousemove', handleGlobalMouseMove, true);
     };
-  }, [isPanning]);
+  }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    suppressNextInteractiveClick.current = false;
+    mousePanActive.current = false;
+    mousePanMoved.current = false;
+    mousePanStartedOnInteractiveTarget.current = false;
     if (performance.now() - lastTouchStartTime.current < 750) return;
     // Disable panning when editing a widget
     if (editingWidgetId) return;
@@ -215,41 +248,38 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
       return;
     }
     
-    // Preserve controls and widget manipulation while allowing inert widget space to pan.
-    if (isInteractiveCanvasTarget(e.target)) return;
+    if (isCameraPanDragTarget(e.target)) return;
+    const interactiveTarget = isInteractiveCanvasTarget(e.target);
 
     // Clear selected widget when clicking on the background
-    onBackgroundClick?.();
+    if (!interactiveTarget) onBackgroundClick?.();
 
     // In play/print mode: Left Click (0) to pan
     // In edit mode: Left Click (0) and Middle Click (1) to pan
     if (mode === 'play' || mode === 'print') {
       if (e.button === 0) {
-        e.preventDefault();
-        setIsPanning(true);
+        if (!interactiveTarget) e.preventDefault();
+        mousePanActive.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartPos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartedOnInteractiveTarget.current = interactiveTarget;
       }
     } else {
       if (e.button === 0 || e.button === 1) {
-        e.preventDefault();
-        setIsPanning(true);
+        if (!interactiveTarget) e.preventDefault();
+        mousePanActive.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartPos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartedOnInteractiveTarget.current = interactiveTarget;
       }
     }
   }, [editingWidgetId, mode, onBackgroundClick]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning) {
-      if (viewLockedRef.current) return;
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
-      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
-    }
-  }, [isPanning]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
+  const handleMouseClickCapture = useCallback((e: React.MouseEvent) => {
+    if (!suppressNextInteractiveClick.current) return;
+    suppressNextInteractiveClick.current = false;
+    e.preventDefault();
+    e.stopPropagation();
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -327,8 +357,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     setScale,
     setWheelPanEnabled,
     handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    handleMouseClickCapture,
     handleWheel,
     zoomIn,
     zoomOut,

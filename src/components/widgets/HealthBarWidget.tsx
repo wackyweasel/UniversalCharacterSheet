@@ -497,6 +497,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
         <Tooltip content={hasCurrentFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit maximum' : 'Click to edit; hold and drag to change health'}>
           <div
             className={`health-bar__track ${!valuesEditable ? 'health-bar__track--disabled' : ''}`}
+            data-camera-pan-ignore={valuesEditable ? 'true' : undefined}
             data-touch-camera-ignore={valuesEditable ? 'true' : undefined}
             role={controlsVisible && !hasCurrentFormula ? 'slider' : 'progressbar'}
             tabIndex={valuesEditable ? 0 : undefined}

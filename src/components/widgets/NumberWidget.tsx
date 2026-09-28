@@ -8,6 +8,7 @@ import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
+import { NumberEditor } from '../editors/NumberEditor';
 
 interface Props {
   widget: Widget;
@@ -45,6 +46,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const [maximumDraft, setMaximumDraft] = useState('');
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
 
   const minimumDraftValue = minimumDraft.trim() === '' ? undefined : Number(minimumDraft);
   const maximumDraftValue = maximumDraft.trim() === '' ? undefined : Number(maximumDraft);
@@ -129,6 +131,32 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const closeNumberDialog = () => {
     setNumberDialog(null);
   };
+
+  const openRenameDialog = (index: number) => {
+    if (isPrintMode) return;
+    setRenamingIndex(index);
+  };
+
+  const closeRenameDialog = () => {
+    setRenamingIndex(null);
+  };
+
+  const updateEditedTracker = (data: Partial<Widget['data']>) => {
+    if (renamingIndex === null || !data.numberItems) return;
+    const updated = [...numberItems] as NumberItem[];
+    if (data.numberItems.length === 0) {
+      updated.splice(renamingIndex, 1);
+      closeRenameDialog();
+    } else {
+      updated[renamingIndex] = data.numberItems[0];
+    }
+    updateWidgetData(widget.id, { numberItems: updated });
+  };
+
+  const editingTracker = renamingIndex === null ? undefined : (numberItems as NumberItem[])[renamingIndex];
+  const editingTrackerWidget = editingTracker
+    ? { ...widget, data: { ...widget.data, numberItems: [editingTracker] } }
+    : null;
 
   const saveNumberDialog = () => {
     if (!numberDialog || !numberDialogItem || numberDialogHasInvalidBounds || numberDialogHasInvalidCurrent) return;
@@ -293,11 +321,19 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           <div key={idx} className="relative">
             <div className={`flex items-center ${gapClass}`}>
               {/* Item Name */}
-              <span className={`flex-1 ${itemClass} text-theme-ink font-body truncate`}>
+              <button
+                type="button"
+                disabled={isPrintMode}
+                aria-label={`Edit tracker ${item.name || `Tracker ${idx + 1}`}`}
+                onClick={() => openRenameDialog(idx)}
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-left ${itemClass} text-theme-ink font-body truncate enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+              >
                 {mode === 'play' && item.tooltip ? (
                   <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
                 ) : item.name}
-              </span>
+              </button>
 
               {/* Value Controls - fixed width container for alignment */}
               <div className={`flex items-center justify-center gap-0.5 flex-shrink-0 ${controlsSectionWidth}`}>
@@ -576,6 +612,36 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           </div>
         </div>,
         document.body
+      )}
+      {editingTrackerWidget && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeRenameDialog();
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`number-tracker-edit-title-${widget.id}`}
+            className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-theme border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') closeRenameDialog();
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id={`number-tracker-edit-title-${widget.id}`} className="font-heading text-lg font-bold">Edit tracker</h2>
+              <button type="button" onClick={closeRenameDialog} className="widget-control px-3 py-1.5 text-sm">Close</button>
+            </div>
+            <NumberEditor widget={editingTrackerWidget} updateData={updateEditedTracker} itemEditorOnly />
+          </section>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -322,6 +322,7 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
         <Tooltip content={hasCurrentFormula && hasMinFormula && hasMaxFormula ? 'Values set by formula' : hasCurrentFormula ? 'Click to edit bounds' : 'Click to edit; hold and drag to change progress'}>
           <div
             className={`progress-bar__track ${!valuesEditable ? 'progress-bar__track--disabled' : ''}`}
+            data-camera-pan-ignore={valuesEditable ? 'true' : undefined}
             data-touch-camera-ignore={valuesEditable ? 'true' : undefined}
             role={controlsVisible && !hasCurrentFormula ? 'slider' : 'progressbar'}
             tabIndex={valuesEditable ? 0 : undefined}

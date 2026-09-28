@@ -3,6 +3,7 @@ import type { InventoryItem } from '../types';
 import {
   getInventoryItemQuantity,
   getInventoryItemWeight,
+  getInventoryLoad,
   normalizeInventoryQuantity,
   splitInventoryItem,
 } from './inventory';
@@ -33,6 +34,18 @@ describe('inventory quantities', () => {
   it('multiplies weight by quantity, including zero', () => {
     expect(getInventoryItemWeight(createItem({ quantity: 10 }))).toBe(1);
     expect(getInventoryItemWeight(createItem({ quantity: 0 }))).toBe(0);
+  });
+
+  it('includes negative item weights in item and inventory load calculations', () => {
+    const negativeItem = createItem({
+      quantity: 3,
+      fields: [{ id: 'weight-2', name: 'Weight', type: 'number', value: -2, reserved: 'weight' }],
+    });
+
+    expect(getInventoryItemWeight(negativeItem)).toBe(-6);
+    expect(getInventoryLoad([negativeItem, createItem({
+      fields: [{ id: 'weight-3', name: 'Weight', type: 'number', value: 5, reserved: 'weight' }],
+    })])).toBe(-1);
   });
 
   it('splits a stack into two cloned items while preserving the total', () => {

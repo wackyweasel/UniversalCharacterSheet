@@ -47,7 +47,7 @@ export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button'
       </Tooltip>
       {open && ReactDOM.createPortal(
         <div
-          className="widget-edit-modal__backdrop fixed inset-0 z-50 flex items-center justify-center p-3"
+          className="widget-edit-modal__backdrop fixed inset-0 z-[11000] flex items-center justify-center p-3"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div

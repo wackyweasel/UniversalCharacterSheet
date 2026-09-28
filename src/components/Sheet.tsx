@@ -375,8 +375,7 @@ export default function Sheet() {
     setPan,
     setScale,
     handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    handleMouseClickCapture,
     handleWheel,
     viewLocked,
     wheelPanEnabled,
@@ -1704,9 +1703,8 @@ export default function Sheet() {
       {/* Canvas Container - touch events handled globally */}
       <div 
         className={`canvas-touch-surface absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : viewLocked || editingWidgetId ? 'cursor-default' : 'cursor-grab'} ${isPinching ? 'pinch-active' : ''}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onMouseDownCapture={handleMouseDown}
+        onClickCapture={handleMouseClickCapture}
         onWheel={handleWheel}
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}

@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { InlineDiceText } from '../InlineDiceText';
-import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -63,9 +63,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
   const { label, items = [], itemCount = 5, wrapText = true } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  const [addMultiple, setAddMultiple] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -123,12 +121,6 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
       items: [...normalizedItems, ''],
       itemCount: itemCount + 1,
     });
-    if (!addMultiple) setShowAddDialog(false);
-  };
-
-  const openAddDialog = () => {
-    setAddMultiple(false);
-    setShowAddDialog(true);
   };
 
   const removeSelectedItems = () => {
@@ -197,7 +189,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
               <Tooltip content="Add empty item">
                 <button
                   type="button"
-                  onClick={openAddDialog}
+                  onClick={addItems}
                   onMouseDown={(e) => e.stopPropagation()}
                   aria-label="Add empty list item"
                   className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
@@ -278,35 +270,6 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
           </div>
         ))}
       </div>
-
-      {showAddDialog && createPortal(
-        <div
-          data-touch-camera-ignore="true"
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
-          onClick={() => setShowAddDialog(false)}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <form
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`list-add-dialog-title-${widget.id}`}
-            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
-            onSubmit={(event) => {
-              event.preventDefault();
-              addItems();
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id={`list-add-dialog-title-${widget.id}`} className="font-heading text-base font-bold">Add list item</h3>
-            <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} />
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setShowAddDialog(false)} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
-              <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Add item</button>
-            </div>
-          </form>
-        </div>,
-        document.body
-      )}
 
       {showRemoveDialog && createPortal(
         <div

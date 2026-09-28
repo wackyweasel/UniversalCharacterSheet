@@ -39,6 +39,15 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.7.0',
+    changes: [
+      'Added new ways to make small, targeted edits to widgets without entering Build mode or opening the full widget editor.',
+      'Inventory items can now have negative weight.',
+      'Added the ability to overwrite initiative roll results in the initiative tracker.',
+      'Moving the camera with a mouse is easier: camera panning can start over clickable elements.',
+    ],
+  },
+  {
     version: '1.6.3',
     changes: [
       'Added new option to better control the layout of the number display widget',

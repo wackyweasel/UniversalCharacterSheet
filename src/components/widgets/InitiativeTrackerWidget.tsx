@@ -176,6 +176,99 @@ function AddParticipantModal({
   );
 }
 
+interface InitiativeRollDialogProps {
+  widgetId: string;
+  participant: InitiativeEncounterEntry;
+  onClose: () => void;
+  onReroll: () => void;
+  onSave: (result: number) => void;
+}
+
+function InitiativeRollDialog({ widgetId, participant, onClose, onReroll, onSave }: InitiativeRollDialogProps) {
+  const [resultDraft, setResultDraft] = useState(
+    participant.rollResult === undefined ? '' : String(participant.rollResult),
+  );
+  const parsedResult = Number(resultDraft);
+  const canSave = resultDraft.trim() !== '' && Number.isInteger(parsedResult);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      data-touch-camera-ignore="true"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+      onClick={onClose}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`initiative-roll-dialog-title-${widgetId}`}
+        className="w-full max-w-xs rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Initiative</p>
+            <h3 id={`initiative-roll-dialog-title-${widgetId}`} className="mt-0.5 truncate font-heading text-base font-bold">
+              {participant.name}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close initiative result dialog"
+            className="flex-shrink-0 text-xl leading-none text-theme-muted hover:text-theme-ink"
+          >
+            ×
+          </button>
+        </div>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (canSave) onSave(parsedResult);
+          }}
+          className="space-y-3"
+        >
+          <label className="block text-xs font-medium">
+            Initiative result
+            <input
+              autoFocus
+              type="number"
+              step="1"
+              value={resultDraft}
+              onChange={(event) => setResultDraft(event.target.value)}
+              className="mt-1 h-9 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="widget-control px-3 py-1.5 text-xs">
+              Cancel
+            </button>
+            <button type="button" onClick={onReroll} className="widget-control px-3 py-1.5 text-xs">
+              Reroll
+            </button>
+            <button
+              type="submit"
+              disabled={!canSave}
+              className="widget-control widget-control--primary px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Set result
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 interface RemoveParticipantsModalProps {
   participants: InitiativeEncounterEntry[];
   onClose: () => void;
@@ -269,6 +362,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
 
   const [showAddParticipantModal, setShowAddParticipantModal] = useState(false);
   const [showRemoveParticipantsModal, setShowRemoveParticipantsModal] = useState(false);
+  const [rollDialogParticipantId, setRollDialogParticipantId] = useState<string | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [timerSecondsByParticipant, setTimerSecondsByParticipant] = useState<Record<string, number>>({});
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -465,20 +559,41 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
     }, 300);
   }, [initiativeEncounter, widget.id, updateWidgetData]);
 
-  const rollParticipant = (participantId: string) => {
-    const activeParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
-    const rolled = initiativeEncounter.map((entry: InitiativeEncounterEntry) => {
-      if (entry.id !== participantId) return entry;
-      const dieRoll = Math.floor(Math.random() * entry.diceFaces) + 1;
-      return { ...entry, rollResult: dieRoll + entry.flatBonus };
+  const clearInitiativeRolls = () => {
+    const clearedEncounter = initiativeEncounter.map(({ rollResult: _rollResult, ...entry }) => entry);
+    updateWidgetData(widget.id, {
+      initiativeEncounter: clearedEncounter,
+      initiativeCurrentIndex: 0,
     });
-    const sorted = sortInitiativeEntries(rolled);
-    const activeParticipantIndex = sorted.findIndex((entry) => entry.id === activeParticipantId);
+  };
+
+  const setParticipantResult = (participantId: string, rollResult: number) => {
+    const activeParticipantId = initiativeEncounter[initiativeCurrentIndex]?.id;
+    const participant = initiativeEncounter.find((entry: InitiativeEncounterEntry) => entry.id === participantId);
+    if (!participant) return;
+
+    const updatedParticipant = { ...participant, rollResult };
+    const remaining = initiativeEncounter.filter((entry: InitiativeEncounterEntry) => entry.id !== participantId);
+    const insertIndex = remaining.findIndex((entry) => (
+      entry.rollResult === undefined
+      || entry.rollResult < rollResult
+      || (entry.rollResult === rollResult && entry.flatBonus < updatedParticipant.flatBonus)
+    ));
+    const updated = [...remaining];
+    updated.splice(insertIndex < 0 ? updated.length : insertIndex, 0, updatedParticipant);
+    const activeParticipantIndex = updated.findIndex((entry) => entry.id === activeParticipantId);
 
     updateWidgetData(widget.id, {
-      initiativeEncounter: sorted,
+      initiativeEncounter: updated,
       initiativeCurrentIndex: activeParticipantIndex >= 0 ? activeParticipantIndex : 0,
     });
+  };
+
+  const rollParticipant = (participantId: string) => {
+    const participant = initiativeEncounter.find((entry: InitiativeEncounterEntry) => entry.id === participantId);
+    if (!participant) return;
+    const dieRoll = Math.floor(Math.random() * participant.diceFaces) + 1;
+    setParticipantResult(participantId, dieRoll + participant.flatBonus);
     trackGoatCounterEvent('roll-dice');
   };
 
@@ -746,17 +861,30 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
 
         {/* Roll Initiative */}
         {initiativeShowRollButton && initiativeEncounter.length > 0 && (
-          <Tooltip content="Roll initiative for all participants">
-            <button
-              onClick={rollInitiative}
-              disabled={isRolling}
-              className={`${buttonClass} widget-control font-bold ${
-                isRolling ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isRolling ? '...' : 'Roll'}
-            </button>
-          </Tooltip>
+          <>
+            <Tooltip content="Roll initiative for all participants">
+              <button
+                onClick={rollInitiative}
+                disabled={isRolling}
+                className={`${buttonClass} widget-control font-bold ${
+                  isRolling ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isRolling ? '...' : 'Roll'}
+              </button>
+            </Tooltip>
+            <Tooltip content="Clear initiative rolls without removing participants">
+              <button
+                type="button"
+                onClick={clearInitiativeRolls}
+                disabled={!initiativeEncounter.some((entry: InitiativeEncounterEntry) => entry.rollResult !== undefined)}
+                className={`${buttonClass} widget-control disabled:cursor-not-allowed disabled:opacity-40`}
+                aria-label="Clear initiative rolls"
+              >
+                Clear
+              </button>
+            </Tooltip>
+          </>
         )}
 
         {initiativeShowTimer && initiativeEncounter.length > 0 && (
@@ -848,12 +976,12 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
                   </span>
                 )}
 
-                <Tooltip content={`${entry.rollResult === undefined ? 'Roll' : 'Reroll'} initiative for ${entry.name}`}>
+                <Tooltip content={`Edit or reroll initiative for ${entry.name}`}>
                   <button
                     type="button"
-                    onClick={() => rollParticipant(entry.id)}
+                    onClick={() => setRollDialogParticipantId(entry.id)}
                     className={`${itemClass} mr-1 min-w-[42px] text-right font-mono font-bold leading-none tabular-nums font-body underline-offset-2 hover:underline focus-visible:rounded`}
-                    aria-label={`${entry.rollResult === undefined ? 'Roll' : 'Reroll'} initiative for ${entry.name}`}
+                    aria-label={`Edit initiative result for ${entry.name}`}
                   >
                     {entry.rollResult ?? formatInitiativeDice(entry)}
                   </button>
@@ -902,6 +1030,25 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
           onRemove={removeParticipants}
         />
       )}
+      {rollDialogParticipantId && (() => {
+        const participant = initiativeEncounter.find((entry: InitiativeEncounterEntry) => entry.id === rollDialogParticipantId);
+        if (!participant) return null;
+        return (
+          <InitiativeRollDialog
+            widgetId={widget.id}
+            participant={participant}
+            onClose={() => setRollDialogParticipantId(null)}
+            onReroll={() => {
+              rollParticipant(participant.id);
+              setRollDialogParticipantId(null);
+            }}
+            onSave={(result) => {
+              setParticipantResult(participant.id, result);
+              setRollDialogParticipantId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -905,6 +905,7 @@ export default function MapSketcherWidget({ widget, mode, sheetScale = 1 }: Prop
       <div ref={canvasShellRef} className="relative min-h-0 flex-1 overflow-hidden rounded-theme border border-theme-border bg-theme-paper mx-1 mb-1">
         <canvas
           ref={canvasRef}
+          data-camera-pan-ignore={mode === 'play' ? 'true' : undefined}
           tabIndex={mode === 'play' ? 0 : -1}
           aria-label={`Map sketcher with ${shapes.length} shape${shapes.length === 1 ? '' : 's'}`}
           onPointerDown={handlePointerDown}

@@ -1071,6 +1071,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       <div ref={canvasShellRef} className="relative min-h-0 flex-1 overflow-hidden rounded-theme border border-theme-border bg-theme-paper mx-1 mb-1">
         <canvas
           ref={canvasRef}
+          data-camera-pan-ignore={canInteract ? 'true' : undefined}
           tabIndex={canInteract ? 0 : -1}
           aria-label={`Grid map with ${tokens.length} token${tokens.length === 1 ? '' : 's'} and ${walls.length} wall${walls.length === 1 ? '' : 's'}${measurementDistanceLabel ? `, measuring ${measurementDistanceLabel}` : ''}`}
           onPointerDown={handlePointerDown}

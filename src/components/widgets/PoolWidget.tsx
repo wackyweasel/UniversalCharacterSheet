@@ -7,6 +7,7 @@ import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { ResourceStylePicker } from '../ResourceStylePicker';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { PoolEditor } from '../editors/PoolEditor';
 
 interface Props {
   widget: Widget;
@@ -218,11 +219,13 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     poolResources = [],
     inlineLabels = false,
     poolTooltip,
+    fieldLabels = {},
   } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const resourceInteractive = interactive && mode !== 'print';
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [renamingResourceIndex, setRenamingResourceIndex] = useState<number | null>(null);
 
   // Fixed small sizing
   const symbolSize = 'w-6 h-6 text-base';
@@ -235,6 +238,8 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     max: maxPool,
     current: currentPool,
     style: poolStyle,
+    maxLabel: fieldLabels.maxPool,
+    currentLabel: fieldLabels.currentPool,
     maxFormula: legacyFormulas?.maxPool,
     currentFormula: legacyFormulas?.currentPool,
     tooltip: poolTooltip,
@@ -276,6 +281,33 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     setShowRemoveDialog(false);
     addTimelineEvent(label || 'Resource Pool', 'POOL', `Removed ${removedNames.join(', ')}`, '➖');
   };
+
+  const openRenameResource = (index: number) => {
+    if (!resourceInteractive) return;
+    setRenamingResourceIndex(index);
+  };
+
+  const closeRenameResource = () => {
+    setRenamingResourceIndex(null);
+  };
+
+  const updateEditedResource = (data: Partial<Widget['data']>) => {
+    if (renamingResourceIndex === null || !data.poolResources) return;
+    const updated = [...resources];
+    if (data.poolResources.length === 0) {
+      if (updated.length <= 1) return;
+      updated.splice(renamingResourceIndex, 1);
+      closeRenameResource();
+    } else {
+      updated[renamingResourceIndex] = data.poolResources[0];
+    }
+    updateWidgetData(widget.id, { poolResources: updated });
+  };
+
+  const editingResource = renamingResourceIndex === null ? undefined : resources[renamingResourceIndex];
+  const editingResourceWidget = editingResource
+    ? { ...widget, data: { ...widget.data, poolResources: [editingResource] } }
+    : null;
 
   // Calculate available height for scrollable area
   const headerHeight = controlsVisible ? 18 : label ? 16 : 0;
@@ -327,19 +359,35 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
           {resources.map((resource: PoolResource, idx: number) => (
             <div key={idx} className={`flex flex-col ${gapClass}`}>
               {resource.name && !inlineLabels && (
-                <div className={`font-medium ${counterClass} text-theme-ink font-body`}>
+                <button
+                  type="button"
+                  disabled={!resourceInteractive}
+                  aria-label={`Edit resource ${resource.name}`}
+                  onClick={() => openRenameResource(idx)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onTouchStart={(event) => event.stopPropagation()}
+                  className={`border-0 bg-transparent p-0 text-left font-medium ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+                >
                   {mode === 'play' && resource.tooltip ? (
                     <Tooltip content={resource.tooltip}><span>{resource.name}</span></Tooltip>
                   ) : resource.name}
-                </div>
+                </button>
               )}
               <div className={`flex ${inlineLabels ? 'justify-between items-center' : 'flex-wrap gap-0.5 content-start items-center'}`}>
                 {resource.name && inlineLabels && (
-                  <span className={`font-medium ${counterClass} text-theme-ink font-body`}>
+                  <button
+                    type="button"
+                    disabled={!resourceInteractive}
+                    aria-label={`Edit resource ${resource.name}`}
+                    onClick={() => openRenameResource(idx)}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onTouchStart={(event) => event.stopPropagation()}
+                    className={`border-0 bg-transparent p-0 text-left font-medium ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+                  >
                     {mode === 'play' && resource.tooltip ? (
                       <Tooltip content={resource.tooltip}><span>{resource.name}</span></Tooltip>
                     ) : resource.name}
-                  </span>
+                  </button>
                 )}
                 <div className={`flex ${inlineLabels ? 'gap-0.5' : 'flex-wrap gap-0.5'}`}>
                 {Array.from({ length: resource.max }).map((_, pointIdx) => (
@@ -380,6 +428,41 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
       {showRemoveDialog && createPortal(
         <RemoveResourcesModal resources={resources} onConfirm={removeResources} onCancel={() => setShowRemoveDialog(false)} />,
         document.body
+      )}
+      {editingResourceWidget && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeRenameResource();
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`pool-resource-edit-title-${widget.id}`}
+            className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-theme border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') closeRenameResource();
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id={`pool-resource-edit-title-${widget.id}`} className="font-heading text-lg font-bold">Edit resource</h2>
+              <button type="button" onClick={closeRenameResource} className="widget-control px-3 py-1.5 text-sm">Close</button>
+            </div>
+            <PoolEditor
+              widget={editingResourceWidget}
+              updateData={updateEditedResource}
+              resourceEditorOnly
+              canDeleteResource={resources.length > 1}
+            />
+          </section>
+        </div>,
+        document.body,
       )}
     </div>
   );
