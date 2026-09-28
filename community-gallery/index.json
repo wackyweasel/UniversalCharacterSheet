@@ -247,6 +247,22 @@
       "description": "For the Sequence TTRPG",
       "file": "presets/sequence_character_sheet_template.json",
       "gameSystem": "Sequence"
+    },
+    {
+      "id": "32",
+      "name": "Soodor Survival",
+      "author": "@Queen Dm Lilith",
+      "description": "This is the template for the a survival series set in the island of so odor",
+      "file": "presets/soodor_survival.json",
+      "gameSystem": "Soodor Survival"
+    },
+    {
+      "id": "33",
+      "name": "Song of the Nightingale",
+      "author": "@Seiza",
+      "description": "Just the character sheet of my campaign :3",
+      "file": "presets/song_of_the_nightingale.json",
+      "gameSystem": "Song of the Nightingale"
     }
   ],
   "themes": [
