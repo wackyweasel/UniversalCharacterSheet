@@ -221,6 +221,9 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     y: 0,
     corner: 'bottom-right' as 'top-left' | 'bottom-right',
   });
+  // Resize previews stay local so the store and sheet re-render only once on release.
+  const [resizePreview, setResizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const resizePreviewRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const isDraggingRef = useRef(false);
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
@@ -238,10 +241,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     if (isDraggingRef.current) pinchCanceledDragRef.current = true;
     if (isResizingRef.current) {
       isResizingRef.current = false;
-      updateWidgetSize(widget.id, resizeStartRef.current.width, resizeStartRef.current.height);
-      if (resizeStartRef.current.corner === 'top-left') {
-        updateWidgetPosition(widget.id, resizeStartRef.current.x, resizeStartRef.current.y);
-      }
+      resizePreviewRef.current = null;
+      setResizePreview(null);
       setIsResizing(false);
     }
     if (widgetTouchActiveRef.current) {
@@ -511,6 +512,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
 
   // Calculate width based on widget type (used for both display and resize)
   const getWidgetWidth = () => {
+    if (resizePreview) return resizePreview.w;
     // Use custom width if set on the widget
     if (widget.w) {
       return widget.w;
@@ -559,37 +561,49 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     };
     
     isResizingRef.current = true;
+    resizePreviewRef.current = null;
     setIsResizing(true);
   }, [widget.w, widget.h, widget.x, widget.y, widget.groupId, widget.id, detachWidgets]);
 
+  const minResizeWidth = minDimensions.width;
+  const minResizeHeight = minDimensions.height;
   const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isResizing) return;
+    if (!isResizingRef.current) return;
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
-    const deltaX = (clientX - resizeStartRef.current.mouseX) / scale;
-    const deltaY = (clientY - resizeStartRef.current.mouseY) / scale;
+    const start = resizeStartRef.current;
+    const deltaX = (clientX - start.mouseX) / scale;
+    const deltaY = (clientY - start.mouseY) / scale;
     
-    const isTopLeft = resizeStartRef.current.corner === 'top-left';
-    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + (isTopLeft ? -deltaX : deltaX)));
-    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + (isTopLeft ? -deltaY : deltaY)));
+    const isTopLeft = start.corner === 'top-left';
+    const w = snapToGrid(Math.max(minResizeWidth, start.width + (isTopLeft ? -deltaX : deltaX)));
+    const h = snapToGrid(Math.max(minResizeHeight, start.height + (isTopLeft ? -deltaY : deltaY)));
+    const x = isTopLeft ? start.x + start.width - w : start.x;
+    const y = isTopLeft ? start.y + start.height - h : start.y;
 
-    if (isTopLeft) {
-      updateWidgetPosition(
-        widget.id,
-        resizeStartRef.current.x + resizeStartRef.current.width - newWidth,
-        resizeStartRef.current.y + resizeStartRef.current.height - newHeight,
-      );
-    }
-    
-    updateWidgetSize(widget.id, newWidth, newHeight);
-  }, [isResizing, scale, minDimensions, widget.id, updateWidgetPosition, updateWidgetSize]);
+    const previous = resizePreviewRef.current;
+    if (previous && previous.w === w && previous.h === h && previous.x === x && previous.y === y) return;
+    const next = { x, y, w, h };
+    resizePreviewRef.current = next;
+    setResizePreview(next);
+  }, [scale, minResizeWidth, minResizeHeight, snapToGrid]);
 
   const handleResizeEnd = useCallback(() => {
+    const preview = resizePreviewRef.current;
+    const corner = resizeStartRef.current.corner;
     isResizingRef.current = false;
+    resizePreviewRef.current = null;
+    if (preview) {
+      if (corner === 'top-left') {
+        updateWidgetPosition(widget.id, preview.x, preview.y);
+      }
+      updateWidgetSize(widget.id, preview.w, preview.h);
+    }
+    setResizePreview(null);
     setIsResizing(false);
-  }, []);
+  }, [widget.id, updateWidgetPosition, updateWidgetSize]);
 
   // Global mouse/touch move and up handlers for resize
   useEffect(() => {
@@ -671,7 +685,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   };
   
   // Calculate height - use manual height if set, otherwise use snapped auto height
-  const widgetHeight = widget.h && widget.h > 0 ? widget.h : snappedHeight;
+  const widgetHeight = resizePreview ? resizePreview.h : widget.h && widget.h > 0 ? widget.h : snappedHeight;
 
   // Get all widgets to calculate corner rounding for attached widgets
   const allWidgets = activeCharacter ? 
@@ -885,7 +899,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     <>
       <Draggable
         nodeRef={nodeRef}
-        position={{ x: widget.x, y: widget.y }}
+        position={resizePreview ? { x: resizePreview.x, y: resizePreview.y } : { x: widget.x, y: widget.y }}
         onStart={handleStart}
         onDrag={handleDrag}
         onStop={handleStop}
@@ -1619,6 +1633,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               <Tooltip content="Drag to resize">
                 <div
                   className="absolute -top-1 -left-1 w-6 h-6 cursor-nw-resize z-50 flex items-center justify-center"
+                  data-camera-pan-ignore="true"
+                  data-touch-camera-ignore="true"
                   onMouseDown={(event) => handleResizeStart(event, 'top-left')}
                   onTouchStart={(event) => handleResizeStart(event, 'top-left')}
                 >
@@ -1640,6 +1656,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               <Tooltip content="Drag to resize">
                 <div
                   className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+                  data-camera-pan-ignore="true"
+                  data-touch-camera-ignore="true"
                   onMouseDown={(event) => handleResizeStart(event, 'bottom-right')}
                   onTouchStart={(event) => handleResizeStart(event, 'bottom-right')}
                 >
