@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -142,6 +142,57 @@ function CharacterNameControl({ name, editable, onSave, className }: CharacterNa
   );
 }
 
+interface CanvasZoomTrackProps {
+  scale: number;
+  disabled: boolean;
+  subscribeScalePreview: (listener: () => void) => () => void;
+  getScalePreview: () => number | null;
+  onScaleChange: (scale: number) => void;
+}
+
+/** Follows wheel/pinch previews by itself so the slider moves live without re-rendering the whole sheet. */
+function CanvasZoomTrack({ scale, disabled, subscribeScalePreview, getScalePreview, onScaleChange }: CanvasZoomTrackProps) {
+  const previewScale = useSyncExternalStore(subscribeScalePreview, getScalePreview, getScalePreview);
+  const displayedScale = previewScale ?? scale;
+  const percent = Math.round(displayedScale * 100);
+  const [valueVisible, setValueVisible] = useState(false);
+  const previousScaleRef = useRef(displayedScale);
+
+  useEffect(() => {
+    if (previousScaleRef.current === displayedScale) return;
+    previousScaleRef.current = displayedScale;
+    setValueVisible(true);
+    const timer = window.setTimeout(() => setValueVisible(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [displayedScale]);
+
+  return (
+    <div className="canvas-zoom-track">
+      <input
+        type="range"
+        className="canvas-zoom-range"
+        min={MIN_CANVAS_SCALE * 100}
+        max={MAX_CANVAS_SCALE * 100}
+        step="1"
+        value={percent}
+        onChange={(event) => onScaleChange(Number(event.target.value) / 100)}
+        disabled={disabled}
+        aria-label="Canvas zoom"
+        aria-valuetext={`${percent}%`}
+      />
+      {valueVisible && (
+        <output
+          className="canvas-zoom-value"
+          style={{ left: `${((displayedScale - MIN_CANVAS_SCALE) / (MAX_CANVAS_SCALE - MIN_CANVAS_SCALE)) * 100}%` }}
+          aria-live="polite"
+        >
+          {percent}%
+        </output>
+      )}
+    </div>
+  );
+}
+
 export default function Sheet() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -274,7 +325,6 @@ export default function Sheet() {
     onReorder: (sheets) => reorderSheets(sheets.map((sheet) => sheet.id)),
     scrollAreaSelector: '.sheet-dropdown-scroll',
   });
-  const [zoomValueVisible, setZoomValueVisible] = useState(false);
   const [sheetSearchOpen, setSheetSearchOpen] = useState(false);
   const [sheetSearchQuery, setSheetSearchQuery] = useState('');
   const [searchReveal, setSearchReveal] = useState<{ sheetId: string; widgetId: string; key: number } | null>(null);
@@ -388,6 +438,8 @@ export default function Sheet() {
     scaleRef,
     previewCamera,
     commitCamera,
+    subscribeScalePreview,
+    getScalePreview,
     isPanning,
     setPan,
     setScale,
@@ -472,15 +524,6 @@ export default function Sheet() {
     };
   }, [activeCharacter?.activeSheetId, mode, playLayout, searchReveal, setPan, setScale]);
 
-  const previousScaleRef = useRef(scale);
-  useEffect(() => {
-    if (previousScaleRef.current === scale) return;
-    previousScaleRef.current = scale;
-    setZoomValueVisible(true);
-    const timer = window.setTimeout(() => setZoomValueVisible(false), 900);
-    return () => window.clearTimeout(timer);
-  }, [scale]);
-
   // Touch camera controls hook
   const getScale = useCallback(() => scaleRef.current, []);
   const getPan = useCallback(() => panRef.current, []);
@@ -503,11 +546,9 @@ export default function Sheet() {
         y: centerY - canvasY * nextScale,
       };
 
-      scaleRef.current = nextScale;
-      panRef.current = nextPan;
-      setScale(nextScale);
-      setPan(() => nextPan);
-    }, [setPan, setScale]);
+      // Commit (rather than set state) so a pending wheel preview cannot override the slider or buttons.
+      commitCamera(nextPan, nextScale);
+    }, [commitCamera]);
   
   const { isTouchPanning } = useTouchCamera({
     mode,
@@ -2474,29 +2515,13 @@ export default function Sheet() {
         >
           <MinusIcon className="h-4 w-4" />
         </button>
-        <div className="canvas-zoom-track">
-          <input
-            type="range"
-            className="canvas-zoom-range"
-            min={MIN_CANVAS_SCALE * 100}
-            max={MAX_CANVAS_SCALE * 100}
-            step="1"
-            value={Math.round(scale * 100)}
-            onChange={(event) => setCanvasScaleAtViewportCenter(Number(event.target.value) / 100)}
-            disabled={viewLocked}
-            aria-label="Canvas zoom"
-            aria-valuetext={`${Math.round(scale * 100)}%`}
-          />
-          {zoomValueVisible && (
-            <output
-              className="canvas-zoom-value"
-              style={{ left: `${((scale - MIN_CANVAS_SCALE) / (MAX_CANVAS_SCALE - MIN_CANVAS_SCALE)) * 100}%` }}
-              aria-live="polite"
-            >
-              {Math.round(scale * 100)}%
-            </output>
-          )}
-        </div>
+        <CanvasZoomTrack
+          scale={scale}
+          disabled={viewLocked}
+          subscribeScalePreview={subscribeScalePreview}
+          getScalePreview={getScalePreview}
+          onScaleChange={setCanvasScaleAtViewportCenter}
+        />
         <button
           type="button"
           className="canvas-zoom-button"

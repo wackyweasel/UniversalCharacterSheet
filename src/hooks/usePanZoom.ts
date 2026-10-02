@@ -178,6 +178,9 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   const scaleRef = useRef(scale);
   const cameraFrameRef = useRef<number | null>(null);
   const wheelCommitTimerRef = useRef<number | null>(null);
+  // Uncommitted gesture scale, for zoom UI that must follow the gesture without re-rendering the sheet.
+  const scalePreviewRef = useRef<number | null>(null);
+  const scalePreviewListenersRef = useRef(new Set<() => void>());
   const activeCameraKey = cameraKey(characterId, sheetId);
   const previousCameraKeyRef = useRef(activeCameraKey);
   const [initialFitComplete, setInitialFitComplete] = useState(() => hasCompletedInitialFit(characterId, sheetId));
@@ -201,17 +204,32 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     wheelCommitTimerRef.current = null;
   }, []);
 
+  const setScalePreview = useCallback((nextScale: number | null) => {
+    if (scalePreviewRef.current === nextScale) return;
+    scalePreviewRef.current = nextScale;
+    scalePreviewListenersRef.current.forEach((listener) => listener());
+  }, []);
+
+  const subscribeScalePreview = useCallback((listener: () => void) => {
+    scalePreviewListenersRef.current.add(listener);
+    return () => { scalePreviewListenersRef.current.delete(listener); };
+  }, []);
+
+  const getScalePreview = useCallback(() => scalePreviewRef.current, []);
+
   // Re-rendering the whole sheet per input event is what makes large sheets stutter, so gestures only touch the DOM.
   const previewCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    const scaleChanged = nextScale !== scaleRef.current;
     panRef.current = nextPan;
     scaleRef.current = nextScale;
+    if (scaleChanged) setScalePreview(nextScale);
     contentRef?.current?.classList.add(CAMERA_GESTURE_CLASS);
     if (cameraFrameRef.current !== null) return;
     cameraFrameRef.current = window.requestAnimationFrame(() => {
       cameraFrameRef.current = null;
       writeCameraTransform();
     });
-  }, [contentRef, writeCameraTransform]);
+  }, [contentRef, setScalePreview, writeCameraTransform]);
 
   const commitCamera = useCallback((nextPan = panRef.current, nextScale = scaleRef.current) => {
     cancelWheelCommit();
@@ -226,7 +244,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     contentRef?.current?.classList.remove(CAMERA_GESTURE_CLASS);
     setPan(nextPan);
     setScale(nextScale);
-  }, [cancelWheelCommit, contentRef, writeCameraTransform]);
+    setScalePreview(null);
+  }, [cancelWheelCommit, contentRef, setScalePreview, writeCameraTransform]);
 
   useEffect(() => () => {
     if (cameraFrameRef.current !== null) window.cancelAnimationFrame(cameraFrameRef.current);
@@ -433,6 +452,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     scaleRef,
     previewCamera,
     commitCamera,
+    subscribeScalePreview,
+    getScalePreview,
     isPanning,
     viewLocked,
     wheelPanEnabled,
