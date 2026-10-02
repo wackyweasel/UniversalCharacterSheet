@@ -13,7 +13,8 @@ export function getTableCellOwner(merges: TableMerge[], row: number, col: number
 }
 
 export function isCoveredTableCell(merges: TableMerge[] | undefined, row: number, col: number): boolean {
-  const owner = getTableCellOwner(merges ?? [], row, col);
+  if (!merges || merges.length === 0) return false;
+  const owner = getTableCellOwner(merges, row, col);
   return owner.row !== row || owner.col !== col;
 }
 

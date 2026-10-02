@@ -536,17 +536,38 @@ function unwrapFormulaParentheses(expr: string): string {
   return result;
 }
 
+function formatLabelReplacement(value: FormulaValue): string {
+  return typeof value === 'string' ? JSON.stringify(value) : String(value);
+}
+
+const IDENTIFIER_LABEL = /^[A-Za-z0-9_]+$/;
+const complexLabelReplacementCache = new WeakMap<FormulaLabels, Array<[RegExp, string]>>();
+
+/** Labels with spaces or punctuation (e.g. checklist item names) still need a dedicated, longest-first regex. */
+function getComplexLabelReplacements(labels: FormulaLabels): Array<[RegExp, string]> {
+  let replacements = complexLabelReplacementCache.get(labels);
+  if (!replacements) {
+    replacements = Object.entries(labels)
+      .filter(([label]) => !IDENTIFIER_LABEL.test(label))
+      .sort((a, b) => b[0].length - a[0].length)
+      .map(([label, value]) => [new RegExp(`@${escapeRegex(label)}\\b`, 'g'), formatLabelReplacement(value)]);
+    complexLabelReplacementCache.set(labels, replacements);
+  }
+  return replacements;
+}
+
+// One lookup per @token: compiling a regex per label per formula dominated table edits on label-heavy sheets.
 function replaceFormulaReferences(expr: string, labels: FormulaLabels): string | null {
-  const sortedLabels = Object.entries(labels).sort((a, b) => b[0].length - a[0].length);
+  const complexReplacements = getComplexLabelReplacements(labels);
   return mapOutsideFormulaStrings(expr, (segment) => {
     let replaced = segment;
-    for (const [label, value] of sortedLabels) {
-      replaced = replaced.replace(
-        new RegExp(`@${escapeRegex(label)}\\b`, 'g'),
-        typeof value === 'string' ? JSON.stringify(value) : String(value),
-      );
+    for (const [pattern, value] of complexReplacements) {
+      replaced = replaced.replace(pattern, value);
     }
-    return replaced.replace(/@[a-zA-Z_][a-zA-Z0-9_]*/g, '0');
+    return replaced.replace(/@([A-Za-z0-9_]+)/g, (token, name: string) => {
+      if (Object.prototype.hasOwnProperty.call(labels, name)) return formatLabelReplacement(labels[name]);
+      return /^[A-Za-z_]/.test(name) ? '0' : token;
+    });
   });
 }
 

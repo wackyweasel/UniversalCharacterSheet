@@ -3,7 +3,8 @@ import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat, TableColumnSettings, TableRowSettings } from '../../types';
 import { useStore } from '../../store/useStore';
-import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { isFormulaBroken } from '../../utils/formulaEngine';
+import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 import { Tooltip } from '../Tooltip';
 import { InlineDiceText } from '../InlineDiceText';
 import { FormulaEditorDialog } from '../FormulaEditorDialog';
@@ -677,8 +678,6 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
 
 export default function TableWidget({ widget, height, sheetScale = 1, mode }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const characters = useStore((state) => state.characters);
-  const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
   
   const { 
@@ -751,9 +750,14 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
     };
   };
 
+  // Character-wide data is only read by the open format toolbar; subscribing always re-rendered every table on any edit.
+  const toolbarCharacter = useStore((state) => (
+    showToolbar ? state.characters.find(c => c.id === state.activeCharacterId) : undefined
+  ));
+
   // Collect all used colors (with opacity) from the character's table widgets
   const usedColors = useMemo(() => {
-    const activeChar = characters.find(c => c.id === activeCharacterId);
+    const activeChar = toolbarCharacter;
     if (!activeChar) return [];
     
     const colorMap = new Map<string, ColorWithOpacity>();
@@ -799,16 +803,14 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
     });
     
     return Array.from(colorMap.values());
-  }, [characters, activeCharacterId]);
+  }, [toolbarCharacter]);
 
-  const activeChar = useMemo(
-    () => characters.find(c => c.id === activeCharacterId),
-    [characters, activeCharacterId]
-  );
-
-  const formulaLabels = useMemo(() => {
-    return activeChar ? collectLabels(activeChar) : {};
-  }, [activeChar]);
+  const hasFormulas = useMemo(() => (
+    (rows as TableRow[]).some(row => row.cells.some(cell => !!getCellFormula(cell)))
+    || tableColumnSettings.some(setting => !!setting?.formula)
+    || tableRowSettings.some(setting => !!setting?.formula)
+  ), [rows, tableColumnSettings, tableRowSettings]);
+  const formulaLabels = useFormulaLabels(hasFormulas);
 
   const handleCellLabelChange = (rowIdx: number, colIdx: number, label: string | undefined) => {
     const newRows = [...rows];
@@ -2183,7 +2185,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
           cellFormula={getCellFormula(rows[selectedCell.row]?.cells[selectedCell.col])}
           onLabelChange={(l) => handleCellLabelChange(selectedCell.row, selectedCell.col, l)}
           onFormulaChange={(f) => handleCellFormulaChange(selectedCell.row, selectedCell.col, f)}
-          character={activeChar}
+          character={toolbarCharacter}
           labelDisabledReason={selectedCellLabelDisabledReason}
           formulaSourceLabels={selectedCellFormulaLabels}
           excludedFormulaLabels={selectedCellFormulaLabels}
@@ -2209,7 +2211,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
           cellFormula={selectedColumnSetting?.formula}
           onLabelChange={(l) => handleColumnLabelChange(selectedColumn, l)}
           onFormulaChange={(f) => handleColumnFormulaChange(selectedColumn, f)}
-          character={activeChar}
+          character={toolbarCharacter}
           labelScope="column"
           formulaSourceLabels={[...(selectedColumnLabel ? [selectedColumnLabel] : []), ...selectedColumnGeneratedLabels, ...selectedColumnRowLabels, ...selectedColumnRowGeneratedLabels]}
           excludedFormulaLabels={[...selectedColumnGeneratedLabels, ...selectedColumnRowGeneratedLabels]}
@@ -2235,7 +2237,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
           cellFormula={selectedRowSetting?.formula}
           onLabelChange={(l) => handleRowLabelChange(selectedRow, l)}
           onFormulaChange={(f) => handleRowFormulaChange(selectedRow, f)}
-          character={activeChar}
+          character={toolbarCharacter}
           labelScope="row"
           formulaSourceLabels={selectedRowFormulaLabels}
           excludedFormulaLabels={[...selectedRowGeneratedLabels, ...selectedRowColumnGeneratedLabels]}
