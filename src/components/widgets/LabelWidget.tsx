@@ -1,4 +1,5 @@
 import { Widget } from '../../types';
+import { InlineFormulaText } from '../InlineFormulaText';
 
 interface Props {
   widget: Widget;
@@ -15,7 +16,7 @@ export default function LabelWidget({ widget }: Props) {
         className="widget-header-title min-w-0 flex-1 truncate"
         style={{ textAlign: labelAlignment, ...(labelTextColor ? { color: labelTextColor } : {}) }}
       >
-        {label}
+        <InlineFormulaText text={label} />
       </div>
     </div>
   );

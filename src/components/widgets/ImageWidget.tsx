@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { parseGIF, decompressFrames, ParsedFrame } from 'gifuct-js';
@@ -362,7 +363,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const title = hasVisibleTitle ? (
     mode === 'print' ? (
       <div className="widget-header image-widget__title flex-shrink-0" data-alignment={imageTitleAlignment}>
-        <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+        <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
       </div>
     ) : (
       <button
@@ -377,7 +378,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
         onMouseDown={(event) => event.stopPropagation()}
         onTouchStart={(event) => event.stopPropagation()}
       >
-        <span className="widget-header-title min-w-0 flex-1 truncate">{label}</span>
+        <span className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></span>
       </button>
     )
   ) : null;

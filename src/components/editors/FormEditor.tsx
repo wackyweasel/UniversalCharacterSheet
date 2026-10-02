@@ -7,6 +7,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { TextFormulaControls } from './TextFormulaControls';
 
 export function FormEditor({ widget, updateData }: EditorProps) {
   const { formItems = [] } = widget.data;
@@ -129,7 +130,7 @@ export function FormEditor({ widget, updateData }: EditorProps) {
               <Tooltip content="Drag to reorder">
                 <button
                   type="button"
-                  className="widget-editor__form-item-reorder flex h-8 w-7 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                  className="widget-editor__form-item-reorder flex h-10 w-10 flex-shrink-0 cursor-grab items-center justify-center rounded-button px-1 text-theme-muted select-none touch-none hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
                   onPointerDown={(event) => startDrag(id, event)}
                   onKeyDown={(event) => handleReorderKey(id, event)}
                   disabled={formItemsList.length < 2}
@@ -150,14 +151,24 @@ export function FormEditor({ widget, updateData }: EditorProps) {
                 className="widget-editor__form-item-value flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm"
                 value={item.value}
                 onChange={(e) => updateItemValue(idx, e.target.value)}
-                placeholder="Value"
+                readOnly={Boolean(item.valueFormula)}
+                placeholder={item.valueFormula ? 'Set by formula' : 'Value'}
               />
-              <TooltipEditButton
-                tooltip={item.tooltip}
-                itemName={item.name}
-                buttonClassName="widget-editor__form-item-tooltip h-10 w-10"
-                onSave={(t) => updateItem(idx, { ...formItemsList[idx], tooltip: t })}
-              />
+              <div className="widget-editor__form-item-actions flex flex-shrink-0 items-center gap-2">
+                <TextFormulaControls
+                  sizeClassName="h-10 w-10"
+                  valueLabel={item.valueLabel}
+                  formula={item.valueFormula}
+                  onValueLabelChange={(valueLabel) => updateItem(idx, { ...formItemsList[idx], valueLabel })}
+                  onFormulaChange={(valueFormula) => updateItem(idx, { ...formItemsList[idx], valueFormula })}
+                />
+                <TooltipEditButton
+                  tooltip={item.tooltip}
+                  itemName={item.name}
+                  buttonClassName="h-10 w-10 flex-shrink-0"
+                  onSave={(t) => updateItem(idx, { ...formItemsList[idx], tooltip: t })}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => removeItem(idx)}

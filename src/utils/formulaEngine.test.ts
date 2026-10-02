@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Character, WidgetData } from '../types';
-import { collectLabels, evaluateFormula, getAvailableLabels, resolveCharacterFormulas } from './formulaEngine';
+import { collectLabels, evaluateFormula, evaluateFormulaValue, getAvailableLabels, resolveCharacterFormulas } from './formulaEngine';
 
 function createCharacter(data: WidgetData): Character {
   return {
@@ -33,13 +33,14 @@ describe('inventory field labels', () => {
     }],
   };
 
-  it('collects number and checkbox values while excluding text fields', () => {
+  it('collects number and checkbox values as numbers and text fields as text', () => {
     expect(collectLabels(createCharacter(data))).toEqual({
       armor: 7,
       equipped: 1,
       stored: 0,
       blank: 0,
       invalid: 0,
+      description: 'shield',
     });
   });
 
@@ -50,7 +51,55 @@ describe('inventory field labels', () => {
       { label: 'stored', value: 0, widgetLabel: 'Pack', sheetName: 'Inventory' },
       { label: 'blank', value: 0, widgetLabel: 'Pack', sheetName: 'Inventory' },
       { label: 'invalid', value: 0, widgetLabel: 'Pack', sheetName: 'Inventory' },
+      { label: 'description', value: 'shield', widgetLabel: 'Pack', sheetName: 'Inventory' },
     ]);
+  });
+});
+
+describe('text formula results', () => {
+  it('returns text from literals, labels, concatenation and IF', () => {
+    const labels = { name: 'Aria', level: 3, stance: 'Defensive' };
+    expect(evaluateFormulaValue('"Hi " + @name', labels)).toBe('Hi Aria');
+    expect(evaluateFormulaValue('@name + " L" + @level', labels)).toBe('Aria L3');
+    expect(evaluateFormulaValue('IF(@stance = "Defensive", "Guarding", "Ready")', labels)).toBe('Guarding');
+    expect(evaluateFormulaValue('IF(@name + "!" = "Aria!", 1, 0)', labels)).toBe(1);
+    expect(evaluateFormulaValue('@level * 2', labels)).toBe(6);
+  });
+
+  it('compares unquoted words as text in IF and SWITCH', () => {
+    const labels = { class: 'druid', level: 3 };
+    expect(evaluateFormula('IF(@class=druid, 0, 1)', labels)).toBe(0);
+    expect(evaluateFormula('IF(@class <> druid, 0, 1)', labels)).toBe(1);
+    expect(evaluateFormula('SWITCH(@class, bard, 1, druid, 2, 0)', labels)).toBe(2);
+    expect(evaluateFormula('IF(@level=3, 5, 6)', labels)).toBe(5);
+  });
+
+  it('keeps evaluateFormula numeric-only', () => {
+    expect(evaluateFormula('"abc"', {})).toBeNull();
+  });
+
+  it('resolves text formulas on form, mixed and inventory fields', () => {
+    const character: Character = {
+      id: 'c', name: 'C', activeSheetId: 's',
+      sheets: [{ id: 's', name: 'S', widgets: [
+        { id: 'w1', type: 'FORM', x: 0, y: 0, data: { formItems: [
+          { name: 'Who', value: 'Aria', valueLabel: 'who' },
+          { name: 'Title', value: '', valueFormula: '@who + " the Bold"' },
+        ] } },
+        { id: 'w2', type: 'MIXED_FIELDS', x: 0, y: 0, data: { mixedFields: [
+          { type: 'text', name: 'T', value: '', valueFormula: '"Hello " + @who' },
+        ] } },
+        { id: 'w3', type: 'INVENTORY', x: 0, y: 0, data: { inventoryItems: [
+          { id: 'i', name: 'I', fields: [{ id: 'f', name: 'F', type: 'text', value: '', valueFormula: "@who + \" owns\"" }] },
+        ] } },
+      ] }],
+    } as unknown as Character;
+
+    const resolved = resolveCharacterFormulas(character);
+    const [form, mixed, inventory] = resolved!.sheets[0].widgets;
+    expect(form.data.formItems?.[1].value).toBe('Aria the Bold');
+    expect((mixed.data.mixedFields?.[0] as { value: string }).value).toBe('Hello Aria');
+    expect(inventory.data.inventoryItems?.[0].fields[0].value).toBe('Aria owns');
   });
 });
 

@@ -130,6 +130,7 @@ export interface InventoryItemField {
   type: InventoryFieldType;
   value: InventoryFieldValue;
   valueLabel?: string;
+  valueFormula?: string;
   reserved?: 'weight';
   templateId?: string;
 }
@@ -252,6 +253,8 @@ export interface DisplayNumber {
 export interface FormItem {
   name: string;
   value: string;
+  valueLabel?: string;
+  valueFormula?: string;
   tooltip?: string;
 }
 
@@ -263,7 +266,7 @@ interface MixedFieldBase {
 }
 
 export type MixedField = MixedFieldBase & (
-  | { type: 'text'; value: string }
+  | { type: 'text'; value: string; valueLabel?: string; valueFormula?: string }
   | { type: 'number'; value: number; showPositiveSign?: boolean; valueLabel?: string; valueFormula?: string; minValue?: number; minValueLabel?: string; minValueFormula?: string; maxValue?: number; maxValueLabel?: string; maxValueFormula?: string; showIncrementButtons?: boolean }
   | { type: 'progress'; current: number; currentLabel?: string; currentFormula?: string; min?: number; minLabel?: string; minFormula?: string; max: number; maxLabel?: string; maxFormula?: string; showPercentage?: boolean; showValues?: boolean; fillColor?: string }
   | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }

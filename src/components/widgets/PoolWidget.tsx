@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, PoolResource } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -317,7 +318,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>}
           {controlsVisible && (
             <div className="pool-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={resources.length > 1 ? 'Choose resources to remove' : 'At least one resource is required'}>
@@ -369,8 +370,8 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
                   className={`border-0 bg-transparent p-0 text-left font-medium ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
                 >
                   {mode === 'play' && resource.tooltip ? (
-                    <Tooltip content={resource.tooltip}><span>{resource.name}</span></Tooltip>
-                  ) : resource.name}
+                    <Tooltip content={resource.tooltip}><span><InlineFormulaText text={resource.name} /></span></Tooltip>
+                  ) : <InlineFormulaText text={resource.name} />}
                 </button>
               )}
               <div className={`flex ${inlineLabels ? 'justify-between items-center' : 'flex-wrap gap-0.5 content-start items-center'}`}>
@@ -385,8 +386,8 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
                     className={`border-0 bg-transparent p-0 text-left font-medium ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
                   >
                     {mode === 'play' && resource.tooltip ? (
-                      <Tooltip content={resource.tooltip}><span>{resource.name}</span></Tooltip>
-                    ) : resource.name}
+                      <Tooltip content={resource.tooltip}><span><InlineFormulaText text={resource.name} /></span></Tooltip>
+                    ) : <InlineFormulaText text={resource.name} />}
                   </button>
                 )}
                 <div className={`flex ${inlineLabels ? 'gap-0.5' : 'flex-wrap gap-0.5'}`}>

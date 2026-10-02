@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { CardTableCard, CardTableRestorePosition } from '../../types';
 import { ArrowDownIcon, ArrowUpIcon, LayersIcon, ShuffleIcon, XIcon } from '../icons';
+import { InlineFormulaText } from '../InlineFormulaText';
 
 interface Props {
   deckName: string;
@@ -67,8 +68,8 @@ export default function CardDeckDiscardDialog({ deckName, cards, onRestore, onCl
                 <div key={card.id} className="flex items-center gap-3 border-b border-theme-border px-3 py-2.5 last:border-b-0">
                   <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden text-xl text-theme-ink">{card.symbol || '·'}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="break-words text-xs font-semibold text-theme-ink">{card.title.trim() || (card.body.trim() ? 'Text card' : getCardLabel(card))}</p>
-                    {card.body.trim() && <p className="mt-1 whitespace-pre-wrap break-words text-[10px] leading-4 text-theme-muted">{card.body}</p>}
+                    <p className="break-words text-xs font-semibold text-theme-ink"><InlineFormulaText text={card.title.trim() || (card.body.trim() ? 'Text card' : getCardLabel(card))} /></p>
+                    {card.body.trim() && <p className="mt-1 whitespace-pre-wrap break-words text-[10px] leading-4 text-theme-muted"><InlineFormulaText text={card.body} /></p>}
                     <p className="mt-0.5 text-[10px] text-theme-muted">{index === 0 ? 'Most recently discarded' : `Discard position ${index + 1}`}</p>
                   </div>
                   <div className="flex flex-none gap-1">

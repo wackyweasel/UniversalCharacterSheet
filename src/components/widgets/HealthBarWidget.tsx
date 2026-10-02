@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { Tooltip } from '../Tooltip';
@@ -474,7 +475,7 @@ export default function HealthBarWidget({ widget, mode, interactive = true }: Pr
       {label && (
         <div className="widget-header flex-shrink-0">
           <div className="widget-header-title min-w-0 flex-1 truncate">
-            {label}
+            <InlineFormulaText text={label} />
           </div>
         </div>
       )}

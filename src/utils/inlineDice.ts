@@ -2,8 +2,8 @@ import {
   type DiceExpressionTerm,
   formatDiceExpression,
 } from './diceExpression';
-import { evaluateFormula, hasUnresolvedRefs } from './formulaEngine';
-import type { FormulaLabels } from './formulaSyntax';
+import { evaluateFormula, evaluateFormulaValue, hasUnresolvedRefs } from './formulaEngine';
+import { maskFormulaStringLiterals, type FormulaLabels } from './formulaSyntax';
 
 export type InlineDiceSegment =
   | { type: 'text'; value: string }
@@ -30,6 +30,8 @@ interface ExpressionSegment {
 
 const DICE_CANDIDATE_PATTERN = /\b\d*d\d+\b/i;
 const EXACT_DICE_PATTERN = /^(\d*)d(\d+)$/i;
+
+const hasDiceCandidate = (expression: string) => DICE_CANDIDATE_PATTERN.test(maskFormulaStringLiterals(expression) ?? expression);
 
 const appendText = (segments: InlineDiceSegment[], value: string) => {
   if (!value) return;
@@ -76,7 +78,7 @@ export const tokenizeInlineDiceText = (text: string): InlineDiceSegment[] => {
     const expression = text.slice(index + 1, tokenEnd).trim();
     if (!expression) {
       appendText(segments, source);
-    } else if (DICE_CANDIDATE_PATTERN.test(expression)) {
+    } else if (hasDiceCandidate(expression)) {
       segments.push({ type: 'dice', source, expression });
     } else {
       segments.push({ type: 'formula', source, expression });
@@ -134,14 +136,17 @@ export const resolveInlineDiceExpression = (
   labels: FormulaLabels,
 ): ResolvedInlineDiceExpression => {
   const expression = sourceExpression.trim();
-  if (!DICE_CANDIDATE_PATTERN.test(expression)) {
+  if (!hasDiceCandidate(expression)) {
     if (hasUnresolvedRefs(expression, labels)) {
       return { valid: false, sourceExpression, reason: 'Expression contains an unknown label' };
     }
 
-    const value = evaluateFormula(expression, labels);
+    const value = evaluateFormulaValue(expression, labels);
     if (value === null) {
       return { valid: false, sourceExpression, reason: 'Invalid formula' };
+    }
+    if (typeof value === 'string') {
+      return { valid: true, sourceExpression, resolvedExpression: value, terms: [] };
     }
 
     const sign = value < 0 ? -1 : 1;
@@ -207,4 +212,15 @@ export const resolveInlineDiceExpression = (
     resolvedExpression: formatDiceExpression(terms),
     terms,
   };
+};
+
+/** Replaces valid formula tokens with their values; dice and invalid tokens stay as source text. */
+export const resolveInlineFormulasToText = (text: string, labels: FormulaLabels): string => {
+  if (!text.includes('{')) return text;
+  return tokenizeInlineDiceText(text).map((segment) => {
+    if (segment.type === 'text') return segment.value;
+    if (segment.type === 'dice') return segment.source;
+    const resolution = resolveInlineDiceExpression(segment.expression, labels);
+    return resolution.valid ? resolution.resolvedExpression : segment.source;
+  }).join('');
 };

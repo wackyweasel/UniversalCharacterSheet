@@ -13,6 +13,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { CollapsibleSection } from './CollapsibleSection';
 import { LabeledNumberField } from './LabeledNumberField';
 import { VariableLabelControl } from '../VariableLabelControl';
+import { TextFormulaControls } from './TextFormulaControls';
 import type { EditorProps } from './types';
 
 const RESOURCE_STYLES = [
@@ -125,7 +126,12 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
   const renderSettings = (field: MixedField, index: number) => {
     switch (field.type) {
       case 'text':
-        return <input aria-label={`${field.name || 'Text'} default value`} value={field.value} onChange={(event) => updateField(index, { ...field, value: event.target.value })} placeholder="Default value" className="h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink" />;
+        return (
+          <div className="flex items-center gap-2">
+            <input aria-label={`${field.name || 'Text'} default value`} value={field.value} onChange={(event) => updateField(index, { ...field, value: event.target.value })} readOnly={Boolean(field.valueFormula)} placeholder={field.valueFormula ? 'Set by formula' : 'Default value'} className="h-8 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink" />
+            <TextFormulaControls valueLabel={field.valueLabel} formula={field.valueFormula} onValueLabelChange={(valueLabel) => updateField(index, { ...field, valueLabel })} onFormulaChange={(valueFormula) => updateField(index, { ...field, valueFormula })} />
+          </div>
+        );
       case 'menu':
         return (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

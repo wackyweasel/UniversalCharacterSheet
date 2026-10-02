@@ -1,6 +1,7 @@
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { InlineFormulaText } from '../InlineFormulaText';
 
 interface Props {
   widget: Widget;
@@ -46,13 +47,13 @@ export default function ToggleWidget({ widget, mode, interactive = true }: Props
     <div className="flex h-full w-full flex-col gap-1.5">
       {label && !inlineLabel && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
       <div className="flex min-h-0 flex-1 items-center gap-2">
         {label && inlineLabel && (
           <div className="min-w-0 max-w-[60%] flex-1 truncate font-heading text-xs font-bold leading-4 text-theme-ink">
-            {label}
+            <InlineFormulaText text={label} />
           </div>
         )}
         <div className="flex flex-shrink-0 items-center">{control}</div>

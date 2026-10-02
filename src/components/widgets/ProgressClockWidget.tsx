@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import type { CSSProperties, PointerEvent } from 'react';
 import type { ProgressClockItem, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -145,7 +146,7 @@ function ProgressClock({ clock, index, enabled, showValues, labelPosition, count
   const visualStartAngle = counterClockwise ? -startAngle : startAngle;
   const fillBackground = `conic-gradient(from ${visualStartAngle}deg, ${fill} 0deg ${displayedValue / segments * 360}deg, ${empty} 0deg 360deg)`;
   const separatorPath = getClockSeparatorPath(segments);
-  const label = clock.name ? <span className="progress-clock__label">{clock.name}</span> : null;
+  const label = clock.name ? <span className="progress-clock__label"><InlineFormulaText text={clock.name} /></span> : null;
 
   return (
     <div className="progress-clock">
@@ -230,7 +231,7 @@ export default function ProgressClockWidget({ widget, mode, interactive = true, 
   return (
     <div className="progress-clock-widget" style={{ '--clock-size': `${Math.max(40, Math.min(240, clockSize))}px` } as CSSProperties}>
       {(label || controlsVisible) && <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2">
-        {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
+        {label && <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>}
         {controlsVisible && <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1" data-touch-camera-ignore="true">
           <Tooltip content="Choose clocks to remove">
             <button type="button" aria-label="Choose clocks to remove" disabled={clockItems.length === 0} className="widget-control widget-control--subtle h-6 w-6" onMouseDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setStructureAction('remove'); }}><MinusIcon className="h-3 w-3" /></button>

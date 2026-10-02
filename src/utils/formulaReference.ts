@@ -1,4 +1,4 @@
-export type FormulaReferenceCategory = 'Operators' | 'Conditions' | 'Math' | 'Tables';
+export type FormulaReferenceCategory = 'Operators' | 'Text' | 'Conditions' | 'Math' | 'Tables';
 
 export interface FormulaReferenceEntry {
   id: string;
@@ -11,12 +11,35 @@ export interface FormulaReferenceEntry {
 
 export const FORMULA_REFERENCE_CATEGORIES: FormulaReferenceCategory[] = [
   'Operators',
+  'Text',
   'Conditions',
   'Math',
   'Tables',
 ];
 
 export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
+  {
+    id: 'text-values',
+    category: 'Text',
+    label: 'Text values',
+    signature: '"text"  @textLabel',
+    description: 'Text in double quotes is a text value. Labels on Form values, Mixed Fields text, Inventory text attributes, Table cells and Menus hold text unless the whole value is a number. Text results can only be used by text fields, and {formula} tokens in any name, title or text.',
+    examples: [
+      { formula: '"Level " + @level', explanation: 'Joins text and a number into "Level 3".' },
+      { formula: 'IF(@hp <= 0, "Down", "Standing")', explanation: 'Chooses between two text results.' },
+    ],
+  },
+  {
+    id: 'text-join',
+    category: 'Text',
+    label: 'Joining text',
+    signature: 'a + b',
+    description: 'When either side of + is text, the values are joined instead of added. Use round() to control decimals. Text cells are ignored (as 0) by SUM.',
+    examples: [
+      { formula: '@first + " " + @last', explanation: 'Joins two text labels with a space.' },
+      { formula: '@name + " (" + round(@hp / @max_hp * 100) + "%)"', explanation: 'Builds a status line.' },
+    ],
+  },
   {
     id: 'labels',
     category: 'Operators',

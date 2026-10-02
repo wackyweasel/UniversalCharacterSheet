@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, NumberItem } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -258,7 +259,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className="widget-structure-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {controlsVisible && (
@@ -331,8 +332,8 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                 className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-left ${itemClass} text-theme-ink font-body truncate enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
               >
                 {mode === 'play' && item.tooltip ? (
-                  <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
-                ) : item.name}
+                  <Tooltip content={item.tooltip}><span><InlineFormulaText text={item.name} /></span></Tooltip>
+                ) : <InlineFormulaText text={item.name} />}
               </button>
 
               {/* Value Controls - fixed width container for alignment */}

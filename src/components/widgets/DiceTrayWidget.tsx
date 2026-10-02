@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, CustomDie } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -509,7 +510,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
 

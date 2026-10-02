@@ -16,6 +16,7 @@ import {
 } from '../../utils/inventory';
 import { usePointerReorder } from '../../hooks';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
+import { TextFormulaControls } from '../editors/TextFormulaControls';
 import { Tooltip } from '../Tooltip';
 import { VariableLabelControl } from '../VariableLabelControl';
 import { AddMultipleToggle } from './StructureDialogControls';
@@ -95,7 +96,7 @@ export default function InventoryItemDialog({
     updateField(field.id, {
       type,
       value: coerceInventoryFieldValue(field.value, type),
-      ...(type === 'text' ? { valueLabel: undefined } : {}),
+      ...(type === 'text' || type === 'textarea' ? {} : { valueFormula: undefined }),
     });
   };
 
@@ -153,7 +154,8 @@ export default function InventoryItemDialog({
         step={field.type === 'number' ? 'any' : undefined}
         value={String(field.value)}
         aria-label={ariaLabel}
-        placeholder={placeholder}
+        placeholder={field.valueFormula ? 'Set by formula' : placeholder}
+        readOnly={Boolean(field.valueFormula)}
         onChange={(event) => updateField(field.id, {
           value: field.type === 'number'
             ? (event.target.value === '' ? '' : Number(event.target.value))
@@ -177,6 +179,14 @@ export default function InventoryItemDialog({
         <VariableLabelControl
           valueLabel={field.valueLabel}
           onValueLabelChange={(valueLabel) => updateField(field.id, { valueLabel })}
+        />
+      )}
+      {(field.type === 'text' || field.type === 'textarea') && (
+        <TextFormulaControls
+          valueLabel={field.valueLabel}
+          formula={field.valueFormula}
+          onValueLabelChange={(valueLabel) => updateField(field.id, { valueLabel })}
+          onFormulaChange={(valueFormula) => updateField(field.id, { valueFormula })}
         />
       )}
     </div>

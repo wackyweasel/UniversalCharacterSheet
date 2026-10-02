@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, StepDiceItem } from '../../types';
 import {
@@ -135,7 +136,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
     <div className="flex h-full flex-col gap-1 overflow-auto">
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>}
           {controlsVisible && (
             <div className="step-dice-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={stepDiceItems.length > 0 ? 'Choose die tracks to remove' : 'No die tracks to remove'}>
@@ -195,7 +196,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
               className="min-w-0 flex-shrink truncate border-0 bg-transparent p-0 text-left text-xs text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
               style={{ flex: '1 1 0' }}
             >
-              {item.name}
+              <InlineFormulaText text={item.name} />
             </button>
 
             {/* Step down button */}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { SpellLevel, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -194,7 +195,7 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {hasHeader && (
         <div className={`widget-header flex-shrink-0 ${showFieldControls ? 'pr-4' : ''}`}>
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
           {showFieldControls && (
             <div className="spell-slot-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content="Manage spell slot levels and slots">

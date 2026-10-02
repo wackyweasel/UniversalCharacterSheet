@@ -1,4 +1,5 @@
 import { PointerEvent as ReactPointerEvent, useState, useRef, useEffect, useCallback } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
@@ -842,7 +843,7 @@ export default function MapSketcherWidget({ widget, mode, sheetScale = 1 }: Prop
     <div className="flex flex-col w-full h-full min-h-0 gap-1 relative">
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
 

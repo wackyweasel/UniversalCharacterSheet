@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, InitiativeParticipant, InitiativeEncounterEntry } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -217,7 +218,7 @@ function InitiativeRollDialog({ widgetId, participant, onClose, onReroll, onSave
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Initiative</p>
             <h3 id={`initiative-roll-dialog-title-${widgetId}`} className="mt-0.5 truncate font-heading text-base font-bold">
-              {participant.name}
+              <InlineFormulaText text={participant.name} />
             </h3>
           </div>
           <button
@@ -315,7 +316,7 @@ function RemoveParticipantsModal({ participants, onClose, onRemove }: RemovePart
                 onChange={() => toggleParticipant(participant.id)}
                 className="h-4 w-4 flex-shrink-0 accent-theme-accent"
               />
-              <span className="min-w-0 flex-1 truncate">{participant.name}</span>
+              <span className="min-w-0 flex-1 truncate"><InlineFormulaText text={participant.name} /></span>
               {participant.isTemporary && <span className="text-[10px] italic opacity-60">temporary</span>}
             </label>
           ))}
@@ -781,7 +782,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
       <div className="flex flex-col h-full overflow-hidden">
         {label && (
           <div className="widget-header mb-1 flex-shrink-0">
-            <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+            <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
           </div>
         )}
         <div className="flex-1 overflow-hidden">
@@ -814,7 +815,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
     <div className="flex flex-col h-full overflow-hidden">
       <div className="widget-structure-header mb-1 flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
         {label && (
-          <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         )}
         {headerControlsVisible && (
           <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">

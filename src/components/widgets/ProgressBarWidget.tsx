@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -294,7 +295,7 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
       {label && !inlineLabel && (
         <div className="widget-header flex-shrink-0">
           <div className="widget-header-title min-w-0 flex-1 truncate">
-            {label}
+            <InlineFormulaText text={label} />
           </div>
         </div>
       )}
@@ -302,7 +303,7 @@ export default function ProgressBarWidget({ widget, mode, interactive = true }: 
       <div className="progress-bar__main flex min-h-0 flex-1 items-center gap-1.5">
         {label && inlineLabel && (
           <div className="progress-bar__inline-label min-w-0 max-w-[40%] flex-shrink-0 truncate">
-            {label}
+            <InlineFormulaText text={label} />
           </div>
         )}
         {showIncrementButtons && <Tooltip content={hasCurrentFormula ? 'Value set by formula' : `Decrease by ${increment}`}>

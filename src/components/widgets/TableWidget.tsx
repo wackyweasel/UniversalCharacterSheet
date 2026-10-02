@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, TableRow, TableCell, CellFormat, TableColumnSettings, TableRowSettings } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -128,7 +129,6 @@ interface FormatToolbarProps {
   onFormulaChange: (formula: string | undefined) => void;
   character: any;
   labelScope?: 'cell' | 'column' | 'row';
-  canAssignLabelOverride?: boolean;
   formulaSourceLabels?: string[];
   excludedFormulaLabels?: string[];
   labelDisabledReason?: string;
@@ -140,7 +140,7 @@ interface FormatToolbarProps {
   showVerticalAlignment?: boolean;
 }
 
-function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellValue, cellLabel, cellFormula, onLabelChange, onFormulaChange, character, labelScope = 'cell', canAssignLabelOverride, formulaSourceLabels = [], excludedFormulaLabels = [], labelDisabledReason, multiple = false, onMerge, mergeDisabledReason, onUnmerge, mixedFields = [], showVerticalAlignment = false }: FormatToolbarProps) {
+function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, usedColors, cellLabel, cellFormula, onLabelChange, onFormulaChange, character, labelScope = 'cell', formulaSourceLabels = [], excludedFormulaLabels = [], labelDisabledReason, multiple = false, onMerge, mergeDisabledReason, onUnmerge, mixedFields = [], showVerticalAlignment = false }: FormatToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState({ x: position.x, y: position.y });
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -160,10 +160,8 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
     return () => { observer.disconnect(); window.removeEventListener('resize', resized); };
   }, []);
 
-  const isNumeric = cellValue === '' || !isNaN(Number(cellValue));
-  const canAssignLabel = canAssignLabelOverride ?? isNumeric;
-  const isLabelButtonDisabled = !!labelDisabledReason || (!canAssignLabel && !cellLabel);
-  const labelTooltip = labelDisabledReason || (cellLabel ? (labelScope === 'column' ? `Column labels: @${cellLabel}1, @${cellLabel}2...` : labelScope === 'row' ? `Row labels: @${cellLabel}1, @${cellLabel}2...` : `Label: @${cellLabel}`) : canAssignLabel ? 'Set variable label' : 'Cell must contain a number to assign a label');
+  const isLabelButtonDisabled = !!labelDisabledReason;
+  const labelTooltip = labelDisabledReason || (cellLabel ? (labelScope === 'column' ? `Column labels: @${cellLabel}1, @${cellLabel}2...` : labelScope === 'row' ? `Row labels: @${cellLabel}1, @${cellLabel}2...` : `Label: @${cellLabel}`) : 'Set variable label');
   const selfReferenceLabels = formulaSourceLabels.length > 0 ? formulaSourceLabels : (cellLabel ? [cellLabel] : []);
 
   useLayoutEffect(() => {
@@ -633,9 +631,6 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
               </button>
             )}
           </div>
-          {!canAssignLabel && !cellLabel && (
-            <p className="text-[9px] text-red-500 mt-0.5">Cell must contain a number to assign a label</p>
-          )}
           <p className="text-[9px] text-theme-muted mt-0.5">
             {labelScope === 'column' ? (
               <>Rows are referenced as <span className="font-mono">@{labelDraft || 'name'}1</span>, <span className="font-mono">@{labelDraft || 'name'}2</span>, etc.</>
@@ -653,6 +648,7 @@ function FormatToolbar({ format, onFormatChange, onClose, position, isMobile, us
         <FormulaEditorDialog
           formula={cellFormula}
           character={character}
+          resultType="text"
           sourceLabels={selfReferenceLabels}
           excludedLabels={excludedFormulaLabels}
           selfReferenceMessage={
@@ -907,11 +903,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
     const currentFormat = getCellFormat(currentCell);
     const currentLabel = getCellLabel(currentCell);
     const currentFormula = getCellFormula(currentCell) || getRowSetting(tableRowSettings, rowIdx).formula || getColumnSetting(tableColumnSettings, colIdx).formula;
-    const columnLabel = getColumnSetting(tableColumnSettings, colIdx).label;
-    const rowLabel = getRowSetting(tableRowSettings, rowIdx).label;
     
-    // If cell has a label, only allow numeric input
-    if ((currentLabel || columnLabel || rowLabel) && value !== '' && isNaN(Number(value))) return;
     // If cell has a formula, don't allow manual editing
     if (currentFormula) return;
     
@@ -1646,11 +1638,6 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
   const selectedCellFormulaLabels = [selectedCellOwnLabel, selectedCellGeneratedLabel, selectedCellColumnLabel, selectedCellRowGeneratedLabel, selectedCellRowLabel].filter((label): label is string => !!label);
   const selectedCellControlledLabels = [selectedCellGeneratedLabel, selectedCellRowGeneratedLabel].filter((label): label is string => !!label);
   const selectedCellLabelDisabledReason = selectedCellControlledLabels.length > 0 ? `Generated labels control this cell: ${selectedCellControlledLabels.map(label => `@${label}`).join(', ')}.` : undefined;
-  const selectedColumnCanAssignLabel = selectedColumn === null || rows.every((row: TableRow, index) => {
-    if (isCoveredTableCell(merges, index, selectedColumn)) return true;
-    const value = getCellValue(row.cells[selectedColumn] ?? '');
-    return value === '' || !isNaN(Number(value));
-  });
   const selectedRowSetting = selectedRow !== null ? getRowSetting(tableRowSettings, selectedRow) : null;
   const selectedRowLabel = selectedRowSetting?.label;
   const selectedRowGeneratedLabels = selectedRowLabel && selectedRow !== null ? columns.flatMap((_, index) =>
@@ -1664,11 +1651,6 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
     ...selectedRowColumnLabels,
     ...selectedRowColumnGeneratedLabels,
   ];
-  const selectedRowCanAssignLabel = selectedRow === null || (rows[selectedRow]?.cells || []).every((cell, col) => {
-    if (isCoveredTableCell(merges, selectedRow, col)) return true;
-    const value = getCellValue(cell);
-    return value === '' || !isNaN(Number(value));
-  });
   const hasDynamicColumn = columns.some((_, index) => getColumnWidth(index) === undefined);
   const showVerticalAlignment = selectedCell !== null && selection.some(cell =>
     merges.some(merge => merge.row === cell.row && merge.col === cell.col && merge.rowSpan > 1)
@@ -1680,7 +1662,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
         <div className="widget-header flex-shrink-0">
           {label && (
             <div className="widget-header-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {!isPrintMode && showTableEditButton && (
@@ -1780,7 +1762,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
                         style={columnFormat.textColor ? { color: columnFormat.textColor } : textColorStyle}
                       />
                     ) : (
-                      <span className="min-w-0 truncate text-center">{col}</span>
+                      <span className="min-w-0 truncate text-center"><InlineFormulaText text={col} /></span>
                     )}
                     {showTableControls && (
                       <span className={`absolute right-0 top-1/2 flex -translate-y-1/2 items-center rounded border border-theme-border bg-theme-background shadow-sm transition-opacity ${isMobile ? 'opacity-100' : 'opacity-0 group-hover/column:opacity-100 focus-within:opacity-100'}`}>
@@ -2229,7 +2211,6 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
           onFormulaChange={(f) => handleColumnFormulaChange(selectedColumn, f)}
           character={activeChar}
           labelScope="column"
-          canAssignLabelOverride={selectedColumnCanAssignLabel}
           formulaSourceLabels={[...(selectedColumnLabel ? [selectedColumnLabel] : []), ...selectedColumnGeneratedLabels, ...selectedColumnRowLabels, ...selectedColumnRowGeneratedLabels]}
           excludedFormulaLabels={[...selectedColumnGeneratedLabels, ...selectedColumnRowGeneratedLabels]}
         />,
@@ -2256,7 +2237,6 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
           onFormulaChange={(f) => handleRowFormulaChange(selectedRow, f)}
           character={activeChar}
           labelScope="row"
-          canAssignLabelOverride={selectedRowCanAssignLabel}
           formulaSourceLabels={selectedRowFormulaLabels}
           excludedFormulaLabels={[...selectedRowGeneratedLabels, ...selectedRowColumnGeneratedLabels]}
         />,

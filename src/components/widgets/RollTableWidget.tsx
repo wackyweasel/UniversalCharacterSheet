@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { RollTableItem, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
@@ -199,7 +200,7 @@ export default function RollTableWidget({ widget, mode }: Props) {
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
       
@@ -296,13 +297,13 @@ export default function RollTableWidget({ widget, mode }: Props) {
                       }
                     } : undefined}
                   >
-                    <div className="roll-table-item__title min-w-0">{item.text}</div>
+                    <div className="roll-table-item__title min-w-0"><InlineFormulaText text={item.text} /></div>
                     {hasDescription && (
                       <ChevronDownIcon className={`roll-table-item__chevron h-3 w-3 flex-none transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     )}
                   </div>
                   {isExpanded && (
-                    <div className="roll-table-item__description">{item.description}</div>
+                    <div className="roll-table-item__description"><InlineFormulaText text={item.description} /></div>
                   )}
                 </div>
                 <span className="roll-table-item__percentage text-[10px] text-theme-muted w-8 text-right" title="Probability">

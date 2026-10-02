@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, FormItem } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -149,7 +150,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
         <div className={`form-widget__header widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className="form-widget__label widget-structure-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {controlsVisible && (
@@ -207,8 +208,8 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
               aria-label={`Rename field ${item.name || `Field ${idx + 1}`}`}
             >
               {mode === 'play' && item.tooltip ? (
-                <Tooltip content={item.tooltip}><span>{item.name}</span></Tooltip>
-              ) : item.name}
+                <Tooltip content={item.tooltip}><span><InlineFormulaText text={item.name} /></span></Tooltip>
+              ) : <InlineFormulaText text={item.name} />}
             </button>
 
             {mode === 'edit' || editingValueIndex === idx ? (
@@ -218,6 +219,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
                 onChange={(e) => handleValueChange(idx, e.target.value)}
                 onBlur={() => { handleValueBlur(idx); setEditingValueIndex(null); }}
                 onMouseDown={(e) => e.stopPropagation()}
+                readOnly={Boolean(item.valueFormula)}
                 autoFocus={mode !== 'edit'}
                 className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border focus:border-theme-accent focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
                 placeholder="..."
@@ -228,9 +230,9 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
                 role="button"
                 tabIndex={isPrintMode ? -1 : 0}
                 aria-label={`Edit ${item.name || 'form value'}`}
-                onClick={() => { if (!isPrintMode) setEditingValueIndex(idx); }}
+                onClick={() => { if (!isPrintMode && !item.valueFormula) setEditingValueIndex(idx); }}
                 onKeyDown={(event) => {
-                  if (!isPrintMode && (event.key === 'Enter' || event.key === ' ')) {
+                  if (!isPrintMode && !item.valueFormula && (event.key === 'Enter' || event.key === ' ')) {
                     event.preventDefault();
                     setEditingValueIndex(idx);
                   }

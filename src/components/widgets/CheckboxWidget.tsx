@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -118,7 +119,7 @@ function RemoveChecklistItemsModal({ items, onConfirm, onCancel }: { items: Chec
                 onChange={() => toggleSelection(index)}
                 className="h-4 w-4 flex-shrink-0 accent-theme-accent"
               />
-              <span className={`min-w-0 flex-1 truncate ${item.checked ? 'line-through opacity-70' : ''}`}>{item.name}</span>
+              <span className={`min-w-0 flex-1 truncate ${item.checked ? 'line-through opacity-70' : ''}`}><InlineFormulaText text={item.name} /></span>
             </label>
           ))}
         </div>
@@ -188,7 +189,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className="widget-structure-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {controlsVisible && (
@@ -253,9 +254,9 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
             <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked && strikethrough ? 'line-through text-theme-muted' : ''}`}>
               {mode === 'play' && item.tooltip ? (
                 <Tooltip content={item.tooltip}>
-                  <span>{item.name}</span>
+                  <span><InlineFormulaText text={item.name} /></span>
                 </Tooltip>
-              ) : item.name}
+              ) : <InlineFormulaText text={item.name} />}
             </span>
           </button>
         ))}

@@ -5,6 +5,7 @@ import { usePointerReorder } from '../../hooks';
 import { getCardTableContentLayout } from '../../utils/cardTable';
 import { getCardSymbolColumns, getCardSymbolSizeFactor, splitCardSymbols } from '../../utils/cardSymbols';
 import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon, XIcon } from '../icons';
+import { InlineFormulaText } from '../InlineFormulaText';
 
 interface Props {
   deckName: string;
@@ -127,7 +128,7 @@ export default function CardDeckInspectDialog({
             {selectedCard && (
               <>
                 <div className={`card-deck-inspect-preview card-deck-inspect-preview--${selectedCardLayout}`}>
-                  {selectedCard.title.trim() && <div className="card-deck-inspect-preview__title">{selectedCard.title}</div>}
+                  {selectedCard.title.trim() && <div className="card-deck-inspect-preview__title"><InlineFormulaText text={selectedCard.title} /></div>}
                   {selectedCardSymbols.length > 0 && (
                     <div
                       className="card-deck-inspect-preview__symbol"
@@ -142,7 +143,7 @@ export default function CardDeckInspectDialog({
                   {selectedCard.body.trim() && (
                     <>
                       {(selectedCard.title.trim() || selectedCardSymbols.length > 0) && <div className="card-deck-inspect-preview__divider" />}
-                      <div className="card-deck-inspect-preview__body">{selectedCard.body}</div>
+                      <div className="card-deck-inspect-preview__body"><InlineFormulaText text={selectedCard.body} /></div>
                     </>
                   )}
                   <button

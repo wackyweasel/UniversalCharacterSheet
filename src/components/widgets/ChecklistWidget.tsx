@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
 
@@ -39,7 +40,7 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
       
@@ -69,7 +70,7 @@ export default function CheckboxWidget({ widget, mode, height }: Props) {
               {item.checked && <span className={checkClass}>✓</span>}
             </div>
             <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked && strikethrough ? 'line-through text-theme-muted' : ''}`}>
-              {item.name}
+              <InlineFormulaText text={item.name} />
             </span>
             {mode === 'play' && item.tooltip && (
               <span

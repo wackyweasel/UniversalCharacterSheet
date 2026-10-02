@@ -4,7 +4,7 @@ import type { Character } from '../types';
 import {
   collectLabels,
   detectCircularReference,
-  evaluateFormula,
+  evaluateFormulaValue,
   getAvailableLabels,
   hasUnresolvedRefs,
 } from '../utils/formulaEngine';
@@ -13,7 +13,7 @@ import {
   FORMULA_REFERENCE_CATEGORIES,
   type FormulaReferenceCategory,
 } from '../utils/formulaReference';
-import { extractFormulaLabelReferences } from '../utils/formulaSyntax';
+import { extractFormulaLabelReferences, type FormulaValue } from '../utils/formulaSyntax';
 import { SearchIcon, XIcon } from './icons';
 
 interface FormulaEditorDialogProps {
@@ -22,6 +22,8 @@ interface FormulaEditorDialogProps {
   sourceLabels?: string[];
   excludedLabels?: string[];
   selfReferenceMessage?: string;
+  /** 'text' allows text results; 'number' (default) reports text results as invalid. */
+  resultType?: 'number' | 'text';
   tutorialTargetPrefix?: string;
   highlightApply?: boolean;
   onApply: (formula: string) => void;
@@ -34,7 +36,7 @@ type MobilePanel = 'labels' | 'reference';
 interface FormulaStatus {
   kind: 'empty' | 'valid' | 'invalid' | 'unresolved' | 'self' | 'circular';
   message: string;
-  result: number | null;
+  result: FormulaValue | null;
 }
 
 export function FormulaEditorDialog({
@@ -43,6 +45,7 @@ export function FormulaEditorDialog({
   sourceLabels = [],
   excludedLabels = [],
   selfReferenceMessage,
+  resultType = 'number',
   tutorialTargetPrefix,
   highlightApply = false,
   onApply,
@@ -104,7 +107,7 @@ export function FormulaEditorDialog({
       };
     }
 
-    const result = evaluateFormula(draft, labels);
+    const result = evaluateFormulaValue(draft, labels);
     if (result === null) {
       return {
         kind: 'invalid',
@@ -112,9 +115,12 @@ export function FormulaEditorDialog({
         result: null,
       };
     }
+    if (typeof result === 'string' && resultType === 'number') {
+      return { kind: 'invalid', message: 'This field needs a number, but the formula returns text.', result: null };
+    }
 
     return { kind: 'valid', message: 'Formula is valid.', result };
-  }, [circularPath, draft, labels, selfReferenceMessage, sourceLabelSet]);
+  }, [circularPath, draft, labels, resultType, selfReferenceMessage, sourceLabelSet]);
 
   const availableLabels = useMemo(() => {
     if (!character) return [];
@@ -409,7 +415,7 @@ export function FormulaEditorDialog({
               >
                 <span>{status.message}</span>
                 {status.kind === 'valid' && (
-                  <span className="shrink-0 font-mono text-base font-bold tabular-nums text-theme-accent">= {status.result}</span>
+                  <span className="shrink-0 font-mono text-base font-bold tabular-nums text-theme-accent">= {typeof status.result === 'string' ? JSON.stringify(status.result) : status.result}</span>
                 )}
               </div>
             </section>

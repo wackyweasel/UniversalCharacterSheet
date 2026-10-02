@@ -48,6 +48,10 @@ export function collectLabels(character: Character): FormulaLabels {
         labels[labelName] = value;
       });
 
+      for (const item of data.formItems ?? []) {
+        if (item.valueLabel) labels[item.valueLabel] = toTextLabelValue(item.value ?? '');
+      }
+
       // Collect from NumberItem arrays
       if (data.numberItems) {
         for (const item of data.numberItems as NumberItem[]) {
@@ -112,6 +116,9 @@ export function collectLabels(character: Character): FormulaLabels {
           if (field.type === 'menu' && field.valueLabel) {
             labels[field.valueLabel] = field.value;
           }
+          if (field.type === 'text' && field.valueLabel) {
+            labels[field.valueLabel] = toTextLabelValue(field.value ?? '');
+          }
         }
       }
 
@@ -140,15 +147,16 @@ export function collectLabels(character: Character): FormulaLabels {
             if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
             const num = parseFloat(value);
+            const cellValue: FormulaValue | undefined = !isNaN(num) ? num : value.trim() ? value : undefined;
             if (typeof cell !== 'string' && cell.label) {
-              if (!isNaN(num)) labels[cell.label] = num;
+              if (cellValue !== undefined) labels[cell.label] = cellValue;
             }
             const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
-            if (columnLabel && !isNaN(num)) {
-              labels[`${columnLabel}${rowIndex + 1}`] = num;
+            if (columnLabel && cellValue !== undefined) {
+              labels[`${columnLabel}${rowIndex + 1}`] = cellValue;
             }
-            if (rowLabel && !isNaN(num)) {
-              labels[`${rowLabel}${colIndex + 1}`] = num;
+            if (rowLabel && cellValue !== undefined) {
+              labels[`${rowLabel}${colIndex + 1}`] = cellValue;
             }
           }
         }
@@ -204,16 +212,24 @@ function getFieldValue(data: WidgetData, field: string): number | undefined {
   }
 }
 
-function getInventoryFieldLabelValue(field: InventoryItemField): number | undefined {
-  if (!field.valueLabel || (field.type !== 'number' && field.type !== 'checkbox')) return undefined;
+function getInventoryFieldLabelValue(field: InventoryItemField): FormulaValue | undefined {
+  if (!field.valueLabel) return undefined;
+  if (field.type === 'text' || field.type === 'textarea') return toTextLabelValue(String(field.value ?? ''));
   if (field.type === 'checkbox') return field.value ? 1 : 0;
   const value = typeof field.value === 'number' ? field.value : Number(field.value);
   return Number.isFinite(value) ? value : 0;
 }
 
+/** Text that is entirely a number is exposed as a number so it keeps working in arithmetic. */
+function toTextLabelValue(text: string): FormulaValue {
+  const trimmed = text.trim();
+  const num = Number(trimmed);
+  return trimmed !== '' && Number.isFinite(num) ? num : text;
+}
+
 function forEachInventoryLabel(
   data: WidgetData,
-  callback: (labelName: string, value: number, itemId: string, field: InventoryItemField) => void,
+  callback: (labelName: string, value: FormulaValue, itemId: string, field: InventoryItemField) => void,
 ) {
   for (const item of data.inventoryItems || []) {
     for (const field of item.fields) {
@@ -545,16 +561,23 @@ function buildNumericExpression(expr: string, labels: FormulaLabels): string | n
   return replaceFormulaReferences(expr, labels);
 }
 
+/** An unquoted word like `druid` used as a comparison operand is treated as text. */
+function isBareTextOperand(expr: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_ '-]*$/.test(expr.trim());
+}
+
 function buildConditionOperand(expr: string, labels: FormulaLabels): string | null {
   const trimmed = expr.trim();
   const literal = parseFormulaStringLiteral(trimmed);
   if (literal !== null) return JSON.stringify(literal);
+  if (isBareTextOperand(trimmed)) return JSON.stringify(trimmed);
 
   const referenceMatch = trimmed.match(/^@([a-zA-Z_][a-zA-Z0-9_]*)$/);
   if (referenceMatch && typeof labels[referenceMatch[1]] === 'string') {
     return JSON.stringify(labels[referenceMatch[1]]);
   }
 
+  if (trimmed && formulaContainsText(trimmed, labels)) return replaceFormulaReferences(trimmed, labels);
   return buildNumericExpression(trimmed, labels);
 }
 
@@ -567,7 +590,8 @@ function buildConditionExpression(condition: string, labels: FormulaLabels): str
   const right = normalizedCondition.substring(comparison.index + comparison.operator.length).trim();
   if (!left || !right) return null;
 
-  const isTextComparison = formulaContainsText(left, labels) || formulaContainsText(right, labels);
+  const isTextComparison = formulaContainsText(left, labels) || formulaContainsText(right, labels)
+    || isBareTextOperand(left) || isBareTextOperand(right);
   if (isTextComparison && comparison.operator !== '=' && comparison.operator !== '<>') return null;
 
   const leftExpression = buildConditionOperand(left, labels);
@@ -665,16 +689,16 @@ function buildGeneratedLabelValueExpression(args: string[], labels: FormulaLabel
   const values = Object.entries(labels)
     .map(([label, value]) => {
       const match = label.match(prefixRegex);
-      return match && typeof value === 'number' ? { index: parseInt(match[1], 10), value } : null;
+      return match && (typeof value === 'string' || isFinite(value)) ? { index: parseInt(match[1], 10), value } : null;
     })
-    .filter((item): item is { index: number; value: number } => item !== null && isFinite(item.value))
+    .filter((item): item is { index: number; value: FormulaValue } => item !== null)
     .sort((a, b) => b.index - a.index);
 
   if (values.length === 0) return null;
 
   let expression = fallbackValue;
   for (const { index, value } of values) {
-    expression = `((${indexExpression}) === (${index}) ? ${value} : ${expression})`;
+    expression = `((${indexExpression}) === (${index}) ? ${typeof value === 'string' ? JSON.stringify(value) : value} : ${expression})`;
   }
 
   return `(${expression})`;
@@ -696,7 +720,9 @@ function buildGeneratedLabelSumExpression(args: string[], labels: FormulaLabels)
   if (rowIndexes.length === 0) return '(0)';
 
   const rowExpressions = rowIndexes.map(index => (
-    `(${sumExpression.replace(/@([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (_match, labelPrefix) => `@${labelPrefix}${index}`)})`
+    `(${sumExpression.replace(/@([a-zA-Z_][a-zA-Z0-9_]*)\b/g, (_match, labelPrefix) => (
+      typeof labels[`${labelPrefix}${index}`] === 'string' ? '0' : `@${labelPrefix}${index}`
+    ))})`
   ));
 
   return `(${rowExpressions.join(' + ')})`;
@@ -756,6 +782,12 @@ function processFormulaFunctions(expr: string, labels: FormulaLabels): string | 
  * Returns the computed number, or null if evaluation fails.
  */
 export function evaluateFormula(formula: string, labels: FormulaLabels): number | null {
+  const result = evaluateFormulaValue(formula, labels);
+  return typeof result === 'number' ? result : null;
+}
+
+/** Like evaluateFormula, but also returns text results. Returns null if evaluation fails. */
+export function evaluateFormulaValue(formula: string, labels: FormulaLabels): FormulaValue | null {
   if (!formula || !formula.trim()) return null;
 
   let expr: string | null = formula.trim();
@@ -790,7 +822,8 @@ export function evaluateFormula(formula: string, labels: FormulaLabels): number 
   if (safeExpr.length > 0) return null;
 
   try {
-    const result = Function(`"use strict"; return (${expr})`)() as number;
+    const result = Function(`"use strict"; return (${expr})`)() as unknown;
+    if (typeof result === 'string') return result;
     if (typeof result !== 'number' || !isFinite(result)) return null;
     return Math.round(result * 100) / 100; // Round to 2 decimal places
   } catch {
@@ -817,10 +850,10 @@ export function hasUnresolvedRefs(formula: string, labels: FormulaLabels): boole
  * Checks whether a formula is broken: either has unresolved @label references
  * or is syntactically invalid (evaluateFormula returns null).
  */
-export function isFormulaBroken(formula: string, labels: FormulaLabels): boolean {
+export function isFormulaBroken(formula: string, labels: FormulaLabels, resultType: 'number' | 'text' = 'number'): boolean {
   if (!formula || !formula.trim()) return false;
   if (hasUnresolvedRefs(formula, labels)) return true;
-  return evaluateFormula(formula, labels) === null;
+  return (resultType === 'text' ? evaluateFormulaValue(formula, labels) : evaluateFormula(formula, labels)) === null;
 }
 
 /**
@@ -872,8 +905,8 @@ export function resolveCharacterFormulas(character: Character): Character | null
 export interface FormulaChange {
   widgetLabel: string;
   fieldName: string;
-  oldValue: number;
-  newValue: number;
+  oldValue: FormulaValue;
+  newValue: FormulaValue;
   formula: string;
   sheetName: string;
 }
@@ -1283,11 +1316,55 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
         return updatedField;
       }
 
+      if (field.type === 'text' && field.valueFormula) {
+        const computed = evaluateFormulaValue(field.valueFormula, labels);
+        if (computed !== null && String(computed) !== field.value) {
+          fieldsChanged = true;
+          return { ...field, value: String(computed) };
+        }
+      }
+
       return field;
     });
     if (fieldsChanged) {
       changed = true;
       updates.mixedFields = updatedFields;
+    }
+  }
+
+  if (widget.data.formItems?.some((item) => item.valueFormula)) {
+    let itemsChanged = false;
+    const updatedItems = widget.data.formItems.map((item) => {
+      if (!item.valueFormula) return item;
+      const computed = evaluateFormulaValue(item.valueFormula, labels);
+      if (computed === null || String(computed) === item.value) return item;
+      itemsChanged = true;
+      return { ...item, value: String(computed) };
+    });
+    if (itemsChanged) {
+      changed = true;
+      updates.formItems = updatedItems;
+    }
+  }
+
+  if (widget.data.inventoryItems?.some((item) => item.fields.some((field) => field.valueFormula))) {
+    let itemsChanged = false;
+    const updatedItems = widget.data.inventoryItems.map((item) => {
+      let fieldsChanged = false;
+      const fields = item.fields.map((field) => {
+        if (!field.valueFormula || (field.type !== 'text' && field.type !== 'textarea')) return field;
+        const computed = evaluateFormulaValue(field.valueFormula, labels);
+        if (computed === null || String(computed) === field.value) return field;
+        fieldsChanged = true;
+        return { ...field, value: String(computed) };
+      });
+      if (!fieldsChanged) return item;
+      itemsChanged = true;
+      return { ...item, fields };
+    });
+    if (itemsChanged) {
+      changed = true;
+      updates.inventoryItems = updatedItems;
     }
   }
 
@@ -1347,7 +1424,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
         if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(row, rowIndex, columnSettings, rowSetting, merges))) return cell;
         if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(widget.data.rows as TableRow[], colIndex, columnSetting, rowSettings, merges))) return cell;
 
-        const computed = evaluateFormula(formula, labels);
+        const computed = evaluateFormulaValue(formula, labels);
         if (computed !== null) {
           const newValue = String(computed);
           const currentValue = typeof cell === 'string' ? cell : cell.value;
@@ -1403,6 +1480,10 @@ export function getAvailableLabels(character: Character): { label: string; value
       forEachInventoryLabel(data, (labelName, value) => {
         result.push({ label: labelName, value, widgetLabel, sheetName: sheet.name });
       });
+
+      for (const item of data.formItems ?? []) {
+        if (item.valueLabel) result.push({ label: item.valueLabel, value: toTextLabelValue(item.value ?? ''), widgetLabel, sheetName: sheet.name });
+      }
 
       if (data.numberItems) {
         for (const item of data.numberItems as NumberItem[]) {
@@ -1464,6 +1545,9 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (field.type === 'menu' && field.valueLabel) {
             result.push({ label: field.valueLabel, value: field.value, widgetLabel, sheetName: sheet.name });
           }
+          if (field.type === 'text' && field.valueLabel) {
+            result.push({ label: field.valueLabel, value: toTextLabelValue(field.value ?? ''), widgetLabel, sheetName: sheet.name });
+          }
         }
       }
 
@@ -1490,15 +1574,16 @@ export function getAvailableLabels(character: Character): { label: string; value
             if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
             const num = parseFloat(value);
+            const cellValue: FormulaValue = !isNaN(num) ? num : value;
             if (typeof cell !== 'string' && cell.label) {
-              result.push({ label: cell.label, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
+              result.push({ label: cell.label, value: cellValue, widgetLabel, sheetName: sheet.name });
             }
             const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
             if (columnLabel) {
-              result.push({ label: `${columnLabel}${rowIndex + 1}`, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
+              result.push({ label: `${columnLabel}${rowIndex + 1}`, value: cellValue, widgetLabel, sheetName: sheet.name });
             }
             if (rowLabel) {
-              result.push({ label: `${rowLabel}${colIndex + 1}`, value: isNaN(num) ? 0 : num, widgetLabel, sheetName: sheet.name });
+              result.push({ label: `${rowLabel}${colIndex + 1}`, value: cellValue, widgetLabel, sheetName: sheet.name });
             }
           }
         }
@@ -1646,6 +1731,19 @@ export function buildDependencyGraph(character: Character): Record<string, strin
             if (field.currentLabel && field.currentFormula) graph[field.currentLabel] = extractFormulaRefs(field.currentFormula, labels);
             if (field.maxLabel && field.maxFormula) graph[field.maxLabel] = extractFormulaRefs(field.maxFormula, labels);
           }
+          if (field.type === 'text' && field.valueLabel && field.valueFormula) {
+            graph[field.valueLabel] = extractFormulaRefs(field.valueFormula, labels);
+          }
+        }
+      }
+
+      for (const item of data.formItems ?? []) {
+        if (item.valueLabel && item.valueFormula) graph[item.valueLabel] = extractFormulaRefs(item.valueFormula, labels);
+      }
+
+      for (const item of data.inventoryItems ?? []) {
+        for (const field of item.fields) {
+          if (field.valueLabel && field.valueFormula) graph[field.valueLabel] = extractFormulaRefs(field.valueFormula, labels);
         }
       }
 

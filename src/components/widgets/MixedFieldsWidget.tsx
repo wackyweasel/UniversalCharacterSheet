@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import type { DiceExpressionRollResult } from '../../utils/diceExpression';
 import { formatDiceRollDetail, formatDiceStep, parseDiceStep } from '../../utils/diceExpression';
@@ -759,7 +760,7 @@ export default function MixedFieldsWidget({
               setEditingTextIndex(null);
             }}
             onMouseDown={(event) => event.stopPropagation()}
-            readOnly={!canInteract}
+            readOnly={!canInteract || Boolean(field.valueFormula)}
             autoFocus={workspaceMode !== 'edit'}
             placeholder={isPrintMode ? '' : '...'}
             className="min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 text-xs font-body text-theme-ink outline-none focus:border-theme-accent"
@@ -770,9 +771,9 @@ export default function MixedFieldsWidget({
             role="button"
             tabIndex={isPrintMode ? -1 : 0}
             aria-label={`Edit ${field.name || 'text value'}`}
-            onClick={() => { if (!isPrintMode && canInteract) setEditingTextIndex(index); }}
+            onClick={() => { if (!isPrintMode && canInteract && !field.valueFormula) setEditingTextIndex(index); }}
             onKeyDown={(event) => {
-              if (!isPrintMode && canInteract && (event.key === 'Enter' || event.key === ' ')) {
+              if (!isPrintMode && canInteract && !field.valueFormula && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
                 setEditingTextIndex(index);
               }
@@ -875,7 +876,7 @@ export default function MixedFieldsWidget({
     <div className="flex h-full w-full flex-col gap-1">
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>}
           {controlsVisible && (
             <div className="widget-structure-controls ml-auto flex items-center gap-1">
               <Tooltip content={mixedFields.length ? 'Choose fields to remove' : 'No fields to remove'}>
@@ -902,7 +903,7 @@ export default function MixedFieldsWidget({
               className="min-w-0 flex-shrink-0 truncate border-0 bg-transparent p-0 text-left text-xs font-body text-theme-ink enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
               style={{ width: `${labelWidth}%` }}
             >
-              {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span>{field.name}</span></Tooltip> : field.name}
+              {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span><InlineFormulaText text={field.name} /></span></Tooltip> : <InlineFormulaText text={field.name} />}
             </button>
             {renderFieldControl(field, index)}
           </div>

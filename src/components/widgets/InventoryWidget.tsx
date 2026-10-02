@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -529,7 +530,7 @@ function InventoryWidget({
               )}
               {!canInteract && <span />}
               <h3 className="-translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
-                {item.name}
+                <InlineFormulaText text={item.name} />
                 {' '}
                 <InventoryQuantity
                   item={item}
@@ -541,7 +542,7 @@ function InventoryWidget({
                 {item.fields.map((field, fieldIndex) => (
                   isInventoryFieldEmpty(field) ? null : (
                   <div key={field.id} className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1 text-[9px] leading-3">
-                    <dt className="min-w-0 break-words font-body text-theme-muted [overflow-wrap:anywhere]">{field.name}</dt>
+                    <dt className="min-w-0 break-words font-body text-theme-muted [overflow-wrap:anywhere]"><InlineFormulaText text={field.name} /></dt>
                     <dd className={`min-w-0 whitespace-pre-wrap break-words font-body font-medium [overflow-wrap:anywhere] ${field.type === 'number' ? 'tabular-nums' : ''}`}>
                       {field.type === 'text' || field.type === 'textarea' ? (
                         <InlineDiceText text={formatFieldValue(item, fieldIndex)} widget={widget} />
@@ -692,7 +693,7 @@ function InventoryWidget({
                     aria-label={`Select ${item.name}`}
                     className="h-4 w-4 flex-shrink-0 accent-theme-accent"
                   />
-                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{item.name}</span>
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]"><InlineFormulaText text={item.name} /></span>
                 </label>
               ))}
             </div>

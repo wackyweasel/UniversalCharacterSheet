@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import type { CardTableCard, CardTableRestorePosition, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -190,7 +191,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     <div className="card-table-widget flex h-full w-full flex-col gap-1.5">
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
           {showCardCount && <span className="card-deck-count">{cards.length}</span>}
         </div>
       )}
@@ -210,9 +211,9 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
           >
             {topCard?.faceUp ? (
               <>
-                {topCard.title.trim() && <span className="card-deck-fallback__title">{topCard.title}</span>}
+                {topCard.title.trim() && <span className="card-deck-fallback__title"><InlineFormulaText text={topCard.title} /></span>}
                 {topCard.symbol.trim() && <span className="card-deck-fallback__symbol">{topCard.symbol}</span>}
-                {topCard.body.trim() && <span className="card-deck-fallback__body">{topCard.body}</span>}
+                {topCard.body.trim() && <span className="card-deck-fallback__body"><InlineFormulaText text={topCard.body} /></span>}
               </>
             ) : (
               <>

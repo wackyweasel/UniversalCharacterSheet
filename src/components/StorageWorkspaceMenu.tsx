@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRightLeft, ChevronDown, FolderOpen, FolderSearch, HardDrive, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronDown, FolderOpen, FolderSearch, HardDrive, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 import type { StorageWorkspace } from '../workspaces/types';
 import { supportsDirectoryWorkspaces, supportsStorageWorkspaces } from '../workspaces/capabilities';
 import type { WorkspaceDirectoryHandle } from '../workspaces/providers/directoryWorkspaceProvider';
 import AddWorkspaceDialog from './AddWorkspaceDialog';
-import MoveWorkspaceDataDialog from './MoveWorkspaceDataDialog';
 import { GoogleDriveIcon } from './icons';
 
 interface StorageWorkspaceMenuProps {
@@ -41,7 +40,6 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
   const forgetWorkspace = useStorageWorkspaceStore((state) => state.forgetWorkspace);
   const [isOpen, setIsOpen] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [operationError, setOperationError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -234,37 +232,18 @@ export default function StorageWorkspaceMenu({ darkMode }: StorageWorkspaceMenuP
                 <Plus className="h-4 w-4" />
                 Add workspace
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={workspaces.length < 2}
-                className={`flex w-full items-center gap-3 rounded-button px-3 py-2.5 text-left font-body text-sm font-bold disabled:opacity-40 ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                onClick={() => {
-                  setIsOpen(false);
-                  setShowMoveDialog(true);
-                }}
-              >
-                <ArrowRightLeft className="h-4 w-4" />
-                Transfer workspace data
-              </button>
             </div>
 
             {(operationError || error) && (
-              <div role="alert" className={`border-t px-3 py-2 font-body text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
-                <p>{operationError || error}</p>
-                {activeWorkspace?.provider === 'google-drive' && (syncStatus === 'reconnect' || syncStatus === 'error') && (
-                  <p className={`mt-2 leading-relaxed ${darkMode ? 'text-white/65' : 'text-gray-600'}`}>
-                    Your workspace file remains in Google Drive. Download the JSON file from Drive, switch to another workspace, then use Backup &amp; Restore to upload it.
-                  </p>
-                )}
-              </div>
+              <p role="alert" className={`border-t px-3 py-2 font-body text-xs ${darkMode ? 'border-white/20 text-amber-300' : 'border-gray-200 text-red-700'}`}>
+                {operationError || error}
+              </p>
             )}
           </div>
         )}
       </div>
 
       {showAddDialog && <AddWorkspaceDialog darkMode={darkMode} onClose={() => setShowAddDialog(false)} />}
-      {showMoveDialog && <MoveWorkspaceDataDialog darkMode={darkMode} onClose={() => setShowMoveDialog(false)} />}
     </>
   );
 }
