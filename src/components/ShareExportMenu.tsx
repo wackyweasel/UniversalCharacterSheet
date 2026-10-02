@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Character } from '../types';
 import { useUserPresetStore } from '../store/useUserPresetStore';
 import { submitToGallery } from '../hooks/useGallery';
@@ -56,6 +56,7 @@ interface ShareExportMenuProps {
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
   inlineActionIds?: ReadonlySet<string>;
+  topSection?: ReactNode;
 }
 
 export function downloadCharacter(character: Character) {
@@ -96,6 +97,7 @@ export default function ShareExportMenu({
   attachmentControlsVisible,
   onToggleAttachmentControls,
   inlineActionIds = new Set(),
+  topSection,
 }: ShareExportMenuProps) {
   const addPreset = useUserPresetStore((state) => state.addPreset);
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
@@ -183,6 +185,7 @@ export default function ShareExportMenu({
         </Tooltip>
         {open && (
           <div className="absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(300px,calc(100vw-1rem))] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
+            {topSection}
             {activeWorkspaceProvider !== 'browser' && (
               <div className="border-b border-theme-border/50 py-1">
                 <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Workspace</p>
