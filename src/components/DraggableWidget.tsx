@@ -170,6 +170,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const groupDragOriginsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
 
   const positionDropdownFromTrigger = useCallback((
     rect = dropdownTriggerRef.current?.getBoundingClientRect(),
@@ -622,34 +623,32 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
+  // Writes all members (dragged one included) in the same pass so the group never lags a frame apart.
+  const applyGroupDragTransforms = (deltaX: number, deltaY: number, snap: boolean) => {
+    const origins = groupDragOriginsRef.current;
+    if (!origins || !widget.groupId) return;
+    document.querySelectorAll<HTMLElement>(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
+      const origin = origins.get(element.getAttribute('data-widget-id') ?? '');
+      if (!origin) return;
+      const x = snap ? snapToGrid(origin.x + deltaX) : origin.x + deltaX;
+      const y = snap ? snapToGrid(origin.y + deltaY) : origin.y + deltaY;
+      element.style.transform = `translate(${x}px, ${y}px)`;
+    });
+  };
+
   const handleStart = (_e: DraggableEvent, data: DraggableData) => {
     // Store the starting position for calculating delta
     dragStartPos.current = { x: data.x, y: data.y };
+    groupDragOriginsRef.current = widget.groupId
+      ? new Map(getWidgetsInGroup(widget.groupId).map((member) => [member.id, { x: member.x, y: member.y }]))
+      : null;
     isDraggingRef.current = true;
     pinchCanceledDragRef.current = false;
     startWidgetDrag(widget.id, widget.groupId ?? null);
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
-    // If widget is in a group, visually move sibling widgets during drag
-    if (widget.groupId) {
-      const deltaX = data.x - dragStartPos.current.x;
-      const deltaY = data.y - dragStartPos.current.y;
-      
-      // Find all sibling widgets in the same group and update their visual positions
-      const siblingElements = document.querySelectorAll(`[data-group-id="${widget.groupId}"]`);
-      siblingElements.forEach((el) => {
-        const siblingId = el.getAttribute('data-widget-id');
-        if (siblingId && siblingId !== widget.id) {
-          // Get original position from the store
-          const siblings = useStore.getState().getWidgetsInGroup(widget.groupId!);
-          const sibling = siblings.find(s => s.id === siblingId);
-          if (sibling) {
-            (el as HTMLElement).style.transform = `translate(${sibling.x + deltaX}px, ${sibling.y + deltaY}px)`;
-          }
-        }
-      });
-    }
+    applyGroupDragTransforms(data.x - dragStartPos.current.x, data.y - dragStartPos.current.y, false);
   };
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
@@ -657,15 +656,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     finishWidgetDrag(widget.id);
     if (pinchCanceledDragRef.current) {
       pinchCanceledDragRef.current = false;
-      if (widget.groupId) {
-        const siblings = useStore.getState().getWidgetsInGroup(widget.groupId);
-        document.querySelectorAll(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
-          const sibling = siblings.find(candidate => candidate.id === element.getAttribute('data-widget-id'));
-          if (sibling) {
-            (element as HTMLElement).style.transform = `translate(${sibling.x}px, ${sibling.y}px)`;
-          }
-        });
-      }
+      applyGroupDragTransforms(0, 0, false);
+      groupDragOriginsRef.current = null;
       return;
     }
 
@@ -676,6 +668,9 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     if (widget.groupId) {
       const deltaX = snappedX - widget.x;
       const deltaY = snappedY - widget.y;
+      // Also covers a zero delta, where React would not rewrite the transforms set during the drag.
+      applyGroupDragTransforms(deltaX, deltaY, true);
+      groupDragOriginsRef.current = null;
       if (deltaX !== 0 || deltaY !== 0) {
         moveWidgetGroup(widget.id, deltaX, deltaY);
       }
