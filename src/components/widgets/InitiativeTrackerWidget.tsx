@@ -8,6 +8,7 @@ import { GripVerticalIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon } from '../i
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle } from './StructureDialogControls';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
+import { getInitiativeDiceExpression, normalizeDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
 
 interface Props {
   widget: Widget;
@@ -22,9 +23,15 @@ function generateId(): string {
 }
 
 function formatInitiativeDice(entry: InitiativeEncounterEntry): string {
+  const expression = normalizeDiceExpression(getInitiativeDiceExpression(entry)) ?? `d${entry.diceFaces}`;
+  const dice = expression.replace(/^1d(\d+)$/, 'd$1');
   return entry.flatBonus === 0
-    ? `d${entry.diceFaces}`
-    : `d${entry.diceFaces}${entry.flatBonus > 0 ? '+' : ''}${entry.flatBonus}`;
+    ? dice
+    : `${dice}${entry.flatBonus > 0 ? '+' : ''}${entry.flatBonus}`;
+}
+
+function rollInitiativeDice(entry: InitiativeEncounterEntry): number {
+  return rollDiceExpression(getInitiativeDiceExpression(entry))?.total ?? Math.floor(Math.random() * entry.diceFaces) + 1;
 }
 
 function sortInitiativeEntries(entries: InitiativeEncounterEntry[]): InitiativeEncounterEntry[] {
@@ -541,7 +548,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
     setTimeout(() => {
       // Roll for each participant
       const rolled = initiativeEncounter.map((entry: InitiativeEncounterEntry) => {
-        const dieRoll = Math.floor(Math.random() * entry.diceFaces) + 1;
+        const dieRoll = rollInitiativeDice(entry);
         return {
           ...entry,
           rollResult: dieRoll + entry.flatBonus
@@ -593,7 +600,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
   const rollParticipant = (participantId: string) => {
     const participant = initiativeEncounter.find((entry: InitiativeEncounterEntry) => entry.id === participantId);
     if (!participant) return;
-    const dieRoll = Math.floor(Math.random() * participant.diceFaces) + 1;
+    const dieRoll = rollInitiativeDice(participant);
     setParticipantResult(participantId, dieRoll + participant.flatBonus);
     trackGoatCounterEvent('roll-dice');
   };

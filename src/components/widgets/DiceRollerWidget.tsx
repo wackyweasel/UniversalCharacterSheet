@@ -9,6 +9,14 @@ import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { ChevronDownIcon, ChevronUpIcon } from '../icons';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
 import {
+  formatDiceExpression,
+  formatDiceRolls,
+  formatDiceTermBody,
+  parseDiceExpression,
+  type DiceExpressionRollResult,
+} from '../../utils/diceExpression';
+import { rollDiceTerms } from '../../utils/diceRoll';
+import {
   isPhysicalDieSupported,
   rollPhysicalDice,
   type PhysicalDieRequest,
@@ -36,6 +44,8 @@ interface RollResult {
   modifier: number;
   total: number | null; // null if no numeric results
   aggregatedResults: AggregatedResult[];
+  /** Set when the roll came from a dice expression instead of dice groups. */
+  expression?: DiceExpressionRollResult;
 }
 
 interface AggregatedResult {
@@ -61,6 +71,8 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
     showRollDetailsButton = true,
     autoShowRollDetails = false,
   } = widget.data;
+  const useExpression = widget.data.diceUseExpression === true;
+  const expressionTerms = useExpression ? parseDiceExpression(widget.data.diceExpression ?? '') : null;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const resultSummaryRef = useRef<HTMLDivElement>(null);
@@ -351,6 +363,28 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
     }
 
     setIsRolling(true);
+
+    if (useExpression) {
+      if (!expressionTerms) {
+        setIsRolling(false);
+        return;
+      }
+      const expressionResult = await rollDiceTerms(expressionTerms);
+      const expressionTotal = expressionResult.total + modifier;
+      setResult({
+        groups: [],
+        modifier,
+        total: expressionTotal,
+        aggregatedResults: [{ value: String(expressionResult.total), count: 1, isNumeric: true, numericTotal: expressionResult.total }],
+        expression: expressionResult,
+      });
+      setIsRolling(false);
+      if (autoShowRollDetails) {
+        updateWidgetData(widget.id, { showRollDetails: true });
+      }
+      addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Rolled ${buildDiceNotation()} = ${expressionTotal}`, '🎲');
+      return;
+    }
     
     const physicalDice = (diceGroups as DiceGroup[]).flatMap((group) => {
       const diceCount = Math.max(0, Math.floor(Number(group.count) || 0));
@@ -446,6 +480,13 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
   };
 
   const buildDiceNotation = () => {
+    if (useExpression) {
+      let expressionNotation = expressionTerms ? formatDiceExpression(expressionTerms) : '';
+      if (modifier !== 0) {
+        expressionNotation += modifier >= 0 ? ` + ${modifier}` : ` - ${Math.abs(modifier)}`;
+      }
+      return expressionNotation;
+    }
     const parts = (diceGroups as DiceGroup[]).map((g) => {
       let notation: string;
       if (g.customFaces && g.customFaces.length > 0) {
@@ -504,9 +545,9 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
               ? 'bg-theme-muted animate-pulse text-theme-paper' 
               : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
           }`}
-          disabled={isRolling || !controlsVisible}
+          disabled={isRolling || !controlsVisible || (useExpression && !expressionTerms)}
         >
-          Roll {diceNotation}
+          {useExpression && !expressionTerms ? 'Set a dice expression' : `Roll ${diceNotation}`}
         </button>
       </Tooltip>
 
@@ -576,6 +617,19 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
           onMouseDown={(event) => event.stopPropagation()}
         >
           <div className="mt-1 flex flex-col gap-0.5">
+            {result.expression && result.expression.terms.map((rollTerm, index) => (
+              <div key={`expression-${index}`} className="flex items-center justify-between gap-0 px-0 py-0.5 border-b border-theme-border/30 last:border-b-0">
+                <span className="text-sm text-theme-muted font-body flex-shrink-0">
+                  {rollTerm.term.type === 'dice' ? formatDiceTermBody(rollTerm.term) : 'modifier'}
+                </span>
+                <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center truncate">
+                  {rollTerm.term.type === 'dice'
+                    ? formatDiceRolls(rollTerm)
+                    : `${rollTerm.term.sign === -1 ? '-' : '+'}${rollTerm.term.value}`}
+                </span>
+                <span className="w-4 flex-shrink-0" />
+              </div>
+            ))}
             {result.groups.flatMap((g, gi) =>
               g.diceRolls.map((rolls, dieIndex) => {
                 const dieLabel = g.customFaces && g.customFaces.length > 0

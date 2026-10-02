@@ -4,7 +4,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { useStore } from '../../store/useStore';
 import { PoolResource, PoolRestoreTarget } from '../../types';
 import { collectLabels, evaluateFormula, getAvailableLabels } from '../../utils/formulaEngine';
-import { TrashIcon } from '../icons';
+import { getHealDiceExpression, parseDiceExpression } from '../../utils/diceExpression';
 import { CollapsibleSection } from './CollapsibleSection';
 
 interface PoolTargetInfo {
@@ -24,7 +24,6 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
     buttonColor,
     buttonTextColor,
     healToFull = false,
-    healRandomDice = [],
     healFlatAmount = 0,
     poolRestores = [],
     clearConditions = false,
@@ -157,25 +156,13 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
     updateData({ fieldFormulas: updated });
   };
 
-  const updateDiceGroup = (index: number, field: 'count' | 'faces', value: number | string) => {
-    const newGroups = [...healRandomDice];
-    newGroups[index] = { ...newGroups[index], [field]: value };
-    updateData({ healRandomDice: newGroups });
-  };
-
-  const addDiceGroup = () => {
-    updateData({ healRandomDice: [...healRandomDice, { count: 1, faces: 8 }] });
-  };
-
-  const removeDiceGroup = (index: number) => {
-    const newGroups = healRandomDice.filter((_: any, i: number) => i !== index);
-    updateData({ healRandomDice: newGroups });
-  };
+  const healDiceExpression = getHealDiceExpression(widget.data);
+  const healDiceInvalid = healDiceExpression.trim() !== '' && parseDiceExpression(healDiceExpression) === null;
 
   // When healToFull is enabled, clear the random dice and flat amount
   const handleHealToFullChange = (checked: boolean) => {
     if (checked) {
-      updateData({ healToFull: true, healRandomDice: [], healFlatAmount: 0 });
+      updateData({ healToFull: true, healDiceExpression: '', healRandomDice: [], healFlatAmount: 0 });
     } else {
       updateData({ healToFull: false });
     }
@@ -290,47 +277,21 @@ export function RestButtonEditor({ widget, updateData }: EditorProps) {
         {!healToFull && (
           <>
             <div className="mb-3">
-              <label className="block text-sm font-medium text-theme-ink mb-2">Random Heal Dice</label>
-              <div className="space-y-2">
-                {healRandomDice.map((group: { count: number; faces: number }, index: number) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      value={group.count}
-                      onChange={(e) => updateDiceGroup(index, 'count', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                      onBlur={(e) => updateDiceGroup(index, 'count', Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
-                    />
-                    <span className="text-theme-ink">d</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={group.faces}
-                      onChange={(e) => updateDiceGroup(index, 'faces', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                      onBlur={(e) => updateDiceGroup(index, 'faces', Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm text-center"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeDiceGroup(index)}
-                      aria-label={`Delete healing dice ${index + 1}`}
-                      title="Delete healing dice"
-                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2">
-                <button
-                  onClick={addDiceGroup}
-                  className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-                >
-                  + Add Dice
-                </button>
-              </div>
+              <label htmlFor={`heal-dice-${widget.id}`} className="block text-sm font-medium text-theme-ink mb-2">Random Heal Dice</label>
+              <input
+                id={`heal-dice-${widget.id}`}
+                type="text"
+                value={healDiceExpression}
+                onChange={(e) => updateData({ healDiceExpression: e.target.value, healRandomDice: [] })}
+                placeholder="e.g. 2d8 + 3, 4d6dl, 2d20kh"
+                aria-invalid={healDiceInvalid}
+                className="w-full px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm font-mono focus:outline-none focus:border-theme-accent"
+              />
+              <p className={`mt-1 text-[11px] ${healDiceInvalid ? 'text-red-500' : 'text-theme-muted'}`}>
+                {healDiceInvalid
+                  ? 'Not a valid dice expression. Use dice and numbers added or subtracted, such as 2d8 + 3.'
+                  : 'Dice expression, including kh/kl (keep) and dh/dl (drop). Added to the flat amount below.'}
+              </p>
             </div>
 
             <div>

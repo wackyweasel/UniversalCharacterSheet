@@ -6,6 +6,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { parseDiceExpression } from '../../utils/diceExpression';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -70,7 +71,10 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     fieldFormulas = {},
     showRollDetailsButton = true,
     autoShowRollDetails = false,
+    diceUseExpression: useDiceExpression = false,
+    diceExpression = '',
   } = widget.data;
+  const diceExpressionInvalid = diceExpression.trim() !== '' && parseDiceExpression(diceExpression) === null;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
 
@@ -270,8 +274,36 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
       <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-groups-title-${widget.id}`} className="widget-editor__section-title">Dices</h3>
-          <span className="widget-editor__section-count">{diceGroups.length}</span>
+          <span className="widget-editor__section-count">{useDiceExpression ? 1 : diceGroups.length}</span>
+          <label className="ml-auto flex cursor-pointer items-center gap-1.5 text-xs font-normal text-theme-ink" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={useDiceExpression}
+              onChange={(e) => updateData({ diceUseExpression: e.target.checked })}
+              className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
+            />
+            <span>Use dice expression</span>
+          </label>
         </div>
+        {useDiceExpression ? (
+          <div>
+            <label htmlFor={`dice-expression-${widget.id}`} className="sr-only">Dice expression</label>
+            <textarea
+              id={`dice-expression-${widget.id}`}
+              rows={2}
+              value={diceExpression}
+              onChange={(e) => updateData({ diceExpression: e.target.value })}
+              placeholder="e.g. 2d8 + 3, 4d6dl, 2d20kh"
+              aria-invalid={diceExpressionInvalid}
+              className="w-full resize-y px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm font-mono focus:outline-none focus:border-theme-accent"
+            />
+            <p className={`mt-1 text-[11px] ${diceExpressionInvalid ? 'text-red-500' : 'text-theme-muted'}`}>
+              {diceExpressionInvalid
+                ? 'Not a valid dice expression. Use dice and numbers added or subtracted, such as 2d8 + 3.'
+                : 'Dice added or subtracted, with kh/kl (keep) and dh/dl (drop). The modifier below is added to the result.'}
+            </p>
+          </div>
+        ) : (<>
         <div className="space-y-2">
           {diceGroups.map((group: DiceGroup, index: number) => (
             <div key={index} className="flex flex-col gap-1 rounded-button border border-theme-border bg-theme-paper p-2">
@@ -401,6 +433,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             + Add Dice
           </button>
         </div>
+        </>)}
       </CollapsibleSection>
       
       <CollapsibleSection>

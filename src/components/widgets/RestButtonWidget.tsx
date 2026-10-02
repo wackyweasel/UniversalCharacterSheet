@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Widget, DiceGroup, PoolResource, PoolRestoreTarget } from '../../types';
+import { Widget, PoolResource, PoolRestoreTarget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { XIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
+import { formatDiceExpression, getHealDiceExpression, parseDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
 
 interface Props {
   widget: Widget;
@@ -86,22 +87,6 @@ function parseTimeToSeconds(value: number, unit: string): number {
   }
 }
 
-// Roll dice helper function
-function rollDice(diceGroups: DiceGroup[]): number {
-  let total = 0;
-  for (const group of diceGroups) {
-    for (let i = 0; i < group.count; i++) {
-      total += Math.floor(Math.random() * group.faces) + 1;
-    }
-  }
-  return total;
-}
-
-// Format dice groups for display
-function formatDiceGroups(diceGroups: DiceGroup[]): string {
-  return diceGroups.map(g => `${g.count}d${g.faces}`).join(' + ');
-}
-
 export default function RestButtonWidget({ widget }: Props) {
   const performRest = useStore((state) => state.performRest);
   const characters = useStore((state) => state.characters);
@@ -115,7 +100,6 @@ export default function RestButtonWidget({ widget }: Props) {
     buttonColor,
     buttonTextColor,
     healToFull = false,
-    healRandomDice = [],
     healFlatAmount = 0,
     poolRestores = [],
     clearConditions = false,
@@ -124,6 +108,8 @@ export default function RestButtonWidget({ widget }: Props) {
     passTimeAmount = 0,
     passTimeUnit = 'hours'
   } = widget.data;
+  const healDiceTerms = parseDiceExpression(getHealDiceExpression(widget.data));
+  const healDiceText = healDiceTerms ? formatDiceExpression(healDiceTerms) : '';
 
   const activeCharacter = useMemo(
     () => characters.find((character) => character.id === activeCharacterId),
@@ -160,7 +146,7 @@ export default function RestButtonWidget({ widget }: Props) {
     }));
   }, [activeCharacter]);
 
-  const hasConfiguredHealing = healToFull || healRandomDice.length > 0 || (healFlatAmount ?? 0) > 0;
+  const hasConfiguredHealing = healToFull || healDiceTerms !== null || (healFlatAmount ?? 0) > 0;
   const hasHealthBar = activeWidgets.some((activeWidget) => activeWidget.type === 'HEALTH_BAR');
   const hasConditionWidget = activeWidgets.some((activeWidget) => activeWidget.type === 'TOGGLE_GROUP');
   const hasSpellSlotWidget = activeWidgets.some((activeWidget) => activeWidget.type === 'SPELL_SLOT');
@@ -180,11 +166,11 @@ export default function RestButtonWidget({ widget }: Props) {
     if (plan.heal && (healToFull || !hasConfiguredHealing)) {
       healAmount = 'full';
       resultMessage = 'Healed to full!';
-    } else if (plan.heal && healRandomDice.length > 0) {
-      const rolled = rollDice(healRandomDice);
+    } else if (plan.heal && healDiceTerms) {
+      const rolled = Math.max(0, rollDiceExpression(healDiceText)?.total ?? 0);
       trackGoatCounterEvent('roll-dice');
       healAmount = rolled + (healFlatAmount ?? 0);
-      resultMessage = `Healed ${healAmount} HP (${formatDiceGroups(healRandomDice)}${healFlatAmount ? ` + ${healFlatAmount}` : ''})`;
+      resultMessage = `Healed ${healAmount} HP (${healDiceText}${healFlatAmount ? ` + ${healFlatAmount}` : ''})`;
     } else if (plan.heal && healFlatAmount && healFlatAmount > 0) {
       healAmount = healFlatAmount;
       resultMessage = `Healed ${healAmount} HP`;
@@ -256,9 +242,8 @@ export default function RestButtonWidget({ widget }: Props) {
     const parts: string[] = [];
     if (healToFull) {
       parts.push('Heal to full HP');
-    } else if (healRandomDice.length > 0) {
-      const diceStr = formatDiceGroups(healRandomDice);
-      parts.push(`Heal ${diceStr}${healFlatAmount ? ` + ${healFlatAmount}` : ''} HP`);
+    } else if (healDiceTerms) {
+      parts.push(`Heal ${healDiceText}${healFlatAmount ? ` + ${healFlatAmount}` : ''} HP`);
     } else if ((healFlatAmount ?? 0) > 0) {
       parts.push(`Heal ${healFlatAmount} HP`);
     }
@@ -317,7 +302,7 @@ export default function RestButtonWidget({ widget }: Props) {
                   <span className="text-sm text-theme-ink">
                     {healToFull || !hasConfiguredHealing
                       ? 'Heal to full HP'
-                      : `Heal ${healRandomDice.length > 0 ? `${formatDiceGroups(healRandomDice)}${healFlatAmount ? ` + ${healFlatAmount}` : ''}` : healFlatAmount} HP`}
+                      : `Heal ${healDiceTerms ? `${healDiceText}${healFlatAmount ? ` + ${healFlatAmount}` : ''}` : healFlatAmount} HP`}
                   </span>
                 </label>
               )}

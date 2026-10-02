@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { EditorProps } from './types';
 import { TableRow, WidgetData } from '../../types';
 import { usePointerReorder } from '../../hooks';
-import { getTableCellOwner, isCoveredTableCell, tableCellObject, tableCellValue, transformTableAxis, validateTableMerges } from '../../utils/tableCells';
+import { getTableCellOwner, tableCellObject, tableCellValue, transformTableAxis, validateTableMerges } from '../../utils/tableCells';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon, XIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -13,26 +13,21 @@ type LabelScope = 'column' | 'row';
 interface TableLabelButtonProps {
   scope: LabelScope;
   label?: string;
-  canAssign: boolean;
   isOpen: boolean;
   onClick: () => void;
 }
 
-function TableLabelButton({ scope, label, canAssign, isOpen, onClick }: TableLabelButtonProps) {
+function TableLabelButton({ scope, label, isOpen, onClick }: TableLabelButtonProps) {
   const subject = scope === 'column' ? 'column' : 'row';
-  const isDisabled = !canAssign && !label;
   const tooltip = label
     ? `${scope === 'column' ? 'Column' : 'Row'} label: @${label}1, @${label}2...`
-    : isDisabled
-      ? `The ${subject} must contain numbers to assign a label`
-      : `Set ${subject} label`;
+    : `Set ${subject} label`;
 
   return (
     <Tooltip content={tooltip}>
       <button
         type="button"
         onClick={onClick}
-        disabled={isDisabled}
         aria-label={label ? `Edit ${subject} label ${label}` : `Set ${subject} label`}
         title={tooltip}
         className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border text-xs transition-colors ${
@@ -243,12 +238,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
 
   const saveLabel = () => {
     if (!editingLabel) return;
-    if (labelDraft.trim() && !(editingLabel.scope === 'column'
-      ? canAssignColumnLabel(editingLabel.index)
-      : canAssignRowLabel(editingLabel.index))) {
-      setOperationError('Only rows or columns with numeric visible cells can have a label.');
-      return;
-    }
     updateLabel(editingLabel.scope, editingLabel.index, labelDraft.trim() || undefined);
   };
 
@@ -256,18 +245,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     setEditingLabel(null);
     setLabelDraft('');
   };
-
-  const canAssignColumnLabel = (index: number) => rows.every((row: TableRow, rowIndex: number) => {
-    if (isCoveredTableCell(merges, rowIndex, index)) return true;
-    const value = tableCellValue(row.cells[index]);
-    return value === '' || !isNaN(Number(value));
-  });
-
-  const canAssignRowLabel = (index: number) => (rows[index]?.cells || []).every((cell, columnIndex) => {
-    if (isCoveredTableCell(merges, index, columnIndex)) return true;
-    const value = tableCellValue(cell);
-    return value === '' || !isNaN(Number(value));
-  });
 
   const handleRowCellChange = (rowIndex: number, columnIndex: number, value: string) => {
     const owner = getTableCellOwner(merges, rowIndex, columnIndex);
@@ -280,11 +257,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     const cell = tableCellObject(currentCell);
     if (cell.formula || tableRowSettings[rowIndex]?.formula || tableColumnSettings[columnIndex]?.formula) {
       setOperationError('This cell is controlled by a formula. Edit the formula instead.');
-      return;
-    }
-    if ((cell.label || tableRowSettings[rowIndex]?.label || tableColumnSettings[columnIndex]?.label) &&
-      value !== '' && isNaN(Number(value))) {
-      setOperationError('Cells with variable labels must contain a number.');
       return;
     }
     updatedCells[columnIndex] = typeof currentCell === 'string'
@@ -414,7 +386,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
               <TableLabelButton
                 scope="column"
                 label={columnLabel}
-                canAssign={canAssignColumnLabel(index)}
                 isOpen={isEditingColumnLabel}
                 onClick={() => openLabelEditor('column', index, columnLabel)}
               />
@@ -527,7 +498,6 @@ export function TableEditor({ widget, updateData }: EditorProps) {
                     <TableLabelButton
                       scope="row"
                       label={rowLabel}
-                      canAssign={canAssignRowLabel(index)}
                       isOpen={isEditingRowLabel}
                       onClick={() => openLabelEditor('row', index, rowLabel)}
                     />

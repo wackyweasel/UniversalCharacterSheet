@@ -1383,6 +1383,15 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
     if (itemsChanged) {
       changed = true;
       updates.initiativePool = updatedItems;
+      // Encounter entries are copies of pool participants, matched by name.
+      if (widget.data.initiativeEncounter) {
+        updates.initiativeEncounter = widget.data.initiativeEncounter.map((entry) => {
+          const source = updatedItems.find((p) => p.flatBonusFormula && p.name === entry.name);
+          return source && !entry.isTemporary && entry.flatBonus !== source.flatBonus
+            ? { ...entry, flatBonus: source.flatBonus }
+            : entry;
+        });
+      }
     }
   }
 

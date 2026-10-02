@@ -39,6 +39,15 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.8.0',
+    changes: [
+      'Formulas can now output strings.',
+      'Most strings can now use the {formula} syntax to change dynamically. Example: set the label @class to your class name, then use {@class} almost anywhere to show the class name.',
+      'Fixed dragging to select text in an input or text box also panning the camera.',
+      'Dice expressions now support common syntax to keep/drop highest/lowest (2d20kh to keep the highest of 2 d20s. You can also write 4d12dl2 to indicate roll 4d12 then drop the lowest 2).',
+    ],
+  },
+  {
     version: '1.7.0',
     changes: [
       'Added new ways to make small, targeted edits to widgets without entering Build mode or opening the full widget editor.',

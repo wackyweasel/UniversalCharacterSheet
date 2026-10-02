@@ -316,6 +316,7 @@ export interface PoolRestoreTarget {
 export interface InitiativeParticipant {
   name: string;
   diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
+  diceExpression?: string; // Dice expression (e.g. 2d20kh); takes precedence over diceFaces
   flatBonus: number;   // Flat bonus to add to the roll
   flatBonusLabel?: string;
   flatBonusFormula?: string;
@@ -323,6 +324,7 @@ export interface InitiativeParticipant {
   id: string;          // Unique ID for drag/drop ordering
   name: string;
   diceFaces: number;
+  diceExpression?: string;
   flatBonus: number;
   rollResult?: number; // The result of the initiative roll (including bonus)
   isTemporary?: boolean; // True if added on-the-fly (not from pool)
@@ -387,6 +389,8 @@ export interface WidgetData {
   diceType?: number;
   modifier?: number;
   diceGroups?: DiceGroup[];
+  diceUseExpression?: boolean;
+  diceExpression?: string;
   showRollDetails?: boolean;
   showRollDetailsButton?: boolean;
   autoShowRollDetails?: boolean;
@@ -476,6 +480,7 @@ export interface WidgetData {
   buttonTextColor?: string;
   healToFull?: boolean;
   healRandomDice?: DiceGroup[];
+  healDiceExpression?: string;
   healFlatAmount?: number;
   poolRestores?: PoolRestoreTarget[];
   clearConditions?: boolean;

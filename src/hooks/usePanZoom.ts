@@ -107,6 +107,18 @@ function isInteractiveCanvasTarget(target: EventTarget | null): boolean {
   return !['auto', 'default', 'grab', 'grabbing'].includes(cursor);
 }
 
+const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit']);
+
+/** Dragging inside editable text must select it rather than pan the camera. */
+function isTextSelectionTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  const field = target.closest('input, textarea, [contenteditable="true"], [role="textbox"]');
+  if (!field) return false;
+  if (field instanceof HTMLInputElement) return !field.disabled && !NON_TEXT_INPUT_TYPES.has(field.type);
+  if (field instanceof HTMLTextAreaElement) return !field.disabled;
+  return true;
+}
+
 const CAMERA_PAN_DRAG_TARGET_SELECTOR = [
   '[data-camera-pan-ignore="true"]',
   '[data-card-deck-grab-all-widget-id]',
@@ -249,6 +261,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     }
     
     if (isCameraPanDragTarget(e.target)) return;
+    if (isTextSelectionTarget(e.target)) return;
     const interactiveTarget = isInteractiveCanvasTarget(e.target);
 
     // Clear selected widget when clicking on the background

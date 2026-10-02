@@ -6,6 +6,13 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, PencilIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { getInitiativeDiceExpression, normalizeDiceExpression, parseDiceExpression } from '../../utils/diceExpression';
+
+/** Faces of the first die in an expression, kept so legacy readers still see a sensible die. */
+function getPrimaryFaces(expression: string): number {
+  const first = parseDiceExpression(expression)?.find((term) => term.type === 'dice');
+  return first && first.type === 'dice' ? first.faces : 20;
+}
 
 function generateEncounterId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -38,13 +45,13 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const normalizedParticipantCardHeight = Math.max(16, Math.min(48, initiativeParticipantCardHeight));
 
   const [newName, setNewName] = useState('');
-  const [newDiceFaces, setNewDiceFaces] = useState('20');
+  const [newDiceExpression, setNewDiceExpression] = useState('1d20');
   const [newFlatBonus, setNewFlatBonus] = useState('0');
   const [newFlatBonusLabel, setNewFlatBonusLabel] = useState<string | undefined>(undefined);
   const [newFlatBonusFormula, setNewFlatBonusFormula] = useState<string | undefined>(undefined);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [editingDiceFaces, setEditingDiceFaces] = useState('20');
+  const [editingDiceExpression, setEditingDiceExpression] = useState('1d20');
   const [editingFlatBonus, setEditingFlatBonus] = useState('0');
   const [advanceTimeAmountDraft, setAdvanceTimeAmountDraft] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -84,9 +91,12 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const addParticipant = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
+      const diceExpression = normalizeDiceExpression(newDiceExpression);
+      if (!diceExpression) return;
       const newParticipant: InitiativeParticipant = {
         name: newName.trim(),
-        diceFaces: Math.max(1, parseIntegerDraft(newDiceFaces, 20)),
+        diceFaces: getPrimaryFaces(diceExpression),
+        diceExpression,
         flatBonus: parseNumberDraft(newFlatBonus, 0),
         flatBonusLabel: newFlatBonusLabel,
         flatBonusFormula: newFlatBonusFormula
@@ -100,13 +110,14 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             id: generateEncounterId(),
             name: newParticipant.name,
             diceFaces: newParticipant.diceFaces,
+            diceExpression,
             flatBonus: newParticipant.flatBonus,
             isTemporary: false,
           } satisfies InitiativeEncounterEntry,
         ],
       });
       setNewName('');
-      setNewDiceFaces('20');
+      setNewDiceExpression('1d20');
       setNewFlatBonus('0');
       setNewFlatBonusLabel(undefined);
       setNewFlatBonusFormula(undefined);
@@ -126,29 +137,44 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
     const participant = initiativePoolList[index];
     setEditingIndex(index);
     setEditingName(participant.name);
-    setEditingDiceFaces(String(participant.diceFaces));
+    setEditingDiceExpression(getInitiativeDiceExpression(participant));
     setEditingFlatBonus(String(participant.flatBonus));
     setTimeout(() => editInputRef.current?.focus(), 0);
   };
 
   const saveEdit = () => {
     if (editingIndex !== null && editingName.trim()) {
+      const diceExpression = normalizeDiceExpression(editingDiceExpression);
+      if (!diceExpression) return;
       const updated = [...initiativePoolList];
       const existing = updated[editingIndex];
       const updatedParticipant = {
         ...existing,
         name: editingName.trim(),
-        diceFaces: Math.max(1, parseIntegerDraft(editingDiceFaces, 20)),
+        diceFaces: getPrimaryFaces(diceExpression),
+        diceExpression,
         flatBonus: parseNumberDraft(editingFlatBonus, 0),
       };
       const participantId = participantIdsRef.current.get(existing);
       if (participantId) participantIdsRef.current.set(updatedParticipant, participantId);
       updated[editingIndex] = updatedParticipant;
-      updateData({ initiativePool: updated });
+      // Encounter entries are copies of pool participants, matched by name.
+      const syncedEncounter = ((widget.data.initiativeEncounter ?? []) as InitiativeEncounterEntry[]).map((entry) => (
+        !entry.isTemporary && entry.name === existing.name
+          ? {
+            ...entry,
+            name: updatedParticipant.name,
+            diceFaces: updatedParticipant.diceFaces,
+            diceExpression: updatedParticipant.diceExpression,
+            flatBonus: updatedParticipant.flatBonus,
+          }
+          : entry
+      ));
+      updateData({ initiativePool: updated, initiativeEncounter: syncedEncounter });
     }
     setEditingIndex(null);
     setEditingName('');
-    setEditingDiceFaces('20');
+    setEditingDiceExpression('1d20');
     setEditingFlatBonus('0');
   };
 
@@ -282,18 +308,16 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
             {initiativeShowRollButton && (
               <div className="widget-editor__initiative-new-stats flex gap-10">
                 <div className="flex-1">
-                  <label htmlFor={`initiative-new-die-${widget.id}`} className="text-xs font-semibold uppercase text-theme-muted">Die</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-theme-ink">d</span>
-                    <input
-                      id={`initiative-new-die-${widget.id}`}
-                      type="number"
-                      min={1}
-                      value={newDiceFaces}
-                      onChange={(e) => setNewDiceFaces(e.target.value)}
-                      className="h-10 w-16 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </div>
+                  <label htmlFor={`initiative-new-die-${widget.id}`} className="text-xs font-semibold uppercase text-theme-muted">Dice</label>
+                  <input
+                    id={`initiative-new-die-${widget.id}`}
+                    type="text"
+                    value={newDiceExpression}
+                    onChange={(e) => setNewDiceExpression(e.target.value)}
+                    placeholder="e.g. 1d20, 2d20kh"
+                    aria-invalid={parseDiceExpression(newDiceExpression) === null}
+                    className={`h-10 w-full rounded-button border bg-theme-paper px-2 py-1 text-sm font-mono text-theme-ink focus:border-theme-accent focus:outline-none ${parseDiceExpression(newDiceExpression) === null ? 'border-red-500' : 'border-theme-border'}`}
+                  />
                 </div>
                 <div className="flex-1">
                   <span className="text-xs font-semibold uppercase text-theme-muted">Initiative bonus</span>
@@ -348,19 +372,18 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                     />
                     {initiativeShowRollButton && (
                       <div className="widget-editor__initiative-edit-stats flex items-end gap-10">
-                        <div>
-                          <span className="text-xs text-theme-muted">Die</span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-theme-muted">d</span>
-                            <input
-                              type="number"
-                              min={1}
-                              value={editingDiceFaces}
-                              onChange={(e) => setEditingDiceFaces(e.target.value)}
-                              onKeyDown={handleEditKeyDown}
-                              className="h-10 w-14 rounded-button border border-theme-border bg-theme-paper px-1 text-xs text-theme-ink focus:border-theme-accent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            />
-                          </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs text-theme-muted">Dice</span>
+                          <input
+                            type="text"
+                            value={editingDiceExpression}
+                            onChange={(e) => setEditingDiceExpression(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            placeholder="e.g. 1d20, 2d20kh"
+                            aria-label="Dice expression"
+                            aria-invalid={parseDiceExpression(editingDiceExpression) === null}
+                            className={`h-10 w-full rounded-button border bg-theme-paper px-2 text-xs font-mono text-theme-ink focus:border-theme-accent focus:outline-none ${parseDiceExpression(editingDiceExpression) === null ? 'border-red-500' : 'border-theme-border'}`}
+                          />
                         </div>
                         <div className="flex-1">
                           <span className="text-xs text-theme-muted">Initiative Bonus</span>
@@ -427,7 +450,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                     </span>
                     {initiativeShowRollButton && (
                       <span className="widget-editor__initiative-stats text-xs text-theme-muted flex items-center gap-0.5">
-                        d{participant.diceFaces}+{participant.flatBonus}
+                        {(normalizeDiceExpression(getInitiativeDiceExpression(participant)) ?? `1d${participant.diceFaces}`).replace(/^1d(\d+)$/, 'd$1')}{participant.flatBonus >= 0 ? '+' : ''}{participant.flatBonus}
                         {(participant as InitiativeParticipant).flatBonusLabel && (
                           <span className="text-[9px] bg-theme-accent/15 text-theme-accent px-1 rounded">@{(participant as InitiativeParticipant).flatBonusLabel}</span>
                         )}

@@ -28,8 +28,8 @@ interface ExpressionSegment {
   body: string;
 }
 
-const DICE_CANDIDATE_PATTERN = /\b\d*d\d+\b/i;
-const EXACT_DICE_PATTERN = /^(\d*)d(\d+)$/i;
+const DICE_CANDIDATE_PATTERN = /\b\d*d\d+(?:[kd][hl]\d*)?\b/i;
+const EXACT_DICE_PATTERN = /^(\d*)d(\d+)(?:([kd])([hl])(\d*))?$/i;
 
 const hasDiceCandidate = (expression: string) => DICE_CANDIDATE_PATTERN.test(maskFormulaStringLiterals(expression) ?? expression);
 
@@ -172,10 +172,20 @@ export const resolveInlineDiceExpression = (
     if (diceMatch) {
       const count = diceMatch[1] ? Number(diceMatch[1]) : 1;
       const faces = Number(diceMatch[2]);
+      const keepCount = diceMatch[5] ? Number(diceMatch[5]) : 1;
       if (!Number.isSafeInteger(count) || !Number.isSafeInteger(faces) || count < 1 || faces < 1) {
         return { valid: false, sourceExpression, reason: 'Dice count and faces must be positive integers' };
       }
-      terms.push({ type: 'dice', sign: segment.sign, count, faces });
+      if (diceMatch[3] && (!Number.isSafeInteger(keepCount) || keepCount < 1)) {
+        return { valid: false, sourceExpression, reason: 'Kept or dropped dice count must be a positive integer' };
+      }
+      terms.push({
+        type: 'dice',
+        sign: segment.sign,
+        count,
+        faces,
+        ...(diceMatch[3] ? { keep: { action: diceMatch[3].toLowerCase() === 'k' ? 'keep' as const : 'drop' as const, mode: diceMatch[4].toLowerCase() === 'h' ? 'high' as const : 'low' as const, count: keepCount } } : {}),
+      });
       continue;
     }
 

@@ -5,9 +5,10 @@ import { Tooltip } from './Tooltip';
 interface VariableLabelControlProps {
   valueLabel?: string;
   onValueLabelChange: (label: string | undefined) => void;
+  sizeClassName?: string;
 }
 
-export function VariableLabelControl({ valueLabel, onValueLabelChange }: VariableLabelControlProps) {
+export function VariableLabelControl({ valueLabel, onValueLabelChange, sizeClassName = 'h-8 w-8' }: VariableLabelControlProps) {
   const [showInput, setShowInput] = useState(false);
   const [labelDraft, setLabelDraft] = useState(valueLabel || '');
   const hasLabel = Boolean(valueLabel?.trim());
@@ -43,7 +44,7 @@ export function VariableLabelControl({ valueLabel, onValueLabelChange }: Variabl
           onClick={openInput}
           aria-label={valueLabel ? `Edit label ${valueLabel}` : 'Set variable label'}
           aria-pressed={hasLabel}
-          className={`flex h-8 w-8 items-center justify-center rounded-button border text-xs transition-colors ${
+          className={`flex ${sizeClassName} items-center justify-center rounded-button border text-xs transition-colors ${
             showInput
               ? 'border-theme-accent bg-theme-accent/30 text-theme-accent ring-1 ring-theme-accent'
               : hasLabel

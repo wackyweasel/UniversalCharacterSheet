@@ -1141,8 +1141,8 @@ td .inline-dice-token {
         display: grid;
         grid-template-areas:
           "reorder name delete"
-          "reorder value tooltip";
-        grid-template-columns: 2rem minmax(0, 1fr) 2.5rem;
+          "reorder value actions";
+        grid-template-columns: 2.5rem minmax(0, 1fr) auto;
         min-width: 0;
         row-gap: 0.5rem;
       }
@@ -1150,7 +1150,7 @@ td .inline-dice-token {
       .widget-editor__form-item-reorder { grid-area: reorder; }
       .widget-editor__form-item-name { grid-area: name; }
       .widget-editor__form-item-value { grid-area: value; }
-      .widget-editor__form-item-tooltip { grid-area: tooltip; }
+      .widget-editor__form-item-actions { grid-area: actions; }
       .widget-editor__form-item-delete { grid-area: delete; }
 
       .widget-editor__form-item-row > input {

@@ -2,6 +2,7 @@ import {
   type DiceExpressionRollResult,
   type DiceExpressionTerm,
   formatDiceExpression,
+  resolveDiceRolls,
 } from './diceExpression';
 import {
   isPhysicalDieSupported,
@@ -60,9 +61,9 @@ export const rollDiceTerms = async (terms: DiceExpressionTerm[]): Promise<DiceEx
 
       return physicalValue ?? Math.floor(Math.random() * term.faces) + 1;
     });
-    const signedTotal = term.sign * rolls.reduce((sum, roll) => sum + roll, 0);
-    total += signedTotal;
-    return { term, rolls, signedTotal };
+    const rollTerm = resolveDiceRolls(term, rolls);
+    total += rollTerm.signedTotal;
+    return rollTerm;
   });
 
   if (terms.some((term) => term.type === 'dice')) {
