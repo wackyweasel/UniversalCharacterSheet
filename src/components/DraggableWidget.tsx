@@ -1,13 +1,14 @@
 import { memo, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
-import { Widget, WidgetType } from '../types';
+import { useShallow } from 'zustand/react/shallow';
+import { Sheet as CharacterSheet, Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTemplateStore } from '../store/useTemplateStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
-import { getCustomTheme } from '../store/useCustomThemeStore';
+import { useCustomThemeStore } from '../store/useCustomThemeStore';
 import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { DotsVerticalIcon, PencilIcon } from './icons';
 import {
@@ -99,6 +100,40 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'STEP_DICE': { width: 70, height: 40 },
 };
 
+type StoreState = ReturnType<typeof useStore.getState>;
+const EMPTY_WIDGETS: Widget[] = [];
+const EMPTY_SHEETS: CharacterSheet[] = [];
+
+const selectActiveCharacter = (state: StoreState) => (
+  state.characters.find((character) => character.id === state.activeCharacterId)
+);
+
+const selectActiveSheetWidgets = (state: StoreState) => {
+  const character = selectActiveCharacter(state);
+  return character?.sheets.find((sheet) => sheet.id === character.activeSheetId)?.widgets ?? EMPTY_WIDGETS;
+};
+
+// Only widgets without a stored size need a (layout-forcing) DOM measurement.
+function getWidgetBoxSize(candidate: Widget) {
+  if (candidate.w && candidate.h) return { width: candidate.w, height: candidate.h };
+  const element = document.querySelector<HTMLElement>(`[data-widget-id="${candidate.id}"]`);
+  return {
+    width: candidate.w || (element ? element.offsetWidth : 200),
+    height: candidate.h || (element ? element.offsetHeight : 120),
+  };
+}
+
+const PLACEMENT_KEYS = new Set<string>(['x', 'y', 'zIndex']);
+
+function hasSameContent(previous: Widget, next: Widget) {
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  for (const key of keys) {
+    if (PLACEMENT_KEYS.has(key)) continue;
+    if (!Object.is(previous[key as keyof Widget], next[key as keyof Widget])) return false;
+  }
+  return true;
+}
+
 function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
@@ -117,7 +152,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const detachAllInGroup = useStore((state) => state.detachAllInGroup);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
-  const selectedWidgetId = useStore((state) => state.selectedWidgetId);
+  const isSelected = useStore((state) => state.selectedWidgetId === widget.id);
   const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
   const addTemplate = useTemplateStore((state) => state.addTemplate);
   const addGroupTemplate = useTemplateStore((state) => state.addGroupTemplate);
@@ -130,18 +165,16 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const bordersDisabled = usePrintStore((state) => state.bordersDisabled);
   
   // Get current character's theme for texture info
-  const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const characters = useStore((state) => state.characters);
-  const activeCharacter = characters.find(c => c.id === activeCharacterId);
-  const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
-  const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
-  const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
+  // Narrow selectors: subscribing to all characters re-rendered every widget whenever any widget changed.
+  const activeTheme = useStore((state) => selectActiveCharacter(state)?.theme);
+  const activeSheetId = useStore((state) => selectActiveCharacter(state)?.activeSheetId);
+  const customCardTexture = useCustomThemeStore((state) => (
+    activeTheme ? state.customThemes.find((theme) => theme.id === activeTheme)?.cardTexture : undefined
+  ));
+  const builtInTheme = activeTheme ? getBuiltInTheme(activeTheme) : undefined;
+  const textureKey = customCardTexture || builtInTheme?.cardTexture || 'none';
   // Always disable texture in print mode
   const hasImageTexture = isImageTexture(textureKey) && !textureDisabled && mode !== 'print';
-  
-  // Get sheets for "Move to Another Sheet" feature
-  const sheets = activeCharacter?.sheets || [];
-  const hasMultipleSheets = sheets.length > 1;
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -151,6 +184,11 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  // Sheets are only listed in the options menu ("Move to Sheet").
+  const sheets = useStore(useShallow((state) => (
+    showDropdown ? selectActiveCharacter(state)?.sheets ?? EMPTY_SHEETS : EMPTY_SHEETS
+  )));
+  const hasMultipleSheets = sheets.length > 1;
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
   const [dropdownVerticalAlign, setDropdownVerticalAlign] = useState<'above' | 'below'>('below');
   const [dropdownViewportPosition, setDropdownViewportPosition] = useState<{ x: number; y: number } | null>(null);
@@ -229,13 +267,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
   const selectedBeforeTouchRef = useRef<string | null>(null);
-  const activeWidgetDrag = useSyncExternalStore(
+  const getIsWidgetDragging = () => {
+    const drag = getWidgetDragState();
+    return drag?.widgetId === widget.id || (!!widget.groupId && drag?.groupId === widget.groupId);
+  };
+  const isWidgetDragging = useSyncExternalStore(
     subscribeWidgetDragState,
-    getWidgetDragState,
-    getWidgetDragState,
-  );
-  const isWidgetDragging = activeWidgetDrag?.widgetId === widget.id || (
-    widget.groupId !== undefined && activeWidgetDrag?.groupId === widget.groupId
+    getIsWidgetDragging,
+    getIsWidgetDragging,
   );
 
   useTouchCameraPinchCancellation(() => {
@@ -252,20 +291,25 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
   });
 
-  const isSelected = selectedWidgetId === widget.id;
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
   const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
   const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isWidgetEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
+  // Widget content never reads x/y/zIndex, so moving or raising a widget keeps the previous object and skips re-rendering it.
+  const contentWidgetRef = useRef(widget);
+  if (contentWidgetRef.current !== widget && !hasSameContent(contentWidgetRef.current, widget)) {
+    contentWidgetRef.current = widget;
+  }
+  const contentWidget = contentWidgetRef.current;
   const renderedWidget = useMemo(() => ({
-    ...widget,
+    ...contentWidget,
     data: {
-      ...widget.data,
-      label: isWidgetHeaderHidden ? undefined : widget.data.label,
-      showFieldControls: isWidgetHeaderHidden ? false : widget.data.showFieldControls,
-      showTableEditButton: isWidgetHeaderHidden ? false : widget.data.showTableEditButton,
+      ...contentWidget.data,
+      label: isWidgetHeaderHidden ? undefined : contentWidget.data.label,
+      showFieldControls: isWidgetHeaderHidden ? false : contentWidget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : contentWidget.data.showTableEditButton,
     },
-  }), [isWidgetHeaderHidden, widget]);
+  }), [isWidgetHeaderHidden, contentWidget]);
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
@@ -433,7 +477,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     
     if (mode === 'edit') {
       widgetTouchActiveRef.current = true;
-      selectedBeforeTouchRef.current = selectedWidgetId;
+      selectedBeforeTouchRef.current = useStore.getState().selectedWidgetId;
       // If this widget is not selected, select it without canceling the native touch sequence
       if (!isSelected) {
         setSelectedWidgetId(widget.id);
@@ -682,9 +726,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   // Calculate height - use manual height if set, otherwise use snapped auto height
   const widgetHeight = resizePreview ? resizePreview.h : widget.h && widget.h > 0 ? widget.h : snappedHeight;
 
-  // Get all widgets to calculate corner rounding for attached widgets
-  const allWidgets = activeCharacter ? 
-    (activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.widgets || []) : [];
+  // Group members and attached widgets; unchanged widget objects keep this stable across unrelated store updates.
+  const relatedWidgets = useStore(useShallow((state) => (
+    widget.groupId || widget.attachedTo?.length
+      ? selectActiveSheetWidgets(state).filter((candidate) => (
+        (!!widget.groupId && candidate.groupId === widget.groupId) || !!widget.attachedTo?.includes(candidate.id)
+      ))
+      : EMPTY_WIDGETS
+  )));
 
   // Calculate which corners should have rounding removed based on attachments
   const cornerRounding = useMemo(() => {
@@ -707,13 +756,10 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     
     // Check each attached widget
     for (const attachedId of widget.attachedTo) {
-      const attachedWidget = allWidgets.find(w => w.id === attachedId);
+      const attachedWidget = relatedWidgets.find(w => w.id === attachedId);
       if (!attachedWidget) continue;
       
-      // Get attached widget dimensions from DOM if available, otherwise estimate
-      const attachedEl = document.querySelector(`[data-widget-id="${attachedId}"]`) as HTMLElement;
-      const attachedWidth = attachedWidget.w || (attachedEl ? attachedEl.offsetWidth : 200);
-      const attachedHeight = attachedWidget.h || (attachedEl ? attachedEl.offsetHeight : 120);
+      const { width: attachedWidth, height: attachedHeight } = getWidgetBoxSize(attachedWidget);
       
       const attachedBounds = {
         left: attachedWidget.x,
@@ -780,7 +826,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
     
     return corners;
-  }, [widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, allWidgets]);
+  }, [widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, relatedWidgets]);
 
   // Generate border-radius style based on corner rounding
   const borderRadiusStyle = useMemo(() => {
@@ -797,8 +843,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   // Calculate texture positioning for grouped widgets
   // When widgets are attached together, the texture should stretch to cover the whole group
   const groupTextureStyle = useMemo(() => {
-    // If not part of a group, use default cover behavior
-    if (!widget.groupId) {
+    // If not part of a group (or no texture is drawn), use default cover behavior
+    if (!widget.groupId || !hasImageTexture) {
       return {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -806,7 +852,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
     
     // Get all widgets in the same group
-    const groupWidgets = allWidgets.filter(w => w.groupId === widget.groupId);
+    const groupWidgets = relatedWidgets.filter(w => w.groupId === widget.groupId);
     
     if (groupWidgets.length <= 1) {
       return {
@@ -819,9 +865,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     
     for (const gw of groupWidgets) {
-      const gwEl = document.querySelector(`[data-widget-id="${gw.id}"]`) as HTMLElement;
-      const gwWidth = gw.w || (gwEl ? gwEl.offsetWidth : 200);
-      const gwHeight = gw.h || (gwEl ? gwEl.offsetHeight : 120);
+      const { width: gwWidth, height: gwHeight } = getWidgetBoxSize(gw);
       
       minX = Math.min(minX, gw.x);
       minY = Math.min(minY, gw.y);
@@ -842,7 +886,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       backgroundSize: `${groupWidth}px ${groupHeight}px`,
       backgroundPosition: `-${offsetX}px -${offsetY}px`,
     };
-  }, [widget.groupId, widget.x, widget.y, widget.w, widgetHeight, allWidgets]);
+  }, [widget.groupId, widget.x, widget.y, widget.w, widgetHeight, relatedWidgets, hasImageTexture]);
 
   const renderContent = () => {
     // Always render in play mode style - the modal handles editing
@@ -889,6 +933,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       default: return null;
     }
   };
+  // Hover, selection, drag and placement re-renders reuse the same element, so React skips the content subtree.
+  const widgetContent = useMemo(renderContent, [renderedWidget, mode, widgetWidth, widgetHeight, scale]);
 
   return (
     <>
@@ -900,6 +946,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
         onStop={handleStop}
         scale={scale}
         handle=".drag-handle"
+        // The body-class hack restyles the whole document on every drag start/stop; the handle is select-none instead.
+        enableUserSelectHack={false}
         disabled={mode === 'play' || mode === 'print'}
       >
         <div 
@@ -948,7 +996,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[80]`}>
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none select-none rounded-t-theme z-[80]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
@@ -1218,7 +1266,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                             <div className="px-2 py-2">
                               <div className="text-xs text-theme-muted mb-2">Select target sheet:</div>
                               {sheets
-                                .filter(s => s.id !== activeCharacter?.activeSheetId)
+                                .filter(s => s.id !== activeSheetId)
                                 .map(sheet => (
                                   <Tooltip key={sheet.id} content={`Move this widget to ${sheet.name}`} placement="left">
                                     <button
@@ -1458,7 +1506,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                             <div className="px-2 py-2">
                               <div className="text-xs text-theme-muted mb-2">Move group to:</div>
                               {sheets
-                                .filter(s => s.id !== activeCharacter?.activeSheetId)
+                                .filter(s => s.id !== activeSheetId)
                                 .map(sheet => (
                                   <Tooltip key={sheet.id} content={`Move this group to ${sheet.name}`} placement="left">
                                     <button
@@ -1692,7 +1740,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                 </button>
               </Tooltip>
             )}
-            {renderContent()}
+            {widgetContent}
           </div>
         </div>
       </Draggable>

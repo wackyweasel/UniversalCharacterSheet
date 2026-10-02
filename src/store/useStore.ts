@@ -1350,6 +1350,14 @@ export const useStore = create<StoreState>((set, get) => {
           ? widgets.filter(candidate => candidate.groupId === widget.groupId).map(candidate => candidate.id)
           : [widgetId]
       );
+      // Already on top: skip the update so pointerdown doesn't re-render and persist the whole sheet.
+      const topOtherZIndex = Math.max(
+        100,
+        ...widgets.filter(candidate => !widgetsToRaise.has(candidate.id)).map(candidate => candidate.zIndex ?? DEFAULT_WIDGET_Z_INDEX),
+      );
+      if (widgets.every(candidate => !widgetsToRaise.has(candidate.id) || (candidate.zIndex ?? DEFAULT_WIDGET_Z_INDEX) > topOtherZIndex)) {
+        return state;
+      }
       const zIndex = getNextWidgetZIndex(widgets);
 
       return {

@@ -8,6 +8,7 @@ import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation, usePointerReorder } from '../hooks';
+import { getCameraTransform } from '../hooks/usePanZoom';
 import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
@@ -288,9 +289,11 @@ export default function Sheet() {
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
   const [wideListLayout, setWideListLayout] = useState(() => window.innerWidth >= 900);
 
+  // Built only while searching: rebuilding on every widget move/raise is costly on large sheets.
+  const hasSheetSearchQuery = sheetSearchQuery.trim().length > 0;
   const sheetSearchIndex = useMemo(
-    () => activeCharacter ? buildSheetSearchIndex(activeCharacter) : [],
-    [activeCharacter],
+    () => activeCharacter && hasSheetSearchQuery ? buildSheetSearchIndex(activeCharacter) : [],
+    [activeCharacter, hasSheetSearchQuery],
   );
   const sheetSearchResults = useMemo(
     () => activeCharacter ? searchSheetIndex(sheetSearchIndex, sheetSearchQuery, activeCharacter.activeSheetId) : [],
@@ -381,6 +384,10 @@ export default function Sheet() {
   const {
     pan,
     scale,
+    panRef,
+    scaleRef,
+    previewCamera,
+    commitCamera,
     isPanning,
     setPan,
     setScale,
@@ -401,24 +408,13 @@ export default function Sheet() {
     characterId: activeCharacterId,
     sheetId: activeSheetId,
     onBackgroundClick: handleBackgroundInteraction,
+    contentRef: printAreaRef,
   });
 
-  const scaleRef = useRef(scale);
-  const panRef = useRef(pan);
   const viewLockedRef = useRef(viewLocked);
   const wheelPanEnabledRef = useRef(wheelPanEnabled);
-  const touchCameraFrameRef = useRef<number | null>(null);
-  const pendingTouchCameraRef = useRef<{ pan: { x: number; y: number }; scale: number } | null>(null);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   useEffect(() => { wheelPanEnabledRef.current = wheelPanEnabled; }, [wheelPanEnabled]);
-
-  useEffect(() => () => {
-    if (touchCameraFrameRef.current !== null) {
-      window.cancelAnimationFrame(touchCameraFrameRef.current);
-    }
-  }, []);
 
   useEffect(() => {
     if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
@@ -490,37 +486,6 @@ export default function Sheet() {
   const getPan = useCallback(() => panRef.current, []);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
 
-  const previewTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
-    panRef.current = nextPan;
-    scaleRef.current = nextScale;
-    pendingTouchCameraRef.current = { pan: nextPan, scale: nextScale };
-    printAreaRef.current?.classList.add('camera-gesture-active');
-    if (touchCameraFrameRef.current !== null) return;
-
-    touchCameraFrameRef.current = window.requestAnimationFrame(() => {
-      touchCameraFrameRef.current = null;
-      const pendingCamera = pendingTouchCameraRef.current;
-      if (!pendingCamera || !printAreaRef.current) return;
-      printAreaRef.current.style.transform = `translate3d(${pendingCamera.pan.x}px, ${pendingCamera.pan.y}px, 0) scale(${pendingCamera.scale})`;
-    });
-  }, []);
-
-  const commitTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
-    if (touchCameraFrameRef.current !== null) {
-      window.cancelAnimationFrame(touchCameraFrameRef.current);
-      touchCameraFrameRef.current = null;
-    }
-    pendingTouchCameraRef.current = null;
-    panRef.current = nextPan;
-    scaleRef.current = nextScale;
-    if (printAreaRef.current) {
-      printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
-      printAreaRef.current.classList.remove('camera-gesture-active');
-    }
-    setPan(nextPan);
-    setScale(nextScale);
-  }, [setPan, setScale]);
-
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
       if (viewLockedRef.current) return;
       const nextScale = Math.min(MAX_CANVAS_SCALE, Math.max(MIN_CANVAS_SCALE, requestedScale));
@@ -546,8 +511,8 @@ export default function Sheet() {
   
   const { isTouchPanning } = useTouchCamera({
     mode,
-    onCameraPreview: previewTouchCamera,
-    onCameraCommit: commitTouchCamera,
+    onCameraPreview: previewCamera,
+    onCameraCommit: commitCamera,
     onPinchingChange: setIsPinching,
     getScale,
     getPan,
@@ -1750,7 +1715,7 @@ export default function Sheet() {
           ref={printAreaRef}
           className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${isPanning ? 'camera-gesture-active' : ''} ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
+            transform: getCameraTransform(pan, scale)
           }}
         >
           {/* Infinite Grid Background - hidden in play and print mode */}

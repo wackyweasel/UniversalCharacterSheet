@@ -2407,6 +2407,11 @@ td .inline-dice-token {
   will-change: transform;
 }
 
+/* Lets camera previews move viewport-fixed layers without repainting the sheet. */
+.camera-gesture-active > [data-camera-inverse-layer] {
+  will-change: transform;
+}
+
 .canvas-workspace {
   height: 100vh;
   height: 100dvh;
@@ -3179,12 +3184,15 @@ td .inline-dice-token {
   color: var(--card-face-ink);
   display: grid;
   font-family: Georgia, "Times New Roman", serif;
+  left: 0;
   overflow: hidden;
   padding: calc(var(--card-face-height) * 0.045);
   position: absolute;
   text-align: center;
+  top: 0;
   transform-origin: center;
   transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .card-deck-dom-face--title-symbol-body {
@@ -3226,12 +3234,15 @@ td .inline-dice-token {
   flex-direction: column;
   gap: calc(var(--card-back-height) * 0.045);
   justify-content: center;
+  left: 0;
   overflow: hidden;
   padding: calc(var(--card-back-height) * 0.1);
   pointer-events: none;
   position: absolute;
   text-align: center;
+  top: 0;
   transform-origin: center;
+  will-change: transform;
 }
 
 .card-deck-back--none {
@@ -3847,9 +3858,11 @@ td .inline-dice-token {
 
 .card-deck-grab-all--overlay {
   bottom: auto;
-  left: auto;
+  left: 0;
   pointer-events: auto;
+  top: 0;
   visibility: hidden;
+  will-change: transform;
 }
 
 .card-deck-fallback {
