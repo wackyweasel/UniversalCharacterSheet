@@ -7,7 +7,7 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
-import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation } from '../hooks';
+import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation, usePointerReorder } from '../hooks';
 import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
@@ -27,7 +27,7 @@ import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import SheetToolbar from './SheetToolbar';
 import PrintToolbar from './PrintToolbar';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon, GripVerticalIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
@@ -157,6 +157,7 @@ export default function Sheet() {
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
   const renameSheet = useStore((state) => state.renameSheet);
+  const reorderSheets = useStore((state) => state.reorderSheets);
   const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
   const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
@@ -263,6 +264,15 @@ export default function Sheet() {
   const [editedSheetName, setEditedSheetName] = useState('');
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
+  const {
+    setRowRef: setSheetRowRef,
+    startDrag: startSheetDrag,
+    handleReorderKey: handleSheetReorderKey,
+  } = usePointerReorder({
+    items: activeCharacter?.sheets ?? [],
+    onReorder: (sheets) => reorderSheets(sheets.map((sheet) => sheet.id)),
+    scrollAreaSelector: '.sheet-dropdown-scroll',
+  });
   const [zoomValueVisible, setZoomValueVisible] = useState(false);
   const [sheetSearchOpen, setSheetSearchOpen] = useState(false);
   const [sheetSearchQuery, setSheetSearchQuery] = useState('');
@@ -2270,7 +2280,25 @@ export default function Sheet() {
               <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
             </div>
             {activeCharacter.sheets.map((sheet) => (
-              <div key={sheet.id} className="group relative">
+              <div
+                key={sheet.id}
+                ref={(element) => setSheetRowRef(sheet.id, element)}
+                className="pointer-sort-row group relative flex items-stretch"
+              >
+                {mode === 'edit' && editingSheetId !== sheet.id && (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => startSheetDrag(sheet.id, event)}
+                    onKeyDown={(event) => handleSheetReorderKey(sheet.id, event)}
+                    disabled={activeCharacter.sheets.length < 2}
+                    aria-label={`Reorder ${sheet.name}`}
+                    title="Drag to reorder. Arrow keys also work."
+                    className="flex w-6 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center text-theme-muted hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+                  >
+                    <GripVerticalIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
                 {editingSheetId === sheet.id ? (
                   <input
                     type="text"
@@ -2340,6 +2368,7 @@ export default function Sheet() {
                     )}
                   </button>
                 )}
+                </div>
               </div>
             ))}
             {mode === 'edit' && (

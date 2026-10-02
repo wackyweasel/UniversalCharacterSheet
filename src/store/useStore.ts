@@ -132,6 +132,7 @@ interface StoreState {
   selectSheet: (sheetId: string) => void;
   deleteSheet: (sheetId: string) => void;
   renameSheet: (sheetId: string, name: string) => void;
+  reorderSheets: (sheetIds: string[]) => void;
   
   // Widget Actions (for active character's active sheet)
   addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }, placement?: 'smart' | 'exact') => void;
@@ -731,6 +732,23 @@ export const useStore = create<StoreState>((set, get) => {
         })
       };
     }),
+
+    reorderSheets: (sheetIds) => {
+      const character = get().characters.find(c => c.id === get().activeCharacterId);
+      if (!character || sheetIds.length !== character.sheets.length) return;
+      const byId = new Map(character.sheets.map(s => [s.id, s]));
+      if (sheetIds.some(id => !byId.has(id)) || new Set(sheetIds).size !== sheetIds.length) return;
+      if (sheetIds.every((id, index) => character.sheets[index].id === id)) return;
+
+      get()._takeSnapshot('Reorder sheets');
+      set((state) => ({
+        characters: state.characters.map(c => (
+          c.id === state.activeCharacterId
+            ? { ...c, sheets: sheetIds.map(id => byId.get(id)!) }
+            : c
+        )),
+      }));
+    },
 
     addWidget: (type, x, y, viewport, placement = 'smart') => {
       // Take snapshot before the change
