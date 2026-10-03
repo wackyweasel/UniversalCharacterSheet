@@ -320,7 +320,7 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
         )}
         <div
           ref={editorScrollRef}
-          className={`notes-rich-text__scroll ${canEditContent ? 'cursor-text' : ''}`}
+          className={`notes-rich-text__scroll ${canEditContent || showEditor ? 'cursor-text' : ''}`}
           role={canEditContent ? 'button' : undefined}
           tabIndex={canEditContent ? 0 : undefined}
           aria-label={canEditContent ? `Edit ${label || 'notes'}` : undefined}

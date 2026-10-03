@@ -41,7 +41,7 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.8.1',
     changes: [
-      'Added columns to the widgets: Fields and Stats, Mixed Fields, Number Tracker, Resources Pool, List and Step Dice.',
+      'Added columns to the widgets: Fields and Stats, Mixed Fields, Number Tracker, Resources Pool, List, Step Dice and Checklist.',
       'Few optimizations to improve performance on big sheets',
       'You can now drag and drop a character JSON file onto the character list to import it.',
       'Fixed table cells whose text starts with a number (like 1d8) being read as only that number in formulas, with values refreshing when a character is opened.',

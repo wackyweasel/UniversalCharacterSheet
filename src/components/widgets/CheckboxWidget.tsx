@@ -5,7 +5,7 @@ import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
@@ -141,7 +141,7 @@ function RemoveChecklistItemsModal({ items, onConfirm, onCancel }: { items: Chec
 
 export default function CheckboxWidget({ widget, height, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, checkboxItems = [], checklistSettings } = widget.data;
+  const { label, checkboxItems = [], checklistSettings, itemColumns } = widget.data;
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
@@ -233,7 +233,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
           }
         }}
       >
-        {(checkboxItems as CheckboxItem[]).map((item, idx) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={2} items={(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <button
             type="button"
             key={idx} 
@@ -259,7 +259,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
               ) : <InlineFormulaText text={item.name} />}
             </span>
           </button>
-        ))}
+        ))} />
         {checkboxItems.length === 0 && (
           <WidgetEmptyState
             title="Nothing on the checklist"

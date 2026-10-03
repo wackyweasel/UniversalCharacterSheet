@@ -30,6 +30,8 @@ export function InlineDiceRichText({ html, widget }: Props) {
     const element = node as HTMLElement;
     const tagName = element.tagName.toLowerCase();
     const children = Array.from(element.childNodes).map((child, index) => renderNode(child, `${key}-${index}`));
+    // An empty paragraph (a blank line) collapses to zero height without a <br>.
+    if (tagName === 'p' && children.length === 0) children.push(<br key={`${key}-empty`} />);
     if (!ALLOWED_TAGS.has(tagName)) return children;
 
     const props: { key: string; style?: CSSProperties } = { key };

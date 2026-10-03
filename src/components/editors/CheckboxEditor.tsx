@@ -6,6 +6,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 export function CheckboxEditor({ widget, updateData }: EditorProps) {
   const { checkboxItems = [], checklistSettings } = widget.data;
@@ -124,6 +125,9 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
             </button>
           </div>
         </fieldset>
+        <div className="mt-3">
+          <ItemColumnsControl id={`checkbox-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+        </div>
       </CollapsibleSection>
       
       <CollapsibleSection>
