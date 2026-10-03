@@ -759,7 +759,7 @@ function buildGeneratedLabelSumExpression(args: string[], labels: FormulaLabels)
  */
 function processFormulaFunctions(expr: string, labels: FormulaLabels): string | null {
   let result = expr;
-  const MAX_ITERATIONS = 20;
+  const MAX_ITERATIONS = 100;
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     const functionMatch = findInnermostFormulaFunction(result);
     if (functionMatch === null) break;
