@@ -13,7 +13,7 @@ import { rollDiceTerms } from '../../utils/diceRoll';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { RenameItemDialog } from './RenameItemDialog';
 
@@ -30,7 +30,7 @@ export const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d1
 
 export default function StepDiceWidget({ widget, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, stepDiceItems = [], stepDiceChain } = widget.data;
+  const { label, stepDiceItems = [], stepDiceChain, itemColumns } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [lastResults, setLastResults] = useState<Record<number, DiceExpressionRollResult>>({});
@@ -175,7 +175,9 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
       )}
       {stepDiceItems.length === 0 ? (
         <WidgetEmptyState title="No step dice configured" hint={controlsVisible ? 'Use + to add a die track.' : undefined} />
-      ) : stepDiceItems.map((item: StepDiceItem, i: number) => {
+      ) : (
+        <div className="flex flex-col gap-1">
+          <WidgetItemColumns columns={itemColumns} rowGap={4} items={stepDiceItems.map((item: StepDiceItem, i: number) => {
         const expression = formatDiceStep(diceChain[item.currentStep]);
         const isValidExpression = !!parseDiceStep(diceChain[item.currentStep]);
         const isAtMin = item.currentStep === 0;
@@ -256,7 +258,9 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
           );
         }
         return row;
-      })}
+      })} />
+        </div>
+      )}
 
       {showAddDialog && createPortal(
         <div

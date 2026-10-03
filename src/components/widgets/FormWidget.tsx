@@ -6,7 +6,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
@@ -21,7 +21,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
-  const { label, formItems = [], labelWidth = 33, itemSpacing = 2 } = widget.data;
+  const { label, formItems = [], labelWidth = 33, itemSpacing = 2, itemColumns } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
@@ -194,7 +194,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
           }
         }}
       >
-        {(formItems as FormItem[]).map((item, idx) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} items={(formItems as FormItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
             <button
@@ -242,7 +242,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
               </div>
             )}
           </div>
-        ))}
+        ))} />
         {formItems.length === 0 && (
           <WidgetEmptyState title="No fields yet" hint={controlsVisible ? 'Use + to add a field.' : undefined} compact />
         )}

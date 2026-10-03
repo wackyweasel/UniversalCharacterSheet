@@ -7,6 +7,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
@@ -88,6 +89,13 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--step-dice space-y-4">
+      <CollapsibleSection>
+        <div className="widget-editor__section-heading">
+          <h3 id={`step-dice-layout-title-${widget.id}`} className="widget-editor__section-title">Layout</h3>
+        </div>
+        <ItemColumnsControl id={`step-dice-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+      </CollapsibleSection>
+
       <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-chain-title-${widget.id}`} className="widget-editor__section-title">Dice chain</h3>

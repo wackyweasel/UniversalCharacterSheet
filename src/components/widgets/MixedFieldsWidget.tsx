@@ -18,7 +18,7 @@ import {
 } from '../../utils/mixedFields';
 import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { MixedFieldsEditor } from '../editors/MixedFieldsEditor';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 import { CheckIcon, ChevronDownIcon } from '../icons';
@@ -638,7 +638,7 @@ export default function MixedFieldsWidget({
   const workspaceMode = useStore((state) => state.mode);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
+  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && !isPrintMode;
   const canInteract = interactive && !isPrintMode;
@@ -891,7 +891,7 @@ export default function MixedFieldsWidget({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px`, rowGap: `${itemSpacing}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
-        {mixedFields.map((field, index) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} items={mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
             <button
               type="button"
@@ -907,7 +907,7 @@ export default function MixedFieldsWidget({
             </button>
             {renderFieldControl(field, index)}
           </div>
-        ))}
+        ))} />
         {mixedFields.length === 0 && <WidgetEmptyState title="No fields yet" hint={controlsVisible ? 'Use + to add a field.' : undefined} compact />}
       </div>
 

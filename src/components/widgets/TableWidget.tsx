@@ -1969,7 +1969,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
                             <InlineDiceText text={cellValue} widget={widget} />
                           ) : <span className={`text-theme-muted ${isPrintMode ? 'opacity-0' : ''}`}>-</span>}
                         </span>
-                        {cellFml && isFormulaBroken(cellFml, formulaLabels) && (
+                        {cellFml && isFormulaBroken(cellFml, formulaLabels, 'text') && (
                           <span className={`text-red-500 ml-0.5 text-[9px] flex-shrink-0 ${isEditing ? 'invisible' : ''}`} title={`Broken formula: ${cellFml}`}>⚠</span>
                         )}
                         {isEditing && (

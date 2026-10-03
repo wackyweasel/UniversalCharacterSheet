@@ -7,6 +7,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { InlineDiceText } from '../InlineDiceText';
 import { SelectionActions } from './StructureDialogControls';
+import { WidgetItemColumns } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -61,7 +62,7 @@ function WrappingListInput({ value, width, className, placeholder, ariaLabel, au
 export default function ListWidget({ widget, mode, width, height, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const workspaceMode = useStore((state) => state.mode);
-  const { label, items = [], itemCount = 5, wrapText = true } = widget.data;
+  const { label, items = [], itemCount = 5, wrapText = true, itemColumns } = widget.data;
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -203,7 +204,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
         </div>
       )}
       <div 
-        className="space-y-1 overflow-y-auto flex-1"
+        className="flex flex-col gap-1 overflow-y-auto flex-1"
         style={{ maxHeight: `${listHeight}px` }}
         onWheel={(e) => {
           const el = e.currentTarget;
@@ -212,7 +213,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
           }
         }}
       >
-        {normalizedItems.map((item: string, idx: number) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={4} items={normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>
             {workspaceMode !== 'edit' && editingIndex !== idx ? (
@@ -269,7 +270,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
               </Tooltip>
             )}
           </div>
-        ))}
+        ))} />
       </div>
 
       {showRemoveDialog && createPortal(

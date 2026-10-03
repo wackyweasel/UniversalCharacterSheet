@@ -515,8 +515,11 @@ export const useStore = create<StoreState>((set, get) => {
         ? selectedCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
         : false;
 
+      const remainingCharacters = shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters;
+
       return {
-        characters: shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters,
+        // Recalculate on open so values stored by older formula logic refresh.
+        characters: resolveActiveCharacterFormulas({ activeCharacterId: id }, remainingCharacters),
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
         activeCharacterId: id,
         mode: selectedCharacterIsBlank

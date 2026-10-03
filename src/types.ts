@@ -421,6 +421,8 @@ export interface WidgetData {
   showSecondaryDisplayNumbers?: boolean;
   secondaryDisplayAutoCompute?: boolean;
   secondaryDisplayModifierRanges?: ModifierRange[];
+  // Form, Mixed Fields, Number, Pool, List & Step Dice
+  itemColumns?: number;
   // Form
   formItems?: FormItem[];
   // Form & Mixed Fields

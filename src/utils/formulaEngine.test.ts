@@ -169,3 +169,30 @@ describe('mixed field menu labels', () => {
     expect(resolved?.sheets[0].widgets[0].data.mixedFields?.[1]).toMatchObject({ value: 7 });
   });
 });
+describe('table cell text starting with a number', () => {
+  it('keeps text like 1d8 intact when VALUE/SWITCH read it from another table', () => {
+    const character: Character = {
+      id: 'c', name: 'C', activeSheetId: 's',
+      sheets: [{ id: 's', name: 'S', widgets: [
+        { id: 'src', type: 'TABLE', x: 0, y: 0, data: {
+          columns: ['Level', 'Die'],
+          rows: [{ cells: ['1', '1d8'] }, { cells: ['2', '1d10'] }],
+          tableColumnSettings: [{}, { label: 'src_die' }],
+        } },
+        { id: 'cls', type: 'MIXED_FIELDS', x: 0, y: 0, data: { mixedFields: [
+          { type: 'text', name: 'Class', value: 'Mutant', valueLabel: 'class' },
+          { type: 'number', name: 'Lvl', value: 2, valueLabel: 'lvl' },
+        ] } },
+        { id: 'dst', type: 'TABLE', x: 0, y: 0, data: {
+          columns: ['Die'],
+          rows: [{ cells: [{ value: '1', formula: 'SWITCH(@class, "Mutant", VALUE(@src_die, @lvl, 0), 0)' }] }],
+        } },
+      ] }],
+    } as unknown as Character;
+
+    expect(collectLabels(character)).toMatchObject({ src_die1: '1d8', src_die2: '1d10' });
+    const resolved = resolveCharacterFormulas(character);
+    const cell = (resolved!.sheets[0].widgets[2].data.rows![0].cells[0]) as { value: string };
+    expect(cell.value).toBe('1d10');
+  });
+});

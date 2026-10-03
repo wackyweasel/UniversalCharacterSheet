@@ -8,6 +8,7 @@ import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 import { TextFormulaControls } from './TextFormulaControls';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 export function FormEditor({ widget, updateData }: EditorProps) {
   const { formItems = [] } = widget.data;
@@ -77,6 +78,7 @@ export function FormEditor({ widget, updateData }: EditorProps) {
           <h3 id="form-layout-title" className="widget-editor__section-title">Field layout</h3>
         </div>
         <div className="space-y-3">
+          <ItemColumnsControl id="form-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="form-label-width" className="text-xs font-bold uppercase text-theme-muted">

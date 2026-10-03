@@ -1,5 +1,6 @@
 import { EditorProps } from './types';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 export function ListEditor({ widget, updateData }: EditorProps) {
   const { itemCount = 5, wrapText = true } = widget.data;
@@ -33,6 +34,10 @@ export function ListEditor({ widget, updateData }: EditorProps) {
           />
           Wrap text
         </label>
+
+        <div className="mt-3">
+          <ItemColumnsControl id="list-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+        </div>
       </CollapsibleSection>
     </div>
   );

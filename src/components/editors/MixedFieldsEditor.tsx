@@ -11,6 +11,7 @@ import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, TrashIcon } from '
 import { Tooltip } from '../Tooltip';
 import { TooltipEditButton } from './TooltipEditButton';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 import { LabeledNumberField } from './LabeledNumberField';
 import { VariableLabelControl } from '../VariableLabelControl';
 import { TextFormulaControls } from './TextFormulaControls';
@@ -402,6 +403,7 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
           <h3 id="mixed-fields-layout-title" className="widget-editor__section-title">Field layout</h3>
         </div>
         <div className="space-y-3">
+          <ItemColumnsControl id="mixed-fields-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="mixed-fields-label-width" className="text-xs font-bold uppercase text-theme-muted">Label width</label>

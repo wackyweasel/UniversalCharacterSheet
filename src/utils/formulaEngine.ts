@@ -146,8 +146,7 @@ export function collectLabels(character: Character): FormulaLabels {
           for (const [colIndex, cell] of row.cells.entries()) {
             if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
-            const num = parseFloat(value);
-            const cellValue: FormulaValue | undefined = !isNaN(num) ? num : value.trim() ? value : undefined;
+            const cellValue: FormulaValue | undefined = value.trim() ? toTextLabelValue(value) : undefined;
             if (typeof cell !== 'string' && cell.label) {
               if (cellValue !== undefined) labels[cell.label] = cellValue;
             }
@@ -1036,9 +1035,9 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
           if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(newRows[r], r, newColumnSettings, rowSetting, merges))) continue;
           if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(newRows, c, columnSetting, newRowSettings, merges))) continue;
 
-          const oldVal = typeof oldCell === 'string' ? parseFloat(oldCell) : parseFloat(oldCell.value);
-          const newVal = typeof newCell === 'string' ? parseFloat(newCell) : parseFloat(newCell.value);
-          if (!isNaN(oldVal) && !isNaN(newVal) && oldVal !== newVal) {
+          const oldVal = toTextLabelValue(typeof oldCell === 'string' ? oldCell : oldCell.value);
+          const newVal = toTextLabelValue(typeof newCell === 'string' ? newCell : newCell.value);
+          if (oldVal !== newVal && String(newVal).trim() !== '') {
             changes.push({ widgetLabel, fieldName: `cell[${r},${c}]`, oldValue: oldVal, newValue: newVal, formula, sheetName });
           }
         }
@@ -1603,8 +1602,7 @@ export function getAvailableLabels(character: Character): { label: string; value
           for (const [colIndex, cell] of row.cells.entries()) {
             if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
-            const num = parseFloat(value);
-            const cellValue: FormulaValue = !isNaN(num) ? num : value;
+            const cellValue: FormulaValue = toTextLabelValue(value);
             if (typeof cell !== 'string' && cell.label) {
               result.push({ label: cell.label, value: cellValue, widgetLabel, sheetName: sheet.name });
             }

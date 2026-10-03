@@ -8,6 +8,7 @@ import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { ResourceStylePicker } from '../ResourceStylePicker';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { WidgetItemColumns } from './WidgetPrimitives';
 import { PoolEditor } from '../editors/PoolEditor';
 
 interface Props {
@@ -221,6 +222,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     inlineLabels = false,
     poolTooltip,
     fieldLabels = {},
+    itemColumns,
   } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const resourceInteractive = interactive && mode !== 'print';
@@ -357,7 +359,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
           if (el.scrollHeight > el.clientHeight) e.stopPropagation();
         }}
       >
-          {resources.map((resource: PoolResource, idx: number) => (
+          <WidgetItemColumns columns={itemColumns} rowGap={8} items={resources.map((resource: PoolResource, idx: number) => (
             <div key={idx} className={`flex flex-col ${gapClass}`}>
               {resource.name && !inlineLabels && (
                 <button
@@ -419,7 +421,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
                 </div>
               )}
             </div>
-          ))}
+          ))} />
       </div>
 
       {showAddDialog && createPortal(

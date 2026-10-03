@@ -7,6 +7,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, MinusIcon, PlusIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 export function NumberEditor({ widget, updateData, itemEditorOnly = false }: EditorProps & { itemEditorOnly?: boolean }) {
   const { numberItems = [] } = widget.data;
@@ -133,6 +134,7 @@ export function NumberEditor({ widget, updateData, itemEditorOnly = false }: Edi
           />
           <span className="text-sm text-theme-ink">Show +/− buttons</span>
         </label>
+        <ItemColumnsControl id="number-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
       </CollapsibleSection>}
       
       <CollapsibleSection title={itemEditorOnly ? 'Tracker settings' : undefined}>

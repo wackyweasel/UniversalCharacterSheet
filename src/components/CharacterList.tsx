@@ -39,6 +39,16 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.8.1',
+    changes: [
+      'Added columns to the widgets: Fields and Stats, Mixed Fields, Number Tracker, Resources Pool, List and Step Dice.',
+      'Few optimizations to improve performance on big sheets',
+      'You can now drag and drop a character JSON file onto the character list to import it.',
+      'Fixed table cells whose text starts with a number (like 1d8) being read as only that number in formulas, with values refreshing when a character is opened.',
+      'Fixed the broken-formula warning appearing on table cells that return text.',
+    ],
+  },
+  {
     version: '1.8.0',
     changes: [
       'Formulas can now output strings.',
@@ -404,6 +414,7 @@ export default function CharacterList() {
   const [rawDataCopied, setRawDataCopied] = useState(false);
   const [excludeImages, setExcludeImages] = useState(false);
   const [showImportDropdown, setShowImportDropdown] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [showTutorialDropdown, setShowTutorialDropdown] = useState(false);
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
@@ -1084,10 +1095,7 @@ export default function CharacterList() {
     importCharacterWithTheme(character, source, theme || defaultTheme);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const importCharacterFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -1104,9 +1112,39 @@ export default function CharacterList() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    importCharacterFile(file);
     
     // Reset file input so the same file can be imported again
     e.target.value = '';
+  };
+
+  const hasDraggedFiles = (event: React.DragEvent) => Array.from(event.dataTransfer.types).includes('Files');
+
+  const handleFileDragOver = (event: React.DragEvent) => {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDraggingFile(true);
+  };
+
+  const handleFileDragLeave = (event: React.DragEvent) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setIsDraggingFile(false);
+  };
+
+  const handleFileDrop = (event: React.DragEvent) => {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    setIsDraggingFile(false);
+    Array.from(event.dataTransfer.files)
+      .filter((file) => file.name.toLowerCase().endsWith('.json'))
+      .forEach(importCharacterFile);
   };
 
   const handleBackup = () => {
@@ -1199,7 +1237,20 @@ export default function CharacterList() {
   };
 
   return (
-    <div ref={listScrollRef} className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+    <div
+      ref={listScrollRef}
+      className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}
+      onDragOver={handleFileDragOver}
+      onDragLeave={handleFileDragLeave}
+      onDrop={handleFileDrop}
+    >
+      {isDraggingFile && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="rounded-lg border-2 border-dashed border-white bg-black/60 px-6 py-4 text-lg font-bold text-white">
+            Drop a character JSON file to import it
+          </div>
+        </div>
+      )}
       {copyWorkspaceCharacter && (
         <CopyCharacterWorkspaceDialog
           character={copyWorkspaceCharacter}

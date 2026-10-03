@@ -6,7 +6,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 import { NumberEditor } from '../editors/NumberEditor';
@@ -37,7 +37,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true } = widget.data;
+  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true, itemColumns } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [numberDialog, setNumberDialog] = useState<NumberEditDialog | null>(null);
@@ -312,7 +312,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           }
         }}
       >
-        {(numberItems as NumberItem[]).map((item, idx) => {
+        <WidgetItemColumns columns={itemColumns} rowGap={2} items={(numberItems as NumberItem[]).map((item, idx) => {
           const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
           const atMaximum = item.maxValue !== undefined && item.value >= item.maxValue;
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
@@ -389,7 +389,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
             </div>
           </div>
           );
-        })}
+        })} />
         {numberItems.length === 0 && (
           <WidgetEmptyState title="No trackers yet" hint={controlsVisible ? 'Use + to add a tracker.' : undefined} compact />
         )}

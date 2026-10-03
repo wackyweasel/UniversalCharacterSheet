@@ -6,6 +6,7 @@ import { Tooltip } from '../Tooltip';
 import { ResourceStylePicker } from '../ResourceStylePicker';
 import { ChevronDownIcon, ChevronUpIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 export function PoolEditor({ widget, updateData, resourceEditorOnly = false, canDeleteResource = true }: EditorProps & { resourceEditorOnly?: boolean; canDeleteResource?: boolean }) {
   const { 
@@ -218,6 +219,7 @@ export function PoolEditor({ widget, updateData, resourceEditorOnly = false, can
           />
           <span className="text-sm text-theme-ink">Inline labels with icons</span>
         </label>
+        <ItemColumnsControl id={`pool-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
       </CollapsibleSection>}
     </div>
   );
