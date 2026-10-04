@@ -9,6 +9,7 @@ import {
   getCardDeckRegistrations,
   type CardDeckGatherAnimationEntry,
 } from './cardDeckRegistry';
+import { isCameraWritePending, subscribeCameraWrite } from '../../hooks/usePanZoom';
 
 interface DeckVisual {
   signature: string;
@@ -505,8 +506,10 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
     return visual;
   };
 
-  const render = (time: number) => {
-    if (disposed) return;
+  let lastFrameTime = -1;
+  const renderFrame = (time: number) => {
+    if (disposed || time === lastFrameTime) return;
+    lastFrameTime = time;
     if (canvas.clientWidth !== viewportWidth || canvas.clientHeight !== viewportHeight) resize();
     updateCanvasMetrics();
     const registrations = getCardDeckRegistrations();
@@ -726,16 +729,24 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
       });
     }
     renderer.render(scene, camera);
+  };
+
+  const render = (time: number) => {
+    if (disposed) return;
     frameId = window.requestAnimationFrame(render);
+    // The pending camera write renders this frame after moving the sheet; measuring now would be one frame stale.
+    if (!isCameraWritePending()) renderFrame(time);
   };
 
   resize();
   frameId = window.requestAnimationFrame(render);
+  const unsubscribeCameraWrite = subscribeCameraWrite(renderFrame);
 
   return {
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      unsubscribeCameraWrite();
       window.cancelAnimationFrame(frameId);
       Array.from(visuals.keys()).forEach(removeVisual);
       Array.from(gatherVisuals.keys()).forEach(removeGatherVisual);

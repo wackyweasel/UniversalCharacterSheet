@@ -9,6 +9,19 @@ const CAMERA_GESTURE_CLASS = 'camera-gesture-active';
 // Children with this attribute counter-transform the camera to stay fixed to the viewport.
 const CAMERA_INVERSE_LAYER_ATTRIBUTE = 'data-camera-inverse-layer';
 
+// Lets viewport-fixed layers that measure the camera-transformed DOM run after the transform write in the same frame.
+const cameraWriteListeners = new Set<(frameTime: number) => void>();
+let pendingCameraWrites = 0;
+
+export function subscribeCameraWrite(listener: (frameTime: number) => void): () => void {
+  cameraWriteListeners.add(listener);
+  return () => { cameraWriteListeners.delete(listener); };
+}
+
+export function isCameraWritePending(): boolean {
+  return pendingCameraWrites > 0;
+}
+
 export function getCameraTransform(pan: { x: number; y: number }, scale: number): string {
   return `translate(${pan.x}px, ${pan.y}px) scale(${scale})`;
 }
@@ -225,9 +238,12 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     if (scaleChanged) setScalePreview(nextScale);
     contentRef?.current?.classList.add(CAMERA_GESTURE_CLASS);
     if (cameraFrameRef.current !== null) return;
-    cameraFrameRef.current = window.requestAnimationFrame(() => {
+    pendingCameraWrites += 1;
+    cameraFrameRef.current = window.requestAnimationFrame((frameTime) => {
       cameraFrameRef.current = null;
+      pendingCameraWrites -= 1;
       writeCameraTransform();
+      cameraWriteListeners.forEach((listener) => listener(frameTime));
     });
   }, [contentRef, setScalePreview, writeCameraTransform]);
 
@@ -236,6 +252,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     if (cameraFrameRef.current !== null) {
       window.cancelAnimationFrame(cameraFrameRef.current);
       cameraFrameRef.current = null;
+      pendingCameraWrites -= 1;
     }
     panRef.current = nextPan;
     scaleRef.current = nextScale;
@@ -248,7 +265,11 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   }, [cancelWheelCommit, contentRef, setScalePreview, writeCameraTransform]);
 
   useEffect(() => () => {
-    if (cameraFrameRef.current !== null) window.cancelAnimationFrame(cameraFrameRef.current);
+    if (cameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(cameraFrameRef.current);
+      cameraFrameRef.current = null;
+      pendingCameraWrites -= 1;
+    }
     if (wheelCommitTimerRef.current !== null) window.clearTimeout(wheelCommitTimerRef.current);
   }, []);
 
