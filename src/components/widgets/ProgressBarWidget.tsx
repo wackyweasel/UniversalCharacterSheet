@@ -6,6 +6,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
+import { ValueAdjustRow, applyDeltaToDraft } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
@@ -73,7 +74,7 @@ function ProgressValueModal({
         role="dialog"
         aria-modal="true"
         aria-label="Set progress values"
-        className="fixed left-1/2 top-1/2 z-[9999] min-w-[220px] -translate-x-1/2 -translate-y-1/2 rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-fade-in"
+        className="fixed left-1/2 top-1/2 z-[9999] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-fade-in"
         onSubmit={(event) => {
           event.preventDefault();
           submit();
@@ -85,41 +86,53 @@ function ProgressValueModal({
           if (event.key === 'Escape') onCancel();
         }}
       >
-        <h3 className="font-heading font-bold">Progress values</h3>
-        <label htmlFor="progress-current-value" className="mt-3 block text-sm font-medium">Current value</label>
-        <input
-          id="progress-current-value"
-          autoFocus={currentEditable}
-          type="number"
-          min={allowOutOfRange ? undefined : Number(minDraft) || minValue}
-          max={allowOutOfRange ? undefined : Number(maxDraft) || maxValue}
-          value={currentDraft}
-          onChange={(event) => setCurrentDraft(event.target.value)}
-          disabled={!currentEditable}
-          className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        <label htmlFor="progress-min-value" className="mt-3 block text-sm font-medium">Min value</label>
-        <input
-          id="progress-min-value"
-          autoFocus={!currentEditable && minEditable}
-          type="number"
-          max={Number(maxDraft) || maxValue}
-          value={minDraft}
-          onChange={(event) => setMinDraft(event.target.value)}
-          disabled={!minEditable}
-          className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        <label htmlFor="progress-max-value" className="mt-3 block text-sm font-medium">Max value</label>
-        <input
-          id="progress-max-value"
-          autoFocus={!currentEditable && !minEditable && maxEditable}
-          type="number"
-          min={Number(minDraft) || minValue}
-          value={maxDraft}
-          onChange={(event) => setMaxDraft(event.target.value)}
-          disabled={!maxEditable}
-          className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-        />
+        <h3 className="font-heading text-base font-bold">Progress values</h3>
+        <div className="mt-3 space-y-3">
+          <label className="block text-sm font-medium">
+            <span className="mb-1 block">Current value</span>
+            <input
+              id="progress-current-value"
+              autoFocus={currentEditable}
+              type="number"
+              step="any"
+              value={currentDraft}
+              onChange={(event) => setCurrentDraft(event.target.value)}
+              disabled={!currentEditable}
+              className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </label>
+          {currentEditable && <ValueAdjustRow onAdjust={(delta) => setCurrentDraft((draft) => applyDeltaToDraft(draft, delta))} />}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm">
+              <span className="mb-1 block">Minimum</span>
+              <input
+                id="progress-min-value"
+                autoFocus={!currentEditable && minEditable}
+                type="number"
+                step="any"
+                max={Number(maxDraft) || maxValue}
+                value={minDraft}
+                onChange={(event) => setMinDraft(event.target.value)}
+                disabled={!minEditable}
+                className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block">Maximum</span>
+              <input
+                id="progress-max-value"
+                autoFocus={!currentEditable && !minEditable && maxEditable}
+                type="number"
+                step="any"
+                min={Number(minDraft) || minValue}
+                value={maxDraft}
+                onChange={(event) => setMaxDraft(event.target.value)}
+                disabled={!maxEditable}
+                className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+          </div>
+        </div>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
           <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Save</button>

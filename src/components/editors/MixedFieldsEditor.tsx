@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
 import { formatDiceStep, normalizeDiceExpression } from '../../utils/diceExpression';
 import type { MixedField, MixedFieldType } from '../../types';
 import {
@@ -16,6 +17,12 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { VariableLabelControl } from '../VariableLabelControl';
 import { TextFormulaControls } from './TextFormulaControls';
 import type { EditorProps } from './types';
+
+const ALIGNMENT_OPTIONS = [
+  { value: 'left', label: 'Align left', Icon: AlignLeft },
+  { value: 'center', label: 'Align center', Icon: AlignCenter },
+  { value: 'right', label: 'Align right', Icon: AlignRight },
+] as const;
 
 const RESOURCE_STYLES = [
   ['dots', '●', 'Dots'],
@@ -72,7 +79,7 @@ function StepDiceSettings({ field, onChange }: { field: Extract<MixedField, { ty
 }
 
 export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false }: EditorProps & { fieldEditorOnly?: boolean }) {
-  const { mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
+  const { mixedFields = [], labelWidth = 33, itemSpacing = 4, mixedFieldsAlignment: alignment = 'right' } = widget.data;
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<MixedFieldType>('text');
   const [revealedBounds, setRevealedBounds] = useState<Record<number, RevealedBounds>>({});
@@ -417,6 +424,28 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
               <span className="widget-editor__section-count">{itemSpacing}px</span>
             </div>
             <input id="mixed-fields-item-spacing" type="range" min="0" max="16" value={itemSpacing} onChange={(event) => updateData({ itemSpacing: Number(event.target.value) })} className="w-full accent-theme-accent" />
+          </div>
+          <div className="image-editor__control-group">
+            <span className="image-editor__control-label">Alignment</span>
+            <div className="flex overflow-hidden rounded-button border border-theme-border">
+              {ALIGNMENT_OPTIONS.map(({ value, label, Icon }) => (
+                <Tooltip key={value} content={label}>
+                  <button
+                    type="button"
+                    aria-label={label}
+                    aria-pressed={alignment === value}
+                    onClick={() => updateData({ mixedFieldsAlignment: value })}
+                    className={`flex h-9 flex-1 items-center justify-center transition-colors ${
+                      alignment === value
+                        ? 'bg-theme-accent text-theme-paper'
+                        : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </Tooltip>
+              ))}
+            </div>
           </div>
         </div>
       </CollapsibleSection>}

@@ -50,6 +50,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
@@ -98,6 +99,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'DECK_OF_CARDS': { width: 100, height: 120 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
+  'WALLET': { width: 120, height: 60 },
 };
 
 type StoreState = ReturnType<typeof useStore.getState>;
@@ -930,6 +932,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={mode === 'play'} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
+      case 'WALLET': return <WalletWidget {...props} />;
       default: return null;
     }
   };

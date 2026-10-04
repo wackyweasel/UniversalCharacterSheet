@@ -36,6 +36,7 @@ const LABEL_WIDGET_TYPES = new Set<WidgetType>([
   'TOGGLE',
   'TOGGLE_GROUP',
   'IMAGE',
+  'WALLET',
 ]);
 
 const HEADER_CONTROL_WIDGET_TYPES = new Set<WidgetType>([

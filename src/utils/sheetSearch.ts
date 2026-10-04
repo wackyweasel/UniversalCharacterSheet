@@ -153,6 +153,9 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
     case 'STEP_DICE':
       data.stepDiceItems?.forEach((item) => add('Die track', item.name));
       break;
+    case 'WALLET':
+      data.walletCurrencies?.forEach((currency) => add('Currency', currency.name));
+      break;
   }
 
   return segments;

@@ -31,7 +31,8 @@ export type WidgetType =
   | 'DECK'
   | 'DECK_OF_CARDS'
   | 'TIMER'
-  | 'STEP_DICE';
+  | 'STEP_DICE'
+  | 'WALLET';
 
 export interface GridMapPoint {
   column: number;
@@ -139,6 +140,8 @@ export interface InventoryItem {
   id: string;
   name: string;
   quantity?: number;
+  /** Rich text (HTML), shown collapsed on the item card. */
+  description?: string;
   fields: InventoryItemField[];
 }
 
@@ -430,6 +433,7 @@ export interface WidgetData {
   itemSpacing?: number;
   // Mixed Fields
   mixedFields?: MixedField[];
+  mixedFieldsAlignment?: 'left' | 'center' | 'right';
   // Image
   imageUrl?: string;
   imageShape?: 'rectangle' | 'oval' | 'circle';
@@ -554,6 +558,10 @@ export interface WidgetData {
   // Step Dice
   stepDiceItems?: StepDiceItem[];  // Array of step dice traits
   stepDiceChain?: DiceStep[];      // Custom dice chain (default: [1d4,1d6,1d8,1d10,1d12,1d20])
+  // Wallet
+  walletCurrencies?: WalletCurrency[]; // Ordered from smallest to largest
+  walletShowTotal?: boolean;
+  walletTotalCurrency?: number;        // Index of the currency used for the total (default: largest)
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
@@ -573,6 +581,12 @@ export interface StepDiceItem {
   name: string;
   currentStep: number;  // Index into the dice chain
   tooltip?: string;
+}
+
+export interface WalletCurrency {
+  name: string;
+  amount: number;
+  rate: number; // How many of the previous (smaller) currency make one of this; ignored for the first
 }
 
 export interface Widget {

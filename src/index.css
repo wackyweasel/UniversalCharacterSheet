@@ -1963,6 +1963,25 @@ td .inline-dice-token {
     min-height: 60px;
   }
 
+  .notes-rich-text--field .notes-rich-text__scroll {
+    max-height: 12rem;
+    min-height: 5rem;
+  }
+
+  .notes-rich-text--field .notes-rich-text__content {
+    min-height: 5rem;
+  }
+
+  .notes-rich-text .notes-rich-text__toolbar--inline {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+    max-width: none;
+    overflow: visible;
+    position: static;
+    width: auto;
+  }
+
   .notes-rich-text__toolbar {
     align-items: center;
     background-color: var(--color-paper);

@@ -17,6 +17,7 @@ import {
 import { usePointerReorder } from '../../hooks';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 import { TextFormulaControls } from '../editors/TextFormulaControls';
+import { RichTextField } from '../RichTextField';
 import { Tooltip } from '../Tooltip';
 import { VariableLabelControl } from '../VariableLabelControl';
 import { AddMultipleToggle } from './StructureDialogControls';
@@ -49,6 +50,7 @@ export default function InventoryItemDialog({
     ? { ...item, fields: linkInventoryFieldsToTemplates(item.fields, defaultFields) }
     : createInventoryItem('', defaultFields));
   const [addMultiple, setAddMultiple] = useState(false);
+  const [descriptionEnabled, setDescriptionEnabled] = useState(() => Boolean(item?.description?.trim()));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const defaultTemplateIds = new Set(defaultFields.map((field) => field.id));
   const defaultAttributeFields = defaultFields.flatMap((template) => {
@@ -196,9 +198,10 @@ export default function InventoryItemDialog({
     event.preventDefault();
     const name = draft.name.trim();
     if (!name) return;
-    onSave({ ...draft, name });
+    onSave({ ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined });
     if (!isEditing && addMultiple) {
       setDraft(createInventoryItem('', defaultFields));
+      setDescriptionEnabled(false);
       setConfirmDelete(false);
       return;
     }
@@ -266,6 +269,29 @@ export default function InventoryItemDialog({
               </label>
             )}
           </div>
+
+          <section>
+            <label className="flex cursor-pointer items-center gap-2 font-heading text-xs font-bold">
+              <input
+                type="checkbox"
+                checked={descriptionEnabled}
+                onChange={(event) => setDescriptionEnabled(event.target.checked)}
+                className="h-4 w-4 accent-theme-accent"
+              />
+              Description
+            </label>
+            {descriptionEnabled && (
+              <div className="mt-1.5">
+                <RichTextField
+                  key={draft.id}
+                  value={draft.description ?? ''}
+                  onChange={(description) => setDraft((current) => ({ ...current, description }))}
+                  ariaLabel="Item description"
+                  placeholder="Add a description..."
+                />
+              </div>
+            )}
+          </section>
 
           <section>
             <h3 className="font-heading text-xs font-bold">Default attributes</h3>

@@ -30,6 +30,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 
 const PREVIEW_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
@@ -608,6 +609,24 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       ],
     },
   },
+  WALLET: {
+    id: 'preview-wallet',
+    type: 'WALLET',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 130,
+    locked: true,
+    data: {
+      label: 'Wallet',
+      walletCurrencies: [
+        { name: 'cp', amount: 14, rate: 1 },
+        { name: 'sp', amount: 7, rate: 10 },
+        { name: 'gp', amount: 35, rate: 10 },
+      ],
+      walletShowTotal: true,
+    },
+  },
 };
 
 function renderWidget(widget: Widget) {
@@ -649,6 +668,7 @@ function renderWidget(widget: Widget) {
     case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
     case 'TIMER': return <TimerWidget {...props} />;
     case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'WALLET': return <WalletWidget {...props} interactive={false} />;
     default: return null;
   }
 }

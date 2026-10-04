@@ -37,6 +37,7 @@ import {
   CardTableEditor,
   TimerEditor,
   StepDiceEditor,
+  WalletEditor,
   WidgetHeaderEditor,
 } from './editors';
 
@@ -71,6 +72,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 
 interface Props {
   widget: Widget;
@@ -109,6 +111,7 @@ function getWidgetTitle(type: WidgetType): string {
     'DECK_OF_CARDS': 'Deck of Cards',
     'TIMER': 'Timer',
     'STEP_DICE': 'Step Dice',
+    'WALLET': 'Wallet',
   };
   return titles[type] || 'Widget';
 }
@@ -189,6 +192,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'DECK_OF_CARDS': return <CardTableEditor {...editorProps} />;
       case 'TIMER': return <TimerEditor {...editorProps} />;
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
+      case 'WALLET': return <WalletEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -245,6 +249,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
+      case 'WALLET': return <WalletWidget {...props} interactive={false} />;
       default: return null;
     }
   };

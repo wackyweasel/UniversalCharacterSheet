@@ -15,6 +15,7 @@ import {
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
+import { createDefaultWalletCurrencies } from '../utils/wallet';
 
 type Mode = 'play' | 'edit' | 'vertical' | 'print';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
@@ -777,7 +778,7 @@ export const useStore = create<StoreState>((set, get) => {
           DEFAULT_WIDTH,
         ) ?? DEFAULT_WIDTH;
         const newWidgetHeight = snapWidgetDimension(
-          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : DEFAULT_HEIGHT,
+          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : DEFAULT_HEIGHT,
           DEFAULT_HEIGHT,
         ) ?? DEFAULT_HEIGHT;
         const GAP = 20;
@@ -885,6 +886,7 @@ export const useStore = create<StoreState>((set, get) => {
             'DECK_OF_CARDS': 'Deck of Cards',
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
+            'WALLET': 'Wallet',
           };
           return defaultLabels[widgetType] || '';
         };
@@ -953,6 +955,7 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapDistanceUnit: 'ft',
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
+            ...(type === 'WALLET' ? { walletCurrencies: createDefaultWalletCurrencies(), walletShowTotal: true } : {}),
             ...(type === 'DECK_OF_CARDS' ? {
               cardTableCards: [],
               cardTableDiscardedCards: [],

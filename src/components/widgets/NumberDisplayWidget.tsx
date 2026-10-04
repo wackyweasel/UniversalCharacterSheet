@@ -7,7 +7,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, ValueAdjustRow, applyDeltaToDraft } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue } from '../../utils/modifierRanges';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
@@ -414,7 +414,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 />
               </label>
 
-              <div className="border-t border-theme-border pt-3">
+              <ValueAdjustRow
+                disabled={numberDialogHasInvalidCurrent}
+                onAdjust={(delta) => setNumberDialog((current) => current ? { ...current, current: applyDeltaToDraft(current.current, delta) } : current)}
+              />
+
+              <div>
                 <p className="text-sm font-medium">Bounds <span className="font-normal text-theme-muted">(optional)</span></p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <label className="text-sm">

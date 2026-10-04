@@ -37,6 +37,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 
 interface Props {
   widget: Widget;
@@ -208,6 +209,7 @@ export default function VerticalWidget({
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={!isBuildMode} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
+      case 'WALLET': return <WalletWidget {...props} />;
       default: return null;
     }
   };

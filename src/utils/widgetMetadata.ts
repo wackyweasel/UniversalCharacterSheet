@@ -20,6 +20,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'REST_BUTTON', label: 'Rest button', category: 'Ressources and Status', keywords: 'reset recover refresh' },
   { type: 'HEALTH_BAR', label: 'Health bar', category: 'Ressources and Status', keywords: 'hp wounds damage' },
   { type: 'POOL', label: 'Resource pool', category: 'Ressources and Status', keywords: 'tokens points mana' },
+  { type: 'WALLET', label: 'Wallet', category: 'Ressources and Status', keywords: 'money coins currency gold silver copper cp sp gp purse funds' },
   { type: 'TOGGLE_GROUP', label: 'Conditions', category: 'Ressources and Status', keywords: 'status toggle effects' },
   { type: 'SPELL_SLOT', label: 'Spell slots', category: 'Ressources and Status', keywords: 'magic casting' },
   { type: 'CHECKBOX', label: 'Checklist', category: 'Ressources and Status', keywords: 'check marks tasks' },

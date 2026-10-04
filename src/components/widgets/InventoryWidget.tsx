@@ -10,7 +10,8 @@ import {
 } from '../../utils/inventory';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 import { InventoryEditor } from '../editors/InventoryEditor';
-import { GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
+import { ChevronDownIcon, GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
+import { InlineDiceRichText } from '../InlineDiceRichText';
 import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import { SelectionActions } from './StructureDialogControls';
@@ -169,6 +170,7 @@ function InventoryWidget({
   const [weightOptionsOpen, setWeightOptionsOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
+  const [expandedDescriptionIds, setExpandedDescriptionIds] = useState<Set<string>>(() => new Set());
   const dragRef = useRef<ActiveDrag | null>(null);
   const removeDragListenersRef = useRef<(() => void) | null>(null);
   const activeDropZoneRef = useRef<HTMLElement | null>(null);
@@ -506,14 +508,20 @@ function InventoryWidget({
             hint={controlsVisible ? 'Add an item or drop one here.' : undefined}
             compact
           />
-        ) : inventoryItems.map((item, index) => (
+        ) : inventoryItems.map((item, index) => {
+          const hasVisibleFields = item.fields.some((field) => !isInventoryFieldEmpty(field));
+          const handleCellClass = hasVisibleFields ? 'col-start-1 row-start-1 row-span-2' : 'col-start-1 row-start-1';
+          const hasDescription = Boolean(item.description?.trim());
+          const descriptionExpanded = hasDescription && (isPrintMode || expandedDescriptionIds.has(item.id));
+          const descriptionId = `inventory-description-${item.id}`;
+          return (
           <article
             key={item.id}
             data-inventory-item-row="true"
             data-inventory-item-id={item.id}
             className="inventory-item group relative px-1.5 py-1.5 text-theme-ink"
           >
-            <div className="grid min-w-0 grid-cols-[20px_minmax(62px,0.8fr)_minmax(0,1.7fr)_22px] items-center gap-1">
+            <div className="grid min-w-0 grid-cols-[20px_minmax(0,1fr)_22px] items-center gap-1 gap-y-0">
               {canInteract && (
                 <button
                   type="button"
@@ -523,13 +531,13 @@ function InventoryWidget({
                   onClick={(event) => event.stopPropagation()}
                   aria-label={`Move ${item.name}`}
                   title="Drag to move. Arrow keys reorder."
-                  className="inventory-item__drag-handle flex h-5 w-5 touch-none items-center self-center justify-center rounded text-theme-muted hover:text-theme-ink"
+                  className={`inventory-item__drag-handle flex h-5 w-5 touch-none items-center self-center justify-center rounded text-theme-muted hover:text-theme-ink ${handleCellClass}`}
                 >
                   <GripVerticalIcon className="h-3 w-3" />
                 </button>
               )}
-              {!canInteract && <span />}
-              <h3 className="-translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
+              {!canInteract && <span className={handleCellClass} />}
+              <h3 className="col-start-2 row-start-1 -translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
                 <InlineFormulaText text={item.name} />
                 {' '}
                 <InventoryQuantity
@@ -538,7 +546,7 @@ function InventoryWidget({
                   onEdit={setQuantityDialogItem}
                 />
               </h3>
-              <dl className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body">
+              <dl className={`col-span-2 col-start-2 row-start-2 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body ${hasVisibleFields ? '' : 'hidden'}`}>
                 {item.fields.map((field, fieldIndex) => (
                   isInventoryFieldEmpty(field) ? null : (
                   <div key={field.id} className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1 text-[9px] leading-3">
@@ -552,6 +560,37 @@ function InventoryWidget({
                   )
                 ))}
               </dl>
+              {hasDescription && (
+                <div className="col-span-2 col-start-2 row-start-3 mt-0.5 min-w-0">
+                  {!isPrintMode && (
+                    <button
+                      type="button"
+                      aria-expanded={descriptionExpanded}
+                      aria-controls={descriptionId}
+                      data-touch-camera-ignore="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setExpandedDescriptionIds((current) => {
+                          const next = new Set(current);
+                          if (next.has(item.id)) next.delete(item.id);
+                          else next.add(item.id);
+                          return next;
+                        });
+                      }}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      className="flex items-center gap-0.5 text-[9px] font-body leading-3 text-theme-muted hover:text-theme-accent"
+                    >
+                      <ChevronDownIcon className={`h-3 w-3 transition-transform ${descriptionExpanded ? '' : '-rotate-90'}`} />
+                      Description
+                    </button>
+                  )}
+                  {descriptionExpanded && (
+                    <div id={descriptionId} className="notes-rich-text__content !min-h-0 !p-0 !pt-0.5 !text-[10px]">
+                      <InlineDiceRichText html={item.description!} widget={widget} />
+                    </div>
+                  )}
+                </div>
+              )}
               {canInteract && (
                 <Tooltip content={`Edit ${item.name}`}>
                   <button
@@ -562,16 +601,17 @@ function InventoryWidget({
                     }}
                     onMouseDown={(event) => event.stopPropagation()}
                     aria-label={`Edit ${item.name}`}
-                    className="inventory-item__edit flex h-5 w-5 self-center items-center justify-center rounded text-theme-muted opacity-55 hover:bg-theme-accent hover:text-theme-paper group-hover:opacity-100"
+                    className="inventory-item__edit col-start-3 row-start-1 flex h-5 w-5 self-center items-center justify-center rounded text-theme-muted opacity-55 hover:bg-theme-accent hover:text-theme-paper group-hover:opacity-100"
                   >
                     <PencilIcon className="h-3 w-3" />
                   </button>
                 </Tooltip>
               )}
-              {!canInteract && <span />}
+              {!canInteract && <span className="col-start-3 row-start-1" />}
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
 
       {dialogItem !== undefined && canInteract && (

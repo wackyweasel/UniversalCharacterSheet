@@ -39,6 +39,17 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.9.0',
+    changes: [
+      'New Wallet widget: track coins with custom currencies and exchange rates (cp, sp, gp by default), add or spend money with automatic change, convert between currencies, and show the total in the currency of your choice. Transactions are recorded in the timeline.',
+      'The formula editor now highlights exactly what is broken in a formula (unknown labels, unclosed parentheses, missing values, wrong function arguments, and more) and lists what is wrong.',
+      'Mixed Fields widgets now have an alignment setting (left, center or right) in the editor that applies to all of their fields.',
+      'Inventory items now show the name on its own line with the attributes below it, using the full width of the item card.',
+      'Inventory items can now have an optional description with the same formatting as the notes widget (except font size). It is collapsed by default on the item card.',
+      'The value dialogs of Progress Bar, Number Tracker, Number Display and Mixed Fields now have an "Add or Remove amount" button to add or subtract an amount from the current value.',
+    ],
+  },
+  {
     version: '1.8.1',
     changes: [
       'Added columns to the widgets: Fields and Stats, Mixed Fields, Number Tracker, Resources Pool, List, Step Dice and Checklist.',

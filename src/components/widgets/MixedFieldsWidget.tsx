@@ -18,7 +18,7 @@ import {
 } from '../../utils/mixedFields';
 import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
-import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns, ValueAdjustRow, applyDeltaToDraft } from './WidgetPrimitives';
 import { MixedFieldsEditor } from '../editors/MixedFieldsEditor';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
 import { CheckIcon, ChevronDownIcon } from '../icons';
@@ -52,6 +52,9 @@ const RESOURCE_SYMBOLS: Record<string, [string, string]> = {
 };
 
 const HOLD_DELAY_MS = 300;
+
+const CONTROL_JUSTIFY = { left: 'justify-start', center: 'justify-center', right: 'justify-end' } as const;
+const CONTROL_TEXT_ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
 
 function MixedMenuControl({ field, canInteract, onChange }: {
   field: Extract<MixedField, { type: 'menu' }>;
@@ -240,9 +243,14 @@ function MixedProgressValueModal({ field, currentEditable, minEditable, maxEdita
       <div className="fixed inset-0 z-[9999] bg-black/50 animate-fade-in" onClick={onCancel} onMouseDown={(event) => event.stopPropagation()} />
       <form role="dialog" aria-modal="true" aria-label={`Set ${field.name} values`} className="fixed left-1/2 top-1/2 z-[10000] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-button border border-theme-border bg-theme-paper p-4 font-body text-theme-ink shadow-theme animate-fade-in" onSubmit={(event) => { event.preventDefault(); submit(); }} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
         <h3 className="font-heading text-base font-bold">{field.name || 'Progress'} values</h3>
-        <label className="mt-3 block text-sm font-medium">Current value<input autoFocus={currentEditable} type="number" min={minDraft || field.min || 0} max={maxDraft || field.max} value={currentDraft} disabled={!currentEditable} onChange={(event) => setCurrentDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
-        <label className="mt-3 block text-sm font-medium">Minimum value<input autoFocus={!currentEditable && minEditable} type="number" max={maxDraft || field.max} value={minDraft} disabled={!minEditable} onChange={(event) => setMinDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
-        <label className="mt-3 block text-sm font-medium">Maximum value<input autoFocus={!currentEditable && !minEditable && maxEditable} type="number" min={minDraft || field.min || 0} value={maxDraft} disabled={!maxEditable} onChange={(event) => setMaxDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
+        <div className="mt-3 space-y-3">
+          <label className="block text-sm font-medium"><span className="mb-1 block">Current value</span><input autoFocus={currentEditable} type="number" step="any" value={currentDraft} disabled={!currentEditable} onChange={(event) => setCurrentDraft(event.target.value)} className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></label>
+          {currentEditable && <ValueAdjustRow onAdjust={(delta) => setCurrentDraft((draft) => applyDeltaToDraft(draft, delta))} />}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm"><span className="mb-1 block">Minimum</span><input autoFocus={!currentEditable && minEditable} type="number" step="any" max={maxDraft || field.max} value={minDraft} disabled={!minEditable} onChange={(event) => setMinDraft(event.target.value)} className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></label>
+            <label className="text-sm"><span className="mb-1 block">Maximum</span><input autoFocus={!currentEditable && !minEditable && maxEditable} type="number" step="any" min={minDraft || field.min || 0} value={maxDraft} disabled={!maxEditable} onChange={(event) => setMaxDraft(event.target.value)} className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></label>
+          </div>
+        </div>
         <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button><button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Save</button></div>
       </form>
     </>
@@ -330,7 +338,12 @@ function MixedNumberValueModal({ field, minEditable, maxEditable, onConfirm, onC
             />
           </label>
 
-          <div className="border-t border-theme-border pt-3">
+          <ValueAdjustRow
+            disabled={invalidCurrent}
+            onAdjust={(delta) => setCurrentDraft((draft) => applyDeltaToDraft(draft, delta))}
+          />
+
+          <div>
             <p className="text-sm font-medium">Bounds <span className="font-normal text-theme-muted">(optional)</span></p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="text-sm">
@@ -386,6 +399,7 @@ function MixedNumberControl({
   onUpdate,
   onAdjust,
   onAnnounce,
+  justifyClass,
 }: {
   field: MixedNumberField;
   canInteract: boolean;
@@ -394,6 +408,7 @@ function MixedNumberControl({
   onUpdate: (field: MixedField) => void;
   onAdjust: (delta: number) => void;
   onAnnounce: (detail: string) => void;
+  justifyClass: string;
 }) {
   const [showValueModal, setShowValueModal] = useState(false);
   const hasValueFormula = !!field.valueFormula;
@@ -407,7 +422,7 @@ function MixedNumberControl({
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5">
+      <div className={`flex min-w-0 flex-1 items-center ${justifyClass} gap-0.5`}>
         {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => onAdjust(-1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
         {hasValueFormula ? (
           <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-accent/10 px-1 text-center text-xs font-bold font-body text-theme-ink">
@@ -638,7 +653,9 @@ export default function MixedFieldsWidget({
   const workspaceMode = useStore((state) => state.mode);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns } = widget.data;
+  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right' } = widget.data;
+  const justifyClass = CONTROL_JUSTIFY[mixedFieldsAlignment];
+  const textAlignClass = CONTROL_TEXT_ALIGN[mixedFieldsAlignment];
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && !isPrintMode;
   const canInteract = interactive && !isPrintMode;
@@ -763,11 +780,11 @@ export default function MixedFieldsWidget({
             readOnly={!canInteract || Boolean(field.valueFormula)}
             autoFocus={workspaceMode !== 'edit'}
             placeholder={isPrintMode ? '' : '...'}
-            className="min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 text-xs font-body text-theme-ink outline-none focus:border-theme-accent"
+            className={`min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 ${textAlignClass} text-xs font-body text-theme-ink outline-none focus:border-theme-accent`}
           />
         ) : (
           <div
-            className={`min-h-[1.5em] min-w-0 flex-1 border-b border-theme-border px-1 py-0.5 text-xs font-body text-theme-ink ${isPrintMode ? '' : 'cursor-text'}`}
+            className={`min-h-[1.5em] min-w-0 flex-1 border-b border-theme-border px-1 py-0.5 ${textAlignClass} text-xs font-body text-theme-ink ${isPrintMode ? '' : 'cursor-text'}`}
             role="button"
             tabIndex={isPrintMode ? -1 : 0}
             aria-label={`Edit ${field.name || 'text value'}`}
@@ -795,7 +812,7 @@ export default function MixedFieldsWidget({
         );
       case 'switch':
         return (
-          <div className="flex min-w-0 flex-1 justify-end">
+          <div className={`flex min-w-0 flex-1 ${justifyClass}`}>
             <button
               type="button"
               role="switch"
@@ -823,7 +840,7 @@ export default function MixedFieldsWidget({
           </div>
         );
       case 'number': {
-        return <MixedNumberControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAdjust={(delta) => adjustNumber(index, field, delta)} onAnnounce={(detail) => announceChange(field, detail)} />;
+        return <MixedNumberControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAdjust={(delta) => adjustNumber(index, field, delta)} onAnnounce={(detail) => announceChange(field, detail)} justifyClass={justifyClass} />;
       }
       case 'progress':
         return <MixedProgressControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAnnounce={(detail) => announceChange(field, detail)} />;
@@ -833,7 +850,7 @@ export default function MixedFieldsWidget({
         const current = Math.max(0, Math.min(max, field.current));
         const hasCurrentFormula = !!field.currentFormula;
         return (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-0.5">
+          <div className={`flex min-w-0 flex-1 flex-wrap items-center ${justifyClass} gap-0.5`}>
             {Array.from({ length: max }, (_, pointIndex) => (
               <button
                 key={pointIndex}
@@ -859,7 +876,7 @@ export default function MixedFieldsWidget({
         const currentStep = clampMixedFieldValue(field.currentStep, 0, chain.length - 1);
         const result = rollResults[index];
         return (
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+          <div className={`flex min-w-0 flex-1 items-center ${justifyClass} gap-1`}>
             {!isPrintMode && <button type="button" aria-label={`Step ${field.name} down`} onClick={() => updateField(index, { ...field, currentStep: Math.max(0, currentStep - 1) })} disabled={!canInteract || currentStep === 0} className="widget-control h-6 w-6 min-h-0 text-[9px]">▼</button>}
             <button type="button" aria-label={`Roll ${field.name}: ${formatDiceStep(chain[currentStep])}`} onClick={() => rollStepDie(index, field)} disabled={!canInteract || rollingIndex === index} className="widget-control h-6 min-w-[52px] min-h-0 px-1 text-xs font-bold font-body">
               {formatDiceStep(chain[currentStep])}
