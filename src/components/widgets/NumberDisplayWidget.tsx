@@ -27,6 +27,7 @@ interface NumberEditDialog {
   minimum: string;
   maximum: string;
   secondary: string;
+  initialFocus: 'current' | 'secondary';
 }
 
 const parseOptionalNumber = (value: string) => {
@@ -117,7 +118,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     return value;
   };
 
-  const handleValueClick = (index: number, currentValue: number) => {
+  const handleValueClick = (index: number, currentValue: number, initialFocus: NumberEditDialog['initialFocus'] = 'current') => {
     const item = (displayNumbers as DisplayNumber[])[index];
     if (item.valueFormula) return;
     setNumberDialog({
@@ -126,6 +127,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
       minimum: item.minValue === undefined ? '' : String(item.minValue),
       maximum: item.maxValue === undefined ? '' : String(item.maxValue),
       secondary: String(item.secondaryValue ?? 0),
+      initialFocus,
     });
   };
 
@@ -348,12 +350,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleValueClick(idx, item.value)}
+                  onClick={() => handleValueClick(idx, item.value, 'secondary')}
                   onMouseDown={(event) => event.stopPropagation()}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      handleValueClick(idx, item.value);
+                      handleValueClick(idx, item.value, 'secondary');
                     }
                   }}
                   aria-label={`Edit ${item.label || 'number'} values, currently ${item.value} and ${item.secondaryValue ?? 0}`}
@@ -402,7 +404,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               <label className="block text-sm font-medium">
                 <span className="mb-1 block">Current value</span>
                 <input
-                  autoFocus
+                  autoFocus={!(numberDialogShowsManualSecondary && numberDialog.initialFocus === 'secondary')}
                   type="text"
                   inputMode="decimal"
                   step="1"
@@ -461,6 +463,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 <label className="block border-t border-theme-border pt-3 text-sm font-medium">
                   <span className="mb-1 block">Secondary value</span>
                   <input
+                    autoFocus={numberDialog.initialFocus === 'secondary'}
                     type="number"
                     step="any"
                     value={numberDialog.secondary}
