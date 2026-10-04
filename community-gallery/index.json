@@ -263,6 +263,14 @@
       "description": "Just the character sheet of my campaign :3",
       "file": "presets/song_of_the_nightingale.json",
       "gameSystem": "Song of the Nightingale"
+    },
+    {
+      "id": "34",
+      "name": "Jock - Diego",
+      "author": "@LukeSweet2001",
+      "description": "A change to the football player to fit a character in the adventure I'm running",
+      "file": "presets/jock_diego.json",
+      "gameSystem": "Buffy RPG"
     }
   ],
   "themes": [
