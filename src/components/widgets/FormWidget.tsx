@@ -11,7 +11,7 @@ import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   showFieldControls?: boolean;
@@ -212,7 +212,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
               ) : <InlineFormulaText text={item.name} />}
             </button>
 
-            {mode === 'edit' || editingValueIndex === idx ? (
+            {editingValueIndex === idx ? (
               <input
                 type="text"
                 value={item.value}
@@ -220,7 +220,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
                 onBlur={() => { handleValueBlur(idx); setEditingValueIndex(null); }}
                 onMouseDown={(e) => e.stopPropagation()}
                 readOnly={Boolean(item.valueFormula)}
-                autoFocus={mode !== 'edit'}
+                autoFocus
                 className={`flex-1 ${itemClass} px-1 py-0.5 border-b border-theme-border focus:border-theme-accent focus:outline-none bg-transparent text-theme-ink font-body min-w-0`}
                 placeholder="..."
               />

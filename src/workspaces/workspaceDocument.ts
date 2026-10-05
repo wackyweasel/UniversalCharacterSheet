@@ -2,12 +2,19 @@ import type { Character, Sheet, Widget } from '../types';
 import { isCustomTheme, type CustomTheme } from '../store/useCustomThemeStore';
 import type { AnyTemplate } from '../store/useTemplateStore';
 import type { UserPreset } from '../store/useUserPresetStore';
-import type { RestorableWorkspaceData, WorkspaceData, WorkspaceDocument, WorkspaceMode } from './types';
+import type { RestorableWorkspaceData, StoredWorkspaceMode, WorkspaceData, WorkspaceDocument, WorkspaceMode } from './types';
 
 export const WORKSPACE_FORMAT = 'universal-character-sheet/workspace';
 export const WORKSPACE_VERSION = 1;
 
-const WORKSPACE_MODES = new Set<WorkspaceMode>(['play', 'edit', 'vertical', 'print']);
+const WORKSPACE_MODES = new Set<WorkspaceMode>(['play', 'vertical', 'print']);
+const STORED_WORKSPACE_MODES = new Set<StoredWorkspaceMode>([...WORKSPACE_MODES, 'edit']);
+
+export function normalizeWorkspaceMode(value: unknown): WorkspaceMode {
+  return typeof value === 'string' && WORKSPACE_MODES.has(value as WorkspaceMode)
+    ? value as WorkspaceMode
+    : 'play';
+}
 
 export class WorkspaceDocumentError extends Error {
   constructor(message: string) {
@@ -156,7 +163,7 @@ export function createWorkspaceDocument(options: {
   characters?: Character[];
   eventsByCharacter?: WorkspaceDocument['eventsByCharacter'];
   activeCharacterId?: string | null;
-  mode?: WorkspaceMode;
+  mode?: StoredWorkspaceMode;
   customThemes?: CustomTheme[];
   templates?: AnyTemplate[];
   userPresets?: UserPreset[];
@@ -178,7 +185,7 @@ export function createWorkspaceDocument(options: {
     characters,
     eventsByCharacter: options.eventsByCharacter ?? {},
     activeCharacterId,
-    mode: activeCharacterId ? options.mode ?? 'play' : 'play',
+    mode: activeCharacterId ? normalizeWorkspaceMode(options.mode) : 'play',
     customThemes: options.customThemes ?? [],
     templates: options.templates ?? [],
     userPresets: options.userPresets ?? [],
@@ -201,7 +208,7 @@ export function parseWorkspaceDocument(value: unknown): WorkspaceDocument {
   if (!Number.isInteger(value.revision) || (value.revision as number) < 0 || typeof value.updatedAt !== 'string') {
     throw new WorkspaceDocumentError('Workspace revision metadata is invalid.');
   }
-  if (typeof value.mode !== 'string' || !WORKSPACE_MODES.has(value.mode as WorkspaceMode)) {
+  if (typeof value.mode !== 'string' || !STORED_WORKSPACE_MODES.has(value.mode as StoredWorkspaceMode)) {
     throw new WorkspaceDocumentError('Workspace mode is invalid.');
   }
   if (value.activeCharacterId !== null && typeof value.activeCharacterId !== 'string') {
@@ -217,7 +224,7 @@ export function parseWorkspaceDocument(value: unknown): WorkspaceDocument {
     updatedAt: value.updatedAt,
     ...data,
     activeCharacterId: value.activeCharacterId,
-    mode: value.mode as WorkspaceMode,
+    mode: value.mode as StoredWorkspaceMode,
   });
   return document;
 }

@@ -37,7 +37,7 @@ export function useAutoStack({ widgets, scale }: UseAutoStackOptions) {
     _takeSnapshot('Auto stack');
 
     // Get all widget DOM elements and measure their actual sizes
-    const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
+    const widgetElements = document.querySelectorAll('.canvas-widget[data-widget-id]');
     const widgetSizes: { id: string; w: number; h: number }[] = [];
 
     widgetElements.forEach((el) => {

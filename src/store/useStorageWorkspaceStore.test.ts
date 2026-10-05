@@ -474,7 +474,7 @@ describe('storage workspace coordinator', () => {
       name: directoryWorkspace.name,
       characters: [character],
       activeCharacterId: character.id,
-      mode: 'edit',
+      mode: 'vertical',
     });
     harness.directoryLoad.mockResolvedValue({ document: targetDocument, fingerprint: 'remote-1' });
     const { useStorageWorkspaceStore, useStore } = await loadStores();

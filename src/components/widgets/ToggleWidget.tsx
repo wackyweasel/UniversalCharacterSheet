@@ -5,7 +5,7 @@ import { InlineFormulaText } from '../InlineFormulaText';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   interactive?: boolean;
 }
 

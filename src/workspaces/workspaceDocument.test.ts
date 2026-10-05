@@ -38,7 +38,7 @@ describe('workspace documents', () => {
       name: 'Campaign',
       characters: [character],
       activeCharacterId: character.id,
-      mode: 'edit',
+      mode: 'vertical',
       customThemes: [customTheme],
       templates: [template],
       userPresets: [userPreset],
@@ -47,13 +47,25 @@ describe('workspace documents', () => {
     expect(parseWorkspaceDocument(JSON.parse(JSON.stringify(document)))).toEqual(document);
   });
 
+  it('opens documents saved in the removed Build mode in play mode', () => {
+    const document = createWorkspaceDocument({
+      workspaceId: 'workspace-1',
+      name: 'Campaign',
+      characters: [character],
+      activeCharacterId: character.id,
+    });
+
+    expect(parseWorkspaceDocument({ ...document, mode: 'edit' }).mode).toBe('play');
+    expect(() => parseWorkspaceDocument({ ...document, mode: 'build' })).toThrow('Workspace mode is invalid.');
+  });
+
   it('normalizes an active character that is not in the workspace', () => {
     const document = createWorkspaceDocument({
       workspaceId: 'workspace-1',
       name: 'Campaign',
       characters: [character],
       activeCharacterId: 'missing',
-      mode: 'edit',
+      mode: 'vertical',
     });
 
     expect(document.activeCharacterId).toBeNull();

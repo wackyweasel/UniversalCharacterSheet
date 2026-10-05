@@ -26,7 +26,7 @@ export function useFitWidgets({
     }
 
     // Get all widget DOM elements and measure their actual sizes
-    const widgetElements = document.querySelectorAll('.react-draggable[data-widget-id]');
+    const widgetElements = document.querySelectorAll('.canvas-widget[data-widget-id]');
     const widgetBounds: { x: number; y: number; w: number; h: number }[] = [];
 
     widgetElements.forEach((el) => {

@@ -37,7 +37,7 @@ interface ShareExportMenuProps {
   onOpenChange: (open: boolean) => void;
   onPrintPreview: () => void;
   onExit: () => void;
-  workspace: 'build' | 'play' | 'print';
+  workspace: 'play' | 'print';
   playLayout: 'canvas' | 'list';
   onSelectLayout: (layout: 'canvas' | 'list') => void;
   timelineOpen: boolean;
@@ -292,7 +292,7 @@ export default function ShareExportMenu({
             </div>
             {hasOverflowWorkspaceActions && (
               <div className="border-b border-theme-border/50 py-1">
-                <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">{workspace === 'build' ? 'Build tools' : 'View tools'}</p>
+                <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Sheet tools</p>
                 {onAddWidget && !inlineActionIds.has('add-widget') && <Tooltip content={addWidgetLabel === 'Add Widget' ? 'Open the widget toolbox' : 'Close the widget toolbox'} placement="below"><button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PlusIcon className="h-4 w-4" />{addWidgetLabel}</button></Tooltip>}
                 {onChangeTheme && !inlineActionIds.has('theme') && <Tooltip content={changeThemeLabel === 'Change Theme' ? 'Open theme customization' : 'Close theme customization'} placement="below"><button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PaletteIcon className="h-4 w-4" />{changeThemeLabel}</button></Tooltip>}
                 {onAutoStack && !inlineActionIds.has('auto-stack') && <Tooltip content="Arrange canvas widgets into columns automatically" placement="below"><button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><RowsIcon className="h-4 w-4" />Auto Stack</button></Tooltip>}

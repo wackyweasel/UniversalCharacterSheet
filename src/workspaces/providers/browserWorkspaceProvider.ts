@@ -3,7 +3,7 @@ import type { CustomTheme } from '../../store/useCustomThemeStore';
 import type { AnyTemplate } from '../../store/useTemplateStore';
 import type { UserPreset } from '../../store/useUserPresetStore';
 import { migrateCharacter } from '../../utils/characterClone';
-import type { StorageWorkspace, WorkspaceCharacterTimeline, WorkspaceMode } from '../types';
+import type { StorageWorkspace, StoredWorkspaceMode, WorkspaceCharacterTimeline } from '../types';
 import { createWorkspaceDocument } from '../workspaceDocument';
 import type { WorkspaceProvider } from './types';
 
@@ -30,7 +30,7 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 interface BrowserCharacterData {
   characters?: Character[];
   activeCharacterId?: string | null;
-  mode?: WorkspaceMode;
+  mode?: StoredWorkspaceMode;
 }
 
 interface BrowserTimelineData {

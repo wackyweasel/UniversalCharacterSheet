@@ -219,7 +219,7 @@ export default function Sheet() {
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const activeSheetId = activeCharacter?.activeSheetId;
-  const { workspace, playLayout, listColumns, enterBuild, enterPlay, setPlayLayout, setListColumns } = useWorkspaceNavigation(activeCharacterId, activeSheetId);
+  const { workspace, playLayout, listColumns, setPlayLayout, setListColumns } = useWorkspaceNavigation(activeCharacterId, activeSheetId);
   const switchableCharacters = useMemo(() => {
     if (!activeCharacterId || transientCharacterIds.includes(activeCharacterId)) return [];
     const transientIds = new Set(transientCharacterIds);
@@ -234,7 +234,7 @@ export default function Sheet() {
   const requestCharacterCreator = useStore((state) => state.requestCharacterCreator);
 
   useEffect(() => {
-    if ((mode === 'edit' || mode === 'print') && timelineIsOpen) {
+    if (mode === 'print' && timelineIsOpen) {
       setTimelineOpen(false);
     }
   }, [mode, setTimelineOpen, timelineIsOpen]);
@@ -395,7 +395,7 @@ export default function Sheet() {
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) return;
+    if (mode === 'vertical') return;
 
     const workspace = containerRef.current;
     if (!workspace) return;
@@ -406,7 +406,7 @@ export default function Sheet() {
 
     workspace.addEventListener('wheel', preventBrowserZoom, { capture: true, passive: false });
     return () => workspace.removeEventListener('wheel', preventBrowserZoom, true);
-  }, [mode, playLayout]);
+  }, [mode]);
   
   // Clear mobile widget controls unless the touch stays on their selected widget controls.
   const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {
@@ -417,7 +417,7 @@ export default function Sheet() {
     if (touchTarget) {
       const selectedWidgetId = useStore.getState().selectedWidgetId;
       const touchedWidgetId = touchTarget.closest('[data-widget-id]')?.getAttribute('data-widget-id');
-      const touchedAttachmentControl = touchTarget.closest('[data-attach-widget-ids]');
+      const touchedAttachmentControl = touchTarget.closest('[data-attach-widget-ids], .widget-options-menu');
       if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
     }
 
@@ -456,7 +456,6 @@ export default function Sheet() {
     minScale: MIN_CANVAS_SCALE,
     maxScale: MAX_CANVAS_SCALE,
     editingWidgetId,
-    mode,
     characterId: activeCharacterId,
     sheetId: activeSheetId,
     onBackgroundClick: handleBackgroundInteraction,
@@ -472,8 +471,7 @@ export default function Sheet() {
     if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
 
     let frame = 0;
-    const usesVerticalLayout = mode === 'vertical' || (mode === 'edit' && playLayout === 'list');
-    if (!usesVerticalLayout) {
+    if (mode !== 'vertical') {
       frame = window.requestAnimationFrame(() => {
         const viewport = containerRef.current;
         const target = printAreaRef.current?.querySelector<HTMLElement>(`[data-widget-id="${searchReveal.widgetId}"]`);
@@ -522,7 +520,7 @@ export default function Sheet() {
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timeout);
     };
-  }, [activeCharacter?.activeSheetId, mode, playLayout, searchReveal, setPan, setScale]);
+  }, [activeCharacter?.activeSheetId, mode, searchReveal, setPan, setScale]);
 
   // Touch camera controls hook
   const getScale = useCallback(() => scaleRef.current, []);
@@ -551,7 +549,6 @@ export default function Sheet() {
     }, [commitCamera]);
   
   const { isTouchPanning } = useTouchCamera({
-    mode,
     onCameraPreview: previewCamera,
     onCameraCommit: commitCamera,
     onPinchingChange: setIsPinching,
@@ -626,20 +623,6 @@ export default function Sheet() {
     }
   };
 
-  const handleEnterBuildWorkspace = () => {
-    enterBuild();
-    if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') {
-      advanceTutorial();
-    }
-  };
-
-  const handleEnterPlayWorkspace = () => {
-    enterPlay();
-    if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
-      advanceTutorial();
-    }
-  };
-
   const handleSelectPlayLayout = (layout: 'canvas' | 'list') => {
     setPlayLayout(layout);
     if (layout === 'list' && isCurrentTutorialStep('various-vertical-view')) {
@@ -677,6 +660,12 @@ export default function Sheet() {
         setSheetSearchOpen(true);
         return;
       }
+
+      if (e.key === 'Escape' && useStore.getState().selectedWidgetId) {
+        window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
+        setSelectedWidgetId(null);
+        return;
+      }
       
       // Ctrl+Z for undo
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
@@ -692,11 +681,11 @@ export default function Sheet() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, setSelectedWidgetId]);
 
   // Print mode handlers
   const enterPrintMode = useCallback(() => {
-    setPreviousMode(mode as 'play' | 'edit' | 'vertical');
+    setPreviousMode(mode as 'play' | 'vertical');
     setMode('print');
     // Only calculate print area if there isn't one already (preserve previous)
     if (!printArea) {
@@ -707,10 +696,10 @@ export default function Sheet() {
     }
   }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea, printArea]);
 
-  const exitPrintMode = useCallback((targetMode?: 'play' | 'edit') => {
+  const exitPrintMode = useCallback((targetMode?: 'play') => {
     const modeToSwitchTo = targetMode || previousMode || 'play';
     setMode(modeToSwitchTo);
-    // If "Show in Edit Mode" is on, preserve the print area and that flag
+    // If "Show print area on sheet" is on, preserve the print area and that flag
     const keepOverlay = showInEditMode && printArea;
     const savedArea = printArea;
     resetPrintSettings();
@@ -890,12 +879,12 @@ export default function Sheet() {
     window.print();
   }, [isLandscape, paperFormat, printArea, recordSheetWorkflowEvent]);
 
-  // Handle the transition from the complete-sheet prompt to the play step.
+  // Load the complete tutorial sheet once the basic tour reaches the try-it-out step.
   useEffect(() => {
-    if (!isCurrentTutorialStep('switch-to-play')) return;
+    if (!isCurrentTutorialStep('try-widgets')) return;
 
     setPlayLayout('canvas');
-    setMode('edit');
+    setMode('play');
 
     // Creating the transient character remounts Sheet. The new instance must not create it again.
     // The starter character is transient too, so compare against the full preset widget count.
@@ -919,10 +908,10 @@ export default function Sheet() {
     }, 200);
   }, [activeCharacterId, createTransientCharacterFromPreset, darkMode, handleFitAllWidgets, setMode, setPlayLayout, transientCharacterIds, tutorialStep, updateCharacterTheme]);
 
-  // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
+  // Specialty tutorials start from the same complete tutorial sheet on the canvas.
   useEffect(() => {
     if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) || isCurrentTutorialStep(TEMPLATE_TUTORIAL_START_ID)) {
-      setMode('edit');
+      setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
@@ -937,7 +926,7 @@ export default function Sheet() {
 
   useEffect(() => {
     if (isCurrentTutorialStep('automation-open-number-display-menu')) {
-      setMode('edit');
+      setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
@@ -948,7 +937,7 @@ export default function Sheet() {
 
   useEffect(() => {
     if (isCurrentTutorialStep('automation-open-dice-menu')) {
-      setMode('edit');
+      setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
@@ -981,7 +970,7 @@ export default function Sheet() {
 
   useEffect(() => {
     if (isCurrentTutorialStep('templates-share-template')) {
-      setMode('edit');
+      setMode('play');
       setThemeSidebarCollapsed(true);
       setSidebarCollapsed(false);
     }
@@ -1016,8 +1005,8 @@ export default function Sheet() {
     }
 
     if (isCurrentTutorialStep('various-add-sheets') || isCurrentTutorialStep('various-add-sheet-button')) {
-      if (mode !== 'edit') {
-        setMode('edit');
+      if (mode !== 'play') {
+        setMode('play');
       }
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
@@ -1029,7 +1018,7 @@ export default function Sheet() {
 
   // Open the hamburger when the current tutorial target lives inside it.
   useEffect(() => {
-    const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
+    const needsAddWidgetButton = isCurrentTutorialStep('add-widget');
     const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
     const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
     const compactToolbar = window.innerWidth < 480;
@@ -1404,8 +1393,8 @@ export default function Sheet() {
     listWidgetColumns[listColumnAssignments[widget.id]].push(widget);
   });
 
-  // Render list layout in either Play or Build.
-  if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
+  // Render list layout.
+  if (mode === 'vertical') {
     return (
       <div className="vertical-mode-container w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
         <Sidebar
@@ -1426,8 +1415,6 @@ export default function Sheet() {
           listColumns={listColumns}
           menuOpen={gridMenuOpen}
           onMenuOpenChange={setGridMenuOpen}
-          onBuild={handleEnterBuildWorkspace}
-          onPlay={handleEnterPlayWorkspace}
           onSelectLayout={handleSelectPlayLayout}
           onListColumnsChange={setListColumns}
           onPrintPreview={enterPrintMode}
@@ -1451,7 +1438,6 @@ export default function Sheet() {
           onSearch={() => setSheetSearchOpen(true)}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
-          workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
         />
 
@@ -1516,13 +1502,9 @@ export default function Sheet() {
             onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           />
           <WorkspaceToggleGroup
-            workspace={workspace}
             playLayout={playLayout}
-            onBuild={handleEnterBuildWorkspace}
-            onPlay={handleEnterPlayWorkspace}
             onCanvas={() => handleSelectPlayLayout('canvas')}
             onList={() => handleSelectPlayLayout('list')}
-            workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
             listHighlighted={isCurrentTutorialStep('various-vertical-view')}
             layoutClassName="min-[720px]:flex"
           />
@@ -1548,13 +1530,13 @@ export default function Sheet() {
           </Tooltip>
           <CharacterNameControl
             name={activeCharacter.name}
-            editable={workspace === 'build'}
+            editable
             onSave={(name) => updateCharacterName(activeCharacter.id, name)}
             className="hidden absolute left-1/2 -translate-x-1/2 text-center min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]"
           />
           <div className="flex-1 min-w-0" />
 
-          <div className={`hidden ${workspace === 'build' ? 'min-[540px]:flex' : 'min-[480px]:flex'} items-center gap-2 shrink-0`}>
+          <div className="hidden min-[480px]:flex items-center gap-2 shrink-0">
             <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
             {workspace === 'play' && (
               <Tooltip content="Open event timeline" placement="below">
@@ -1658,7 +1640,6 @@ export default function Sheet() {
                         registerElement={registerVerticalWidget}
                         onDragStart={startVerticalDrag}
                         onReorderKey={handleVerticalReorderKey}
-                        isBuildMode={workspace === 'build'}
                         searchRevealKey={searchReveal?.widgetId === widget.id ? searchReveal.key : undefined}
                       />
                     );
@@ -1670,17 +1651,13 @@ export default function Sheet() {
             {activeSheetWidgets.length === 0 && (
               <div className="text-center text-theme-muted py-12">
                 <p className="font-body">No widgets on this sheet</p>
-                {workspace === 'build' ? (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleWidgetSidebar()}
-                    className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
-                  >
-                    Add widget
-                  </button>
-                ) : (
-                  <p className="text-sm mt-2">Switch to Build to add widgets</p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleToggleWidgetSidebar()}
+                  className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
+                >
+                  Add widget
+                </button>
               </div>
             )}
           </div>
@@ -1708,7 +1685,7 @@ export default function Sheet() {
         />
       )}
       
-      {/* Theme Sidebar - available in edit mode */}
+      {/* Theme Sidebar */}
       {mode !== 'print' && (
         <ThemeSidebar
           collapsed={themeSidebarCollapsed}
@@ -1725,7 +1702,7 @@ export default function Sheet() {
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}
       >
-        {mode === 'edit' && activeSheetWidgets.length === 0 && (
+        {mode !== 'print' && activeSheetWidgets.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
             <div className="pointer-events-auto flex flex-col items-center gap-3 text-center">
               <p className="font-heading text-sm font-bold text-theme-ink">Empty sheet</p>
@@ -1759,13 +1736,6 @@ export default function Sheet() {
             transform: getCameraTransform(pan, scale)
           }}
         >
-          {/* Infinite Grid Background - hidden in play and print mode */}
-          {mode !== 'play' && mode !== 'print' && (
-            <div 
-              className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] pattern-grid opacity-20 pointer-events-none" 
-            />
-          )}
-
           {/* Shadow Layer - rendered below all widgets (respect shadowsDisabled in print mode) */}
           {!(mode === 'print' && shadowsDisabled) && (
             <WidgetShadows 
@@ -1786,20 +1756,20 @@ export default function Sheet() {
 
           <CardDeckLayer pan={pan} scale={scale} zIndex={cardDeckLayerZIndex} />
           
-          {/* Attachment Buttons - only in edit mode */}
-          {mode === 'edit' && attachmentControlsVisible && (
+          {/* Attachment buttons for the selected widget */}
+          {mode !== 'print' && attachmentControlsVisible && (
             <AttachmentButtons 
               widgets={activeSheetWidgets} 
               scale={scale}
             />
           )}
           
-          {/* Print Area Overlay - in print mode or edit mode when showInEditMode is on */}
-          {(mode === 'print' || (mode === 'edit' && showInEditMode && printArea)) && (
+          {/* Print Area Overlay - in print mode, or read-only on the canvas when showInEditMode is on */}
+          {(mode === 'print' || (showInEditMode && printArea)) && (
             <PrintAreaOverlay 
               scale={scale}
               pan={pan}
-              readOnly={mode === 'edit'}
+              readOnly={mode !== 'print'}
             />
           )}
         </div>
@@ -1815,8 +1785,7 @@ export default function Sheet() {
             resetPrintSettings();
             handleExitToMenu();
           }}
-          onPlay={() => exitPrintMode('play')}
-          onBuild={() => exitPrintMode('edit')}
+          onOpenCanvas={() => exitPrintMode('play')}
           onPrint={handlePrint}
           printerFriendly={printerFriendly}
           onTogglePrinterFriendly={() => setPrinterFriendly(!printerFriendly)}
@@ -1857,21 +1826,13 @@ export default function Sheet() {
               </button>
             </Tooltip>
             
-            {/* Return to a primary workspace */}
-            <Tooltip content="Exit print preview and return to Play" placement="below">
+            {/* Return to the canvas */}
+            <Tooltip content="Exit print preview and return to the canvas" placement="below">
               <button
                 onClick={() => exitPrintMode('play')}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Play
-              </button>
-            </Tooltip>
-            <Tooltip content="Exit print preview and return to Build" placement="below">
-              <button
-                onClick={() => exitPrintMode('edit')}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-              >
-                Build
+                Canvas
               </button>
             </Tooltip>
 
@@ -1948,8 +1909,8 @@ export default function Sheet() {
                 </div>
               )}
             </div>
-            {/* Show in Edit Mode toggle */}
-            <Tooltip content="Also show the print area rectangle in edit mode" placement="below">
+            {/* Show print area on the canvas */}
+            <Tooltip content="Also show the print area rectangle on the sheet" placement="below">
               <button
                 onClick={() => setShowInEditMode(!showInEditMode)}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
@@ -1958,7 +1919,7 @@ export default function Sheet() {
                     : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
-                Show in Edit Mode
+                Show print area on sheet
               </button>
             </Tooltip>
           </div>
@@ -2002,16 +1963,7 @@ export default function Sheet() {
             }}
             className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
           >
-            Play Mode
-          </button>
-          <button
-            onClick={() => {
-              exitPrintMode('edit');
-              setPrintMenuOpen(false);
-            }}
-            className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-          >
-            Edit Mode
+            Canvas
           </button>
           <div className="border-t border-theme-border" />
           <button
@@ -2079,12 +2031,12 @@ export default function Sheet() {
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            Show in Edit Mode {showInEditMode && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
+            Show print area on sheet {showInEditMode && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
         </div>
       )}
 
-      {/* Compact header bar for grid/edit mode (hidden in print mode) */}
+      {/* Canvas toolbar (hidden in print mode) */}
       {mode !== 'print' && (
       <SheetToolbar
         overlay
@@ -2096,8 +2048,6 @@ export default function Sheet() {
         listColumns={listColumns}
         menuOpen={gridMenuOpen}
         onMenuOpenChange={setGridMenuOpen}
-        onBuild={handleEnterBuildWorkspace}
-        onPlay={handleEnterPlayWorkspace}
         onSelectLayout={handleSelectPlayLayout}
         onListColumnsChange={setListColumns}
         onPrintPreview={() => {
@@ -2129,11 +2079,10 @@ export default function Sheet() {
         addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
         onChangeTheme={() => handleToggleThemeSidebar()}
         changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-        onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+        onAutoStack={() => setShowAutoStackConfirm(true)}
         onSearch={() => setSheetSearchOpen(true)}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
-        workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
       />
       )}
@@ -2184,20 +2133,15 @@ export default function Sheet() {
           addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
           onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-          onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+          onAutoStack={() => setShowAutoStackConfirm(true)}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         />
         <WorkspaceToggleGroup
-          workspace={workspace}
           playLayout={playLayout}
-          onBuild={handleEnterBuildWorkspace}
-          onPlay={handleEnterPlayWorkspace}
           onCanvas={() => handleSelectPlayLayout('canvas')}
           onList={() => handleSelectPlayLayout('list')}
-          workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
-          layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
         />
         <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
           <button
@@ -2214,20 +2158,20 @@ export default function Sheet() {
             type="button"
             data-tutorial="theme-button"
             onClick={() => handleToggleThemeSidebar()}
-            className={`hidden min-[640px]:block ${workspace === 'build' ? 'min-[900px]:hidden' : 'min-[720px]:hidden'} min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            className={`hidden min-[640px]:block min-[720px]:hidden min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
           >
             Theme
           </button>
         </Tooltip>
         <CharacterNameControl
           name={activeCharacter.name}
-          editable={workspace === 'build'}
+          editable
           onSave={(name) => updateCharacterName(activeCharacter.id, name)}
           className="hidden absolute left-1/2 -translate-x-1/2 text-center min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]"
         />
         <div className="flex-1 min-w-0" />
 
-        <div className={`hidden ${workspace === 'build' ? 'min-[540px]:flex' : 'min-[480px]:flex'} items-center gap-2 shrink-0`}>
+        <div className="hidden min-[480px]:flex items-center gap-2 shrink-0">
           <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
           {workspace === 'play' && (
             <Tooltip content="Open event timeline" placement="below">
@@ -2291,7 +2235,7 @@ export default function Sheet() {
                 ref={(element) => setSheetRowRef(sheet.id, element)}
                 className="pointer-sort-row group relative flex items-stretch"
               >
-                {mode === 'edit' && editingSheetId !== sheet.id && (
+                {mode !== 'print' && editingSheetId !== sheet.id && (
                   <button
                     type="button"
                     onPointerDown={(event) => startSheetDrag(sheet.id, event)}
@@ -2343,7 +2287,7 @@ export default function Sheet() {
                     }`}
                   >
                     <span>{sheet.name}</span>
-                    {mode === 'edit' && (
+                    {mode !== 'print' && (
                       <span className="flex items-center gap-1">
                         <span
                           onClick={(e) => {
@@ -2377,7 +2321,7 @@ export default function Sheet() {
                 </div>
               </div>
             ))}
-            {mode === 'edit' && (
+            {mode !== 'print' && (
               <button
                 onClick={() => {
                   createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
@@ -2535,12 +2479,12 @@ export default function Sheet() {
           <button
             type="button"
             data-tutorial="fit-button"
-            className={`canvas-zoom-fit ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`canvas-zoom-fit ${isCurrentTutorialStep('fit-button') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             onClick={() => {
               if (viewLocked) return;
               handleFitAllWidgets();
               recordSheetWorkflowEvent('view_fit_used', 'view', { widgetCount: activeSheetWidgets.length });
-              if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
+              if (isCurrentTutorialStep('fit-button')) {
                 advanceTutorial();
               }
             }}

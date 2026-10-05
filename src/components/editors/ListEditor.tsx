@@ -23,7 +23,7 @@ export function ListEditor({ widget, updateData }: EditorProps) {
           onChange={(e) => updateData({ itemCount: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
           onBlur={(e) => updateData({ itemCount: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)) })}
         />
-        <p className="widget-editor__hint text-xs text-theme-muted mt-2">Items can be filled in during play mode</p>
+        <p className="widget-editor__hint text-xs text-theme-muted mt-2">Items can be filled in directly on the sheet</p>
 
         <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-theme-ink">
           <input

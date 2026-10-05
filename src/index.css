@@ -1270,7 +1270,103 @@ td .inline-dice-token {
   }
 
   .widget-surface--dragging {
-    z-index: 1000 !important;
+    z-index: 10002 !important;
+  }
+
+  /* Selection ring sits outside the theme outline; the paper gap keeps it distinct from the border. */
+  .widget-selection-ring {
+    border: 2px solid var(--color-accent);
+    border-radius: calc(var(--border-radius) + 6px);
+    box-shadow: inset 0 0 0 2px var(--color-paper);
+    inset: -6px;
+    pointer-events: none;
+    position: absolute;
+    z-index: 45;
+  }
+
+  /* Arrange hit areas scale with --widget-hit-scale so they stay usable when zoomed out. */
+  .widget-drag-grip {
+    height: calc(12px * var(--widget-hit-scale, 1));
+    left: 50%;
+    top: calc(-6px * var(--widget-hit-scale, 1));
+    transform: translateX(-50%);
+    width: min(calc(64px * var(--widget-hit-scale, 1)), 50%);
+  }
+
+  .widget-drag-grip__pill {
+    background-color: var(--color-muted);
+    border-radius: 9999px;
+    height: calc(4px * var(--widget-hit-scale, 1));
+    opacity: 0;
+    transition: opacity 120ms ease, background-color 120ms ease;
+    width: calc(32px * var(--widget-hit-scale, 1));
+  }
+
+  .canvas-widget:hover .widget-drag-grip__pill,
+  .widget-surface--selected .widget-drag-grip__pill {
+    opacity: 0.6;
+  }
+
+  .widget-drag-grip:hover .widget-drag-grip__pill,
+  .widget-surface--dragging .widget-drag-grip__pill {
+    background-color: var(--color-accent);
+    opacity: 1;
+  }
+
+  .widget-resize-zone {
+    --widget-edge-hit: calc(4px * var(--widget-hit-scale, 1));
+    --widget-corner-hit: calc(6px * var(--widget-hit-scale, 1));
+  }
+
+  .widget-resize-zone--n,
+  .widget-resize-zone--s {
+    cursor: ns-resize;
+    height: calc(var(--widget-edge-hit) * 2);
+    left: var(--widget-corner-hit);
+    right: var(--widget-corner-hit);
+  }
+
+  .widget-resize-zone--n { top: calc(var(--widget-edge-hit) * -1); }
+  .widget-resize-zone--s { bottom: calc(var(--widget-edge-hit) * -1); }
+
+  .widget-resize-zone--e,
+  .widget-resize-zone--w {
+    bottom: var(--widget-corner-hit);
+    cursor: ew-resize;
+    top: var(--widget-corner-hit);
+    width: calc(var(--widget-edge-hit) * 2);
+  }
+
+  .widget-resize-zone--e { right: calc(var(--widget-edge-hit) * -1); }
+  .widget-resize-zone--w { left: calc(var(--widget-edge-hit) * -1); }
+
+  .widget-resize-zone--ne,
+  .widget-resize-zone--nw,
+  .widget-resize-zone--se,
+  .widget-resize-zone--sw {
+    height: calc(var(--widget-corner-hit) * 2);
+    width: calc(var(--widget-corner-hit) * 2);
+  }
+
+  .widget-resize-zone--ne { cursor: nesw-resize; right: calc(var(--widget-corner-hit) * -1); top: calc(var(--widget-corner-hit) * -1); }
+  .widget-resize-zone--nw { cursor: nwse-resize; left: calc(var(--widget-corner-hit) * -1); top: calc(var(--widget-corner-hit) * -1); }
+  .widget-resize-zone--se { bottom: calc(var(--widget-corner-hit) * -1); cursor: nwse-resize; right: calc(var(--widget-corner-hit) * -1); }
+  .widget-resize-zone--sw { bottom: calc(var(--widget-corner-hit) * -1); cursor: nesw-resize; left: calc(var(--widget-corner-hit) * -1); }
+
+  .widget-resize-handle {
+    --widget-handle-size: calc(24px * var(--widget-hit-scale, 1));
+    height: var(--widget-handle-size);
+    width: var(--widget-handle-size);
+  }
+
+  .widget-resize-handle--nw {
+    left: calc(var(--widget-handle-size) / -3);
+    top: calc(var(--widget-handle-size) / -3);
+  }
+
+  .widget-resize-handle--se {
+    bottom: calc(var(--widget-handle-size) / -3);
+    right: calc(var(--widget-handle-size) / -3);
   }
 
   .widget-content {
@@ -1280,10 +1376,6 @@ td .inline-dice-token {
     padding: 6px 8px 8px;
     position: relative;
     z-index: 10;
-  }
-
-  .widget-content--field-controls-interactive {
-    z-index: auto;
   }
 
   .widget-surface--card-table .widget-content {
@@ -2307,7 +2399,7 @@ td .inline-dice-token {
     min-height: 24px;
     padding-right: 0;
     position: absolute;
-    right: 72px;
+    right: 104px;
     top: -32px;
     z-index: 30;
   }
@@ -2325,15 +2417,6 @@ td .inline-dice-token {
     min-height: 0;
     width: 28px;
   }
-
-  .vertical-widget-body--header-controls.vertical-widget-body--build-actions > div > :first-child {
-    right: 104px;
-  }
-}
-
-.pattern-grid {
-  background-image: radial-gradient(var(--color-ink) 1px, transparent 1px);
-  background-size: 10px 10px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2400,6 +2483,45 @@ td .inline-dice-token {
 
   .widget-options-menu button {
     min-height: 44px;
+  }
+}
+
+/* Touch moves widgets with long-press, so hover-only arrange zones are hidden. */
+@media (hover: none) {
+  .widget-drag-grip,
+  .widget-resize-zone {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .widget-resize-handle {
+    --widget-handle-size: calc(40px * var(--widget-hit-scale, 1));
+  }
+
+  .widget-resize-handle--nw {
+    left: calc(var(--widget-handle-size) / -2);
+    top: calc(var(--widget-handle-size) / -2);
+  }
+
+  .widget-resize-handle--se {
+    bottom: calc(var(--widget-handle-size) / -2);
+    right: calc(var(--widget-handle-size) / -2);
+  }
+
+  /* Stop the iOS callout and text selection from hijacking long-press. */
+  .canvas-widget {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .canvas-widget input,
+  .canvas-widget textarea,
+  .canvas-widget [contenteditable='true'] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
 
@@ -4053,7 +4175,7 @@ td .inline-dice-token {
   }
   
   /* Ensure widgets print with correct colors */
-  .react-draggable {
+  .canvas-widget {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;

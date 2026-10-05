@@ -17,7 +17,8 @@ import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/c
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
 
-type Mode = 'play' | 'edit' | 'vertical' | 'print';
+type Mode = 'play' | 'vertical' | 'print';
+export type WidgetSelectionSource = 'pointer' | 'touch';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
 type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
 type CharacterOpenTelemetrySource = 'character_list' | 'character_switcher';
@@ -105,7 +106,8 @@ interface StoreState {
   activeCharacterId: string | null;
   mode: Mode;
   editingWidgetId: string | null;
-  selectedWidgetId: string | null; // For showing edit/delete/attach buttons on mobile
+  selectedWidgetId: string | null;
+  selectedWidgetSource: WidgetSelectionSource | null;
   characterCreatorRequest: CharacterCreatorRequest | null;
   
   // Actions
@@ -126,7 +128,7 @@ interface StoreState {
   clearCharacterCreatorRequest: () => void;
   setMode: (mode: Mode) => void;
   setEditingWidgetId: (id: string | null) => void;
-  setSelectedWidgetId: (id: string | null) => void;
+  setSelectedWidgetId: (id: string | null, source?: WidgetSelectionSource) => void;
   
   // Sheet Actions
   createSheet: (name: string) => void;
@@ -143,7 +145,7 @@ interface StoreState {
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   bringWidgetToFront: (id: string) => void;
-  updateWidgetSize: (id: string, w: number, h: number) => void;
+  updateWidgetSize: (id: string, w: number | undefined, h: number | undefined) => void;
   updateWidgetData: (id: string, data: any) => void;
   toggleCardTableCard: (widgetId: string, cardId: string) => void;
   setCardTableCardsFaceUp: (widgetId: string, faceUp: boolean) => void;
@@ -254,6 +256,7 @@ export const useStore = create<StoreState>((set, get) => {
     mode: 'play',
     editingWidgetId: null,
     selectedWidgetId: null,
+    selectedWidgetSource: null,
     characterCreatorRequest: null,
 
     createCharacter: (name) => set((state) => {
@@ -278,7 +281,7 @@ export const useStore = create<StoreState>((set, get) => {
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
-        mode: 'edit' as const
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
 
@@ -349,6 +352,7 @@ export const useStore = create<StoreState>((set, get) => {
         mode: 'play',
         editingWidgetId: null,
         selectedWidgetId: null,
+        selectedWidgetSource: null,
       });
       return true;
     },
@@ -415,6 +419,7 @@ export const useStore = create<StoreState>((set, get) => {
         activeCharacterId: state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId,
         editingWidgetId: null,
         selectedWidgetId: null,
+        selectedWidgetSource: null,
       };
     }),
 
@@ -511,11 +516,6 @@ export const useStore = create<StoreState>((set, get) => {
         }
       }
 
-      const selectedCharacter = id ? state.characters.find(c => c.id === id) : undefined;
-      const selectedCharacterIsBlank = selectedCharacter
-        ? selectedCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
-        : false;
-
       const remainingCharacters = shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters;
 
       return {
@@ -523,13 +523,10 @@ export const useStore = create<StoreState>((set, get) => {
         characters: resolveActiveCharacterFormulas({ activeCharacterId: id }, remainingCharacters),
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
         activeCharacterId: id,
-        mode: selectedCharacterIsBlank
-          ? 'edit' as const
-          : state.mode === 'vertical'
-            ? 'vertical' as const
-            : 'play' as const,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
         editingWidgetId: null,
         selectedWidgetId: null,
+        selectedWidgetSource: null,
       };
     }),
 
@@ -609,12 +606,15 @@ export const useStore = create<StoreState>((set, get) => {
         });
       }
 
-      return { mode, selectedWidgetId: null };
+      return { mode, selectedWidgetId: null, selectedWidgetSource: null };
     }),
 
     setEditingWidgetId: (id) => set({ editingWidgetId: id }),
 
-    setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
+    setSelectedWidgetId: (id, source = 'pointer') => set({
+      selectedWidgetId: id,
+      selectedWidgetSource: id ? source : null,
+    }),
 
     // Sheet Actions
     createSheet: (name) => set((state) => {
@@ -2906,6 +2906,7 @@ export const useStore = create<StoreState>((set, get) => {
       mode: workspaceState.mode,
       editingWidgetId: null,
       selectedWidgetId: null,
+      selectedWidgetSource: null,
       characterCreatorRequest: null,
     }),
   };

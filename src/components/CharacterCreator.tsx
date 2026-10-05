@@ -129,7 +129,7 @@ export default function CharacterCreator({
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
             <span className={`font-heading font-bold ${darkMode ? 'text-white' : 'text-gray-950'}`}>Starting point</span>
             <p className={`font-body text-xs ${darkMode ? 'text-white/45' : 'text-gray-500'}`}>
-              {presetsOnly ? 'Choose one to open ready to play.' : 'Blank opens in Build. Presets open ready to play.'}
+              {presetsOnly ? 'Choose one to open ready to play.' : 'Start blank, or pick a preset that opens ready to play.'}
             </p>
           </div>
 

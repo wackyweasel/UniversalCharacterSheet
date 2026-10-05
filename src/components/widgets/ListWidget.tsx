@@ -11,7 +11,7 @@ import { WidgetItemColumns } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   showFieldControls?: boolean;
@@ -216,7 +216,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
         <WidgetItemColumns columns={itemColumns} rowGap={4} items={normalizedItems.map((item: string, idx: number) => (
           <div key={idx} className="flex items-center gap-1 group">
             <span className="text-theme-ink">•</span>
-            {workspaceMode !== 'edit' && editingIndex !== idx ? (
+            {editingIndex !== idx ? (
               <div
                 className={`min-h-[1.5em] min-w-0 flex-1 cursor-text border-b border-theme-border py-0.5 text-xs font-body text-theme-ink ${wrapText ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
                 role="button"
@@ -242,7 +242,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
                 onBlur={() => { handleBlur(idx); setEditingIndex(null); }}
                 placeholder={mode === 'print' ? '' : '...'}
                 ariaLabel={`${label || 'List'} item ${idx + 1}`}
-                autoFocus={workspaceMode !== 'edit'}
+                autoFocus
               />
             ) : (
               <input
@@ -252,12 +252,12 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
                 onFocus={() => handleFocus(idx)}
                 onBlur={() => { handleBlur(idx); setEditingIndex(null); }}
                 placeholder={mode === 'print' ? '' : '...'}
-                autoFocus={workspaceMode !== 'edit'}
+                autoFocus
                 onMouseDown={(e) => e.stopPropagation()}
                 aria-label={`${label || 'List'} item ${idx + 1}`}
               />
             )}
-            {workspaceMode !== 'print' && (workspaceMode === 'edit' || editingIndex === idx) && (
+            {workspaceMode !== 'print' && editingIndex === idx && (
               <Tooltip content="Clear this item">
                 <button 
                   onClick={() => clearItem(idx)}

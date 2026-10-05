@@ -41,6 +41,7 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.9.0',
     changes: [
+      'Build mode is gone: arrange widgets directly on the sheet. On desktop, drag the grip on a widget\'s top edge to move it, drag its edges to resize it, and right-click or select it for its menu and attach buttons. On touch devices, long-press a widget to pick it up and drag it, or long-press and release to select it and open its menu.',
       'New Wallet widget: track coins with custom currencies and exchange rates (cp, sp, gp by default), add or spend money with automatic change, convert between currencies, and show the total in the currency of your choice. Transactions are recorded in the timeline.',
       'The formula editor now highlights exactly what is broken in a formula (unknown labels, unclosed parentheses, missing values, wrong function arguments, and more) and lists what is wrong.',
       'Mixed Fields widgets now have an alignment setting (left, center or right) in the editor that applies to all of their fields.',
@@ -783,7 +784,7 @@ export default function CharacterList() {
       updateCharacterTheme(newCharacterId, 'classic-dark');
     }
 
-    setMode('edit');
+    setMode('play');
     startThemesTutorial();
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
@@ -799,7 +800,7 @@ export default function CharacterList() {
       updateCharacterTheme(newCharacterId, 'classic-dark');
     }
 
-    setMode('edit');
+    setMode('play');
     startTemplatesTutorial();
     setShowTutorialDropdown(false);
     setShowMobileTutorialOptions(false);
@@ -895,7 +896,7 @@ export default function CharacterList() {
       updateCharacterTheme(newCharacterId, 'classic-dark');
     }
 
-    setMode('edit');
+    setMode('play');
     advanceTutorial();
   }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, setPlayLayout, advanceTutorial]);
 

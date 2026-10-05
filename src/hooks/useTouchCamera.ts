@@ -1,6 +1,9 @@
 import { useRef, useEffect } from 'react';
+import { getWidgetDragState } from '../components/widgetDragRegistry';
 
 const TOUCH_CAMERA_PINCH_START_EVENT = 'ucs:touch-camera-pinch-start';
+// Touches on widgets wait for this distance so a long-press can lift the widget first.
+const WIDGET_PAN_SLOP = 8;
 
 export function useTouchCameraPinchCancellation(onCancel: () => void) {
   const onCancelRef = useRef(onCancel);
@@ -14,7 +17,6 @@ export function useTouchCameraPinchCancellation(onCancel: () => void) {
 }
 
 interface UseTouchCameraOptions {
-  mode: 'play' | 'edit' | 'vertical' | 'print';
   onCameraPreview: (pan: { x: number; y: number }, scale: number) => void;
   onCameraCommit: (pan: { x: number; y: number }, scale: number) => void;
   onPinchingChange: (isPinching: boolean) => void;
@@ -27,7 +29,6 @@ interface UseTouchCameraOptions {
 }
 
 export function useTouchCamera({
-  mode,
   onCameraPreview,
   onCameraCommit,
   onPinchingChange,
@@ -48,12 +49,10 @@ export function useTouchCamera({
   const pinchSessionActive = useRef(false);
   const activeTouchPointers = useRef<Map<number, { target: Element | null; x: number; y: number }>>(new Map());
   const managedScroll = useRef<{ element: HTMLElement; lastX: number; lastY: number } | null>(null);
+  const widgetPanStart = useRef<{ x: number; y: number } | null>(null);
   const cameraChanged = useRef(false);
   
   // Refs to avoid stale closures in global touch handlers
-  const modeRef = useRef(mode);
-  useEffect(() => { modeRef.current = mode; }, [mode]);
-  
   const onBackgroundTouchRef = useRef(onBackgroundTouch);
   useEffect(() => { onBackgroundTouchRef.current = onBackgroundTouch; }, [onBackgroundTouch]);
 
@@ -208,6 +207,8 @@ export function useTouchCamera({
         return;
       }
 
+      // A lifted widget owns the finger.
+      if (managedScroll.current && getWidgetDragState()) managedScroll.current = null;
       if (activeTouchPointers.current.size === 1 && managedScroll.current) {
         const scrollState = managedScroll.current;
         scrollState.element.scrollLeft -= event.clientX - scrollState.lastX;
@@ -261,7 +262,7 @@ export function useTouchCamera({
     // Check if the target is inside a widget
     const isOnWidget = (el: Element | null): boolean => {
       while (el && el !== document.body) {
-        if (el.classList.contains('react-draggable')) return true;
+        if (el.classList.contains('canvas-widget')) return true;
         el = el.parentElement;
       }
       return false;
@@ -379,14 +380,17 @@ export function useTouchCamera({
         const onCanvas = touchStartTarget && isOnCanvas(touchStartTarget);
         const onPrintArea = touchStartTarget && isOnPrintAreaOverlay(touchStartTarget);
         const onIgnoredControl = touchStartTarget && isOnTouchCameraIgnoredControl(touchStartTarget);
+        // Touch-selected widgets move with one finger instead of panning.
+        const onArrangingWidget = !!touchStartTarget?.closest('[data-widget-arranging="true"]');
         
         // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
-        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && !isViewLockedRef.current?.() && (modeRef.current === 'play' ? true : !onWidget);
+        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && !onArrangingWidget && !isViewLockedRef.current?.();
         
         if (shouldPan) {
           const touch = activeTouches.current.values().next().value;
           if (touch) {
             lastTouchCenter.current = { x: touch.x, y: touch.y };
+            widgetPanStart.current = onWidget ? { x: touch.x, y: touch.y } : null;
             isTouchPanning.current = true;
           }
         }
@@ -422,6 +426,11 @@ export function useTouchCamera({
       else if (pinchSessionActive.current) {
         stopWidgetTouchHandling(e);
       }
+      // A lifted widget owns the finger.
+      else if (touchCount === 1 && getWidgetDragState()) {
+        isTouchPanning.current = false;
+        managedScroll.current = null;
+      }
       // Canvas descendants cannot use native scrolling because the camera owns touch-action.
       else if (touchCount === 1 && activeTouchPointers.current.size === 0 && managedScroll.current) {
         const touch = activeTouches.current.values().next().value;
@@ -439,6 +448,13 @@ export function useTouchCamera({
         if (hasTouchOnSidebar() || hasTouchOnIgnoredControl()) return;
         const touch = activeTouches.current.values().next().value;
         if (touch) {
+          const slopStart = widgetPanStart.current;
+          if (slopStart) {
+            if (Math.hypot(touch.x - slopStart.x, touch.y - slopStart.y) <= WIDGET_PAN_SLOP) return;
+            // Pan from here so the camera does not jump by the slop distance.
+            widgetPanStart.current = null;
+            lastTouchCenter.current = { x: touch.x, y: touch.y };
+          }
           e.preventDefault();
           
           const dx = touch.x - lastTouchCenter.current.x;
@@ -459,6 +475,7 @@ export function useTouchCamera({
         lastTouchDistance.current = null;
         lastTouchCenter.current = null;
         isTouchPanning.current = false;
+        widgetPanStart.current = null;
         touchStartedOnScrollable.current = false;
         managedScroll.current = null;
         touchStartTargets.current.clear();

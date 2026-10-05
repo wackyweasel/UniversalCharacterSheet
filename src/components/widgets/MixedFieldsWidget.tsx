@@ -25,7 +25,7 @@ import { CheckIcon, ChevronDownIcon } from '../icons';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   showFieldControls?: boolean;
@@ -650,7 +650,6 @@ export default function MixedFieldsWidget({
   interactive = true,
 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const workspaceMode = useStore((state) => state.mode);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right' } = widget.data;
@@ -764,7 +763,7 @@ export default function MixedFieldsWidget({
   const renderFieldControl = (field: MixedField, index: number) => {
     switch (field.type) {
       case 'text':
-        return workspaceMode === 'edit' || editingTextIndex === index ? (
+        return editingTextIndex === index ? (
           <input
             type="text"
             value={field.value}
@@ -778,7 +777,7 @@ export default function MixedFieldsWidget({
             }}
             onMouseDown={(event) => event.stopPropagation()}
             readOnly={!canInteract || Boolean(field.valueFormula)}
-            autoFocus={workspaceMode !== 'edit'}
+            autoFocus
             placeholder={isPrintMode ? '' : '...'}
             className={`min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 ${textAlignClass} text-xs font-body text-theme-ink outline-none focus:border-theme-accent`}
           />

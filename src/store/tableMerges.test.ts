@@ -41,7 +41,7 @@ describe('merged table store actions and persistence', () => {
     useUndoStore.getState().clearAllHistory();
     useUndoStore.getState().setIsUndoRedoing(false);
     useStore.getState()._replaceWorkspaceState({
-      characters: [makeCharacter()], activeCharacterId: 'table-character', mode: 'edit',
+      characters: [makeCharacter()], activeCharacterId: 'table-character', mode: 'play',
     });
   });
 
@@ -117,7 +117,7 @@ describe('merged table store actions and persistence', () => {
     const data = character.sheets[0].widgets[0].data;
     const document = createWorkspaceDocument({
       workspaceId: 'workspace-table', name: 'Tables', characters: [character],
-      activeCharacterId: character.id, mode: 'edit',
+      activeCharacterId: character.id, mode: 'play',
       templates: [{ id: 'template-table', name: 'Table', createdAt: 1, type: 'TABLE', data }],
       userPresets: [{ id: 'preset-table', name: 'Table character', createdAt: 1,
         preset: { name: character.name, sheets: character.sheets, activeSheetId: character.activeSheetId } }],

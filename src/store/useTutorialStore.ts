@@ -46,17 +46,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'character-list',
   },
   {
-    id: 'welcome-sheet',
-    title: 'Welcome to Your Character Sheet!',
-    message: 'This is where you\'ll build your character sheet. It\'s empty right now, so let\'s add some widgets! First, switch to Build.',
-    targetSelector: '[data-tutorial="edit-mode-button"]',
-    position: 'bottom',
-    page: 'sheet',
-  },
-  {
     id: 'add-widget',
     title: 'Add Your First Widget',
-    message: 'Select the highlighted Add button to open the panel. It groups everything you can place on a sheet by what it helps you do.',
+    message: 'Your sheet is empty, so let\'s add some widgets. Select the highlighted Add button to open the panel. It groups everything you can place on a sheet by what it helps you do.',
     targetSelector: '[data-tutorial="add-widget-button"], [data-tutorial="add-widget-button-mobile"]',
     position: 'bottom',
     page: 'sheet',
@@ -130,7 +122,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'move-widgets',
     title: 'Move Your Widgets',
-    message: 'Drag a widget by its top edge to reposition it. Give one a move, then choose Next.',
+    message: 'With a mouse, hover a widget and drag the grip on its top edge. On touch, press and hold a widget until it lifts, then drag it. Give one a move, then choose Next.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -139,7 +131,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'resize-widgets',
     title: 'Resize Your Widgets',
-    message: 'Drag the bottom-right corner of a widget to resize it. Try a small adjustment, then choose Next.',
+    message: 'With a mouse, drag any edge or corner of a widget. On touch, press and hold a widget, let go, then drag a corner handle. Try a small adjustment, then choose Next.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -148,7 +140,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'attach-widgets',
     title: 'Attach Widgets Together',
-    message: 'Optional: move two widget edges close together, then use the attach control that appears. Attached widgets move as a group.',
+    message: 'Optional: move a widget until its edge snaps against another, then use the link button that appears on the shared edge. Attached widgets move as a group.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -157,7 +149,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'widget-menu',
     title: 'Widget Menu',
-    message: 'Click the menu button (⋮) in the top-right corner of the Form widget to access options like Edit, Clone, Save as Template, and Delete.',
+    message: 'Click the highlighted menu button (⋮) on the Form widget to access options like Edit, Clone, Save as Template, and Delete. Later, right-click a widget, or press and hold it on touch, to open the same menu.',
     targetSelector: '[data-tutorial="widget-menu-FORM"]',
     position: 'left',
     page: 'sheet',
@@ -210,14 +202,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     position: 'center',
     page: 'sheet',
     requiresManualAdvance: true,
-  },
-  {
-    id: 'switch-to-play',
-    title: 'Switch to Play',
-    message: 'This sheet has lots of widgets! Now switch to Play to use it at the table without the structural editing controls.',
-    targetSelector: '[data-tutorial="edit-mode-button"]',
-    position: 'bottom',
-    page: 'sheet',
   },
   {
     id: 'try-widgets',
@@ -619,6 +603,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'sheet',
   },
 ];
+
+export const getTutorialStepIndex = (id: string) => TUTORIAL_STEPS.findIndex((step) => step.id === id);
+
+export const isTutorialStep = (step: number | null, id: string) => step !== null && TUTORIAL_STEPS[step]?.id === id;
 
 interface TutorialState {
   tutorialStep: number | null;

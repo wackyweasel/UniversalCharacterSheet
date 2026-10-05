@@ -15,7 +15,7 @@ import { getNumberDisplayLayout } from '../../utils/numberDisplayLayout';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   showFieldControls?: boolean;

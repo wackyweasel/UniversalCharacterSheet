@@ -17,7 +17,6 @@ import {
   MinusIcon,
   PaletteIcon,
   PencilIcon,
-  PlayIcon,
   PlusIcon,
   RowsIcon,
   SearchIcon,
@@ -33,8 +32,6 @@ interface SheetToolbarProps {
   listColumns: number;
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
-  onBuild: () => void;
-  onPlay: () => void;
   onSelectLayout: (layout: PlayLayout) => void;
   onListColumnsChange: (columns: number) => void;
   onPrintPreview: () => void;
@@ -59,7 +56,6 @@ interface SheetToolbarProps {
   onSearch: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
-  workspaceHighlighted?: boolean;
   listHighlighted?: boolean;
   overlay?: boolean;
 }
@@ -69,7 +65,6 @@ const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.
 interface ToolbarCharacterNameProps {
   name: string;
   currentCharacterId: string;
-  editable: boolean;
   switchableCharacters: Character[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -80,7 +75,6 @@ interface ToolbarCharacterNameProps {
 function ToolbarCharacterName({
   name,
   currentCharacterId,
-  editable,
   switchableCharacters,
   open,
   onOpenChange,
@@ -112,7 +106,7 @@ function ToolbarCharacterName({
 
     const focusFrame = window.requestAnimationFrame(() => {
       if (!focusMenuOnOpenRef.current) return;
-      const targetIndex = focusLastOnOpenRef.current ? switchableCharacters.length - 1 : 0;
+      const targetIndex = focusLastOnOpenRef.current ? switchableCharacters.length : 0;
       itemRefs.current[targetIndex]?.focus();
       focusLastOnOpenRef.current = false;
       focusMenuOnOpenRef.current = false;
@@ -142,7 +136,7 @@ function ToolbarCharacterName({
     setEditing(false);
   };
 
-  if (editable && editing) {
+  if (editing) {
     return (
       <input
         type="text"
@@ -163,7 +157,7 @@ function ToolbarCharacterName({
     );
   }
 
-  if (editable) return (
+  if (switchableCharacters.length === 0) return (
     <Tooltip content="Edit character name" placement="below">
       <button
         type="button"
@@ -176,10 +170,6 @@ function ToolbarCharacterName({
       </button>
     </Tooltip>
   );
-
-  if (switchableCharacters.length === 0) {
-    return <div className="w-12 shrink-0 truncate px-1 font-heading text-sm font-bold text-theme-ink min-[480px]:w-32 min-[480px]:px-2 sm:w-40">{name}</div>;
-  }
 
   return (
     <div
@@ -219,7 +209,7 @@ function ToolbarCharacterName({
           aria-label="Switch character"
           className="absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(240px,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in"
           onKeyDown={(event) => {
-            const items = itemRefs.current.slice(0, switchableCharacters.length).filter((item): item is HTMLButtonElement => Boolean(item));
+            const items = itemRefs.current.slice(0, switchableCharacters.length + 1).filter((item): item is HTMLButtonElement => Boolean(item));
             const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
             let nextIndex: number | null = null;
             if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
@@ -231,6 +221,21 @@ function ToolbarCharacterName({
             items[nextIndex]?.focus();
           }}
         >
+          <div className="border-b border-theme-border/50 py-1">
+            <button
+              ref={(element) => { itemRefs.current[0] = element; }}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onOpenChange(false);
+                setEditing(true);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper focus:bg-theme-accent focus:text-theme-paper focus:outline-none"
+            >
+              <PencilIcon className="h-4 w-4 shrink-0" />
+              <span>Rename character</span>
+            </button>
+          </div>
           <div className="border-b border-theme-border/50 px-3 py-2">
             <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Switch Character</p>
           </div>
@@ -240,7 +245,7 @@ function ToolbarCharacterName({
               return (
                 <button
                   key={option.id}
-                  ref={(element) => { itemRefs.current[index] = element; }}
+                  ref={(element) => { itemRefs.current[index + 1] = element; }}
                   type="button"
                   role="menuitem"
                   aria-current={isCurrentCharacter ? 'true' : undefined}
@@ -267,7 +272,6 @@ function ToolbarCharacterName({
 interface MenuCharacterSectionProps {
   name: string;
   currentCharacterId: string;
-  editable: boolean;
   switchableCharacters: Character[];
   onSelectCharacter: (characterId: string) => void;
   onSave: (name: string) => void;
@@ -277,7 +281,6 @@ interface MenuCharacterSectionProps {
 function MenuCharacterSection({
   name,
   currentCharacterId,
-  editable,
   switchableCharacters,
   onSelectCharacter,
   onSave,
@@ -294,9 +297,9 @@ function MenuCharacterSection({
     else setDraft(name);
   };
 
-  if (editable) {
-    return (
-      <div className="border-b border-theme-border/50 px-3 py-2.5">
+  return (
+    <div className="border-b border-theme-border/50">
+      <div className="px-3 py-2.5">
         <label className="block">
           <span className="mb-1.5 block font-body text-[10px] font-bold uppercase text-theme-muted">Character name</span>
           <input
@@ -312,29 +315,14 @@ function MenuCharacterSection({
           />
         </label>
       </div>
-    );
-  }
-
-  if (switchableCharacters.length === 0) {
-    return (
-      <div className="border-b border-theme-border/50 px-3 py-2.5">
-        <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Character</p>
-        <p className="truncate font-heading text-sm font-bold text-theme-ink">{name}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="border-b border-theme-border/50 py-1">
-      <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Character</p>
+      {switchableCharacters.length > 0 && <div className="pb-1">
       <button
         type="button"
         aria-expanded={listOpen}
-        aria-label={`Switch character: ${name}`}
         onClick={() => setListOpen((value) => !value)}
         className="group flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-body font-semibold text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper"
       >
-        <span className="min-w-0 truncate">{name}</span>
+        <span className="min-w-0 truncate">Switch character</span>
         <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-aria-expanded:rotate-180" />
       </button>
       {listOpen && <div className="max-h-48 overflow-y-auto overscroll-contain">
@@ -357,6 +345,7 @@ function MenuCharacterSection({
           );
         })}
       </div>}
+      </div>}
     </div>
   );
 }
@@ -370,8 +359,6 @@ export default function SheetToolbar({
   listColumns,
   menuOpen,
   onMenuOpenChange,
-  onBuild,
-  onPlay,
   onSelectLayout,
   onListColumnsChange,
   onPrintPreview,
@@ -396,7 +383,6 @@ export default function SheetToolbar({
   onSearch,
   attachmentControlsVisible,
   onToggleAttachmentControls,
-  workspaceHighlighted = false,
   listHighlighted = false,
   overlay = false,
 }: SheetToolbarProps) {
@@ -420,9 +406,9 @@ export default function SheetToolbar({
     const candidates = [
       ...(playLayout === 'list' ? [{ id: 'collapse-expand', labeledWidth: 188, iconWidth: 80 }] : []),
       { id: 'add-widget', labeledWidth: 116, iconWidth: 42 },
+      { id: 'theme', labeledWidth: 126, iconWidth: 42 },
     ];
-    if (workspace === 'build') candidates.push({ id: 'theme', labeledWidth: 126, iconWidth: 42 });
-    if (workspace === 'build' && playLayout === 'canvas' && onAutoStack) candidates.push({ id: 'auto-stack', labeledWidth: 110, iconWidth: 42 });
+    if (playLayout === 'canvas' && onAutoStack) candidates.push({ id: 'auto-stack', labeledWidth: 110, iconWidth: 42 });
     candidates.push({ id: 'undo-redo', labeledWidth: 80, iconWidth: 80 });
     if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42 });
     candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
@@ -430,7 +416,7 @@ export default function SheetToolbar({
   }, [onAutoStack, playLayout, workspace]);
   const { containerRef, containerWidth, inlineActionIds: overflowInlineIds, labeledActionIds } = useToolbarOverflow({
     actions,
-    coreWidth: 600,
+    coreWidth: 464,
     minimumExpandedWidth: 0,
   });
   const compact = containerWidth > 0 && containerWidth < 600;
@@ -441,9 +427,6 @@ export default function SheetToolbar({
   const compactUtilityClass = compact ? `${utilityButtonClass} !px-1.5` : utilityButtonClass;
   const showLabel = (id: string) => labeledActionIds.has(id);
 
-  const workspaceButton = (active: boolean) => `flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 px-2 text-xs font-body transition-colors ${
-    active ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-accent/10 hover:text-theme-ink'
-  }`;
   const layoutButton = (active: boolean) => `flex h-full items-center justify-center gap-1.5 ${compact ? 'min-w-0 flex-1 px-1.5' : 'px-2'} text-xs font-body transition-colors ${
     active ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-accent/10 hover:text-theme-ink'
   }`;
@@ -483,7 +466,6 @@ export default function SheetToolbar({
             <MenuCharacterSection
               name={character.name}
               currentCharacterId={character.id}
-              editable={workspace === 'build'}
               switchableCharacters={switchableCharacters}
               onSelectCharacter={onSelectCharacter}
               onSave={onRenameCharacter}
@@ -496,7 +478,6 @@ export default function SheetToolbar({
           <ToolbarCharacterName
             name={character.name}
             currentCharacterId={character.id}
-            editable={workspace === 'build'}
             switchableCharacters={switchableCharacters}
             open={characterSwitcherOpen}
             onOpenChange={handleCharacterSwitcherOpenChange}
@@ -506,13 +487,6 @@ export default function SheetToolbar({
         </div>}
       </div>
       <div className={`flex min-w-0 items-center justify-self-center ${compact ? 'gap-1' : 'gap-2'}`}>
-      <div
-        data-tutorial="edit-mode-button"
-        className={`flex h-8 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background ${compact ? 'w-16' : 'w-20 sm:w-32'} ${workspaceHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-      >
-        <Tooltip content="Build mode" placement="below"><button type="button" onClick={onBuild} aria-label="Build" aria-pressed={workspace === 'build'} className={workspaceButton(workspace === 'build')}><PencilIcon className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">Build</span></button></Tooltip>
-        <Tooltip content="Play mode" placement="below"><button type="button" onClick={onPlay} aria-label="Play" aria-pressed={workspace === 'play'} className={workspaceButton(workspace === 'play')}><PlayIcon className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">Play</span></button></Tooltip>
-      </div>
       {inlineActionIds.has('layout') && <div className={`flex h-8 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper ${compact ? 'w-16' : ''}`}>
         <Tooltip content="Canvas view" placement="below">
           <button type="button" onClick={() => onSelectLayout('canvas')} aria-label="Canvas" aria-pressed={playLayout === 'canvas'} className={layoutButton(playLayout === 'canvas')}>

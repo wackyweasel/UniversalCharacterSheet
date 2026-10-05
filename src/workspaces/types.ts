@@ -4,7 +4,9 @@ import type { AnyTemplate } from '../store/useTemplateStore';
 import type { UserPreset } from '../store/useUserPresetStore';
 
 export type StorageWorkspaceProvider = 'browser' | 'directory' | 'google-drive';
-export type WorkspaceMode = 'play' | 'edit' | 'vertical' | 'print';
+export type WorkspaceMode = 'play' | 'vertical' | 'print';
+// Build mode ('edit') was removed; files saved before then may still contain it.
+export type StoredWorkspaceMode = WorkspaceMode | 'edit';
 
 export interface StorageWorkspace {
   id: string;

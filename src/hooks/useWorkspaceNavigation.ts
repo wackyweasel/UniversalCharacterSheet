@@ -5,7 +5,7 @@ const PLAY_LAYOUT_STORAGE_KEY = 'ucs:play-layout';
 const LIST_COLUMNS_STORAGE_KEY = 'ucs:list-columns';
 const SHEET_WORKSPACE_STORAGE_KEY = 'ucs:sheet-workspace';
 
-export type SheetWorkspace = 'build' | 'play' | 'print';
+export type SheetWorkspace = 'play' | 'print';
 export type PlayLayout = 'canvas' | 'list';
 
 function getInitialPlayLayout(mode: string): PlayLayout {
@@ -74,9 +74,8 @@ function persistWorkspaceSettings(settings: WorkspaceSettings, characterId?: str
 }
 
 /**
- * User-facing navigation for the sheet. The persisted store still uses the
- * legacy mode values internally so existing characters and print behavior stay
- * compatible while the interface speaks in Build/Play terms.
+ * User-facing navigation for the sheet. The persisted store keeps the layout in
+ * its mode value ('play' = canvas, 'vertical' = list) next to print.
  */
 export function useWorkspaceNavigation(characterId?: string | null, sheetId?: string | null) {
   const mode = useStore((state) => state.mode);
@@ -94,7 +93,7 @@ export function useWorkspaceNavigation(characterId?: string | null, sheetId?: st
     setPlayLayoutState(settings.playLayout);
     setListColumnsState(settings.listColumns);
     persistWorkspaceSettings(settings, characterId, sheetId);
-    if (mode !== 'edit' && mode !== 'print') {
+    if (mode !== 'print') {
       setMode(settings.playLayout === 'list' ? 'vertical' : 'play');
     }
   }, [activeWorkspaceKey, characterId, mode, setMode, sheetId]);
@@ -107,24 +106,16 @@ export function useWorkspaceNavigation(characterId?: string | null, sheetId?: st
     }
   }, [mode]);
 
-  const workspace: SheetWorkspace = mode === 'edit' ? 'build' : mode === 'print' ? 'print' : 'play';
+  const workspace: SheetWorkspace = mode === 'print' ? 'print' : 'play';
 
   const persistPlayLayout = useCallback((layout: PlayLayout) => {
     setPlayLayoutState(layout);
     persistWorkspaceSettings({ playLayout: layout, listColumns }, characterId, sheetId);
   }, [characterId, listColumns, sheetId]);
 
-  const enterBuild = useCallback(() => {
-    setMode('edit');
-  }, [setMode]);
-
-  const enterPlay = useCallback(() => {
-    setMode(playLayout === 'list' ? 'vertical' : 'play');
-  }, [playLayout, setMode]);
-
   const setPlayLayout = useCallback((layout: PlayLayout) => {
     persistPlayLayout(layout);
-    if (mode !== 'edit' && mode !== 'print') {
+    if (mode !== 'print') {
       setMode(layout === 'list' ? 'vertical' : 'play');
     }
   }, [mode, persistPlayLayout, setMode]);
@@ -139,8 +130,6 @@ export function useWorkspaceNavigation(characterId?: string | null, sheetId?: st
     workspace,
     playLayout,
     listColumns,
-    enterBuild,
-    enterPlay,
     setPlayLayout,
     setListColumns,
   };

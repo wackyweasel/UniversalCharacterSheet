@@ -97,10 +97,9 @@ interface UsePanZoomOptions {
   minScale?: number;
   maxScale?: number;
   editingWidgetId: string | null;
-  mode: 'play' | 'edit' | 'vertical' | 'print';
   characterId?: string | null;
   sheetId?: string | null;
-  onBackgroundClick?: () => void;
+  onBackgroundClick?: (target?: Element | null) => void;
   /** Camera-transformed element; gestures write its transform directly and commit React state once at the end. */
   contentRef?: RefObject<HTMLElement>;
 }
@@ -171,7 +170,7 @@ function isScrollableCanvasTarget(target: EventTarget | null, canvas: Element): 
   return false;
 }
 
-export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, sheetId, onBackgroundClick, contentRef }: UsePanZoomOptions) {
+export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, characterId, sheetId, onBackgroundClick, contentRef }: UsePanZoomOptions) {
   const initial = useRef(readInitialCamera(characterId, sheetId)).current;
   const [pan, setPan] = useState(initial.pan);
   const [scale, setScale] = useState(initial.scale);
@@ -362,8 +361,8 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     // Disable panning when view is locked
     if (viewLockedRef.current) {
       // Still allow background-click selection clearing
-      if (!(e.target as HTMLElement).closest('.react-draggable')) {
-        onBackgroundClick?.();
+      if (!(e.target as HTMLElement).closest('.canvas-widget')) {
+        onBackgroundClick?.(e.target as Element);
       }
       return;
     }
@@ -372,29 +371,18 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     if (isTextSelectionTarget(e.target)) return;
     const interactiveTarget = isInteractiveCanvasTarget(e.target);
 
-    // Clear selected widget when clicking on the background
-    if (!interactiveTarget) onBackgroundClick?.();
+    // Clear the selected widget unless the click stays on it
+    if (!interactiveTarget) onBackgroundClick?.(e.target as Element);
 
-    // In play/print mode: Left Click (0) to pan
-    // In edit mode: Left Click (0) and Middle Click (1) to pan
-    if (mode === 'play' || mode === 'print') {
-      if (e.button === 0) {
-        if (!interactiveTarget) e.preventDefault();
-        mousePanActive.current = true;
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-        mousePanStartPos.current = { x: e.clientX, y: e.clientY };
-        mousePanStartedOnInteractiveTarget.current = interactiveTarget;
-      }
-    } else {
-      if (e.button === 0 || e.button === 1) {
-        if (!interactiveTarget) e.preventDefault();
-        mousePanActive.current = true;
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-        mousePanStartPos.current = { x: e.clientX, y: e.clientY };
-        mousePanStartedOnInteractiveTarget.current = interactiveTarget;
-      }
+    // Left (0) and middle (1) click pan
+    if (e.button === 0 || e.button === 1) {
+      if (!interactiveTarget) e.preventDefault();
+      mousePanActive.current = true;
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+      mousePanStartPos.current = { x: e.clientX, y: e.clientY };
+      mousePanStartedOnInteractiveTarget.current = interactiveTarget;
     }
-  }, [editingWidgetId, mode, onBackgroundClick]);
+  }, [editingWidgetId, onBackgroundClick]);
 
   const handleMouseClickCapture = useCallback((e: React.MouseEvent) => {
     if (!suppressNextInteractiveClick.current) return;

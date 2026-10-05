@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
-import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { useTutorialStore, TUTORIAL_STEPS, getTutorialStepIndex, isTutorialStep } from '../store/useTutorialStore';
 import { PencilIcon, XIcon } from './icons';
 
 // Import all editors
@@ -134,6 +134,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     tutorialStep !== null &&
     (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
       TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller');
+  // Keep Done disabled while the form-editing tutorial steps are in progress.
+  const isDoneLockedForTutorial = tutorialStep !== null
+    && tutorialStep >= getTutorialStepIndex('widget-label')
+    && tutorialStep < getTutorialStepIndex('form-click-done');
 
   const handleUpdateData = (data: any) => {
     const newData = { ...localData, ...data };
@@ -394,10 +398,9 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
         <div className="widget-edit-modal__footer border-t border-theme-border flex justify-end">
           <button
             data-tutorial="edit-done-button"
-            disabled={tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21}
+            disabled={isDoneLockedForTutorial}
             onClick={() => {
-              // Advance tutorial if on step 21 (form-click-done)
-              if (tutorialStep === 21 && TUTORIAL_STEPS[21]?.id === 'form-click-done') {
+              if (isTutorialStep(tutorialStep, 'form-click-done')) {
                 advanceTutorial();
               }
               if (
@@ -410,10 +413,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               onClose();
             }}
             className={`widget-edit-modal__done px-4 py-2 bg-theme-accent text-theme-paper rounded-button font-medium transition-opacity ${
-              tutorialStep !== null && tutorialStep >= 18 && tutorialStep < 21 
+              isDoneLockedForTutorial
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:opacity-90'
-            } ${tutorialStep === 21 || isAutomationCloseStep ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            } ${isTutorialStep(tutorialStep, 'form-click-done') || isAutomationCloseStep ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             Done
           </button>

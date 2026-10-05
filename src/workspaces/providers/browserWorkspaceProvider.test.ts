@@ -39,6 +39,7 @@ describe('browser workspace provider', () => {
 
     expect(result.document.characters).toEqual([character]);
     expect(result.document.activeCharacterId).toBe(character.id);
+    expect(result.document.mode).toBe('play');
     expect(result.document.eventsByCharacter[character.id]).toEqual({ events: [], nextId: 1 });
   });
 

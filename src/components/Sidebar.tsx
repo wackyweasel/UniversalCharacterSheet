@@ -165,12 +165,11 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
             data-tutorial="close-toolbox"
             onClick={() => {
               onToggle();
-              // If tutorial is on step 9 (close-toolbox), advance
-              if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
+              if (isCurrentTutorialStep('close-toolbox')) {
                 advanceTutorial();
               }
             }}
-            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors ${isCurrentTutorialStep('close-toolbox') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             aria-label="Close toolbox"
           >
             <XIcon className="w-5 h-5" />
@@ -354,7 +353,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
           <p>Tap to add widgets.</p>
           <p>Pan with finger/mouse.</p>
           <p>Pinch/scroll to zoom.</p>
-          <p className="mt-2 text-theme-ink font-bold">Build workspace active</p>
+          <p>Long-press or drag a widget's top edge to move it.</p>
         </div>
         </div>
       </div>
