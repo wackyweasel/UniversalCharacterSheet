@@ -9,6 +9,7 @@ import {
   getCardDeckRegistrations,
   type CardDeckGatherAnimationEntry,
 } from './cardDeckRegistry';
+import { isCameraWritePending, subscribeCameraWrite } from '../../hooks/usePanZoom';
 
 interface DeckVisual {
   signature: string;
@@ -343,6 +344,23 @@ const screenPosition = (x: number, y: number, width: number, height: number, z =
   new THREE.Vector3(x - width / 2, height / 2 - y, z)
 );
 
+// Per-frame DOM writes are skipped when unchanged so a static or panning sheet does not repaint every frame.
+const writtenStyles = new WeakMap<HTMLElement, Map<string, string>>();
+const setStyle = (element: HTMLElement, property: string, value: string) => {
+  let written = writtenStyles.get(element);
+  if (!written) {
+    written = new Map();
+    writtenStyles.set(element, written);
+  }
+  if (written.get(property) === value) return;
+  written.set(property, value);
+  element.style.setProperty(property, value);
+};
+
+const setHidden = (element: HTMLElement, hidden: boolean) => {
+  if (element.hidden !== hidden) element.hidden = hidden;
+};
+
 export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer: HTMLElement) {
   let disposed = false;
   let frameId = 0;
@@ -406,8 +424,7 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
     gatherVisuals.delete(cardId);
   };
 
-  const ensureGatherVisual = (entry: CardDeckGatherAnimationEntry) => {
-    const colors = getThemeColors();
+  const ensureGatherVisual = (entry: CardDeckGatherAnimationEntry, colors: ReturnType<typeof getThemeColors>) => {
     const backDesign = resolveBackDesign(entry.card, entry.backDesign, colors.accent);
     const signature = cardSignature(entry.card, colors, backDesign);
     let visual = gatherVisuals.get(entry.card.id);
@@ -439,8 +456,8 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
     backDesign: ResolvedBackDesign,
     stackBackDesigns: ResolvedBackDesign[],
     time: number,
+    colors: ReturnType<typeof getThemeColors>,
   ) => {
-    const colors = getThemeColors();
     const signature = `${cardSignature(card, colors, backDesign)}\u001f${JSON.stringify(stackBackDesigns)}`;
     let visual = visuals.get(widgetId);
     if (!visual || visual.cardId !== card.id || visual.signature !== signature || visual.count !== count) {
@@ -489,8 +506,10 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
     return visual;
   };
 
-  const render = (time: number) => {
-    if (disposed) return;
+  let lastFrameTime = -1;
+  const renderFrame = (time: number) => {
+    if (disposed || time === lastFrameTime) return;
+    lastFrameTime = time;
     if (canvas.clientWidth !== viewportWidth || canvas.clientHeight !== viewportHeight) resize();
     updateCanvasMetrics();
     const registrations = getCardDeckRegistrations();
@@ -502,18 +521,22 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
     faceLayer.classList.toggle('card-deck-dom-layer--dragging', drag?.phase === 'dragging');
     const gather = getCardDeckGatherAnimation();
     const gatheredCardIds = new Set(gather?.entries.map((entry) => entry.card.id) ?? []);
+    // Read all layout before any write below to avoid a forced style/layout pass per deck.
+    const colors = getThemeColors();
+    const screenRects = registrations.map((registration) => registration.element.getBoundingClientRect());
 
-    registrations.forEach((registration) => {
+    registrations.forEach((registration, registrationIndex) => {
       const card = registration.cards[0];
+      // In-widget (non-overlay) grab-all buttons are laid out by CSS, not by the scene.
       const grabAllElement = document.querySelector<HTMLElement>(
-        `[data-card-deck-grab-all-widget-id="${registration.widgetId}"]`,
+        `.card-deck-grab-all--overlay[data-card-deck-grab-all-widget-id="${registration.widgetId}"]`,
       );
       if (!card) {
         removeVisual(registration.widgetId);
-        if (grabAllElement) grabAllElement.style.visibility = 'hidden';
+        if (grabAllElement) setStyle(grabAllElement, 'visibility', 'hidden');
         return;
       }
-      const screenRect = registration.element.getBoundingClientRect();
+      const screenRect = screenRects[registrationIndex];
       const rect = {
         left: toCanvasX(screenRect.left),
         top: toCanvasY(screenRect.top),
@@ -521,7 +544,6 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
         height: screenRect.height / canvasScaleY,
       };
       const visible = screenRect.width > 4 && screenRect.height > 4 && screenRect.right > 0 && screenRect.bottom > 0 && screenRect.left < window.innerWidth && screenRect.top < window.innerHeight;
-      const colors = getThemeColors();
       const originRegistration = registrations.find((entry) => entry.widgetId === card.originWidgetId);
       const backDesign = resolveBackDesign(card, originRegistration?.backDesign, colors.accent);
       const stackBackDesigns = registration.cards.slice(1, 4).map((stackCard) => {
@@ -535,20 +557,16 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
         backDesign,
         stackBackDesigns,
         time,
+        colors,
       );
-      visual.group.visible = visible;
-      visual.card.visible = visible;
-      visual.cardShadow.visible = visible;
-      visual.faceElement.hidden = !visible;
       const isGatheringCard = gatheredCardIds.has(card.id);
-      if (isGatheringCard) {
-        visual.group.visible = false;
-        visual.card.visible = false;
-        visual.cardShadow.visible = false;
-        visual.faceElement.hidden = true;
-      }
-      if (!visible || isGatheringCard) {
-        if (grabAllElement) grabAllElement.style.visibility = 'hidden';
+      const showVisual = visible && !isGatheringCard;
+      visual.group.visible = showVisual;
+      visual.card.visible = showVisual;
+      visual.cardShadow.visible = showVisual;
+      setHidden(visual.faceElement, !showVisual);
+      if (!showVisual) {
+        if (grabAllElement) setStyle(grabAllElement, 'visibility', 'hidden');
         return;
       }
       const maxWidth = rect.width * 0.68;
@@ -622,39 +640,34 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
         const controlX = (isWholeDeckDrag ? x : deckX) + shuffleTopX;
         const controlY = (isWholeDeckDrag ? y - dragLift : deckY) - shuffleLift;
         const controlSize = Math.min(24, cardHeight * 0.28);
-        grabAllElement.style.removeProperty('width');
-        grabAllElement.style.removeProperty('height');
-        grabAllElement.style.setProperty('--card-deck-grab-all-size', `${controlSize}px`);
-        grabAllElement.style.left = `${controlX - cardWidth / 2 + 4}px`;
-        grabAllElement.style.top = `${controlY + cardHeight / 2 - controlSize - 4}px`;
-        grabAllElement.style.visibility = 'visible';
+        setStyle(grabAllElement, '--card-deck-grab-all-size', `${controlSize}px`);
+        setStyle(grabAllElement, 'transform', `translate(${controlX - cardWidth / 2 + 4}px, ${controlY + cardHeight / 2 - controlSize - 4}px)`);
+        setStyle(grabAllElement, 'visibility', 'visible');
       }
-      visual.faceElement.style.left = `${x + shuffleTopX}px`;
-      visual.faceElement.style.top = `${y - dragLift - shuffleLift}px`;
-      visual.faceElement.style.width = `${faceWidth}px`;
-      visual.faceElement.style.height = `${faceHeight}px`;
-      visual.faceElement.style.setProperty('--card-face-height', `${faceHeight}px`);
-      visual.faceElement.style.zIndex = isDragged ? '1000' : isHostWidgetDragging ? '100' : '1';
-      visual.faceElement.style.transform = [
+      setStyle(visual.faceElement, 'width', `${faceWidth}px`);
+      setStyle(visual.faceElement, 'height', `${faceHeight}px`);
+      setStyle(visual.faceElement, '--card-face-height', `${faceHeight}px`);
+      setStyle(visual.faceElement, 'z-index', isDragged ? '1000' : isHostWidgetDragging ? '100' : '1');
+      setStyle(visual.faceElement, 'transform', [
+        `translate(${x + shuffleTopX}px, ${y - dragLift - shuffleLift}px)`,
         'translate(-50%, -50%)',
         `rotateZ(${-visual.card.rotation.z}rad)`,
         `perspective(${Math.max(420, faceHeight * 5)}px)`,
         `rotateY(${visual.card.rotation.y}rad)`,
-      ].join(' ');
+      ].join(' '));
       const showDraggedBack = isDragged && !card.faceUp;
-      visual.backElement.hidden = !showDraggedBack;
+      setHidden(visual.backElement, !showDraggedBack);
       if (showDraggedBack) {
-        visual.backElement.style.left = `${x}px`;
-        visual.backElement.style.top = `${y - dragLift}px`;
-        visual.backElement.style.width = `${cardWidth}px`;
-        visual.backElement.style.height = `${cardHeight}px`;
-        visual.backElement.style.setProperty('--card-back-height', `${cardHeight}px`);
-        visual.backElement.style.zIndex = '1001';
-        visual.backElement.style.transform = [
+        setStyle(visual.backElement, 'width', `${cardWidth}px`);
+        setStyle(visual.backElement, 'height', `${cardHeight}px`);
+        setStyle(visual.backElement, '--card-back-height', `${cardHeight}px`);
+        setStyle(visual.backElement, 'z-index', '1001');
+        setStyle(visual.backElement, 'transform', [
+          `translate(${x}px, ${y - dragLift}px)`,
           'translate(-50%, -50%)',
           `rotateZ(${visual.card.rotation.z}rad)`,
           `perspective(${Math.max(420, cardHeight * 5)}px)`,
-        ].join(' ');
+        ].join(' '));
       }
     });
 
@@ -666,11 +679,10 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
       const rawProgress = gather.duration === 0 ? 1 : Math.min(1, (time - gather.startedAt) / gather.duration);
       const progress = 1 - Math.pow(1 - rawProgress, 3);
       gather.entries.forEach((entry) => {
-        const visual = ensureGatherVisual(entry);
-        const sourceRegistration = registrations.find((registration) => registration.widgetId === entry.sourceWidgetId);
-        const targetRegistration = registrations.find((registration) => registration.widgetId === gather.targetWidgetId);
-        const screenSizeRect = sourceRegistration?.element.getBoundingClientRect()
-          ?? targetRegistration?.element.getBoundingClientRect();
+        const visual = ensureGatherVisual(entry, colors);
+        const sourceIndex = registrations.findIndex((registration) => registration.widgetId === entry.sourceWidgetId);
+        const targetIndex = registrations.findIndex((registration) => registration.widgetId === gather.targetWidgetId);
+        const screenSizeRect = screenRects[sourceIndex] ?? screenRects[targetIndex];
         if (!screenSizeRect) {
           visual.group.visible = false;
           visual.faceElement.hidden = true;
@@ -703,13 +715,12 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
         const faceWidth = cardWidth * ((CARD_WIDTH - 0.08) / CARD_WIDTH);
         const faceHeight = cardHeight * ((CARD_HEIGHT - 0.08) / CARD_HEIGHT);
         visual.faceElement.hidden = false;
-        visual.faceElement.style.left = `${x}px`;
-        visual.faceElement.style.top = `${y}px`;
         visual.faceElement.style.width = `${faceWidth}px`;
         visual.faceElement.style.height = `${faceHeight}px`;
         visual.faceElement.style.setProperty('--card-face-height', `${faceHeight}px`);
         visual.faceElement.style.zIndex = String(20 + entry.index);
         visual.faceElement.style.transform = [
+          `translate(${x}px, ${y}px)`,
           'translate(-50%, -50%)',
           `rotateZ(${-rotationZ}rad)`,
           `perspective(${Math.max(420, faceHeight * 5)}px)`,
@@ -718,16 +729,24 @@ export function createEmbeddedCardDeckScene(canvas: HTMLCanvasElement, faceLayer
       });
     }
     renderer.render(scene, camera);
+  };
+
+  const render = (time: number) => {
+    if (disposed) return;
     frameId = window.requestAnimationFrame(render);
+    // The pending camera write renders this frame after moving the sheet; measuring now would be one frame stale.
+    if (!isCameraWritePending()) renderFrame(time);
   };
 
   resize();
   frameId = window.requestAnimationFrame(render);
+  const unsubscribeCameraWrite = subscribeCameraWrite(renderFrame);
 
   return {
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      unsubscribeCameraWrite();
       window.cancelAnimationFrame(frameId);
       Array.from(visuals.keys()).forEach(removeVisual);
       Array.from(gatherVisuals.keys()).forEach(removeGatherVisual);

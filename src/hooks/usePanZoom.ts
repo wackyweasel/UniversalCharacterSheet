@@ -1,9 +1,34 @@
-import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, type RefObject } from 'react';
 
 const VIEW_LOCK_STORAGE_KEY = 'ucs:viewLocked';
 const LOCKED_VIEW_STORAGE_KEY = 'ucs:lockedView';
 const SHEET_CAMERA_STORAGE_KEY = 'ucs:sheet-camera';
 const CAMERA_SAVE_DELAY_MS = 200;
+const WHEEL_COMMIT_DELAY_MS = 150;
+const CAMERA_GESTURE_CLASS = 'camera-gesture-active';
+// Children with this attribute counter-transform the camera to stay fixed to the viewport.
+const CAMERA_INVERSE_LAYER_ATTRIBUTE = 'data-camera-inverse-layer';
+
+// Lets viewport-fixed layers that measure the camera-transformed DOM run after the transform write in the same frame.
+const cameraWriteListeners = new Set<(frameTime: number) => void>();
+let pendingCameraWrites = 0;
+
+export function subscribeCameraWrite(listener: (frameTime: number) => void): () => void {
+  cameraWriteListeners.add(listener);
+  return () => { cameraWriteListeners.delete(listener); };
+}
+
+export function isCameraWritePending(): boolean {
+  return pendingCameraWrites > 0;
+}
+
+export function getCameraTransform(pan: { x: number; y: number }, scale: number): string {
+  return `translate(${pan.x}px, ${pan.y}px) scale(${scale})`;
+}
+
+export function getInverseCameraTransform(pan: { x: number; y: number }, scale: number): string {
+  return `translate(${-pan.x / scale}px, ${-pan.y / scale}px) scale(${1 / scale})`;
+}
 
 function lockKey(characterId: string | null | undefined): string {
   return characterId ? `${VIEW_LOCK_STORAGE_KEY}:${characterId}` : VIEW_LOCK_STORAGE_KEY;
@@ -76,6 +101,8 @@ interface UsePanZoomOptions {
   characterId?: string | null;
   sheetId?: string | null;
   onBackgroundClick?: () => void;
+  /** Camera-transformed element; gestures write its transform directly and commit React state once at the end. */
+  contentRef?: RefObject<HTMLElement>;
 }
 
 const INTERACTIVE_CANVAS_SELECTOR = [
@@ -107,6 +134,29 @@ function isInteractiveCanvasTarget(target: EventTarget | null): boolean {
   return !['auto', 'default', 'grab', 'grabbing'].includes(cursor);
 }
 
+const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit']);
+
+/** Dragging inside editable text must select it rather than pan the camera. */
+function isTextSelectionTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  const field = target.closest('input, textarea, [contenteditable="true"], [role="textbox"]');
+  if (!field) return false;
+  if (field instanceof HTMLInputElement) return !field.disabled && !NON_TEXT_INPUT_TYPES.has(field.type);
+  if (field instanceof HTMLTextAreaElement) return !field.disabled;
+  return true;
+}
+
+const CAMERA_PAN_DRAG_TARGET_SELECTOR = [
+  '[data-camera-pan-ignore="true"]',
+  '[data-card-deck-grab-all-widget-id]',
+  '.card-deck-hit-target',
+  '[class*="drag-handle"]',
+].join(', ');
+
+function isCameraPanDragTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(CAMERA_PAN_DRAG_TARGET_SELECTOR));
+}
+
 function isScrollableCanvasTarget(target: EventTarget | null, canvas: Element): boolean {
   let element = target instanceof Element ? target : null;
   while (element && element !== canvas) {
@@ -121,24 +171,107 @@ function isScrollableCanvasTarget(target: EventTarget | null, canvas: Element): 
   return false;
 }
 
-export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, sheetId, onBackgroundClick }: UsePanZoomOptions) {
+export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode, characterId, sheetId, onBackgroundClick, contentRef }: UsePanZoomOptions) {
   const initial = useRef(readInitialCamera(characterId, sheetId)).current;
   const [pan, setPan] = useState(initial.pan);
   const [scale, setScale] = useState(initial.scale);
   const [viewLocked, setViewLockedState] = useState(initial.locked);
   const [wheelPanEnabled, setWheelPanEnabled] = useState(initial.wheelPanEnabled);
   const [isPanning, setIsPanning] = useState(false);
+  const mousePanActive = useRef(false);
+  const mousePanMoved = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const mousePanStartPos = useRef({ x: 0, y: 0 });
+  const mousePanStartedOnInteractiveTarget = useRef(false);
+  const suppressNextInteractiveClick = useRef(false);
   const lastTouchStartTime = useRef(0);
   const viewLockedRef = useRef(viewLocked);
+  // Latest camera, including uncommitted gesture previews.
   const panRef = useRef(pan);
-  const scaleRefInternal = useRef(scale);
+  const scaleRef = useRef(scale);
+  const cameraFrameRef = useRef<number | null>(null);
+  const wheelCommitTimerRef = useRef<number | null>(null);
+  // Uncommitted gesture scale, for zoom UI that must follow the gesture without re-rendering the sheet.
+  const scalePreviewRef = useRef<number | null>(null);
+  const scalePreviewListenersRef = useRef(new Set<() => void>());
   const activeCameraKey = cameraKey(characterId, sheetId);
   const previousCameraKeyRef = useRef(activeCameraKey);
   const [initialFitComplete, setInitialFitComplete] = useState(() => hasCompletedInitialFit(characterId, sheetId));
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   useEffect(() => { panRef.current = pan; }, [pan]);
-  useEffect(() => { scaleRefInternal.current = scale; }, [scale]);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+
+  const writeCameraTransform = useCallback(() => {
+    const content = contentRef?.current;
+    if (!content) return;
+    content.style.transform = getCameraTransform(panRef.current, scaleRef.current);
+    const inverseTransform = getInverseCameraTransform(panRef.current, scaleRef.current);
+    content.querySelectorAll<HTMLElement>(`:scope > [${CAMERA_INVERSE_LAYER_ATTRIBUTE}]`).forEach((layer) => {
+      layer.style.transform = inverseTransform;
+    });
+  }, [contentRef]);
+
+  const cancelWheelCommit = useCallback(() => {
+    if (wheelCommitTimerRef.current === null) return;
+    window.clearTimeout(wheelCommitTimerRef.current);
+    wheelCommitTimerRef.current = null;
+  }, []);
+
+  const setScalePreview = useCallback((nextScale: number | null) => {
+    if (scalePreviewRef.current === nextScale) return;
+    scalePreviewRef.current = nextScale;
+    scalePreviewListenersRef.current.forEach((listener) => listener());
+  }, []);
+
+  const subscribeScalePreview = useCallback((listener: () => void) => {
+    scalePreviewListenersRef.current.add(listener);
+    return () => { scalePreviewListenersRef.current.delete(listener); };
+  }, []);
+
+  const getScalePreview = useCallback(() => scalePreviewRef.current, []);
+
+  // Re-rendering the whole sheet per input event is what makes large sheets stutter, so gestures only touch the DOM.
+  const previewCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    const scaleChanged = nextScale !== scaleRef.current;
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    if (scaleChanged) setScalePreview(nextScale);
+    contentRef?.current?.classList.add(CAMERA_GESTURE_CLASS);
+    if (cameraFrameRef.current !== null) return;
+    pendingCameraWrites += 1;
+    cameraFrameRef.current = window.requestAnimationFrame((frameTime) => {
+      cameraFrameRef.current = null;
+      pendingCameraWrites -= 1;
+      writeCameraTransform();
+      cameraWriteListeners.forEach((listener) => listener(frameTime));
+    });
+  }, [contentRef, setScalePreview, writeCameraTransform]);
+
+  const commitCamera = useCallback((nextPan = panRef.current, nextScale = scaleRef.current) => {
+    cancelWheelCommit();
+    if (cameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(cameraFrameRef.current);
+      cameraFrameRef.current = null;
+      pendingCameraWrites -= 1;
+    }
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    // React skips the write when the committed camera equals the pre-gesture state.
+    writeCameraTransform();
+    contentRef?.current?.classList.remove(CAMERA_GESTURE_CLASS);
+    setPan(nextPan);
+    setScale(nextScale);
+    setScalePreview(null);
+  }, [cancelWheelCommit, contentRef, setScalePreview, writeCameraTransform]);
+
+  useEffect(() => () => {
+    if (cameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(cameraFrameRef.current);
+      cameraFrameRef.current = null;
+      pendingCameraWrites -= 1;
+    }
+    if (wheelCommitTimerRef.current !== null) window.clearTimeout(wheelCommitTimerRef.current);
+  }, []);
 
   useLayoutEffect(() => {
     if (previousCameraKeyRef.current === activeCameraKey) return;
@@ -147,7 +280,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     const next = readInitialCamera(characterId, sheetId);
     setInitialFitComplete(hasCompletedInitialFit(characterId, sheetId));
     panRef.current = next.pan;
-    scaleRefInternal.current = next.scale;
+    scaleRef.current = next.scale;
     viewLockedRef.current = next.locked;
     setPan(next.pan);
     setScale(next.scale);
@@ -182,27 +315,47 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     return () => window.removeEventListener('touchstart', handleTouchStart, { capture: true });
   }, []);
 
-  // Global mouse handlers for panning outside window
+  // Use one capture-phase mouse handler so panning works over controls and outside the canvas.
   useEffect(() => {
-    const handleGlobalMouseUp = () => setIsPanning(false);
+    const handleGlobalMouseUp = () => {
+      if (mousePanActive.current && mousePanMoved.current) commitCamera();
+      mousePanActive.current = false;
+      mousePanMoved.current = false;
+      setIsPanning(false);
+      mousePanStartedOnInteractiveTarget.current = false;
+      window.setTimeout(() => { suppressNextInteractiveClick.current = false; }, 0);
+    };
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (isPanning) {
-        if (viewLockedRef.current) return;
-        const dx = e.clientX - lastMousePos.current.x;
-        const dy = e.clientY - lastMousePos.current.y;
-        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
+      if (!mousePanActive.current || viewLockedRef.current) return;
+      if (!mousePanMoved.current) {
+        if (Math.hypot(e.clientX - mousePanStartPos.current.x, e.clientY - mousePanStartPos.current.y) < 4) return;
+        mousePanMoved.current = true;
+        // The mouseup commit covers any pending wheel preview.
+        cancelWheelCommit();
+        setIsPanning(true);
       }
+      if (mousePanStartedOnInteractiveTarget.current) {
+        suppressNextInteractiveClick.current = true;
+        e.preventDefault();
+      }
+      const dx = e.clientX - lastMousePos.current.x;
+      const dy = e.clientY - lastMousePos.current.y;
+      previewCamera({ x: panRef.current.x + dx, y: panRef.current.y + dy }, scaleRef.current);
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
     };
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp, true);
+    window.addEventListener('mousemove', handleGlobalMouseMove, true);
     return () => {
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp, true);
+      window.removeEventListener('mousemove', handleGlobalMouseMove, true);
     };
-  }, [isPanning]);
+  }, [cancelWheelCommit, commitCamera, previewCamera]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    suppressNextInteractiveClick.current = false;
+    mousePanActive.current = false;
+    mousePanMoved.current = false;
+    mousePanStartedOnInteractiveTarget.current = false;
     if (performance.now() - lastTouchStartTime.current < 750) return;
     // Disable panning when editing a widget
     if (editingWidgetId) return;
@@ -215,41 +368,39 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
       return;
     }
     
-    // Preserve controls and widget manipulation while allowing inert widget space to pan.
-    if (isInteractiveCanvasTarget(e.target)) return;
+    if (isCameraPanDragTarget(e.target)) return;
+    if (isTextSelectionTarget(e.target)) return;
+    const interactiveTarget = isInteractiveCanvasTarget(e.target);
 
     // Clear selected widget when clicking on the background
-    onBackgroundClick?.();
+    if (!interactiveTarget) onBackgroundClick?.();
 
     // In play/print mode: Left Click (0) to pan
     // In edit mode: Left Click (0) and Middle Click (1) to pan
     if (mode === 'play' || mode === 'print') {
       if (e.button === 0) {
-        e.preventDefault();
-        setIsPanning(true);
+        if (!interactiveTarget) e.preventDefault();
+        mousePanActive.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartPos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartedOnInteractiveTarget.current = interactiveTarget;
       }
     } else {
       if (e.button === 0 || e.button === 1) {
-        e.preventDefault();
-        setIsPanning(true);
+        if (!interactiveTarget) e.preventDefault();
+        mousePanActive.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartPos.current = { x: e.clientX, y: e.clientY };
+        mousePanStartedOnInteractiveTarget.current = interactiveTarget;
       }
     }
   }, [editingWidgetId, mode, onBackgroundClick]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning) {
-      if (viewLockedRef.current) return;
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
-      setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
-    }
-  }, [isPanning]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
+  const handleMouseClickCapture = useCallback((e: React.MouseEvent) => {
+    if (!suppressNextInteractiveClick.current) return;
+    suppressNextInteractiveClick.current = false;
+    e.preventDefault();
+    e.stopPropagation();
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -260,30 +411,30 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     // Let an overflowing widget region receive the wheel event for native scrolling.
     if (isScrollableCanvasTarget(e.target, e.currentTarget)) return;
 
+    const currentPan = panRef.current;
+    const currentScale = scaleRef.current;
     if (wheelPanEnabled) {
-      setPan(currentPan => ({ x: currentPan.x, y: currentPan.y - e.deltaY }));
-      return;
+      previewCamera({ x: currentPan.x, y: currentPan.y - e.deltaY }, currentScale);
+    } else {
+      // Zoom with scroll wheel relative to mouse cursor
+      const zoomSensitivity = e.ctrlKey || e.metaKey ? 0.015 : 0.001;
+      const zoomFactor = Math.exp(-e.deltaY * zoomSensitivity);
+      const newScale = Math.min(Math.max(currentScale * zoomFactor, minScale), maxScale);
+
+      // Keep the canvas point under the mouse fixed while zooming
+      const canvasX = (e.clientX - currentPan.x) / currentScale;
+      const canvasY = (e.clientY - currentPan.y) / currentScale;
+      previewCamera({ x: e.clientX - canvasX * newScale, y: e.clientY - canvasY * newScale }, newScale);
     }
-    
-    // Zoom with scroll wheel relative to mouse cursor
-    const zoomFactor = Math.exp(-e.deltaY * 0.001);
-    const newScale = Math.min(Math.max(scale * zoomFactor, minScale), maxScale);
-    
-    // Get mouse position relative to the viewport
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-    
-    // Calculate the point in canvas space that the mouse is over
-    const canvasX = (mouseX - pan.x) / scale;
-    const canvasY = (mouseY - pan.y) / scale;
-    
-    // After zoom, we want the same canvas point to be under the mouse
-    const newPanX = mouseX - canvasX * newScale;
-    const newPanY = mouseY - canvasY * newScale;
-    
-    setScale(newScale);
-    setPan({ x: newPanX, y: newPanY });
-  }, [editingWidgetId, scale, pan, minScale, maxScale, wheelPanEnabled]);
+
+    // Wheel input has no end event; commit once it goes quiet unless a mouse pan will commit it.
+    cancelWheelCommit();
+    if (mousePanMoved.current) return;
+    wheelCommitTimerRef.current = window.setTimeout(() => {
+      wheelCommitTimerRef.current = null;
+      commitCamera();
+    }, WHEEL_COMMIT_DELAY_MS);
+  }, [editingWidgetId, minScale, maxScale, wheelPanEnabled, previewCamera, cancelWheelCommit, commitCamera]);
 
   const zoomIn = useCallback(() => {
     setScale(s => Math.min(maxScale, s * 1.3));
@@ -318,6 +469,12 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
   return {
     pan,
     scale,
+    panRef,
+    scaleRef,
+    previewCamera,
+    commitCamera,
+    subscribeScalePreview,
+    getScalePreview,
     isPanning,
     viewLocked,
     wheelPanEnabled,
@@ -326,8 +483,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, mode
     setScale,
     setWheelPanEnabled,
     handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    handleMouseClickCapture,
     handleWheel,
     zoomIn,
     zoomOut,

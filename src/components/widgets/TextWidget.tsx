@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { FontSize, TextStyle } from '@tiptap/extension-text-style';
@@ -223,7 +224,7 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
     <div ref={widgetRef} className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
       <div className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}>
@@ -319,7 +320,7 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
         )}
         <div
           ref={editorScrollRef}
-          className={`notes-rich-text__scroll ${canEditContent ? 'cursor-text' : ''}`}
+          className={`notes-rich-text__scroll ${canEditContent || showEditor ? 'cursor-text' : ''}`}
           role={canEditContent ? 'button' : undefined}
           tabIndex={canEditContent ? 0 : undefined}
           aria-label={canEditContent ? `Edit ${label || 'notes'}` : undefined}

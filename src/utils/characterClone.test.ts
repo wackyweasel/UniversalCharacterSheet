@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Character } from '../types';
-import { cloneCharacterForWorkspace } from './characterClone';
+import { cloneCharacterForWorkspace, migrateCharacter } from './characterClone';
 
 const character: Character = {
   id: 'character-1',
@@ -47,5 +47,32 @@ describe('cloneCharacterForWorkspace', () => {
     expect(first.groupId).not.toBe('group-1');
     expect(first.attachedTo).toEqual([second.id]);
     expect(second.attachedTo).toEqual([first.id]);
+  });
+});
+
+describe('migrateCharacter', () => {
+  it('snaps widget positions and dimensions to the canvas grid', () => {
+    const migrated = migrateCharacter({
+      ...character,
+      sheets: [{
+        ...character.sheets[0],
+        widgets: [{
+          id: 'widget-3',
+          type: 'TOGGLE',
+          x: 13,
+          y: 27,
+          w: 32,
+          h: 48,
+          data: {},
+        }],
+      }],
+    });
+
+    expect(migrated.sheets[0].widgets[0]).toMatchObject({
+      x: 10,
+      y: 30,
+      w: 30,
+      h: 50,
+    });
   });
 });

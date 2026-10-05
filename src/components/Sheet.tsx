@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
@@ -7,7 +7,8 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
 import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
-import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation } from '../hooks';
+import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation, usePointerReorder } from '../hooks';
+import { getCameraTransform } from '../hooks/usePanZoom';
 import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
@@ -27,13 +28,14 @@ import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import SheetToolbar from './SheetToolbar';
 import PrintToolbar from './PrintToolbar';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon, GripVerticalIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
+import { snapWidgetCoordinate } from '../utils/widgetGeometry';
 import { WIDGET_CONTROLS_DISMISS_EVENT } from './widgetDragRegistry';
 
 // Helper to get active sheet widgets
@@ -140,6 +142,57 @@ function CharacterNameControl({ name, editable, onSave, className }: CharacterNa
   );
 }
 
+interface CanvasZoomTrackProps {
+  scale: number;
+  disabled: boolean;
+  subscribeScalePreview: (listener: () => void) => () => void;
+  getScalePreview: () => number | null;
+  onScaleChange: (scale: number) => void;
+}
+
+/** Follows wheel/pinch previews by itself so the slider moves live without re-rendering the whole sheet. */
+function CanvasZoomTrack({ scale, disabled, subscribeScalePreview, getScalePreview, onScaleChange }: CanvasZoomTrackProps) {
+  const previewScale = useSyncExternalStore(subscribeScalePreview, getScalePreview, getScalePreview);
+  const displayedScale = previewScale ?? scale;
+  const percent = Math.round(displayedScale * 100);
+  const [valueVisible, setValueVisible] = useState(false);
+  const previousScaleRef = useRef(displayedScale);
+
+  useEffect(() => {
+    if (previousScaleRef.current === displayedScale) return;
+    previousScaleRef.current = displayedScale;
+    setValueVisible(true);
+    const timer = window.setTimeout(() => setValueVisible(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [displayedScale]);
+
+  return (
+    <div className="canvas-zoom-track">
+      <input
+        type="range"
+        className="canvas-zoom-range"
+        min={MIN_CANVAS_SCALE * 100}
+        max={MAX_CANVAS_SCALE * 100}
+        step="1"
+        value={percent}
+        onChange={(event) => onScaleChange(Number(event.target.value) / 100)}
+        disabled={disabled}
+        aria-label="Canvas zoom"
+        aria-valuetext={`${percent}%`}
+      />
+      {valueVisible && (
+        <output
+          className="canvas-zoom-value"
+          style={{ left: `${((displayedScale - MIN_CANVAS_SCALE) / (MAX_CANVAS_SCALE - MIN_CANVAS_SCALE)) * 100}%` }}
+          aria-live="polite"
+        >
+          {percent}%
+        </output>
+      )}
+    </div>
+  );
+}
+
 export default function Sheet() {
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -156,6 +209,7 @@ export default function Sheet() {
   const selectSheet = useStore((state) => state.selectSheet);
   const deleteSheet = useStore((state) => state.deleteSheet);
   const renameSheet = useStore((state) => state.renameSheet);
+  const reorderSheets = useStore((state) => state.reorderSheets);
   const createTransientCharacterFromPreset = useStore((state) => state.createTransientCharacterFromPreset);
   const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const updateCharacterTheme = useStore((state) => state.updateCharacterTheme);
@@ -169,7 +223,7 @@ export default function Sheet() {
   const switchableCharacters = useMemo(() => {
     if (!activeCharacterId || transientCharacterIds.includes(activeCharacterId)) return [];
     const transientIds = new Set(transientCharacterIds);
-    return characters.filter((character) => character.id !== activeCharacterId && !transientIds.has(character.id));
+    return characters.filter((character) => !transientIds.has(character.id));
   }, [activeCharacterId, characters, transientCharacterIds]);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   
@@ -262,7 +316,15 @@ export default function Sheet() {
   const [editedSheetName, setEditedSheetName] = useState('');
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
-  const [zoomValueVisible, setZoomValueVisible] = useState(false);
+  const {
+    setRowRef: setSheetRowRef,
+    startDrag: startSheetDrag,
+    handleReorderKey: handleSheetReorderKey,
+  } = usePointerReorder({
+    items: activeCharacter?.sheets ?? [],
+    onReorder: (sheets) => reorderSheets(sheets.map((sheet) => sheet.id)),
+    scrollAreaSelector: '.sheet-dropdown-scroll',
+  });
   const [sheetSearchOpen, setSheetSearchOpen] = useState(false);
   const [sheetSearchQuery, setSheetSearchQuery] = useState('');
   const [searchReveal, setSearchReveal] = useState<{ sheetId: string; widgetId: string; key: number } | null>(null);
@@ -277,9 +339,11 @@ export default function Sheet() {
   const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
   const [wideListLayout, setWideListLayout] = useState(() => window.innerWidth >= 900);
 
+  // Built only while searching: rebuilding on every widget move/raise is costly on large sheets.
+  const hasSheetSearchQuery = sheetSearchQuery.trim().length > 0;
   const sheetSearchIndex = useMemo(
-    () => activeCharacter ? buildSheetSearchIndex(activeCharacter) : [],
-    [activeCharacter],
+    () => activeCharacter && hasSheetSearchQuery ? buildSheetSearchIndex(activeCharacter) : [],
+    [activeCharacter, hasSheetSearchQuery],
   );
   const sheetSearchResults = useMemo(
     () => activeCharacter ? searchSheetIndex(sheetSearchIndex, sheetSearchQuery, activeCharacter.activeSheetId) : [],
@@ -329,6 +393,20 @@ export default function Sheet() {
   const [isPinching, setIsPinching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) return;
+
+    const workspace = containerRef.current;
+    if (!workspace) return;
+
+    const preventBrowserZoom = (event: WheelEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.cancelable) event.preventDefault();
+    };
+
+    workspace.addEventListener('wheel', preventBrowserZoom, { capture: true, passive: false });
+    return () => workspace.removeEventListener('wheel', preventBrowserZoom, true);
+  }, [mode, playLayout]);
   
   // Clear mobile widget controls unless the touch stays on their selected widget controls.
   const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {
@@ -356,12 +434,17 @@ export default function Sheet() {
   const {
     pan,
     scale,
+    panRef,
+    scaleRef,
+    previewCamera,
+    commitCamera,
+    subscribeScalePreview,
+    getScalePreview,
     isPanning,
     setPan,
     setScale,
     handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    handleMouseClickCapture,
     handleWheel,
     viewLocked,
     wheelPanEnabled,
@@ -377,24 +460,13 @@ export default function Sheet() {
     characterId: activeCharacterId,
     sheetId: activeSheetId,
     onBackgroundClick: handleBackgroundInteraction,
+    contentRef: printAreaRef,
   });
 
-  const scaleRef = useRef(scale);
-  const panRef = useRef(pan);
   const viewLockedRef = useRef(viewLocked);
   const wheelPanEnabledRef = useRef(wheelPanEnabled);
-  const touchCameraFrameRef = useRef<number | null>(null);
-  const pendingTouchCameraRef = useRef<{ pan: { x: number; y: number }; scale: number } | null>(null);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { viewLockedRef.current = viewLocked; }, [viewLocked]);
   useEffect(() => { wheelPanEnabledRef.current = wheelPanEnabled; }, [wheelPanEnabled]);
-
-  useEffect(() => () => {
-    if (touchCameraFrameRef.current !== null) {
-      window.cancelAnimationFrame(touchCameraFrameRef.current);
-    }
-  }, []);
 
   useEffect(() => {
     if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
@@ -452,50 +524,10 @@ export default function Sheet() {
     };
   }, [activeCharacter?.activeSheetId, mode, playLayout, searchReveal, setPan, setScale]);
 
-  const previousScaleRef = useRef(scale);
-  useEffect(() => {
-    if (previousScaleRef.current === scale) return;
-    previousScaleRef.current = scale;
-    setZoomValueVisible(true);
-    const timer = window.setTimeout(() => setZoomValueVisible(false), 900);
-    return () => window.clearTimeout(timer);
-  }, [scale]);
-
   // Touch camera controls hook
   const getScale = useCallback(() => scaleRef.current, []);
   const getPan = useCallback(() => panRef.current, []);
   const getViewLocked = useCallback(() => viewLockedRef.current, []);
-
-  const previewTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
-    panRef.current = nextPan;
-    scaleRef.current = nextScale;
-    pendingTouchCameraRef.current = { pan: nextPan, scale: nextScale };
-    printAreaRef.current?.classList.add('camera-gesture-active');
-    if (touchCameraFrameRef.current !== null) return;
-
-    touchCameraFrameRef.current = window.requestAnimationFrame(() => {
-      touchCameraFrameRef.current = null;
-      const pendingCamera = pendingTouchCameraRef.current;
-      if (!pendingCamera || !printAreaRef.current) return;
-      printAreaRef.current.style.transform = `translate3d(${pendingCamera.pan.x}px, ${pendingCamera.pan.y}px, 0) scale(${pendingCamera.scale})`;
-    });
-  }, []);
-
-  const commitTouchCamera = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
-    if (touchCameraFrameRef.current !== null) {
-      window.cancelAnimationFrame(touchCameraFrameRef.current);
-      touchCameraFrameRef.current = null;
-    }
-    pendingTouchCameraRef.current = null;
-    panRef.current = nextPan;
-    scaleRef.current = nextScale;
-    if (printAreaRef.current) {
-      printAreaRef.current.style.transform = `translate(${nextPan.x}px, ${nextPan.y}px) scale(${nextScale})`;
-      printAreaRef.current.classList.remove('camera-gesture-active');
-    }
-    setPan(nextPan);
-    setScale(nextScale);
-  }, [setPan, setScale]);
 
     const setCanvasScaleAtViewportCenter = useCallback((requestedScale: number) => {
       if (viewLockedRef.current) return;
@@ -514,16 +546,14 @@ export default function Sheet() {
         y: centerY - canvasY * nextScale,
       };
 
-      scaleRef.current = nextScale;
-      panRef.current = nextPan;
-      setScale(nextScale);
-      setPan(() => nextPan);
-    }, [setPan, setScale]);
+      // Commit (rather than set state) so a pending wheel preview cannot override the slider or buttons.
+      commitCamera(nextPan, nextScale);
+    }, [commitCamera]);
   
   const { isTouchPanning } = useTouchCamera({
     mode,
-    onCameraPreview: previewTouchCamera,
-    onCameraCommit: commitTouchCamera,
+    onCameraPreview: previewCamera,
+    onCameraCommit: commitCamera,
     onPinchingChange: setIsPinching,
     getScale,
     getPan,
@@ -1079,11 +1109,8 @@ export default function Sheet() {
       const rawX = (viewportX - pan.x) / scale;
       const rawY = (viewportY - pan.y) / scale;
 
-      const GRID_SIZE = 10;
-      const snap = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
-
-      const x = snap(rawX);
-      const y = snap(rawY);
+      const x = snapWidgetCoordinate(rawX);
+      const y = snapWidgetCoordinate(rawY);
 
       addWidget(type, x, y, undefined, 'exact');
     }
@@ -1692,9 +1719,8 @@ export default function Sheet() {
       {/* Canvas Container - touch events handled globally */}
       <div 
         className={`canvas-touch-surface absolute inset-0 ${isPanning || isTouchPanning.current ? 'cursor-grabbing' : viewLocked || editingWidgetId ? 'cursor-default' : 'cursor-grab'} ${isPinching ? 'pinch-active' : ''}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onMouseDownCapture={handleMouseDown}
+        onClickCapture={handleMouseClickCapture}
         onWheel={handleWheel}
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}
@@ -1730,7 +1756,7 @@ export default function Sheet() {
           ref={printAreaRef}
           className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${isPanning ? 'camera-gesture-active' : ''} ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
+            transform: getCameraTransform(pan, scale)
           }}
         >
           {/* Infinite Grid Background - hidden in play and print mode */}
@@ -2260,7 +2286,25 @@ export default function Sheet() {
               <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
             </div>
             {activeCharacter.sheets.map((sheet) => (
-              <div key={sheet.id} className="group relative">
+              <div
+                key={sheet.id}
+                ref={(element) => setSheetRowRef(sheet.id, element)}
+                className="pointer-sort-row group relative flex items-stretch"
+              >
+                {mode === 'edit' && editingSheetId !== sheet.id && (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => startSheetDrag(sheet.id, event)}
+                    onKeyDown={(event) => handleSheetReorderKey(sheet.id, event)}
+                    disabled={activeCharacter.sheets.length < 2}
+                    aria-label={`Reorder ${sheet.name}`}
+                    title="Drag to reorder. Arrow keys also work."
+                    className="flex w-6 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center text-theme-muted hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+                  >
+                    <GripVerticalIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
                 {editingSheetId === sheet.id ? (
                   <input
                     type="text"
@@ -2330,6 +2374,7 @@ export default function Sheet() {
                     )}
                   </button>
                 )}
+                </div>
               </div>
             ))}
             {mode === 'edit' && (
@@ -2470,29 +2515,13 @@ export default function Sheet() {
         >
           <MinusIcon className="h-4 w-4" />
         </button>
-        <div className="canvas-zoom-track">
-          <input
-            type="range"
-            className="canvas-zoom-range"
-            min={MIN_CANVAS_SCALE * 100}
-            max={MAX_CANVAS_SCALE * 100}
-            step="1"
-            value={Math.round(scale * 100)}
-            onChange={(event) => setCanvasScaleAtViewportCenter(Number(event.target.value) / 100)}
-            disabled={viewLocked}
-            aria-label="Canvas zoom"
-            aria-valuetext={`${Math.round(scale * 100)}%`}
-          />
-          {zoomValueVisible && (
-            <output
-              className="canvas-zoom-value"
-              style={{ left: `${((scale - MIN_CANVAS_SCALE) / (MAX_CANVAS_SCALE - MIN_CANVAS_SCALE)) * 100}%` }}
-              aria-live="polite"
-            >
-              {Math.round(scale * 100)}%
-            </output>
-          )}
-        </div>
+        <CanvasZoomTrack
+          scale={scale}
+          disabled={viewLocked}
+          subscribeScalePreview={subscribeScalePreview}
+          getScalePreview={getScalePreview}
+          onScaleChange={setCanvasScaleAtViewportCenter}
+        />
         <button
           type="button"
           className="canvas-zoom-button"
@@ -2530,7 +2559,5 @@ export default function Sheet() {
     </div>
   );
 }
-
-
 
 

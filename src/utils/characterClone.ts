@@ -7,6 +7,7 @@ import {
   getCardTableDiscardedCards,
   normalizeCardTableWidgetData,
 } from './cardTable';
+import { normalizeWidgetGeometry } from './widgetGeometry';
 
 function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['data'] {
   const normalizedData = normalizeCardTableWidgetData(data, widgetId);
@@ -45,9 +46,11 @@ export function migrateLegacyWidgetHeader(widget: Widget): Widget {
   const migratedWidget = (widget.type as string) === 'CARD_TABLE'
     ? { ...widget, type: 'DECK_OF_CARDS' as const }
     : widget;
-  const normalizedWidget = migratedWidget.type === 'DECK_OF_CARDS'
-    ? { ...migratedWidget, data: normalizeCardTableWidgetData(migratedWidget.data, migratedWidget.id) }
-    : migratedWidget;
+  const normalizedWidget = normalizeWidgetGeometry(
+    migratedWidget.type === 'DECK_OF_CARDS'
+      ? { ...migratedWidget, data: normalizeCardTableWidgetData(migratedWidget.data, migratedWidget.id) }
+      : migratedWidget,
+  );
   const label = normalizedWidget.data?.label;
   const hasNoLabel = typeof label !== 'string' || label.trim().length === 0;
   const hidLegacyHeaderControls =

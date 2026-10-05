@@ -1,4 +1,4 @@
-export type FormulaReferenceCategory = 'Operators' | 'Conditions' | 'Math' | 'Tables';
+export type FormulaReferenceCategory = 'Operators' | 'Text' | 'Conditions' | 'Math' | 'Tables';
 
 export interface FormulaReferenceEntry {
   id: string;
@@ -11,6 +11,7 @@ export interface FormulaReferenceEntry {
 
 export const FORMULA_REFERENCE_CATEGORIES: FormulaReferenceCategory[] = [
   'Operators',
+  'Text',
   'Conditions',
   'Math',
   'Tables',
@@ -18,11 +19,33 @@ export const FORMULA_REFERENCE_CATEGORIES: FormulaReferenceCategory[] = [
 
 export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
   {
+    id: 'text-values',
+    category: 'Text',
+    label: 'Text values',
+    signature: '"text"  @textLabel',
+    description: 'Text in double quotes is a text value. Labels on Form values, Mixed Fields text, Inventory text attributes, Table cells and Menus hold text unless the whole value is a number. Text results can only be used by text fields, and {formula} tokens in any name, title or text.',
+    examples: [
+      { formula: '"Level " + @level', explanation: 'Joins text and a number into "Level 3".' },
+      { formula: 'IF(@hp <= 0, "Down", "Standing")', explanation: 'Chooses between two text results.' },
+    ],
+  },
+  {
+    id: 'text-join',
+    category: 'Text',
+    label: 'Joining text',
+    signature: 'a + b',
+    description: 'When either side of + is text, the values are joined instead of added. Use round() to control decimals. Text cells are ignored (as 0) by SUM.',
+    examples: [
+      { formula: '@first + " " + @last', explanation: 'Joins two text labels with a space.' },
+      { formula: '@name + " (" + round(@hp / @max_hp * 100) + "%)"', explanation: 'Builds a status line.' },
+    ],
+  },
+  {
     id: 'labels',
     category: 'Operators',
     label: 'Label reference',
     signature: '@label',
-    description: 'Uses the current numeric value of a labelled field. Choose a label in the Labels panel to insert it at the cursor.',
+    description: 'Uses the current value of a labelled field. Menu labels contain the selected option text and can be compared in IF or SWITCH.',
     examples: [
       { formula: '@strength + 2', explanation: 'Adds 2 to the current Strength value.' },
       { formula: '@current_hp / @max_hp * 100', explanation: 'Converts remaining health to a percentage.' },
@@ -55,10 +78,11 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     category: 'Conditions',
     label: 'Comparisons',
     signature: '=  <>  <  >  <=  >=',
-    description: 'Compares two values inside an IF condition. Use = for equal and <> for not equal.',
+    description: 'Compares two values inside an IF condition. Use = for equal and <> for not equal. Menu text comparisons are exact and use double quotes.',
     examples: [
       { formula: 'IF(@hp <= 0, 0, @hp)', explanation: 'Returns 0 when HP is zero or lower.' },
       { formula: 'IF(@state <> 1, 0, 5)', explanation: 'Returns 5 only when State equals 1.' },
+      { formula: 'IF(@stance = "Defensive", 2, 0)', explanation: 'Returns 2 when the labelled menu is set to Defensive.' },
     ],
   },
   {
@@ -70,6 +94,7 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     examples: [
       { formula: 'IF(@hp <= 0, 0, @hp)', explanation: 'Prevents a displayed HP value from going below 0.' },
       { formula: 'IF(@level >= 5, @strength + 2, @strength)', explanation: 'Adds a bonus from level 5 onward.' },
+      { formula: 'IF(@stance = "", 0, 1)', explanation: 'Checks whether a labelled menu has no selection.' },
     ],
   },
   {
@@ -81,6 +106,7 @@ export const FORMULA_REFERENCE: FormulaReferenceEntry[] = [
     examples: [
       { formula: 'SWITCH(@rank, 1, 2, 2, 4, 3, 6, 0)', explanation: 'Maps ranks 1, 2, and 3 to different bonuses, otherwise 0.' },
       { formula: 'SWITCH(@roll, 1..5, 0, 6..10, 1, 2)', explanation: 'Uses inclusive ranges and returns 2 outside them.' },
+      { formula: 'SWITCH(@stance, "Defensive", 2, "Aggressive", -1, 0)', explanation: 'Maps exact menu selections to different numeric results.' },
     ],
   },
   {

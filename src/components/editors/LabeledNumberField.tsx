@@ -38,7 +38,7 @@ interface LabeledNumberFieldProps {
   /** Whether to show compact (inline) style */
   compact?: boolean;
   /** Height preset for the numeric input and inline action buttons */
-  controlHeight?: 'compact' | 'input';
+  controlHeight?: 'compact' | 'row' | 'input';
   /** Hide the +/- buttons while keeping label/formula controls */
   hideStepperButtons?: boolean;
   /** Lock the numeric value while retaining its label control */
@@ -94,8 +94,8 @@ export function LabeledNumberField({
     value === undefined ? '' : formatNumberWithSign(value, preservePositiveSign && showPositiveSign)
   ));
   const editingValueRef = useRef(false);
-  const controlHeightClass = controlHeight === 'input' ? 'h-10' : 'h-7';
-  const controlWidthClass = controlHeight === 'input' ? 'w-10' : 'w-7';
+  const controlHeightClass = controlHeight === 'input' ? 'h-10' : controlHeight === 'row' ? 'h-9' : 'h-7';
+  const controlWidthClass = controlHeight === 'input' ? 'w-10' : controlHeight === 'row' ? 'w-9' : 'w-7';
 
   useEffect(() => {
     if ((!allowEmpty && !preservePositiveSign) || !editingValueRef.current) {

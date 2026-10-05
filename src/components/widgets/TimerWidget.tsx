@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { PlayIcon, PauseIcon, ResetIcon } from '../icons';
@@ -106,7 +107,7 @@ export default function TimerWidget({ widget, mode }: Props) {
     <div className="flex h-full w-full flex-col gap-1 select-none">
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
 

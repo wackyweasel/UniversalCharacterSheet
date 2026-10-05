@@ -28,6 +28,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
@@ -36,6 +37,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 
 interface Props {
   widget: Widget;
@@ -56,7 +58,10 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'NUMBER',
   'NUMBER_DISPLAY',
   'POOL',
+  'PROGRESS_CLOCK',
   'TOGGLE_GROUP',
+  'STEP_DICE',
+  'SPELL_SLOT',
   'INITIATIVE_TRACKER',
   'INVENTORY',
 ]);
@@ -88,11 +93,13 @@ export default function VerticalWidget({
     data: {
       ...widget.data,
       label: isWidgetHeaderHidden ? undefined : widget.data.label,
-      showFieldControls: !isWidgetHeaderHidden,
-      showTableEditButton: !isWidgetHeaderHidden,
+      showFieldControls: isWidgetHeaderHidden ? false : widget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : widget.data.showTableEditButton,
     },
   };
-  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type) && !isWidgetHeaderHidden;
+  const hasHeaderControls = WIDGETS_WITH_HEADER_CONTROLS.has(widget.type)
+    && !isWidgetHeaderHidden
+    && widget.data.showFieldControls !== false;
   const hasInternalHeaderLabel = !isWidgetHeaderHidden && widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -193,6 +200,7 @@ export default function VerticalWidget({
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={!isBuildMode} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
@@ -201,6 +209,7 @@ export default function VerticalWidget({
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={!isBuildMode} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
+      case 'WALLET': return <WalletWidget {...props} />;
       default: return null;
     }
   };
@@ -270,7 +279,7 @@ export default function VerticalWidget({
           )}
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            {(widget.type !== 'LABEL' || isBuildMode) && (
+            {(widget.type !== 'LABEL' || isBuildMode) && !widget.data.hideWidgetEditButton && (
               <Tooltip content={`Edit ${getWidgetLabel()}`}>
                 <button
                   type="button"

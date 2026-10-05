@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import type { DiceExpressionRollResult } from '../../utils/diceExpression';
 import { formatDiceRollDetail, formatDiceStep, parseDiceStep } from '../../utils/diceExpression';
@@ -8,6 +9,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { InlineDiceText } from '../InlineDiceText';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import type { FormulaLabels } from '../../utils/formulaSyntax';
 import {
   clampMixedFieldValue,
   createMixedField,
@@ -16,8 +18,10 @@ import {
 } from '../../utils/mixedFields';
 import { Tooltip } from '../Tooltip';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns, ValueAdjustRow, applyDeltaToDraft } from './WidgetPrimitives';
+import { MixedFieldsEditor } from '../editors/MixedFieldsEditor';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
+import { CheckIcon, ChevronDownIcon } from '../icons';
 
 interface Props {
   widget: Widget;
@@ -49,6 +53,170 @@ const RESOURCE_SYMBOLS: Record<string, [string, string]> = {
 
 const HOLD_DELAY_MS = 300;
 
+const CONTROL_JUSTIFY = { left: 'justify-start', center: 'justify-center', right: 'justify-end' } as const;
+const CONTROL_TEXT_ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
+
+function MixedMenuControl({ field, canInteract, onChange }: {
+  field: Extract<MixedField, { type: 'menu' }>;
+  canInteract: boolean;
+  onChange: (value: string) => void;
+}) {
+  const listboxId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef({ text: '', time: 0 });
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [position, setPosition] = useState({ left: 0, top: 0, width: 160, maxHeight: 240 });
+  const options = ['', ...field.options];
+  const selectedIndex = Math.max(0, options.indexOf(field.value));
+  const expanded = open && canInteract;
+
+  const openMenu = () => {
+    setActiveIndex(selectedIndex);
+    searchRef.current = { text: '', time: 0 };
+    setOpen(true);
+  };
+
+  const selectOption = (index: number) => {
+    const value = options[index];
+    if (value !== undefined && value !== field.value) onChange(value);
+    setOpen(false);
+    triggerRef.current?.focus({ preventScroll: true });
+  };
+
+  useLayoutEffect(() => {
+    if (!expanded) return;
+    const updatePosition = () => {
+      const anchor = triggerRef.current?.getBoundingClientRect();
+      if (!anchor) return;
+      const below = Math.max(0, window.innerHeight - anchor.bottom - 12);
+      const above = Math.max(0, anchor.top - 12);
+      const desiredHeight = Math.min(240, (menuRef.current?.scrollHeight ?? 240) + 8);
+      const placeAbove = below < desiredHeight && above > below;
+      const maxHeight = Math.min(240, placeAbove ? above : below);
+      const width = Math.min(Math.max(anchor.width, 160), window.innerWidth - 16);
+      setPosition({
+        left: Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8)),
+        top: placeAbove ? anchor.top - Math.min(desiredHeight, maxHeight) - 4 : anchor.bottom + 4,
+        width,
+        maxHeight,
+      });
+    };
+    const handleScroll = (event: Event) => {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      updatePosition();
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [expanded, field.options]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', handleOutsidePointer);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointer);
+  }, [expanded]);
+
+  useEffect(() => {
+    if (expanded) menuRef.current?.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, expanded]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        role="combobox"
+        aria-label={field.name || 'Select value'}
+        aria-haspopup="listbox"
+        aria-expanded={expanded}
+        aria-controls={expanded ? listboxId : undefined}
+        aria-activedescendant={expanded ? `${listboxId}-${activeIndex}` : undefined}
+        disabled={!canInteract}
+        data-touch-camera-ignore="true"
+        className="flex h-7 min-w-0 flex-1 items-center gap-1 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-1 text-left text-xs font-body text-theme-ink transition-colors enabled:hover:bg-theme-accent enabled:hover:text-theme-paper focus-visible:border-theme-accent"
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        onBlur={() => setOpen(false)}
+        onClick={() => expanded ? setOpen(false) : openMenu()}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === 'Tab') {
+            setOpen(false);
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setOpen(false);
+          } else if (event.key === 'Enter' || (event.key === ' ' && Date.now() - searchRef.current.time > 700)) {
+            event.preventDefault();
+            if (expanded) selectOption(activeIndex);
+            else openMenu();
+          } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            event.preventDefault();
+            if (!expanded) openMenu();
+            setActiveIndex((current) => {
+              if (event.key === 'Home') return 0;
+              if (event.key === 'End') return options.length - 1;
+              return Math.max(0, Math.min(options.length - 1, (expanded ? current : selectedIndex) + (event.key === 'ArrowDown' ? 1 : -1)));
+            });
+          } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            event.preventDefault();
+            const now = Date.now();
+            const text = (now - searchRef.current.time > 700 ? '' : searchRef.current.text) + event.key.toLocaleLowerCase();
+            if (!expanded) openMenu();
+            searchRef.current = { text, time: now };
+            const match = options.findIndex((option) => (option || 'Select...').toLocaleLowerCase().startsWith(text));
+            if (match >= 0) setActiveIndex(match);
+          }
+        }}
+      >
+        <span className="min-w-0 flex-1 truncate">{field.value || 'Select...'}</span>
+        <ChevronDownIcon className="h-3 w-3 shrink-0" />
+      </button>
+      {expanded && createPortal(
+        <div
+          ref={menuRef}
+          id={listboxId}
+          role="listbox"
+          aria-label={field.name || 'Select value'}
+          data-touch-camera-ignore="true"
+          className="fixed z-[10020] overflow-y-auto overscroll-contain rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-1 font-body text-xs text-theme-ink shadow-theme animate-dropdown-in"
+          style={position}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          {options.map((option, index) => (
+            <div
+              key={`${option}-${index}`}
+              id={`${listboxId}-${index}`}
+              role="option"
+              aria-selected={index === selectedIndex}
+              className={`flex min-h-7 cursor-pointer items-center gap-2 rounded-button px-2 py-1.5 ${index === activeIndex ? 'bg-theme-accent text-theme-paper' : 'hover:bg-theme-accent hover:text-theme-paper'}`}
+              onMouseMove={() => setActiveIndex(index)}
+              onClick={(event) => { event.stopPropagation(); selectOption(index); }}
+            >
+              <span className="min-w-0 flex-1 break-words">{option || 'Select...'}</span>
+              <span className="h-3 w-3 shrink-0">{index === selectedIndex && <CheckIcon className="h-3 w-3" />}</span>
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 interface MixedProgressValueModalProps {
   field: Extract<MixedField, { type: 'progress' }>;
   currentEditable: boolean;
@@ -75,9 +243,14 @@ function MixedProgressValueModal({ field, currentEditable, minEditable, maxEdita
       <div className="fixed inset-0 z-[9999] bg-black/50 animate-fade-in" onClick={onCancel} onMouseDown={(event) => event.stopPropagation()} />
       <form role="dialog" aria-modal="true" aria-label={`Set ${field.name} values`} className="fixed left-1/2 top-1/2 z-[10000] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-button border border-theme-border bg-theme-paper p-4 font-body text-theme-ink shadow-theme animate-fade-in" onSubmit={(event) => { event.preventDefault(); submit(); }} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
         <h3 className="font-heading text-base font-bold">{field.name || 'Progress'} values</h3>
-        <label className="mt-3 block text-sm font-medium">Current value<input autoFocus={currentEditable} type="number" min={minDraft || field.min || 0} max={maxDraft || field.max} value={currentDraft} disabled={!currentEditable} onChange={(event) => setCurrentDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
-        <label className="mt-3 block text-sm font-medium">Minimum value<input autoFocus={!currentEditable && minEditable} type="number" max={maxDraft || field.max} value={minDraft} disabled={!minEditable} onChange={(event) => setMinDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
-        <label className="mt-3 block text-sm font-medium">Maximum value<input autoFocus={!currentEditable && !minEditable && maxEditable} type="number" min={minDraft || field.min || 0} value={maxDraft} disabled={!maxEditable} onChange={(event) => setMaxDraft(event.target.value)} className="mt-1 h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 text-center text-lg font-bold font-body text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></label>
+        <div className="mt-3 space-y-3">
+          <label className="block text-sm font-medium"><span className="mb-1 block">Current value</span><input autoFocus={currentEditable} type="number" step="any" value={currentDraft} disabled={!currentEditable} onChange={(event) => setCurrentDraft(event.target.value)} className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></label>
+          {currentEditable && <ValueAdjustRow onAdjust={(delta) => setCurrentDraft((draft) => applyDeltaToDraft(draft, delta))} />}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm"><span className="mb-1 block">Minimum</span><input autoFocus={!currentEditable && minEditable} type="number" step="any" max={maxDraft || field.max} value={minDraft} disabled={!minEditable} onChange={(event) => setMinDraft(event.target.value)} className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></label>
+            <label className="text-sm"><span className="mb-1 block">Maximum</span><input autoFocus={!currentEditable && !minEditable && maxEditable} type="number" step="any" min={minDraft || field.min || 0} value={maxDraft} disabled={!maxEditable} onChange={(event) => setMaxDraft(event.target.value)} className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-sm text-theme-ink focus:border-theme-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></label>
+          </div>
+        </div>
         <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button><button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Save</button></div>
       </form>
     </>
@@ -165,7 +338,12 @@ function MixedNumberValueModal({ field, minEditable, maxEditable, onConfirm, onC
             />
           </label>
 
-          <div className="border-t border-theme-border pt-3">
+          <ValueAdjustRow
+            disabled={invalidCurrent}
+            onAdjust={(delta) => setCurrentDraft((draft) => applyDeltaToDraft(draft, delta))}
+          />
+
+          <div>
             <p className="text-sm font-medium">Bounds <span className="font-normal text-theme-muted">(optional)</span></p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="text-sm">
@@ -221,14 +399,16 @@ function MixedNumberControl({
   onUpdate,
   onAdjust,
   onAnnounce,
+  justifyClass,
 }: {
   field: MixedNumberField;
   canInteract: boolean;
   isPrintMode: boolean;
-  labels: Record<string, number>;
+  labels: FormulaLabels;
   onUpdate: (field: MixedField) => void;
   onAdjust: (delta: number) => void;
   onAnnounce: (detail: string) => void;
+  justifyClass: string;
 }) {
   const [showValueModal, setShowValueModal] = useState(false);
   const hasValueFormula = !!field.valueFormula;
@@ -242,7 +422,7 @@ function MixedNumberControl({
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5">
+      <div className={`flex min-w-0 flex-1 items-center ${justifyClass} gap-0.5`}>
         {!isPrintMode && showIncrementButtons && <button type="button" aria-label={`Decrease ${field.name}`} onClick={() => onAdjust(-1)} disabled={!canInteract || hasValueFormula || atMinimum} className="widget-control h-6 w-6 min-h-0 text-xs">−</button>}
         {hasValueFormula ? (
           <span className="flex h-6 min-w-8 flex-shrink-0 items-center justify-center rounded-button bg-theme-accent/10 px-1 text-center text-xs font-bold font-body text-theme-ink">
@@ -315,7 +495,7 @@ function MixedProgressControl({
   field: Extract<MixedField, { type: 'progress' }>;
   canInteract: boolean;
   isPrintMode: boolean;
-  labels: Record<string, number>;
+  labels: FormulaLabels;
   onUpdate: (field: MixedField) => void;
   onAnnounce: (detail: string) => void;
 }) {
@@ -473,7 +653,9 @@ export default function MixedFieldsWidget({
   const workspaceMode = useStore((state) => state.mode);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4 } = widget.data;
+  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right' } = widget.data;
+  const justifyClass = CONTROL_JUSTIFY[mixedFieldsAlignment];
+  const textAlignClass = CONTROL_TEXT_ALIGN[mixedFieldsAlignment];
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && !isPrintMode;
   const canInteract = interactive && !isPrintMode;
@@ -485,6 +667,7 @@ export default function MixedFieldsWidget({
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [rollResults, setRollResults] = useState<Record<number, DiceExpressionRollResult>>({});
   const [editingTextIndex, setEditingTextIndex] = useState<number | null>(null);
+  const [renamingFieldIndex, setRenamingFieldIndex] = useState<number | null>(null);
   const previousTextValues = useRef<Record<number, string>>({});
   const labels = useMemo(() => {
     const character = characters.find((item) => item.id === activeCharacterId);
@@ -496,6 +679,32 @@ export default function MixedFieldsWidget({
     updated[index] = field;
     updateWidgetData(widget.id, { mixedFields: updated });
   };
+
+  const openRenameField = (index: number) => {
+    if (!canInteract) return;
+    setRenamingFieldIndex(index);
+  };
+
+  const closeRenameField = () => {
+    setRenamingFieldIndex(null);
+  };
+
+  const updateEditedFieldData = (data: Partial<Widget['data']>) => {
+    if (renamingFieldIndex === null || !data.mixedFields) return;
+    const updated = [...mixedFields];
+    if (data.mixedFields.length === 0) {
+      updated.splice(renamingFieldIndex, 1);
+      closeRenameField();
+    } else {
+      updated[renamingFieldIndex] = data.mixedFields[0];
+    }
+    updateWidgetData(widget.id, { mixedFields: updated });
+  };
+
+  const selectedField = renamingFieldIndex === null ? undefined : mixedFields[renamingFieldIndex];
+  const selectedFieldWidget = selectedField
+    ? { ...widget, data: { ...widget.data, mixedFields: [selectedField] } }
+    : null;
 
   const announceChange = (field: MixedField, detail: string) => {
     addTimelineEvent(label || 'Mixed fields', 'MIXED_FIELDS', `${field.name}: ${detail}`, '✎');
@@ -568,20 +777,20 @@ export default function MixedFieldsWidget({
               setEditingTextIndex(null);
             }}
             onMouseDown={(event) => event.stopPropagation()}
-            readOnly={!canInteract}
+            readOnly={!canInteract || Boolean(field.valueFormula)}
             autoFocus={workspaceMode !== 'edit'}
             placeholder={isPrintMode ? '' : '...'}
-            className="min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 text-xs font-body text-theme-ink outline-none focus:border-theme-accent"
+            className={`min-w-0 flex-1 border-b border-theme-border bg-transparent px-1 py-0.5 ${textAlignClass} text-xs font-body text-theme-ink outline-none focus:border-theme-accent`}
           />
         ) : (
           <div
-            className={`min-h-[1.5em] min-w-0 flex-1 border-b border-theme-border px-1 py-0.5 text-xs font-body text-theme-ink ${isPrintMode ? '' : 'cursor-text'}`}
+            className={`min-h-[1.5em] min-w-0 flex-1 border-b border-theme-border px-1 py-0.5 ${textAlignClass} text-xs font-body text-theme-ink ${isPrintMode ? '' : 'cursor-text'}`}
             role="button"
             tabIndex={isPrintMode ? -1 : 0}
             aria-label={`Edit ${field.name || 'text value'}`}
-            onClick={() => { if (!isPrintMode && canInteract) setEditingTextIndex(index); }}
+            onClick={() => { if (!isPrintMode && canInteract && !field.valueFormula) setEditingTextIndex(index); }}
             onKeyDown={(event) => {
-              if (!isPrintMode && canInteract && (event.key === 'Enter' || event.key === ' ')) {
+              if (!isPrintMode && canInteract && !field.valueFormula && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
                 setEditingTextIndex(index);
               }
@@ -592,24 +801,18 @@ export default function MixedFieldsWidget({
         );
       case 'menu':
         return (
-          <select
-            value={field.value}
-            onChange={(event) => {
-              const nextValue = event.target.value;
+          <MixedMenuControl
+            field={field}
+            canInteract={canInteract}
+            onChange={(nextValue) => {
               updateField(index, { ...field, value: nextValue });
               announceChange(field, nextValue || 'cleared');
             }}
-            onMouseDown={(event) => event.stopPropagation()}
-            disabled={!canInteract}
-            className="h-7 min-w-0 flex-1 rounded-button border border-theme-border bg-theme-paper px-1 text-xs font-body text-theme-ink outline-none focus:border-theme-accent"
-          >
-            <option value="">Select...</option>
-            {field.options.map((option, optionIndex) => <option key={`${option}-${optionIndex}`} value={option}>{option}</option>)}
-          </select>
+          />
         );
       case 'switch':
         return (
-          <div className="flex min-w-0 flex-1 justify-end">
+          <div className={`flex min-w-0 flex-1 ${justifyClass}`}>
             <button
               type="button"
               role="switch"
@@ -637,7 +840,7 @@ export default function MixedFieldsWidget({
           </div>
         );
       case 'number': {
-        return <MixedNumberControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAdjust={(delta) => adjustNumber(index, field, delta)} onAnnounce={(detail) => announceChange(field, detail)} />;
+        return <MixedNumberControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAdjust={(delta) => adjustNumber(index, field, delta)} onAnnounce={(detail) => announceChange(field, detail)} justifyClass={justifyClass} />;
       }
       case 'progress':
         return <MixedProgressControl field={field} canInteract={canInteract} isPrintMode={isPrintMode} labels={labels} onUpdate={(updated) => updateField(index, updated)} onAnnounce={(detail) => announceChange(field, detail)} />;
@@ -647,7 +850,7 @@ export default function MixedFieldsWidget({
         const current = Math.max(0, Math.min(max, field.current));
         const hasCurrentFormula = !!field.currentFormula;
         return (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-0.5">
+          <div className={`flex min-w-0 flex-1 flex-wrap items-center ${justifyClass} gap-0.5`}>
             {Array.from({ length: max }, (_, pointIndex) => (
               <button
                 key={pointIndex}
@@ -673,7 +876,7 @@ export default function MixedFieldsWidget({
         const currentStep = clampMixedFieldValue(field.currentStep, 0, chain.length - 1);
         const result = rollResults[index];
         return (
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+          <div className={`flex min-w-0 flex-1 items-center ${justifyClass} gap-1`}>
             {!isPrintMode && <button type="button" aria-label={`Step ${field.name} down`} onClick={() => updateField(index, { ...field, currentStep: Math.max(0, currentStep - 1) })} disabled={!canInteract || currentStep === 0} className="widget-control h-6 w-6 min-h-0 text-[9px]">▼</button>}
             <button type="button" aria-label={`Roll ${field.name}: ${formatDiceStep(chain[currentStep])}`} onClick={() => rollStepDie(index, field)} disabled={!canInteract || rollingIndex === index} className="widget-control h-6 min-w-[52px] min-h-0 px-1 text-xs font-bold font-body">
               {formatDiceStep(chain[currentStep])}
@@ -690,7 +893,7 @@ export default function MixedFieldsWidget({
     <div className="flex h-full w-full flex-col gap-1">
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>}
           {controlsVisible && (
             <div className="widget-structure-controls ml-auto flex items-center gap-1">
               <Tooltip content={mixedFields.length ? 'Choose fields to remove' : 'No fields to remove'}>
@@ -705,14 +908,23 @@ export default function MixedFieldsWidget({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px`, rowGap: `${itemSpacing}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
-        {mixedFields.map((field, index) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} items={mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
-            <span className="flex-shrink-0 truncate text-xs font-body text-theme-ink" style={{ width: `${labelWidth}%` }}>
-              {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span>{field.name}</span></Tooltip> : field.name}
-            </span>
+            <button
+              type="button"
+              disabled={!canInteract}
+              aria-label={`Rename field ${field.name || `Field ${index + 1}`}`}
+              onClick={() => openRenameField(index)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              className="min-w-0 flex-shrink-0 truncate border-0 bg-transparent p-0 text-left text-xs font-body text-theme-ink enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
+              style={{ width: `${labelWidth}%` }}
+            >
+              {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span><InlineFormulaText text={field.name} /></span></Tooltip> : <InlineFormulaText text={field.name} />}
+            </button>
             {renderFieldControl(field, index)}
           </div>
-        ))}
+        ))} />
         {mixedFields.length === 0 && <WidgetEmptyState title="No fields yet" hint={controlsVisible ? 'Use + to add a field.' : undefined} compact />}
       </div>
 
@@ -735,6 +947,36 @@ export default function MixedFieldsWidget({
               </div>
             )}
           </div>
+        </div>,
+        document.body,
+      )}
+      {selectedFieldWidget && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeRenameField();
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`mixed-field-edit-title-${widget.id}`}
+            className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-theme border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') closeRenameField();
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id={`mixed-field-edit-title-${widget.id}`} className="font-heading text-lg font-bold">Edit field</h2>
+              <button type="button" onClick={closeRenameField} className="widget-control px-3 py-1.5 text-sm">Close</button>
+            </div>
+            <MixedFieldsEditor widget={selectedFieldWidget} updateData={updateEditedFieldData} fieldEditorOnly />
+          </section>
         </div>,
         document.body,
       )}

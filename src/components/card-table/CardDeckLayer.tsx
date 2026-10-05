@@ -5,6 +5,7 @@ import {
   getCardDeckRegistryVersion,
   subscribeCardDeckRegistry,
 } from './cardDeckRegistry';
+import { getInverseCameraTransform } from '../../hooks/usePanZoom';
 
 interface Props {
   pan: { x: number; y: number };
@@ -22,9 +23,8 @@ export default function CardDeckLayer({ pan, scale, zIndex }: Props) {
   );
   const hasDecks = getCardDeckRegistrations().length > 0;
   const isCardDragging = getCardDeckDragState()?.phase === 'dragging';
-  const inverseCanvasTransform = `translate(${-pan.x / scale}px, ${-pan.y / scale}px) scale(${1 / scale})`;
   const layerStyle = {
-    transform: inverseCanvasTransform,
+    transform: getInverseCameraTransform(pan, scale),
     transformOrigin: 'top left',
     ...(zIndex !== undefined ? { zIndex } : {}),
   };
@@ -54,17 +54,20 @@ export default function CardDeckLayer({ pan, scale, zIndex }: Props) {
         ref={canvasRef}
         className={`card-deck-layer${hasDecks ? ' card-deck-layer--active' : ''}${isCardDragging ? ' card-deck-layer--dragging' : ''}`}
         style={layerStyle}
+        data-camera-inverse-layer
         aria-hidden="true"
       />
       <div
         ref={faceLayerRef}
         className={`card-deck-dom-layer${isCardDragging ? ' card-deck-dom-layer--dragging' : ''}`}
         style={layerStyle}
+        data-camera-inverse-layer
         aria-hidden="true"
       />
       <div
         className={`card-deck-controls-layer${isCardDragging ? ' card-deck-controls-layer--dragging' : ''}`}
         style={layerStyle}
+        data-camera-inverse-layer
       />
     </>
   );

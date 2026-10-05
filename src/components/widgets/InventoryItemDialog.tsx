@@ -12,10 +12,14 @@ import {
   createInventoryItemField,
   linkInventoryFieldsToTemplates,
   normalizeInventoryFieldType,
+  normalizeInventoryQuantity,
 } from '../../utils/inventory';
 import { usePointerReorder } from '../../hooks';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
+import { TextFormulaControls } from '../editors/TextFormulaControls';
+import { RichTextField } from '../RichTextField';
 import { Tooltip } from '../Tooltip';
+import { VariableLabelControl } from '../VariableLabelControl';
 import { AddMultipleToggle } from './StructureDialogControls';
 
 interface InventoryItemDialogProps {
@@ -46,6 +50,7 @@ export default function InventoryItemDialog({
     ? { ...item, fields: linkInventoryFieldsToTemplates(item.fields, defaultFields) }
     : createInventoryItem('', defaultFields));
   const [addMultiple, setAddMultiple] = useState(false);
+  const [descriptionEnabled, setDescriptionEnabled] = useState(() => Boolean(item?.description?.trim()));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const defaultTemplateIds = new Set(defaultFields.map((field) => field.id));
   const defaultAttributeFields = defaultFields.flatMap((template) => {
@@ -93,6 +98,7 @@ export default function InventoryItemDialog({
     updateField(field.id, {
       type,
       value: coerceInventoryFieldValue(field.value, type),
+      ...(type === 'text' || type === 'textarea' ? {} : { valueFormula: undefined }),
     });
   };
 
@@ -107,6 +113,20 @@ export default function InventoryItemDialog({
     setDraft((current) => ({
       ...current,
       fields: current.fields.filter((field) => field.id !== fieldId || field.reserved),
+    }));
+  };
+
+  const setQuantityEnabled = (enabled: boolean) => {
+    setDraft((current) => ({
+      ...current,
+      quantity: enabled ? (normalizeInventoryQuantity(current.quantity) ?? 1) : undefined,
+    }));
+  };
+
+  const setQuantity = (value: string) => {
+    setDraft((current) => ({
+      ...current,
+      quantity: normalizeInventoryQuantity(value) ?? 0,
     }));
   };
 
@@ -136,7 +156,8 @@ export default function InventoryItemDialog({
         step={field.type === 'number' ? 'any' : undefined}
         value={String(field.value)}
         aria-label={ariaLabel}
-        placeholder={placeholder}
+        placeholder={field.valueFormula ? 'Set by formula' : placeholder}
+        readOnly={Boolean(field.valueFormula)}
         onChange={(event) => updateField(field.id, {
           value: field.type === 'number'
             ? (event.target.value === '' ? '' : Number(event.target.value))
@@ -147,13 +168,40 @@ export default function InventoryItemDialog({
     );
   };
 
+  const renderLabeledFieldValue = (
+    field: InventoryItemField,
+    ariaLabel = 'Attribute value',
+    placeholder?: string,
+  ) => (
+    <div className="flex min-w-0 items-start gap-1.5">
+      <div className="min-w-0 flex-1">
+        {renderFieldValue(field, ariaLabel, placeholder)}
+      </div>
+      {(field.type === 'number' || field.type === 'checkbox') && (
+        <VariableLabelControl
+          valueLabel={field.valueLabel}
+          onValueLabelChange={(valueLabel) => updateField(field.id, { valueLabel })}
+        />
+      )}
+      {(field.type === 'text' || field.type === 'textarea') && (
+        <TextFormulaControls
+          valueLabel={field.valueLabel}
+          formula={field.valueFormula}
+          onValueLabelChange={(valueLabel) => updateField(field.id, { valueLabel })}
+          onFormulaChange={(valueFormula) => updateField(field.id, { valueFormula })}
+        />
+      )}
+    </div>
+  );
+
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const name = draft.name.trim();
     if (!name) return;
-    onSave({ ...draft, name });
+    onSave({ ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined });
     if (!isEditing && addMultiple) {
       setDraft(createInventoryItem('', defaultFields));
+      setDescriptionEnabled(false);
       setConfirmDelete(false);
       return;
     }
@@ -197,6 +245,54 @@ export default function InventoryItemDialog({
             />
           </label>
 
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={draft.quantity !== undefined}
+                onChange={(event) => setQuantityEnabled(event.target.checked)}
+                className="h-4 w-4 accent-theme-accent"
+              />
+              Track quantity
+            </label>
+            {draft.quantity !== undefined && (
+              <label className="block max-w-32">
+                <span className="mb-0.5 block text-xs font-medium">Quantity</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={draft.quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            )}
+          </div>
+
+          <section>
+            <label className="flex cursor-pointer items-center gap-2 font-heading text-xs font-bold">
+              <input
+                type="checkbox"
+                checked={descriptionEnabled}
+                onChange={(event) => setDescriptionEnabled(event.target.checked)}
+                className="h-4 w-4 accent-theme-accent"
+              />
+              Description
+            </label>
+            {descriptionEnabled && (
+              <div className="mt-1.5">
+                <RichTextField
+                  key={draft.id}
+                  value={draft.description ?? ''}
+                  onChange={(description) => setDraft((current) => ({ ...current, description }))}
+                  ariaLabel="Item description"
+                  placeholder="Add a description..."
+                />
+              </div>
+            )}
+          </section>
+
           <section>
             <h3 className="font-heading text-xs font-bold">Default attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
@@ -213,7 +309,7 @@ export default function InventoryItemDialog({
                     {field.name}
                   </span>
                   <div className="min-w-0">
-                    {renderFieldValue(field, `${field.name} value`)}
+                    {renderLabeledFieldValue(field, `${field.name} value`)}
                   </div>
                 </div>
               ))}
@@ -278,7 +374,7 @@ export default function InventoryItemDialog({
                       ))}
                     </select>
                     <div className="inventory-field-row__value min-w-0">
-                      {renderFieldValue(field, `${field.name || 'Additional attribute'} value`, 'Value')}
+                      {renderLabeledFieldValue(field, `${field.name || 'Additional attribute'} value`, 'Value')}
                     </div>
                     <Tooltip content="Remove attribute">
                       <button

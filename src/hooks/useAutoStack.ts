@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
+import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 
 interface UseAutoStackOptions {
   widgets: Widget[];
   scale: number;
 }
 
-const GRID_SIZE = 10;
+const GRID_SIZE = WIDGET_GRID_SIZE;
 const GAP = 10;
 
 interface Rect {
@@ -201,8 +202,8 @@ export function useAutoStack({ widgets, scale }: UseAutoStackOptions) {
       const pos = findBestPosition(itemWidth, itemHeight);
 
       if (pos) {
-        const snapX = Math.round(pos.x / GRID_SIZE) * GRID_SIZE;
-        const snapY = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
+        const snapX = snapWidgetCoordinate(pos.x);
+        const snapY = snapWidgetCoordinate(pos.y);
         placed.push({ item, x: snapX, y: snapY });
         splitFreeRects(snapX, snapY, itemWidth, itemHeight);
       } else {
@@ -222,8 +223,8 @@ export function useAutoStack({ widgets, scale }: UseAutoStackOptions) {
       const offsetY = newY - item.originalOffset.y;
       
       for (const widget of item.widgets) {
-        const finalX = Math.round((widget.x + offsetX) / GRID_SIZE) * GRID_SIZE;
-        const finalY = Math.round((widget.y + offsetY) / GRID_SIZE) * GRID_SIZE;
+        const finalX = snapWidgetCoordinate(widget.x + offsetX);
+        const finalY = snapWidgetCoordinate(widget.y + offsetY);
         updateWidgetPositionNoSnapshot(widget.id, finalX, finalY);
       }
     }

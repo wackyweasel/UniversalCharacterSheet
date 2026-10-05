@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { Widget } from '../types';
 import { useStore } from '../store/useStore';
 import { useInlineDiceRoll } from '../hooks/useInlineDiceRoll';
@@ -14,13 +15,14 @@ interface Props {
 
 export function InlineDiceText({ text, widget, className = '' }: Props) {
   const mode = useStore((state) => state.mode);
-  const { closeResult, resolveExpression, rollExpression, rollState } = useInlineDiceRoll(widget);
+  const segments = useMemo(() => tokenizeInlineDiceText(text), [text]);
+  const hasTokens = segments.some((segment) => segment.type !== 'text');
+  const { closeResult, resolveExpression, rollExpression, rollState } = useInlineDiceRoll(widget, hasTokens);
 
   if (mode !== 'play' && mode !== 'vertical') {
     return <span className={className}>{text}</span>;
   }
 
-  const segments = tokenizeInlineDiceText(text);
   return (
     <>
       <span className={`inline-dice-text ${className}`}>
@@ -54,6 +56,8 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
               title={label}
               onPointerDown={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              onTouchEnd={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
                 void rollExpression(segment.expression, event.currentTarget);

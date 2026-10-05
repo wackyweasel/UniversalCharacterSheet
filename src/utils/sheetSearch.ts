@@ -1,5 +1,6 @@
 import type { Character, TableCell, Widget, WidgetType } from '../types';
 import { getCardTableCards } from './cardTable';
+import { isCoveredTableCell, validateTableMerges } from './tableCells';
 import { getWidgetTypeLabel } from './widgetMetadata';
 
 export interface SheetSearchSegment {
@@ -88,18 +89,24 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
     case 'TOGGLE_GROUP':
       data.toggleItems?.forEach((item) => add('Condition', item.name));
       break;
-    case 'TABLE':
+    case 'TABLE': {
+      const merges = validateTableMerges(data).merges;
       data.columns?.forEach((column) => add('Column', column));
       data.rows?.forEach((row, rowIndex) => row.cells.forEach((cell, columnIndex) => {
+        if (isCoveredTableCell(merges, rowIndex, columnIndex)) return;
         if (typeof cell !== 'string') add('Cell label', cell.label);
         add(`Cell ${rowIndex + 1}, ${columnIndex + 1}`, getTableCellText(cell));
       }));
       break;
+    }
     case 'TIME_TRACKER':
       data.timedEffects?.forEach((effect) => add('Effect', effect.name));
       break;
     case 'POOL':
       data.poolResources?.forEach((resource) => add('Resource', resource.name));
+      break;
+    case 'PROGRESS_CLOCK':
+      data.clockItems?.forEach((clock) => add('Clock', clock.name));
       break;
     case 'REST_BUTTON':
       add('Button', data.buttonText);
@@ -145,6 +152,9 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
       break;
     case 'STEP_DICE':
       data.stepDiceItems?.forEach((item) => add('Die track', item.name));
+      break;
+    case 'WALLET':
+      data.walletCurrencies?.forEach((currency) => add('Currency', currency.name));
       break;
   }
 

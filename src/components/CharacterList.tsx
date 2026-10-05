@@ -39,6 +39,86 @@ const TUTORIAL_DESCRIPTIONS = {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.9.0',
+    changes: [
+      'New Wallet widget: track coins with custom currencies and exchange rates (cp, sp, gp by default), add or spend money with automatic change, convert between currencies, and show the total in the currency of your choice. Transactions are recorded in the timeline.',
+      'The formula editor now highlights exactly what is broken in a formula (unknown labels, unclosed parentheses, missing values, wrong function arguments, and more) and lists what is wrong.',
+      'Mixed Fields widgets now have an alignment setting (left, center or right) in the editor that applies to all of their fields.',
+      'Inventory items now show the name on its own line with the attributes below it, using the full width of the item card.',
+      'Inventory items can now have an optional description with the same formatting as the notes widget (except font size). It is collapsed by default on the item card.',
+      'The value dialogs of Progress Bar, Number Tracker, Number Display and Mixed Fields now have an "Add or Remove amount" button to add or subtract an amount from the current value.',
+    ],
+  },
+  {
+    version: '1.8.1',
+    changes: [
+      'Added columns to the widgets: Fields and Stats, Mixed Fields, Number Tracker, Resources Pool, List, Step Dice and Checklist.',
+      'Few optimizations to improve performance on big sheets',
+      'You can now drag and drop a character JSON file onto the character list to import it.',
+      'Fixed table cells whose text starts with a number (like 1d8) being read as only that number in formulas, with values refreshing when a character is opened.',
+      'Fixed the broken-formula warning appearing on table cells that return text.',
+    ],
+  },
+  {
+    version: '1.8.0',
+    changes: [
+      'Formulas can now output strings.',
+      'Most strings can now use the {formula} syntax to change dynamically. Example: set the label @class to your class name, then use {@class} almost anywhere to show the class name.',
+      'Fixed dragging to select text in an input or text box also panning the camera.',
+      'Dice expressions now support common syntax to keep/drop highest/lowest (2d20kh to keep the highest of 2 d20s. You can also write 4d12dl2 to indicate roll 4d12 then drop the lowest 2).',
+      'In Build mode, sheets can now be re-ordered by dragging them in the sheet dropdown menu.',
+    ],
+  },
+  {
+    version: '1.7.0',
+    changes: [
+      'Added new ways to make small, targeted edits to widgets without entering Build mode or opening the full widget editor.',
+      'Inventory items can now have negative weight.',
+      'Added the ability to overwrite initiative roll results in the initiative tracker.',
+      'Moving the camera with a mouse is easier: camera panning can start over clickable elements.',
+    ],
+  },
+  {
+    version: '1.6.3',
+    changes: [
+      'Added new option to better control the layout of the number display widget',
+    ],
+  },
+  {
+    version: '1.6.2',
+    changes: [
+      'You can now select multiple cells from a table with Shift-click, or by clicking cells while the Edit Table button is active.',
+      'Formatting applies to every selected cell.',
+      'You can merge multiple cells together.',
+      'Added an option to align the checkboxes in the checklist widget to the top of a multiline item.',
+      'Added an option to automatically expand roll details in the dice roller and dice tray.',
+      'Added more options to customize the header of each widget.',
+    ],
+  },
+  {
+    version: '1.6.1',
+    changes: [
+      'Revamped the roll table widget.',
+      'Added the Pokemon TTRPG community preset.',
+      'Added a quick add button for the spell slots widget',
+      'Menus in mixed field widget can now be labeled and used in formulas (ex : if(@menu = "druid", 0, 1))',
+    ],
+  },
+  {
+    version: '1.6.0',
+    changes: [
+      'Added the Progress Clock widget.',
+      'Added item quantities to the inventory widget, including the ability to split a stack into two stacks.',
+      'Inventory item attributes can now be labeled for use in formulas.',
+      'Added the Daggerheart preset to the community contributions.',
+      'Added the ability to delete all timeline events from a given day.',
+      'Added a slider to control the height of participants in the initiative tracker.',
+      'Updated the Steampunk, High Magic, Necrotic, and Sci-Fi built-in themes.',
+      'Fixed an issue that made progress bar widgets impossible to drag and move when the label was inline.',
+      'Fixed an issue with the positioning of some widgets not perfectly aligning as they should.',
+    ],
+  },
+  {
     version: '1.5.0',
     changes: [
       'Added workspaces. A workspace is like a directory where you store all your UCS data.',
@@ -345,6 +425,7 @@ export default function CharacterList() {
   const [rawDataCopied, setRawDataCopied] = useState(false);
   const [excludeImages, setExcludeImages] = useState(false);
   const [showImportDropdown, setShowImportDropdown] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [showTutorialDropdown, setShowTutorialDropdown] = useState(false);
   const [showMobileTutorialOptions, setShowMobileTutorialOptions] = useState(false);
   const [showRawImportModal, setShowRawImportModal] = useState(false);
@@ -1025,10 +1106,7 @@ export default function CharacterList() {
     importCharacterWithTheme(character, source, theme || defaultTheme);
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const importCharacterFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -1045,9 +1123,39 @@ export default function CharacterList() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    importCharacterFile(file);
     
     // Reset file input so the same file can be imported again
     e.target.value = '';
+  };
+
+  const hasDraggedFiles = (event: React.DragEvent) => Array.from(event.dataTransfer.types).includes('Files');
+
+  const handleFileDragOver = (event: React.DragEvent) => {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDraggingFile(true);
+  };
+
+  const handleFileDragLeave = (event: React.DragEvent) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setIsDraggingFile(false);
+  };
+
+  const handleFileDrop = (event: React.DragEvent) => {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    setIsDraggingFile(false);
+    Array.from(event.dataTransfer.files)
+      .filter((file) => file.name.toLowerCase().endsWith('.json'))
+      .forEach(importCharacterFile);
   };
 
   const handleBackup = () => {
@@ -1140,7 +1248,20 @@ export default function CharacterList() {
   };
 
   return (
-    <div ref={listScrollRef} className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
+    <div
+      ref={listScrollRef}
+      className={`h-full p-4 overflow-auto transition-colors ${darkMode ? 'bg-black' : 'bg-gray-100'}`}
+      onDragOver={handleFileDragOver}
+      onDragLeave={handleFileDragLeave}
+      onDrop={handleFileDrop}
+    >
+      {isDraggingFile && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="rounded-lg border-2 border-dashed border-white bg-black/60 px-6 py-4 text-lg font-bold text-white">
+            Drop a character JSON file to import it
+          </div>
+        </div>
+      )}
       {copyWorkspaceCharacter && (
         <CopyCharacterWorkspaceDialog
           character={copyWorkspaceCharacter}
@@ -2861,4 +2982,3 @@ export default function CharacterList() {
     </div>
   );
 }
-

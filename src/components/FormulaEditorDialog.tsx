@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Character } from '../types';
 import {
   collectLabels,
   detectCircularReference,
-  evaluateFormula,
+  evaluateFormulaValue,
   getAvailableLabels,
   hasUnresolvedRefs,
 } from '../utils/formulaEngine';
@@ -13,6 +13,8 @@ import {
   FORMULA_REFERENCE_CATEGORIES,
   type FormulaReferenceCategory,
 } from '../utils/formulaReference';
+import { extractFormulaLabelReferences, type FormulaValue } from '../utils/formulaSyntax';
+import { findFormulaIssues } from '../utils/formulaDiagnostics';
 import { SearchIcon, XIcon } from './icons';
 
 interface FormulaEditorDialogProps {
@@ -21,6 +23,8 @@ interface FormulaEditorDialogProps {
   sourceLabels?: string[];
   excludedLabels?: string[];
   selfReferenceMessage?: string;
+  /** 'text' allows text results; 'number' (default) reports text results as invalid. */
+  resultType?: 'number' | 'text';
   tutorialTargetPrefix?: string;
   highlightApply?: boolean;
   onApply: (formula: string) => void;
@@ -33,7 +37,7 @@ type MobilePanel = 'labels' | 'reference';
 interface FormulaStatus {
   kind: 'empty' | 'valid' | 'invalid' | 'unresolved' | 'self' | 'circular';
   message: string;
-  result: number | null;
+  result: FormulaValue | null;
 }
 
 export function FormulaEditorDialog({
@@ -42,6 +46,7 @@ export function FormulaEditorDialog({
   sourceLabels = [],
   excludedLabels = [],
   selfReferenceMessage,
+  resultType = 'number',
   tutorialTargetPrefix,
   highlightApply = false,
   onApply,
@@ -54,6 +59,7 @@ export function FormulaEditorDialog({
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('labels');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
   const referenceDetailRef = useRef<HTMLDivElement>(null);
 
   const labels = useMemo(() => character ? collectLabels(character) : {}, [character]);
@@ -77,12 +83,12 @@ export function FormulaEditorDialog({
       return { kind: 'empty', message: 'Enter a formula to see its result.', result: null };
     }
 
-    const references = draft.match(/@([a-zA-Z_][a-zA-Z0-9_]*)/g) || [];
-    const selfReference = references.find((reference) => sourceLabelSet.has(reference.slice(1)));
+    const references = extractFormulaLabelReferences(draft) || [];
+    const selfReference = references.find((reference) => sourceLabelSet.has(reference));
     if (selfReference) {
       return {
         kind: 'self',
-        message: selfReferenceMessage || `A formula cannot reference its own label (${selfReference}).`,
+        message: selfReferenceMessage || `A formula cannot reference its own label (@${selfReference}).`,
         result: null,
       };
     }
@@ -103,7 +109,7 @@ export function FormulaEditorDialog({
       };
     }
 
-    const result = evaluateFormula(draft, labels);
+    const result = evaluateFormulaValue(draft, labels);
     if (result === null) {
       return {
         kind: 'invalid',
@@ -111,9 +117,39 @@ export function FormulaEditorDialog({
         result: null,
       };
     }
+    if (typeof result === 'string' && resultType === 'number') {
+      return { kind: 'invalid', message: 'This field needs a number, but the formula returns text.', result: null };
+    }
 
     return { kind: 'valid', message: 'Formula is valid.', result };
-  }, [circularPath, draft, labels, selfReferenceMessage, sourceLabelSet]);
+  }, [circularPath, draft, labels, resultType, selfReferenceMessage, sourceLabelSet]);
+
+  const issues = useMemo(() => {
+    if (status.kind === 'empty' || status.kind === 'valid') return [];
+    const circularLabels = new Set((circularPath || []).filter((label) => !sourceLabelSet.has(label)));
+    return findFormulaIssues(draft, labels, { forbiddenRefs: sourceLabelSet, circularLabels, selfReferenceMessage });
+  }, [circularPath, draft, labels, selfReferenceMessage, sourceLabelSet, status.kind]);
+
+  const highlightedDraft = useMemo(() => {
+    const parts: ReactNode[] = [];
+    let cursor = 0;
+    for (const issue of issues) {
+      const start = Math.max(issue.start, cursor);
+      if (issue.end <= start) continue;
+      if (start > cursor) parts.push(draft.slice(cursor, start));
+      parts.push(
+        <mark
+          key={`${issue.start}-${issue.end}`}
+          className="rounded-sm bg-red-500/20 text-transparent underline decoration-red-500 decoration-wavy underline-offset-2"
+        >
+          {draft.slice(start, issue.end)}
+        </mark>
+      );
+      cursor = issue.end;
+    }
+    parts.push(draft.slice(cursor));
+    return parts;
+  }, [draft, issues]);
 
   const availableLabels = useMemo(() => {
     if (!character) return [];
@@ -227,7 +263,7 @@ export function FormulaEditorDialog({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pr-1">
         {labelGroups.length === 0 && (
           <p className="px-2 py-6 text-center text-xs text-theme-muted">
-            {labelSearch ? 'No labels match this search.' : 'This character has no other numeric labels yet.'}
+            {labelSearch ? 'No labels match this search.' : 'This character has no other numeric labels or menu selections yet.'}
           </p>
         )}
         <div className="space-y-3">
@@ -247,7 +283,7 @@ export function FormulaEditorDialog({
                     title={`Insert @${item.label}`}
                   >
                     <span className="min-w-0 truncate font-mono text-xs font-bold text-theme-accent">@{item.label}</span>
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-theme-muted">{item.value}</span>
+                    <span className="max-w-[45%] truncate font-mono text-[11px] text-theme-muted" title={String(item.value)}>{typeof item.value === 'string' ? (item.value || '""') : item.value}</span>
                   </button>
                 ))}
               </div>
@@ -377,24 +413,37 @@ export function FormulaEditorDialog({
                 <h3 id="formula-expression-title" className="text-sm font-bold text-theme-ink">Expression</h3>
                 <span className="hidden font-mono text-[10px] text-theme-muted sm:block">fx</span>
               </div>
-              <textarea
-                ref={textareaRef}
-                data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${isValid ? 'formula-input' : 'formula-target'}` : undefined}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                    event.preventDefault();
-                    apply();
-                  }
-                }}
-                rows={3}
-                spellCheck={false}
-                className="h-20 min-h-20 max-h-40 w-full resize-y rounded-theme border bg-theme-paper px-3 py-2.5 font-mono text-sm leading-6 text-theme-ink sm:h-auto"
-                aria-labelledby="formula-expression-title"
-                aria-invalid={status.kind !== 'empty' && status.kind !== 'valid'}
-                aria-describedby="formula-status"
-              />
+              <div className="relative rounded-theme bg-theme-paper">
+                <div
+                  ref={highlightRef}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words rounded-theme border border-transparent px-3 py-2.5 font-mono text-sm leading-6 text-transparent [scrollbar-gutter:stable]"
+                >
+                  {highlightedDraft}
+                  {'\u200b'}
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${isValid ? 'formula-input' : 'formula-target'}` : undefined}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onScroll={(event) => {
+                    if (highlightRef.current) highlightRef.current.scrollTop = event.currentTarget.scrollTop;
+                  }}
+                  onKeyDown={(event) => {
+                    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                      event.preventDefault();
+                      apply();
+                    }
+                  }}
+                  rows={3}
+                  spellCheck={false}
+                  className="relative block h-20 min-h-20 max-h-40 w-full resize-y whitespace-pre-wrap break-words rounded-theme border bg-transparent px-3 py-2.5 font-mono text-sm leading-6 text-theme-ink [scrollbar-gutter:stable] sm:h-auto"
+                  aria-labelledby="formula-expression-title"
+                  aria-invalid={status.kind !== 'empty' && status.kind !== 'valid'}
+                  aria-describedby="formula-status"
+                />
+              </div>
               <div
                 id="formula-status"
                 role="status"
@@ -406,9 +455,22 @@ export function FormulaEditorDialog({
                       : 'border-red-400/60 bg-red-500/10 text-red-600'
                 }`}
               >
-                <span>{status.message}</span>
+                <div className="min-w-0">
+                  <span>{status.message}</span>
+                  {issues.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {issues.slice(0, 4).map((issue) => (
+                        <li key={`${issue.start}-${issue.end}`}>
+                          <code className="rounded-sm bg-red-500/20 px-1 font-mono font-bold">{draft.slice(issue.start, issue.end).trim().slice(0, 40)}</code>
+                          {' '}{issue.message}
+                        </li>
+                      ))}
+                      {issues.length > 4 && <li>+{issues.length - 4} more</li>}
+                    </ul>
+                  )}
+                </div>
                 {status.kind === 'valid' && (
-                  <span className="shrink-0 font-mono text-base font-bold tabular-nums text-theme-accent">= {status.result}</span>
+                  <span className="shrink-0 font-mono text-base font-bold tabular-nums text-theme-accent">= {typeof status.result === 'string' ? JSON.stringify(status.result) : status.result}</span>
                 )}
               </div>
             </section>

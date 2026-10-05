@@ -16,6 +16,7 @@ import {
   LabelEditor,
   CheckboxEditor,
   ProgressBarEditor,
+  ProgressClockEditor,
   HealthBarEditor,
   DiceRollerEditor,
   DiceTrayEditor,
@@ -36,6 +37,8 @@ import {
   CardTableEditor,
   TimerEditor,
   StepDiceEditor,
+  WalletEditor,
+  WidgetHeaderEditor,
 } from './editors';
 
 // Widget preview components (play mode view)
@@ -59,6 +62,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
@@ -68,41 +72,12 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 
 interface Props {
   widget: Widget;
   onClose: () => void;
 }
-
-const WIDGET_TYPES_WITH_LABEL_SETTING = new Set<WidgetType>([
-  'CHECKBOX',
-  'DECK_OF_CARDS',
-  'DECK',
-  'DICE_ROLLER',
-  'DICE_TRAY',
-  'FORM',
-  'MIXED_FIELDS',
-  'GRID_MAP',
-  'HEALTH_BAR',
-  'IMAGE',
-  'INITIATIVE_TRACKER',
-  'INVENTORY',
-  'LIST',
-  'MAP_SKETCHER',
-  'NUMBER',
-  'NUMBER_DISPLAY',
-  'POOL',
-  'PROGRESS_BAR',
-  'ROLL_TABLE',
-  'SPELL_SLOT',
-  'STEP_DICE',
-  'TABLE',
-  'TEXT',
-  'TIME_TRACKER',
-  'TIMER',
-  'TOGGLE',
-  'TOGGLE_GROUP',
-]);
 
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
@@ -126,6 +101,7 @@ function getWidgetTitle(type: WidgetType): string {
     'MIXED_FIELDS': 'Mixed Fields',
     'REST_BUTTON': 'Rest Button',
     'PROGRESS_BAR': 'Progress Bar',
+    'PROGRESS_CLOCK': 'Progress Clocks',
     'MAP_SKETCHER': 'Map Sketcher',
     'GRID_MAP': 'Grid Map',
     'ROLL_TABLE': 'Roll Table',
@@ -135,6 +111,7 @@ function getWidgetTitle(type: WidgetType): string {
     'DECK_OF_CARDS': 'Deck of Cards',
     'TIMER': 'Timer',
     'STEP_DICE': 'Step Dice',
+    'WALLET': 'Wallet',
   };
   return titles[type] || 'Widget';
 }
@@ -176,8 +153,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     data: {
       ...previewWidget.data,
       label: isWidgetHeaderHidden ? undefined : previewWidget.data.label,
-      showFieldControls: !isWidgetHeaderHidden,
-      showTableEditButton: !isWidgetHeaderHidden,
+      showFieldControls: isWidgetHeaderHidden ? false : previewWidget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : previewWidget.data.showTableEditButton,
     },
   };
 
@@ -205,6 +182,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'MIXED_FIELDS': return <MixedFieldsEditor {...editorProps} />;
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockEditor {...editorProps} />;
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
       case 'GRID_MAP': return <GridMapEditor {...editorProps} />;
       case 'ROLL_TABLE': return <RollTableEditor {...editorProps} />;
@@ -214,33 +192,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'DECK_OF_CARDS': return <CardTableEditor {...editorProps} />;
       case 'TIMER': return <TimerEditor {...editorProps} />;
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
+      case 'WALLET': return <WalletEditor {...editorProps} />;
       default: return null;
     }
   };
-
-  const renderHeaderVisibilitySetting = () => (
-    <label className="widget-edit-modal__global-setting">
-      <input
-        type="checkbox"
-        checked={isWidgetHeaderHidden}
-        onChange={(event) => handleUpdateData({ hideWidgetHeader: event.target.checked })}
-        className="h-4 w-4 accent-theme-accent"
-      />
-      Hide header (Canvas view)
-    </label>
-  );
-
-  const renderEditButtonVisibilitySetting = () => (
-    <label className="widget-edit-modal__global-setting">
-      <input
-        type="checkbox"
-        checked={isWidgetEditButtonHidden}
-        onChange={(event) => handleUpdateData({ hideWidgetEditButton: event.target.checked })}
-        className="h-4 w-4 accent-theme-accent"
-      />
-      Hide edit button (Canvas view)
-    </label>
-  );
 
   // Get actual widget dimensions for preview
   const getPreviewDimensions = () => {
@@ -264,10 +219,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     };
     
     switch (widget.type) {
-      case 'NUMBER': return <NumberWidget {...props} showFieldControls={false} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
+      case 'NUMBER': return <NumberWidget {...props} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
       case 'LABEL': return <LabelWidget widget={renderedPreviewWidget} />;
-      case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
+      case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
       case 'CHECKBOX': return <CheckboxWidget {...props} />;
       case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
@@ -280,10 +235,11 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TOGGLE_GROUP': return <ConditionWidget {...props} />;
       case 'TABLE': return <TableWidget {...props} />;
       case 'TIME_TRACKER': return <TimeTrackerWidget {...props} />;
-      case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
-      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
+      case 'FORM': return <FormWidget {...props} />;
+      case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
       case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
@@ -293,6 +249,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
+      case 'WALLET': return <WalletWidget {...props} interactive={false} />;
       default: return null;
     }
   };
@@ -379,9 +336,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
           <div className={`widget-edit-modal__layout ${isImageWidget ? 'widget-edit-modal__layout--image' : ''}`}>
             {/* Editor Section */}
             <section className="widget-edit-modal__settings min-w-0" aria-label="Settings">
-              {widget.type !== 'LABEL' && widget.type !== 'IMAGE' && renderHeaderVisibilitySetting()}
-              {renderEditButtonVisibilitySetting()}
-              <div className={`widget-edit-modal__editor-content ${isWidgetHeaderHidden && WIDGET_TYPES_WITH_LABEL_SETTING.has(widget.type) ? 'widget-editor--hide-label-setting' : ''}`}>
+              <div className="widget-edit-modal__editor-content">
+                <WidgetHeaderEditor widget={previewWidget} updateData={handleUpdateData} />
                 {renderEditor()}
               </div>
             </section>

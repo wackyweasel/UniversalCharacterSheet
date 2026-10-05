@@ -3,7 +3,6 @@ import { CollapsibleSection } from './CollapsibleSection';
 
 export function TimerEditor({ widget, updateData }: EditorProps) {
   const {
-    label,
     timerCountDown = false,
     timerDuration = 60000,
   } = widget.data;
@@ -19,17 +18,6 @@ export function TimerEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--timer space-y-4">
-      <CollapsibleSection title="General">
-        <label className="block text-xs font-semibold text-theme-ink">
-          Widget label
-          <input
-            className="mt-1 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Timer"
-          />
-        </label>
-      </CollapsibleSection>
 
       <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`timer-mode-heading-${widget.id}`} className="widget-editor__section-title">Timer mode</h3>

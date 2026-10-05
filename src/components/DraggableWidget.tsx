@@ -1,13 +1,15 @@
 import { memo, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
-import { Widget, WidgetType } from '../types';
+import { useShallow } from 'zustand/react/shallow';
+import { Sheet as CharacterSheet, Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTemplateStore } from '../store/useTemplateStore';
 import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
-import { getCustomTheme } from '../store/useCustomThemeStore';
+import { useCustomThemeStore } from '../store/useCustomThemeStore';
+import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { DotsVerticalIcon, PencilIcon } from './icons';
 import {
   finishWidgetDrag,
@@ -38,6 +40,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
@@ -47,6 +50,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
@@ -57,7 +61,7 @@ interface Props {
   isSearchTarget?: boolean;
 }
 
-const GRID_SIZE = 10;
+const GRID_SIZE = WIDGET_GRID_SIZE;
 const BUILD_CONTROL_Z_INDEX = 10001;
 const BUILD_MENU_Z_INDEX = 10003;
 const WIDGET_OPTIONS_OPEN_EVENT = 'widget-options-open';
@@ -85,6 +89,7 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'MIXED_FIELDS': { width: 140, height: 30 },
   'REST_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
+  'PROGRESS_CLOCK': { width: 80, height: 80 },
   'MAP_SKETCHER': { width: 100, height: 100 },
   'GRID_MAP': { width: 260, height: 240 },
   'ROLL_TABLE': { width: 70, height: 30 },
@@ -94,7 +99,42 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'DECK_OF_CARDS': { width: 100, height: 120 },
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
+  'WALLET': { width: 120, height: 60 },
 };
+
+type StoreState = ReturnType<typeof useStore.getState>;
+const EMPTY_WIDGETS: Widget[] = [];
+const EMPTY_SHEETS: CharacterSheet[] = [];
+
+const selectActiveCharacter = (state: StoreState) => (
+  state.characters.find((character) => character.id === state.activeCharacterId)
+);
+
+const selectActiveSheetWidgets = (state: StoreState) => {
+  const character = selectActiveCharacter(state);
+  return character?.sheets.find((sheet) => sheet.id === character.activeSheetId)?.widgets ?? EMPTY_WIDGETS;
+};
+
+// Only widgets without a stored size need a (layout-forcing) DOM measurement.
+function getWidgetBoxSize(candidate: Widget) {
+  if (candidate.w && candidate.h) return { width: candidate.w, height: candidate.h };
+  const element = document.querySelector<HTMLElement>(`[data-widget-id="${candidate.id}"]`);
+  return {
+    width: candidate.w || (element ? element.offsetWidth : 200),
+    height: candidate.h || (element ? element.offsetHeight : 120),
+  };
+}
+
+const PLACEMENT_KEYS = new Set<string>(['x', 'y', 'zIndex']);
+
+function hasSameContent(previous: Widget, next: Widget) {
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  for (const key of keys) {
+    if (PLACEMENT_KEYS.has(key)) continue;
+    if (!Object.is(previous[key as keyof Widget], next[key as keyof Widget])) return false;
+  }
+  return true;
+}
 
 function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
@@ -114,7 +154,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const detachAllInGroup = useStore((state) => state.detachAllInGroup);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
-  const selectedWidgetId = useStore((state) => state.selectedWidgetId);
+  const isSelected = useStore((state) => state.selectedWidgetId === widget.id);
   const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
   const addTemplate = useTemplateStore((state) => state.addTemplate);
   const addGroupTemplate = useTemplateStore((state) => state.addGroupTemplate);
@@ -127,18 +167,16 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const bordersDisabled = usePrintStore((state) => state.bordersDisabled);
   
   // Get current character's theme for texture info
-  const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const characters = useStore((state) => state.characters);
-  const activeCharacter = characters.find(c => c.id === activeCharacterId);
-  const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
-  const builtInTheme = activeCharacter?.theme ? getBuiltInTheme(activeCharacter.theme) : undefined;
-  const textureKey = customTheme?.cardTexture || builtInTheme?.cardTexture || 'none';
+  // Narrow selectors: subscribing to all characters re-rendered every widget whenever any widget changed.
+  const activeTheme = useStore((state) => selectActiveCharacter(state)?.theme);
+  const activeSheetId = useStore((state) => selectActiveCharacter(state)?.activeSheetId);
+  const customCardTexture = useCustomThemeStore((state) => (
+    activeTheme ? state.customThemes.find((theme) => theme.id === activeTheme)?.cardTexture : undefined
+  ));
+  const builtInTheme = activeTheme ? getBuiltInTheme(activeTheme) : undefined;
+  const textureKey = customCardTexture || builtInTheme?.cardTexture || 'none';
   // Always disable texture in print mode
   const hasImageTexture = isImageTexture(textureKey) && !textureDisabled && mode !== 'print';
-  
-  // Get sheets for "Move to Another Sheet" feature
-  const sheets = activeCharacter?.sheets || [];
-  const hasMultipleSheets = sheets.length > 1;
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -148,6 +186,11 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  // Sheets are only listed in the options menu ("Move to Sheet").
+  const sheets = useStore(useShallow((state) => (
+    showDropdown ? selectActiveCharacter(state)?.sheets ?? EMPTY_SHEETS : EMPTY_SHEETS
+  )));
+  const hasMultipleSheets = sheets.length > 1;
   const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
   const [dropdownVerticalAlign, setDropdownVerticalAlign] = useState<'above' | 'below'>('below');
   const [dropdownViewportPosition, setDropdownViewportPosition] = useState<{ x: number; y: number } | null>(null);
@@ -167,6 +210,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const [isHovered, setIsHovered] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const groupDragOriginsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
 
   const positionDropdownFromTrigger = useCallback((
     rect = dropdownTriggerRef.current?.getBoundingClientRect(),
@@ -218,27 +262,29 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     y: 0,
     corner: 'bottom-right' as 'top-left' | 'bottom-right',
   });
+  // Resize previews stay local so the store and sheet re-render only once on release.
+  const [resizePreview, setResizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const resizePreviewRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const isDraggingRef = useRef(false);
   const pinchCanceledDragRef = useRef(false);
   const widgetTouchActiveRef = useRef(false);
   const selectedBeforeTouchRef = useRef<string | null>(null);
-  const activeWidgetDrag = useSyncExternalStore(
+  const getIsWidgetDragging = () => {
+    const drag = getWidgetDragState();
+    return drag?.widgetId === widget.id || (!!widget.groupId && drag?.groupId === widget.groupId);
+  };
+  const isWidgetDragging = useSyncExternalStore(
     subscribeWidgetDragState,
-    getWidgetDragState,
-    getWidgetDragState,
-  );
-  const isWidgetDragging = activeWidgetDrag?.widgetId === widget.id || (
-    widget.groupId !== undefined && activeWidgetDrag?.groupId === widget.groupId
+    getIsWidgetDragging,
+    getIsWidgetDragging,
   );
 
   useTouchCameraPinchCancellation(() => {
     if (isDraggingRef.current) pinchCanceledDragRef.current = true;
     if (isResizingRef.current) {
       isResizingRef.current = false;
-      updateWidgetSize(widget.id, resizeStartRef.current.width, resizeStartRef.current.height);
-      if (resizeStartRef.current.corner === 'top-left') {
-        updateWidgetPosition(widget.id, resizeStartRef.current.x, resizeStartRef.current.y);
-      }
+      resizePreviewRef.current = null;
+      setResizePreview(null);
       setIsResizing(false);
     }
     if (widgetTouchActiveRef.current) {
@@ -247,20 +293,25 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
   });
 
-  const isSelected = selectedWidgetId === widget.id;
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
   const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
   const hasEditableWidgetHeader = !isWidgetHeaderHidden && !isWidgetEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel === true;
+  // Widget content never reads x/y/zIndex, so moving or raising a widget keeps the previous object and skips re-rendering it.
+  const contentWidgetRef = useRef(widget);
+  if (contentWidgetRef.current !== widget && !hasSameContent(contentWidgetRef.current, widget)) {
+    contentWidgetRef.current = widget;
+  }
+  const contentWidget = contentWidgetRef.current;
   const renderedWidget = useMemo(() => ({
-    ...widget,
+    ...contentWidget,
     data: {
-      ...widget.data,
-      label: isWidgetHeaderHidden ? undefined : widget.data.label,
-      showFieldControls: !isWidgetHeaderHidden,
-      showTableEditButton: !isWidgetHeaderHidden,
+      ...contentWidget.data,
+      label: isWidgetHeaderHidden ? undefined : contentWidget.data.label,
+      showFieldControls: isWidgetHeaderHidden ? false : contentWidget.data.showFieldControls,
+      showTableEditButton: isWidgetHeaderHidden ? false : contentWidget.data.showTableEditButton,
     },
-  }), [isWidgetHeaderHidden, widget]);
+  }), [isWidgetHeaderHidden, contentWidget]);
   const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
     isCurrentTutorialStep('templates-open-widget-menu') ||
     isCurrentTutorialStep('templates-open-group-menu')
@@ -428,7 +479,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     
     if (mode === 'edit') {
       widgetTouchActiveRef.current = true;
-      selectedBeforeTouchRef.current = selectedWidgetId;
+      selectedBeforeTouchRef.current = useStore.getState().selectedWidgetId;
       // If this widget is not selected, select it without canceling the native touch sequence
       if (!isSelected) {
         setSelectedWidgetId(widget.id);
@@ -504,10 +555,11 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     setEditingWidgetId(null);
   };
 
-  const snapToGrid = (v: number) => Math.round(v / GRID_SIZE) * GRID_SIZE;
+  const snapToGrid = snapWidgetCoordinate;
 
   // Calculate width based on widget type (used for both display and resize)
   const getWidgetWidth = () => {
+    if (resizePreview) return resizePreview.w;
     // Use custom width if set on the widget
     if (widget.w) {
       return widget.w;
@@ -556,37 +608,49 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     };
     
     isResizingRef.current = true;
+    resizePreviewRef.current = null;
     setIsResizing(true);
   }, [widget.w, widget.h, widget.x, widget.y, widget.groupId, widget.id, detachWidgets]);
 
+  const minResizeWidth = minDimensions.width;
+  const minResizeHeight = minDimensions.height;
   const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isResizing) return;
+    if (!isResizingRef.current) return;
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
-    const deltaX = (clientX - resizeStartRef.current.mouseX) / scale;
-    const deltaY = (clientY - resizeStartRef.current.mouseY) / scale;
+    const start = resizeStartRef.current;
+    const deltaX = (clientX - start.mouseX) / scale;
+    const deltaY = (clientY - start.mouseY) / scale;
     
-    const isTopLeft = resizeStartRef.current.corner === 'top-left';
-    const newWidth = snapToGrid(Math.max(minDimensions.width, resizeStartRef.current.width + (isTopLeft ? -deltaX : deltaX)));
-    const newHeight = snapToGrid(Math.max(minDimensions.height, resizeStartRef.current.height + (isTopLeft ? -deltaY : deltaY)));
+    const isTopLeft = start.corner === 'top-left';
+    const w = snapToGrid(Math.max(minResizeWidth, start.width + (isTopLeft ? -deltaX : deltaX)));
+    const h = snapToGrid(Math.max(minResizeHeight, start.height + (isTopLeft ? -deltaY : deltaY)));
+    const x = isTopLeft ? start.x + start.width - w : start.x;
+    const y = isTopLeft ? start.y + start.height - h : start.y;
 
-    if (isTopLeft) {
-      updateWidgetPosition(
-        widget.id,
-        resizeStartRef.current.x + resizeStartRef.current.width - newWidth,
-        resizeStartRef.current.y + resizeStartRef.current.height - newHeight,
-      );
-    }
-    
-    updateWidgetSize(widget.id, newWidth, newHeight);
-  }, [isResizing, scale, minDimensions, widget.id, updateWidgetPosition, updateWidgetSize]);
+    const previous = resizePreviewRef.current;
+    if (previous && previous.w === w && previous.h === h && previous.x === x && previous.y === y) return;
+    const next = { x, y, w, h };
+    resizePreviewRef.current = next;
+    setResizePreview(next);
+  }, [scale, minResizeWidth, minResizeHeight, snapToGrid]);
 
   const handleResizeEnd = useCallback(() => {
+    const preview = resizePreviewRef.current;
+    const corner = resizeStartRef.current.corner;
     isResizingRef.current = false;
+    resizePreviewRef.current = null;
+    if (preview) {
+      if (corner === 'top-left') {
+        updateWidgetPosition(widget.id, preview.x, preview.y);
+      }
+      updateWidgetSize(widget.id, preview.w, preview.h);
+    }
+    setResizePreview(null);
     setIsResizing(false);
-  }, []);
+  }, [widget.id, updateWidgetPosition, updateWidgetSize]);
 
   // Global mouse/touch move and up handlers for resize
   useEffect(() => {
@@ -605,34 +669,32 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
+  // Writes all members (dragged one included) in the same pass so the group never lags a frame apart.
+  const applyGroupDragTransforms = (deltaX: number, deltaY: number, snap: boolean) => {
+    const origins = groupDragOriginsRef.current;
+    if (!origins || !widget.groupId) return;
+    document.querySelectorAll<HTMLElement>(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
+      const origin = origins.get(element.getAttribute('data-widget-id') ?? '');
+      if (!origin) return;
+      const x = snap ? snapToGrid(origin.x + deltaX) : origin.x + deltaX;
+      const y = snap ? snapToGrid(origin.y + deltaY) : origin.y + deltaY;
+      element.style.transform = `translate(${x}px, ${y}px)`;
+    });
+  };
+
   const handleStart = (_e: DraggableEvent, data: DraggableData) => {
     // Store the starting position for calculating delta
     dragStartPos.current = { x: data.x, y: data.y };
+    groupDragOriginsRef.current = widget.groupId
+      ? new Map(getWidgetsInGroup(widget.groupId).map((member) => [member.id, { x: member.x, y: member.y }]))
+      : null;
     isDraggingRef.current = true;
     pinchCanceledDragRef.current = false;
     startWidgetDrag(widget.id, widget.groupId ?? null);
   };
 
   const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
-    // If widget is in a group, visually move sibling widgets during drag
-    if (widget.groupId) {
-      const deltaX = data.x - dragStartPos.current.x;
-      const deltaY = data.y - dragStartPos.current.y;
-      
-      // Find all sibling widgets in the same group and update their visual positions
-      const siblingElements = document.querySelectorAll(`[data-group-id="${widget.groupId}"]`);
-      siblingElements.forEach((el) => {
-        const siblingId = el.getAttribute('data-widget-id');
-        if (siblingId && siblingId !== widget.id) {
-          // Get original position from the store
-          const siblings = useStore.getState().getWidgetsInGroup(widget.groupId!);
-          const sibling = siblings.find(s => s.id === siblingId);
-          if (sibling) {
-            (el as HTMLElement).style.transform = `translate(${sibling.x + deltaX}px, ${sibling.y + deltaY}px)`;
-          }
-        }
-      });
-    }
+    applyGroupDragTransforms(data.x - dragStartPos.current.x, data.y - dragStartPos.current.y, false);
   };
 
   const handleStop = (_e: DraggableEvent, data: DraggableData) => {
@@ -640,15 +702,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     finishWidgetDrag(widget.id);
     if (pinchCanceledDragRef.current) {
       pinchCanceledDragRef.current = false;
-      if (widget.groupId) {
-        const siblings = useStore.getState().getWidgetsInGroup(widget.groupId);
-        document.querySelectorAll(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
-          const sibling = siblings.find(candidate => candidate.id === element.getAttribute('data-widget-id'));
-          if (sibling) {
-            (element as HTMLElement).style.transform = `translate(${sibling.x}px, ${sibling.y}px)`;
-          }
-        });
-      }
+      applyGroupDragTransforms(0, 0, false);
+      groupDragOriginsRef.current = null;
       return;
     }
 
@@ -659,6 +714,9 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     if (widget.groupId) {
       const deltaX = snappedX - widget.x;
       const deltaY = snappedY - widget.y;
+      // Also covers a zero delta, where React would not rewrite the transforms set during the drag.
+      applyGroupDragTransforms(deltaX, deltaY, true);
+      groupDragOriginsRef.current = null;
       if (deltaX !== 0 || deltaY !== 0) {
         moveWidgetGroup(widget.id, deltaX, deltaY);
       }
@@ -668,11 +726,16 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   };
   
   // Calculate height - use manual height if set, otherwise use snapped auto height
-  const widgetHeight = widget.h && widget.h > 0 ? widget.h : snappedHeight;
+  const widgetHeight = resizePreview ? resizePreview.h : widget.h && widget.h > 0 ? widget.h : snappedHeight;
 
-  // Get all widgets to calculate corner rounding for attached widgets
-  const allWidgets = activeCharacter ? 
-    (activeCharacter.sheets.find(s => s.id === activeCharacter.activeSheetId)?.widgets || []) : [];
+  // Group members and attached widgets; unchanged widget objects keep this stable across unrelated store updates.
+  const relatedWidgets = useStore(useShallow((state) => (
+    widget.groupId || widget.attachedTo?.length
+      ? selectActiveSheetWidgets(state).filter((candidate) => (
+        (!!widget.groupId && candidate.groupId === widget.groupId) || !!widget.attachedTo?.includes(candidate.id)
+      ))
+      : EMPTY_WIDGETS
+  )));
 
   // Calculate which corners should have rounding removed based on attachments
   const cornerRounding = useMemo(() => {
@@ -695,13 +758,10 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     
     // Check each attached widget
     for (const attachedId of widget.attachedTo) {
-      const attachedWidget = allWidgets.find(w => w.id === attachedId);
+      const attachedWidget = relatedWidgets.find(w => w.id === attachedId);
       if (!attachedWidget) continue;
       
-      // Get attached widget dimensions from DOM if available, otherwise estimate
-      const attachedEl = document.querySelector(`[data-widget-id="${attachedId}"]`) as HTMLElement;
-      const attachedWidth = attachedWidget.w || (attachedEl ? attachedEl.offsetWidth : 200);
-      const attachedHeight = attachedWidget.h || (attachedEl ? attachedEl.offsetHeight : 120);
+      const { width: attachedWidth, height: attachedHeight } = getWidgetBoxSize(attachedWidget);
       
       const attachedBounds = {
         left: attachedWidget.x,
@@ -768,7 +828,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
     
     return corners;
-  }, [widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, allWidgets]);
+  }, [widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, relatedWidgets]);
 
   // Generate border-radius style based on corner rounding
   const borderRadiusStyle = useMemo(() => {
@@ -785,8 +845,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   // Calculate texture positioning for grouped widgets
   // When widgets are attached together, the texture should stretch to cover the whole group
   const groupTextureStyle = useMemo(() => {
-    // If not part of a group, use default cover behavior
-    if (!widget.groupId) {
+    // If not part of a group (or no texture is drawn), use default cover behavior
+    if (!widget.groupId || !hasImageTexture) {
       return {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -794,7 +854,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
     
     // Get all widgets in the same group
-    const groupWidgets = allWidgets.filter(w => w.groupId === widget.groupId);
+    const groupWidgets = relatedWidgets.filter(w => w.groupId === widget.groupId);
     
     if (groupWidgets.length <= 1) {
       return {
@@ -807,9 +867,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     
     for (const gw of groupWidgets) {
-      const gwEl = document.querySelector(`[data-widget-id="${gw.id}"]`) as HTMLElement;
-      const gwWidth = gw.w || (gwEl ? gwEl.offsetWidth : 200);
-      const gwHeight = gw.h || (gwEl ? gwEl.offsetHeight : 120);
+      const { width: gwWidth, height: gwHeight } = getWidgetBoxSize(gw);
       
       minX = Math.min(minX, gw.x);
       minY = Math.min(minY, gw.y);
@@ -830,7 +888,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       backgroundSize: `${groupWidth}px ${groupHeight}px`,
       backgroundPosition: `-${offsetX}px -${offsetY}px`,
     };
-  }, [widget.groupId, widget.x, widget.y, widget.w, widgetHeight, allWidgets]);
+  }, [widget.groupId, widget.x, widget.y, widget.w, widgetHeight, relatedWidgets, hasImageTexture]);
 
   const renderContent = () => {
     // Always render in play mode style - the modal handles editing
@@ -864,6 +922,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={mode === 'play'} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} sheetScale={scale} />;
       case 'GRID_MAP': return <GridMapWidget {...props} sheetScale={scale} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
@@ -873,20 +932,25 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={mode === 'play'} showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
+      case 'WALLET': return <WalletWidget {...props} />;
       default: return null;
     }
   };
+  // Hover, selection, drag and placement re-renders reuse the same element, so React skips the content subtree.
+  const widgetContent = useMemo(renderContent, [renderedWidget, mode, widgetWidth, widgetHeight, scale]);
 
   return (
     <>
       <Draggable
         nodeRef={nodeRef}
-        position={{ x: widget.x, y: widget.y }}
+        position={resizePreview ? { x: resizePreview.x, y: resizePreview.y } : { x: widget.x, y: widget.y }}
         onStart={handleStart}
         onDrag={handleDrag}
         onStop={handleStop}
         scale={scale}
         handle=".drag-handle"
+        // The body-class hack restyles the whole document on every drag start/stop; the handle is select-none instead.
+        enableUserSelectHack={false}
         disabled={mode === 'play' || mode === 'print'}
       >
         <div 
@@ -935,7 +999,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           
           {/* Drag Handle - only visible in edit mode */}
           {mode === 'edit' && (
-            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none rounded-t-theme z-[60]`}>
+            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none select-none rounded-t-theme z-[80]`}>
               {/* Visual grip indicator - only show when controls visible */}
               {showControls && (
                 <div className="flex gap-1">
@@ -1205,7 +1269,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                             <div className="px-2 py-2">
                               <div className="text-xs text-theme-muted mb-2">Select target sheet:</div>
                               {sheets
-                                .filter(s => s.id !== activeCharacter?.activeSheetId)
+                                .filter(s => s.id !== activeSheetId)
                                 .map(sheet => (
                                   <Tooltip key={sheet.id} content={`Move this widget to ${sheet.name}`} placement="left">
                                     <button
@@ -1445,7 +1509,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                             <div className="px-2 py-2">
                               <div className="text-xs text-theme-muted mb-2">Move group to:</div>
                               {sheets
-                                .filter(s => s.id !== activeCharacter?.activeSheetId)
+                                .filter(s => s.id !== activeSheetId)
                                 .map(sheet => (
                                   <Tooltip key={sheet.id} content={`Move this group to ${sheet.name}`} placement="left">
                                     <button
@@ -1615,6 +1679,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               <Tooltip content="Drag to resize">
                 <div
                   className="absolute -top-1 -left-1 w-6 h-6 cursor-nw-resize z-50 flex items-center justify-center"
+                  data-camera-pan-ignore="true"
+                  data-touch-camera-ignore="true"
                   onMouseDown={(event) => handleResizeStart(event, 'top-left')}
                   onTouchStart={(event) => handleResizeStart(event, 'top-left')}
                 >
@@ -1636,6 +1702,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               <Tooltip content="Drag to resize">
                 <div
                   className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+                  data-camera-pan-ignore="true"
+                  data-touch-camera-ignore="true"
                   onMouseDown={(event) => handleResizeStart(event, 'bottom-right')}
                   onTouchStart={(event) => handleResizeStart(event, 'bottom-right')}
                 >
@@ -1657,7 +1725,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
             {mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button
@@ -1675,7 +1743,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                 </button>
               </Tooltip>
             )}
-            {renderContent()}
+            {widgetContent}
           </div>
         </div>
       </Draggable>

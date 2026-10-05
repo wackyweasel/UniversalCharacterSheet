@@ -17,6 +17,11 @@ export interface CharacterTimeline {
   nextId: number;
 }
 
+export function getTimelineDayKey(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
 interface TimelineState {
   /** Events keyed by character ID */
   eventsByCharacter: Record<string, CharacterTimeline>;
@@ -26,6 +31,7 @@ interface TimelineState {
   
   addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>) => void;
   removeEvent: (characterId: string, eventId: string) => void;
+  clearEventsForDay: (characterId: string, dayKey: string) => void;
   restoreEvents: (characterId: string, events: TimelineEvent[]) => void;
   clearEvents: (characterId: string) => void;
   toggleOpen: () => void;
@@ -116,6 +122,33 @@ export const useTimelineStore = create<TimelineState>((set) => ({
         [characterId]: {
           ...charTimeline,
           events: charTimeline.events.filter((event) => event.id !== eventId),
+        },
+      },
+    };
+  }),
+
+  clearEventsForDay: (characterId, dayKey) => set((state) => {
+    const charTimeline = state.eventsByCharacter[characterId];
+    if (!charTimeline) return state;
+
+    const eventsToRemove = charTimeline.events.filter(
+      (event) => getTimelineDayKey(event.timestamp) === dayKey,
+    );
+    if (eventsToRemove.length === 0) return state;
+
+    recordTimelineEvent('timeline_day_cleared', {
+      eventCount: eventsToRemove.length,
+      day: dayKey,
+    });
+
+    return {
+      eventsByCharacter: {
+        ...state.eventsByCharacter,
+        [characterId]: {
+          ...charTimeline,
+          events: charTimeline.events.filter(
+            (event) => getTimelineDayKey(event.timestamp) !== dayKey,
+          ),
         },
       },
     };

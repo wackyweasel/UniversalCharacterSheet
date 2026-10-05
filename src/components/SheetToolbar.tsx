@@ -9,6 +9,7 @@ import { WorkspaceStatusDot } from './WorkspaceStatusIndicator';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
+  CheckIcon,
   ClockIcon,
   LayersIcon,
   LayoutGridIcon,
@@ -67,6 +68,7 @@ const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.
 
 interface ToolbarCharacterNameProps {
   name: string;
+  currentCharacterId: string;
   editable: boolean;
   switchableCharacters: Character[];
   open: boolean;
@@ -77,6 +79,7 @@ interface ToolbarCharacterNameProps {
 
 function ToolbarCharacterName({
   name,
+  currentCharacterId,
   editable,
   switchableCharacters,
   open,
@@ -90,6 +93,7 @@ function ToolbarCharacterName({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const focusLastOnOpenRef = useRef(false);
+  const focusMenuOnOpenRef = useRef(false);
   const restoreFocusOnCloseRef = useRef(false);
   const menuId = useId();
 
@@ -107,9 +111,11 @@ function ToolbarCharacterName({
     if (!open) return;
 
     const focusFrame = window.requestAnimationFrame(() => {
+      if (!focusMenuOnOpenRef.current) return;
       const targetIndex = focusLastOnOpenRef.current ? switchableCharacters.length - 1 : 0;
       itemRefs.current[targetIndex]?.focus();
       focusLastOnOpenRef.current = false;
+      focusMenuOnOpenRef.current = false;
     });
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) onOpenChange(false);
@@ -186,10 +192,14 @@ function ToolbarCharacterName({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => onOpenChange(!open)}
+        onClick={() => {
+          focusMenuOnOpenRef.current = false;
+          onOpenChange(!open);
+        }}
         onKeyDown={(event) => {
           if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
           event.preventDefault();
+          focusMenuOnOpenRef.current = true;
           focusLastOnOpenRef.current = event.key === 'ArrowUp';
           onOpenChange(true);
         }}
@@ -197,7 +207,7 @@ function ToolbarCharacterName({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        className="group flex h-8 w-12 shrink-0 items-center gap-1 rounded-button px-1 text-left font-heading text-sm font-bold text-theme-ink transition-colors hover:bg-theme-background hover:text-theme-accent min-[480px]:w-32 min-[480px]:px-2 sm:w-40"
+        className="group flex h-8 w-12 shrink-0 items-center gap-1 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-1 text-left text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper min-[480px]:w-32 min-[480px]:px-2 sm:w-40"
       >
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180" />
@@ -225,24 +235,128 @@ function ToolbarCharacterName({
             <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Switch Character</p>
           </div>
           <div className="py-1">
-            {switchableCharacters.map((option, index) => (
-              <button
-                key={option.id}
-                ref={(element) => { itemRefs.current[index] = element; }}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onOpenChange(false);
-                  onSelectCharacter(option.id);
-                }}
-                className="block w-full truncate px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper focus:bg-theme-accent focus:text-theme-paper focus:outline-none"
-              >
-                {option.name}
-              </button>
-            ))}
+            {switchableCharacters.map((option, index) => {
+              const isCurrentCharacter = option.id === currentCharacterId;
+              return (
+                <button
+                  key={option.id}
+                  ref={(element) => { itemRefs.current[index] = element; }}
+                  type="button"
+                  role="menuitem"
+                  aria-current={isCurrentCharacter ? 'true' : undefined}
+                  onClick={() => {
+                    onOpenChange(false);
+                    onSelectCharacter(option.id);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper focus:bg-theme-accent focus:text-theme-paper focus:outline-none ${
+                    isCurrentCharacter ? 'font-semibold' : ''
+                  }`}
+                >
+                  <span className="min-w-0 truncate">{option.name}</span>
+                  {isCurrentCharacter && <CheckIcon className="h-4 w-4 shrink-0" />}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+interface MenuCharacterSectionProps {
+  name: string;
+  currentCharacterId: string;
+  editable: boolean;
+  switchableCharacters: Character[];
+  onSelectCharacter: (characterId: string) => void;
+  onSave: (name: string) => void;
+  onClose: () => void;
+}
+
+function MenuCharacterSection({
+  name,
+  currentCharacterId,
+  editable,
+  switchableCharacters,
+  onSelectCharacter,
+  onSave,
+  onClose,
+}: MenuCharacterSectionProps) {
+  const [draft, setDraft] = useState(name);
+  const [listOpen, setListOpen] = useState(false);
+
+  useEffect(() => setDraft(name), [name]);
+
+  const commit = () => {
+    const nextName = draft.trim();
+    if (nextName && nextName !== name) onSave(nextName);
+    else setDraft(name);
+  };
+
+  if (editable) {
+    return (
+      <div className="border-b border-theme-border/50 px-3 py-2.5">
+        <label className="block">
+          <span className="mb-1.5 block font-body text-[10px] font-bold uppercase text-theme-muted">Character name</span>
+          <input
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+              if (event.key === 'Escape') setDraft(name);
+            }}
+            className="h-8 w-full rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background px-2 font-heading text-sm font-bold text-theme-ink outline-none focus:border-theme-accent"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (switchableCharacters.length === 0) {
+    return (
+      <div className="border-b border-theme-border/50 px-3 py-2.5">
+        <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Character</p>
+        <p className="truncate font-heading text-sm font-bold text-theme-ink">{name}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b border-theme-border/50 py-1">
+      <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Character</p>
+      <button
+        type="button"
+        aria-expanded={listOpen}
+        aria-label={`Switch character: ${name}`}
+        onClick={() => setListOpen((value) => !value)}
+        className="group flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-body font-semibold text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper"
+      >
+        <span className="min-w-0 truncate">{name}</span>
+        <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-aria-expanded:rotate-180" />
+      </button>
+      {listOpen && <div className="max-h-48 overflow-y-auto overscroll-contain">
+        {switchableCharacters.map((option) => {
+          const isCurrent = option.id === currentCharacterId;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-current={isCurrent ? 'true' : undefined}
+              onClick={() => {
+                onClose();
+                onSelectCharacter(option.id);
+              }}
+              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper ${isCurrent ? 'font-semibold' : ''}`}
+            >
+              <span className="min-w-0 truncate">{option.name}</span>
+              {isCurrent && <CheckIcon className="h-4 w-4 shrink-0" />}
+            </button>
+          );
+        })}
+      </div>}
     </div>
   );
 }
@@ -314,22 +428,28 @@ export default function SheetToolbar({
     candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
     return candidates;
   }, [onAutoStack, playLayout, workspace]);
-  const { containerRef, inlineActionIds, labeledActionIds } = useToolbarOverflow({
+  const { containerRef, containerWidth, inlineActionIds: overflowInlineIds, labeledActionIds } = useToolbarOverflow({
     actions,
     coreWidth: 600,
     minimumExpandedWidth: 0,
   });
+  const compact = containerWidth > 0 && containerWidth < 600;
+  const inlineActionIds = useMemo<ReadonlySet<string>>(
+    () => (compact ? new Set(['layout', 'undo-redo']) : overflowInlineIds),
+    [compact, overflowInlineIds],
+  );
+  const compactUtilityClass = compact ? `${utilityButtonClass} !px-1.5` : utilityButtonClass;
   const showLabel = (id: string) => labeledActionIds.has(id);
 
   const workspaceButton = (active: boolean) => `flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 px-2 text-xs font-body transition-colors ${
     active ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-accent/10 hover:text-theme-ink'
   }`;
-  const layoutButton = (active: boolean) => `flex h-full items-center justify-center gap-1.5 px-2 text-xs font-body transition-colors ${
+  const layoutButton = (active: boolean) => `flex h-full items-center justify-center gap-1.5 ${compact ? 'min-w-0 flex-1 px-1.5' : 'px-2'} text-xs font-body transition-colors ${
     active ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-accent/10 hover:text-theme-ink'
   }`;
 
   const content = (
-    <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+    <div className={compact ? 'flex w-full min-w-0 items-center justify-between gap-1' : 'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2'}>
       <div className="flex min-w-0 items-center gap-2 justify-self-start">
         <ShareExportMenu
           character={character}
@@ -359,11 +479,23 @@ export default function SheetToolbar({
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={onToggleAttachmentControls}
           inlineActionIds={inlineActionIds}
+          topSection={compact ? (
+            <MenuCharacterSection
+              name={character.name}
+              currentCharacterId={character.id}
+              editable={workspace === 'build'}
+              switchableCharacters={switchableCharacters}
+              onSelectCharacter={onSelectCharacter}
+              onSave={onRenameCharacter}
+              onClose={() => onMenuOpenChange(false)}
+            />
+          ) : undefined}
         />
         <WorkspaceStatusDot />
-        <div className="shrink-0">
+        {!compact && <div className="shrink-0">
           <ToolbarCharacterName
             name={character.name}
+            currentCharacterId={character.id}
             editable={workspace === 'build'}
             switchableCharacters={switchableCharacters}
             open={characterSwitcherOpen}
@@ -371,17 +503,17 @@ export default function SheetToolbar({
             onSelectCharacter={onSelectCharacter}
             onSave={onRenameCharacter}
           />
-        </div>
+        </div>}
       </div>
-      <div className="flex min-w-0 items-center gap-2 justify-self-center">
+      <div className={`flex min-w-0 items-center justify-self-center ${compact ? 'gap-1' : 'gap-2'}`}>
       <div
         data-tutorial="edit-mode-button"
-        className={`flex h-8 w-20 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background sm:w-32 ${workspaceHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+        className={`flex h-8 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-background ${compact ? 'w-16' : 'w-20 sm:w-32'} ${workspaceHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
       >
         <Tooltip content="Build mode" placement="below"><button type="button" onClick={onBuild} aria-label="Build" aria-pressed={workspace === 'build'} className={workspaceButton(workspace === 'build')}><PencilIcon className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">Build</span></button></Tooltip>
         <Tooltip content="Play mode" placement="below"><button type="button" onClick={onPlay} aria-label="Play" aria-pressed={workspace === 'play'} className={workspaceButton(workspace === 'play')}><PlayIcon className="h-4 w-4 shrink-0" /><span className="hidden sm:inline">Play</span></button></Tooltip>
       </div>
-      {inlineActionIds.has('layout') && <div className="flex h-8 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper">
+      {inlineActionIds.has('layout') && <div className={`flex h-8 shrink-0 overflow-hidden rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper ${compact ? 'w-16' : ''}`}>
         <Tooltip content="Canvas view" placement="below">
           <button type="button" onClick={() => onSelectLayout('canvas')} aria-label="Canvas" aria-pressed={playLayout === 'canvas'} className={layoutButton(playLayout === 'canvas')}>
             <LayoutGridIcon className="h-4 w-4" /> {showLabel('layout') && <span>Canvas</span>}
@@ -457,8 +589,8 @@ export default function SheetToolbar({
       )}
       {inlineActionIds.has('undo-redo') && (
         <div className="flex shrink-0 gap-1">
-          <Tooltip content="Undo (Ctrl+Z)" placement="below"><span className="inline-flex"><button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" className={utilityButtonClass}><UndoIcon className="h-4 w-4" /></button></span></Tooltip>
-          <Tooltip content="Redo (Ctrl+Y)" placement="below"><span className="inline-flex"><button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" className={utilityButtonClass}><UndoIcon className="h-4 w-4 scale-x-[-1]" /></button></span></Tooltip>
+          <Tooltip content="Undo (Ctrl+Z)" placement="below"><span className="inline-flex"><button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Undo" className={compactUtilityClass}><UndoIcon className="h-4 w-4" /></button></span></Tooltip>
+          <Tooltip content="Redo (Ctrl+Y)" placement="below"><span className="inline-flex"><button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Redo" className={compactUtilityClass}><UndoIcon className="h-4 w-4 scale-x-[-1]" /></button></span></Tooltip>
         </div>
       )}
       {inlineActionIds.has('theme') && (
@@ -474,7 +606,7 @@ export default function SheetToolbar({
         <Tooltip content="Auto Stack" placement="below"><button type="button" onClick={onAutoStack} aria-label="Auto Stack" className={utilityButtonClass}><RowsIcon className="h-4 w-4" /> {showLabel('auto-stack') && <span>Auto Stack</span>}</button></Tooltip>
       )}
       </div>
-      <div className="flex min-w-0 items-center gap-2 justify-self-end">
+      <div className={`flex min-w-0 items-center justify-self-end ${compact ? 'gap-1' : 'gap-2'}`}>
         <Tooltip content={`Switch sheet (current: ${activeSheetName})`} placement="below">
           <button
             type="button"

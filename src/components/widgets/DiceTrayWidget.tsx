@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, CustomDie } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -64,6 +65,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
   const diceButtonScale = Math.min(100, Math.max(50, widget.data.diceButtonScale ?? 100)) / 100;
   const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
   const showTrayRollDetailsButton = widget.data.showTrayRollDetailsButton ?? true;
+  const autoShowTrayRollDetails = widget.data.autoShowTrayRollDetails ?? false;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -367,6 +369,9 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
 
     setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
+    if (autoShowTrayRollDetails) {
+      updateWidgetData(widget.id, { showTrayRollDetails: true });
+    }
     setLastRolledPool(pool);
     setDicePool([]);
     setNextId(1);
@@ -391,6 +396,9 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
 
     setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
     setIsRolling(false);
+    if (autoShowTrayRollDetails) {
+      updateWidgetData(widget.id, { showTrayRollDetails: true });
+    }
     setDicePool([]);
     trackGoatCounterEvent('roll-dice');
 
@@ -423,6 +431,9 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
 
     setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
+    if (autoShowTrayRollDetails) {
+      updateWidgetData(widget.id, { showTrayRollDetails: true });
+    }
     trackGoatCounterEvent('roll-dice');
 
     const dieFacesLabel = Array.isArray(dieToReroll.faces)
@@ -499,7 +510,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
 
@@ -696,7 +707,6 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     </div>
   );
 }
-
 
 
 

@@ -1,9 +1,13 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import { parseGIF, decompressFrames, ParsedFrame } from 'gifuct-js';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { getCroppedMediaStyle, getImageCrop } from '../../utils/imageCrop';
 import { ImageUploadButton } from '../ImageUploadButton';
+import { ImageTitleControls } from '../editors/ImageTitleControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
@@ -112,6 +116,18 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
   const [containerWidth, setContainerWidth] = useState(0);
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!nameDialogOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNameDialogOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nameDialogOpen]);
+
+  const updateNameData = (data: Partial<Widget['data']>) => updateWidgetData(widget.id, data);
 
   // Refs that the animation loop reads on each tick (avoids stale closures)
   const pausedRef = useRef(false);
@@ -345,12 +361,26 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   };
 
   const title = hasVisibleTitle ? (
-    <div
-      className="widget-header image-widget__title flex-shrink-0"
-      data-alignment={imageTitleAlignment}
-    >
-      <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
-    </div>
+    mode === 'print' ? (
+      <div className="widget-header image-widget__title flex-shrink-0" data-alignment={imageTitleAlignment}>
+        <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
+      </div>
+    ) : (
+      <button
+        type="button"
+        className="widget-header image-widget__title w-full flex-shrink-0 border-0 bg-transparent p-0 text-inherit"
+        data-alignment={imageTitleAlignment}
+        aria-label={`Edit image name: ${label}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setNameDialogOpen(true);
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onTouchStart={(event) => event.stopPropagation()}
+      >
+        <span className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></span>
+      </button>
+    )
   ) : null;
 
   return (
@@ -457,6 +487,54 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
         )}
       </div>
       {imageTitlePosition === 'below' && title}
+      {nameDialogOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 animate-fade-in"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setNameDialogOpen(false);
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onMouseUp={(event) => event.stopPropagation()}
+          onMouseMove={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          onTouchMove={(event) => event.stopPropagation()}
+          onTouchEnd={(event) => event.stopPropagation()}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`image-name-dialog-title-${widget.id}`}
+            className="w-full max-w-md rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-5 text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id={`image-name-dialog-title-${widget.id}`} className="font-heading text-lg font-bold">Image name</h2>
+              <button
+                type="button"
+                aria-label="Close"
+                className="flex h-8 w-8 items-center justify-center rounded-button text-theme-muted hover:bg-theme-background hover:text-theme-ink"
+                onClick={() => setNameDialogOpen(false)}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <label htmlFor={`image-name-${widget.id}`} className="mb-1 block text-sm font-medium">Name</label>
+            <input
+              id={`image-name-${widget.id}`}
+              autoFocus
+              value={label || ''}
+              onChange={(event) => updateNameData({ label: event.target.value })}
+              placeholder="Image name"
+              className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
+            />
+            <div className="mt-4">
+              <ImageTitleControls widget={widget} updateData={updateNameData} />
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

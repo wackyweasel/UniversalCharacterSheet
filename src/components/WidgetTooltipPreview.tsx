@@ -20,6 +20,7 @@ import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
+import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
 import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
@@ -29,6 +30,7 @@ import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
+import WalletWidget from './widgets/WalletWidget';
 
 const PREVIEW_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
@@ -363,6 +365,23 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       showValues: true,
     },
   },
+  PROGRESS_CLOCK: {
+    id: 'preview-progress-clock',
+    type: 'PROGRESS_CLOCK',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 170,
+    locked: true,
+    data: {
+      label: 'Progress clocks',
+      clockSize: 90,
+      clockItems: [
+        { id: 'escape', name: 'Escape', segments: 4, value: 3 },
+        { id: 'alarm', name: 'Alarm', segments: 6, value: 2, fillColor: '#b83f45' },
+      ],
+    },
+  },
   MAP_SKETCHER: {
     id: 'preview-map-sketcher',
     type: 'MAP_SKETCHER',
@@ -590,6 +609,24 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       ],
     },
   },
+  WALLET: {
+    id: 'preview-wallet',
+    type: 'WALLET',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 130,
+    locked: true,
+    data: {
+      label: 'Wallet',
+      walletCurrencies: [
+        { name: 'cp', amount: 14, rate: 1 },
+        { name: 'sp', amount: 7, rate: 10 },
+        { name: 'gp', amount: 35, rate: 10 },
+      ],
+      walletShowTotal: true,
+    },
+  },
 };
 
 function renderWidget(widget: Widget) {
@@ -621,6 +658,7 @@ function renderWidget(widget: Widget) {
     case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
     case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
+    case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} showFieldControls={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;
     case 'GRID_MAP': return <GridMapWidget {...props} interactive={false} />;
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
@@ -630,6 +668,7 @@ function renderWidget(widget: Widget) {
     case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
     case 'TIMER': return <TimerWidget {...props} />;
     case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'WALLET': return <WalletWidget {...props} interactive={false} />;
     default: return null;
   }
 }

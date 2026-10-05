@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { InlineDiceRollState } from '../hooks/useInlineDiceRoll';
+import { formatDiceRolls, formatDiceTermBody } from '../utils/diceExpression';
 import { XIcon } from './icons';
 
 interface Props {
@@ -92,7 +93,7 @@ export function InlineDiceResultPopover({ state, onClose }: Props) {
             {state.result.terms.map((rollTerm, index) => {
               const sign = rollTerm.term.sign === -1 ? '−' : index > 0 ? '+' : '';
               const detail = rollTerm.term.type === 'dice'
-                ? `${rollTerm.term.count}d${rollTerm.term.faces}: [${rollTerm.rolls?.join(', ') || ''}]`
+                ? `${formatDiceTermBody(rollTerm.term)}: ${formatDiceRolls(rollTerm)}`
                 : String(rollTerm.term.value);
               return <span key={index}>{sign}{detail}</span>;
             })}

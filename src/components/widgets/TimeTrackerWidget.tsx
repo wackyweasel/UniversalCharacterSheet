@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, TimedEffect } from '../../types';
 import { Tooltip } from '../Tooltip';
@@ -203,7 +204,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
       
@@ -228,7 +229,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             }`}
           >
             <span className={`flex-1 min-w-0 truncate font-medium text-xs font-body ${effect.remainingSeconds <= 0 ? 'text-theme-accent' : 'text-theme-ink'}`}>
-              {effect.name}
+              <InlineFormulaText text={effect.name} />
             </span>
             <span className={`flex-shrink-0 text-xs font-body ${effect.remainingSeconds <= 0 ? 'text-theme-accent font-bold' : 'text-theme-muted'}`}>
               {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}

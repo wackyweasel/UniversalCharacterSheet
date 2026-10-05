@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { v4 as uuidv4 } from 'uuid';
 import { GridMapPoint, GridMapToken, GridMapTokenSize, GridMapWall, Widget } from '../../types';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
@@ -1014,7 +1015,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
     <div className="relative flex h-full w-full min-h-0 flex-col gap-1">
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
 
@@ -1071,6 +1072,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       <div ref={canvasShellRef} className="relative min-h-0 flex-1 overflow-hidden rounded-theme border border-theme-border bg-theme-paper mx-1 mb-1">
         <canvas
           ref={canvasRef}
+          data-camera-pan-ignore={canInteract ? 'true' : undefined}
           tabIndex={canInteract ? 0 : -1}
           aria-label={`Grid map with ${tokens.length} token${tokens.length === 1 ? '' : 's'} and ${walls.length} wall${walls.length === 1 ? '' : 's'}${measurementDistanceLabel ? `, measuring ${measurementDistanceLabel}` : ''}`}
           onPointerDown={handlePointerDown}

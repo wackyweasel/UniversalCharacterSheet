@@ -1,0 +1,2501 @@
+{
+  "name": "Daggerheart",
+  "sheets": [
+    {
+      "id": "23da65e1-da54-4b74-90d8-a27bb84c43a7",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "7a9422d6-faf6-42d2-9796-0984c89caae5",
+          "type": "POOL",
+          "x": 240,
+          "y": -750,
+          "w": 300,
+          "h": 150,
+          "zIndex": 1135,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Hit Points",
+                "max": 0,
+                "current": 0,
+                "style": "diamonds",
+                "maxFormula": "@hit_points_base + @hit_points_bonus"
+              },
+              {
+                "name": "Stress",
+                "max": 6,
+                "current": 0,
+                "style": "diamonds",
+                "maxFormula": "6 + @stress_bonus"
+              }
+            ],
+            "showPoolCount": false,
+            "inlineLabels": false,
+            "hideWidgetHeader": false,
+            "showFieldControls": false
+          }
+        },
+        {
+          "id": "8722d11f-16d0-4c88-97c7-af3b480f060f",
+          "type": "POOL",
+          "x": 240,
+          "y": -590,
+          "w": 300,
+          "h": 80,
+          "zIndex": 1136,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Hope",
+                "max": 6,
+                "current": 0,
+                "style": "diamonds",
+                "maxFormula": "6 + @Hope_bonus"
+              }
+            ],
+            "showPoolCount": false,
+            "inlineLabels": false,
+            "hideWidgetHeader": false,
+            "showFieldControls": false
+          }
+        },
+        {
+          "id": "5cac9380-3522-4816-bc2d-4fdebf0c7e4e",
+          "type": "NUMBER_DISPLAY",
+          "x": 410,
+          "y": -880,
+          "w": 150,
+          "h": 110,
+          "zIndex": 949,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "hideWidgetEditButton": false,
+            "showFieldControls": false,
+            "displayLayout": "horizontal",
+            "showDisplayNumberMax": false,
+            "displayNumbers": [
+              {
+                "label": "Evasion",
+                "value": 0,
+                "secondaryValue": 0,
+                "valueLabel": "Evasion"
+              },
+              {
+                "label": "Armor Score",
+                "value": 0,
+                "secondaryValue": 0,
+                "showPositiveSign": false,
+                "valueLabel": "armor_score",
+                "valueFormula": "@base_armor_score"
+              }
+            ],
+            "showSecondaryDisplayNumbers": false,
+            "secondaryDisplayAutoCompute": false,
+            "secondaryDisplayModifierRanges": [
+              { "min": 1, "max": 1, "modifier": -5 },
+              { "min": 2, "max": 3, "modifier": -4 },
+              { "min": 4, "max": 5, "modifier": -3 },
+              { "min": 6, "max": 7, "modifier": -2 },
+              { "min": 8, "max": 9, "modifier": -1 },
+              { "min": 10, "max": 11, "modifier": 0 },
+              { "min": 12, "max": 13, "modifier": 1 },
+              { "min": 14, "max": 15, "modifier": 2 },
+              { "min": 16, "max": 17, "modifier": 3 },
+              { "min": 18, "max": 19, "modifier": 4 },
+              { "min": 20, "max": 21, "modifier": 5 },
+              { "min": 22, "max": 23, "modifier": 6 },
+              { "min": 24, "max": 25, "modifier": 7 },
+              { "min": 26, "max": 27, "modifier": 8 },
+              { "min": 28, "max": 29, "modifier": 9 },
+              { "min": 30, "max": 30, "modifier": 10 }
+            ],
+            "hideWidgetHeader": true
+          }
+        },
+        {
+          "id": "a0dbab61-3e40-4899-8aed-adfc3961cd50",
+          "type": "PROGRESS_BAR",
+          "x": 570,
+          "y": -880,
+          "w": 210,
+          "h": 110,
+          "zIndex": 911,
+          "data": {
+            "label": "Armor Slots",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "maxValue": 0,
+            "currentValue": 0,
+            "minValue": 0,
+            "fieldFormulas": { "maxValue": "@base_armor_score" }
+          }
+        },
+        {
+          "id": "6988ba50-dbed-4021-b2e2-deef13c0971d",
+          "type": "NUMBER_DISPLAY",
+          "x": 1010,
+          "y": -880,
+          "w": 480,
+          "h": 110,
+          "zIndex": 1774,
+          "data": {
+            "label": "Stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "horizontal",
+            "displayNumbers": [
+              {
+                "label": "Agility",
+                "value": 0,
+                "showPositiveSign": true,
+                "secondaryValue": 0,
+                "valueLabel": "agility_score"
+              },
+              {
+                "label": "Strength",
+                "value": 0,
+                "showPositiveSign": true,
+                "secondaryValue": 0,
+                "valueLabel": "strength_score"
+              },
+              {
+                "label": "Finesse",
+                "value": 0,
+                "showPositiveSign": true,
+                "secondaryValue": 0,
+                "valueLabel": "finesse_score"
+              },
+              {
+                "label": "Instinct",
+                "value": 0,
+                "showPositiveSign": true,
+                "secondaryValue": 0,
+                "valueLabel": "instinct_score"
+              },
+              {
+                "label": "Presence",
+                "value": 0,
+                "showPositiveSign": true,
+                "secondaryValue": 0,
+                "valueLabel": "presence_score"
+              },
+              {
+                "label": "Knowladge",
+                "value": 0,
+                "showPositiveSign": true,
+                "secondaryValue": 0,
+                "valueLabel": "knowladge_score"
+              }
+            ],
+            "showSecondaryDisplayNumbers": false,
+            "showFieldControls": false
+          }
+        },
+        {
+          "id": "6f33e1c5-ed11-4f63-983d-e8c7c5d8a2d4",
+          "type": "NUMBER_DISPLAY",
+          "x": 240,
+          "y": -880,
+          "w": 160,
+          "h": 110,
+          "zIndex": 908,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "Level",
+                "value": 1,
+                "valueLabel": "level",
+                "showPositiveSign": false
+              },
+              {
+                "label": "Proficiency",
+                "value": 1,
+                "valueLabel": "proficiency",
+                "showPositiveSign": false,
+                "valueFormula": "1 + @proficiency_bonus"
+              }
+            ],
+            "showFieldControls": false,
+            "showDisplayNumberMax": false,
+            "displayLayout": "horizontal",
+            "hideWidgetHeader": true
+          }
+        },
+        {
+          "id": "d4b9d88e-6d06-4614-af9e-867ffdde8b7d",
+          "type": "MIXED_FIELDS",
+          "x": 550,
+          "y": -560,
+          "w": 420,
+          "h": 380,
+          "zIndex": 948,
+          "data": {
+            "label": "Primary weapon",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              { "type": "text", "name": "Weapon", "value": "" },
+              {
+                "type": "menu",
+                "name": "Damage type",
+                "value": "",
+                "options": ["Physical", "Magical"],
+                "valueLabel": "primary_weapon_damage_type"
+              },
+              {
+                "type": "menu",
+                "name": "Range",
+                "value": "",
+                "options": ["Melee", "Very Close", "Close", "Far", "Very Far"],
+                "valueLabel": "primary_weapon_range"
+              },
+              {
+                "type": "menu",
+                "name": "Burden",
+                "value": "",
+                "options": ["One-Handed", "Two-Handed"],
+                "valueLabel": "primary_weapon_burden"
+              },
+              {
+                "type": "menu",
+                "name": "Damage dice",
+                "value": "",
+                "options": ["d4", "d6", "d8", "d10", "d12", "d20"],
+                "valueLabel": "primery_weapon_dice"
+              },
+              { "type": "number", "name": "Damage bonus", "value": 0 },
+              {
+                "type": "number",
+                "name": "Number of dices",
+                "value": 1,
+                "valueFormula": "@proficiency",
+                "showIncrementButtons": false
+              },
+              { "type": "text", "name": "Description:", "value": "" },
+              { "type": "text", "name": "Description:", "value": "" },
+              { "type": "text", "name": "Description:", "value": "" }
+            ],
+            "labelWidth": 28,
+            "showFieldControls": false,
+            "itemSpacing": 6
+          }
+        },
+        {
+          "id": "da4f090b-2824-4803-b683-e7e14e78f8c9",
+          "type": "MIXED_FIELDS",
+          "x": 980,
+          "y": -560,
+          "w": 510,
+          "h": 380,
+          "zIndex": 1776,
+          "data": {
+            "label": "Secondary weapon",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              { "type": "text", "name": "Weapon", "value": "" },
+              {
+                "type": "menu",
+                "name": "Damage type",
+                "value": "",
+                "options": ["Physical", "Magical"],
+                "valueLabel": "secondary_weapon_damage_type"
+              },
+              {
+                "type": "menu",
+                "name": "Range",
+                "value": "",
+                "options": ["Melee", "Very Close", "Close", "Far", "Very Far"],
+                "valueLabel": "secondary_weapon_range"
+              },
+              {
+                "type": "menu",
+                "name": "Burden",
+                "value": "",
+                "options": ["One-Handed", "Two-Handed"],
+                "valueLabel": "secondary_weapon_burden"
+              },
+              {
+                "type": "menu",
+                "name": "Damage dice",
+                "value": "d6",
+                "options": ["d4", "d6", "d8", "d10", "d12", "d20"],
+                "valueLabel": "secondary_weapon_dice"
+              },
+              {
+                "type": "number",
+                "name": "Damage bonus",
+                "value": 0,
+                "showPositiveSign": true
+              },
+              {
+                "type": "number",
+                "name": "Number of dices",
+                "value": 1,
+                "valueFormula": "@proficiency",
+                "showIncrementButtons": false
+              },
+              { "type": "text", "name": "Description:", "value": "" },
+              { "type": "text", "name": "Description:", "value": "" },
+              { "type": "text", "name": "Description:", "value": "" }
+            ],
+            "labelWidth": 28,
+            "showFieldControls": false,
+            "itemSpacing": 6
+          }
+        },
+        {
+          "id": "a0f9f03e-0794-4112-ae7c-21ac37800c64",
+          "type": "MIXED_FIELDS",
+          "x": 240,
+          "y": -500,
+          "w": 300,
+          "h": 200,
+          "zIndex": 1777,
+          "data": {
+            "label": "Experience",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              {
+                "type": "number",
+                "name": "Tier 1",
+                "value": 0,
+                "showIncrementButtons": false
+              },
+              {
+                "type": "number",
+                "name": "Tier 1",
+                "value": 0,
+                "showIncrementButtons": false
+              },
+              {
+                "type": "number",
+                "name": "Tier 2",
+                "value": 0,
+                "showIncrementButtons": false
+              },
+              {
+                "type": "number",
+                "name": "Tier 3",
+                "value": 0,
+                "showIncrementButtons": false
+              },
+              {
+                "type": "number",
+                "name": "Tier 4",
+                "value": 0,
+                "showIncrementButtons": false
+              }
+            ],
+            "labelWidth": 33
+          }
+        },
+        {
+          "id": "7c8b020c-da78-4c50-b8ba-4f0d40039153",
+          "type": "MIXED_FIELDS",
+          "x": 980,
+          "y": -750,
+          "w": 510,
+          "h": 170,
+          "zIndex": 1871,
+          "data": {
+            "label": "Armor",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              { "type": "text", "name": "Armor", "value": "" },
+              {
+                "type": "number",
+                "name": "Major threshold",
+                "value": 0,
+                "showIncrementButtons": false,
+                "valueLabel": "major_treshold"
+              },
+              {
+                "type": "number",
+                "name": "Severe threshold",
+                "value": 0,
+                "valueLabel": "severe_threshold",
+                "showIncrementButtons": false
+              },
+              {
+                "type": "number",
+                "name": "Base score",
+                "value": 0,
+                "valueLabel": "base_armor_score",
+                "showIncrementButtons": false
+              },
+              { "type": "text", "name": "Description:", "value": "" }
+            ],
+            "labelWidth": 47,
+            "hideWidgetHeader": true,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "06809790-7ee3-47ec-b779-928452f4a6a2",
+          "type": "NUMBER_DISPLAY",
+          "x": 550,
+          "y": -750,
+          "w": 410,
+          "h": 170,
+          "zIndex": 959,
+          "data": {
+            "label": "Damage Thresholds",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayNumbers": [
+              {
+                "label": "Major threshold",
+                "value": 1,
+                "valueFormula": "@level + @major_treshold",
+                "secondaryValue": 0
+              },
+              {
+                "label": "Severe threshold",
+                "value": 1,
+                "valueFormula": "@level + @severe_threshold",
+                "secondaryValue": 0
+              }
+            ],
+            "showDisplayNumberMax": false,
+            "showDisplayNumberLabels": true,
+            "showSecondaryDisplayNumbers": false,
+            "displayLayout": "vertical",
+            "hideWidgetHeader": false,
+            "showFieldControls": false,
+            "hideWidgetEditButton": true
+          }
+        },
+        {
+          "id": "5100f6a7-0cb5-4fbd-adad-1a9b335bf584",
+          "type": "MIXED_FIELDS",
+          "x": 240,
+          "y": 150,
+          "w": 350,
+          "h": 270,
+          "zIndex": 1878,
+          "data": {
+            "label": "Stat bonus",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              {
+                "type": "number",
+                "name": "Evasion",
+                "value": 0,
+                "valueLabel": "evasion_bonus"
+              },
+              {
+                "type": "number",
+                "name": "Armor Score",
+                "value": 0,
+                "valueLabel": "armor_score_bonus"
+              },
+              {
+                "type": "number",
+                "name": "Damage Threshold",
+                "value": 0,
+                "valueLabel": "damage_threshold_bonus"
+              },
+              {
+                "type": "number",
+                "name": "Proficiency",
+                "value": 0,
+                "valueLabel": "proficiency_bonus"
+              },
+              {
+                "type": "number",
+                "name": "Stress",
+                "value": 0,
+                "valueLabel": "stress_bonus"
+              },
+              {
+                "type": "number",
+                "name": "Hit points",
+                "value": 0,
+                "valueLabel": "hit_points_bonus"
+              },
+              {
+                "type": "number",
+                "name": "Hope",
+                "value": 0,
+                "tooltip": "Hope you've lost after going down",
+                "valueLabel": "Hope_bonus",
+                "maxValue": 1,
+                "minValue": -6
+              }
+            ],
+            "labelWidth": 33,
+            "hideWidgetEditButton": true,
+            "showFieldControls": false
+          }
+        },
+        {
+          "id": "cbe7391a-80f7-4825-b60a-c410feec1220",
+          "type": "MIXED_FIELDS",
+          "x": 240,
+          "y": 30,
+          "w": 350,
+          "h": 110,
+          "zIndex": 1867,
+          "data": {
+            "label": "Class base stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              {
+                "type": "number",
+                "name": "Evasion",
+                "value": 0,
+                "valueLabel": "evasion_base"
+              },
+              {
+                "type": "number",
+                "name": "Hit Points",
+                "value": 0,
+                "valueLabel": "hit_points_base"
+              }
+            ],
+            "labelWidth": 33,
+            "hideWidgetHeader": false
+          }
+        },
+        {
+          "id": "019fe8ff-6863-42a8-acfe-e3f58591d7a0",
+          "type": "MIXED_FIELDS",
+          "x": 790,
+          "y": -880,
+          "w": 210,
+          "h": 110,
+          "zIndex": 1873,
+          "data": {
+            "label": "Spellcast trait",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "mixedFields": [
+              {
+                "type": "menu",
+                "name": "Trait",
+                "value": "None",
+                "options": [
+                  "None",
+                  "Agility",
+                  "Strength",
+                  "Finesse",
+                  "Instinct",
+                  "Presence",
+                  "Knowledge"
+                ]
+              }
+            ],
+            "labelWidth": 32,
+            "hideWidgetHeader": false,
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "itemSpacing": 8
+          }
+        },
+        {
+          "id": "f4bacb4b-6ac4-4db7-b8b6-05bcdedaee83",
+          "type": "NUMBER",
+          "x": 240,
+          "y": -290,
+          "w": 300,
+          "h": 110,
+          "zIndex": 1779,
+          "data": {
+            "label": "Gold",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              { "name": "Handful", "value": 0, "minValue": 0, "maxValue": 10 },
+              {
+                "name": "Bag",
+                "value": 0,
+                "showPositiveSign": false,
+                "minValue": 0,
+                "maxValue": 10
+              },
+              { "name": "Chest", "value": 0, "minValue": 0, "maxValue": 1 }
+            ]
+          }
+        },
+        {
+          "id": "d0d831ba-ed68-4cef-a352-aa9b8840515a",
+          "type": "INVENTORY",
+          "x": -490,
+          "y": -870,
+          "w": 310,
+          "h": 700,
+          "zIndex": 1789,
+          "data": {
+            "label": "Inventory",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "inventoryItems": [],
+            "inventoryDefaultFields": [],
+            "inventoryEncumbrance": {
+              "enabled": false,
+              "unit": "kg",
+              "includeInGlobalLoad": true,
+              "showGlobalCounter": false
+            }
+          }
+        },
+        {
+          "id": "3514c379-c52e-4600-a4d5-0e4e0a1e98d5",
+          "type": "INVENTORY",
+          "x": -160,
+          "y": -870,
+          "w": 340,
+          "h": 700,
+          "zIndex": 1145,
+          "data": {
+            "label": "Inventory",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "inventoryItems": [],
+            "inventoryDefaultFields": [],
+            "inventoryEncumbrance": {
+              "enabled": false,
+              "unit": "kg",
+              "includeInGlobalLoad": true,
+              "showGlobalCounter": false
+            }
+          }
+        },
+        {
+          "id": "b816802c-8f29-4878-8bf8-50085cd01698",
+          "type": "LABEL",
+          "x": 1540,
+          "y": -960,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1382,
+          "data": {
+            "label": "Class / Race features",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "labelAlignment": "center"
+          }
+        },
+        {
+          "id": "172f3d33-9851-4c4b-b6fd-8082bb295176",
+          "type": "FORM",
+          "x": 1540,
+          "y": -880,
+          "w": 260,
+          "h": 140,
+          "zIndex": 1370,
+          "data": {
+            "label": "General",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Class", "value": "" },
+              { "name": "Subclass", "value": "" },
+              { "name": "Heritage", "value": "" },
+              { "name": "Community", "value": "" }
+            ],
+            "hideWidgetHeader": true
+          }
+        },
+        {
+          "id": "f2b7578f-63f1-4216-8f04-810b3762fedd",
+          "type": "TEXT",
+          "x": 1830,
+          "y": -670,
+          "w": 280,
+          "h": 190,
+          "zIndex": 1378,
+          "data": {
+            "label": "Class feature",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": true
+          },
+          "groupId": "8aa614b8-59f5-4e02-a082-3f4ae921adef",
+          "attachedTo": ["a29a3b6f-e56d-444a-9a47-30c6db3413c3"]
+        },
+        {
+          "id": "3aaab1ed-a2a5-46df-b7cf-ab059c854f32",
+          "type": "TEXT",
+          "x": 2130,
+          "y": -670,
+          "w": 270,
+          "h": 190,
+          "zIndex": 1406,
+          "data": {
+            "label": "Class hope ability",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": true
+          },
+          "groupId": "f8b3b8d6-cced-4b82-91a9-f091054ef1b1",
+          "attachedTo": ["63f0b141-b283-4e05-9561-fa4b504040d6"]
+        },
+        {
+          "id": "fd9515b5-a437-4fdf-8e2c-df7da3ad24c3",
+          "type": "TEXT",
+          "x": 1540,
+          "y": -380,
+          "w": 270,
+          "h": 210,
+          "zIndex": 1826,
+          "data": {
+            "label": "Foundation feature",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": false
+          },
+          "groupId": "f038eb9f-553f-4223-b54b-87844a10c580",
+          "attachedTo": ["b3514d0b-8ce5-4361-8bae-3fbf565bd58f"]
+        },
+        {
+          "id": "f8c4a111-7a9c-48c3-879f-2a168f2089d5",
+          "type": "TEXT",
+          "x": 1830,
+          "y": -380,
+          "w": 280,
+          "h": 210,
+          "zIndex": 1379,
+          "data": {
+            "label": "Specialization Feature",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": false
+          },
+          "groupId": "3a73063e-424b-4e57-b286-77600cf394d9",
+          "attachedTo": ["0bd0e509-446b-403f-802c-2b70fc8ceb47"]
+        },
+        {
+          "id": "34e1e2bf-44f3-4856-9933-118ac6882410",
+          "type": "TEXT",
+          "x": 2130,
+          "y": -380,
+          "w": 270,
+          "h": 210,
+          "zIndex": 1380,
+          "data": {
+            "label": "Mastery Feature",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": false
+          },
+          "groupId": "1f3e95dd-5c38-47b3-96e9-868343c05225",
+          "attachedTo": ["a2cf0af1-8df5-4bee-bb7a-46952e748fa8"]
+        },
+        {
+          "id": "b553294c-58c5-4ab3-84fb-8cd19a046ad1",
+          "type": "TEXT",
+          "x": 1540,
+          "y": -670,
+          "w": 270,
+          "h": 190,
+          "zIndex": 1369,
+          "data": {
+            "label": "Community feature",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": false
+          },
+          "groupId": "3bdd294c-ee9a-4767-82eb-b066280fe150",
+          "attachedTo": ["4c2e7020-20bf-4b97-9722-67ad229d0822"]
+        },
+        {
+          "id": "077154f1-02e5-41b6-b95c-d4fa07495cef",
+          "type": "TEXT",
+          "x": 1830,
+          "y": -880,
+          "w": 570,
+          "h": 140,
+          "zIndex": 1865,
+          "data": {
+            "label": "Heritage feature",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": false
+          }
+        },
+        {
+          "id": "4c2e7020-20bf-4b97-9722-67ad229d0822",
+          "type": "PROGRESS_BAR",
+          "x": 1570,
+          "y": -480,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1369,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "3bdd294c-ee9a-4767-82eb-b066280fe150",
+          "attachedTo": ["b553294c-58c5-4ab3-84fb-8cd19a046ad1"]
+        },
+        {
+          "id": "09fd5e2c-cfc6-4cca-9945-f13dc54aa4fe",
+          "type": "PROGRESS_BAR",
+          "x": 2000,
+          "y": -740,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1865,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          }
+        },
+        {
+          "id": "a29a3b6f-e56d-444a-9a47-30c6db3413c3",
+          "type": "PROGRESS_BAR",
+          "x": 1860,
+          "y": -480,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1378,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "8aa614b8-59f5-4e02-a082-3f4ae921adef",
+          "attachedTo": ["f2b7578f-63f1-4216-8f04-810b3762fedd"]
+        },
+        {
+          "id": "63f0b141-b283-4e05-9561-fa4b504040d6",
+          "type": "PROGRESS_BAR",
+          "x": 2160,
+          "y": -480,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1406,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "f8b3b8d6-cced-4b82-91a9-f091054ef1b1",
+          "attachedTo": ["3aaab1ed-a2a5-46df-b7cf-ab059c854f32"]
+        },
+        {
+          "id": "b3514d0b-8ce5-4361-8bae-3fbf565bd58f",
+          "type": "PROGRESS_BAR",
+          "x": 1570,
+          "y": -170,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1826,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "f038eb9f-553f-4223-b54b-87844a10c580",
+          "attachedTo": ["fd9515b5-a437-4fdf-8e2c-df7da3ad24c3"]
+        },
+        {
+          "id": "0bd0e509-446b-403f-802c-2b70fc8ceb47",
+          "type": "PROGRESS_BAR",
+          "x": 1870,
+          "y": -170,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1379,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "3a73063e-424b-4e57-b286-77600cf394d9",
+          "attachedTo": ["f8c4a111-7a9c-48c3-879f-2a168f2089d5"]
+        },
+        {
+          "id": "a2cf0af1-8df5-4bee-bb7a-46952e748fa8",
+          "type": "PROGRESS_BAR",
+          "x": 2150,
+          "y": -170,
+          "w": 210,
+          "h": 50,
+          "zIndex": 1380,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "1f3e95dd-5c38-47b3-96e9-868343c05225",
+          "attachedTo": ["34e1e2bf-44f3-4856-9933-118ac6882410"]
+        },
+        {
+          "id": "3cfba24f-0be3-499e-bbc0-1fb5def11027",
+          "type": "LABEL",
+          "x": 2480,
+          "y": -940,
+          "w": 160,
+          "h": 30,
+          "zIndex": 1392,
+          "data": {
+            "label": "Cards",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "labelAlignment": "center"
+          }
+        },
+        {
+          "id": "643253a1-8345-46d9-a11b-9ff9eb9ce67d",
+          "type": "TEXT",
+          "x": 2470,
+          "y": -880,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1481,
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "groupId": "ebe2df3d-5f79-4685-bda9-2745076b2db8",
+          "attachedTo": [
+            "01464d39-c6a3-4a2f-b3ba-325225748655",
+            "7c819f35-b30c-4f53-b71c-243eb6ce3097"
+          ]
+        },
+        {
+          "id": "7c819f35-b30c-4f53-b71c-243eb6ce3097",
+          "type": "PROGRESS_BAR",
+          "x": 2490,
+          "y": -690,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1481,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "ebe2df3d-5f79-4685-bda9-2745076b2db8",
+          "attachedTo": ["643253a1-8345-46d9-a11b-9ff9eb9ce67d"]
+        },
+        {
+          "id": "01464d39-c6a3-4a2f-b3ba-325225748655",
+          "type": "TOGGLE",
+          "x": 2650,
+          "y": -910,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1481,
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "groupId": "ebe2df3d-5f79-4685-bda9-2745076b2db8",
+          "attachedTo": ["643253a1-8345-46d9-a11b-9ff9eb9ce67d"]
+        },
+        {
+          "id": "84c532af-bbbf-4ef7-bb8b-b289ce6bff38",
+          "type": "TEXT",
+          "x": 2740,
+          "y": -880,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1475,
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "groupId": "74e9ddd1-fe31-4ddc-99ee-4925ffa731a5",
+          "attachedTo": ["7555ca38-4d29-4bab-9133-a69e3595199b"]
+        },
+        {
+          "id": "953a5388-e883-43de-afb6-a70f197dad6e",
+          "type": "PROGRESS_BAR",
+          "x": 2760,
+          "y": -690,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1519,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          }
+        },
+        {
+          "id": "7555ca38-4d29-4bab-9133-a69e3595199b",
+          "type": "TOGGLE",
+          "x": 2920,
+          "y": -910,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1475,
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "groupId": "74e9ddd1-fe31-4ddc-99ee-4925ffa731a5",
+          "attachedTo": ["84c532af-bbbf-4ef7-bb8b-b289ce6bff38"]
+        },
+        {
+          "id": "f0d6ca77-097b-49f0-83ec-be512b91b9c7",
+          "type": "TEXT",
+          "x": 3010,
+          "y": -880,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1489,
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "groupId": "69a05b78-ed25-4d1e-b515-39dd770657cd",
+          "attachedTo": [
+            "99903277-8374-47b4-8712-fd016bd52ec3",
+            "1f61450b-1da9-4a74-846f-9b82ed151d65"
+          ]
+        },
+        {
+          "id": "99903277-8374-47b4-8712-fd016bd52ec3",
+          "type": "PROGRESS_BAR",
+          "x": 3030,
+          "y": -690,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1489,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "69a05b78-ed25-4d1e-b515-39dd770657cd",
+          "attachedTo": ["f0d6ca77-097b-49f0-83ec-be512b91b9c7"]
+        },
+        {
+          "id": "1f61450b-1da9-4a74-846f-9b82ed151d65",
+          "type": "TOGGLE",
+          "x": 3190,
+          "y": -910,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1489,
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "groupId": "69a05b78-ed25-4d1e-b515-39dd770657cd",
+          "attachedTo": ["f0d6ca77-097b-49f0-83ec-be512b91b9c7"]
+        },
+        {
+          "id": "937b4602-9708-4845-b730-18bfcfde4111",
+          "type": "TEXT",
+          "x": 3280,
+          "y": -880,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1499,
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "groupId": "513fb8a8-30d8-47f7-a15e-2ab244081a55",
+          "attachedTo": [
+            "bc1d30ac-aa6f-492e-b980-850b8e3839a4",
+            "2272e081-a0c4-4868-a15c-cffb36c737b9"
+          ]
+        },
+        {
+          "id": "2272e081-a0c4-4868-a15c-cffb36c737b9",
+          "type": "PROGRESS_BAR",
+          "x": 3300,
+          "y": -690,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1499,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "groupId": "513fb8a8-30d8-47f7-a15e-2ab244081a55",
+          "attachedTo": ["937b4602-9708-4845-b730-18bfcfde4111"]
+        },
+        {
+          "id": "bc1d30ac-aa6f-492e-b980-850b8e3839a4",
+          "type": "TOGGLE",
+          "x": 3460,
+          "y": -910,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1499,
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "groupId": "513fb8a8-30d8-47f7-a15e-2ab244081a55",
+          "attachedTo": ["937b4602-9708-4845-b730-18bfcfde4111"]
+        },
+        {
+          "id": "d62ce552-95d5-4cbf-8104-72802586e769",
+          "type": "TEXT",
+          "x": 3550,
+          "y": -880,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1868,
+          "groupId": "2df04ea1-42b2-45a8-a092-234215b6dd59",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "f8c3fab2-6130-4bf7-87f8-4c7c7ad5e639",
+            "5e0e3669-e495-4f8e-80c9-9b793706f7ab"
+          ]
+        },
+        {
+          "id": "5e0e3669-e495-4f8e-80c9-9b793706f7ab",
+          "type": "PROGRESS_BAR",
+          "x": 3570,
+          "y": -690,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1868,
+          "groupId": "2df04ea1-42b2-45a8-a092-234215b6dd59",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["d62ce552-95d5-4cbf-8104-72802586e769"]
+        },
+        {
+          "id": "f8c3fab2-6130-4bf7-87f8-4c7c7ad5e639",
+          "type": "TOGGLE",
+          "x": 3730,
+          "y": -910,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1868,
+          "groupId": "2df04ea1-42b2-45a8-a092-234215b6dd59",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["d62ce552-95d5-4cbf-8104-72802586e769"]
+        },
+        {
+          "id": "db1673f9-d236-4933-b981-e05bbba3e016",
+          "type": "TEXT",
+          "x": 2470,
+          "y": -610,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1522,
+          "groupId": "396a240c-e00e-45e1-8009-2275aa01f68d",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "1b83ff96-775b-4312-8903-00ba54a309ea",
+            "3d61dbba-6b26-4fa3-90c7-d05df6399cf0"
+          ]
+        },
+        {
+          "id": "3d61dbba-6b26-4fa3-90c7-d05df6399cf0",
+          "type": "PROGRESS_BAR",
+          "x": 2490,
+          "y": -420,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1522,
+          "groupId": "396a240c-e00e-45e1-8009-2275aa01f68d",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["db1673f9-d236-4933-b981-e05bbba3e016"]
+        },
+        {
+          "id": "1b83ff96-775b-4312-8903-00ba54a309ea",
+          "type": "TOGGLE",
+          "x": 2650,
+          "y": -640,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1522,
+          "groupId": "396a240c-e00e-45e1-8009-2275aa01f68d",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["db1673f9-d236-4933-b981-e05bbba3e016"]
+        },
+        {
+          "id": "99fa82fd-5999-4b82-9267-aa3e9d1bee88",
+          "type": "TEXT",
+          "x": 3010,
+          "y": -610,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1510,
+          "groupId": "e0877203-0698-42b5-9204-272182b21459",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "2817bc48-1f09-4aac-86bc-13cb654205bf",
+            "7f391cbf-431a-483a-bb02-4df2b2541b1d"
+          ]
+        },
+        {
+          "id": "7f391cbf-431a-483a-bb02-4df2b2541b1d",
+          "type": "PROGRESS_BAR",
+          "x": 3030,
+          "y": -420,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1510,
+          "groupId": "e0877203-0698-42b5-9204-272182b21459",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["99fa82fd-5999-4b82-9267-aa3e9d1bee88"]
+        },
+        {
+          "id": "2817bc48-1f09-4aac-86bc-13cb654205bf",
+          "type": "TOGGLE",
+          "x": 3190,
+          "y": -640,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1510,
+          "groupId": "e0877203-0698-42b5-9204-272182b21459",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["99fa82fd-5999-4b82-9267-aa3e9d1bee88"]
+        },
+        {
+          "id": "ce31c24c-5cb1-4351-b5ac-8e8fe37d05b9",
+          "type": "TEXT",
+          "x": 3280,
+          "y": -610,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1516,
+          "groupId": "ebfc10ab-af12-4786-a379-affba01676e3",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "c84ad901-37c3-4ad8-9ea0-b1513029e878",
+            "04080cd1-0b34-4494-b785-95b8594afa57"
+          ]
+        },
+        {
+          "id": "04080cd1-0b34-4494-b785-95b8594afa57",
+          "type": "PROGRESS_BAR",
+          "x": 3300,
+          "y": -420,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1516,
+          "groupId": "ebfc10ab-af12-4786-a379-affba01676e3",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["ce31c24c-5cb1-4351-b5ac-8e8fe37d05b9"]
+        },
+        {
+          "id": "c84ad901-37c3-4ad8-9ea0-b1513029e878",
+          "type": "TOGGLE",
+          "x": 3460,
+          "y": -640,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1516,
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["ce31c24c-5cb1-4351-b5ac-8e8fe37d05b9"]
+        },
+        {
+          "id": "a3a1ff02-1c3f-4c20-87e4-b85baf76f43b",
+          "type": "TEXT",
+          "x": 2740,
+          "y": -610,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1521,
+          "groupId": "7102c483-b259-44f0-8fb7-ffbfca25cdd3",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "7a1fd80d-db97-4b42-81f7-ab744817c785",
+            "6543a3d2-02ba-427d-8fc6-361153c47d5a"
+          ]
+        },
+        {
+          "id": "6543a3d2-02ba-427d-8fc6-361153c47d5a",
+          "type": "PROGRESS_BAR",
+          "x": 2760,
+          "y": -420,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1521,
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["a3a1ff02-1c3f-4c20-87e4-b85baf76f43b"]
+        },
+        {
+          "id": "7a1fd80d-db97-4b42-81f7-ab744817c785",
+          "type": "TOGGLE",
+          "x": 2920,
+          "y": -640,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1521,
+          "groupId": "7102c483-b259-44f0-8fb7-ffbfca25cdd3",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["a3a1ff02-1c3f-4c20-87e4-b85baf76f43b"]
+        },
+        {
+          "id": "5004c8b1-5623-4748-ad6a-14230d904ef4",
+          "type": "TEXT",
+          "x": 3550,
+          "y": -610,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1517,
+          "groupId": "bd1f0af1-a837-4f3e-8316-a46860f7cfa9",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "4eb7fea0-3ae8-463f-ba3a-444e1e77aa34",
+            "8efba81f-bd6f-4e88-8d75-f18757f2d37f"
+          ]
+        },
+        {
+          "id": "8efba81f-bd6f-4e88-8d75-f18757f2d37f",
+          "type": "PROGRESS_BAR",
+          "x": 3570,
+          "y": -420,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1517,
+          "groupId": "bd1f0af1-a837-4f3e-8316-a46860f7cfa9",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["5004c8b1-5623-4748-ad6a-14230d904ef4"]
+        },
+        {
+          "id": "4eb7fea0-3ae8-463f-ba3a-444e1e77aa34",
+          "type": "TOGGLE",
+          "x": 3730,
+          "y": -640,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1517,
+          "groupId": "bd1f0af1-a837-4f3e-8316-a46860f7cfa9",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["5004c8b1-5623-4748-ad6a-14230d904ef4"]
+        },
+        {
+          "id": "f6f141e8-fd2c-4e65-a93d-0c5fd8602621",
+          "type": "TEXT",
+          "x": 2470,
+          "y": -350,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1545,
+          "groupId": "dae91539-6c76-4ee1-b0f0-c8a7b9fab469",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "5b9d1369-2754-4692-9a3a-21d492653361",
+            "7c36a1fa-0048-4bd7-9c94-a8a6302558da"
+          ]
+        },
+        {
+          "id": "7c36a1fa-0048-4bd7-9c94-a8a6302558da",
+          "type": "PROGRESS_BAR",
+          "x": 2490,
+          "y": -160,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1545,
+          "groupId": "dae91539-6c76-4ee1-b0f0-c8a7b9fab469",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["f6f141e8-fd2c-4e65-a93d-0c5fd8602621"]
+        },
+        {
+          "id": "5b9d1369-2754-4692-9a3a-21d492653361",
+          "type": "TOGGLE",
+          "x": 2650,
+          "y": -380,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1545,
+          "groupId": "dae91539-6c76-4ee1-b0f0-c8a7b9fab469",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["f6f141e8-fd2c-4e65-a93d-0c5fd8602621"]
+        },
+        {
+          "id": "7bf7f218-c736-48f9-a141-2c769474e431",
+          "type": "TEXT",
+          "x": 2740,
+          "y": -350,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1528,
+          "groupId": "72ecfcb2-4824-4e01-b77d-5ad570834327",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "d050fddc-2808-40d8-bec1-720facb89abe",
+            "454bb49f-3005-4570-bb9b-1c0b51ea4853"
+          ]
+        },
+        {
+          "id": "454bb49f-3005-4570-bb9b-1c0b51ea4853",
+          "type": "PROGRESS_BAR",
+          "x": 2760,
+          "y": -160,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1528,
+          "groupId": "72ecfcb2-4824-4e01-b77d-5ad570834327",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["7bf7f218-c736-48f9-a141-2c769474e431"]
+        },
+        {
+          "id": "d050fddc-2808-40d8-bec1-720facb89abe",
+          "type": "TOGGLE",
+          "x": 2920,
+          "y": -380,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1528,
+          "groupId": "72ecfcb2-4824-4e01-b77d-5ad570834327",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["7bf7f218-c736-48f9-a141-2c769474e431"]
+        },
+        {
+          "id": "8f77e3a7-fb8c-44f2-a68f-4a761ca57f8f",
+          "type": "TEXT",
+          "x": 3010,
+          "y": -350,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1532,
+          "groupId": "9c60d184-b54e-4dd9-8f31-92262a66ee2d",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "b725a7c5-27d5-4898-8efa-ad9a087a7da2",
+            "ce0f0e11-4285-481d-8ef5-01bfa938c846"
+          ]
+        },
+        {
+          "id": "ce0f0e11-4285-481d-8ef5-01bfa938c846",
+          "type": "PROGRESS_BAR",
+          "x": 3030,
+          "y": -160,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1532,
+          "groupId": "9c60d184-b54e-4dd9-8f31-92262a66ee2d",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["8f77e3a7-fb8c-44f2-a68f-4a761ca57f8f"]
+        },
+        {
+          "id": "b725a7c5-27d5-4898-8efa-ad9a087a7da2",
+          "type": "TOGGLE",
+          "x": 3190,
+          "y": -380,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1532,
+          "groupId": "9c60d184-b54e-4dd9-8f31-92262a66ee2d",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["8f77e3a7-fb8c-44f2-a68f-4a761ca57f8f"]
+        },
+        {
+          "id": "b492f3de-7745-4f29-974d-7f599a14f090",
+          "type": "TEXT",
+          "x": 3280,
+          "y": -350,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1535,
+          "groupId": "51f022d0-2058-43b6-9d15-0c5a182ca9b4",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "60bcc20a-b6fb-4a6b-8b5b-adc86826328c",
+            "a7d34fc0-d8f2-44a2-ade9-769652287136"
+          ]
+        },
+        {
+          "id": "a7d34fc0-d8f2-44a2-ade9-769652287136",
+          "type": "PROGRESS_BAR",
+          "x": 3300,
+          "y": -160,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1535,
+          "groupId": "51f022d0-2058-43b6-9d15-0c5a182ca9b4",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["b492f3de-7745-4f29-974d-7f599a14f090"]
+        },
+        {
+          "id": "60bcc20a-b6fb-4a6b-8b5b-adc86826328c",
+          "type": "TOGGLE",
+          "x": 3460,
+          "y": -380,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1535,
+          "groupId": "51f022d0-2058-43b6-9d15-0c5a182ca9b4",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["b492f3de-7745-4f29-974d-7f599a14f090"]
+        },
+        {
+          "id": "6fddafca-3f6a-47ff-80ca-250b105ef206",
+          "type": "TEXT",
+          "x": 3550,
+          "y": -350,
+          "w": 250,
+          "h": 190,
+          "zIndex": 1540,
+          "groupId": "500dc773-050b-457f-abe5-b875581c2a03",
+          "data": {
+            "label": "Card",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "attachedTo": [
+            "2c02526d-3d61-4620-bd95-c7def3db0934",
+            "0c4a749e-287a-4937-870e-6adc94bcbcf8"
+          ]
+        },
+        {
+          "id": "0c4a749e-287a-4937-870e-6adc94bcbcf8",
+          "type": "PROGRESS_BAR",
+          "x": 3570,
+          "y": -160,
+          "w": 210,
+          "h": 30,
+          "zIndex": 1540,
+          "groupId": "500dc773-050b-457f-abe5-b875581c2a03",
+          "data": {
+            "label": "Tokens",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "inlineLabel": true
+          },
+          "attachedTo": ["6fddafca-3f6a-47ff-80ca-250b105ef206"]
+        },
+        {
+          "id": "2c02526d-3d61-4620-bd95-c7def3db0934",
+          "type": "TOGGLE",
+          "x": 3730,
+          "y": -380,
+          "w": 70,
+          "h": 30,
+          "zIndex": 1540,
+          "groupId": "500dc773-050b-457f-abe5-b875581c2a03",
+          "data": {
+            "label": "Switch",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true,
+            "hideWidgetHeader": true,
+            "fieldLabels": {}
+          },
+          "attachedTo": ["6fddafca-3f6a-47ff-80ca-250b105ef206"]
+        },
+        {
+          "id": "92e37e77-16ff-4755-b4ae-423eecc79c9a",
+          "type": "NUMBER",
+          "x": 240,
+          "y": 570,
+          "w": 980,
+          "h": 170,
+          "zIndex": 1824,
+          "data": {
+            "label": "Tier 2",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Gain a +1 bonus to two unmarked character traits and mark them.",
+                "value": 0,
+                "maxValue": 3,
+                "minValue": 0
+              },
+              {
+                "name": "Permanently gain one Hit Point slot",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Permanently gain one Stress slot",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Permanently gain a +1 bonus to two Experiences",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              },
+              {
+                "name": "Permanently gain a +1 bonus to your Evasion",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              },
+              {
+                "name": "Choose an additional domain card of your level or lower from a domain you have access to (up to level 4)",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              }
+            ]
+          },
+          "groupId": "dc762247-999a-4801-a10a-a26461090bbd",
+          "attachedTo": [
+            "68a6938f-9564-4f36-aadd-b163a3fec368",
+            "918bd857-f2aa-463d-bbc1-9bf9722c6175"
+          ]
+        },
+        {
+          "id": "68a6938f-9564-4f36-aadd-b163a3fec368",
+          "type": "LABEL",
+          "x": 240,
+          "y": 530,
+          "w": 980,
+          "h": 40,
+          "zIndex": 1824,
+          "data": {
+            "label": "On level ups \"2-4\": Choose two options from the list below and mark them.",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "dc762247-999a-4801-a10a-a26461090bbd",
+          "attachedTo": [
+            "92e37e77-16ff-4755-b4ae-423eecc79c9a",
+            "416a0c39-3c40-4311-86e9-131d047d956a"
+          ]
+        },
+        {
+          "id": "918bd857-f2aa-463d-bbc1-9bf9722c6175",
+          "type": "LABEL",
+          "x": 240,
+          "y": 740,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1824,
+          "data": {
+            "label": "Take an additional domain card of your level or lower from a domain you have access to",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "dc762247-999a-4801-a10a-a26461090bbd",
+          "attachedTo": ["92e37e77-16ff-4755-b4ae-423eecc79c9a"]
+        },
+        {
+          "id": "416a0c39-3c40-4311-86e9-131d047d956a",
+          "type": "LABEL",
+          "x": 240,
+          "y": 500,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1824,
+          "data": {
+            "label": "At level 2, gain an additional Experience at +2 and gain a +1 bonus to your Proficiency.",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "dc762247-999a-4801-a10a-a26461090bbd",
+          "attachedTo": ["68a6938f-9564-4f36-aadd-b163a3fec368"]
+        },
+        {
+          "id": "ae9c00fd-ffe9-4fa4-993b-f7a0c20c5e60",
+          "type": "NUMBER",
+          "x": 240,
+          "y": 860,
+          "w": 980,
+          "h": 240,
+          "zIndex": 1750,
+          "data": {
+            "label": "Tier 3",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Gain a +1 bonus to two unmarked character traits and mark them.",
+                "value": 0,
+                "maxValue": 3,
+                "minValue": 0
+              },
+              {
+                "name": "Permanently gain one Hit Point slot",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Permanently gain one Stress slot",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Permanently gain a +1 bonus to two Experiences",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              },
+              {
+                "name": "Permanently gain a +1 bonus to your Evasion",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              },
+              {
+                "name": "Choose an additional domain card of your level or lower from a domain you have access to (up to level 7).",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 1
+              },
+              {
+                "name": "Take an upgraded subclass card. Then cross out the multiclass option for this tier",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 1
+              },
+              {
+                "name": "Increase your Proficiency by +1.",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Multiclass: Choose an additional class for your character, then cross out an unused “Take an upgraded subclass card” and the other multiclass option on this sheet",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              }
+            ]
+          },
+          "groupId": "3031782d-d879-4d7d-90c1-e824f3dc27de",
+          "attachedTo": [
+            "bda6176d-4d58-4007-bb06-869cedcf4580",
+            "be61e77d-7d60-4606-92fa-0d518072a294"
+          ]
+        },
+        {
+          "id": "be61e77d-7d60-4606-92fa-0d518072a294",
+          "type": "LABEL",
+          "x": 240,
+          "y": 830,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1750,
+          "data": {
+            "label": "On level ups \"5-7\": Choose two options from the list below or any from the previous tier and mark them.",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "3031782d-d879-4d7d-90c1-e824f3dc27de",
+          "attachedTo": [
+            "e5847e5d-845a-4e67-b6b1-4c84cc110f72",
+            "ae9c00fd-ffe9-4fa4-993b-f7a0c20c5e60"
+          ]
+        },
+        {
+          "id": "bda6176d-4d58-4007-bb06-869cedcf4580",
+          "type": "LABEL",
+          "x": 240,
+          "y": 1100,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1750,
+          "data": {
+            "label": "Take an additional domain card of your level or lower from a domain you have access to",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "3031782d-d879-4d7d-90c1-e824f3dc27de",
+          "attachedTo": ["ae9c00fd-ffe9-4fa4-993b-f7a0c20c5e60"]
+        },
+        {
+          "id": "e5847e5d-845a-4e67-b6b1-4c84cc110f72",
+          "type": "LABEL",
+          "x": 240,
+          "y": 800,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1750,
+          "data": {
+            "label": "At level 5, gain an additional Experience at +2 and clear all marks on character traits. Then gain a +1 bonus to your Proficiency.",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "3031782d-d879-4d7d-90c1-e824f3dc27de",
+          "attachedTo": ["be61e77d-7d60-4606-92fa-0d518072a294"]
+        },
+        {
+          "id": "47d05fcf-4026-4d80-84e2-106e30d3f8ed",
+          "type": "NUMBER",
+          "x": 240,
+          "y": 1220,
+          "w": 980,
+          "h": 240,
+          "zIndex": 1751,
+          "data": {
+            "label": "Tier 3",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "numberItems": [
+              {
+                "name": "Gain a +1 bonus to two unmarked character traits and mark them.",
+                "value": 0,
+                "maxValue": 3,
+                "minValue": 0
+              },
+              {
+                "name": "Permanently gain one Hit Point slot",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Permanently gain one Stress slot",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Permanently gain a +1 bonus to two Experiences",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              },
+              {
+                "name": "Permanently gain a +1 bonus to your Evasion",
+                "value": 0,
+                "maxValue": 1,
+                "minValue": 0
+              },
+              {
+                "name": "Choose an additional domain card of your level or lower from a domain you have access to",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 1
+              },
+              {
+                "name": "Take an upgraded subclass card. Then cross out the multiclass option for this tier",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 1
+              },
+              {
+                "name": "Increase your Proficiency by +1.",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              },
+              {
+                "name": "Multiclass: Choose an additional class for your character, then cross out an unused “Take an upgraded subclass card” and the other multiclass option on this sheet",
+                "value": 0,
+                "minValue": 0,
+                "maxValue": 2
+              }
+            ]
+          },
+          "groupId": "1405cb6f-1330-4b6f-afb9-5a19cb1e3967",
+          "attachedTo": [
+            "eafaa35f-1174-4bbf-b415-314071a5779e",
+            "0bf4cd7f-6901-4d93-9e3d-c5641eb2ccb9"
+          ]
+        },
+        {
+          "id": "0bf4cd7f-6901-4d93-9e3d-c5641eb2ccb9",
+          "type": "LABEL",
+          "x": 240,
+          "y": 1190,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1751,
+          "data": {
+            "label": "On level ups \"8-10\": Choose two options from the list below or any from the previous tier and mark them.",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "1405cb6f-1330-4b6f-afb9-5a19cb1e3967",
+          "attachedTo": [
+            "833cebc1-08a4-494a-90dc-a741890e5b34",
+            "47d05fcf-4026-4d80-84e2-106e30d3f8ed"
+          ]
+        },
+        {
+          "id": "eafaa35f-1174-4bbf-b415-314071a5779e",
+          "type": "LABEL",
+          "x": 240,
+          "y": 1460,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1751,
+          "data": {
+            "label": "Take an additional domain card of your level or lower from a domain you have access to",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "1405cb6f-1330-4b6f-afb9-5a19cb1e3967",
+          "attachedTo": ["47d05fcf-4026-4d80-84e2-106e30d3f8ed"]
+        },
+        {
+          "id": "833cebc1-08a4-494a-90dc-a741890e5b34",
+          "type": "LABEL",
+          "x": 240,
+          "y": 1160,
+          "w": 980,
+          "h": 30,
+          "zIndex": 1751,
+          "data": {
+            "label": "At level 8, gain an additional Experience at +2 and clear all marks on character traits. Then gain a +1 bonus to your Proficiency.",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "1405cb6f-1330-4b6f-afb9-5a19cb1e3967",
+          "attachedTo": ["0bf4cd7f-6901-4d93-9e3d-c5641eb2ccb9"]
+        },
+        {
+          "id": "38456a31-2327-4d92-9720-012afe7d0c0f",
+          "type": "LABEL",
+          "x": 240,
+          "y": 440,
+          "w": 980,
+          "h": 40,
+          "zIndex": 1748,
+          "data": {
+            "label": "List below is only for tracking the uses. If there are any changes to statistic put them into the Stats bonus table above",
+            "value": 0,
+            "items": [],
+            "text": ""
+          }
+        },
+        {
+          "id": "0efc48f9-ffdb-4941-b26d-5d2e86a364a8",
+          "type": "TOGGLE",
+          "x": 1030,
+          "y": 130,
+          "w": 180,
+          "h": 50,
+          "zIndex": 1842,
+          "data": {
+            "label": "Agility",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true
+          },
+          "groupId": "45cdd121-ded6-4e91-8c41-f2b476bfc599",
+          "attachedTo": ["a854d5e9-fa1c-4ce2-815b-87cfe818f30c"]
+        },
+        {
+          "id": "a854d5e9-fa1c-4ce2-815b-87cfe818f30c",
+          "type": "TOGGLE",
+          "x": 1030,
+          "y": 180,
+          "w": 180,
+          "h": 50,
+          "zIndex": 1842,
+          "data": {
+            "label": "Strength",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true
+          },
+          "groupId": "45cdd121-ded6-4e91-8c41-f2b476bfc599",
+          "attachedTo": [
+            "0efc48f9-ffdb-4941-b26d-5d2e86a364a8",
+            "eb076b35-a2eb-495b-ac61-26e8ac79c5e8"
+          ]
+        },
+        {
+          "id": "eb076b35-a2eb-495b-ac61-26e8ac79c5e8",
+          "type": "TOGGLE",
+          "x": 1030,
+          "y": 230,
+          "w": 180,
+          "h": 50,
+          "zIndex": 1842,
+          "data": {
+            "label": "Finesse",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true
+          },
+          "groupId": "45cdd121-ded6-4e91-8c41-f2b476bfc599",
+          "attachedTo": [
+            "a854d5e9-fa1c-4ce2-815b-87cfe818f30c",
+            "5082cd53-c2bc-476a-98dd-825a2ef933fa"
+          ]
+        },
+        {
+          "id": "5082cd53-c2bc-476a-98dd-825a2ef933fa",
+          "type": "TOGGLE",
+          "x": 1030,
+          "y": 280,
+          "w": 180,
+          "h": 50,
+          "zIndex": 1842,
+          "data": {
+            "label": "Instinct",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true
+          },
+          "groupId": "45cdd121-ded6-4e91-8c41-f2b476bfc599",
+          "attachedTo": [
+            "eb076b35-a2eb-495b-ac61-26e8ac79c5e8",
+            "7e269324-2f87-41b4-b836-2a46f7d92800"
+          ]
+        },
+        {
+          "id": "7e269324-2f87-41b4-b836-2a46f7d92800",
+          "type": "TOGGLE",
+          "x": 1030,
+          "y": 330,
+          "w": 180,
+          "h": 50,
+          "zIndex": 1842,
+          "data": {
+            "label": "Presence",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false,
+            "inlineLabel": true
+          },
+          "groupId": "45cdd121-ded6-4e91-8c41-f2b476bfc599",
+          "attachedTo": [
+            "5082cd53-c2bc-476a-98dd-825a2ef933fa",
+            "67dde868-f3b2-47d0-af7a-2aca1f25f55d"
+          ]
+        },
+        {
+          "id": "67dde868-f3b2-47d0-af7a-2aca1f25f55d",
+          "type": "TOGGLE",
+          "x": 1030,
+          "y": 380,
+          "w": 180,
+          "h": 50,
+          "zIndex": 1842,
+          "data": {
+            "label": "Knowledge",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleState": false
+          },
+          "groupId": "45cdd121-ded6-4e91-8c41-f2b476bfc599",
+          "attachedTo": ["7e269324-2f87-41b4-b836-2a46f7d92800"]
+        },
+        {
+          "id": "e7d2ab98-cc29-40a2-8cfc-8fea2e20f18e",
+          "type": "LABEL",
+          "x": 1030,
+          "y": 100,
+          "w": 180,
+          "h": 30,
+          "zIndex": 1857,
+          "data": {
+            "label": "Marked attributes",
+            "value": 0,
+            "items": [],
+            "text": ""
+          }
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "23da65e1-da54-4b74-90d8-a27bb84c43a7",
+  "theme": "steampunk",
+  "gameSystem": "Daggerheart"
+}

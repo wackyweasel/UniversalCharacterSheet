@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Widget, WidgetType } from '../types';
 import { useStore } from './useStore';
 import { useTelemetryStore } from './useTelemetryStore';
+import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension } from '../utils/widgetGeometry';
 
 export interface WidgetTemplate {
   id: string;
@@ -42,6 +43,27 @@ export type AnyTemplate = WidgetTemplate | GroupTemplate;
 // Type guard to check if a template is a group template
 export function isGroupTemplate(template: AnyTemplate): template is GroupTemplate {
   return 'isGroup' in template && template.isGroup === true;
+}
+
+function normalizeTemplateGeometry(template: AnyTemplate): AnyTemplate {
+  if (isGroupTemplate(template)) {
+    return {
+      ...template,
+      widgets: template.widgets.map((widget) => ({
+        ...widget,
+        relativeX: snapWidgetCoordinate(widget.relativeX),
+        relativeY: snapWidgetCoordinate(widget.relativeY),
+        ...(widget.w === undefined ? {} : { w: snapWidgetDimension(widget.w) }),
+        ...(widget.h === undefined ? {} : { h: snapWidgetDimension(widget.h) }),
+      })),
+    };
+  }
+
+  return {
+    ...template,
+    ...(template.w === undefined ? {} : { w: snapWidgetDimension(template.w) }),
+    ...(template.h === undefined ? {} : { h: snapWidgetDimension(template.h) }),
+  };
 }
 
 function recordTemplateEvent(
@@ -91,7 +113,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
     }
   })();
 
-  const initialTemplates = persisted?.templates ?? [];
+  const initialTemplates = (persisted?.templates ?? []).map(normalizeTemplateGeometry);
 
   // Subscribe to persist changes
   const persistTemplates = (templates: AnyTemplate[]) => {
@@ -113,8 +135,8 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
         id: uuidv4(),
         name: name || widget.data.label || `${widget.type} Template`,
         type: widget.type,
-        w: widget.w,
-        h: widget.h,
+        w: snapWidgetDimension(widget.w),
+        h: snapWidgetDimension(widget.h),
         data: { ...widget.data },
         createdAt: Date.now(),
       };
@@ -134,13 +156,15 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
     addGroupTemplate: (widgets, name) => {
       if (widgets.length === 0) return;
       
+      const normalizedWidgets = widgets.map(normalizeWidgetGeometry);
+
       // Calculate the bounding box origin (top-left corner)
-      const minX = Math.min(...widgets.map(w => w.x));
-      const minY = Math.min(...widgets.map(w => w.y));
+      const minX = Math.min(...normalizedWidgets.map(w => w.x));
+      const minY = Math.min(...normalizedWidgets.map(w => w.y));
       
       // Create a mapping of widget IDs to indices
       const idToIndex = new Map<string, number>();
-      widgets.forEach((w, idx) => {
+      normalizedWidgets.forEach((w, idx) => {
         idToIndex.set(w.id, idx);
       });
       
@@ -148,7 +172,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
       const attachmentSet = new Set<string>();
       const attachments: [number, number][] = [];
       
-      widgets.forEach((w, idx) => {
+      normalizedWidgets.forEach((w, idx) => {
         if (w.attachedTo) {
           w.attachedTo.forEach(attachedId => {
             const attachedIdx = idToIndex.get(attachedId);
@@ -165,12 +189,12 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
       });
       
       // Create widget templates with relative positions
-      const widgetTemplates: GroupWidgetTemplate[] = widgets.map(w => ({
+      const widgetTemplates: GroupWidgetTemplate[] = normalizedWidgets.map(w => ({
         type: w.type,
-        relativeX: w.x - minX,
-        relativeY: w.y - minY,
-        w: w.w,
-        h: w.h,
+        relativeX: snapWidgetCoordinate(w.x - minX),
+        relativeY: snapWidgetCoordinate(w.y - minY),
+        w: snapWidgetDimension(w.w),
+        h: snapWidgetDimension(w.h),
         data: JSON.parse(JSON.stringify(w.data)), // Deep clone
       }));
       
@@ -198,7 +222,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
 
     addImportedTemplate: (template) => {
       set((state) => {
-        const newTemplates = [...state.templates, template];
+        const newTemplates = [...state.templates, normalizeTemplateGeometry(template)];
         persistTemplates(newTemplates);
         return { templates: newTemplates };
       });
@@ -231,8 +255,9 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
     },
 
     replaceTemplates: (templates) => {
-      persistTemplates(templates);
-      set({ templates });
+      const normalizedTemplates = templates.map(normalizeTemplateGeometry);
+      persistTemplates(normalizedTemplates);
+      set({ templates: normalizedTemplates });
     },
   };
 });

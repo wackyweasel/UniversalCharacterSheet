@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, CheckboxItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 
 interface Props {
@@ -118,7 +119,7 @@ function RemoveChecklistItemsModal({ items, onConfirm, onCancel }: { items: Chec
                 onChange={() => toggleSelection(index)}
                 className="h-4 w-4 flex-shrink-0 accent-theme-accent"
               />
-              <span className={`min-w-0 flex-1 truncate ${item.checked ? 'line-through opacity-70' : ''}`}>{item.name}</span>
+              <span className={`min-w-0 flex-1 truncate ${item.checked ? 'line-through opacity-70' : ''}`}><InlineFormulaText text={item.name} /></span>
             </label>
           ))}
         </div>
@@ -140,12 +141,13 @@ function RemoveChecklistItemsModal({ items, onConfirm, onCancel }: { items: Chec
 
 export default function CheckboxWidget({ widget, height, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, checkboxItems = [], checklistSettings } = widget.data;
+  const { label, checkboxItems = [], checklistSettings, itemColumns } = widget.data;
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const itemsInteractive = interactive && mode !== 'print';
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
+  const verticalAlignment = checklistSettings?.verticalAlignment ?? 'top';
 
   // Fixed small sizing
   const itemClass = 'text-xs';
@@ -187,7 +189,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className="widget-structure-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {controlsVisible && (
@@ -231,11 +233,11 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
           }
         }}
       >
-        {(checkboxItems as CheckboxItem[]).map((item, idx) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={2} items={(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <button
             type="button"
             key={idx} 
-            className={`w-full flex items-center text-left ${gapClass} ${itemsInteractive ? 'cursor-pointer' : 'cursor-default'}`}
+            className={`w-full flex ${verticalAlignment === 'center' ? 'items-center' : 'items-start'} text-left ${gapClass} ${itemsInteractive ? 'cursor-pointer' : 'cursor-default'}`}
             onClick={() => toggleItem(idx)}
             onMouseDown={(e) => e.stopPropagation()}
             disabled={!itemsInteractive}
@@ -252,12 +254,12 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
             <span className={`flex-1 ${itemClass} font-body text-theme-ink ${item.checked && strikethrough ? 'line-through text-theme-muted' : ''}`}>
               {mode === 'play' && item.tooltip ? (
                 <Tooltip content={item.tooltip}>
-                  <span>{item.name}</span>
+                  <span><InlineFormulaText text={item.name} /></span>
                 </Tooltip>
-              ) : item.name}
+              ) : <InlineFormulaText text={item.name} />}
             </span>
           </button>
-        ))}
+        ))} />
         {checkboxItems.length === 0 && (
           <WidgetEmptyState
             title="Nothing on the checklist"
@@ -276,7 +278,6 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
     </div>
   );
 }
-
 
 
 

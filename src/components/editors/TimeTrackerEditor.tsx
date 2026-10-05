@@ -5,7 +5,7 @@ import { TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 
 export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
-  const { label, roundMode = false, effectSuggestions = [] } = widget.data;
+  const { roundMode = false, effectSuggestions = [] } = widget.data;
   const [newSuggestion, setNewSuggestion] = useState('');
 
   const addSuggestion = () => {
@@ -33,31 +33,6 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
             <li>Time can also be tracked from the Initiative Tracker and Rest button</li>
           </ul>
         </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="General">
-        <label className="block text-xs font-semibold text-theme-ink">
-          Widget label
-        <div className="relative">
-          <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Temporary Effects"
-          />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        </label>
       </CollapsibleSection>
 
       <CollapsibleSection className="widget-editor__option-group">

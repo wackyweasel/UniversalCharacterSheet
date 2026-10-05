@@ -18,6 +18,13 @@ interface SheetErrorBoundaryState {
   hasError: boolean;
 }
 
+function isDarkModeEnabled() {
+  const storedDarkMode = localStorage.getItem('ucs:darkMode');
+  return storedDarkMode !== null
+    ? storedDarkMode === 'true'
+    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 class SheetErrorBoundary extends Component<SheetErrorBoundaryProps, SheetErrorBoundaryState> {
   state: SheetErrorBoundaryState = { hasError: false };
 
@@ -32,16 +39,18 @@ class SheetErrorBoundary extends Component<SheetErrorBoundaryProps, SheetErrorBo
   render() {
     if (!this.state.hasError) return this.props.children;
 
+    const darkMode = isDarkModeEnabled();
+
     return (
-      <main className="h-full flex items-center justify-center bg-gray-100 p-6">
-        <section className="w-full max-w-lg border-2 border-ink bg-paper p-6 shadow-[6px_6px_0_var(--color-ink)]">
+      <main className={`h-full flex items-center justify-center p-6 ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
+        <section className={`w-full max-w-lg border p-6 ${darkMode ? 'border-white/30 bg-black' : 'border-gray-300 bg-white'}`}>
           <h1 className="text-xl font-bold">This character could not be displayed</h1>
-          <p className="mt-3 text-sm">
+          <p className={`mt-3 text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>
             Its saved data is still intact. Return to the character list to create a backup or open another character.
           </p>
           <button
             type="button"
-            className="mt-5 border-2 border-ink bg-accent px-4 py-2 font-bold text-paper hover:opacity-90"
+            className={`mt-5 border px-4 py-2 font-bold ${darkMode ? 'border-white/40 hover:bg-white/10' : 'border-gray-400 hover:bg-gray-100'}`}
             onClick={() => useStore.getState().selectCharacter(null)}
           >
             Return to characters
@@ -61,10 +70,7 @@ function App() {
   const workspaceError = useStorageWorkspaceStore((state) => state.error);
   const initializeWorkspaces = useStorageWorkspaceStore((state) => state.initialize);
   const resetBrowserWorkspace = useStorageWorkspaceStore((state) => state.resetBrowserWorkspace);
-  const storedDarkMode = localStorage.getItem('ucs:darkMode');
-  const darkMode = storedDarkMode !== null
-    ? storedDarkMode === 'true'
-    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const darkMode = isDarkModeEnabled();
 
   useEffect(() => {
     void initializeWorkspaces();

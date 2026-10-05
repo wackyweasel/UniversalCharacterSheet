@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, ToggleItem } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -118,7 +119,7 @@ function RemoveConditionsModal({ items, onConfirm, onCancel }: { items: ToggleIt
                 onChange={() => toggleSelection(index)}
                 className="h-4 w-4 flex-shrink-0 accent-theme-accent"
               />
-              <span className="min-w-0 flex-1 truncate">{item.name}</span>
+              <span className="min-w-0 flex-1 truncate"><InlineFormulaText text={item.name} /></span>
               {item.active && <span className="flex-shrink-0 text-xs font-semibold">Active</span>}
             </label>
           ))}
@@ -232,7 +233,7 @@ export default function ConditionWidget({ widget, mode, showFieldControls = true
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
           {label && (
             <div className="widget-structure-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {controlsVisible && (
@@ -297,7 +298,7 @@ export default function ConditionWidget({ widget, mode, showFieldControls = true
                   : 'bg-theme-paper text-theme-ink hover:opacity-80'
               }`}
             >
-              {item.name}
+              <InlineFormulaText text={item.name} />
             </button>
           );
           const wrapped = mode === 'play' && item.tooltip ? (

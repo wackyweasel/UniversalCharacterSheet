@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { EditorProps } from './types';
-import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 
@@ -10,7 +9,7 @@ interface DeckCard {
 }
 
 export function DeckEditor({ widget, updateData }: EditorProps) {
-  const { label, deckCards = [{ name: '', amount: 1 }] } = widget.data;
+  const { deckCards = [{ name: '', amount: 1 }] } = widget.data;
   const [amountDrafts, setAmountDrafts] = useState<Record<number, string>>({});
 
   const updateCard = (index: number, field: 'name' | 'amount', value: string | number) => {
@@ -63,30 +62,6 @@ export function DeckEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--legacy-deck space-y-4">
-      <CollapsibleSection title="General">
-        <label className="block text-xs font-semibold text-theme-ink">
-          Widget label
-        <div className="relative">
-          <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Deck Name"
-          />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        </label>
-      </CollapsibleSection>
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">

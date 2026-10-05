@@ -6,8 +6,7 @@ import {
   resolveInlineDiceExpression,
   type ResolvedInlineDiceExpression,
 } from '../utils/inlineDice';
-import { collectLabels } from '../utils/formulaEngine';
-import { useStore } from '../store/useStore';
+import { useFormulaLabels } from './useFormulaLabels';
 import { addTimelineEvent } from '../store/useTimelineStore';
 import type { Widget } from '../types';
 
@@ -20,11 +19,9 @@ export interface InlineDiceRollState {
   rolling: boolean;
 }
 
-export function useInlineDiceRoll(widget: Widget) {
-  const characters = useStore((state) => state.characters);
-  const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const activeCharacter = characters.find((character) => character.id === activeCharacterId);
-  const labels = activeCharacter ? collectLabels(activeCharacter) : {};
+/** `hasTokens = false` skips label subscriptions for plain text, which has nothing to resolve or roll. */
+export function useInlineDiceRoll(widget: Widget, hasTokens = true) {
+  const labels = useFormulaLabels(hasTokens);
   const [rollState, setRollState] = useState<InlineDiceRollState | null>(null);
   const requestIdRef = useRef(0);
 

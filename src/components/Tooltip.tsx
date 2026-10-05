@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
+import { useInlineFormulaString } from './InlineFormulaText';
 
 interface TooltipProps {
   content: React.ReactNode;
@@ -22,7 +23,9 @@ function markRecentTouch() {
 }
 window.addEventListener('touchstart', markRecentTouch, { passive: true, capture: true });
 
-export function Tooltip({ content, children, placement = 'above' }: TooltipProps) {
+export function Tooltip({ content: rawContent, children, placement = 'above' }: TooltipProps) {
+  const resolvedText = useInlineFormulaString(typeof rawContent === 'string' ? rawContent : undefined);
+  const content = typeof rawContent === 'string' ? resolvedText : rawContent;
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLElement>(null);

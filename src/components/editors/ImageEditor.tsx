@@ -1,19 +1,11 @@
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  ArrowDownToLine,
-  ArrowUpToLine,
-  ImagePlus,
-  RotateCcw,
-  Trash2,
-} from 'lucide-react';
+import { ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { EditorProps } from './types';
 import { getImageCrop, ImageCropInsets } from '../../utils/imageCrop';
 import { Tooltip } from '../Tooltip';
 import { ImageUploadButton } from '../ImageUploadButton';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ImageTitleControls } from './ImageTitleControls';
 import {
   IMAGE_FRAME_THICKNESS_DEFAULT,
   IMAGE_FRAME_THICKNESS_MAX,
@@ -37,12 +29,6 @@ const BORDER_OPTIONS = [
   { value: 'halo', label: 'Halo' },
 ] as const;
 
-const ALIGNMENT_OPTIONS = [
-  { value: 'left', label: 'Align left', Icon: AlignLeft },
-  { value: 'center', label: 'Align center', Icon: AlignCenter },
-  { value: 'right', label: 'Align right', Icon: AlignRight },
-] as const;
-
 type CropEdge = keyof ImageCropInsets;
 
 const MIN_VISIBLE_PERCENT = 15;
@@ -62,16 +48,12 @@ const CROP_HANDLE_CLASSES: Record<CropEdge, string> = {
 
 export function ImageEditor({ widget, updateData }: EditorProps) {
   const {
-    label,
     imageUrl = '',
     imageShape = 'rectangle',
     imageBorderStyle = 'line',
     imageFrameThickness,
     imageFrameColor,
     imageEffect = 'none',
-    hideImageTitle = false,
-    imageTitleAlignment = 'left',
-    imageTitlePosition = 'above',
   } = widget.data;
   const normalizedFrameStyle = normalizeImageFrameStyle(imageBorderStyle);
   const frameThickness = normalizeImageFrameThickness(imageFrameThickness ?? IMAGE_FRAME_THICKNESS_DEFAULT);
@@ -255,93 +237,7 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
         <div className="widget-editor__section-heading">
           <h3 className="widget-editor__section-title">Name</h3>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={hideImageTitle}
-            onChange={(event) => updateData({ hideImageTitle: event.target.checked })}
-            className="h-4 w-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Hide name</span>
-        </label>
-        {!hideImageTitle && <div className="relative mt-3">
-            <input
-              aria-label="Name"
-              className="h-10 w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 pr-8 text-theme-ink focus:border-theme-accent focus:outline-none"
-              value={label || ''}
-              onChange={(e) => updateData({ label: e.target.value })}
-            />
-            {label && (
-              <Tooltip content="Clear label">
-                <button
-                  type="button"
-                  onClick={() => updateData({ label: '' })}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted transition-colors hover:text-theme-ink"
-                >
-                  ×
-                </button>
-              </Tooltip>
-            )}
-          </div>}
-        {!hideImageTitle && <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="image-editor__control-group">
-            <span className="image-editor__control-label">Alignment</span>
-            <div className="flex overflow-hidden rounded-button border border-theme-border">
-            {ALIGNMENT_OPTIONS.map(({ value, label: optionLabel, Icon }) => (
-              <Tooltip key={value} content={optionLabel}>
-                <button
-                  type="button"
-                  aria-label={optionLabel}
-                  aria-pressed={imageTitleAlignment === value}
-                  onClick={() => updateData({ imageTitleAlignment: value })}
-                  className={`flex h-9 flex-1 items-center justify-center transition-colors ${
-                    imageTitleAlignment === value
-                      ? 'bg-theme-accent text-theme-paper'
-                      : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
-            ))}
-            </div>
-          </div>
-          <div className="image-editor__control-group">
-            <span className="image-editor__control-label">Position</span>
-            <div className="flex overflow-hidden rounded-button border border-theme-border">
-              <Tooltip content="Name above image">
-                <button
-                  type="button"
-                  aria-label="Name above image"
-                  aria-pressed={imageTitlePosition === 'above'}
-                  onClick={() => updateData({ imageTitlePosition: 'above' })}
-                  className={`flex h-9 flex-1 items-center justify-center transition-colors ${
-                    imageTitlePosition === 'above'
-                      ? 'bg-theme-accent text-theme-paper'
-                      : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-                  }`}
-                >
-                  <ArrowUpToLine className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
-              <Tooltip content="Name below image">
-                <button
-                  type="button"
-                  aria-label="Name below image"
-                  aria-pressed={imageTitlePosition === 'below'}
-                  onClick={() => updateData({ imageTitlePosition: 'below' })}
-                  className={`flex h-9 flex-1 items-center justify-center transition-colors ${
-                    imageTitlePosition === 'below'
-                      ? 'bg-theme-accent text-theme-paper'
-                      : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-                  }`}
-                >
-                  <ArrowDownToLine className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-        </div>}
+        <ImageTitleControls widget={widget} updateData={updateData} />
       </CollapsibleSection>
 
       <CollapsibleSection>
@@ -477,4 +373,3 @@ export function ImageEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

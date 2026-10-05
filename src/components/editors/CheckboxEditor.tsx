@@ -6,9 +6,10 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { ItemColumnsControl } from './ItemColumnsControl';
 
 export function CheckboxEditor({ widget, updateData }: EditorProps) {
-  const { label, checkboxItems = [], checklistSettings } = widget.data;
+  const { checkboxItems = [], checklistSettings } = widget.data;
   const [newItemName, setNewItemName] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -29,6 +30,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
     onReorder: (items) => updateData({ checkboxItems: items.map(({ item }) => item) }),
   });
   const strikethrough = checklistSettings?.strikethrough !== false; // Default to true
+  const verticalAlignment = checklistSettings?.verticalAlignment ?? 'top';
 
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,31 +80,6 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--checkbox space-y-4">
-      <CollapsibleSection title="General">
-        <div>
-        <label className="block text-sm font-medium text-theme-ink mb-1">Widget Label</label>
-        <div className="relative">
-          <input
-            className="w-full px-3 py-2 pr-8 border border-theme-border rounded-button bg-theme-paper text-theme-ink focus:outline-none focus:border-theme-accent"
-            value={label || ''}
-            onChange={(e) => updateData({ label: e.target.value })}
-            placeholder="Checklist Title"
-          />
-          {label && (
-            <Tooltip content="Clear label">
-              <button
-                type="button"
-                onClick={() => updateData({ label: '' })}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-ink transition-colors"
-              >
-                ×
-              </button>
-            </Tooltip>
-          )}
-        </div>
-        </div>
-      
-      </CollapsibleSection>
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">
@@ -117,6 +94,40 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
           />
           Strike through checked items
         </label>
+        <fieldset className="mt-3">
+          <legend className="mb-1 text-sm font-medium text-theme-ink">Checkbox alignment</legend>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Checkbox alignment">
+            <button
+              type="button"
+              aria-pressed={verticalAlignment === 'top'}
+              onClick={() => updateData({ checklistSettings: { ...checklistSettings, verticalAlignment: 'top' } })}
+              className={`flex min-h-16 flex-col items-center justify-center rounded-button border px-2 py-2 text-center transition-colors ${
+                verticalAlignment === 'top'
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper'
+                  : 'border-theme-border bg-theme-paper text-theme-ink hover:border-theme-accent'
+              }`}
+            >
+              <span className="text-sm font-semibold">Top</span>
+              <span className="text-xs opacity-80">Align with first line</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={verticalAlignment === 'center'}
+              onClick={() => updateData({ checklistSettings: { ...checklistSettings, verticalAlignment: 'center' } })}
+              className={`flex min-h-16 flex-col items-center justify-center rounded-button border px-2 py-2 text-center transition-colors ${
+                verticalAlignment === 'center'
+                  ? 'border-theme-accent bg-theme-accent text-theme-paper'
+                  : 'border-theme-border bg-theme-paper text-theme-ink hover:border-theme-accent'
+              }`}
+            >
+              <span className="text-sm font-semibold">Center</span>
+              <span className="text-xs opacity-80">Center vertically</span>
+            </button>
+          </div>
+        </fieldset>
+        <div className="mt-3">
+          <ItemColumnsControl id={`checkbox-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+        </div>
       </CollapsibleSection>
       
       <CollapsibleSection>
@@ -207,4 +218,3 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, StepDiceItem } from '../../types';
 import {
@@ -12,8 +13,9 @@ import { rollDiceTerms } from '../../utils/diceRoll';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
+import { RenameItemDialog } from './RenameItemDialog';
 
 interface Props {
   widget: Widget;
@@ -28,7 +30,7 @@ export const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d1
 
 export default function StepDiceWidget({ widget, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, stepDiceItems = [], stepDiceChain } = widget.data;
+  const { label, stepDiceItems = [], stepDiceChain, itemColumns } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [lastResults, setLastResults] = useState<Record<number, DiceExpressionRollResult>>({});
@@ -37,6 +39,8 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
   const [addMultiple, setAddMultiple] = useState(false);
   const [itemNameDraft, setItemNameDraft] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
 
   const stepUp = (index: number) => {
@@ -100,6 +104,25 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
     addTimelineEvent(label || 'Step Dice', 'STEP_DICE', `Removed: ${removedNames.join(', ')}`, '➖');
   };
 
+  const openRenameDialog = (index: number) => {
+    if (!interactive || mode === 'print') return;
+    setRenameDraft(stepDiceItems[index].name);
+    setRenamingIndex(index);
+  };
+
+  const closeRenameDialog = () => {
+    setRenamingIndex(null);
+    setRenameDraft('');
+  };
+
+  const saveDieTrackName = (name: string) => {
+    if (renamingIndex === null) return;
+    const updated = [...stepDiceItems] as StepDiceItem[];
+    updated[renamingIndex] = { ...updated[renamingIndex], name };
+    updateWidgetData(widget.id, { stepDiceItems: updated });
+    closeRenameDialog();
+  };
+
   const toggleItemSelection = (index: number) => {
     setSelectedItems((current) => {
       const next = new Set(current);
@@ -113,7 +136,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
     <div className="flex h-full flex-col gap-1 overflow-auto">
       {(label || controlsVisible) && (
         <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
-          {label && <div className="widget-structure-title min-w-0 flex-1 truncate">{label}</div>}
+          {label && <div className="widget-structure-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>}
           {controlsVisible && (
             <div className="step-dice-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
               <Tooltip content={stepDiceItems.length > 0 ? 'Choose die tracks to remove' : 'No die tracks to remove'}>
@@ -152,7 +175,9 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
       )}
       {stepDiceItems.length === 0 ? (
         <WidgetEmptyState title="No step dice configured" hint={controlsVisible ? 'Use + to add a die track.' : undefined} />
-      ) : stepDiceItems.map((item: StepDiceItem, i: number) => {
+      ) : (
+        <div className="flex flex-col gap-1">
+          <WidgetItemColumns columns={itemColumns} rowGap={4} items={stepDiceItems.map((item: StepDiceItem, i: number) => {
         const expression = formatDiceStep(diceChain[item.currentStep]);
         const isValidExpression = !!parseDiceStep(diceChain[item.currentStep]);
         const isAtMin = item.currentStep === 0;
@@ -163,9 +188,18 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
         const row = (
           <div key={i} className="flex items-center gap-1 min-h-[28px]">
             {/* Item name */}
-            <div className="text-xs text-theme-ink font-body truncate min-w-0 flex-shrink" style={{ flex: '1 1 0' }}>
-              {item.name}
-            </div>
+            <button
+              type="button"
+              disabled={!interactive || mode === 'print'}
+              aria-label={`Rename die track ${item.name || `Die track ${i + 1}`}`}
+              onClick={() => openRenameDialog(i)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              className="min-w-0 flex-shrink truncate border-0 bg-transparent p-0 text-left text-xs text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
+              style={{ flex: '1 1 0' }}
+            >
+              <InlineFormulaText text={item.name} />
+            </button>
 
             {/* Step down button */}
             {mode !== 'print' && (
@@ -224,7 +258,9 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
           );
         }
         return row;
-      })}
+      })} />
+        </div>
+      )}
 
       {showAddDialog && createPortal(
         <div
@@ -311,6 +347,16 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
           </div>
         </div>,
         document.body
+      )}
+      {renamingIndex !== null && (
+        <RenameItemDialog
+          id={`step-die-track-${widget.id}`}
+          itemType="Die track"
+          value={renameDraft}
+          onChange={setRenameDraft}
+          onSave={saveDieTrackName}
+          onCancel={closeRenameDialog}
+        />
       )}
     </div>
   );

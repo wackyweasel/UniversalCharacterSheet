@@ -22,6 +22,7 @@ export type WidgetType =
   | 'MIXED_FIELDS'
   | 'REST_BUTTON'
   | 'PROGRESS_BAR'
+  | 'PROGRESS_CLOCK'
   | 'MAP_SKETCHER'
   | 'ROLL_TABLE'
   | 'GRID_MAP'
@@ -30,7 +31,8 @@ export type WidgetType =
   | 'DECK'
   | 'DECK_OF_CARDS'
   | 'TIMER'
-  | 'STEP_DICE';
+  | 'STEP_DICE'
+  | 'WALLET';
 
 export interface GridMapPoint {
   column: number;
@@ -61,6 +63,9 @@ export interface ToggleItem {
 export interface RollTableItem {
   text: string;
   weight: number;
+  description?: string;
+  weightLabel?: string;
+  weightFormula?: string;
 }
 
 export interface DeckCard {
@@ -125,6 +130,8 @@ export interface InventoryItemField {
   name: string;
   type: InventoryFieldType;
   value: InventoryFieldValue;
+  valueLabel?: string;
+  valueFormula?: string;
   reserved?: 'weight';
   templateId?: string;
 }
@@ -132,6 +139,9 @@ export interface InventoryItemField {
 export interface InventoryItem {
   id: string;
   name: string;
+  quantity?: number;
+  /** Rich text (HTML), shown collapsed on the item card. */
+  description?: string;
   fields: InventoryItemField[];
 }
 
@@ -167,6 +177,13 @@ export interface TableRow {
   cells: (string | TableCell)[];  // Support both legacy string and new TableCell format
 }
 
+export interface TableMerge {
+  row: number;
+  col: number;
+  rowSpan: number;
+  colSpan: number;
+}
+
 export interface TableColumnSettings {
   format?: CellFormat;
   label?: string;
@@ -188,6 +205,7 @@ export interface CheckboxItem {
 
 export interface ChecklistSettings {
   strikethrough?: boolean;
+  verticalAlignment?: 'top' | 'center';
 }
 
 export interface SpellLevel {
@@ -238,6 +256,8 @@ export interface DisplayNumber {
 export interface FormItem {
   name: string;
   value: string;
+  valueLabel?: string;
+  valueFormula?: string;
   tooltip?: string;
 }
 
@@ -249,12 +269,12 @@ interface MixedFieldBase {
 }
 
 export type MixedField = MixedFieldBase & (
-  | { type: 'text'; value: string }
+  | { type: 'text'; value: string; valueLabel?: string; valueFormula?: string }
   | { type: 'number'; value: number; showPositiveSign?: boolean; valueLabel?: string; valueFormula?: string; minValue?: number; minValueLabel?: string; minValueFormula?: string; maxValue?: number; maxValueLabel?: string; maxValueFormula?: string; showIncrementButtons?: boolean }
   | { type: 'progress'; current: number; currentLabel?: string; currentFormula?: string; min?: number; minLabel?: string; minFormula?: string; max: number; maxLabel?: string; maxFormula?: string; showPercentage?: boolean; showValues?: boolean; fillColor?: string }
   | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }
   | { type: 'step-dice'; currentStep: number; diceChain?: DiceStep[] }
-  | { type: 'menu'; value: string; options: string[] }
+  | { type: 'menu'; value: string; options: string[]; valueLabel?: string }
   | { type: 'switch'; value: boolean; valueLabel?: string; toggleColor?: string }
 );
 
@@ -299,6 +319,7 @@ export interface PoolRestoreTarget {
 export interface InitiativeParticipant {
   name: string;
   diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
+  diceExpression?: string; // Dice expression (e.g. 2d20kh); takes precedence over diceFaces
   flatBonus: number;   // Flat bonus to add to the roll
   flatBonusLabel?: string;
   flatBonusFormula?: string;
@@ -306,9 +327,22 @@ export interface InitiativeParticipant {
   id: string;          // Unique ID for drag/drop ordering
   name: string;
   diceFaces: number;
+  diceExpression?: string;
   flatBonus: number;
   rollResult?: number; // The result of the initiative roll (including bonus)
   isTemporary?: boolean; // True if added on-the-fly (not from pool)
+}
+
+export interface ProgressClockItem {
+  id: string;
+  name: string;
+  segments: number;
+  value: number;
+  segmentsLabel?: string;
+  segmentsFormula?: string;
+  valueLabel?: string;
+  valueFormula?: string;
+  fillColor?: string;
 }
 
 export interface WidgetData {
@@ -346,16 +380,27 @@ export interface WidgetData {
   showValues?: boolean;
   inlineLabel?: boolean;
   allowOutOfRange?: boolean;
+  clockItems?: ProgressClockItem[];
+  clockLayout?: 'horizontal' | 'vertical';
+  clockSize?: number;
+  clockShowValues?: boolean;
+  clockLabelPosition?: 'above' | 'below';
+  clockCounterClockwise?: boolean;
+  clockStartAngle?: number;
   // Dice Roller
   diceCount?: number;
   diceType?: number;
   modifier?: number;
   diceGroups?: DiceGroup[];
+  diceUseExpression?: boolean;
+  diceExpression?: string;
   showRollDetails?: boolean;
   showRollDetailsButton?: boolean;
+  autoShowRollDetails?: boolean;
   // Dice Tray
   showTrayRollDetails?: boolean;
   showTrayRollDetailsButton?: boolean;
+  autoShowTrayRollDetails?: boolean;
   diceButtonScale?: number;
   // Legacy setting used to initialize details for existing saved widgets.
   showIndividualResults?: boolean;
@@ -371,13 +416,16 @@ export interface WidgetData {
   numberItems?: NumberItem[];
   // Number Display
   displayNumbers?: DisplayNumber[];
-  displayLayout?: 'horizontal' | 'vertical';
+  displayLayout?: 'horizontal' | 'vertical' | 'auto';
+  numberBoxFixedAspectRatio?: boolean;
   numberBoxScale?: number;
   showDisplayNumberMax?: boolean;
   showDisplayNumberLabels?: boolean;
   showSecondaryDisplayNumbers?: boolean;
   secondaryDisplayAutoCompute?: boolean;
   secondaryDisplayModifierRanges?: ModifierRange[];
+  // Form, Mixed Fields, Number, Pool, List & Step Dice
+  itemColumns?: number;
   // Form
   formItems?: FormItem[];
   // Form & Mixed Fields
@@ -385,6 +433,7 @@ export interface WidgetData {
   itemSpacing?: number;
   // Mixed Fields
   mixedFields?: MixedField[];
+  mixedFieldsAlignment?: 'left' | 'center' | 'right';
   // Image
   imageUrl?: string;
   imageShape?: 'rectangle' | 'oval' | 'circle';
@@ -419,11 +468,14 @@ export interface WidgetData {
   // Table
   columns?: string[];
   rows?: TableRow[];
+  tableMergedCells?: TableMerge[];
   tableColumnSettings?: TableColumnSettings[];
   tableRowSettings?: TableRowSettings[];
   hideTableHeader?: boolean;
   tableCornerRadius?: boolean;
   showTableEditButton?: boolean;
+  showCardCount?: boolean; // Defaults to true for existing card decks.
+  hideCardCount?: boolean; // Legacy-compatible inverse accepted when loading saved decks.
   // Time Tracker
   timedEffects?: TimedEffect[];
   roundMode?: boolean;
@@ -434,6 +486,7 @@ export interface WidgetData {
   buttonTextColor?: string;
   healToFull?: boolean;
   healRandomDice?: DiceGroup[];
+  healDiceExpression?: string;
   healFlatAmount?: number;
   poolRestores?: PoolRestoreTarget[];
   clearConditions?: boolean;
@@ -462,6 +515,9 @@ export interface WidgetData {
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
+  rollTableAnimate?: boolean;
+  rollTableResultCount?: number;
+  rollTableAllowRepeats?: boolean;
   // Deck of Cards
   deckCards?: DeckCard[];
   deckState?: DeckState | null;
@@ -481,6 +537,7 @@ export interface WidgetData {
   // Initiative Tracker
   initiativePool?: InitiativeParticipant[];        // Regular pool of names available to add
   initiativeEncounter?: InitiativeEncounterEntry[]; // Current encounter participants
+  initiativeParticipantCardHeight?: number;        // Height of encounter participant cards in pixels
   initiativeShowRollButton?: boolean;               // Whether to show the Roll Initiative button
   initiativeShowTimer?: boolean;                    // Whether to show the active turn timer
   initiativeCurrentIndex?: number;                  // Index of the currently highlighted participant
@@ -501,6 +558,10 @@ export interface WidgetData {
   // Step Dice
   stepDiceItems?: StepDiceItem[];  // Array of step dice traits
   stepDiceChain?: DiceStep[];      // Custom dice chain (default: [1d4,1d6,1d8,1d10,1d12,1d20])
+  // Wallet
+  walletCurrencies?: WalletCurrency[]; // Ordered from smallest to largest
+  walletShowTotal?: boolean;
+  walletTotalCurrency?: number;        // Index of the currency used for the total (default: largest)
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values
@@ -520,6 +581,12 @@ export interface StepDiceItem {
   name: string;
   currentStep: number;  // Index into the dice chain
   tooltip?: string;
+}
+
+export interface WalletCurrency {
+  name: string;
+  amount: number;
+  rate: number; // How many of the previous (smaller) currency make one of this; ignored for the first
 }
 
 export interface Widget {

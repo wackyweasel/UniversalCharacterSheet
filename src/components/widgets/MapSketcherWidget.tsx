@@ -1,4 +1,5 @@
 import { PointerEvent as ReactPointerEvent, useState, useRef, useEffect, useCallback } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from '../Tooltip';
@@ -842,7 +843,7 @@ export default function MapSketcherWidget({ widget, mode, sheetScale = 1 }: Prop
     <div className="flex flex-col w-full h-full min-h-0 gap-1 relative">
       {label && (
         <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate">{label}</div>
+          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
         </div>
       )}
 
@@ -905,6 +906,7 @@ export default function MapSketcherWidget({ widget, mode, sheetScale = 1 }: Prop
       <div ref={canvasShellRef} className="relative min-h-0 flex-1 overflow-hidden rounded-theme border border-theme-border bg-theme-paper mx-1 mb-1">
         <canvas
           ref={canvasRef}
+          data-camera-pan-ignore={mode === 'play' ? 'true' : undefined}
           tabIndex={mode === 'play' ? 0 : -1}
           aria-label={`Map sketcher with ${shapes.length} shape${shapes.length === 1 ? '' : 's'}`}
           onPointerDown={handlePointerDown}

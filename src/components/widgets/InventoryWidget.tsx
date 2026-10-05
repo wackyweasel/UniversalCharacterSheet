@@ -1,15 +1,23 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
-import { getCharacterGlobalInventoryLoad, getInventoryLoad } from '../../utils/inventory';
+import {
+  getCharacterGlobalInventoryLoad,
+  getInventoryItemQuantity,
+  getInventoryLoad,
+} from '../../utils/inventory';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
-import { GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon } from '../icons';
+import { InventoryEditor } from '../editors/InventoryEditor';
+import { ChevronDownIcon, GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
+import { InlineDiceRichText } from '../InlineDiceRichText';
 import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import { SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import InventoryItemDialog from './InventoryItemDialog';
+import InventoryQuantityDialog from './InventoryQuantityDialog';
 
 interface InventoryWidgetProps {
   widget: Widget;
@@ -47,7 +55,15 @@ function formatFieldValue(item: InventoryItem, fieldIndex: number): string {
   if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
   if (field.type === 'number') {
     const value = Number(field.value);
-    return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 3 }) : '0';
+    const formattedValue = Number.isFinite(value)
+      ? value.toLocaleString(undefined, { maximumFractionDigits: 3 })
+      : '0';
+    const quantity = getInventoryItemQuantity(item);
+    if (field.reserved === 'weight' && quantity !== undefined && quantity !== 1) {
+      const multipliedValue = Number.isFinite(value) ? value * quantity : 0;
+      return `${formattedValue} (${multipliedValue.toLocaleString(undefined, { maximumFractionDigits: 3 })})`;
+    }
+    return formattedValue;
   }
   return String(field.value) || '-';
 }
@@ -97,6 +113,37 @@ function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?:
   );
 }
 
+interface InventoryQuantityProps {
+  item: InventoryItem;
+  canInteract: boolean;
+  onEdit: (item: InventoryItem) => void;
+}
+
+function InventoryQuantity({ item, canInteract, onEdit }: InventoryQuantityProps) {
+  const quantity = getInventoryItemQuantity(item);
+  if (quantity === undefined) return null;
+
+  const formattedQuantity = quantity.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (!canInteract) return <span> (x{formattedQuantity})</span>;
+
+  return (
+    <span className="whitespace-nowrap">(x<button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onEdit(item);
+      }}
+      onMouseDown={(event) => event.stopPropagation()}
+      aria-label={`Edit quantity for ${item.name}`}
+      title="Edit quantity"
+      data-touch-camera-ignore="true"
+      className="border-b border-dashed border-theme-muted font-bold text-theme-ink hover:border-theme-accent hover:text-theme-accent"
+    >
+      {formattedQuantity}
+    </button>)</span>
+  );
+}
+
 function InventoryWidget({
   widget,
   mode,
@@ -106,6 +153,7 @@ function InventoryWidget({
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const moveInventoryItem = useStore((state) => state.moveInventoryItem);
   const saveInventoryItem = useStore((state) => state.saveInventoryItem);
+  const splitInventoryItem = useStore((state) => state.splitInventoryItem);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const activeCharacter = characters.find((character) => character.id === activeCharacterId);
@@ -118,8 +166,11 @@ function InventoryWidget({
   const localLoad = useMemo(() => getInventoryLoad(inventoryItems), [inventoryItems]);
   const globalLoad = useMemo(() => getCharacterGlobalInventoryLoad(activeCharacter), [activeCharacter]);
   const [dialogItem, setDialogItem] = useState<InventoryItem | null | undefined>(undefined);
+  const [quantityDialogItem, setQuantityDialogItem] = useState<InventoryItem | null>(null);
+  const [weightOptionsOpen, setWeightOptionsOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
+  const [expandedDescriptionIds, setExpandedDescriptionIds] = useState<Set<string>>(() => new Set());
   const dragRef = useRef<ActiveDrag | null>(null);
   const removeDragListenersRef = useRef<(() => void) | null>(null);
   const activeDropZoneRef = useRef<HTMLElement | null>(null);
@@ -331,6 +382,15 @@ function InventoryWidget({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [removeDialogOpen]);
 
+  useEffect(() => {
+    if (!weightOptionsOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setWeightOptionsOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [weightOptionsOpen]);
+
   const handleReorderKey = (index: number, event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
     event.preventDefault();
@@ -368,6 +428,25 @@ function InventoryWidget({
       inventoryItems: inventoryItems.filter((item) => !selectedItemIds.has(item.id)),
     });
     closeRemoveDialog();
+  };
+
+  const renderLoadMeter = (props: { value: number; capacity?: number; unit: string; label: string }) => {
+    const meter = <LoadMeter {...props} />;
+    if (!canInteract) return meter;
+    return (
+      <Tooltip content="Edit weight and encumbrance options">
+        <button
+          type="button"
+          onClick={() => setWeightOptionsOpen(true)}
+          onMouseDown={(event) => event.stopPropagation()}
+          aria-label={`Edit ${props.label.toLowerCase()} and encumbrance options`}
+          data-touch-camera-ignore="true"
+          className="block w-full min-w-0 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-theme-accent"
+        >
+          {meter}
+        </button>
+      </Tooltip>
+    );
   };
 
   return (
@@ -408,9 +487,9 @@ function InventoryWidget({
 
       {encumbrance?.enabled && (
         <div className={`grid flex-shrink-0 gap-1 px-[3px] ${encumbrance.showGlobalCounter ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
-          <LoadMeter value={localLoad} capacity={encumbrance.localCapacity} unit={encumbrance.unit || 'kg'} label="Total weight" />
+          {renderLoadMeter({ value: localLoad, capacity: encumbrance.localCapacity, unit: encumbrance.unit || 'kg', label: 'Total weight' })}
           {encumbrance.showGlobalCounter && (
-            <LoadMeter value={globalLoad} capacity={encumbrance.globalCapacity} unit={encumbrance.unit || 'kg'} label="Global weight" />
+            renderLoadMeter({ value: globalLoad, capacity: encumbrance.globalCapacity, unit: encumbrance.unit || 'kg', label: 'Global weight' })
           )}
         </div>
       )}
@@ -429,14 +508,20 @@ function InventoryWidget({
             hint={controlsVisible ? 'Add an item or drop one here.' : undefined}
             compact
           />
-        ) : inventoryItems.map((item, index) => (
+        ) : inventoryItems.map((item, index) => {
+          const hasVisibleFields = item.fields.some((field) => !isInventoryFieldEmpty(field));
+          const handleCellClass = hasVisibleFields ? 'col-start-1 row-start-1 row-span-2' : 'col-start-1 row-start-1';
+          const hasDescription = Boolean(item.description?.trim());
+          const descriptionExpanded = hasDescription && (isPrintMode || expandedDescriptionIds.has(item.id));
+          const descriptionId = `inventory-description-${item.id}`;
+          return (
           <article
             key={item.id}
             data-inventory-item-row="true"
             data-inventory-item-id={item.id}
             className="inventory-item group relative px-1.5 py-1.5 text-theme-ink"
           >
-            <div className="grid min-w-0 grid-cols-[20px_minmax(62px,0.8fr)_minmax(0,1.7fr)_22px] items-center gap-1">
+            <div className="grid min-w-0 grid-cols-[20px_minmax(0,1fr)_22px] items-center gap-1 gap-y-0">
               {canInteract && (
                 <button
                   type="button"
@@ -446,18 +531,26 @@ function InventoryWidget({
                   onClick={(event) => event.stopPropagation()}
                   aria-label={`Move ${item.name}`}
                   title="Drag to move. Arrow keys reorder."
-                  className="inventory-item__drag-handle flex h-5 w-5 touch-none items-center self-center justify-center rounded text-theme-muted hover:text-theme-ink"
+                  className={`inventory-item__drag-handle flex h-5 w-5 touch-none items-center self-center justify-center rounded text-theme-muted hover:text-theme-ink ${handleCellClass}`}
                 >
                   <GripVerticalIcon className="h-3 w-3" />
                 </button>
               )}
-              {!canInteract && <span />}
-              <h3 className="-translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">{item.name}</h3>
-              <dl className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body">
+              {!canInteract && <span className={handleCellClass} />}
+              <h3 className="col-start-2 row-start-1 -translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
+                <InlineFormulaText text={item.name} />
+                {' '}
+                <InventoryQuantity
+                  item={item}
+                  canInteract={canInteract}
+                  onEdit={setQuantityDialogItem}
+                />
+              </h3>
+              <dl className={`col-span-2 col-start-2 row-start-2 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body ${hasVisibleFields ? '' : 'hidden'}`}>
                 {item.fields.map((field, fieldIndex) => (
                   isInventoryFieldEmpty(field) ? null : (
                   <div key={field.id} className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1 text-[9px] leading-3">
-                    <dt className="min-w-0 break-words font-body text-theme-muted [overflow-wrap:anywhere]">{field.name}</dt>
+                    <dt className="min-w-0 break-words font-body text-theme-muted [overflow-wrap:anywhere]"><InlineFormulaText text={field.name} /></dt>
                     <dd className={`min-w-0 whitespace-pre-wrap break-words font-body font-medium [overflow-wrap:anywhere] ${field.type === 'number' ? 'tabular-nums' : ''}`}>
                       {field.type === 'text' || field.type === 'textarea' ? (
                         <InlineDiceText text={formatFieldValue(item, fieldIndex)} widget={widget} />
@@ -467,6 +560,37 @@ function InventoryWidget({
                   )
                 ))}
               </dl>
+              {hasDescription && (
+                <div className="col-span-2 col-start-2 row-start-3 mt-0.5 min-w-0">
+                  {!isPrintMode && (
+                    <button
+                      type="button"
+                      aria-expanded={descriptionExpanded}
+                      aria-controls={descriptionId}
+                      data-touch-camera-ignore="true"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setExpandedDescriptionIds((current) => {
+                          const next = new Set(current);
+                          if (next.has(item.id)) next.delete(item.id);
+                          else next.add(item.id);
+                          return next;
+                        });
+                      }}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      className="flex items-center gap-0.5 text-[9px] font-body leading-3 text-theme-muted hover:text-theme-accent"
+                    >
+                      <ChevronDownIcon className={`h-3 w-3 transition-transform ${descriptionExpanded ? '' : '-rotate-90'}`} />
+                      Description
+                    </button>
+                  )}
+                  {descriptionExpanded && (
+                    <div id={descriptionId} className="notes-rich-text__content !min-h-0 !p-0 !pt-0.5 !text-[10px]">
+                      <InlineDiceRichText html={item.description!} widget={widget} />
+                    </div>
+                  )}
+                </div>
+              )}
               {canInteract && (
                 <Tooltip content={`Edit ${item.name}`}>
                   <button
@@ -477,16 +601,17 @@ function InventoryWidget({
                     }}
                     onMouseDown={(event) => event.stopPropagation()}
                     aria-label={`Edit ${item.name}`}
-                    className="inventory-item__edit flex h-5 w-5 self-center items-center justify-center rounded text-theme-muted opacity-55 hover:bg-theme-accent hover:text-theme-paper group-hover:opacity-100"
+                    className="inventory-item__edit col-start-3 row-start-1 flex h-5 w-5 self-center items-center justify-center rounded text-theme-muted opacity-55 hover:bg-theme-accent hover:text-theme-paper group-hover:opacity-100"
                   >
                     <PencilIcon className="h-3 w-3" />
                   </button>
                 </Tooltip>
               )}
-              {!canInteract && <span />}
+              {!canInteract && <span className="col-start-3 row-start-1" />}
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
 
       {dialogItem !== undefined && canInteract && (
@@ -502,6 +627,74 @@ function InventoryWidget({
           })}
           onDelete={dialogItem ? () => deleteItem(dialogItem.id) : undefined}
         />
+      )}
+
+      {quantityDialogItem && canInteract && (
+        <InventoryQuantityDialog
+          key={quantityDialogItem.id}
+          item={quantityDialogItem}
+          onClose={() => setQuantityDialogItem(null)}
+          onSave={(quantity) => {
+            saveInventoryItem({
+              sourceWidgetId: widget.id,
+              targetWidgetId: widget.id,
+              item: { ...quantityDialogItem, quantity },
+            });
+            setQuantityDialogItem(null);
+          }}
+          onSplit={(keptQuantity, splitQuantity) => {
+            splitInventoryItem({
+              widgetId: widget.id,
+              itemId: quantityDialogItem.id,
+              keptQuantity,
+              splitQuantity,
+            });
+            setQuantityDialogItem(null);
+          }}
+        />
+      )}
+
+      {weightOptionsOpen && canInteract && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4 animate-fade-in"
+          onClick={() => setWeightOptionsOpen(false)}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`inventory-weight-options-title-${widget.id}`}
+            className="flex max-h-[min(90vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink shadow-theme animate-modal-in"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-theme-border px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Inventory</p>
+                <h2 id={`inventory-weight-options-title-${widget.id}`} className="mt-0.5 font-heading text-lg font-bold">
+                  Weight &amp; encumbrance
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWeightOptionsOpen(false)}
+                aria-label="Close weight options"
+                className="widget-control flex h-7 w-7 flex-shrink-0 items-center justify-center"
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-4">
+              <InventoryEditor
+                widget={widget}
+                updateData={(data) => updateWidgetData(widget.id, data)}
+                weightOptionsOnly
+              />
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
 
       {removeDialogOpen && canInteract && createPortal(
@@ -540,7 +733,7 @@ function InventoryWidget({
                     aria-label={`Select ${item.name}`}
                     className="h-4 w-4 flex-shrink-0 accent-theme-accent"
                   />
-                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{item.name}</span>
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]"><InlineFormulaText text={item.name} /></span>
                 </label>
               ))}
             </div>

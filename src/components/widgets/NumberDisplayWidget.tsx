@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, DisplayNumber } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -6,10 +7,11 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetEmptyState, ValueAdjustRow, applyDeltaToDraft } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue } from '../../utils/modifierRanges';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
+import { getNumberDisplayLayout } from '../../utils/numberDisplayLayout';
 
 interface Props {
   widget: Widget;
@@ -25,6 +27,7 @@ interface NumberEditDialog {
   minimum: string;
   maximum: string;
   secondary: string;
+  initialFocus: 'current' | 'secondary';
 }
 
 const parseOptionalNumber = (value: string) => {
@@ -42,8 +45,6 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   const {
     label,
     displayNumbers = [],
-    displayLayout = 'horizontal',
-    numberBoxScale: numberBoxScaleSetting = 100,
     printSettings,
     showDisplayNumberMax = false,
     showDisplayNumberLabels = true,
@@ -117,7 +118,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     return value;
   };
 
-  const handleValueClick = (index: number, currentValue: number) => {
+  const handleValueClick = (index: number, currentValue: number, initialFocus: NumberEditDialog['initialFocus'] = 'current') => {
     const item = (displayNumbers as DisplayNumber[])[index];
     if (item.valueFormula) return;
     setNumberDialog({
@@ -126,6 +127,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
       minimum: item.minValue === undefined ? '' : String(item.minValue),
       maximum: item.maxValue === undefined ? '' : String(item.maxValue),
       secondary: String(item.secondaryValue ?? 0),
+      initialFocus,
     });
   };
 
@@ -236,15 +238,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [numberDialog]);
 
-  const isHorizontal = displayLayout === 'horizontal';
-  const numberBoxScale = Math.min(100, Math.max(50, numberBoxScaleSetting)) / 100;
-  const itemCount = displayNumbers.length || 1;
-  
-  // Font sizes based on available space
-  const minDimension = Math.min(width / (isHorizontal ? itemCount : 1), height / (isHorizontal ? 1 : itemCount));
-  const numberFontSize = Math.max(10, Math.min(20, minDimension * 0.25));
-  const labelFontSize = Math.max(7, Math.min(10, minDimension * 0.12));
-  const secondaryFontSize = Math.max(9, Math.min(15, minDimension * 0.18));
+  const { containerClassName, boxStyle, secondaryBoxStyle, numberFontSize, labelFontSize, secondaryFontSize } =
+    getNumberDisplayLayout(widget.data, width, height);
 
   return (
     <div className="flex h-full w-full flex-col gap-1 overflow-hidden">
@@ -252,7 +247,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
         <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
           {label && (
             <div className="widget-structure-title min-w-0 flex-1 truncate">
-              {label}
+              <InlineFormulaText text={label} />
             </div>
           )}
           {controlsVisible && (
@@ -294,10 +289,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
         </div>
       )}
 
-      {/* Number Items Container - uses flex to distribute space */}
-      <div 
-        className={`flex-1 flex ${isHorizontal ? 'flex-row' : 'flex-col'} items-stretch justify-center gap-1 p-1 min-h-0 min-w-0 overflow-hidden`}
-      >
+      <div className={`flex min-h-0 min-w-0 flex-1 gap-1 p-1 ${containerClassName}`}>
         {(displayNumbers as DisplayNumber[]).map((item, idx) => {
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
           const displayedValue = showDisplayNumberMax && item.maxValue !== undefined ? `${formattedValue}/${item.maxValue}` : formattedValue;
@@ -305,16 +297,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
           return (
           <div 
             key={idx} 
-            className={`relative flex flex-col items-center justify-center border border-theme-border rounded-theme bg-theme-paper overflow-visible ${isHorizontal ? 'flex-1' : 'flex-1'}`}
-            style={{ 
-              minWidth: isHorizontal ? `${30 * numberBoxScale}px` : undefined,
-              maxWidth: isHorizontal ? `${70 * numberBoxScale}px` : undefined,
-              minHeight: !isHorizontal ? `${30 * numberBoxScale}px` : undefined,
-              maxHeight: !isHorizontal ? `${55 * numberBoxScale}px` : undefined,
-              width: !isHorizontal ? `${100 * numberBoxScale}%` : undefined,
-              height: isHorizontal ? `${100 * numberBoxScale}%` : undefined,
-              padding: `${0.25 * numberBoxScale}rem`,
-            }}
+            className="relative flex flex-col items-center justify-center overflow-visible rounded-theme border border-theme-border bg-theme-paper"
+            style={boxStyle}
           >
             <span 
               data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
@@ -345,8 +329,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 style={{ fontSize: `${labelFontSize}px` }}
               >
                 {mode === 'play' && item.tooltip ? (
-                  <Tooltip content={item.tooltip}><span>{item.label}</span></Tooltip>
-                ) : item.label}
+                  <Tooltip content={item.tooltip}><span><InlineFormulaText text={item.label} /></span></Tooltip>
+                ) : <InlineFormulaText text={item.label} />}
               </span>
             )}
 
@@ -354,7 +338,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               secondaryDisplayAutoCompute || item.secondaryValueFormula || isPrintMode ? (
                 <span
                   className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-[0] text-theme-ink"
-                  style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
+                  style={{ ...secondaryBoxStyle, fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                   data-print-hide={hideValues ? 'true' : undefined}
                   aria-label={`${item.label || 'Number'} secondary value ${item.secondaryValue ?? 0}`}
                 >
@@ -366,17 +350,17 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleValueClick(idx, item.value)}
+                  onClick={() => handleValueClick(idx, item.value, 'secondary')}
                   onMouseDown={(event) => event.stopPropagation()}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      handleValueClick(idx, item.value);
+                      handleValueClick(idx, item.value, 'secondary');
                     }
                   }}
                   aria-label={`Edit ${item.label || 'number'} values, currently ${item.value} and ${item.secondaryValue ?? 0}`}
                   className="absolute -bottom-1 -right-1 z-[1] flex min-h-6 min-w-7 items-center justify-center rounded-theme border border-theme-border bg-theme-paper px-1.5 font-body font-bold leading-[0] text-theme-ink transition-shadow hover:ring-1 hover:ring-theme-ink focus:outline-none focus:ring-1 focus:ring-theme-ink"
-                  style={{ fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
+                  style={{ ...secondaryBoxStyle, fontSize: `${secondaryFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
                   data-print-hide={hideValues ? 'true' : undefined}
                 >
                   {formatSignedNumber(item.secondaryValue ?? 0)}
@@ -420,7 +404,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
               <label className="block text-sm font-medium">
                 <span className="mb-1 block">Current value</span>
                 <input
-                  autoFocus
+                  autoFocus={!(numberDialogShowsManualSecondary && numberDialog.initialFocus === 'secondary')}
                   type="text"
                   inputMode="decimal"
                   step="1"
@@ -432,7 +416,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 />
               </label>
 
-              <div className="border-t border-theme-border pt-3">
+              <ValueAdjustRow
+                disabled={numberDialogHasInvalidCurrent}
+                onAdjust={(delta) => setNumberDialog((current) => current ? { ...current, current: applyDeltaToDraft(current.current, delta) } : current)}
+              />
+
+              <div>
                 <p className="text-sm font-medium">Bounds <span className="font-normal text-theme-muted">(optional)</span></p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <label className="text-sm">
@@ -474,6 +463,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 <label className="block border-t border-theme-border pt-3 text-sm font-medium">
                   <span className="mb-1 block">Secondary value</span>
                   <input
+                    autoFocus={numberDialog.initialFocus === 'secondary'}
                     type="number"
                     step="any"
                     value={numberDialog.secondary}
@@ -629,8 +619,5 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     </div>
   );
 }
-
-
-
 
 
