@@ -28,7 +28,7 @@ import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import SheetToolbar from './SheetToolbar';
 import PrintToolbar from './PrintToolbar';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon, GripVerticalIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon, GripVerticalIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
@@ -607,18 +607,11 @@ export default function Sheet() {
     }
   };
 
-  const handleToggleWidgetSidebar = (closeGridMenu = false) => {
-    const wasCollapsed = sidebarCollapsed;
-    setSidebarCollapsed((current) => !current);
+  const handleOpenWidgetSidebar = () => {
+    if (!sidebarCollapsed) return;
+    setSidebarCollapsed(false);
 
-    if (closeGridMenu) {
-      setGridMenuOpen(false);
-    }
-
-    if (
-      wasCollapsed &&
-      (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox'))
-    ) {
+    if (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox')) {
       advanceTutorial();
     }
   };
@@ -1429,8 +1422,7 @@ export default function Sheet() {
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
-          onAddWidget={() => handleToggleWidgetSidebar()}
-          addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+          onAddWidget={() => handleOpenWidgetSidebar()}
           onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
           onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
@@ -1454,23 +1446,26 @@ export default function Sheet() {
         {sheetDropdownOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setSheetDropdownOpen(false)} />
-            <div className="absolute right-2 top-12 z-50 max-h-[calc(100dvh-4rem)] min-w-[160px] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
-              <div className="border-b border-theme-border/50 px-3 py-2">
-                <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
-              </div>
-              {activeCharacter.sheets.map((sheet) => (
-                <button
-                  key={sheet.id}
-                  type="button"
-                  onClick={() => {
-                    selectSheet(sheet.id);
-                    setSheetDropdownOpen(false);
-                  }}
-                  className={`block w-full px-3 py-2 text-left text-xs font-body transition-colors ${sheet.id === activeCharacter.activeSheetId ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink hover:bg-theme-accent/20'}`}
-                >
-                  {sheet.name}
-                </button>
-              ))}
+            <div className="absolute right-2 top-12 z-50 max-h-[calc(100dvh-4rem)] w-[min(240px,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper py-1 shadow-theme animate-dropdown-in">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
+              {activeCharacter.sheets.map((sheet) => {
+                const isActiveSheet = sheet.id === activeCharacter.activeSheetId;
+                return (
+                  <button
+                    key={sheet.id}
+                    type="button"
+                    aria-current={isActiveSheet ? 'true' : undefined}
+                    onClick={() => {
+                      selectSheet(sheet.id);
+                      setSheetDropdownOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper ${isActiveSheet ? 'font-semibold' : ''}`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{sheet.name}</span>
+                    {isActiveSheet && <CheckIcon className="h-4 w-4 shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
@@ -1492,8 +1487,7 @@ export default function Sheet() {
             canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
-            onAddWidget={() => handleToggleWidgetSidebar()}
-            addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+            onAddWidget={() => handleOpenWidgetSidebar()}
             onChangeTheme={() => handleToggleThemeSidebar()}
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
             onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
@@ -1508,14 +1502,14 @@ export default function Sheet() {
             listHighlighted={isCurrentTutorialStep('various-vertical-view')}
             layoutClassName="min-[720px]:flex"
           />
-          <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+          <Tooltip content="Open widget panel" placement="below">
             <button
               type="button"
               data-tutorial="add-widget-button"
-              onClick={() => handleToggleWidgetSidebar()}
+              onClick={() => handleOpenWidgetSidebar()}
               className="hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              {sidebarCollapsed ? 'Add' : 'Hide Add'}
+              Add
             </button>
           </Tooltip>
           <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
@@ -1653,7 +1647,7 @@ export default function Sheet() {
                 <p className="font-body">No widgets on this sheet</p>
                 <button
                   type="button"
-                  onClick={() => handleToggleWidgetSidebar()}
+                  onClick={() => handleOpenWidgetSidebar()}
                   className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
                 >
                   Add widget
@@ -2075,8 +2069,7 @@ export default function Sheet() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
-        onAddWidget={() => handleToggleWidgetSidebar()}
-        addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+        onAddWidget={() => handleOpenWidgetSidebar()}
         onChangeTheme={() => handleToggleThemeSidebar()}
         changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
         onAutoStack={() => setShowAutoStackConfirm(true)}
@@ -2129,8 +2122,7 @@ export default function Sheet() {
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
-          onAddWidget={() => handleToggleWidgetSidebar()}
-          addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+          onAddWidget={() => handleOpenWidgetSidebar()}
           onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
           onAutoStack={() => setShowAutoStackConfirm(true)}
@@ -2143,14 +2135,14 @@ export default function Sheet() {
           onList={() => handleSelectPlayLayout('list')}
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
         />
-        <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+        <Tooltip content="Open widget panel" placement="below">
           <button
             type="button"
             data-tutorial="add-widget-button"
-            onClick={() => handleToggleWidgetSidebar()}
+            onClick={() => handleOpenWidgetSidebar()}
             className="hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            {sidebarCollapsed ? 'Add' : 'Hide Add'}
+            Add
           </button>
         </Tooltip>
         <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
@@ -2225,17 +2217,19 @@ export default function Sheet() {
             className="fixed inset-0 z-40" 
             onClick={() => setSheetDropdownOpen(false)}
           />
-          <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px] animate-dropdown-in">
-            <div className="border-b border-theme-border/50 px-3 py-2">
-              <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
-            </div>
-            {activeCharacter.sheets.map((sheet) => (
+          <div className="absolute top-12 right-2 z-50 w-[min(240px,calc(100vw-1rem))] rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper py-1 shadow-theme animate-dropdown-in">
+            <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
+            <div className="sheet-dropdown-scroll max-h-[min(20rem,calc(100dvh-10rem))] overflow-y-auto overscroll-contain">
+            {activeCharacter.sheets.map((sheet) => {
+              const isActiveSheet = sheet.id === activeCharacter.activeSheetId;
+              const canManage = mode !== 'print';
+              return (
               <div
                 key={sheet.id}
                 ref={(element) => setSheetRowRef(sheet.id, element)}
-                className="pointer-sort-row group relative flex items-stretch"
+                className={`pointer-sort-row group relative flex items-center text-theme-ink transition-colors ${editingSheetId === sheet.id ? '' : 'hover:bg-theme-accent hover:text-theme-paper'}`}
               >
-                {mode !== 'print' && editingSheetId !== sheet.id && (
+                {canManage && editingSheetId !== sheet.id && (
                   <button
                     type="button"
                     onPointerDown={(event) => startSheetDrag(sheet.id, event)}
@@ -2243,16 +2237,16 @@ export default function Sheet() {
                     disabled={activeCharacter.sheets.length < 2}
                     aria-label={`Reorder ${sheet.name}`}
                     title="Drag to reorder. Arrow keys also work."
-                    className="flex w-6 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center text-theme-muted hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+                    className="flex h-9 w-6 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center opacity-40 group-hover:opacity-100 active:cursor-grabbing disabled:invisible"
                   >
                     <GripVerticalIcon className="h-3.5 w-3.5" />
                   </button>
                 )}
-                <div className="min-w-0 flex-1">
                 {editingSheetId === sheet.id ? (
                   <input
                     type="text"
                     value={editedSheetName}
+                    aria-label="Sheet name"
                     onChange={(e) => setEditedSheetName(e.target.value)}
                     onBlur={() => {
                       if (editedSheetName.trim()) {
@@ -2272,69 +2266,74 @@ export default function Sheet() {
                     }}
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full px-3 py-2 text-xs bg-transparent border-b border-theme-border outline-none text-theme-ink font-body"
+                    className="mx-2 my-1 h-8 min-w-0 flex-1 rounded-button border border-theme-accent bg-theme-paper px-2 text-sm text-theme-ink font-body outline-none"
                   />
                 ) : (
-                  <button
-                    onClick={() => {
-                      selectSheet(sheet.id);
-                      setSheetDropdownOpen(false);
-                    }}
-                    className={`w-full px-3 py-2 text-xs text-left font-body transition-colors flex items-center justify-between ${
-                      sheet.id === activeCharacter.activeSheetId
-                        ? 'bg-theme-accent text-theme-paper'
-                        : 'text-theme-ink hover:bg-theme-accent/20'
-                    }`}
-                  >
-                    <span>{sheet.name}</span>
-                    {mode !== 'print' && (
-                      <span className="flex items-center gap-1">
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
+                  <>
+                    <button
+                      type="button"
+                      aria-current={isActiveSheet ? 'true' : undefined}
+                      onClick={() => {
+                        selectSheet(sheet.id);
+                        setSheetDropdownOpen(false);
+                      }}
+                      className={`flex h-9 min-w-0 flex-1 items-center gap-2 pr-3 text-left text-sm font-body focus:outline-none ${canManage ? '' : 'pl-3'} ${isActiveSheet ? 'font-semibold' : ''}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{sheet.name}</span>
+                      {isActiveSheet && <CheckIcon className="h-4 w-4 shrink-0" />}
+                    </button>
+                    {canManage && (
+                      <span className="absolute inset-y-0 right-0 flex items-center gap-0.5 bg-theme-accent pl-2 pr-1 text-theme-paper opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:bg-transparent [@media(hover:none)]:pl-0 [@media(hover:none)]:text-inherit [@media(hover:none)]:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => {
                             setEditedSheetName(sheet.name);
                             setEditingSheetId(sheet.id);
                           }}
-                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center transition-colors ${
-                            sheet.id === activeCharacter.activeSheetId
-                              ? 'bg-theme-paper/30 text-theme-paper hover:bg-theme-paper/50'
-                              : 'bg-theme-accent/20 text-theme-ink hover:bg-theme-accent/40'
-                          }`}
+                          aria-label={`Rename ${sheet.name}`}
+                          title="Rename"
+                          className="flex h-7 w-7 items-center justify-center rounded-button transition-colors hover:bg-theme-accent-hover"
                         >
-                          <PencilIcon className="w-3 h-3" />
-                        </span>
+                          <PencilIcon className="h-3.5 w-3.5" />
+                        </button>
                         {activeCharacter.sheets.length > 1 && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSheetToDelete(sheet.id);
-                            }}
-                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setSheetToDelete(sheet.id)}
+                            aria-label={`Delete ${sheet.name}`}
+                            title="Delete"
+                            className="flex h-7 w-7 items-center justify-center rounded-button transition-colors hover:bg-red-500 hover:text-white"
                           >
-                            <XIcon className="w-3 h-3" />
-                          </span>
+                            <TrashIcon className="h-3.5 w-3.5" />
+                          </button>
                         )}
                       </span>
                     )}
-                  </button>
+                  </>
                 )}
-                </div>
               </div>
-            ))}
+              );
+            })}
+            </div>
             {mode !== 'print' && (
-              <button
-                onClick={() => {
-                  createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
-                  if (isCurrentTutorialStep('various-add-sheet-button')) {
-                    advanceTutorial();
-                  }
-                  setSheetDropdownOpen(false);
-                }}
-                data-tutorial="add-sheet-button"
-                className={`w-full px-3 py-2 text-xs text-left font-body border-t border-theme-border/50 transition-colors ${isCurrentTutorialStep('various-add-sheet-button') ? 'bg-blue-500 text-white font-bold' : 'text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20'}`}
-              >
-                + Add New Sheet
-              </button>
+              <>
+                <div className="mx-3 my-1 h-px bg-theme-border opacity-30" role="separator" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
+                    if (isCurrentTutorialStep('various-add-sheet-button')) {
+                      advanceTutorial();
+                    }
+                    setSheetDropdownOpen(false);
+                  }}
+                  data-tutorial="add-sheet-button"
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body transition-colors ${isCurrentTutorialStep('various-add-sheet-button') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                >
+                  <PlusIcon className="h-4 w-4 shrink-0" />
+                  Add sheet
+                </button>
+              </>
             )}
           </div>
         </>

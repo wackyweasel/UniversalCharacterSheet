@@ -589,7 +589,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-add-sheet-button',
     title: 'Add a Sheet',
-    message: 'Use Add New Sheet when you want another page for inventory, spells, notes, companions, vehicles, or anything else your character needs.',
+    message: 'Use Add sheet when you want another page for inventory, spells, notes, companions, vehicles, or anything else your character needs.',
     targetSelector: '[data-tutorial="add-sheet-button"]',
     position: 'left',
     page: 'sheet',
