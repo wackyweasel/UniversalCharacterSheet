@@ -63,7 +63,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
   useEffect(() => {
     if (isCurrentTutorialStep('themes-create-custom') || isCurrentTutorialStep('themes-share-custom')) {
       const selector = isCurrentTutorialStep('themes-share-custom')
-        ? '[data-tutorial="theme-share-custom"]'
+        ? '[data-tutorial="theme-share-custom"], [data-tutorial="theme-custom-actions"]'
         : '[data-tutorial="theme-create-custom"]';
 
       document.querySelector(selector)?.scrollIntoView({
@@ -863,6 +863,7 @@ const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.them
                   <Tooltip content="Theme actions">
                     <button
                       type="button"
+                      data-tutorial={customThemes[0]?.id === theme.id ? 'theme-custom-actions' : undefined}
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenCustomThemeMenuId(isActionMenuOpen ? null : theme.id);

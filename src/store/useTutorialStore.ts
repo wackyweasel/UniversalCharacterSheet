@@ -140,7 +140,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'attach-widgets',
     title: 'Attach Widgets Together',
-    message: 'Optional: move a widget until its edge snaps against another, then use the link button that appears on the shared edge. Attached widgets move as a group.',
+    message: 'Optional: line up a widget\'s edge against another widget, then select it and use the link button that appears on the shared edge. Attached widgets move as a group.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -149,7 +149,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'widget-menu',
     title: 'Widget Menu',
-    message: 'Click the highlighted menu button (⋮) on the Form widget to access options like Edit, Clone, Save as Template, and Delete. Later, right-click a widget, or press and hold it on touch, to open the same menu.',
+    message: 'Click the highlighted menu button (⋮) on the Form widget to access options like Edit, Clone, Save as Template, and Delete. It appears on any selected widget, and right-clicking a widget opens the same menu.',
     targetSelector: '[data-tutorial="widget-menu-FORM"]',
     position: 'left',
     page: 'sheet',
@@ -238,8 +238,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'themes-share-custom',
     title: 'Share a Custom Theme',
-    message: 'Saved custom theme cards have a Share button. Use it to open the same gallery submission dialog and share your theme with the community.',
-    targetSelector: '[data-tutorial="theme-share-custom"]',
+    message: 'Open the actions menu (⋮) on a saved custom theme and choose Share. It opens the gallery submission dialog so you can share your theme with the community.',
+    targetSelector: '[data-tutorial="theme-share-custom"], [data-tutorial="theme-custom-actions"]',
     position: 'left',
     page: 'sheet',
     requiresManualAdvance: true,
@@ -431,7 +431,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'automation-formula-operations',
     title: 'Formula Reference',
-    message: 'The formula editor includes every available label and an organized reference for operators, conditions, math functions, and table commands. Select any reference item to see how it works and review practical examples.',
+    message: 'The formula editor includes every available label and an organized reference for operators, conditions, math functions, and table commands. Select any reference item to see how it works and review practical examples. If a formula is broken, the editor highlights what is wrong.',
     position: 'center',
     page: 'sheet',
     requiresManualAdvance: true,
@@ -455,15 +455,23 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'automation-change-strength',
     title: 'Change Strength',
-    message: 'Click the Strength value and change it. When you confirm the new number, the dice roller modifier updates because it is reading @str.',
+    message: 'Click the Strength value and change it, or use "Add or Remove amount" to add or subtract from it. When you confirm the new number, the dice roller modifier updates because it is reading @str.',
     targetSelector: '[data-tutorial="automation-strength-value"]',
     position: 'left',
     page: 'sheet',
   },
   {
+    id: 'automation-inline-formulas',
+    title: 'Formulas Inside Text',
+    message: 'You can also use formulas inside text. Wrap one in curly braces, like {@str+10}, in a widget title, a field name, a tooltip, or most other text, and it shows the calculated result. With Strength at 14, {@str+10} displays 24.',
+    position: 'center',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
     id: 'automation-complete',
     title: 'Automation Tutorial Complete',
-    message: 'That is the automation loop: tag a source value, use @tag in another widget formula, then let the sheet keep the connected values in sync.',
+    message: 'That is the automation loop: tag a source value, use @tag in another widget formula or in {text}, then let the sheet keep the connected values in sync.',
     position: 'center',
     page: 'sheet',
   },
@@ -513,7 +521,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-backup-overview',
     title: 'Back Up Regularly',
-    message: 'Download backups regularly. Your data is stored in this browser, and this is where you can restore from a backup file if you change devices, browsers, or lose local storage.',
+    message: 'Download backups regularly. Depending on your workspace, your data lives in this browser, a folder on your computer, or Google Drive. This is where you can restore from a backup file if you change devices or lose your data.',
     targetSelector: '[data-tutorial="backup-modal"]',
     position: 'right',
     page: 'character-list',

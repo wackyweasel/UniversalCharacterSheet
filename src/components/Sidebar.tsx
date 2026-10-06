@@ -60,19 +60,20 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   }, [tutorialStep, templates.length]);
 
   // Map tutorial steps to widget types
-  const tutorialWidgetSteps: Record<number, WidgetType> = {
-    5: 'IMAGE',
-    6: 'HEALTH_BAR',
-    7: 'FORM',
-    8: 'NUMBER_DISPLAY',
+  const tutorialWidgetSteps: Record<string, WidgetType> = {
+    'add-image-widget': 'IMAGE',
+    'add-health-widget': 'HEALTH_BAR',
+    'add-form-widget': 'FORM',
+    'add-number-display-widget': 'NUMBER_DISPLAY',
   };
+  const tutorialWidgetType = tutorialStep !== null ? tutorialWidgetSteps[TUTORIAL_STEPS[tutorialStep]?.id ?? ''] : undefined;
 
   const handleAdd = (type: WidgetType) => {
     // Add to visible area of screen using viewport info
     addWidget(type, 100, 100, viewport);
     
     // Check if this is the widget the tutorial is waiting for
-    if (tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type) {
+    if (tutorialWidgetType === type) {
       advanceTutorial();
     }
   };
@@ -212,7 +213,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                 <h3 className="mb-2 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted">{category}</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {categoryWidgets.map(({ type, label }) => {
-                    const isHighlighted = tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type;
+                    const isHighlighted = tutorialWidgetType === type;
 
                     return (
                       <Tooltip key={type} content={<WidgetTooltipPreview type={type} />} placement="below">

@@ -30,6 +30,8 @@ interface Props {
   point: { x: number; y: number } | null;
   onClose: () => void;
   onEdit: () => void;
+  /** Hides the Group tab and Detach from Group; List view has no groups. */
+  hideGroupActions?: boolean;
 }
 
 const isAutomationAttackRoller = (widget: Widget) => (
@@ -61,7 +63,7 @@ const samePosition = (a: MenuPosition | null, b: MenuPosition | null) => (
   a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.alignLeft === b.alignLeft && a.above === b.above)
 );
 
-export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, onEdit }: Props) {
+export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, onEdit, hideGroupActions = false }: Props) {
   const removeWidget = useStore((state) => state.removeWidget);
   const cloneWidget = useStore((state) => state.cloneWidget);
   const detachWidgets = useStore((state) => state.detachWidgets);
@@ -219,7 +221,7 @@ export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, o
       onContextMenu={(event) => event.preventDefault()}
     >
       {/* Tab Header - only show if widget is part of a group */}
-      {widget.groupId && (
+      {widget.groupId && !hideGroupActions && (
         <div className="flex border-b border-theme-border">
           <Tooltip content="Show actions for this widget" placement="left">
             <button
@@ -409,7 +411,7 @@ export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, o
               </div>
             )
           )}
-          {widget.groupId && (
+          {widget.groupId && !hideGroupActions && (
             <Tooltip content="Remove this widget from its current group" placement="left">
               <button
                 className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"

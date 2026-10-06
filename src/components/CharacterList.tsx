@@ -30,7 +30,7 @@ import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 
 const TUTORIAL_DESCRIPTIONS = {
-  basic: 'Create a character, add widgets, edit a widget, and learn camera controls.',
+  basic: 'Create a character, add widgets, move and resize them, edit a widget, and learn camera controls.',
   themes: 'Try built-in themes, create a custom theme, and share it with the community.',
   templates: 'Save widgets and groups as templates, load them later, and share them.',
   automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',

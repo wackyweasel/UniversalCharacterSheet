@@ -326,6 +326,7 @@ export default function VerticalWidget({
           widget={widget}
           anchorRef={menuTriggerRef}
           point={null}
+          hideGroupActions
           onClose={() => setMenuOpen(false)}
           onEdit={() => {
             setMenuOpen(false);

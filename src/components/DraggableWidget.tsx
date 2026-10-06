@@ -330,9 +330,6 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     scale,
     enabled: mode !== 'print',
     isArranging,
-    onLongPressRelease: () => {
-      if (menuAllowed) openMenu(null);
-    },
   });
 
   const handleWidgetContextMenu = (e: React.MouseEvent) => {
@@ -340,7 +337,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
 
     e.preventDefault();
     e.stopPropagation();
-    // Touch opens the menu through long-press instead.
+    // Long-press on touch lifts the widget instead of opening the menu.
     if (isTouchContextMenu() || !menuAllowed) return;
     setSelectedWidgetId(widget.id, 'pointer');
     openMenu({ x: e.clientX, y: e.clientY });

@@ -115,12 +115,11 @@ interface UseWidgetDragOptions {
   enabled: boolean;
   /** Touch-selected widgets move with a plain one-finger drag. */
   isArranging: boolean;
-  onLongPressRelease: () => void;
 }
 
-export function useWidgetDrag({ widget, scale, enabled, isArranging, onLongPressRelease }: UseWidgetDragOptions) {
-  const latest = useRef({ widget, scale, enabled, isArranging, onLongPressRelease });
-  latest.current = { widget, scale, enabled, isArranging, onLongPressRelease };
+export function useWidgetDrag({ widget, scale, enabled, isArranging }: UseWidgetDragOptions) {
+  const latest = useRef({ widget, scale, enabled, isArranging });
+  latest.current = { widget, scale, enabled, isArranging };
   const gestureCleanupRef = useRef<(() => void) | null>(null);
   const moveRef = useRef<MoveSession | null>(null);
 
@@ -298,7 +297,6 @@ export function useWidgetDrag({ widget, scale, enabled, isArranging, onLongPress
       if (!arranging) {
         // Suppress the click and compatibility mouse events that follow a long-press.
         if (endEvent.cancelable) endEvent.preventDefault();
-        if (!moved) latest.current.onLongPressRelease();
       }
     };
     const handleCancel = (cancelEvent: TouchEvent) => {

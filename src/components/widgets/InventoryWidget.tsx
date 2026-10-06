@@ -497,7 +497,7 @@ function InventoryWidget({
       <div
         data-inventory-drop-zone="true"
         data-inventory-widget-id={widget.id}
-        className="inventory-drop-zone flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain p-0.5"
+        className="inventory-drop-zone flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-0.5"
         onWheel={(event) => {
           if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation();
         }}
