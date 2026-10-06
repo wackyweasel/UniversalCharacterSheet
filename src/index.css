@@ -1273,15 +1273,9 @@ td .inline-dice-token {
     z-index: 10002 !important;
   }
 
-  /* Selection ring sits outside the theme outline; the paper gap keeps it distinct from the border. */
-  .widget-selection-ring {
-    border: 2px solid var(--color-accent);
-    border-radius: calc(var(--border-radius) + 6px);
-    box-shadow: inset 0 0 0 2px var(--color-paper);
-    inset: -6px;
-    pointer-events: none;
-    position: absolute;
-    z-index: 45;
+  .widget-surface--selected {
+    outline-offset: calc((var(--border-width) + 1px) / -2);
+    outline-width: calc(var(--border-width) + 1px);
   }
 
   /* Arrange hit areas scale with --widget-hit-scale so they stay usable when zoomed out. */
@@ -1355,18 +1349,37 @@ td .inline-dice-token {
 
   .widget-resize-handle {
     --widget-handle-size: calc(24px * var(--widget-hit-scale, 1));
+    --widget-handle-outset: calc(var(--widget-handle-size) / 3);
+    --widget-handle-inset: calc(var(--widget-handle-outset) + var(--border-width) + 2px * var(--widget-hit-scale, 1));
     height: var(--widget-handle-size);
     width: var(--widget-handle-size);
   }
 
+  /* The hit area straddles the corner; the glyph sits just inside the border. */
+  .widget-resize-handle > svg {
+    height: calc(var(--widget-handle-size) / 2);
+    position: absolute;
+    width: calc(var(--widget-handle-size) / 2);
+  }
+
   .widget-resize-handle--nw {
-    left: calc(var(--widget-handle-size) / -3);
-    top: calc(var(--widget-handle-size) / -3);
+    left: calc(var(--widget-handle-outset) * -1);
+    top: calc(var(--widget-handle-outset) * -1);
+  }
+
+  .widget-resize-handle--nw > svg {
+    left: var(--widget-handle-inset);
+    top: var(--widget-handle-inset);
   }
 
   .widget-resize-handle--se {
-    bottom: calc(var(--widget-handle-size) / -3);
-    right: calc(var(--widget-handle-size) / -3);
+    bottom: calc(var(--widget-handle-outset) * -1);
+    right: calc(var(--widget-handle-outset) * -1);
+  }
+
+  .widget-resize-handle--se > svg {
+    bottom: var(--widget-handle-inset);
+    right: var(--widget-handle-inset);
   }
 
   .widget-content {
@@ -2497,16 +2510,7 @@ td .inline-dice-token {
 @media (pointer: coarse) {
   .widget-resize-handle {
     --widget-handle-size: calc(40px * var(--widget-hit-scale, 1));
-  }
-
-  .widget-resize-handle--nw {
-    left: calc(var(--widget-handle-size) / -2);
-    top: calc(var(--widget-handle-size) / -2);
-  }
-
-  .widget-resize-handle--se {
-    bottom: calc(var(--widget-handle-size) / -2);
-    right: calc(var(--widget-handle-size) / -2);
+    --widget-handle-outset: calc(var(--widget-handle-size) / 2);
   }
 
   /* Stop the iOS callout and text selection from hijacking long-press. */

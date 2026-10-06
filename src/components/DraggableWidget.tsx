@@ -140,6 +140,21 @@ function getWidgetBoxSize(candidate: Widget) {
   };
 }
 
+type WidgetBox = { x: number; y: number; width: number; height: number };
+type WidgetSide = 'left' | 'right' | 'top' | 'bottom';
+
+// The side of `box` that the neighbour touches, or null when they no longer share an edge.
+function getTouchingSide(box: WidgetBox, neighbor: Widget): WidgetSide | null {
+  const { width, height } = getWidgetBoxSize(neighbor);
+  const overlapsX = Math.min(box.x + box.width, neighbor.x + width) > Math.max(box.x, neighbor.x);
+  const overlapsY = Math.min(box.y + box.height, neighbor.y + height) > Math.max(box.y, neighbor.y);
+  if (overlapsY && Math.abs(neighbor.x + width - box.x) <= EDGE_TOLERANCE) return 'left';
+  if (overlapsY && Math.abs(neighbor.x - (box.x + box.width)) <= EDGE_TOLERANCE) return 'right';
+  if (overlapsX && Math.abs(neighbor.y + height - box.y) <= EDGE_TOLERANCE) return 'top';
+  if (overlapsX && Math.abs(neighbor.y - (box.y + box.height)) <= EDGE_TOLERANCE) return 'bottom';
+  return null;
+}
+
 const PLACEMENT_KEYS = new Set<string>(['x', 'y', 'zIndex']);
 
 function hasSameContent(previous: Widget, next: Widget) {
@@ -155,7 +170,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
   const bringWidgetToFront = useStore((state) => state.bringWidgetToFront);
-  const detachWidgets = useStore((state) => state.detachWidgets);
+  const detachWidgetFrom = useStore((state) => state.detachWidgetFrom);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const isSelected = useStore((state) => state.selectedWidgetId === widget.id);
@@ -398,11 +413,22 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       x: widget.x,
       y: widget.y,
     };
-    const { id: widgetId, groupId, w: startW, h: startH } = widget;
+    const { id: widgetId, w: startW, h: startH } = widget;
     const pointerId = event.pointerId;
     const source: WidgetSelectionSource = event.pointerType === 'touch' ? 'touch' : 'pointer';
     let preview: { x: number; y: number; w?: number; h?: number } | null = null;
     let detached = false;
+
+    // Neighbours on the dragged edges detach; the others stay attached while they still touch.
+    const isMovingSide = (side: WidgetSide | null) => (
+      (side === 'left' && dirX === -1) || (side === 'right' && dirX === 1)
+      || (side === 'top' && dirY === -1) || (side === 'bottom' && dirY === 1)
+    );
+    const neighbors = selectActiveSheetWidgets(useStore.getState())
+      .filter((candidate) => widget.attachedTo?.includes(candidate.id))
+      .map((candidate) => ({ candidate, side: getTouchingSide(start, candidate) }));
+    const movingEdgeNeighborIds = neighbors.filter(({ side }) => isMovingSide(side)).map(({ candidate }) => candidate.id);
+    const keptNeighbors = neighbors.filter(({ side }) => side && !isMovingSide(side)).map(({ candidate }) => candidate);
 
     const handleMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== pointerId) return;
@@ -415,10 +441,9 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       const x = dirX === -1 && w !== undefined ? start.x + start.width - w : start.x;
       const y = dirY === -1 && h !== undefined ? start.y + start.height - h : start.y;
       if (preview && preview.w === w && preview.h === h && preview.x === x && preview.y === y) return;
-      // Resizing a member detaches it, as its edges no longer line up with the group.
-      if (!detached && groupId) {
+      if (!detached && movingEdgeNeighborIds.length > 0) {
         detached = true;
-        detachWidgets(widgetId, widgetId);
+        detachWidgetFrom(widgetId, movingEdgeNeighborIds);
       }
       preview = { x, y, w, h };
       setResizePreview(preview);
@@ -437,6 +462,9 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       if (preview) {
         if (dirX === -1 || dirY === -1) updateWidgetPosition(widgetId, preview.x, preview.y);
         updateWidgetSize(widgetId, preview.w ?? startW, preview.h ?? startH);
+        const endBox = { x: preview.x, y: preview.y, width: preview.w ?? start.width, height: preview.h ?? start.height };
+        const separatedIds = keptNeighbors.filter((neighbor) => !getTouchingSide(endBox, neighbor)).map((neighbor) => neighbor.id);
+        if (separatedIds.length > 0) detachWidgetFrom(widgetId, separatedIds);
       }
       setResizePreview(null);
       setIsResizing(false);
@@ -691,7 +719,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
           zIndex: menu ? MENU_OPEN_Z_INDEX : ((showSelection && widget.type !== 'DECK_OF_CARDS') || isResizing ? SELECTED_WIDGET_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (isHovered && canArrange && widget.type !== 'DECK_OF_CARDS') ? HOVERED_WIDGET_Z_INDEX : widget.zIndex),
           ...borderRadiusStyle,
-          ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
+          ...(bordersDisabled ? { borderWidth: '0px', ...(showSelection ? {} : { outlineWidth: '0px' }) } : {}),
           ...({ '--widget-hit-scale': hitScale } as CSSProperties),
         }}
         onMouseEnter={() => setIsHovered(true)}
@@ -719,9 +747,6 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               />
             </div>
           )}
-
-          {/* The theme border is an outline on the surface, so the selection ring is its own layer. */}
-          {showSelection && <div aria-hidden="true" className="widget-selection-ring" />}
           
           {/* Move grip centered on the top edge; narrow so the widget above keeps its bottom resize edge. Touch uses long-press. */}
           {canArrange && (
@@ -852,14 +877,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             <>
               <Tooltip content="Drag to resize">
                 <div
-                  className="widget-resize-handle widget-resize-handle--nw absolute cursor-nwse-resize z-[70] flex items-center justify-center touch-none"
+                  className="widget-resize-handle widget-resize-handle--nw absolute cursor-nwse-resize z-[70] touch-none"
                   data-camera-pan-ignore="true"
                   data-touch-camera-ignore="true"
                   onPointerDown={(event) => handleResizePointerDown(event, -1, -1)}
                 >
                   <svg
                     viewBox="0 0 12 12"
-                    className="h-1/2 w-1/2 text-theme-accent"
+                    className="text-theme-accent"
                   >
                     <path
                       d="M2 10L10 2M2 6L6 2M2 2L2 2"
@@ -872,14 +897,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               </Tooltip>
               <Tooltip content="Drag to resize">
                 <div
-                  className="widget-resize-handle widget-resize-handle--se absolute cursor-nwse-resize z-[70] flex items-center justify-center touch-none"
+                  className="widget-resize-handle widget-resize-handle--se absolute cursor-nwse-resize z-[70] touch-none"
                   data-camera-pan-ignore="true"
                   data-touch-camera-ignore="true"
                   onPointerDown={(event) => handleResizePointerDown(event, 1, 1)}
                 >
                   <svg
                     viewBox="0 0 12 12"
-                    className="h-1/2 w-1/2 text-theme-accent"
+                    className="text-theme-accent"
                   >
                     <path
                       d="M10 2L2 10M10 6L6 10M10 10L10 10"

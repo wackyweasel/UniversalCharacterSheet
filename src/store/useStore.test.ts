@@ -218,3 +218,49 @@ describe('mixed menu formula updates', () => {
     expect(bonusWidget.data.mixedFields?.[0]).toMatchObject({ value: 2 });
   });
 });
+
+describe('partial widget detaching', () => {
+  // A row a-b-c plus d attached below b.
+  const groupedWidget = (id: string, x: number, y: number, attachedTo: string[]) => ({
+    id, type: 'LABEL' as const, x, y, w: 100, h: 100, groupId: 'group-1', attachedTo, data: {},
+  });
+
+  beforeEach(() => {
+    useUndoStore.getState().clearAllHistory();
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{
+        ...character,
+        sheets: [{
+          id: 'sheet-1',
+          name: 'Main',
+          widgets: [
+            groupedWidget('a', 0, 0, ['b']),
+            groupedWidget('b', 100, 0, ['a', 'c', 'd']),
+            groupedWidget('c', 200, 0, ['b']),
+            groupedWidget('d', 100, 100, ['b']),
+          ],
+        }],
+      }],
+      activeCharacterId: character.id,
+      mode: 'play',
+    });
+  });
+
+  const getWidget = (id: string) => useStore.getState().characters[0].sheets[0].widgets.find(w => w.id === id)!;
+
+  it('keeps the other attachments and the group', () => {
+    useStore.getState().detachWidgetFrom('b', ['c']);
+    expect(getWidget('b')).toMatchObject({ groupId: 'group-1', attachedTo: ['a', 'd'] });
+    expect(getWidget('a').groupId).toBe('group-1');
+    expect(getWidget('d').groupId).toBe('group-1');
+    expect(getWidget('c')).toMatchObject({ groupId: undefined, attachedTo: undefined });
+  });
+
+  it('splits the group when the removed edges disconnect it', () => {
+    useStore.getState().detachWidgetFrom('b', ['a', 'c']);
+    expect(getWidget('b')).toMatchObject({ groupId: 'group-1', attachedTo: ['d'] });
+    expect(getWidget('d').groupId).toBe('group-1');
+    expect(getWidget('a').groupId).toBeUndefined();
+    expect(getWidget('c').groupId).toBeUndefined();
+  });
+});
