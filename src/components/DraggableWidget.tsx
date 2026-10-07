@@ -205,6 +205,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const menuKeyRef = useRef(0);
   const [showPrintSettings, setShowPrintSettings] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  // Touch has no hover, so a single tap reveals the move bar instead.
+  const [isTapRevealed, setIsTapRevealed] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
 
   const openMenu = useCallback((point: { x: number; y: number } | null) => {
@@ -274,7 +276,10 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const hitScale = Math.min(3, Math.max(1, 1 / scale));
 
   useEffect(() => {
-    const dismissHoverControls = () => setIsHovered(false);
+    const dismissHoverControls = () => {
+      setIsHovered(false);
+      setIsTapRevealed(false);
+    };
     window.addEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
     return () => window.removeEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
   }, []);
@@ -330,6 +335,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     scale,
     enabled: mode !== 'print',
     isArranging,
+    onTap: () => setIsTapRevealed(true),
   });
 
   const handleWidgetContextMenu = (e: React.MouseEvent) => {
@@ -696,6 +702,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const showControls = isHovered || isSelected;
   const showSelection = isSelected && mode !== 'print';
   const canArrange = mode !== 'print' && !widget.locked;
+  const showTapBar = isTapRevealed && canArrange;
   const showMenuTrigger = mode !== 'print' && menuAllowed && (isSelected || menu !== null || isMenuTutorialTarget);
   const position = resizePreview ?? widget;
 
@@ -707,14 +714,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
         data-tutorial={`widget-${widget.type}`}
         data-group-id={widget.groupId || ''}
         data-widget-arranging={isArranging && mode !== 'print' ? 'true' : undefined}
-        className={`canvas-widget widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${showSelection ? 'widget-surface--selected' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+        className={`canvas-widget widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${showSelection ? 'widget-surface--selected' : ''} ${showTapBar ? 'widget-surface--tap-revealed' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
         style={{ 
           transform: `translate(${position.x}px, ${position.y}px)`,
           width: `${widgetWidth}px`,
           minWidth: `${minDimensions.width}px`,
           height: widgetHeight ? `${widgetHeight}px` : 'auto',
           minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-          zIndex: menu ? MENU_OPEN_Z_INDEX : ((showSelection && widget.type !== 'DECK_OF_CARDS') || isResizing ? SELECTED_WIDGET_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : (isHovered && canArrange && widget.type !== 'DECK_OF_CARDS') ? HOVERED_WIDGET_Z_INDEX : widget.zIndex),
+          zIndex: menu ? MENU_OPEN_Z_INDEX : ((showSelection && widget.type !== 'DECK_OF_CARDS') || isResizing ? SELECTED_WIDGET_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : ((isHovered || showTapBar) && canArrange && widget.type !== 'DECK_OF_CARDS') ? HOVERED_WIDGET_Z_INDEX : widget.zIndex),
           ...borderRadiusStyle,
           ...(bordersDisabled ? { borderWidth: '0px', ...(showSelection ? {} : { outlineWidth: '0px' }) } : {}),
           ...({ '--widget-hit-scale': hitScale } as CSSProperties),
@@ -745,7 +752,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </div>
           )}
           
-          {/* Move grip centered on the top edge; narrow so the widget above keeps its bottom resize edge. Touch uses long-press. */}
+          {/* Move grip centered on the top edge; narrow so the widget above keeps its bottom resize edge. Touch shows it after a tap. */}
           {canArrange && (
             <Tooltip content="Drag to move">
               <div

@@ -115,11 +115,13 @@ interface UseWidgetDragOptions {
   enabled: boolean;
   /** Touch-selected widgets move with a plain one-finger drag. */
   isArranging: boolean;
+  /** A touch released before the long-press without moving. */
+  onTap?: () => void;
 }
 
-export function useWidgetDrag({ widget, scale, enabled, isArranging }: UseWidgetDragOptions) {
-  const latest = useRef({ widget, scale, enabled, isArranging });
-  latest.current = { widget, scale, enabled, isArranging };
+export function useWidgetDrag({ widget, scale, enabled, isArranging, onTap }: UseWidgetDragOptions) {
+  const latest = useRef({ widget, scale, enabled, isArranging, onTap });
+  latest.current = { widget, scale, enabled, isArranging, onTap };
   const gestureCleanupRef = useRef<(() => void) | null>(null);
   const moveRef = useRef<MoveSession | null>(null);
 
@@ -288,7 +290,10 @@ export function useWidgetDrag({ widget, scale, enabled, isArranging }: UseWidget
       const current = findTouch(endEvent.changedTouches);
       if (!current) return;
       endGesture();
-      if (!lifted) return;
+      if (!lifted) {
+        latest.current.onTap?.();
+        return;
+      }
       if (moveRef.current) {
         if (endEvent.cancelable) endEvent.preventDefault();
         finishMove(moved, current.clientX - startX, current.clientY - startY);

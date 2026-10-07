@@ -1297,7 +1297,8 @@ td .inline-dice-token {
   }
 
   .canvas-widget:hover .widget-drag-grip__pill,
-  .widget-surface--selected .widget-drag-grip__pill {
+  .widget-surface--selected .widget-drag-grip__pill,
+  .widget-surface--tap-revealed .widget-drag-grip__pill {
     opacity: 0.6;
   }
 
@@ -2499,15 +2500,26 @@ td .inline-dice-token {
   }
 }
 
-/* Touch moves widgets with long-press, so hover-only arrange zones are hidden. */
+/* Touch has no hover: the move grip appears after a tap, resize zones stay hidden. */
 @media (hover: none) {
   .widget-drag-grip,
   .widget-resize-zone {
     display: none;
   }
+
+  .widget-surface--tap-revealed .widget-drag-grip {
+    display: flex;
+  }
 }
 
 @media (pointer: coarse) {
+  /* Finger-sized hit area; the pill keeps its look. */
+  .widget-drag-grip {
+    height: calc(28px * var(--widget-hit-scale, 1));
+    top: calc(-14px * var(--widget-hit-scale, 1));
+    width: min(calc(88px * var(--widget-hit-scale, 1)), 50%);
+  }
+
   .widget-resize-handle {
     --widget-handle-size: calc(40px * var(--widget-hit-scale, 1));
     --widget-handle-outset: calc(var(--widget-handle-size) / 2);

@@ -421,7 +421,10 @@ export default function Sheet() {
       if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
     }
 
-    window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
+    // Touching the tapped widget again, e.g. its move bar, keeps the bar shown.
+    if (!touchTarget?.closest('.widget-surface--tap-revealed')) {
+      window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
+    }
     setSelectedWidgetId(null);
     if (preserveOverlayFocus) return;
 
