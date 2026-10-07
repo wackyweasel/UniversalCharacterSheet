@@ -101,7 +101,7 @@ export function Tooltip({ content: rawContent, children, placement = 'above' }: 
             top: coords.top,
             left: coords.left,
             transform: placement === 'below' ? 'translateY(0)' : placement === 'left' ? 'translate(-100%, 0)' : 'translateY(-100%)',
-            zIndex: 9999,
+            zIndex: 11500,
             maxWidth: '260px',
             padding: '6px 10px',
             fontSize: '0.82rem',

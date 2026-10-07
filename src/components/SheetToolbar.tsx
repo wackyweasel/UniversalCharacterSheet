@@ -59,6 +59,9 @@ interface SheetToolbarProps {
   overlay?: boolean;
 }
 
+// Below this toolbar width the canvas/list selector moves into the menu to avoid overlapping the status icons.
+const compactLayoutMinWidth = 340;
+
 const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-2 text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-not-allowed disabled:opacity-40';
 
 interface ToolbarCharacterNameProps {
@@ -413,9 +416,14 @@ export default function SheetToolbar({
     minimumExpandedWidth: 0,
   });
   const compact = containerWidth > 0 && containerWidth < 600;
+  const layoutFitsInline = containerWidth >= compactLayoutMinWidth;
   const inlineActionIds = useMemo<ReadonlySet<string>>(
-    () => (compact ? new Set(workspace === 'play' ? ['layout', 'undo-redo', 'timeline'] : ['layout', 'undo-redo']) : overflowInlineIds),
-    [compact, overflowInlineIds, workspace],
+    () => {
+      if (!compact) return overflowInlineIds;
+      const compactIds = workspace === 'play' ? ['undo-redo', 'timeline'] : ['undo-redo'];
+      return new Set(layoutFitsInline ? ['layout', ...compactIds] : compactIds);
+    },
+    [compact, layoutFitsInline, overflowInlineIds, workspace],
   );
   const compactUtilityClass = compact ? `${utilityButtonClass} !px-1.5` : utilityButtonClass;
   const showLabel = (id: string) => labeledActionIds.has(id);
