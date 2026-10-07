@@ -29,6 +29,11 @@ interface WrappingListInputProps {
   onBlur: (event: FocusEvent<HTMLTextAreaElement>) => void;
 }
 
+function moveCursorToEnd(element: HTMLInputElement | HTMLTextAreaElement) {
+  const end = element.value.length;
+  element.setSelectionRange(end, end);
+}
+
 function WrappingListInput({ value, width, className, placeholder, ariaLabel, autoFocus, onChange, onFocus, onBlur }: WrappingListInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -46,7 +51,10 @@ function WrappingListInput({ value, width, className, placeholder, ariaLabel, au
       className={`${className} resize-none overflow-hidden whitespace-pre-wrap break-words`}
       value={value}
       onChange={onChange}
-      onFocus={onFocus}
+      onFocus={(event) => {
+        moveCursorToEnd(event.currentTarget);
+        onFocus(event);
+      }}
       onBlur={onBlur}
       onKeyDown={(event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter') event.preventDefault();
@@ -249,7 +257,7 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
                 className={`flex-1 border-b border-theme-border focus:border-theme-accent focus:outline-none ${inputClass} min-w-0 bg-transparent text-theme-ink font-body`}
                 value={item}
                 onChange={(e) => updateItem(idx, e.target.value)}
-                onFocus={() => handleFocus(idx)}
+                onFocus={(e) => { moveCursorToEnd(e.currentTarget); handleFocus(idx); }}
                 onBlur={() => { handleBlur(idx); setEditingIndex(null); }}
                 placeholder={mode === 'print' ? '' : '...'}
                 autoFocus
