@@ -112,6 +112,21 @@ describe('number display creation defaults', () => {
   });
 });
 
+describe('widget resizing', () => {
+  it('records an undo step and restores the previous size', () => {
+    useUndoStore.getState().clearAllHistory();
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, sheets: [{ id: 'sheet-1', name: 'Main', widgets: [{ id: 'w1', type: 'NUMBER', x: 0, y: 0, w: 200, h: 100, data: {} }] }] }],
+      activeCharacterId: character.id,
+      mode: 'play',
+    });
+    useStore.getState().updateWidgetSize('w1', 300, 100);
+    expect(useUndoStore.getState().past).toHaveLength(1);
+    useStore.getState().undo();
+    expect(useStore.getState().characters[0].sheets[0].widgets[0]).toMatchObject({ w: 200, h: 100 });
+  });
+});
+
 describe('inventory store updates', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', {

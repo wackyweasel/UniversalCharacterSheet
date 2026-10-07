@@ -1426,6 +1426,7 @@ export const useStore = create<StoreState>((set, get) => {
     }),
 
     updateWidgetSize: (id, w, h) => {
+      get()._takeSnapshot('Resize widget');
       const snappedWidth = snapWidgetDimension(w);
       const snappedHeight = snapWidgetDimension(h);
 
