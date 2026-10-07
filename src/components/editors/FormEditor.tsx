@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { FormItem } from '../../types';
 import { usePointerReorder } from '../../hooks';
 import { EditorProps } from './types';
-import { useTutorialStore, TUTORIAL_STEPS } from '../../store/useTutorialStore';
+import { useTutorialStore, isTutorialStep } from '../../store/useTutorialStore';
 import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
@@ -15,6 +15,8 @@ export function FormEditor({ widget, updateData }: EditorProps) {
   const [newItemName, setNewItemName] = useState('');
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const isTypeFieldStep = isTutorialStep(tutorialStep, 'form-type-field');
+  const isClickAddStep = isTutorialStep(tutorialStep, 'form-click-add');
   const formItemsList = formItems as FormItem[];
   const formItemIdsRef = useRef(new WeakMap<FormItem, string>());
   const nextFormItemIdRef = useRef(0);
@@ -36,8 +38,7 @@ export function FormEditor({ widget, updateData }: EditorProps) {
     if (newItemName.trim()) {
       updateData({ formItems: [...formItems, { name: newItemName.trim(), value: '' }] });
       setNewItemName('');
-      // Advance tutorial if on step 20 (form-click-add)
-      if (tutorialStep === 20 && TUTORIAL_STEPS[20]?.id === 'form-click-add') {
+      if (isClickAddStep) {
         advanceTutorial();
       }
     }
@@ -190,18 +191,17 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             value={newItemName}
             onChange={(e) => {
               setNewItemName(e.target.value);
-              // Advance tutorial if on step 19 and user started typing
-              if (tutorialStep === 19 && e.target.value.length > 0 && TUTORIAL_STEPS[19]?.id === 'form-type-field') {
+              if (isTypeFieldStep && e.target.value.length > 0) {
                 advanceTutorial();
               }
             }}
             placeholder="Add new field..."
-            className={`flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm ${tutorialStep === 19 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`flex-1 px-2 py-1 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm ${isTypeFieldStep ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           />
           <button
             data-tutorial="form-add-button"
             type="submit"
-            className={`px-3 py-1 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90 ${tutorialStep === 20 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`px-3 py-1 bg-theme-accent text-theme-paper rounded-button text-sm hover:opacity-90 ${isClickAddStep ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
           >
             Add
           </button>

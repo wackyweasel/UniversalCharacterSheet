@@ -8,7 +8,7 @@ import { EraserIcon, HandIcon, MinusIcon, PlusIcon, ResetIcon, TrashIcon, UndoIc
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   sheetScale?: number;
@@ -340,7 +340,7 @@ export default function MapSketcherWidget({ widget, mode, sheetScale = 1 }: Prop
   const resetView = () => { setPanOffset({ x: 0, y: 0 }); setZoom(1); };
 
   const handleWheel = useCallback((event: WheelEvent) => {
-    if (mode === 'edit' || mode === 'print') return;
+    if (mode === 'print') return;
     event.preventDefault();
     event.stopPropagation();
     const canvas = canvasRef.current;

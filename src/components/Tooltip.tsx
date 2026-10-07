@@ -28,7 +28,6 @@ export function Tooltip({ content: rawContent, children, placement = 'above' }: 
   const content = typeof rawContent === 'string' ? resolvedText : rawContent;
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLElement>(null);
   const tooltipElRef = useRef<HTMLDivElement>(null);
 
   // After the tooltip renders, clamp it to keep it inside the viewport
@@ -75,8 +74,8 @@ export function Tooltip({ content: rawContent, children, placement = 'above' }: 
 
   const hide = useCallback(() => setVisible(false), []);
 
+  // cloneElement keeps the child's own ref (menu anchors rely on it).
   const child = React.cloneElement(children, {
-    ref: triggerRef,
     onMouseEnter: content ? (e: React.MouseEvent) => {
       show(e);
       children.props.onMouseEnter?.(e);
@@ -102,7 +101,7 @@ export function Tooltip({ content: rawContent, children, placement = 'above' }: 
             top: coords.top,
             left: coords.left,
             transform: placement === 'below' ? 'translateY(0)' : placement === 'left' ? 'translate(-100%, 0)' : 'translateY(-100%)',
-            zIndex: 9999,
+            zIndex: 11500,
             maxWidth: '260px',
             padding: '6px 10px',
             fontSize: '0.82rem',

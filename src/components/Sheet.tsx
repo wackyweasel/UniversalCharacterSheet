@@ -13,6 +13,7 @@ import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
+import CanvasContextMenu from './CanvasContextMenu';
 import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import VerticalWidget from './VerticalWidget';
@@ -28,7 +29,7 @@ import WorkspaceToggleGroup from './WorkspaceToggleGroup';
 import SheetToolbar from './SheetToolbar';
 import PrintToolbar from './PrintToolbar';
 import { Tooltip } from './Tooltip';
-import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, XIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon, GripVerticalIcon } from './icons';
+import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon, CheckIcon, MinusIcon, PlusIcon, ArrowUpDownIcon, GripVerticalIcon } from './icons';
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
@@ -219,7 +220,7 @@ export default function Sheet() {
   const canRedo = useUndoStore((state) => activeCharacterId ? state.canRedo(activeCharacterId) : false);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const activeSheetId = activeCharacter?.activeSheetId;
-  const { workspace, playLayout, listColumns, enterBuild, enterPlay, setPlayLayout, setListColumns } = useWorkspaceNavigation(activeCharacterId, activeSheetId);
+  const { workspace, playLayout, listColumns, setPlayLayout, setListColumns } = useWorkspaceNavigation(activeCharacterId, activeSheetId);
   const switchableCharacters = useMemo(() => {
     if (!activeCharacterId || transientCharacterIds.includes(activeCharacterId)) return [];
     const transientIds = new Set(transientCharacterIds);
@@ -234,7 +235,7 @@ export default function Sheet() {
   const requestCharacterCreator = useStore((state) => state.requestCharacterCreator);
 
   useEffect(() => {
-    if ((mode === 'edit' || mode === 'print') && timelineIsOpen) {
+    if (mode === 'print' && timelineIsOpen) {
       setTimelineOpen(false);
     }
   }, [mode, setTimelineOpen, timelineIsOpen]);
@@ -395,7 +396,7 @@ export default function Sheet() {
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) return;
+    if (mode === 'vertical') return;
 
     const workspace = containerRef.current;
     if (!workspace) return;
@@ -406,7 +407,7 @@ export default function Sheet() {
 
     workspace.addEventListener('wheel', preventBrowserZoom, { capture: true, passive: false });
     return () => workspace.removeEventListener('wheel', preventBrowserZoom, true);
-  }, [mode, playLayout]);
+  }, [mode]);
   
   // Clear mobile widget controls unless the touch stays on their selected widget controls.
   const handleBackgroundInteraction = useCallback((touchTarget?: Element | null) => {
@@ -417,11 +418,14 @@ export default function Sheet() {
     if (touchTarget) {
       const selectedWidgetId = useStore.getState().selectedWidgetId;
       const touchedWidgetId = touchTarget.closest('[data-widget-id]')?.getAttribute('data-widget-id');
-      const touchedAttachmentControl = touchTarget.closest('[data-attach-widget-ids]');
+      const touchedAttachmentControl = touchTarget.closest('[data-attach-widget-ids], .widget-options-menu');
       if ((selectedWidgetId && touchedWidgetId === selectedWidgetId) || touchedAttachmentControl) return;
     }
 
-    window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
+    // Touching the tapped widget again, e.g. its move bar, keeps the bar shown.
+    if (!touchTarget?.closest('.widget-surface--tap-revealed')) {
+      window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
+    }
     setSelectedWidgetId(null);
     if (preserveOverlayFocus) return;
 
@@ -456,7 +460,6 @@ export default function Sheet() {
     minScale: MIN_CANVAS_SCALE,
     maxScale: MAX_CANVAS_SCALE,
     editingWidgetId,
-    mode,
     characterId: activeCharacterId,
     sheetId: activeSheetId,
     onBackgroundClick: handleBackgroundInteraction,
@@ -472,8 +475,7 @@ export default function Sheet() {
     if (!searchReveal || activeCharacter?.activeSheetId !== searchReveal.sheetId) return;
 
     let frame = 0;
-    const usesVerticalLayout = mode === 'vertical' || (mode === 'edit' && playLayout === 'list');
-    if (!usesVerticalLayout) {
+    if (mode !== 'vertical') {
       frame = window.requestAnimationFrame(() => {
         const viewport = containerRef.current;
         const target = printAreaRef.current?.querySelector<HTMLElement>(`[data-widget-id="${searchReveal.widgetId}"]`);
@@ -522,7 +524,7 @@ export default function Sheet() {
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timeout);
     };
-  }, [activeCharacter?.activeSheetId, mode, playLayout, searchReveal, setPan, setScale]);
+  }, [activeCharacter?.activeSheetId, mode, searchReveal, setPan, setScale]);
 
   // Touch camera controls hook
   const getScale = useCallback(() => scaleRef.current, []);
@@ -551,7 +553,6 @@ export default function Sheet() {
     }, [commitCamera]);
   
   const { isTouchPanning } = useTouchCamera({
-    mode,
     onCameraPreview: previewCamera,
     onCameraCommit: commitCamera,
     onPinchingChange: setIsPinching,
@@ -610,32 +611,11 @@ export default function Sheet() {
     }
   };
 
-  const handleToggleWidgetSidebar = (closeGridMenu = false) => {
-    const wasCollapsed = sidebarCollapsed;
-    setSidebarCollapsed((current) => !current);
+  const handleOpenWidgetSidebar = () => {
+    if (!sidebarCollapsed) return;
+    setSidebarCollapsed(false);
 
-    if (closeGridMenu) {
-      setGridMenuOpen(false);
-    }
-
-    if (
-      wasCollapsed &&
-      (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox'))
-    ) {
-      advanceTutorial();
-    }
-  };
-
-  const handleEnterBuildWorkspace = () => {
-    enterBuild();
-    if (tutorialStep === 3 && TUTORIAL_STEPS[3]?.id === 'welcome-sheet') {
-      advanceTutorial();
-    }
-  };
-
-  const handleEnterPlayWorkspace = () => {
-    enterPlay();
-    if (tutorialStep === 23 && TUTORIAL_STEPS[23]?.id === 'switch-to-play') {
+    if (isCurrentTutorialStep('add-widget') || isCurrentTutorialStep('templates-open-toolbox')) {
       advanceTutorial();
     }
   };
@@ -677,6 +657,12 @@ export default function Sheet() {
         setSheetSearchOpen(true);
         return;
       }
+
+      if (e.key === 'Escape' && useStore.getState().selectedWidgetId) {
+        window.dispatchEvent(new Event(WIDGET_CONTROLS_DISMISS_EVENT));
+        setSelectedWidgetId(null);
+        return;
+      }
       
       // Ctrl+Z for undo
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
@@ -692,11 +678,11 @@ export default function Sheet() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, setSelectedWidgetId]);
 
   // Print mode handlers
   const enterPrintMode = useCallback(() => {
-    setPreviousMode(mode as 'play' | 'edit' | 'vertical');
+    setPreviousMode(mode as 'play' | 'vertical');
     setMode('print');
     // Only calculate print area if there isn't one already (preserve previous)
     if (!printArea) {
@@ -707,10 +693,10 @@ export default function Sheet() {
     }
   }, [mode, setMode, setPreviousMode, calculatePrintAreaFromWidgets, activeSheetWidgets, setPrintArea, printArea]);
 
-  const exitPrintMode = useCallback((targetMode?: 'play' | 'edit') => {
+  const exitPrintMode = useCallback((targetMode?: 'play') => {
     const modeToSwitchTo = targetMode || previousMode || 'play';
     setMode(modeToSwitchTo);
-    // If "Show in Edit Mode" is on, preserve the print area and that flag
+    // If "Show print area on sheet" is on, preserve the print area and that flag
     const keepOverlay = showInEditMode && printArea;
     const savedArea = printArea;
     resetPrintSettings();
@@ -890,12 +876,12 @@ export default function Sheet() {
     window.print();
   }, [isLandscape, paperFormat, printArea, recordSheetWorkflowEvent]);
 
-  // Handle the transition from the complete-sheet prompt to the play step.
+  // Load the complete tutorial sheet once the basic tour reaches the try-it-out step.
   useEffect(() => {
-    if (!isCurrentTutorialStep('switch-to-play')) return;
+    if (!isCurrentTutorialStep('try-widgets')) return;
 
     setPlayLayout('canvas');
-    setMode('edit');
+    setMode('play');
 
     // Creating the transient character remounts Sheet. The new instance must not create it again.
     // The starter character is transient too, so compare against the full preset widget count.
@@ -919,10 +905,10 @@ export default function Sheet() {
     }, 200);
   }, [activeCharacterId, createTransientCharacterFromPreset, darkMode, handleFitAllWidgets, setMode, setPlayLayout, transientCharacterIds, tutorialStep, updateCharacterTheme]);
 
-  // Specialty tutorials start from the same complete tutorial sheet and should open in edit mode.
+  // Specialty tutorials start from the same complete tutorial sheet on the canvas.
   useEffect(() => {
     if (isCurrentTutorialStep(THEME_TUTORIAL_START_ID) || isCurrentTutorialStep(TEMPLATE_TUTORIAL_START_ID)) {
-      setMode('edit');
+      setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
@@ -937,7 +923,7 @@ export default function Sheet() {
 
   useEffect(() => {
     if (isCurrentTutorialStep('automation-open-number-display-menu')) {
-      setMode('edit');
+      setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
@@ -948,7 +934,7 @@ export default function Sheet() {
 
   useEffect(() => {
     if (isCurrentTutorialStep('automation-open-dice-menu')) {
-      setMode('edit');
+      setMode('play');
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
       setTimeout(() => {
@@ -981,7 +967,7 @@ export default function Sheet() {
 
   useEffect(() => {
     if (isCurrentTutorialStep('templates-share-template')) {
-      setMode('edit');
+      setMode('play');
       setThemeSidebarCollapsed(true);
       setSidebarCollapsed(false);
     }
@@ -1016,11 +1002,12 @@ export default function Sheet() {
     }
 
     if (isCurrentTutorialStep('various-add-sheets') || isCurrentTutorialStep('various-add-sheet-button')) {
-      if (mode !== 'edit') {
-        setMode('edit');
+      if (mode !== 'play') {
+        setMode('play');
       }
       setSidebarCollapsed(true);
       setThemeSidebarCollapsed(true);
+      setTimelineOpen(false);
       if (isCurrentTutorialStep('various-add-sheet-button')) {
         setSheetDropdownOpen(true);
       }
@@ -1029,13 +1016,13 @@ export default function Sheet() {
 
   // Open the hamburger when the current tutorial target lives inside it.
   useEffect(() => {
-    const needsAddWidgetButton = tutorialStep === 4 && TUTORIAL_STEPS[4]?.id === 'add-widget';
+    const needsAddWidgetButton = isCurrentTutorialStep('add-widget');
     const needsThemeButton = isCurrentTutorialStep(THEME_TUTORIAL_START_ID);
     const needsTemplateToolboxButton = isCurrentTutorialStep('templates-open-toolbox');
     const compactToolbar = window.innerWidth < 480;
     const needsAddButtonInMenu = compactToolbar && (needsAddWidgetButton || needsTemplateToolboxButton);
 
-    if (needsAddButtonInMenu || (compactToolbar && needsThemeButton) || (window.innerWidth < 1024 && isCurrentTutorialStep('various-print-mode'))) {
+    if (needsAddButtonInMenu || (compactToolbar && needsThemeButton) || isCurrentTutorialStep('various-print-mode')) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
@@ -1099,21 +1086,31 @@ export default function Sheet() {
     e.dataTransfer.dropEffect = 'copy';
   };
 
+  const addWidgetAtClientPoint = (type: WidgetType, clientX: number, clientY: number) => {
+    const canvasRect = containerRef.current?.getBoundingClientRect();
+    const viewportX = clientX - (canvasRect?.left ?? 0);
+    const viewportY = clientY - (canvasRect?.top ?? 0);
+    const x = snapWidgetCoordinate((viewportX - pan.x) / scale);
+    const y = snapWidgetCoordinate((viewportY - pan.y) / scale);
+
+    addWidget(type, x, y, undefined, 'exact');
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const type = e.dataTransfer.getData('widgetType') as WidgetType;
-    if (type) {
-      const canvasRect = containerRef.current?.getBoundingClientRect();
-      const viewportX = e.clientX - (canvasRect?.left ?? 0);
-      const viewportY = e.clientY - (canvasRect?.top ?? 0);
-      const rawX = (viewportX - pan.x) / scale;
-      const rawY = (viewportY - pan.y) / scale;
+    if (type) addWidgetAtClientPoint(type, e.clientX, e.clientY);
+  };
 
-      const x = snapWidgetCoordinate(rawX);
-      const y = snapWidgetCoordinate(rawY);
+  const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const closeCanvasContextMenu = useCallback(() => setCanvasContextMenu(null), []);
 
-      addWidget(type, x, y, undefined, 'exact');
-    }
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    if (mode === 'print') return;
+    // Only the bare background; widgets and other layers handle their own menus.
+    if (e.target !== e.currentTarget && e.target !== printAreaRef.current) return;
+    e.preventDefault();
+    setCanvasContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const registerVerticalWidget = useCallback((widgetId: string, element: HTMLDivElement | null) => {
@@ -1404,8 +1401,8 @@ export default function Sheet() {
     listWidgetColumns[listColumnAssignments[widget.id]].push(widget);
   });
 
-  // Render list layout in either Play or Build.
-  if (mode === 'vertical' || (mode === 'edit' && playLayout === 'list')) {
+  // Render list layout.
+  if (mode === 'vertical') {
     return (
       <div className="vertical-mode-container w-full h-screen overflow-hidden relative bg-theme-background flex flex-col">
         <Sidebar
@@ -1426,8 +1423,6 @@ export default function Sheet() {
           listColumns={listColumns}
           menuOpen={gridMenuOpen}
           onMenuOpenChange={setGridMenuOpen}
-          onBuild={handleEnterBuildWorkspace}
-          onPlay={handleEnterPlayWorkspace}
           onSelectLayout={handleSelectPlayLayout}
           onListColumnsChange={setListColumns}
           onPrintPreview={enterPrintMode}
@@ -1442,8 +1437,7 @@ export default function Sheet() {
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
-          onAddWidget={() => handleToggleWidgetSidebar()}
-          addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+          onAddWidget={() => handleOpenWidgetSidebar()}
           onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
           onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
@@ -1451,7 +1445,6 @@ export default function Sheet() {
           onSearch={() => setSheetSearchOpen(true)}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
-          workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
         />
 
@@ -1468,23 +1461,26 @@ export default function Sheet() {
         {sheetDropdownOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setSheetDropdownOpen(false)} />
-            <div className="absolute right-2 top-12 z-50 max-h-[calc(100dvh-4rem)] min-w-[160px] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
-              <div className="border-b border-theme-border/50 px-3 py-2">
-                <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
-              </div>
-              {activeCharacter.sheets.map((sheet) => (
-                <button
-                  key={sheet.id}
-                  type="button"
-                  onClick={() => {
-                    selectSheet(sheet.id);
-                    setSheetDropdownOpen(false);
-                  }}
-                  className={`block w-full px-3 py-2 text-left text-xs font-body transition-colors ${sheet.id === activeCharacter.activeSheetId ? 'bg-theme-accent text-theme-paper' : 'text-theme-ink hover:bg-theme-accent/20'}`}
-                >
-                  {sheet.name}
-                </button>
-              ))}
+            <div className="absolute right-2 top-12 z-50 max-h-[calc(100dvh-4rem)] w-[min(240px,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper py-1 shadow-theme animate-dropdown-in">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
+              {activeCharacter.sheets.map((sheet) => {
+                const isActiveSheet = sheet.id === activeCharacter.activeSheetId;
+                return (
+                  <button
+                    key={sheet.id}
+                    type="button"
+                    aria-current={isActiveSheet ? 'true' : undefined}
+                    onClick={() => {
+                      selectSheet(sheet.id);
+                      setSheetDropdownOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper ${isActiveSheet ? 'font-semibold' : ''}`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{sheet.name}</span>
+                    {isActiveSheet && <CheckIcon className="h-4 w-4 shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
@@ -1506,8 +1502,7 @@ export default function Sheet() {
             canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
-            onAddWidget={() => handleToggleWidgetSidebar()}
-            addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+            onAddWidget={() => handleOpenWidgetSidebar()}
             onChangeTheme={() => handleToggleThemeSidebar()}
             changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
             onExpandAll={() => setAllVerticalWidgetsCollapsed(false)}
@@ -1516,24 +1511,20 @@ export default function Sheet() {
             onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
           />
           <WorkspaceToggleGroup
-            workspace={workspace}
             playLayout={playLayout}
-            onBuild={handleEnterBuildWorkspace}
-            onPlay={handleEnterPlayWorkspace}
             onCanvas={() => handleSelectPlayLayout('canvas')}
             onList={() => handleSelectPlayLayout('list')}
-            workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
             listHighlighted={isCurrentTutorialStep('various-vertical-view')}
             layoutClassName="min-[720px]:flex"
           />
-          <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+          <Tooltip content="Open widget panel" placement="below">
             <button
               type="button"
               data-tutorial="add-widget-button"
-              onClick={() => handleToggleWidgetSidebar()}
+              onClick={() => handleOpenWidgetSidebar()}
               className="hidden min-[380px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              {sidebarCollapsed ? 'Add' : 'Hide Add'}
+              Add
             </button>
           </Tooltip>
           <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
@@ -1548,13 +1539,13 @@ export default function Sheet() {
           </Tooltip>
           <CharacterNameControl
             name={activeCharacter.name}
-            editable={workspace === 'build'}
+            editable
             onSave={(name) => updateCharacterName(activeCharacter.id, name)}
             className="hidden absolute left-1/2 -translate-x-1/2 text-center min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]"
           />
           <div className="flex-1 min-w-0" />
 
-          <div className={`hidden ${workspace === 'build' ? 'min-[540px]:flex' : 'min-[480px]:flex'} items-center gap-2 shrink-0`}>
+          <div className="hidden min-[480px]:flex items-center gap-2 shrink-0">
             <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
             {workspace === 'play' && (
               <Tooltip content="Open event timeline" placement="below">
@@ -1636,7 +1627,7 @@ export default function Sheet() {
 
         {/* Vertical Mode Container - scrollable */}
         <div ref={verticalListScrollRef} className="flex-1 overflow-y-auto">
-          <div className="w-full px-3 pt-14 pb-24 sm:px-5">
+          <div className="w-full px-3 pt-3 pb-24 sm:px-5">
             {/* Widgets in vertical layout */}
             <div
               className={renderedListColumnCount > 1 ? 'mx-auto grid w-full gap-x-5' : undefined}
@@ -1658,7 +1649,6 @@ export default function Sheet() {
                         registerElement={registerVerticalWidget}
                         onDragStart={startVerticalDrag}
                         onReorderKey={handleVerticalReorderKey}
-                        isBuildMode={workspace === 'build'}
                         searchRevealKey={searchReveal?.widgetId === widget.id ? searchReveal.key : undefined}
                       />
                     );
@@ -1670,17 +1660,13 @@ export default function Sheet() {
             {activeSheetWidgets.length === 0 && (
               <div className="text-center text-theme-muted py-12">
                 <p className="font-body">No widgets on this sheet</p>
-                {workspace === 'build' ? (
-                  <button
-                    type="button"
-                    onClick={() => handleToggleWidgetSidebar()}
-                    className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
-                  >
-                    Add widget
-                  </button>
-                ) : (
-                  <p className="text-sm mt-2">Switch to Build to add widgets</p>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenWidgetSidebar()}
+                  className="widget-control widget-control--primary mt-3 px-3 py-1.5 text-sm"
+                >
+                  Add widget
+                </button>
               </div>
             )}
           </div>
@@ -1708,7 +1694,7 @@ export default function Sheet() {
         />
       )}
       
-      {/* Theme Sidebar - available in edit mode */}
+      {/* Theme Sidebar */}
       {mode !== 'print' && (
         <ThemeSidebar
           collapsed={themeSidebarCollapsed}
@@ -1724,8 +1710,9 @@ export default function Sheet() {
         onWheel={handleWheel}
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}
+        onContextMenu={handleCanvasContextMenu}
       >
-        {mode === 'edit' && activeSheetWidgets.length === 0 && (
+        {mode !== 'print' && activeSheetWidgets.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
             <div className="pointer-events-auto flex flex-col items-center gap-3 text-center">
               <p className="font-heading text-sm font-bold text-theme-ink">Empty sheet</p>
@@ -1759,13 +1746,6 @@ export default function Sheet() {
             transform: getCameraTransform(pan, scale)
           }}
         >
-          {/* Infinite Grid Background - hidden in play and print mode */}
-          {mode !== 'play' && mode !== 'print' && (
-            <div 
-              className="absolute -top-[50000px] -left-[50000px] w-[100000px] h-[100000px] pattern-grid opacity-20 pointer-events-none" 
-            />
-          )}
-
           {/* Shadow Layer - rendered below all widgets (respect shadowsDisabled in print mode) */}
           {!(mode === 'print' && shadowsDisabled) && (
             <WidgetShadows 
@@ -1786,24 +1766,36 @@ export default function Sheet() {
 
           <CardDeckLayer pan={pan} scale={scale} zIndex={cardDeckLayerZIndex} />
           
-          {/* Attachment Buttons - only in edit mode */}
-          {mode === 'edit' && attachmentControlsVisible && (
+          {/* Attachment buttons for the selected widget */}
+          {mode !== 'print' && attachmentControlsVisible && (
             <AttachmentButtons 
               widgets={activeSheetWidgets} 
               scale={scale}
             />
           )}
           
-          {/* Print Area Overlay - in print mode or edit mode when showInEditMode is on */}
-          {(mode === 'print' || (mode === 'edit' && showInEditMode && printArea)) && (
+          {/* Print Area Overlay - in print mode, or read-only on the canvas when showInEditMode is on */}
+          {(mode === 'print' || (showInEditMode && printArea)) && (
             <PrintAreaOverlay 
               scale={scale}
               pan={pan}
-              readOnly={mode === 'edit'}
+              readOnly={mode !== 'print'}
             />
           )}
         </div>
       </div>
+
+      {canvasContextMenu && mode !== 'print' && (
+        <CanvasContextMenu
+          x={canvasContextMenu.x}
+          y={canvasContextMenu.y}
+          onClose={closeCanvasContextMenu}
+          onSelect={(type) => {
+            addWidgetAtClientPoint(type, canvasContextMenu.x, canvasContextMenu.y);
+            closeCanvasContextMenu();
+          }}
+        />
+      )}
 
       {/* Print Mode Header */}
       {mode === 'print' && (
@@ -1815,8 +1807,7 @@ export default function Sheet() {
             resetPrintSettings();
             handleExitToMenu();
           }}
-          onPlay={() => exitPrintMode('play')}
-          onBuild={() => exitPrintMode('edit')}
+          onOpenCanvas={() => exitPrintMode('play')}
           onPrint={handlePrint}
           printerFriendly={printerFriendly}
           onTogglePrinterFriendly={() => setPrinterFriendly(!printerFriendly)}
@@ -1857,21 +1848,13 @@ export default function Sheet() {
               </button>
             </Tooltip>
             
-            {/* Return to a primary workspace */}
-            <Tooltip content="Exit print preview and return to Play" placement="below">
+            {/* Return to the canvas */}
+            <Tooltip content="Exit print preview and return to the canvas" placement="below">
               <button
                 onClick={() => exitPrintMode('play')}
                 className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
               >
-                Play
-              </button>
-            </Tooltip>
-            <Tooltip content="Exit print preview and return to Build" placement="below">
-              <button
-                onClick={() => exitPrintMode('edit')}
-                className="px-3 h-8 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
-              >
-                Build
+                Canvas
               </button>
             </Tooltip>
 
@@ -1948,8 +1931,8 @@ export default function Sheet() {
                 </div>
               )}
             </div>
-            {/* Show in Edit Mode toggle */}
-            <Tooltip content="Also show the print area rectangle in edit mode" placement="below">
+            {/* Show print area on the canvas */}
+            <Tooltip content="Also show the print area rectangle on the sheet" placement="below">
               <button
                 onClick={() => setShowInEditMode(!showInEditMode)}
                 className={`px-3 h-8 border-[length:var(--border-width)] border-theme-border rounded-button text-xs font-body transition-colors ${
@@ -1958,7 +1941,7 @@ export default function Sheet() {
                     : 'bg-theme-background text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
                 }`}
               >
-                Show in Edit Mode
+                Show print area on sheet
               </button>
             </Tooltip>
           </div>
@@ -2002,16 +1985,7 @@ export default function Sheet() {
             }}
             className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
           >
-            Play Mode
-          </button>
-          <button
-            onClick={() => {
-              exitPrintMode('edit');
-              setPrintMenuOpen(false);
-            }}
-            className="w-full px-4 py-2.5 text-sm text-left font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors whitespace-nowrap"
-          >
-            Edit Mode
+            Canvas
           </button>
           <div className="border-t border-theme-border" />
           <button
@@ -2079,12 +2053,12 @@ export default function Sheet() {
                 : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
             }`}
           >
-            Show in Edit Mode {showInEditMode && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
+            Show print area on sheet {showInEditMode && <CheckIcon className="w-3.5 h-3.5 shrink-0" />}
           </button>
         </div>
       )}
 
-      {/* Compact header bar for grid/edit mode (hidden in print mode) */}
+      {/* Canvas toolbar (hidden in print mode) */}
       {mode !== 'print' && (
       <SheetToolbar
         overlay
@@ -2096,8 +2070,6 @@ export default function Sheet() {
         listColumns={listColumns}
         menuOpen={gridMenuOpen}
         onMenuOpenChange={setGridMenuOpen}
-        onBuild={handleEnterBuildWorkspace}
-        onPlay={handleEnterPlayWorkspace}
         onSelectLayout={handleSelectPlayLayout}
         onListColumnsChange={setListColumns}
         onPrintPreview={() => {
@@ -2125,15 +2097,13 @@ export default function Sheet() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
-        onAddWidget={() => handleToggleWidgetSidebar()}
-        addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+        onAddWidget={() => handleOpenWidgetSidebar()}
         onChangeTheme={() => handleToggleThemeSidebar()}
         changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-        onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+        onAutoStack={() => setShowAutoStackConfirm(true)}
         onSearch={() => setSheetSearchOpen(true)}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
-        workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
       />
       )}
@@ -2180,33 +2150,27 @@ export default function Sheet() {
           canRedo={canRedo}
           onUndo={undo}
           onRedo={redo}
-          onAddWidget={() => handleToggleWidgetSidebar()}
-          addWidgetLabel={sidebarCollapsed ? 'Add Widget' : 'Hide Toolbox'}
+          onAddWidget={() => handleOpenWidgetSidebar()}
           onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-          onAutoStack={workspace === 'build' ? () => setShowAutoStackConfirm(true) : undefined}
+          onAutoStack={() => setShowAutoStackConfirm(true)}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         />
         <WorkspaceToggleGroup
-          workspace={workspace}
           playLayout={playLayout}
-          onBuild={handleEnterBuildWorkspace}
-          onPlay={handleEnterPlayWorkspace}
           onCanvas={() => handleSelectPlayLayout('canvas')}
           onList={() => handleSelectPlayLayout('list')}
-          workspaceHighlighted={(tutorialStep === 3 && workspace === 'play') || (tutorialStep === 23 && workspace === 'build')}
           listHighlighted={isCurrentTutorialStep('various-vertical-view')}
-          layoutClassName={workspace === 'build' ? 'min-[460px]:flex' : 'min-[380px]:flex'}
         />
-        <Tooltip content={sidebarCollapsed ? 'Open widget panel' : 'Close widget panel'} placement="below">
+        <Tooltip content="Open widget panel" placement="below">
           <button
             type="button"
             data-tutorial="add-widget-button"
-            onClick={() => handleToggleWidgetSidebar()}
+            onClick={() => handleOpenWidgetSidebar()}
             className="hidden min-[320px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors"
           >
-            {sidebarCollapsed ? 'Add' : 'Hide Add'}
+            Add
           </button>
         </Tooltip>
         <Tooltip content={themeSidebarCollapsed ? 'Open theme panel' : 'Close theme panel'} placement="below">
@@ -2214,20 +2178,20 @@ export default function Sheet() {
             type="button"
             data-tutorial="theme-button"
             onClick={() => handleToggleThemeSidebar()}
-            className={`hidden min-[640px]:block ${workspace === 'build' ? 'min-[900px]:hidden' : 'min-[720px]:hidden'} min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
+            className={`hidden min-[640px]:block min-[720px]:hidden min-[1200px]:block w-[72px] h-8 shrink-0 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-theme-ink text-xs font-body hover:bg-theme-accent hover:text-theme-paper transition-colors ${isCurrentTutorialStep(THEME_TUTORIAL_START_ID) ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
           >
             Theme
           </button>
         </Tooltip>
         <CharacterNameControl
           name={activeCharacter.name}
-          editable={workspace === 'build'}
+          editable
           onSave={(name) => updateCharacterName(activeCharacter.id, name)}
           className="hidden absolute left-1/2 -translate-x-1/2 text-center min-[900px]:block w-[120px] min-[960px]:w-[160px] min-[1100px]:w-[240px]"
         />
         <div className="flex-1 min-w-0" />
 
-        <div className={`hidden ${workspace === 'build' ? 'min-[540px]:flex' : 'min-[480px]:flex'} items-center gap-2 shrink-0`}>
+        <div className="hidden min-[480px]:flex items-center gap-2 shrink-0">
           <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
           {workspace === 'play' && (
             <Tooltip content="Open event timeline" placement="below">
@@ -2281,17 +2245,19 @@ export default function Sheet() {
             className="fixed inset-0 z-40" 
             onClick={() => setSheetDropdownOpen(false)}
           />
-          <div className="absolute top-12 right-2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme overflow-hidden z-50 min-w-[150px] animate-dropdown-in">
-            <div className="border-b border-theme-border/50 px-3 py-2">
-              <p className="font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
-            </div>
-            {activeCharacter.sheets.map((sheet) => (
+          <div className="absolute top-12 right-2 z-50 w-[min(240px,calc(100vw-1rem))] rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper py-1 shadow-theme animate-dropdown-in">
+            <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Sheets</p>
+            <div className="sheet-dropdown-scroll max-h-[min(20rem,calc(100dvh-10rem))] overflow-y-auto overscroll-contain">
+            {activeCharacter.sheets.map((sheet) => {
+              const isActiveSheet = sheet.id === activeCharacter.activeSheetId;
+              const canManage = mode !== 'print';
+              return (
               <div
                 key={sheet.id}
                 ref={(element) => setSheetRowRef(sheet.id, element)}
-                className="pointer-sort-row group relative flex items-stretch"
+                className={`pointer-sort-row group relative flex items-center text-theme-ink transition-colors ${editingSheetId === sheet.id ? '' : 'hover:bg-theme-accent hover:text-theme-paper'}`}
               >
-                {mode === 'edit' && editingSheetId !== sheet.id && (
+                {canManage && editingSheetId !== sheet.id && (
                   <button
                     type="button"
                     onPointerDown={(event) => startSheetDrag(sheet.id, event)}
@@ -2299,16 +2265,16 @@ export default function Sheet() {
                     disabled={activeCharacter.sheets.length < 2}
                     aria-label={`Reorder ${sheet.name}`}
                     title="Drag to reorder. Arrow keys also work."
-                    className="flex w-6 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center text-theme-muted hover:text-theme-ink active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+                    className="flex h-9 w-6 flex-shrink-0 cursor-grab touch-none select-none items-center justify-center opacity-40 group-hover:opacity-100 active:cursor-grabbing disabled:invisible"
                   >
                     <GripVerticalIcon className="h-3.5 w-3.5" />
                   </button>
                 )}
-                <div className="min-w-0 flex-1">
                 {editingSheetId === sheet.id ? (
                   <input
                     type="text"
                     value={editedSheetName}
+                    aria-label="Sheet name"
                     onChange={(e) => setEditedSheetName(e.target.value)}
                     onBlur={() => {
                       if (editedSheetName.trim()) {
@@ -2328,69 +2294,74 @@ export default function Sheet() {
                     }}
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full px-3 py-2 text-xs bg-transparent border-b border-theme-border outline-none text-theme-ink font-body"
+                    className="mx-2 my-1 h-8 min-w-0 flex-1 rounded-button border border-theme-accent bg-theme-paper px-2 text-sm text-theme-ink font-body outline-none"
                   />
                 ) : (
-                  <button
-                    onClick={() => {
-                      selectSheet(sheet.id);
-                      setSheetDropdownOpen(false);
-                    }}
-                    className={`w-full px-3 py-2 text-xs text-left font-body transition-colors flex items-center justify-between ${
-                      sheet.id === activeCharacter.activeSheetId
-                        ? 'bg-theme-accent text-theme-paper'
-                        : 'text-theme-ink hover:bg-theme-accent/20'
-                    }`}
-                  >
-                    <span>{sheet.name}</span>
-                    {mode === 'edit' && (
-                      <span className="flex items-center gap-1">
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
+                  <>
+                    <button
+                      type="button"
+                      aria-current={isActiveSheet ? 'true' : undefined}
+                      onClick={() => {
+                        selectSheet(sheet.id);
+                        setSheetDropdownOpen(false);
+                      }}
+                      className={`flex h-9 min-w-0 flex-1 items-center gap-2 pr-3 text-left text-sm font-body focus:outline-none ${canManage ? '' : 'pl-3'} ${isActiveSheet ? 'font-semibold' : ''}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{sheet.name}</span>
+                      {isActiveSheet && <CheckIcon className="h-4 w-4 shrink-0" />}
+                    </button>
+                    {canManage && (
+                      <span className="absolute inset-y-0 right-0 flex items-center gap-0.5 bg-theme-accent pl-2 pr-1 text-theme-paper opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:bg-transparent [@media(hover:none)]:pl-0 [@media(hover:none)]:text-inherit [@media(hover:none)]:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => {
                             setEditedSheetName(sheet.name);
                             setEditingSheetId(sheet.id);
                           }}
-                          className={`w-5 h-5 rounded-full text-xs flex items-center justify-center transition-colors ${
-                            sheet.id === activeCharacter.activeSheetId
-                              ? 'bg-theme-paper/30 text-theme-paper hover:bg-theme-paper/50'
-                              : 'bg-theme-accent/20 text-theme-ink hover:bg-theme-accent/40'
-                          }`}
+                          aria-label={`Rename ${sheet.name}`}
+                          title="Rename"
+                          className="flex h-7 w-7 items-center justify-center rounded-button transition-colors hover:bg-theme-accent-hover"
                         >
-                          <PencilIcon className="w-3 h-3" />
-                        </span>
+                          <PencilIcon className="h-3.5 w-3.5" />
+                        </button>
                         {activeCharacter.sheets.length > 1 && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSheetToDelete(sheet.id);
-                            }}
-                            className="w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setSheetToDelete(sheet.id)}
+                            aria-label={`Delete ${sheet.name}`}
+                            title="Delete"
+                            className="flex h-7 w-7 items-center justify-center rounded-button transition-colors hover:bg-red-500 hover:text-white"
                           >
-                            <XIcon className="w-3 h-3" />
-                          </span>
+                            <TrashIcon className="h-3.5 w-3.5" />
+                          </button>
                         )}
                       </span>
                     )}
-                  </button>
+                  </>
                 )}
-                </div>
               </div>
-            ))}
-            {mode === 'edit' && (
-              <button
-                onClick={() => {
-                  createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
-                  if (isCurrentTutorialStep('various-add-sheet-button')) {
-                    advanceTutorial();
-                  }
-                  setSheetDropdownOpen(false);
-                }}
-                data-tutorial="add-sheet-button"
-                className={`w-full px-3 py-2 text-xs text-left font-body border-t border-theme-border/50 transition-colors ${isCurrentTutorialStep('various-add-sheet-button') ? 'bg-blue-500 text-white font-bold' : 'text-theme-muted hover:text-theme-ink hover:bg-theme-accent/20'}`}
-              >
-                + Add New Sheet
-              </button>
+              );
+            })}
+            </div>
+            {mode !== 'print' && (
+              <>
+                <div className="mx-3 my-1 h-px bg-theme-border opacity-30" role="separator" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    createSheet(`Sheet ${activeCharacter.sheets.length + 1}`);
+                    if (isCurrentTutorialStep('various-add-sheet-button')) {
+                      advanceTutorial();
+                    }
+                    setSheetDropdownOpen(false);
+                  }}
+                  data-tutorial="add-sheet-button"
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body transition-colors ${isCurrentTutorialStep('various-add-sheet-button') ? 'bg-blue-500 text-white font-bold' : 'text-theme-ink hover:bg-theme-accent hover:text-theme-paper'}`}
+                >
+                  <PlusIcon className="h-4 w-4 shrink-0" />
+                  Add sheet
+                </button>
+              </>
             )}
           </div>
         </>
@@ -2535,12 +2506,12 @@ export default function Sheet() {
           <button
             type="button"
             data-tutorial="fit-button"
-            className={`canvas-zoom-fit ${tutorialStep === 12 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`canvas-zoom-fit ${isCurrentTutorialStep('fit-button') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             onClick={() => {
               if (viewLocked) return;
               handleFitAllWidgets();
               recordSheetWorkflowEvent('view_fit_used', 'view', { widgetCount: activeSheetWidgets.length });
-              if (tutorialStep === 12 && TUTORIAL_STEPS[12]?.id === 'fit-button') {
+              if (isCurrentTutorialStep('fit-button')) {
                 advanceTutorial();
               }
             }}

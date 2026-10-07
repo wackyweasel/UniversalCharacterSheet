@@ -70,7 +70,7 @@ export function TooltipEditButton({ tooltip, onSave, itemName, radius = 'button'
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') cancel(); }}
-                placeholder="Enter tooltip text shown on hover in play mode (not visible on touch devices)..."
+                placeholder="Enter tooltip text shown on hover (not visible on touch devices)..."
                 rows={3}
                 className={`w-full px-3 py-2 border border-theme-border ${radiusClass} bg-theme-paper text-theme-ink text-sm focus:outline-none focus:border-theme-accent resize-none`}
               />

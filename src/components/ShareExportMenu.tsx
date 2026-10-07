@@ -28,8 +28,6 @@ import {
 } from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
 import { useTelemetryStore } from '../store/useTelemetryStore';
-import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
-import WorkspaceStatusSummary from './WorkspaceStatusIndicator';
 
 interface ShareExportMenuProps {
   character: Character;
@@ -37,7 +35,7 @@ interface ShareExportMenuProps {
   onOpenChange: (open: boolean) => void;
   onPrintPreview: () => void;
   onExit: () => void;
-  workspace: 'build' | 'play' | 'print';
+  workspace: 'play' | 'print';
   playLayout: 'canvas' | 'list';
   onSelectLayout: (layout: 'canvas' | 'list') => void;
   timelineOpen: boolean;
@@ -47,7 +45,6 @@ interface ShareExportMenuProps {
   onUndo: () => void;
   onRedo: () => void;
   onAddWidget?: () => void;
-  addWidgetLabel?: string;
   onChangeTheme?: () => void;
   changeThemeLabel?: string;
   onAutoStack?: () => void;
@@ -88,7 +85,6 @@ export default function ShareExportMenu({
   onUndo,
   onRedo,
   onAddWidget,
-  addWidgetLabel = 'Add Widget',
   onChangeTheme,
   changeThemeLabel = 'Change Theme',
   onAutoStack,
@@ -103,9 +99,6 @@ export default function ShareExportMenu({
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
   const setThreeDDiceEnabled = useDiceSettingsStore((state) => state.setThreeDDiceEnabled);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
-  const activeWorkspaceProvider = useStorageWorkspaceStore((state) => (
-    state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.provider ?? 'browser'
-  ));
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
   const [includeTheme, setIncludeTheme] = useState(true);
@@ -186,12 +179,6 @@ export default function ShareExportMenu({
         {open && (
           <div className="absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-7rem)] w-[min(300px,calc(100vw-1rem))] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme animate-dropdown-in">
             {topSection}
-            {activeWorkspaceProvider !== 'browser' && (
-              <div className="border-b border-theme-border/50 py-1">
-                <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Workspace</p>
-                <WorkspaceStatusSummary />
-              </div>
-            )}
             {hasOverflowNavigation && <div className="border-b border-theme-border/50 py-1">
               <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Quick actions</p>
             {(!inlineActionIds.has('layout') || !inlineActionIds.has('undo-redo') || (workspace === 'play' && !inlineActionIds.has('timeline'))) && (
@@ -292,8 +279,8 @@ export default function ShareExportMenu({
             </div>
             {hasOverflowWorkspaceActions && (
               <div className="border-b border-theme-border/50 py-1">
-                <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">{workspace === 'build' ? 'Build tools' : 'View tools'}</p>
-                {onAddWidget && !inlineActionIds.has('add-widget') && <Tooltip content={addWidgetLabel === 'Add Widget' ? 'Open the widget toolbox' : 'Close the widget toolbox'} placement="below"><button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PlusIcon className="h-4 w-4" />{addWidgetLabel}</button></Tooltip>}
+                <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Sheet tools</p>
+                {onAddWidget && !inlineActionIds.has('add-widget') && <Tooltip content="Open the widget toolbox" placement="below"><button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PlusIcon className="h-4 w-4" />Add Widget</button></Tooltip>}
                 {onChangeTheme && !inlineActionIds.has('theme') && <Tooltip content={changeThemeLabel === 'Change Theme' ? 'Open theme customization' : 'Close theme customization'} placement="below"><button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PaletteIcon className="h-4 w-4" />{changeThemeLabel}</button></Tooltip>}
                 {onAutoStack && !inlineActionIds.has('auto-stack') && <Tooltip content="Arrange canvas widgets into columns automatically" placement="below"><button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><RowsIcon className="h-4 w-4" />Auto Stack</button></Tooltip>}
                 {(onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand') && <>

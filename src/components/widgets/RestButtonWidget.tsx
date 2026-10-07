@@ -11,7 +11,7 @@ import { formatDiceExpression, getHealDiceExpression, parseDiceExpression, rollD
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
 }
@@ -275,7 +275,7 @@ export default function RestButtonWidget({ widget }: Props) {
           </button>
         </Tooltip>
       ) : (
-        <WidgetEmptyState title="Rest is not configured" hint="Choose what this button restores in Build." />
+        <WidgetEmptyState title="Rest is not configured" hint="Choose what this button restores in the widget editor." />
       )}
       
       {/* Result message */}

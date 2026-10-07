@@ -1,23 +1,24 @@
-import { memo, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
-import Draggable, { DraggableData, DraggableEvent } from 'react-draggable';
+import { memo, useRef, useState, useEffect, useCallback, useMemo, useSyncExternalStore, type CSSProperties } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { Sheet as CharacterSheet, Widget, WidgetType } from '../types';
-import { useStore } from '../store/useStore';
-import { useTemplateStore } from '../store/useTemplateStore';
-import { useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { Widget, WidgetType } from '../types';
+import { useStore, type WidgetSelectionSource } from '../store/useStore';
+import { useTutorialStore, getTutorialStepIndex } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { useCustomThemeStore } from '../store/useCustomThemeStore';
 import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { DotsVerticalIcon, PencilIcon } from './icons';
 import {
-  finishWidgetDrag,
   getWidgetDragState,
-  startWidgetDrag,
   subscribeWidgetDragState,
   WIDGET_CONTROLS_DISMISS_EVENT,
 } from './widgetDragRegistry';
+import WidgetOptionsMenu, {
+  getWidgetMenuTutorialTarget,
+  isWidgetEditTutorialTarget,
+  isWidgetMenuTutorialTarget,
+} from './WidgetOptionsMenu';
+import { isTouchContextMenu, useWidgetDrag } from '../hooks/useWidgetDrag';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 import NumberWidget from './widgets/NumberWidget';
@@ -54,6 +55,7 @@ import WalletWidget from './widgets/WalletWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
+import { useLockedWidgetWheel } from '../hooks/useLockedWidgetWheel';
 
 interface Props {
   widget: Widget;
@@ -62,10 +64,25 @@ interface Props {
 }
 
 const GRID_SIZE = WIDGET_GRID_SIZE;
-const BUILD_CONTROL_Z_INDEX = 10001;
-const BUILD_MENU_Z_INDEX = 10003;
-const WIDGET_OPTIONS_OPEN_EVENT = 'widget-options-open';
-const DROPDOWN_ESTIMATED_HEIGHT = 240;
+// Hovered widgets rise so their outer resize edges sit above attached neighbours.
+const HOVERED_WIDGET_Z_INDEX = 9000;
+const SELECTED_WIDGET_Z_INDEX = 10001;
+const MENU_OPEN_Z_INDEX = 10003;
+
+type ResizeDirection = -1 | 0 | 1;
+
+// Edge and corner zones, sized in CSS; the move grip sits over the middle of the top edge.
+// Full class names keep Tailwind from purging the layered rules.
+const RESIZE_ZONES: { key: string; x: ResizeDirection; y: ResizeDirection; className: string }[] = [
+  { key: 'n', x: 0, y: -1, className: 'widget-resize-zone--n' },
+  { key: 'e', x: 1, y: 0, className: 'widget-resize-zone--e' },
+  { key: 'w', x: -1, y: 0, className: 'widget-resize-zone--w' },
+  { key: 's', x: 0, y: 1, className: 'widget-resize-zone--s' },
+  { key: 'se', x: 1, y: 1, className: 'widget-resize-zone--se' },
+  { key: 'sw', x: -1, y: 1, className: 'widget-resize-zone--sw' },
+  { key: 'ne', x: 1, y: -1, className: 'widget-resize-zone--ne' },
+  { key: 'nw', x: -1, y: -1, className: 'widget-resize-zone--nw' },
+];
 
 // Minimum dimensions per widget type
 const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
@@ -104,7 +121,6 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
 
 type StoreState = ReturnType<typeof useStore.getState>;
 const EMPTY_WIDGETS: Widget[] = [];
-const EMPTY_SHEETS: CharacterSheet[] = [];
 
 const selectActiveCharacter = (state: StoreState) => (
   state.characters.find((character) => character.id === state.activeCharacterId)
@@ -125,6 +141,21 @@ function getWidgetBoxSize(candidate: Widget) {
   };
 }
 
+type WidgetBox = { x: number; y: number; width: number; height: number };
+type WidgetSide = 'left' | 'right' | 'top' | 'bottom';
+
+// The side of `box` that the neighbour touches, or null when they no longer share an edge.
+function getTouchingSide(box: WidgetBox, neighbor: Widget): WidgetSide | null {
+  const { width, height } = getWidgetBoxSize(neighbor);
+  const overlapsX = Math.min(box.x + box.width, neighbor.x + width) > Math.max(box.x, neighbor.x);
+  const overlapsY = Math.min(box.y + box.height, neighbor.y + height) > Math.max(box.y, neighbor.y);
+  if (overlapsY && Math.abs(neighbor.x + width - box.x) <= EDGE_TOLERANCE) return 'left';
+  if (overlapsY && Math.abs(neighbor.x - (box.x + box.width)) <= EDGE_TOLERANCE) return 'right';
+  if (overlapsX && Math.abs(neighbor.y + height - box.y) <= EDGE_TOLERANCE) return 'top';
+  if (overlapsX && Math.abs(neighbor.y - (box.y + box.height)) <= EDGE_TOLERANCE) return 'bottom';
+  return null;
+}
+
 const PLACEMENT_KEYS = new Set<string>(['x', 'y', 'zIndex']);
 
 function hasSameContent(previous: Widget, next: Widget) {
@@ -139,28 +170,16 @@ function hasSameContent(previous: Widget, next: Widget) {
 function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
   const updateWidgetSize = useStore((state) => state.updateWidgetSize);
-  const moveWidgetGroup = useStore((state) => state.moveWidgetGroup);
   const bringWidgetToFront = useStore((state) => state.bringWidgetToFront);
-  const removeWidget = useStore((state) => state.removeWidget);
-  const cloneWidget = useStore((state) => state.cloneWidget);
-  const detachWidgets = useStore((state) => state.detachWidgets);
-  const toggleWidgetLock = useStore((state) => state.toggleWidgetLock);
-  const moveWidgetToSheet = useStore((state) => state.moveWidgetToSheet);
-  const getWidgetsInGroup = useStore((state) => state.getWidgetsInGroup);
-  const cloneGroup = useStore((state) => state.cloneGroup);
-  const removeGroup = useStore((state) => state.removeGroup);
-  const toggleGroupLock = useStore((state) => state.toggleGroupLock);
-  const moveGroupToSheet = useStore((state) => state.moveGroupToSheet);
-  const detachAllInGroup = useStore((state) => state.detachAllInGroup);
+  const detachWidgetFrom = useStore((state) => state.detachWidgetFrom);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const isSelected = useStore((state) => state.selectedWidgetId === widget.id);
+  // Touch selection covers the content so a one-finger drag moves the widget.
+  const isArranging = useStore((state) => state.selectedWidgetId === widget.id && state.selectedWidgetSource === 'touch');
   const setSelectedWidgetId = useStore((state) => state.setSelectedWidgetId);
-  const addTemplate = useTemplateStore((state) => state.addTemplate);
-  const addGroupTemplate = useTemplateStore((state) => state.addGroupTemplate);
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
-  const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   
   // Print mode state
   const textureDisabled = usePrintStore((state) => state.textureDisabled);
@@ -169,7 +188,6 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   // Get current character's theme for texture info
   // Narrow selectors: subscribing to all characters re-rendered every widget whenever any widget changed.
   const activeTheme = useStore((state) => selectActiveCharacter(state)?.theme);
-  const activeSheetId = useStore((state) => selectActiveCharacter(state)?.activeSheetId);
   const customCardTexture = useCustomThemeStore((state) => (
     activeTheme ? state.customThemes.find((theme) => theme.id === activeTheme)?.cardTexture : undefined
   ));
@@ -180,69 +198,24 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownMenuRef = useRef<HTMLDivElement | null>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useLockedWidgetWheel(nodeRef, mode !== 'print' && widget.locked === true);
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  // Sheets are only listed in the options menu ("Move to Sheet").
-  const sheets = useStore(useShallow((state) => (
-    showDropdown ? selectActiveCharacter(state)?.sheets ?? EMPTY_SHEETS : EMPTY_SHEETS
-  )));
-  const hasMultipleSheets = sheets.length > 1;
-  const [dropdownAlign, setDropdownAlign] = useState<'left' | 'right'>('right');
-  const [dropdownVerticalAlign, setDropdownVerticalAlign] = useState<'above' | 'below'>('below');
-  const [dropdownViewportPosition, setDropdownViewportPosition] = useState<{ x: number; y: number } | null>(null);
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  // The key remounts the menu so every open starts from its first tab.
+  const [menu, setMenu] = useState<{ key: number; point: { x: number; y: number } | null } | null>(null);
+  const menuKeyRef = useRef(0);
   const [showPrintSettings, setShowPrintSettings] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [showMoveToSheet, setShowMoveToSheet] = useState(false);
-  // Group action states
-  const [showGroupDeleteConfirm, setShowGroupDeleteConfirm] = useState(false);
-  const [showGroupTemplateNameInput, setShowGroupTemplateNameInput] = useState(false);
-  const [groupTemplateName, setGroupTemplateName] = useState('');
-  const [showGroupMoveToSheet, setShowGroupMoveToSheet] = useState(false);
-  // Dropdown tab: 'widget' or 'group'
-  const [dropdownTab, setDropdownTab] = useState<'widget' | 'group'>('widget');
   const [isHovered, setIsHovered] = useState(false);
+  // Touch has no hover, so a single tap reveals the move bar instead.
+  const [isTapRevealed, setIsTapRevealed] = useState(false);
   const [snappedHeight, setSnappedHeight] = useState<number | null>(null);
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const groupDragOriginsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
 
-  const positionDropdownFromTrigger = useCallback((
-    rect = dropdownTriggerRef.current?.getBoundingClientRect(),
-    menuHeight = dropdownMenuRef.current?.getBoundingClientRect().height ?? DROPDOWN_ESTIMATED_HEIGHT,
-  ) => {
-    if (!rect) return;
-    const align = rect.right < 198 ? 'left' : 'right';
-    const gap = 4;
-    const viewportPadding = 8;
-    const opensAbove = rect.bottom + gap + menuHeight > window.innerHeight - viewportPadding;
-    setDropdownAlign(align);
-    setDropdownVerticalAlign(opensAbove ? 'above' : 'below');
-    setDropdownViewportPosition({
-      x: align === 'left' ? rect.left : rect.right,
-      y: opensAbove ? rect.top - gap : rect.bottom + gap,
-    });
+  const openMenu = useCallback((point: { x: number; y: number } | null) => {
+    menuKeyRef.current += 1;
+    setMenu({ key: menuKeyRef.current, point });
   }, []);
-
-  const setDropdownMenuRef = useCallback((menu: HTMLDivElement | null) => {
-    dropdownMenuRef.current = menu;
-    if (!menu) return;
-    window.requestAnimationFrame(() => {
-      const trigger = dropdownTriggerRef.current;
-      if (!trigger || dropdownMenuRef.current !== menu) return;
-      positionDropdownFromTrigger(trigger.getBoundingClientRect(), menu.getBoundingClientRect().height);
-    });
-  }, [positionDropdownFromTrigger]);
-
-  const openDropdown = useCallback(() => {
-    window.dispatchEvent(new CustomEvent(WIDGET_OPTIONS_OPEN_EVENT, { detail: widget.id }));
-    setShowDropdown(true);
-  }, [widget.id]);
+  const closeMenu = useCallback(() => setMenu(null), []);
   
   // Widget types that have print settings customization
   const WIDGETS_WITH_PRINT_SETTINGS: WidgetType[] = ['NUMBER', 'NUMBER_DISPLAY'];
@@ -250,25 +223,10 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   
-  // Resize state
-  const [isResizing, setIsResizing] = useState(false);
-  const isResizingRef = useRef(false);
-  const resizeStartRef = useRef({
-    mouseX: 0,
-    mouseY: 0,
-    width: 0,
-    height: 0,
-    x: 0,
-    y: 0,
-    corner: 'bottom-right' as 'top-left' | 'bottom-right',
-  });
   // Resize previews stay local so the store and sheet re-render only once on release.
-  const [resizePreview, setResizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const resizePreviewRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
-  const isDraggingRef = useRef(false);
-  const pinchCanceledDragRef = useRef(false);
-  const widgetTouchActiveRef = useRef(false);
-  const selectedBeforeTouchRef = useRef<string | null>(null);
+  const [resizePreview, setResizePreview] = useState<{ x: number; y: number; w?: number; h?: number } | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
   const getIsWidgetDragging = () => {
     const drag = getWidgetDragState();
     return drag?.widgetId === widget.id || (!!widget.groupId && drag?.groupId === widget.groupId);
@@ -279,19 +237,16 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     getIsWidgetDragging,
   );
 
-  useTouchCameraPinchCancellation(() => {
-    if (isDraggingRef.current) pinchCanceledDragRef.current = true;
-    if (isResizingRef.current) {
-      isResizingRef.current = false;
-      resizePreviewRef.current = null;
-      setResizePreview(null);
-      setIsResizing(false);
-    }
-    if (widgetTouchActiveRef.current) {
-      widgetTouchActiveRef.current = false;
-      setSelectedWidgetId(selectedBeforeTouchRef.current);
-    }
-  });
+  const cancelResize = useCallback(() => {
+    if (!resizeCleanupRef.current) return;
+    resizeCleanupRef.current();
+    resizeCleanupRef.current = null;
+    setResizePreview(null);
+    setIsResizing(false);
+  }, []);
+
+  useTouchCameraPinchCancellation(cancelResize);
+  useEffect(() => () => resizeCleanupRef.current?.(), []);
 
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
   const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
@@ -312,122 +267,24 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       showTableEditButton: isWidgetHeaderHidden ? false : contentWidget.data.showTableEditButton,
     },
   }), [isWidgetHeaderHidden, contentWidget]);
-  const shouldShowTemplateTutorialMenu = widget.type === 'FORM' && (
-    isCurrentTutorialStep('templates-open-widget-menu') ||
-    isCurrentTutorialStep('templates-open-group-menu')
-  );
-  const isAutomationAttackDiceRoller = widget.type === 'DICE_ROLLER' && String(widget.data?.label || '').toLowerCase() === 'attack';
-  const shouldShowAutomationTutorialMenu =
-    (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-open-number-display-menu')) ||
-    (isAutomationAttackDiceRoller && isCurrentTutorialStep('automation-open-dice-menu'));
-  const shouldShowAutomationTutorialEdit =
-    (widget.type === 'NUMBER_DISPLAY' && isCurrentTutorialStep('automation-edit-number-display')) ||
-    (isAutomationAttackDiceRoller && isCurrentTutorialStep('automation-edit-dice-roller'));
-  const shouldHighlightWidgetTemplateSave = isCurrentTutorialStep('templates-save-widget-template');
-  const shouldHighlightWidgetTemplateConfirm = isCurrentTutorialStep('templates-name-widget-template') && templateName.trim().length > 0;
-  const shouldHighlightGroupTab = isCurrentTutorialStep('templates-open-group-tab');
-  const shouldHighlightGroupTemplateSave = isCurrentTutorialStep('templates-save-group-template');
-  const shouldHighlightGroupTemplateConfirm = isCurrentTutorialStep('templates-name-group-template') && groupTemplateName.trim().length > 0;
-  const widgetMenuTutorialTarget = widget.type === 'DICE_ROLLER'
-    ? isAutomationAttackDiceRoller ? 'widget-menu-DICE_ROLLER' : undefined
-    : `widget-menu-${widget.type}`;
-  const editButtonTutorialTarget = widget.type === 'DICE_ROLLER'
-    ? isAutomationAttackDiceRoller ? 'edit-button-DICE_ROLLER' : undefined
-    : `edit-button-${widget.type}`;
+  const isMenuTutorialTarget = isWidgetMenuTutorialTarget(widget, tutorialStep);
+  // The menu unlocks once the tutorial reaches its widget menu step.
+  const menuAllowed = tutorialStep === null || tutorialStep >= getTutorialStepIndex('widget-menu');
   
   // Get minimum dimensions for this widget type
   const minDimensions = MIN_DIMENSIONS[widget.type] || { width: 120, height: 60 };
   const buildControlScale = Math.min(1, 1 / scale);
+  // Grip and resize zones grow when zoomed out so they stay easy to hit.
+  const hitScale = Math.min(3, Math.max(1, 1 / scale));
 
   useEffect(() => {
-    const handleWidgetOptionsOpen = (event: Event) => {
-      const openedWidgetId = (event as CustomEvent<string>).detail;
-      if (openedWidgetId === widget.id) return;
-
-      setShowDropdown(false);
-      setShowDeleteConfirm(false);
-      setShowTemplateNameInput(false);
-      setTemplateName('');
-      setShowMoveToSheet(false);
-      setShowGroupDeleteConfirm(false);
-      setShowGroupTemplateNameInput(false);
-      setGroupTemplateName('');
-      setShowGroupMoveToSheet(false);
-      setDropdownTab('widget');
+    const dismissHoverControls = () => {
+      setIsHovered(false);
+      setIsTapRevealed(false);
     };
-
-    window.addEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
-    return () => window.removeEventListener(WIDGET_OPTIONS_OPEN_EVENT, handleWidgetOptionsOpen);
-  }, [widget.id]);
-
-  useEffect(() => {
-    const dismissHoverControls = () => setIsHovered(false);
     window.addEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
     return () => window.removeEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
   }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node;
-      if (!dropdownRef.current?.contains(target) && !dropdownMenuRef.current?.contains(target)) {
-        setShowDropdown(false);
-        setShowDeleteConfirm(false);
-        setShowTemplateNameInput(false);
-        setTemplateName('');
-        setShowMoveToSheet(false);
-        // Reset group action states
-        setShowGroupDeleteConfirm(false);
-        setShowGroupTemplateNameInput(false);
-        setGroupTemplateName('');
-        setShowGroupMoveToSheet(false);
-        setDropdownTab('widget');
-      }
-    };
-
-    if (showDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('touchstart', handleClickOutside);
-      };
-    }
-  }, [showDropdown, tutorialStep, widget.type]);
-
-  useEffect(() => {
-    if (showDropdown && contextMenuPosition === null && dropdownViewportPosition === null) {
-      positionDropdownFromTrigger();
-    }
-  }, [contextMenuPosition, dropdownViewportPosition, positionDropdownFromTrigger, showDropdown]);
-
-  useLayoutEffect(() => {
-    if (!showDropdown || contextMenuPosition !== null) return;
-    let resizeObserver: ResizeObserver | null = null;
-    const reposition = () => {
-      const menu = dropdownMenuRef.current;
-      const trigger = dropdownTriggerRef.current;
-      if (!menu || !trigger) return;
-      positionDropdownFromTrigger(trigger.getBoundingClientRect(), menu.getBoundingClientRect().height);
-    };
-    let measurementFrame = 0;
-    const animationFrame = window.requestAnimationFrame(() => {
-      measurementFrame = window.requestAnimationFrame(() => {
-      const menu = dropdownMenuRef.current;
-      if (!menu) return;
-      reposition();
-      resizeObserver = new ResizeObserver(reposition);
-      resizeObserver.observe(menu);
-      });
-    });
-    window.addEventListener('resize', reposition);
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.cancelAnimationFrame(measurementFrame);
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', reposition);
-    };
-  }, [contextMenuPosition, positionDropdownFromTrigger, showDropdown]);
 
   // Close print settings dropdown when clicking outside
   useEffect(() => {
@@ -469,70 +326,30 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     }
   }, [widget.data, widget.h]);
 
-  const handleWidgetTouchStart = (e: React.TouchEvent) => {
-    // Don't interfere with multi-touch gestures (pinch zoom)
-    // Let the global handler in Sheet.tsx manage all multi-touch
-    if (e.touches.length >= 2) {
-      // Cancel any potential drag operation by not selecting
-      return;
-    }
-    
-    if (mode === 'edit') {
-      widgetTouchActiveRef.current = true;
-      selectedBeforeTouchRef.current = useStore.getState().selectedWidgetId;
-      // If this widget is not selected, select it without canceling the native touch sequence
-      if (!isSelected) {
-        setSelectedWidgetId(widget.id);
-      }
-    }
-  };
-
   const handleWidgetPointerDown = () => {
     if (mode !== 'print') {
       bringWidgetToFront(widget.id);
     }
   };
 
-  const handleWidgetTouchEnd = () => {
-    widgetTouchActiveRef.current = false;
-  };
-
-  // Handle click/tap on widget - in edit mode, select it to show controls
-  const handleWidgetClick = (e: React.MouseEvent) => {
-    if (mode === 'edit' && !isSelected) {
-      e.preventDefault();
-      e.stopPropagation();
-      setSelectedWidgetId(widget.id);
-    }
-  };
+  const { handleGripPointerDown, handleSurfaceTouchStart } = useWidgetDrag({
+    widget,
+    scale,
+    enabled: mode !== 'print',
+    isArranging,
+    onTap: () => setIsTapRevealed(true),
+  });
 
   const handleWidgetContextMenu = (e: React.MouseEvent) => {
-    if (mode !== 'edit' && mode !== 'play') return;
+    if (mode === 'print') return;
 
     e.preventDefault();
     e.stopPropagation();
-    const widgetRect = e.currentTarget.getBoundingClientRect();
-    setContextMenuPosition({
-      x: (e.clientX - widgetRect.left) / scale,
-      y: (e.clientY - widgetRect.top) / scale,
-    });
-    const align = e.clientX < window.innerWidth - 198 ? 'left' : 'right';
-    setDropdownAlign(align);
-    setDropdownViewportPosition({ x: e.clientX, y: e.clientY });
-    setShowDeleteConfirm(false);
-    setShowTemplateNameInput(false);
-    setTemplateName('');
-    setShowMoveToSheet(false);
-    setShowGroupDeleteConfirm(false);
-    setShowGroupTemplateNameInput(false);
-    setGroupTemplateName('');
-    setShowGroupMoveToSheet(false);
-    setDropdownTab('widget');
-    openDropdown();
+    // Long-press on touch lifts the widget instead of opening the menu.
+    if (isTouchContextMenu() || !menuAllowed) return;
+    setSelectedWidgetId(widget.id, 'pointer');
+    openMenu({ x: e.clientX, y: e.clientY });
   };
-
-  const showControls = isHovered || isSelected;
-  const isContextMenuOpen = showDropdown && contextMenuPosition !== null;
 
   const openEditModal = () => {
     setShowEditModal(true);
@@ -540,13 +357,10 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   };
 
   const handleEditWidget = () => {
-    if (tutorialStep === 17 && widget.type === 'FORM' && TUTORIAL_STEPS[17]?.id === 'edit-widget') {
+    if (isWidgetEditTutorialTarget(widget, tutorialStep)) {
       advanceTutorial();
     }
-    if (shouldShowAutomationTutorialEdit) {
-      advanceTutorial();
-    }
-    setShowDropdown(false);
+    closeMenu();
     openEditModal();
   };
 
@@ -559,7 +373,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
 
   // Calculate width based on widget type (used for both display and resize)
   const getWidgetWidth = () => {
-    if (resizePreview) return resizePreview.w;
+    if (resizePreview?.w !== undefined) return resizePreview.w;
     // Use custom width if set on the widget
     if (widget.w) {
       return widget.w;
@@ -580,153 +394,101 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
 
   const widgetWidth = getWidgetWidth();
 
-  // Resize handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: 'top-left' | 'bottom-right') => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Detach widget from any group when resizing
-    if (widget.groupId) {
-      detachWidgets(widget.id, widget.id);
-    }
-    
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    // Start from the rendered logical size so auto-sized widgets do not jump on first resize.
-    const currentWidth = nodeRef.current?.offsetWidth || widget.w || 200;
-    const currentHeight = nodeRef.current?.offsetHeight || widget.h || 120;
-    
-    resizeStartRef.current = {
-      mouseX: clientX,
-      mouseY: clientY,
-      width: currentWidth,
-      height: currentHeight,
-      x: widget.x,
-      y: widget.y,
-      corner,
-    };
-    
-    isResizingRef.current = true;
-    resizePreviewRef.current = null;
-    setIsResizing(true);
-  }, [widget.w, widget.h, widget.x, widget.y, widget.groupId, widget.id, detachWidgets]);
-
   const minResizeWidth = minDimensions.width;
   const minResizeHeight = minDimensions.height;
-  const handleResizeMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isResizingRef.current) return;
-    
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    const start = resizeStartRef.current;
-    const deltaX = (clientX - start.mouseX) / scale;
-    const deltaY = (clientY - start.mouseY) / scale;
-    
-    const isTopLeft = start.corner === 'top-left';
-    const w = snapToGrid(Math.max(minResizeWidth, start.width + (isTopLeft ? -deltaX : deltaX)));
-    const h = snapToGrid(Math.max(minResizeHeight, start.height + (isTopLeft ? -deltaY : deltaY)));
-    const x = isTopLeft ? start.x + start.width - w : start.x;
-    const y = isTopLeft ? start.y + start.height - h : start.y;
 
-    const previous = resizePreviewRef.current;
-    if (previous && previous.w === w && previous.h === h && previous.x === x && previous.y === y) return;
-    const next = { x, y, w, h };
-    resizePreviewRef.current = next;
-    setResizePreview(next);
-  }, [scale, minResizeWidth, minResizeHeight, snapToGrid]);
+  // dirX/dirY pick the edges that move: -1 left/top, 1 right/bottom, 0 untouched.
+  const handleResizePointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+    dirX: ResizeDirection,
+    dirY: ResizeDirection,
+  ) => {
+    if (event.button !== 0 || widget.locked || mode === 'print') return;
+    event.preventDefault();
+    event.stopPropagation();
+    cancelResize();
 
-  const handleResizeEnd = useCallback(() => {
-    const preview = resizePreviewRef.current;
-    const corner = resizeStartRef.current.corner;
-    isResizingRef.current = false;
-    resizePreviewRef.current = null;
-    if (preview) {
-      if (corner === 'top-left') {
-        updateWidgetPosition(widget.id, preview.x, preview.y);
+    // Start from the rendered logical size so auto-sized widgets do not jump on first resize.
+    const node = nodeRef.current;
+    const start = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      width: node?.offsetWidth || widget.w || 200,
+      height: node?.offsetHeight || widget.h || 120,
+      x: widget.x,
+      y: widget.y,
+    };
+    const { id: widgetId, w: startW, h: startH } = widget;
+    const pointerId = event.pointerId;
+    const source: WidgetSelectionSource = event.pointerType === 'touch' ? 'touch' : 'pointer';
+    let preview: { x: number; y: number; w?: number; h?: number } | null = null;
+    let detached = false;
+
+    // Neighbours on the dragged edges detach; the others stay attached while they still touch.
+    const isMovingSide = (side: WidgetSide | null) => (
+      (side === 'left' && dirX === -1) || (side === 'right' && dirX === 1)
+      || (side === 'top' && dirY === -1) || (side === 'bottom' && dirY === 1)
+    );
+    const neighbors = selectActiveSheetWidgets(useStore.getState())
+      .filter((candidate) => widget.attachedTo?.includes(candidate.id))
+      .map((candidate) => ({ candidate, side: getTouchingSide(start, candidate) }));
+    const movingEdgeNeighborIds = neighbors.filter(({ side }) => isMovingSide(side)).map(({ candidate }) => candidate.id);
+    const keptNeighbors = neighbors.filter(({ side }) => side && !isMovingSide(side)).map(({ candidate }) => candidate);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      const deltaX = (moveEvent.clientX - start.clientX) / scale;
+      const deltaY = (moveEvent.clientY - start.clientY) / scale;
+      const w = dirX === 0 ? undefined : snapToGrid(Math.max(minResizeWidth, start.width + dirX * deltaX));
+      const h = dirY === 0 ? undefined : snapToGrid(Math.max(minResizeHeight, start.height + dirY * deltaY));
+      const changed = (w !== undefined && w !== start.width) || (h !== undefined && h !== start.height);
+      if (!preview && !changed) return;
+      const x = dirX === -1 && w !== undefined ? start.x + start.width - w : start.x;
+      const y = dirY === -1 && h !== undefined ? start.y + start.height - h : start.y;
+      if (preview && preview.w === w && preview.h === h && preview.x === x && preview.y === y) return;
+      if (!detached && movingEdgeNeighborIds.length > 0) {
+        detached = true;
+        detachWidgetFrom(widgetId, movingEdgeNeighborIds);
       }
-      updateWidgetSize(widget.id, preview.w, preview.h);
-    }
-    setResizePreview(null);
-    setIsResizing(false);
-  }, [widget.id, updateWidgetPosition, updateWidgetSize]);
+      preview = { x, y, w, h };
+      setResizePreview(preview);
+    };
 
-  // Global mouse/touch move and up handlers for resize
-  useEffect(() => {
-    if (isResizing) {
-      window.addEventListener('mousemove', handleResizeMove);
-      window.addEventListener('mouseup', handleResizeEnd);
-      window.addEventListener('touchmove', handleResizeMove);
-      window.addEventListener('touchend', handleResizeEnd);
-      
-      return () => {
-        window.removeEventListener('mousemove', handleResizeMove);
-        window.removeEventListener('mouseup', handleResizeEnd);
-        window.removeEventListener('touchmove', handleResizeMove);
-        window.removeEventListener('touchend', handleResizeEnd);
-      };
-    }
-  }, [isResizing, handleResizeMove, handleResizeEnd]);
+    const removeListeners = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleCancel);
+    };
 
-  // Writes all members (dragged one included) in the same pass so the group never lags a frame apart.
-  const applyGroupDragTransforms = (deltaX: number, deltaY: number, snap: boolean) => {
-    const origins = groupDragOriginsRef.current;
-    if (!origins || !widget.groupId) return;
-    document.querySelectorAll<HTMLElement>(`[data-group-id="${widget.groupId}"]`).forEach((element) => {
-      const origin = origins.get(element.getAttribute('data-widget-id') ?? '');
-      if (!origin) return;
-      const x = snap ? snapToGrid(origin.x + deltaX) : origin.x + deltaX;
-      const y = snap ? snapToGrid(origin.y + deltaY) : origin.y + deltaY;
-      element.style.transform = `translate(${x}px, ${y}px)`;
-    });
-  };
-
-  const handleStart = (_e: DraggableEvent, data: DraggableData) => {
-    // Store the starting position for calculating delta
-    dragStartPos.current = { x: data.x, y: data.y };
-    groupDragOriginsRef.current = widget.groupId
-      ? new Map(getWidgetsInGroup(widget.groupId).map((member) => [member.id, { x: member.x, y: member.y }]))
-      : null;
-    isDraggingRef.current = true;
-    pinchCanceledDragRef.current = false;
-    startWidgetDrag(widget.id, widget.groupId ?? null);
-  };
-
-  const handleDrag = (_e: DraggableEvent, data: DraggableData) => {
-    applyGroupDragTransforms(data.x - dragStartPos.current.x, data.y - dragStartPos.current.y, false);
-  };
-
-  const handleStop = (_e: DraggableEvent, data: DraggableData) => {
-    isDraggingRef.current = false;
-    finishWidgetDrag(widget.id);
-    if (pinchCanceledDragRef.current) {
-      pinchCanceledDragRef.current = false;
-      applyGroupDragTransforms(0, 0, false);
-      groupDragOriginsRef.current = null;
-      return;
-    }
-
-    const snappedX = snapToGrid(data.x);
-    const snappedY = snapToGrid(data.y);
-    
-    // If widget is in a group, move the entire group
-    if (widget.groupId) {
-      const deltaX = snappedX - widget.x;
-      const deltaY = snappedY - widget.y;
-      // Also covers a zero delta, where React would not rewrite the transforms set during the drag.
-      applyGroupDragTransforms(deltaX, deltaY, true);
-      groupDragOriginsRef.current = null;
-      if (deltaX !== 0 || deltaY !== 0) {
-        moveWidgetGroup(widget.id, deltaX, deltaY);
+    function handleUp(upEvent: PointerEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      removeListeners();
+      resizeCleanupRef.current = null;
+      if (preview) {
+        if (dirX === -1 || dirY === -1) updateWidgetPosition(widgetId, preview.x, preview.y);
+        updateWidgetSize(widgetId, preview.w ?? startW, preview.h ?? startH);
+        const endBox = { x: preview.x, y: preview.y, width: preview.w ?? start.width, height: preview.h ?? start.height };
+        const separatedIds = keptNeighbors.filter((neighbor) => !getTouchingSide(endBox, neighbor)).map((neighbor) => neighbor.id);
+        if (separatedIds.length > 0) detachWidgetFrom(widgetId, separatedIds);
       }
-    } else {
-      updateWidgetPosition(widget.id, snappedX, snappedY);
+      setResizePreview(null);
+      setIsResizing(false);
+      setSelectedWidgetId(widgetId, source);
     }
+
+    function handleCancel(cancelEvent: PointerEvent) {
+      if (cancelEvent.pointerId === pointerId) cancelResize();
+    }
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleCancel);
+    resizeCleanupRef.current = removeListeners;
+    setIsResizing(true);
   };
   
   // Calculate height - use manual height if set, otherwise use snapped auto height
-  const widgetHeight = resizePreview ? resizePreview.h : widget.h && widget.h > 0 ? widget.h : snappedHeight;
+  const widgetHeight = resizePreview?.h ?? (widget.h && widget.h > 0 ? widget.h : snappedHeight);
 
   // Group members and attached widgets; unchanged widget objects keep this stable across unrelated store updates.
   const relatedWidgets = useStore(useShallow((state) => (
@@ -939,44 +701,39 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   // Hover, selection, drag and placement re-renders reuse the same element, so React skips the content subtree.
   const widgetContent = useMemo(renderContent, [renderedWidget, mode, widgetWidth, widgetHeight, scale]);
 
+  const showControls = isHovered || isSelected;
+  const showSelection = isSelected && mode !== 'print';
+  const canArrange = mode !== 'print' && !widget.locked;
+  const showTapBar = isTapRevealed && canArrange;
+  const showMenuTrigger = mode !== 'print' && menuAllowed && (isSelected || menu !== null || isMenuTutorialTarget);
+  const position = resizePreview ?? widget;
+
   return (
     <>
-      <Draggable
-        nodeRef={nodeRef}
-        position={resizePreview ? { x: resizePreview.x, y: resizePreview.y } : { x: widget.x, y: widget.y }}
-        onStart={handleStart}
-        onDrag={handleDrag}
-        onStop={handleStop}
-        scale={scale}
-        handle=".drag-handle"
-        // The body-class hack restyles the whole document on every drag start/stop; the handle is select-none instead.
-        enableUserSelectHack={false}
-        disabled={mode === 'play' || mode === 'print'}
+      <div 
+        ref={nodeRef}
+        data-widget-id={widget.id}
+        data-tutorial={`widget-${widget.type}`}
+        data-group-id={widget.groupId || ''}
+        data-widget-arranging={isArranging && mode !== 'print' ? 'true' : undefined}
+        className={`canvas-widget widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${showSelection ? 'widget-surface--selected' : ''} ${showTapBar ? 'widget-surface--tap-revealed' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+        style={{ 
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          width: `${widgetWidth}px`,
+          minWidth: `${minDimensions.width}px`,
+          height: widgetHeight ? `${widgetHeight}px` : 'auto',
+          minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
+          zIndex: menu ? MENU_OPEN_Z_INDEX : ((showSelection && widget.type !== 'DECK_OF_CARDS') || isResizing ? SELECTED_WIDGET_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : ((isHovered || showTapBar) && canArrange && widget.type !== 'DECK_OF_CARDS') ? HOVERED_WIDGET_Z_INDEX : widget.zIndex),
+          ...borderRadiusStyle,
+          ...(bordersDisabled ? { borderWidth: '0px', ...(showSelection ? {} : { outlineWidth: '0px' }) } : {}),
+          ...({ '--widget-hit-scale': hitScale } as CSSProperties),
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onTouchStartCapture={handleSurfaceTouchStart}
+        onPointerDownCapture={handleWidgetPointerDown}
+        onContextMenu={handleWidgetContextMenu}
       >
-        <div 
-          ref={nodeRef}
-          data-widget-id={widget.id}
-          data-tutorial={`widget-${widget.type}`}
-          data-group-id={widget.groupId || ''}
-          className={`react-draggable widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
-          style={{ 
-            width: `${widgetWidth}px`,
-            minWidth: `${minDimensions.width}px`,
-            height: widgetHeight ? `${widgetHeight}px` : 'auto',
-            minHeight: widgetHeight ? `${widgetHeight}px` : (snappedHeight ? `${snappedHeight}px` : 'auto'),
-            zIndex: showDropdown ? BUILD_MENU_Z_INDEX : (showControls && mode === 'edit' && widget.type !== 'DECK_OF_CARDS' ? BUILD_CONTROL_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : widget.zIndex),
-            ...borderRadiusStyle,
-            ...(bordersDisabled ? { borderWidth: '0px', outlineWidth: '0px' } : {}),
-          }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onTouchStart={handleWidgetTouchStart}
-          onTouchEnd={handleWidgetTouchEnd}
-          onTouchCancel={handleWidgetTouchEnd}
-          onPointerDownCapture={handleWidgetPointerDown}
-          onClick={handleWidgetClick}
-          onContextMenu={handleWidgetContextMenu}
-        >
           {/* Image texture overlay - grayscale texture tinted with card color */}
           {/* When widgets are attached together, the texture stretches to cover the whole group */}
           {hasImageTexture && (
@@ -997,608 +754,46 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </div>
           )}
           
-          {/* Drag Handle - only visible in edit mode */}
-          {mode === 'edit' && (
-            <div className={`drag-handle absolute -top-2 left-8 ${widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'NUMBER_DISPLAY' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || widget.type === 'TABLE' || widget.type === 'INVENTORY' ? 'right-20' : 'right-8'} h-8 bg-transparent cursor-move hover:opacity-70 active:opacity-50 flex justify-center items-center touch-none select-none rounded-t-theme z-[80]`}>
-              {/* Visual grip indicator - only show when controls visible */}
-              {showControls && (
-                <div className="flex gap-1">
-                  <div className="w-8 h-1 bg-theme-muted/50 rounded-full" />
-                </div>
-              )}
-            </div>
+          {/* Move grip centered on the top edge; narrow so the widget above keeps its bottom resize edge. Touch shows it after a tap. */}
+          {canArrange && (
+            <Tooltip content="Drag to move">
+              <div
+                className="drag-handle widget-drag-grip absolute z-[80] flex items-center justify-center cursor-move touch-none select-none"
+                data-camera-pan-ignore="true"
+                onPointerDown={handleGripPointerDown}
+              >
+                <div className="widget-drag-grip__pill" />
+              </div>
+            </Tooltip>
           )}
           
-          {/* Menu Button - visible for the selected widget in edit mode, hidden during early tutorial steps */}
-          {/* For Form widget during tutorial step 16, always show the button */}
-          {/* Also keep visible when dropdown is open (showDropdown) to prevent it from disappearing when cursor leaves */}
-          {((mode === 'edit' && (showControls || (tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu)) || ((mode === 'edit' || mode === 'play') && showDropdown)) && (tutorialStep === null || tutorialStep >= 16) && (
-            <div
-              className={`${isContextMenuOpen ? '' : 'right-1 top-1'} absolute z-[10002] flex items-center gap-1`}
-              style={isContextMenuOpen ? { left: contextMenuPosition.x, top: contextMenuPosition.y } : undefined}
-              ref={dropdownRef}
-            >
-              {!isContextMenuOpen && (
-                <Tooltip content="Widget options">
-                  <button
-                    ref={dropdownTriggerRef}
-                    data-tutorial={widgetMenuTutorialTarget}
-                    aria-label={`Options for ${widget.data.label || widget.type}`}
-                    aria-expanded={showDropdown}
-                    className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${(tutorialStep === 16 && widget.type === 'FORM') || shouldShowTemplateTutorialMenu || shouldShowAutomationTutorialMenu ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
-                    style={{ transform: `scale(${buildControlScale})`, transformOrigin: 'top right' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Advance tutorial if on step 16 (widget-menu) and this is a Form widget
-                      if (tutorialStep === 16 && widget.type === 'FORM' && TUTORIAL_STEPS[16]?.id === 'widget-menu') {
-                        advanceTutorial();
-                      }
-                      if (widget.type === 'FORM' && (isCurrentTutorialStep('templates-open-widget-menu') || isCurrentTutorialStep('templates-open-group-menu'))) {
-                        advanceTutorial();
-                      }
-                      if (shouldShowAutomationTutorialMenu) {
-                        advanceTutorial();
-                      }
-                      if (!showDropdown) {
-                        setContextMenuPosition(null);
-                        positionDropdownFromTrigger(e.currentTarget.getBoundingClientRect());
-                        openDropdown();
-                      } else {
-                        setShowDropdown(false);
-                        setShowDeleteConfirm(false);
-                        setShowTemplateNameInput(false);
-                        setTemplateName('');
-                        setShowMoveToSheet(false);
-                        // Reset group action states
-                        setShowGroupDeleteConfirm(false);
-                        setShowGroupTemplateNameInput(false);
-                        setGroupTemplateName('');
-                        setShowGroupMoveToSheet(false);
-                        setDropdownTab('widget');
-                      }
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                  >
-                    <DotsVerticalIcon className="w-4 h-4" />
-                  </button>
-                </Tooltip>
-              )}
-              
-              {/* Dropdown Menu with Tabs */}
-              {showDropdown && dropdownViewportPosition && createPortal(
-                <div
-                  ref={setDropdownMenuRef}
-                  className="widget-options-menu fixed z-[10003] max-h-[calc(100dvh-16px)] min-w-[190px] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper shadow-theme font-body"
-                  style={{
-                    left: `${dropdownViewportPosition.x}px`,
-                    top: `${dropdownViewportPosition.y}px`,
-                    transform: `${dropdownAlign === 'left' ? '' : 'translateX(-100%)'}${dropdownVerticalAlign === 'above' ? ' translateY(-100%)' : ''}`.trim() || 'none',
+          {showMenuTrigger && (
+            <div className="right-1 top-1 absolute z-[10002] flex items-center gap-1">
+              <Tooltip content="Widget options">
+                <button
+                  ref={menuTriggerRef}
+                  data-tutorial={getWidgetMenuTutorialTarget(widget)}
+                  aria-label={`Options for ${widget.data.label || widget.type}`}
+                  aria-expanded={menu !== null}
+                  className={`widget-menu-trigger w-8 h-8 bg-theme-ink text-theme-paper border border-theme-ink rounded-button shadow-theme flex items-center justify-center transition-[filter] hover:brightness-125 ${isMenuTutorialTarget ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                  style={{ transform: `scale(${buildControlScale})`, transformOrigin: 'top right' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isMenuTutorialTarget) {
+                      advanceTutorial();
+                    }
+                    if (menu) {
+                      closeMenu();
+                    } else {
+                      openMenu(null);
+                    }
                   }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                 >
-                  {/* Tab Header - only show if widget is part of a group */}
-                  {widget.groupId && (
-                    <div className="flex border-b border-theme-border">
-                      <Tooltip content="Show actions for this widget" placement="left">
-                        <button
-                          className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors ${dropdownTab === 'widget' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDropdownTab('widget');
-                            // Reset sub-states when switching tabs
-                            setShowDeleteConfirm(false);
-                            setShowTemplateNameInput(false);
-                            setShowMoveToSheet(false);
-                            setShowGroupDeleteConfirm(false);
-                            setShowGroupTemplateNameInput(false);
-                            setShowGroupMoveToSheet(false);
-                          }}
-                        >
-                          Widget
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Show actions for the whole group" placement="left">
-                        <button
-                          data-tutorial="template-group-tab"
-                          className={`flex-1 px-3 py-1.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${dropdownTab === 'group' ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:bg-theme-border/30'} ${shouldHighlightGroupTab ? 'ring-4 ring-blue-500 ring-inset' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDropdownTab('group');
-                            if (isCurrentTutorialStep('templates-open-group-tab')) {
-                              advanceTutorial();
-                            }
-                            // Reset sub-states when switching tabs
-                            setShowDeleteConfirm(false);
-                            setShowTemplateNameInput(false);
-                            setShowMoveToSheet(false);
-                            setShowGroupDeleteConfirm(false);
-                            setShowGroupTemplateNameInput(false);
-                            setShowGroupMoveToSheet(false);
-                          }}
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-                          Group
-                        </button>
-                      </Tooltip>
-                    </div>
-                  )}
-                  
-                  {/* Widget Actions Tab */}
-                  {dropdownTab === 'widget' && (
-                    <>
-                      <Tooltip content="Open this widget's editor" placement="left">
-                        <button
-                          data-tutorial={editButtonTutorialTarget}
-                          className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${(tutorialStep === 17 && widget.type === 'FORM') || shouldShowAutomationTutorialEdit ? 'bg-blue-500 text-white' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditWidget();
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                          Edit
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Create a copy of this widget" placement="left">
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            cloneWidget(widget.id);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                          Clone
-                        </button>
-                      </Tooltip>
-                      <Tooltip content={widget.locked ? 'Unlock this widget so it can be moved or edited' : 'Lock this widget to prevent changes'} placement="left">
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            toggleWidgetLock(widget.id);
-                          }}
-                        >
-                          {widget.locked ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                          )}
-                          {widget.locked ? 'Unlock' : 'Lock'}
-                        </button>
-                      </Tooltip>
-                      {!showTemplateNameInput ? (
-                        <Tooltip content="Save this widget as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
-                          <button
-                            data-tutorial="template-save-widget"
-                            className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${shouldHighlightWidgetTemplateSave ? 'bg-blue-500 text-white font-bold' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTemplateName(isCurrentTutorialStep('templates-save-widget-template') ? '' : widget.data.label || '');
-                              setShowTemplateNameInput(true);
-                              if (isCurrentTutorialStep('templates-save-widget-template')) {
-                                advanceTutorial();
-                              }
-                            }}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                            Save as Template
-                          </button>
-                        </Tooltip>
-                      ) : (
-                        <div className="px-2 py-2">
-                          <input
-                            data-tutorial={templateName.trim() ? 'template-widget-name-input' : 'template-widget-name-target'}
-                            type="text"
-                            value={templateName}
-                            onChange={(e) => setTemplateName(e.target.value)}
-                            placeholder="Template name..."
-                            className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink mb-2"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              e.stopPropagation();
-                              if (e.key === 'Enter' && templateName.trim()) {
-                                addTemplate(widget, templateName.trim());
-                                setShowDropdown(false);
-                                setShowTemplateNameInput(false);
-                                setTemplateName('');
-                                if (isCurrentTutorialStep('templates-name-widget-template')) {
-                                  advanceTutorial();
-                                }
-                              } else if (e.key === 'Escape') {
-                                setShowTemplateNameInput(false);
-                                setTemplateName('');
-                              }
-                            }}
-                          />
-                          <div className="flex gap-1">
-                            <Tooltip content="Save this widget template" placement="left">
-                              <button
-                                data-tutorial={templateName.trim() ? 'template-widget-name-target' : 'template-widget-save-confirm'}
-                                className={`flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors ${shouldHighlightWidgetTemplateConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (templateName.trim()) {
-                                    addTemplate(widget, templateName.trim());
-                                    setShowDropdown(false);
-                                    setShowTemplateNameInput(false);
-                                    setTemplateName('');
-                                    if (isCurrentTutorialStep('templates-name-widget-template')) {
-                                      advanceTutorial();
-                                    }
-                                  }
-                                }}
-                              >
-                                Save
-                              </button>
-                            </Tooltip>
-                            <Tooltip content="Cancel template creation" placement="left">
-                              <button
-                                className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowTemplateNameInput(false);
-                                  setTemplateName('');
-                                }}
-                              >
-                                Cancel
-                              </button>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      )}
-                      {hasMultipleSheets && (
-                        <>
-                          {!showMoveToSheet ? (
-                            <Tooltip content="Move this widget to another sheet" placement="left">
-                              <button
-                                className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowMoveToSheet(true);
-                                }}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
-                                Move to Sheet
-                              </button>
-                            </Tooltip>
-                          ) : (
-                            <div className="px-2 py-2">
-                              <div className="text-xs text-theme-muted mb-2">Select target sheet:</div>
-                              {sheets
-                                .filter(s => s.id !== activeSheetId)
-                                .map(sheet => (
-                                  <Tooltip key={sheet.id} content={`Move this widget to ${sheet.name}`} placement="left">
-                                    <button
-                                      className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        moveWidgetToSheet(widget.id, sheet.id);
-                                        setShowDropdown(false);
-                                        setShowMoveToSheet(false);
-                                      }}
-                                    >
-                                      {sheet.name}
-                                    </button>
-                                  </Tooltip>
-                                ))}
-                              <Tooltip content="Cancel moving this widget" placement="left">
-                                <button
-                                  className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowMoveToSheet(false);
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                              </Tooltip>
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {/* Detach from group - only if widget is in a group */}
-                      {widget.groupId && (
-                        <Tooltip content="Remove this widget from its current group" placement="left">
-                          <button
-                            className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowDropdown(false);
-                              detachWidgets(widget.id, widget.id);
-                            }}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
-                            Detach from Group
-                          </button>
-                        </Tooltip>
-                      )}
-                      <div className="border-t border-theme-border" />
-                      {!showDeleteConfirm ? (
-                        <Tooltip content="Delete this widget" placement="left">
-                          <button
-                            className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowDeleteConfirm(true);
-                            }}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                            Delete
-                          </button>
-                        </Tooltip>
-                      ) : (
-                        <div className="flex">
-                          <Tooltip content="Confirm widget deletion" placement="left">
-                            <button
-                              className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowDropdown(false);
-                                setShowDeleteConfirm(false);
-                                removeWidget(widget.id);
-                              }}
-                            >
-                              Confirm
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Cancel widget deletion" placement="left">
-                            <button
-                              className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowDeleteConfirm(false);
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </Tooltip>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
-                  {/* Group Actions Tab */}
-                  {dropdownTab === 'group' && widget.groupId && (
-                    <>
-                      <Tooltip content="Create a copy of this entire group" placement="left">
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            cloneGroup(widget.groupId!);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                          Clone Group
-                        </button>
-                      </Tooltip>
-                      <Tooltip content={(() => {
-                        const groupWidgets = getWidgetsInGroup(widget.groupId!);
-                        const allLocked = groupWidgets.length > 0 && groupWidgets.every(w => w.locked);
-                        return allLocked ? 'Unlock this group so its widgets can be changed' : 'Lock this group to prevent changes';
-                      })()} placement="left">
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            toggleGroupLock(widget.groupId!);
-                          }}
-                        >
-                          {(() => {
-                            const groupWidgets = getWidgetsInGroup(widget.groupId!);
-                            const allLocked = groupWidgets.length > 0 && groupWidgets.every(w => w.locked);
-                            return allLocked ? (
-                              <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>
-                                Unlock Group
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                                Lock Group
-                              </>
-                            );
-                          })()}
-                        </button>
-                      </Tooltip>
-                      {!showGroupTemplateNameInput ? (
-                        <Tooltip content="Save this group as a reusable template (templates are at the bottom of the widget selection panel)" placement="left">
-                          <button
-                            data-tutorial="template-save-group"
-                            className={`w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2 ${shouldHighlightGroupTemplateSave ? 'bg-blue-500 text-white font-bold' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setGroupTemplateName('');
-                              setShowGroupTemplateNameInput(true);
-                              if (isCurrentTutorialStep('templates-save-group-template')) {
-                                advanceTutorial();
-                              }
-                            }}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                            Save Group as Template
-                          </button>
-                        </Tooltip>
-                      ) : (
-                        <div className="px-2 py-2">
-                          <input
-                            data-tutorial={groupTemplateName.trim() ? 'template-group-name-input' : 'template-group-name-target'}
-                            type="text"
-                            value={groupTemplateName}
-                            onChange={(e) => setGroupTemplateName(e.target.value)}
-                            placeholder="Group template name..."
-                            className="w-full px-2 py-1 text-sm border border-theme-border rounded bg-theme-paper text-theme-ink mb-2"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              e.stopPropagation();
-                              if (e.key === 'Enter' && groupTemplateName.trim()) {
-                                const groupWidgets = getWidgetsInGroup(widget.groupId!);
-                                addGroupTemplate(groupWidgets, groupTemplateName.trim());
-                                setShowDropdown(false);
-                                setShowGroupTemplateNameInput(false);
-                                setGroupTemplateName('');
-                                if (isCurrentTutorialStep('templates-name-group-template')) {
-                                  advanceTutorial();
-                                }
-                              } else if (e.key === 'Escape') {
-                                setShowGroupTemplateNameInput(false);
-                                setGroupTemplateName('');
-                              }
-                            }}
-                          />
-                          <div className="flex gap-1">
-                            <Tooltip content="Save this group template" placement="left">
-                              <button
-                                data-tutorial={groupTemplateName.trim() ? 'template-group-name-target' : 'template-group-save-confirm'}
-                                className={`flex-1 px-2 py-1 text-xs bg-theme-accent text-theme-paper rounded hover:bg-theme-accent/80 transition-colors ${shouldHighlightGroupTemplateConfirm ? 'ring-4 ring-blue-500 ring-offset-1 font-bold' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (groupTemplateName.trim()) {
-                                    const groupWidgets = getWidgetsInGroup(widget.groupId!);
-                                    addGroupTemplate(groupWidgets, groupTemplateName.trim());
-                                    setShowDropdown(false);
-                                    setShowGroupTemplateNameInput(false);
-                                    setGroupTemplateName('');
-                                    if (isCurrentTutorialStep('templates-name-group-template')) {
-                                      advanceTutorial();
-                                    }
-                                  }
-                                }}
-                              >
-                                Save
-                              </button>
-                            </Tooltip>
-                            <Tooltip content="Cancel group template creation" placement="left">
-                              <button
-                                className="flex-1 px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowGroupTemplateNameInput(false);
-                                  setGroupTemplateName('');
-                                }}
-                              >
-                                Cancel
-                              </button>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      )}
-                      {hasMultipleSheets && (
-                        <>
-                          {!showGroupMoveToSheet ? (
-                            <Tooltip content="Move this whole group to another sheet" placement="left">
-                              <button
-                                className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowGroupMoveToSheet(true);
-                                }}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></svg>
-                                Move to Sheet
-                              </button>
-                            </Tooltip>
-                          ) : (
-                            <div className="px-2 py-2">
-                              <div className="text-xs text-theme-muted mb-2">Move group to:</div>
-                              {sheets
-                                .filter(s => s.id !== activeSheetId)
-                                .map(sheet => (
-                                  <Tooltip key={sheet.id} content={`Move this group to ${sheet.name}`} placement="left">
-                                    <button
-                                      className="w-full px-2 py-1.5 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors rounded mb-1"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        moveGroupToSheet(widget.groupId!, sheet.id);
-                                        setShowDropdown(false);
-                                        setShowGroupMoveToSheet(false);
-                                      }}
-                                    >
-                                      {sheet.name}
-                                    </button>
-                                  </Tooltip>
-                                ))}
-                              <Tooltip content="Cancel moving this group" placement="left">
-                                <button
-                                  className="w-full px-2 py-1 text-xs text-theme-muted hover:bg-theme-border/50 rounded transition-colors mt-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowGroupMoveToSheet(false);
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                              </Tooltip>
-                            </div>
-                          )}
-                        </>
-                      )}
-                      <Tooltip content="Break apart this group into individual widgets" placement="left">
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            detachAllInGroup(widget.groupId!);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
-                          Detach All
-                        </button>
-                      </Tooltip>
-                      <div className="border-t border-theme-border" />
-                      {!showGroupDeleteConfirm ? (
-                        <Tooltip content="Delete every widget in this group" placement="left">
-                          <button
-                            className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowGroupDeleteConfirm(true);
-                            }}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
-                            Delete Group ({getWidgetsInGroup(widget.groupId!).length})
-                          </button>
-                        </Tooltip>
-                      ) : (
-                        <div className="flex">
-                          <Tooltip content="Confirm group deletion" placement="left">
-                            <button
-                              className="flex-1 px-3 py-2 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors font-bold"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowDropdown(false);
-                                setShowGroupDeleteConfirm(false);
-                                removeGroup(widget.groupId!);
-                              }}
-                            >
-                              Confirm
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Cancel group deletion" placement="left">
-                            <button
-                              className="flex-1 px-3 py-2 text-sm text-theme-muted hover:bg-theme-accent hover:text-theme-paper transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowGroupDeleteConfirm(false);
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </Tooltip>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              , document.body)}
+                  <DotsVerticalIcon className="w-4 h-4" />
+                </button>
+              </Tooltip>
             </div>
           )}
 
@@ -1649,17 +844,16 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </div>
           )}
 
-          {/* Touch overlay - blocks interactions with widget content when selected on mobile */}
-          {mode === 'edit' && isSelected && widget.type !== 'GRID_MAP' && widget.type !== 'MAP_SKETCHER' && widget.type !== 'TABLE' && widget.type !== 'DECK_OF_CARDS' && (
+          {/* Touch selection: covers the content so a one-finger drag moves the widget */}
+          {isArranging && mode !== 'print' && (
             <div 
               className="absolute inset-0 z-40 bg-theme-accent/10"
               style={borderRadiusStyle}
-              onTouchStart={(e) => e.stopPropagation()}
             />
           )}
 
-          {/* Locked overlay - blocks interactions with widget content in play mode when locked */}
-          {mode === 'play' && widget.locked && (
+          {/* Locked overlay - blocks interactions with widget content when locked */}
+          {mode !== 'print' && widget.locked && (
             <Tooltip content="This widget is locked">
               <div 
                 className="absolute inset-0 z-40 cursor-not-allowed"
@@ -1673,22 +867,30 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </Tooltip>
           )}
 
-          {/* Resize Handle - only visible in edit mode when hovered/selected */}
-          {mode === 'edit' && showControls && (
+          {/* Invisible edge and corner resize zones for mouse and pen */}
+          {canArrange && RESIZE_ZONES.map((zone) => (
+            <div
+              key={zone.key}
+              className={`widget-resize-zone ${zone.className} absolute z-[60] touch-none`}
+              data-camera-pan-ignore="true"
+              data-touch-camera-ignore="true"
+              onPointerDown={(event) => handleResizePointerDown(event, zone.x, zone.y)}
+            />
+          ))}
+
+          {/* Visible corner handles on the selected widget; the only resize affordance on touch */}
+          {canArrange && showSelection && (
             <>
               <Tooltip content="Drag to resize">
                 <div
-                  className="absolute -top-1 -left-1 w-6 h-6 cursor-nw-resize z-50 flex items-center justify-center"
+                  className="widget-resize-handle widget-resize-handle--nw absolute cursor-nwse-resize z-[70] touch-none"
                   data-camera-pan-ignore="true"
                   data-touch-camera-ignore="true"
-                  onMouseDown={(event) => handleResizeStart(event, 'top-left')}
-                  onTouchStart={(event) => handleResizeStart(event, 'top-left')}
+                  onPointerDown={(event) => handleResizePointerDown(event, -1, -1)}
                 >
                   <svg
-                    width="12"
-                    height="12"
                     viewBox="0 0 12 12"
-                    className="text-theme-muted hover:text-theme-ink transition-colors"
+                    className="text-theme-accent"
                   >
                     <path
                       d="M2 10L10 2M2 6L6 2M2 2L2 2"
@@ -1701,17 +903,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
               </Tooltip>
               <Tooltip content="Drag to resize">
                 <div
-                  className="absolute -bottom-1 -right-1 w-6 h-6 cursor-se-resize z-50 flex items-center justify-center"
+                  className="widget-resize-handle widget-resize-handle--se absolute cursor-nwse-resize z-[70] touch-none"
                   data-camera-pan-ignore="true"
                   data-touch-camera-ignore="true"
-                  onMouseDown={(event) => handleResizeStart(event, 'bottom-right')}
-                  onTouchStart={(event) => handleResizeStart(event, 'bottom-right')}
+                  onPointerDown={(event) => handleResizePointerDown(event, 1, 1)}
                 >
                   <svg
-                    width="12"
-                    height="12"
                     viewBox="0 0 12 12"
-                    className="text-theme-muted hover:text-theme-ink transition-colors"
+                    className="text-theme-accent"
                   >
                     <path
                       d="M10 2L2 10M10 6L6 10M10 10L10 10"
@@ -1725,8 +924,8 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${mode === 'edit' && (widget.type === 'FORM' || widget.type === 'NUMBER' || widget.type === 'LIST' || widget.type === 'CHECKBOX' || widget.type === 'TOGGLE_GROUP' || widget.type === 'HEALTH_BAR' || widget.type === 'PROGRESS_BAR' || widget.type === 'PROGRESS_CLOCK' || widget.type === 'POOL' || (widget.type === 'IMAGE' && !widget.data.imageUrl)) ? 'widget-content--field-controls-interactive' : ''}`}>
-            {mode !== 'print' && hasEditableWidgetHeader && (widget.type !== 'LABEL' || mode === 'edit') && (
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && widget.type !== 'LABEL' ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''}`}>
+            {mode !== 'print' && hasEditableWidgetHeader && widget.type !== 'LABEL' && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button
                   type="button"
@@ -1737,7 +936,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
                   onMouseDown={(event) => event.stopPropagation()}
                   onTouchStart={(event) => event.stopPropagation()}
                   aria-label={`Edit ${widget.data.label || 'widget'}`}
-                  className={`widget-header-edit-button widget-control widget-control--subtle ${mode === 'play' && widget.type === 'IMAGE' ? 'widget-header-edit-button--image-play' : ''}`}
+                  className={`widget-header-edit-button widget-control widget-control--subtle ${widget.type === 'IMAGE' ? 'widget-header-edit-button--image-play' : ''}`}
                 >
                   <PencilIcon className="h-3 w-3" />
                 </button>
@@ -1745,8 +944,18 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             )}
             {widgetContent}
           </div>
-        </div>
-      </Draggable>
+      </div>
+
+      {menu && (
+        <WidgetOptionsMenu
+          key={menu.key}
+          widget={widget}
+          anchorRef={menuTriggerRef}
+          point={menu.point}
+          onClose={closeMenu}
+          onEdit={handleEditWidget}
+        />
+      )}
       
       {/* Edit Modal */}
       {showEditModal && (

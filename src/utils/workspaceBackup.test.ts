@@ -69,6 +69,6 @@ describe('workspace backups', () => {
     expect(restored.sourceFormat).toBe('workspace');
     expect(restored.eventsByCharacter).toEqual(document.eventsByCharacter);
     expect(restored.activeCharacterId).toBe(character.id);
-    expect(restored.mode).toBe('edit');
+    expect(restored.mode).toBe('play');
   });
 });

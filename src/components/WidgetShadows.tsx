@@ -1,7 +1,9 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { Widget } from '../types';
+import { getWidgetDragState, subscribeWidgetDragState } from './widgetDragRegistry';
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
+const isAnyWidgetDragging = () => getWidgetDragState() !== null;
 
 interface Props {
   widgets: Widget[];
@@ -118,28 +120,10 @@ function getBorderRadiusStyle(corners: CornerRounding): React.CSSProperties {
 
 export default function WidgetShadows({ widgets, scale }: Props) {
   const [rects, setRects] = useState<WidgetRect[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+  const isDragging = useSyncExternalStore(subscribeWidgetDragState, isAnyWidgetDragging, isAnyWidgetDragging);
 
   // Create a key based on widget positions and attachments to detect changes
   const positionKey = widgets.map(w => `${w.id}:${w.x}:${w.y}:${(w.attachedTo || []).join(',')}`).join('|');
-
-  // Detect when dragging starts/stops by watching for react-draggable-dragging class
-  useEffect(() => {
-    const checkDragging = () => {
-      const draggingElement = document.querySelector('.react-draggable-dragging');
-      setIsDragging(!!draggingElement);
-    };
-
-    // Use MutationObserver to watch for class changes
-    const observer = new MutationObserver(checkDragging);
-    observer.observe(document.body, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     // Small delay to allow DOM to update after widget movement

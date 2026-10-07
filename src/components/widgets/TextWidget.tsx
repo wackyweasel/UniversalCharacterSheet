@@ -24,7 +24,7 @@ import { InlineDiceRichText } from '../InlineDiceRichText';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   sheetScale?: number;
@@ -41,7 +41,7 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
   const [isContentEditing, setIsContentEditing] = useState(false);
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState<ToolbarPosition | null>(null);
-  const showEditor = mode === 'edit' || (isContentEditing && mode !== 'print');
+  const showEditor = isContentEditing && mode !== 'print';
   const canEditContent = !showEditor && mode !== 'print';
   const { label, text = '', richText } = widget.data;
   const widgetRef = useRef<HTMLDivElement>(null);

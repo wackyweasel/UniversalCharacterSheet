@@ -17,7 +17,8 @@ import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/c
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
 
-type Mode = 'play' | 'edit' | 'vertical' | 'print';
+type Mode = 'play' | 'vertical' | 'print';
+export type WidgetSelectionSource = 'pointer' | 'touch';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
 type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
 type CharacterOpenTelemetrySource = 'character_list' | 'character_switcher';
@@ -52,6 +53,54 @@ function getNextWidgetZIndex(widgets: Widget[]): number {
     100,
     ...widgets.map(widget => widget.zIndex ?? DEFAULT_WIDGET_Z_INDEX),
   ) + 1;
+}
+
+// Splits a group into its still-connected parts; lone widgets leave the group.
+function splitGroupComponents(widgets: Widget[], groupId: string): Widget[] {
+  const memberIds = widgets.filter(w => w.groupId === groupId).map(w => w.id);
+  if (memberIds.length === 0) return widgets;
+
+  const memberSet = new Set(memberIds);
+  const adjacency = new Map<string, string[]>();
+  for (const w of widgets) {
+    if (memberSet.has(w.id)) adjacency.set(w.id, (w.attachedTo || []).filter(id => memberSet.has(id)));
+  }
+
+  const visited = new Set<string>();
+  const components: string[][] = [];
+  for (const startId of memberIds) {
+    if (visited.has(startId)) continue;
+    const component: string[] = [];
+    const queue = [startId];
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+      component.push(currentId);
+      for (const neighbor of adjacency.get(currentId) || []) {
+        if (!visited.has(neighbor)) queue.push(neighbor);
+      }
+    }
+    components.push(component);
+  }
+
+  // The first multi-widget part keeps the original group ID.
+  const widgetToGroupId = new Map<string, string | undefined>();
+  let keptGroupId = false;
+  for (const component of components) {
+    let componentGroupId: string | undefined;
+    if (component.length > 1) {
+      componentGroupId = keptGroupId ? uuidv4() : groupId;
+      keptGroupId = true;
+    }
+    for (const wid of component) widgetToGroupId.set(wid, componentGroupId);
+  }
+
+  return widgets.map(w => {
+    if (!widgetToGroupId.has(w.id)) return w;
+    const newGroupId = widgetToGroupId.get(w.id);
+    return newGroupId ? { ...w, groupId: newGroupId } : { ...w, groupId: undefined, attachedTo: undefined };
+  });
 }
 
 // Helper to update the active sheet's widgets
@@ -105,7 +154,8 @@ interface StoreState {
   activeCharacterId: string | null;
   mode: Mode;
   editingWidgetId: string | null;
-  selectedWidgetId: string | null; // For showing edit/delete/attach buttons on mobile
+  selectedWidgetId: string | null;
+  selectedWidgetSource: WidgetSelectionSource | null;
   characterCreatorRequest: CharacterCreatorRequest | null;
   
   // Actions
@@ -126,7 +176,7 @@ interface StoreState {
   clearCharacterCreatorRequest: () => void;
   setMode: (mode: Mode) => void;
   setEditingWidgetId: (id: string | null) => void;
-  setSelectedWidgetId: (id: string | null) => void;
+  setSelectedWidgetId: (id: string | null, source?: WidgetSelectionSource) => void;
   
   // Sheet Actions
   createSheet: (name: string) => void;
@@ -143,7 +193,7 @@ interface StoreState {
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   updateWidgetPositionNoSnapshot: (id: string, x: number, y: number) => void; // For batch operations
   bringWidgetToFront: (id: string) => void;
-  updateWidgetSize: (id: string, w: number, h: number) => void;
+  updateWidgetSize: (id: string, w: number | undefined, h: number | undefined) => void;
   updateWidgetData: (id: string, data: any) => void;
   toggleCardTableCard: (widgetId: string, cardId: string) => void;
   setCardTableCardsFaceUp: (widgetId: string, faceUp: boolean) => void;
@@ -179,6 +229,7 @@ interface StoreState {
   // Widget Group Actions (for snap+attach)
   attachWidgets: (widgetId1: string, widgetId2: string, targetDelta?: { x: number; y: number }) => void;
   detachWidgets: (widgetId1: string, widgetId2: string) => void;
+  detachWidgetFrom: (widgetId: string, neighborIds: string[]) => void;
   getWidgetsInGroup: (groupId: string) => Widget[];
   moveWidgetGroup: (widgetId: string, deltaX: number, deltaY: number) => void;
   
@@ -254,6 +305,7 @@ export const useStore = create<StoreState>((set, get) => {
     mode: 'play',
     editingWidgetId: null,
     selectedWidgetId: null,
+    selectedWidgetSource: null,
     characterCreatorRequest: null,
 
     createCharacter: (name) => set((state) => {
@@ -278,7 +330,7 @@ export const useStore = create<StoreState>((set, get) => {
       return { 
         characters: [...state.characters, newChar],
         activeCharacterId: newChar.id,
-        mode: 'edit' as const
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const
       };
     }),
 
@@ -349,6 +401,7 @@ export const useStore = create<StoreState>((set, get) => {
         mode: 'play',
         editingWidgetId: null,
         selectedWidgetId: null,
+        selectedWidgetSource: null,
       });
       return true;
     },
@@ -415,6 +468,7 @@ export const useStore = create<StoreState>((set, get) => {
         activeCharacterId: state.activeCharacterId && transientIds.has(state.activeCharacterId) ? null : state.activeCharacterId,
         editingWidgetId: null,
         selectedWidgetId: null,
+        selectedWidgetSource: null,
       };
     }),
 
@@ -511,11 +565,6 @@ export const useStore = create<StoreState>((set, get) => {
         }
       }
 
-      const selectedCharacter = id ? state.characters.find(c => c.id === id) : undefined;
-      const selectedCharacterIsBlank = selectedCharacter
-        ? selectedCharacter.sheets.every((sheet) => sheet.widgets.length === 0)
-        : false;
-
       const remainingCharacters = shouldCleanupTransients ? state.characters.filter(c => !transientIds.has(c.id)) : state.characters;
 
       return {
@@ -523,13 +572,10 @@ export const useStore = create<StoreState>((set, get) => {
         characters: resolveActiveCharacterFormulas({ activeCharacterId: id }, remainingCharacters),
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
         activeCharacterId: id,
-        mode: selectedCharacterIsBlank
-          ? 'edit' as const
-          : state.mode === 'vertical'
-            ? 'vertical' as const
-            : 'play' as const,
+        mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
         editingWidgetId: null,
         selectedWidgetId: null,
+        selectedWidgetSource: null,
       };
     }),
 
@@ -609,12 +655,15 @@ export const useStore = create<StoreState>((set, get) => {
         });
       }
 
-      return { mode, selectedWidgetId: null };
+      return { mode, selectedWidgetId: null, selectedWidgetSource: null };
     }),
 
     setEditingWidgetId: (id) => set({ editingWidgetId: id }),
 
-    setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
+    setSelectedWidgetId: (id, source = 'pointer') => set({
+      selectedWidgetId: id,
+      selectedWidgetSource: id ? source : null,
+    }),
 
     // Sheet Actions
     createSheet: (name) => set((state) => {
@@ -1377,6 +1426,7 @@ export const useStore = create<StoreState>((set, get) => {
     }),
 
     updateWidgetSize: (id, w, h) => {
+      get()._takeSnapshot('Resize widget');
       const snappedWidth = snapWidgetDimension(w);
       const snappedHeight = snapWidgetDimension(h);
 
@@ -2301,7 +2351,7 @@ export const useStore = create<StoreState>((set, get) => {
             });
             
             // Remove widget1 from the group entirely
-            let updatedWidgets = widgets.map(w => {
+            const updatedWidgets = widgets.map(w => {
               if (w.id === widgetId1) {
                 return { 
                   ...w, 
@@ -2318,78 +2368,43 @@ export const useStore = create<StoreState>((set, get) => {
               return w;
             });
             
-            // Find connected components in the remaining group using BFS
-            const remainingGroupWidgetIds = updatedWidgets
-              .filter(w => w.groupId === groupId)
-              .map(w => w.id);
-            
-            if (remainingGroupWidgetIds.length === 0) {
-              return updateActiveSheetWidgets(c, () => updatedWidgets);
-            }
-            
-            // Build adjacency map
-            const adjacency = new Map<string, string[]>();
-            for (const wid of remainingGroupWidgetIds) {
-              const w = updatedWidgets.find(w => w.id === wid);
-              adjacency.set(wid, w?.attachedTo?.filter(id => remainingGroupWidgetIds.includes(id)) || []);
-            }
-            
-            // Find connected components using BFS
-            const visited = new Set<string>();
-            const components: string[][] = [];
-            
-            for (const startId of remainingGroupWidgetIds) {
-              if (visited.has(startId)) continue;
-              
-              const component: string[] = [];
-              const queue = [startId];
-              
-              while (queue.length > 0) {
-                const currentId = queue.shift()!;
-                if (visited.has(currentId)) continue;
-                
-                visited.add(currentId);
-                component.push(currentId);
-                
-                const neighbors = adjacency.get(currentId) || [];
-                for (const neighbor of neighbors) {
-                  if (!visited.has(neighbor)) {
-                    queue.push(neighbor);
-                  }
-                }
+            return updateActiveSheetWidgets(c, () => splitGroupComponents(updatedWidgets, groupId));
+          })
+        };
+      });
+    },
+
+    // Break only the attachments between a widget and the given neighbours
+    detachWidgetFrom: (widgetId, neighborIds) => {
+      if (neighborIds.length === 0) return;
+      get()._takeSnapshot('Detach widget');
+
+      set((state) => {
+        if (!state.activeCharacterId) return state;
+
+        return {
+          characters: state.characters.map(c => {
+            if (c.id !== state.activeCharacterId) return c;
+
+            const widgets = getActiveSheetWidgets(c);
+            const widget = widgets.find(w => w.id === widgetId);
+            if (!widget?.groupId) return c;
+
+            const removed = new Set(neighborIds.filter(id => widget.attachedTo?.includes(id)));
+            if (removed.size === 0) return c;
+
+            const groupId = widget.groupId;
+            const updatedWidgets = widgets.map(w => {
+              if (w.id === widgetId) {
+                return { ...w, attachedTo: (w.attachedTo || []).filter(id => !removed.has(id)) };
               }
-              
-              components.push(component);
-            }
-            
-            // Assign new group IDs based on connected components
-            const componentGroupIds = components.map((comp, idx) => {
-              if (comp.length <= 1) return undefined;
-              if (idx === 0 && components.filter(c => c.length > 1).length <= 1) {
-                return groupId;
-              }
-              return uuidv4();
-            });
-            
-            const widgetToGroupId = new Map<string, string | undefined>();
-            components.forEach((comp, idx) => {
-              for (const wid of comp) {
-                widgetToGroupId.set(wid, componentGroupIds[idx]);
-              }
-            });
-            
-            updatedWidgets = updatedWidgets.map(w => {
-              if (widgetToGroupId.has(w.id)) {
-                const newGid = widgetToGroupId.get(w.id);
-                if (!newGid) {
-                  return { ...w, groupId: undefined, attachedTo: undefined };
-                }
-                return { ...w, groupId: newGid };
+              if (removed.has(w.id)) {
+                return { ...w, attachedTo: (w.attachedTo || []).filter(id => id !== widgetId) };
               }
               return w;
             });
-            
-            return updateActiveSheetWidgets(c, () => updatedWidgets);
+
+            return updateActiveSheetWidgets(c, () => splitGroupComponents(updatedWidgets, groupId));
           })
         };
       });
@@ -2906,6 +2921,7 @@ export const useStore = create<StoreState>((set, get) => {
       mode: workspaceState.mode,
       editingWidgetId: null,
       selectedWidgetId: null,
+      selectedWidgetSource: null,
       characterCreatorRequest: null,
     }),
   };

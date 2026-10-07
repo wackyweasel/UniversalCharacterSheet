@@ -37,14 +37,14 @@ interface PrintState {
   // Landscape orientation
   isLandscape: boolean;
   
-  // Show print area in edit mode
+  // Show the print area outline on the canvas outside print mode
   showInEditMode: boolean;
   
   // Print area (in canvas coordinates)
   printArea: PrintArea | null;
   
   // Previous mode before entering print mode
-  previousMode: 'play' | 'edit' | 'vertical' | null;
+  previousMode: 'play' | 'vertical' | null;
   
   // Actions
   setPrinterFriendly: (enabled: boolean) => void;
@@ -55,7 +55,7 @@ interface PrintState {
   setIsLandscape: (landscape: boolean) => void;
   setShowInEditMode: (show: boolean) => void;
   setPrintArea: (area: PrintArea | null) => void;
-  setPreviousMode: (mode: 'play' | 'edit' | 'vertical' | null) => void;
+  setPreviousMode: (mode: 'play' | 'vertical' | null) => void;
   
   // Calculate print area from widgets
   calculatePrintAreaFromWidgets: (widgets: { x: number; y: number; w?: number; h?: number }[]) => PrintArea | null;

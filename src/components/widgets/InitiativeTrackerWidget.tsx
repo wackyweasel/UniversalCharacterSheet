@@ -12,7 +12,7 @@ import { getInitiativeDiceExpression, normalizeDiceExpression, rollDiceExpressio
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
 }
@@ -917,7 +917,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
             hint={mode === 'vertical'
               ? initiativePool.length > 0
                 ? 'Reset to load the configured roster, or add a temporary participant.'
-                : 'Add a temporary participant, or configure a roster in Build.'
+                : 'Add a temporary participant, or configure a roster in the widget editor.'
               : undefined}
             compact={mode !== 'vertical'}
           />

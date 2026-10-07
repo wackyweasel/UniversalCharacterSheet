@@ -10,7 +10,7 @@ import { WidgetEmptyState } from './WidgetPrimitives';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
 }
@@ -277,7 +277,7 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
           </div>
         ))}
         {spellLevels.length === 0 && (
-          <WidgetEmptyState title="No spell levels configured" hint="Add slot levels in Build." compact />
+          <WidgetEmptyState title="No spell levels configured" hint="Add slot levels in the widget editor." compact />
         )}
       </div>
 

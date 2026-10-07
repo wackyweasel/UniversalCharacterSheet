@@ -46,17 +46,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'character-list',
   },
   {
-    id: 'welcome-sheet',
-    title: 'Welcome to Your Character Sheet!',
-    message: 'This is where you\'ll build your character sheet. It\'s empty right now, so let\'s add some widgets! First, switch to Build.',
-    targetSelector: '[data-tutorial="edit-mode-button"]',
-    position: 'bottom',
-    page: 'sheet',
-  },
-  {
     id: 'add-widget',
     title: 'Add Your First Widget',
-    message: 'Select the highlighted Add button to open the panel. It groups everything you can place on a sheet by what it helps you do.',
+    message: 'Your sheet is empty, so let\'s add some widgets. Select the highlighted Add button to open the panel. It groups everything you can place on a sheet by what it helps you do.',
     targetSelector: '[data-tutorial="add-widget-button"], [data-tutorial="add-widget-button-mobile"]',
     position: 'bottom',
     page: 'sheet',
@@ -130,7 +122,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'move-widgets',
     title: 'Move Your Widgets',
-    message: 'Drag a widget by its top edge to reposition it. Give one a move, then choose Next.',
+    message: 'With a mouse, hover a widget and drag the grip on its top edge. On touch, press and hold a widget until it lifts, then drag it. Give one a move, then choose Next.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -139,7 +131,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'resize-widgets',
     title: 'Resize Your Widgets',
-    message: 'Drag the bottom-right corner of a widget to resize it. Try a small adjustment, then choose Next.',
+    message: 'With a mouse, drag any edge or corner of a widget. On touch, press and hold a widget, let go, then drag a corner handle. Try a small adjustment, then choose Next.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -148,7 +140,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'attach-widgets',
     title: 'Attach Widgets Together',
-    message: 'Optional: move two widget edges close together, then use the attach control that appears. Attached widgets move as a group.',
+    message: 'Optional: line up a widget\'s edge against another widget, then select it and use the link button that appears on the shared edge. Attached widgets move as a group.',
     position: 'center',
     dock: 'top',
     page: 'sheet',
@@ -157,7 +149,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'widget-menu',
     title: 'Widget Menu',
-    message: 'Click the menu button (⋮) in the top-right corner of the Form widget to access options like Edit, Clone, Save as Template, and Delete.',
+    message: 'Click the highlighted menu button (⋮) on the Form widget to access options like Edit, Clone, Save as Template, and Delete. It appears on any selected widget, and right-clicking a widget opens the same menu.',
     targetSelector: '[data-tutorial="widget-menu-FORM"]',
     position: 'left',
     page: 'sheet',
@@ -212,14 +204,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     requiresManualAdvance: true,
   },
   {
-    id: 'switch-to-play',
-    title: 'Switch to Play',
-    message: 'This sheet has lots of widgets! Now switch to Play to use it at the table without the structural editing controls.',
-    targetSelector: '[data-tutorial="edit-mode-button"]',
-    position: 'bottom',
-    page: 'sheet',
-  },
-  {
     id: 'try-widgets',
     title: 'Try It Out!',
     message: 'You\'re ready to explore. Roll dice, track health, toggle conditions, and adjust values. This tutorial sheet is temporary, so experiment freely.',
@@ -254,8 +238,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'themes-share-custom',
     title: 'Share a Custom Theme',
-    message: 'Saved custom theme cards have a Share button. Use it to open the same gallery submission dialog and share your theme with the community.',
-    targetSelector: '[data-tutorial="theme-share-custom"]',
+    message: 'Open the actions menu (⋮) on a saved custom theme and choose Share. It opens the gallery submission dialog so you can share your theme with the community.',
+    targetSelector: '[data-tutorial="theme-share-custom"], [data-tutorial="theme-custom-actions"]',
     position: 'left',
     page: 'sheet',
     requiresManualAdvance: true,
@@ -447,7 +431,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'automation-formula-operations',
     title: 'Formula Reference',
-    message: 'The formula editor includes every available label and an organized reference for operators, conditions, math functions, and table commands. Select any reference item to see how it works and review practical examples.',
+    message: 'The formula editor includes every available label and an organized reference for operators, conditions, math functions, and table commands. Select any reference item to see how it works and review practical examples. If a formula is broken, the editor highlights what is wrong.',
     position: 'center',
     page: 'sheet',
     requiresManualAdvance: true,
@@ -471,15 +455,23 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'automation-change-strength',
     title: 'Change Strength',
-    message: 'Click the Strength value and change it. When you confirm the new number, the dice roller modifier updates because it is reading @str.',
+    message: 'Click the Strength value and change it, or use "Add or Remove amount" to add or subtract from it. When you confirm the new number, the dice roller modifier updates because it is reading @str.',
     targetSelector: '[data-tutorial="automation-strength-value"]',
     position: 'left',
     page: 'sheet',
   },
   {
+    id: 'automation-inline-formulas',
+    title: 'Formulas Inside Text',
+    message: 'You can also use formulas inside text. Wrap one in curly braces, like {@str+10}, in a widget title, a field name, a tooltip, or most other text, and it shows the calculated result. With Strength at 14, {@str+10} displays 24.',
+    position: 'center',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
     id: 'automation-complete',
     title: 'Automation Tutorial Complete',
-    message: 'That is the automation loop: tag a source value, use @tag in another widget formula, then let the sheet keep the connected values in sync.',
+    message: 'That is the automation loop: tag a source value, use @tag in another widget formula or in {text}, then let the sheet keep the connected values in sync.',
     position: 'center',
     page: 'sheet',
   },
@@ -529,7 +521,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-backup-overview',
     title: 'Back Up Regularly',
-    message: 'Download backups regularly. Your data is stored in this browser, and this is where you can restore from a backup file if you change devices, browsers, or lose local storage.',
+    message: 'Download backups regularly. Depending on your workspace, your data lives in this browser, a folder on your computer, or Google Drive. This is where you can restore from a backup file if you change devices or lose your data.',
     targetSelector: '[data-tutorial="backup-modal"]',
     position: 'right',
     page: 'character-list',
@@ -605,7 +597,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'various-add-sheet-button',
     title: 'Add a Sheet',
-    message: 'Use Add New Sheet when you want another page for inventory, spells, notes, companions, vehicles, or anything else your character needs.',
+    message: 'Use Add sheet when you want another page for inventory, spells, notes, companions, vehicles, or anything else your character needs.',
     targetSelector: '[data-tutorial="add-sheet-button"]',
     position: 'left',
     page: 'sheet',
@@ -619,6 +611,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'sheet',
   },
 ];
+
+export const getTutorialStepIndex = (id: string) => TUTORIAL_STEPS.findIndex((step) => step.id === id);
+
+export const isTutorialStep = (step: number | null, id: string) => step !== null && TUTORIAL_STEPS[step]?.id === id;
 
 interface TutorialState {
   tutorialStep: number | null;

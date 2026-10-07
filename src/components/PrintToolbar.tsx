@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { PaperFormat } from '../store/usePrintStore';
-import { ArrowLeftIcon, BorderIcon, CheckIcon, ChevronDownIcon, PaletteIcon, PaperIcon, PencilIcon, PlayIcon, PrintIcon, XIcon } from './icons';
+import { ArrowLeftIcon, BorderIcon, CheckIcon, ChevronDownIcon, LayoutGridIcon, PaletteIcon, PaperIcon, PrintIcon, XIcon } from './icons';
 import { ToolbarOverflow, ToolbarShell } from './ToolbarShell';
 import { Tooltip } from './Tooltip';
 
@@ -9,8 +9,7 @@ interface PrintToolbarProps {
   onMenuOpenChange: (open: boolean) => void;
   onBack: () => void;
   onExit: () => void;
-  onPlay: () => void;
-  onBuild: () => void;
+  onOpenCanvas: () => void;
   onPrint: () => void;
   printerFriendly: boolean;
   onTogglePrinterFriendly: () => void;
@@ -36,8 +35,7 @@ export default function PrintToolbar({
   onMenuOpenChange,
   onBack,
   onExit,
-  onPlay,
-  onBuild,
+  onOpenCanvas,
   onPrint,
   printerFriendly,
   onTogglePrinterFriendly,
@@ -97,8 +95,7 @@ export default function PrintToolbar({
         <div className="border-b border-theme-border/50 py-1">
           <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Workspace</p>
           <Tooltip content="Return to the workspace that opened Print Preview" placement="below"><button type="button" onClick={() => { onBack(); onMenuOpenChange(false); }} className={menuButtonClass}><ArrowLeftIcon className="h-4 w-4" />Back to previous workspace</button></Tooltip>
-          <Tooltip content="Exit Print Preview and open Play" placement="below"><button type="button" onClick={() => { onPlay(); onMenuOpenChange(false); }} className={menuButtonClass}><PlayIcon className="h-4 w-4" />Open Play</button></Tooltip>
-          <Tooltip content="Exit Print Preview and open Build" placement="below"><button type="button" onClick={() => { onBuild(); onMenuOpenChange(false); }} className={menuButtonClass}><PencilIcon className="h-4 w-4" />Open Build</button></Tooltip>
+          <Tooltip content="Exit Print Preview and open the canvas" placement="below"><button type="button" onClick={() => { onOpenCanvas(); onMenuOpenChange(false); }} className={menuButtonClass}><LayoutGridIcon className="h-4 w-4" />Open canvas</button></Tooltip>
         </div>
 
         <div className="border-b border-theme-border/50 px-3 py-2.5">
@@ -137,11 +134,11 @@ export default function PrintToolbar({
             <div className="flex min-w-0 items-center gap-2.5">
               <PaperIcon className="h-4 w-4 shrink-0 text-theme-muted" />
               <div className="min-w-0">
-                <span className="block text-sm font-semibold font-body text-theme-ink">Show print area in Build</span>
-                <span className="block truncate text-[11px] font-body text-theme-muted">Keep the print boundary visible while editing</span>
+                <span className="block text-sm font-semibold font-body text-theme-ink">Show print area on sheet</span>
+                <span className="block truncate text-[11px] font-body text-theme-muted">Keep the print boundary visible on the canvas</span>
               </div>
             </div>
-            <Tooltip content={showInEditMode ? 'Hide the print area in Build' : 'Show the print area in Build'} placement="below"><button type="button" role="switch" aria-checked={showInEditMode} aria-label="Show print area in Build" onClick={onToggleShowInEditMode} className={menuSwitchClass(showInEditMode)}>
+            <Tooltip content={showInEditMode ? 'Hide the print area on the sheet' : 'Show the print area on the sheet'} placement="below"><button type="button" role="switch" aria-checked={showInEditMode} aria-label="Show print area on sheet" onClick={onToggleShowInEditMode} className={menuSwitchClass(showInEditMode)}>
               <span className={menuSwitchThumbClass(showInEditMode)} />
               <span className="sr-only">{showInEditMode ? 'On' : 'Off'}</span>
             </button></Tooltip>

@@ -15,7 +15,7 @@ import { getNumberDisplayLayout } from '../../utils/numberDisplayLayout';
 
 interface Props {
   widget: Widget;
-  mode: 'play' | 'edit' | 'print';
+  mode: 'play' | 'print';
   width: number;
   height: number;
   showFieldControls?: boolean;
@@ -300,9 +300,10 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             className="relative flex flex-col items-center justify-center overflow-visible rounded-theme border border-theme-border bg-theme-paper"
             style={boxStyle}
           >
+            {showSecondaryDisplayNumbers && <span aria-hidden className="min-h-0" style={{ flex: '1 1 0%' }} />}
             <span 
               data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
-              className={`font-bold text-theme-ink transition-colors leading-none font-body ${showSecondaryDisplayNumbers ? '-translate-y-2' : ''} ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
+              className={`font-bold text-theme-ink transition-colors leading-none font-body ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
               style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
               data-print-hide={hideValues ? 'true' : undefined}
               onClick={() => handleValueClick(idx, item.value)}
@@ -325,7 +326,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             
             {showDisplayNumberLabels && (
               <span 
-                className={`w-full truncate px-1 text-center font-body leading-tight text-theme-muted ${showSecondaryDisplayNumbers ? '-translate-y-2' : ''}`}
+                className={`w-full truncate px-1 text-center font-body leading-tight text-theme-muted`}
                 style={{ fontSize: `${labelFontSize}px` }}
               >
                 {mode === 'play' && item.tooltip ? (
@@ -333,6 +334,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 ) : <InlineFormulaText text={item.label} />}
               </span>
             )}
+            {/* Larger bottom share keeps the content clear of the corner badge without hurting small boxes. */}
+            {showSecondaryDisplayNumbers && <span aria-hidden className="min-h-0" style={{ flex: '1.8 1 0%' }} />}
 
             {showSecondaryDisplayNumbers && (
               secondaryDisplayAutoCompute || item.secondaryValueFormula || isPrintMode ? (

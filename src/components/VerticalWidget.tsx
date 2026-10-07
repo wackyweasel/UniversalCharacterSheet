@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
-import { ChevronDownIcon, GripVerticalIcon, PencilIcon, TrashIcon } from './icons';
+import { ChevronDownIcon, DotsVerticalIcon, GripVerticalIcon, PencilIcon } from './icons';
 import { Tooltip } from './Tooltip';
 import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import WidgetEditModal from './WidgetEditModal';
+import WidgetOptionsMenu from './WidgetOptionsMenu';
+import { useLockedWidgetWheel } from '../hooks/useLockedWidgetWheel';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import LabelWidget from './widgets/LabelWidget';
@@ -46,7 +47,6 @@ interface Props {
   registerElement: (widgetId: string, element: HTMLDivElement | null) => void;
   onDragStart: (widgetId: string, event: React.PointerEvent<HTMLButtonElement>) => void;
   onReorderKey: (widgetId: string, event: React.KeyboardEvent<HTMLButtonElement>) => void;
-  isBuildMode: boolean;
   searchRevealKey?: number;
 }
 
@@ -73,14 +73,15 @@ export default function VerticalWidget({
   registerElement,
   onDragStart,
   onReorderKey,
-  isBuildMode,
   searchRevealKey,
 }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useLockedWidgetWheel(cardRef, widget.locked === true);
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
-  const removeWidget = useStore((state) => state.removeWidget);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const activeCharacter = characters.find(c => c.id === activeCharacterId);
   const customTheme = activeCharacter?.theme ? getCustomTheme(activeCharacter.theme) : undefined;
@@ -103,7 +104,7 @@ export default function VerticalWidget({
   const hasInternalHeaderLabel = !isWidgetHeaderHidden && widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   
   // Collapsed state - load from localStorage
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -134,17 +135,6 @@ export default function VerticalWidget({
       window.removeEventListener('vertical-collapse-all', handleCollapseAll as EventListener);
     };
   }, []);
-
-  useEffect(() => {
-    if (!showDeleteConfirm) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowDeleteConfirm(false);
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showDeleteConfirm]);
 
   useEffect(() => {
     if (searchRevealKey === undefined) return;
@@ -200,13 +190,13 @@ export default function VerticalWidget({
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
-      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={!isBuildMode} />;
+      case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} height={300} />;
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
-      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={!isBuildMode} showControls />;
+      case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive showControls />;
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       case 'WALLET': return <WalletWidget {...props} />;
@@ -225,7 +215,7 @@ export default function VerticalWidget({
       className={`vertical-widget vertical-widget-sort-item relative ${widget.type === 'DECK_OF_CARDS' ? 'vertical-widget--card-table' : ''} ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
     >
       {/* Widget Card */}
-      <div className="vertical-widget-card">
+      <div ref={cardRef} className="vertical-widget-card">
         {/* Image texture overlay */}
         {hasImageTexture && (
           <div
@@ -279,7 +269,7 @@ export default function VerticalWidget({
           )}
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            {(widget.type !== 'LABEL' || isBuildMode) && !widget.data.hideWidgetEditButton && (
+            {!widget.data.hideWidgetEditButton && (
               <Tooltip content={`Edit ${getWidgetLabel()}`}>
                 <button
                   type="button"
@@ -291,18 +281,19 @@ export default function VerticalWidget({
                 </button>
               </Tooltip>
             )}
-            {isBuildMode && (
-              <Tooltip content={`Delete ${getWidgetLabel()}`}>
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  aria-label={`Delete ${getWidgetLabel()}`}
-                  className="widget-control widget-control--subtle h-7 w-7 min-h-0 text-red-500 hover:border-red-500 hover:bg-red-500 hover:text-white"
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                </button>
-              </Tooltip>
-            )}
+            <Tooltip content="Widget options">
+              <button
+                ref={menuTriggerRef}
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-label={`Options for ${getWidgetLabel()}`}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="widget-control widget-control--subtle h-7 w-7 min-h-0"
+              >
+                <DotsVerticalIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
 
             {/* Collapse Toggle */}
             <button
@@ -318,7 +309,7 @@ export default function VerticalWidget({
 
         {/* Content - only show when not collapsed */}
         {!isCollapsed && (
-          <div className={`vertical-widget-body ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${hasHeaderControls ? `vertical-widget-body--header-controls ${isBuildMode ? 'vertical-widget-body--build-actions' : ''}` : hasInternalHeaderLabel && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
+          <div className={`vertical-widget-body ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''} ${hasHeaderControls ? 'vertical-widget-body--header-controls' : hasInternalHeaderLabel && widget.type !== 'REST_BUTTON' ? 'vertical-widget-body--header-label' : ''} ${widget.locked ? 'pointer-events-none opacity-70' : ''}`}>
             {renderContent()}
           </div>
         )}
@@ -333,46 +324,18 @@ export default function VerticalWidget({
         />
       )}
 
-      {showDeleteConfirm && createPortal(
-        <div
-          data-touch-camera-ignore="true"
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`vertical-delete-title-${widget.id}`}
-            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id={`vertical-delete-title-${widget.id}`} className="font-heading text-base font-bold">
-              Delete {getWidgetLabel()}?
-            </h3>
-            <p className="mt-2 text-sm text-theme-muted">Remove this widget from the sheet?</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setShowDeleteConfirm(false)}
-                className="widget-control px-3 py-1.5 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  removeWidget(widget.id);
-                }}
-                className="min-h-8 rounded-button border border-red-600 bg-red-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-600"
-              >
-                Delete widget
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {menuOpen && (
+        <WidgetOptionsMenu
+          widget={widget}
+          anchorRef={menuTriggerRef}
+          point={null}
+          hideGroupActions
+          onClose={() => setMenuOpen(false)}
+          onEdit={() => {
+            setMenuOpen(false);
+            openEditModal();
+          }}
+        />
       )}
     </div>
   );

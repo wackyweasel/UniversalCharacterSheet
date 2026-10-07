@@ -5,6 +5,8 @@ export interface ToolbarActionCapacity {
   width?: number;
   labeledWidth?: number;
   iconWidth?: number;
+  /** Never moved to the overflow menu; may still lose its label. */
+  pinned?: boolean;
 }
 
 interface ToolbarOverflowOptions {
@@ -66,6 +68,7 @@ export function useToolbarOverflow({
 
     for (let index = actions.length - 1; index >= 0 && requiredWidth > availableWidth; index -= 1) {
       const action = actions[index];
+      if (action.pinned) continue;
       inline.delete(action.id);
       labeled.delete(action.id);
       requiredWidth -= iconWidth(action);

@@ -1,9 +1,9 @@
-import { useMemo, useState, useEffect, useLayoutEffect } from 'react';
+import { useMemo, useState, useLayoutEffect, useSyncExternalStore } from 'react';
 import { Widget } from '../types';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
 import { LinkIcon, UnlinkIcon } from './icons';
-import { WIDGET_CONTROLS_DISMISS_EVENT } from './widgetDragRegistry';
+import { getWidgetDragState, subscribeWidgetDragState } from './widgetDragRegistry';
 
 interface Props {
   widgets: Widget[];
@@ -24,6 +24,7 @@ interface WidgetBounds {
   id: string;
   groupId?: string;
   attachedTo?: string[];
+  locked?: boolean;
   left: number;
   right: number;
   top: number;
@@ -32,55 +33,17 @@ interface WidgetBounds {
 
 const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 const OVERLAP_MIN = 20; // minimum overlap needed to show button
+const isAnyWidgetDragging = () => getWidgetDragState() !== null;
 
 export default function AttachmentButtons({ widgets, scale }: Props) {
   const attachWidgets = useStore((state) => state.attachWidgets);
   const detachWidgets = useStore((state) => state.detachWidgets);
-  const selectedWidgetId = useStore((state) => state.selectedWidgetId);
-  const [isDragging, setIsDragging] = useState(false);
-  const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+  const activeWidgetId = useStore((state) => state.selectedWidgetId);
+  const isDragging = useSyncExternalStore(subscribeWidgetDragState, isAnyWidgetDragging, isAnyWidgetDragging);
   const [widgetSizes, setWidgetSizes] = useState<Record<string, { width: number; height: number }>>({});
-  const activeWidgetId = selectedWidgetId || hoveredWidgetId;
   const buildControlScale = Math.min(1, 1 / scale);
 
   const widgetIdsKey = widgets.map(widget => widget.id).join('|');
-
-  // Detect when dragging starts/stops by watching for react-draggable-dragging class
-  useEffect(() => {
-    const checkDragging = () => {
-      const draggingElement = document.querySelector('.react-draggable-dragging');
-      setIsDragging(!!draggingElement);
-    };
-
-    // Use MutationObserver to watch for class changes
-    const observer = new MutationObserver(checkDragging);
-    observer.observe(document.body, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const handleMouseOver = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-attach-widget-ids]')) return;
-
-      const widgetEl = target.closest('[data-widget-id]');
-      setHoveredWidgetId(widgetEl?.getAttribute('data-widget-id') || null);
-    };
-
-    document.addEventListener('mouseover', handleMouseOver);
-    return () => document.removeEventListener('mouseover', handleMouseOver);
-  }, []);
-
-  useEffect(() => {
-    const dismissHoverControls = () => setHoveredWidgetId(null);
-    window.addEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
-    return () => window.removeEventListener(WIDGET_CONTROLS_DISMISS_EVENT, dismissHoverControls);
-  }, []);
 
   useLayoutEffect(() => {
     const elements = widgets
@@ -120,6 +83,7 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
           id: widget.id,
           groupId: widget.groupId,
           attachedTo: widget.attachedTo,
+          locked: widget.locked,
           left: widget.x,
           right: widget.x + size.width,
           top: widget.y,
@@ -296,9 +260,13 @@ export default function AttachmentButtons({ widgets, scale }: Props) {
     return null;
   }
 
-  // Show attachment actions for the hovered widget or the current touch selection.
-  const visibleEdges = activeWidgetId 
-    ? touchingEdges.filter(edge => edge.widget1Id === activeWidgetId || edge.widget2Id === activeWidgetId)
+  // Show attachment actions for the selected widget; locked widgets cannot move to line up.
+  const lockedIds = new Set(widgetBounds.filter(bounds => bounds.locked).map(bounds => bounds.id));
+  const visibleEdges = activeWidgetId && !lockedIds.has(activeWidgetId)
+    ? touchingEdges.filter(edge => (
+      (edge.widget1Id === activeWidgetId || edge.widget2Id === activeWidgetId) &&
+      !lockedIds.has(edge.widget1Id) && !lockedIds.has(edge.widget2Id)
+    ))
     : [];
 
   return (

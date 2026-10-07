@@ -60,19 +60,20 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   }, [tutorialStep, templates.length]);
 
   // Map tutorial steps to widget types
-  const tutorialWidgetSteps: Record<number, WidgetType> = {
-    5: 'IMAGE',
-    6: 'HEALTH_BAR',
-    7: 'FORM',
-    8: 'NUMBER_DISPLAY',
+  const tutorialWidgetSteps: Record<string, WidgetType> = {
+    'add-image-widget': 'IMAGE',
+    'add-health-widget': 'HEALTH_BAR',
+    'add-form-widget': 'FORM',
+    'add-number-display-widget': 'NUMBER_DISPLAY',
   };
+  const tutorialWidgetType = tutorialStep !== null ? tutorialWidgetSteps[TUTORIAL_STEPS[tutorialStep]?.id ?? ''] : undefined;
 
   const handleAdd = (type: WidgetType) => {
     // Add to visible area of screen using viewport info
     addWidget(type, 100, 100, viewport);
     
     // Check if this is the widget the tutorial is waiting for
-    if (tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type) {
+    if (tutorialWidgetType === type) {
       advanceTutorial();
     }
   };
@@ -165,12 +166,11 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
             data-tutorial="close-toolbox"
             onClick={() => {
               onToggle();
-              // If tutorial is on step 9 (close-toolbox), advance
-              if (tutorialStep === 9 && TUTORIAL_STEPS[9]?.id === 'close-toolbox') {
+              if (isCurrentTutorialStep('close-toolbox')) {
                 advanceTutorial();
               }
             }}
-            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors ${tutorialStep === 9 ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+            className={`absolute top-3 right-3 w-10 h-10 bg-theme-accent text-theme-paper font-bold flex items-center justify-center rounded-button z-20 shadow-theme hover:bg-theme-accent-hover transition-colors ${isCurrentTutorialStep('close-toolbox') ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
             aria-label="Close toolbox"
           >
             <XIcon className="w-5 h-5" />
@@ -213,7 +213,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                 <h3 className="mb-2 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted">{category}</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {categoryWidgets.map(({ type, label }) => {
-                    const isHighlighted = tutorialStep !== null && tutorialWidgetSteps[tutorialStep] === type;
+                    const isHighlighted = tutorialWidgetType === type;
 
                     return (
                       <Tooltip key={type} content={<WidgetTooltipPreview type={type} />} placement="below">
@@ -354,7 +354,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
           <p>Tap to add widgets.</p>
           <p>Pan with finger/mouse.</p>
           <p>Pinch/scroll to zoom.</p>
-          <p className="mt-2 text-theme-ink font-bold">Build workspace active</p>
+          <p>Long-press or drag a widget's top edge to move it.</p>
         </div>
         </div>
       </div>
