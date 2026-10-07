@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import CharacterList from './components/CharacterList';
+import ChangelogDialog, { useChangelogOnLoad } from './components/ChangelogDialog';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
@@ -71,6 +72,7 @@ function App() {
   const initializeWorkspaces = useStorageWorkspaceStore((state) => state.initialize);
   const resetBrowserWorkspace = useStorageWorkspaceStore((state) => state.resetBrowserWorkspace);
   const darkMode = isDarkModeEnabled();
+  const [showChangelog, closeChangelog] = useChangelogOnLoad(isWorkspaceHydrated && !isSwitchingWorkspace);
 
   useEffect(() => {
     void initializeWorkspaces();
@@ -153,6 +155,7 @@ function App() {
           <Sheet />
         </SheetErrorBoundary>
       ) : <CharacterList />}
+      {showChangelog && <ChangelogDialog darkMode={darkMode} onClose={closeChangelog} />}
       {!isSwitchingWorkspace && <DicePhysicsOverlay />}
     </div>
   );
