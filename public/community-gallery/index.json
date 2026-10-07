@@ -271,6 +271,22 @@
       "description": "A change to the football player to fit a character in the adventure I'm running",
       "file": "presets/jock_diego.json",
       "gameSystem": "Buffy RPG"
+    },
+    {
+      "id": "35",
+      "name": "Chapeau's Umerican Master Sheet (Français)",
+      "author": "@Chapeau",
+      "description": "Une fiche de personnage pour Umerica (DCC) qui inclut les classes de Umerican Survival Guide, Umerican Road Atlas et Umerica Unnatural. Plusieurs champs sont calculés automatiquement",
+      "file": "presets/umerican_master_sheet_fr.json",
+      "gameSystem": "Umerica (DCC)"
+    },
+    {
+      "id": "36",
+      "name": "Chapeau's Umerican Master Sheet",
+      "author": "@Chapeau",
+      "description": "A character sheet for Umerica (DCC) that includes classes from Umerican Survival Guide, Umerican Road Atlas, and Umerica Unnatural. A lot of the fields are automatically calculated",
+      "file": "presets/umerican_master_sheet.json",
+      "gameSystem": "Umerica (DCC)"
     }
   ],
   "themes": [
