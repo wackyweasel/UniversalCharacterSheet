@@ -1022,7 +1022,7 @@ export default function Sheet() {
     const compactToolbar = window.innerWidth < 480;
     const needsAddButtonInMenu = compactToolbar && (needsAddWidgetButton || needsTemplateToolboxButton);
 
-    if (needsAddButtonInMenu || (compactToolbar && needsThemeButton) || (window.innerWidth < 1024 && isCurrentTutorialStep('various-print-mode'))) {
+    if (needsAddButtonInMenu || (compactToolbar && needsThemeButton) || isCurrentTutorialStep('various-print-mode')) {
       setGridMenuOpen(true);
     }
   }, [tutorialStep]);
