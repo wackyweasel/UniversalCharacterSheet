@@ -55,6 +55,7 @@ import WalletWidget from './widgets/WalletWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
+import { useLockedWidgetWheel } from '../hooks/useLockedWidgetWheel';
 
 interface Props {
   widget: Widget;
@@ -198,6 +199,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useLockedWidgetWheel(nodeRef, mode !== 'print' && widget.locked === true);
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   // The key remounts the menu so every open starts from its first tab.

@@ -8,6 +8,7 @@ import { Tooltip } from './Tooltip';
 import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import WidgetEditModal from './WidgetEditModal';
 import WidgetOptionsMenu from './WidgetOptionsMenu';
+import { useLockedWidgetWheel } from '../hooks/useLockedWidgetWheel';
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
 import LabelWidget from './widgets/LabelWidget';
@@ -75,7 +76,9 @@ export default function VerticalWidget({
   searchRevealKey,
 }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useLockedWidgetWheel(cardRef, widget.locked === true);
   // Get current character's theme for texture info
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const characters = useStore((state) => state.characters);
@@ -212,7 +215,7 @@ export default function VerticalWidget({
       className={`vertical-widget vertical-widget-sort-item relative ${widget.type === 'DECK_OF_CARDS' ? 'vertical-widget--card-table' : ''} ${searchRevealKey !== undefined ? 'widget-search-target' : ''}`}
     >
       {/* Widget Card */}
-      <div className="vertical-widget-card">
+      <div ref={cardRef} className="vertical-widget-card">
         {/* Image texture overlay */}
         {hasImageTexture && (
           <div
