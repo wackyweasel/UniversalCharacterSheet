@@ -40,6 +40,7 @@ const CHANGELOG_ENTRIES = [
     version: '1.10.0',
     changes: [
       'Build mode is gone: arrange widgets directly on the sheet. On desktop, drag the grip on a widget\'s top edge to move it, drag its edges to resize it, and right-click or select it for its menu and attach buttons. On touch devices, long-press a widget to pick it up and drag it, or long-press and release to select it and open its menu.',
+      'Right-click an empty spot on the sheet to pick a widget type from a menu and add it at that position.',
     ],
   },
   {

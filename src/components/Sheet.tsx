@@ -13,6 +13,7 @@ import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
 import Sidebar from './Sidebar';
+import CanvasContextMenu from './CanvasContextMenu';
 import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import VerticalWidget from './VerticalWidget';
@@ -1085,21 +1086,31 @@ export default function Sheet() {
     e.dataTransfer.dropEffect = 'copy';
   };
 
+  const addWidgetAtClientPoint = (type: WidgetType, clientX: number, clientY: number) => {
+    const canvasRect = containerRef.current?.getBoundingClientRect();
+    const viewportX = clientX - (canvasRect?.left ?? 0);
+    const viewportY = clientY - (canvasRect?.top ?? 0);
+    const x = snapWidgetCoordinate((viewportX - pan.x) / scale);
+    const y = snapWidgetCoordinate((viewportY - pan.y) / scale);
+
+    addWidget(type, x, y, undefined, 'exact');
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const type = e.dataTransfer.getData('widgetType') as WidgetType;
-    if (type) {
-      const canvasRect = containerRef.current?.getBoundingClientRect();
-      const viewportX = e.clientX - (canvasRect?.left ?? 0);
-      const viewportY = e.clientY - (canvasRect?.top ?? 0);
-      const rawX = (viewportX - pan.x) / scale;
-      const rawY = (viewportY - pan.y) / scale;
+    if (type) addWidgetAtClientPoint(type, e.clientX, e.clientY);
+  };
 
-      const x = snapWidgetCoordinate(rawX);
-      const y = snapWidgetCoordinate(rawY);
+  const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const closeCanvasContextMenu = useCallback(() => setCanvasContextMenu(null), []);
 
-      addWidget(type, x, y, undefined, 'exact');
-    }
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    if (mode === 'print') return;
+    // Only the bare background; widgets and other layers handle their own menus.
+    if (e.target !== e.currentTarget && e.target !== printAreaRef.current) return;
+    e.preventDefault();
+    setCanvasContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const registerVerticalWidget = useCallback((widgetId: string, element: HTMLDivElement | null) => {
@@ -1699,6 +1710,7 @@ export default function Sheet() {
         onWheel={handleWheel}
         onDragOver={mode !== 'print' ? handleDragOver : undefined}
         onDrop={mode !== 'print' ? handleDrop : undefined}
+        onContextMenu={handleCanvasContextMenu}
       >
         {mode !== 'print' && activeSheetWidgets.length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center p-6 pointer-events-none">
@@ -1772,6 +1784,18 @@ export default function Sheet() {
           )}
         </div>
       </div>
+
+      {canvasContextMenu && mode !== 'print' && (
+        <CanvasContextMenu
+          x={canvasContextMenu.x}
+          y={canvasContextMenu.y}
+          onClose={closeCanvasContextMenu}
+          onSelect={(type) => {
+            addWidgetAtClientPoint(type, canvasContextMenu.x, canvasContextMenu.y);
+            closeCanvasContextMenu();
+          }}
+        />
+      )}
 
       {/* Print Mode Header */}
       {mode === 'print' && (
