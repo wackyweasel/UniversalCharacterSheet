@@ -336,6 +336,20 @@
       "author": "@Holypunk",
       "description": "The divinator's theme",
       "file": "themes/holypunk.json"
+    },
+    {
+      "id": "10",
+      "name": "Dark Sorcerer",
+      "author": "@WackyWeasel",
+      "description": "Dark and foggy",
+      "file": "themes/dark_sorcerer.json"
+    },
+    {
+      "id": "11",
+      "name": "Druidic Green",
+      "author": "@WackyWeasel",
+      "description": "Darker version of the Natural theme",
+      "file": "themes/druidic_green.json"
     }
   ],
   "templates": [
