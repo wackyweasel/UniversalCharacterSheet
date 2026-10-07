@@ -10,8 +10,8 @@ const POINTER_DRAG_THRESHOLD = 3;
 const TOUCH_SLOP = 8;
 const LIFTED_MOVE_THRESHOLD = 6;
 const LONG_PRESS_DELAY_MS = 450;
-// Screen pixels; divided by the camera scale so snapping feels the same at every zoom.
-const SNAP_DISTANCE = 12;
+// Canvas units; intentionally not scaled by camera zoom.
+const SNAP_DISTANCE = 6;
 const SNAP_MIN_OVERLAP = 20;
 const TOUCH_CONTEXT_MENU_WINDOW_MS = 800;
 
@@ -151,7 +151,7 @@ export function useWidgetDrag({ widget, scale, enabled, isArranging, onTap }: Us
       anchor: session.anchor,
       deltaX: screenDx / currentScale,
       deltaY: screenDy / currentScale,
-      threshold: SNAP_DISTANCE / currentScale,
+      threshold: SNAP_DISTANCE,
       minOverlap: SNAP_MIN_OVERLAP,
       grid,
     });
