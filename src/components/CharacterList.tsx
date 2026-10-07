@@ -28,6 +28,18 @@ import { Copy } from 'lucide-react';
 import { useStorageWorkspaceStore } from '../store/useStorageWorkspaceStore';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
+const LAST_SEEN_VERSION_STORAGE_KEY = 'ucs:lastSeenVersion';
+
+// Brand-new users (nothing stored) are not shown a changelog, except existing users upgrading to 1.10.0.
+function shouldShowChangelogOnLoad(hasCharacters: boolean): boolean {
+  try {
+    const lastSeen = localStorage.getItem(LAST_SEEN_VERSION_STORAGE_KEY);
+    if (lastSeen === null) return packageInfo.version === '1.10.0' && hasCharacters;
+    return lastSeen !== packageInfo.version;
+  } catch {
+    return false;
+  }
+}
 
 const TUTORIAL_DESCRIPTIONS = {
   basic: 'Create a character, add widgets, move and resize them, edit a widget, and learn camera controls.',
@@ -409,7 +421,14 @@ export default function CharacterList() {
   const [replaceCharacterId, setReplaceCharacterId] = useState<string | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
-  const [showChangelog, setShowChangelog] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(() => shouldShowChangelogOnLoad(characters.length > 0));
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_SEEN_VERSION_STORAGE_KEY, packageInfo.version);
+    } catch {
+      // Storage unavailable; the version is simply not remembered.
+    }
+  }, []);
   const [expandedChangelogVersions, setExpandedChangelogVersions] = useState<Record<string, boolean>>(() => ({
     [CHANGELOG_ENTRIES[0].version]: true,
   }));
