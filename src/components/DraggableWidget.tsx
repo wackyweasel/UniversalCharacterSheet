@@ -4,6 +4,7 @@ import { Widget, WidgetType } from '../types';
 import { useStore, type WidgetSelectionSource } from '../store/useStore';
 import { useTutorialStore, getTutorialStepIndex } from '../store/useTutorialStore';
 import { usePrintStore } from '../store/usePrintStore';
+import { useSheetSettingsStore } from '../store/useSheetSettingsStore';
 import { isImageTexture, IMAGE_TEXTURES, getBuiltInTheme } from '../store/useThemeStore';
 import { useCustomThemeStore } from '../store/useCustomThemeStore';
 import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
@@ -184,6 +185,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   // Print mode state
   const textureDisabled = usePrintStore((state) => state.textureDisabled);
   const bordersDisabled = usePrintStore((state) => state.bordersDisabled);
+  const hideAttachedEdges = useSheetSettingsStore((state) => state.hideAttachedEdges);
   
   // Get current character's theme for texture info
   // Narrow selectors: subscribing to all characters re-rendered every widget whenever any widget changed.
@@ -592,6 +594,43 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     return corners;
   }, [widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, relatedWidgets]);
 
+  // Sides whose edge is fully shared with attached neighbours; their border line is hidden.
+  const seamSides = useMemo(() => {
+    if (!hideAttachedEdges || !widget.attachedTo?.length) return null;
+    const width = widget.w || 200;
+    const height = widgetHeight || 120;
+    const covered: Record<WidgetSide, [number, number][]> = { left: [], right: [], top: [], bottom: [] };
+    for (const attachedId of widget.attachedTo) {
+      const neighbor = relatedWidgets.find((candidate) => candidate.id === attachedId);
+      if (!neighbor) continue;
+      const { width: nw, height: nh } = getWidgetBoxSize(neighbor);
+      const yRange: [number, number] = [Math.max(widget.y, neighbor.y), Math.min(widget.y + height, neighbor.y + nh)];
+      const xRange: [number, number] = [Math.max(widget.x, neighbor.x), Math.min(widget.x + width, neighbor.x + nw)];
+      const overlapsY = yRange[1] > yRange[0];
+      const overlapsX = xRange[1] > xRange[0];
+      if (overlapsY && Math.abs(neighbor.x + nw - widget.x) <= EDGE_TOLERANCE) covered.left.push(yRange);
+      if (overlapsY && Math.abs(neighbor.x - (widget.x + width)) <= EDGE_TOLERANCE) covered.right.push(yRange);
+      if (overlapsX && Math.abs(neighbor.y + nh - widget.y) <= EDGE_TOLERANCE) covered.top.push(xRange);
+      if (overlapsX && Math.abs(neighbor.y - (widget.y + height)) <= EDGE_TOLERANCE) covered.bottom.push(xRange);
+    }
+    const isSideCovered = (ranges: [number, number][], length: number) => {
+      let total = 0;
+      let end = -Infinity;
+      for (const [start, stop] of [...ranges].sort((a, b) => a[0] - b[0])) {
+        total += Math.max(0, stop - Math.max(start, end));
+        end = Math.max(end, stop);
+      }
+      return total >= length - 2 * EDGE_TOLERANCE;
+    };
+    const sides = {
+      left: isSideCovered(covered.left, height),
+      right: isSideCovered(covered.right, height),
+      top: isSideCovered(covered.top, width),
+      bottom: isSideCovered(covered.bottom, width),
+    };
+    return sides.left || sides.right || sides.top || sides.bottom ? sides : null;
+  }, [hideAttachedEdges, widget.attachedTo, widget.x, widget.y, widget.w, widgetHeight, relatedWidgets]);
+
   // Generate border-radius style based on corner rounding
   const borderRadiusStyle = useMemo(() => {
     const r = 'var(--border-radius)';
@@ -716,7 +755,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
         data-tutorial={`widget-${widget.type}`}
         data-group-id={widget.groupId || ''}
         data-widget-arranging={isArranging && mode !== 'print' ? 'true' : undefined}
-        className={`canvas-widget widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${showSelection ? 'widget-surface--selected' : ''} ${showTapBar ? 'widget-surface--tap-revealed' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
+        className={`canvas-widget widget-surface absolute bg-theme-paper group ${widget.type === 'DECK_OF_CARDS' ? 'widget-surface--card-table' : ''} ${isWidgetDragging ? 'widget-surface--dragging' : ''} ${showSelection ? 'widget-surface--selected' : ''} ${seamSides && !bordersDisabled && !showSelection ? 'widget-surface--seamless' : ''} ${showTapBar ? 'widget-surface--tap-revealed' : ''} ${isSearchTarget ? 'widget-search-target' : ''} ${isResizing ? 'select-none' : ''} ${mode === 'print' && !hasPrintSettings ? 'pointer-events-none' : ''}`}
         style={{ 
           transform: `translate(${position.x}px, ${position.y}px)`,
           width: `${widgetWidth}px`,
@@ -726,7 +765,15 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           zIndex: menu ? MENU_OPEN_Z_INDEX : ((showSelection && widget.type !== 'DECK_OF_CARDS') || isResizing ? SELECTED_WIDGET_Z_INDEX : isSearchTarget ? 10000 : showPrintSettings ? 9999 : (showControls && mode === 'print' && hasPrintSettings) ? 9998 : ((isHovered || showTapBar) && canArrange && widget.type !== 'DECK_OF_CARDS') ? HOVERED_WIDGET_Z_INDEX : widget.zIndex),
           ...borderRadiusStyle,
           ...(bordersDisabled ? { borderWidth: '0px', ...(showSelection ? {} : { outlineWidth: '0px' }) } : {}),
-          ...({ '--widget-hit-scale': hitScale } as CSSProperties),
+          ...({
+            '--widget-hit-scale': hitScale,
+            ...(seamSides ? {
+              '--seam-left': seamSides.left ? 1 : 0,
+              '--seam-right': seamSides.right ? 1 : 0,
+              '--seam-top': seamSides.top ? 1 : 0,
+              '--seam-bottom': seamSides.bottom ? 1 : 0,
+            } : {}),
+          } as CSSProperties),
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -738,7 +785,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           {/* When widgets are attached together, the texture stretches to cover the whole group */}
           {hasImageTexture && (
             <div
-              className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
+              className="widget-texture-layer absolute pointer-events-none z-0 overflow-hidden"
               style={{ backgroundColor: 'var(--color-paper)', ...borderRadiusStyle }}
             >
               <div

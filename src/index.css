@@ -1278,6 +1278,51 @@ td .inline-dice-token {
     outline-width: calc(var(--border-width) + 1px);
   }
 
+  /* Replaces the outline with a per-side border so shared edges between attached widgets draw no line. */
+  .widget-surface--seamless {
+    /* Bleed paper 1px past shared edges so fractional zoom positions leave no hairline. */
+    box-shadow:
+      calc(var(--seam-right, 0) * 1px) 0 0 0 var(--color-paper),
+      calc(var(--seam-left, 0) * -1px) 0 0 0 var(--color-paper),
+      0 calc(var(--seam-bottom, 0) * 1px) 0 0 var(--color-paper),
+      0 calc(var(--seam-top, 0) * -1px) 0 0 var(--color-paper);
+    outline: none;
+  }
+
+  .widget-surface--seamless::after {
+    border: 0 var(--border-style) var(--color-border);
+    border-bottom-width: calc(var(--border-width) * (1 - var(--seam-bottom, 0)));
+    border-left-width: calc(var(--border-width) * (1 - var(--seam-left, 0)));
+    border-radius: inherit;
+    border-right-width: calc(var(--border-width) * (1 - var(--seam-right, 0)));
+    border-top-width: calc(var(--border-width) * (1 - var(--seam-top, 0)));
+    bottom: calc(var(--border-width) * -1.5);
+    content: '';
+    left: calc(var(--border-width) * -1.5);
+    pointer-events: none;
+    position: absolute;
+    right: calc(var(--border-width) * -1.5);
+    top: calc(var(--border-width) * -1.5);
+  }
+
+  /* The texture covers the transparent border band too, so shared edges show no untextured strip. */
+  .widget-texture-layer {
+    inset: 0;
+  }
+
+  .widget-surface--seamless > .widget-texture-layer {
+    /* Right and bottom seams overlap the neighbour by 2px, keeping the texture origin unchanged. */
+    inset:
+      calc(var(--border-width) * -1)
+      calc(var(--border-width) * -1 - var(--seam-right, 0) * 2px)
+      calc(var(--border-width) * -1 - var(--seam-bottom, 0) * 2px)
+      calc(var(--border-width) * -1);
+  }
+
+  .widget-surface--seamless:has(> .widget-texture-layer) {
+    box-shadow: none;
+  }
+
   /* Arrange hit areas scale with --widget-hit-scale so they stay usable when zoomed out. */
   .widget-drag-grip {
     height: calc(12px * var(--widget-hit-scale, 1));

@@ -23,10 +23,12 @@ import {
   RowsIcon,
   SaveIcon,
   UndoIcon,
+  UnlinkIcon,
   UploadIcon,
   XIcon,
 } from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
+import { useSheetSettingsStore } from '../store/useSheetSettingsStore';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
 interface ShareExportMenuProps {
@@ -98,6 +100,8 @@ export default function ShareExportMenu({
   const addPreset = useUserPresetStore((state) => state.addPreset);
   const threeDDiceEnabled = useDiceSettingsStore((state) => state.threeDDiceEnabled);
   const setThreeDDiceEnabled = useDiceSettingsStore((state) => state.setThreeDDiceEnabled);
+  const hideAttachedEdges = useSheetSettingsStore((state) => state.hideAttachedEdges);
+  const setHideAttachedEdges = useSheetSettingsStore((state) => state.setHideAttachedEdges);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
@@ -273,6 +277,25 @@ export default function ShareExportMenu({
                   >
                     <span className={`absolute left-0 top-0.5 h-4 w-4 rounded-full border border-black/25 bg-white shadow-sm transition-transform ${attachmentControlsVisible ? 'translate-x-[22px]' : 'translate-x-1'}`} />
                     <span className="sr-only">{attachmentControlsVisible ? 'On' : 'Off'}</span>
+                  </button></Tooltip>
+                </div>
+                <div className="flex h-9 items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <UnlinkIcon className="h-4 w-4 shrink-0 text-theme-ink" />
+                    <div className="min-w-0">
+                      <span className="block text-sm font-semibold font-body text-theme-ink">Hide attached edges</span>
+                    </div>
+                  </div>
+                  <Tooltip content={hideAttachedEdges ? 'Show the line between attached widgets' : 'Hide the line between attached widgets'} placement="below"><button
+                    type="button"
+                    role="switch"
+                    aria-checked={hideAttachedEdges}
+                    aria-label="Hide edges between attached widgets"
+                    onClick={() => setHideAttachedEdges(!hideAttachedEdges)}
+                    className={`relative h-6 w-11 shrink-0 rounded-full border border-theme-border transition-colors ${hideAttachedEdges ? 'bg-theme-accent' : 'bg-theme-background'}`}
+                  >
+                    <span className={`absolute left-0 top-0.5 h-4 w-4 rounded-full border border-black/25 bg-white shadow-sm transition-transform ${hideAttachedEdges ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+                    <span className="sr-only">{hideAttachedEdges ? 'On' : 'Off'}</span>
                   </button></Tooltip>
                 </div>
               </div>

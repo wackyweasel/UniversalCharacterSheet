@@ -107,7 +107,7 @@ export function WalletEditor({ widget, updateData }: EditorProps) {
             const name = getWalletCurrencyName(currency, index);
             const previousName = getWalletCurrencyName(currencies[index - 1], index - 1);
             return (
-              <div key={index} className="space-y-1 rounded-button border border-theme-border bg-theme-accent/5 p-1.5">
+              <div key={index} className="space-y-1 rounded-theme border border-theme-border bg-theme-accent/5 p-1.5">
                 <div className="flex items-center gap-2">
                   <input
                     className={`${INPUT_CLASS} min-w-0 flex-1`}
