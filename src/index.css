@@ -2509,6 +2509,32 @@ td .inline-dice-token {
   transform-origin: top;
 }
 
+@keyframes timeline-toast-in {
+  0% { opacity: 0; transform: translateX(24px) scale(0.96); }
+  60% { opacity: 1; transform: translateX(-3px) scale(1.01); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes timeline-toast-out {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to { opacity: 0; transform: translateX(24px) scale(0.96); }
+}
+
+.timeline-toast {
+  animation: timeline-toast-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.timeline-toast--out {
+  animation: timeline-toast-out 260ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-toast,
+  .timeline-toast--out {
+    animation-duration: 1ms;
+  }
+}
+
 /* Keep dialogs stable and scrollable within the visible mobile viewport. */
 @media (max-width: 639px) {
   .fixed.inset-0 {

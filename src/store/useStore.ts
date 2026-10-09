@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
-import { useUndoStore } from './useUndoStore';
+import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
 import { useTimelineStore } from './useTimelineStore';
@@ -280,13 +280,15 @@ function resolveActiveCharacterFormulas(
     const changes = (resolved as any)._formulaChanges as FormulaChange[] | undefined;
     if (changes && changes.length > 0 && state.activeCharacterId) {
       const characterId = state.activeCharacterId;
+      const undoId = getCoveringSnapshotId(characterId);
       setTimeout(() => {
         for (const change of changes) {
           useTimelineStore.getState().addEvent(characterId, {
             widgetLabel: change.widgetLabel,
             widgetType: 'FORMULA',
-            description: `${change.fieldName}: ${change.oldValue} → ${change.newValue} (${change.formula})`,
+            description: `${change.fieldName}: ${change.oldValue} → ${change.newValue}`,
             icon: 'fx',
+            undoId,
           });
         }
       }, 0);
@@ -2876,7 +2878,12 @@ export const useStore = create<StoreState>((set, get) => {
       const undoStore = useUndoStore.getState();
       undoStore.setIsUndoRedoing(true);
       
-      const restoredCharacter = undoStore.undo(state.activeCharacterId, currentCharacter);
+      const characterId = state.activeCharacterId;
+      const restoredCharacter = undoStore.undo(
+        characterId,
+        currentCharacter,
+        (snapshotId) => useTimelineStore.getState().removeEventsByUndoId(characterId, snapshotId),
+      );
       if (restoredCharacter) {
         get()._replaceCharacter(state.activeCharacterId, restoredCharacter);
       }
@@ -2894,7 +2901,15 @@ export const useStore = create<StoreState>((set, get) => {
       const undoStore = useUndoStore.getState();
       undoStore.setIsUndoRedoing(true);
       
-      const restoredCharacter = undoStore.redo(state.activeCharacterId, currentCharacter);
+      const characterId = state.activeCharacterId;
+      const restoredCharacter = undoStore.redo(
+        characterId,
+        currentCharacter,
+        (events, snapshotId) => useTimelineStore.getState().restoreEvents(
+          characterId,
+          events.map((event) => ({ ...event, undoId: snapshotId })),
+        ),
+      );
       if (restoredCharacter) {
         get()._replaceCharacter(state.activeCharacterId, restoredCharacter);
       }

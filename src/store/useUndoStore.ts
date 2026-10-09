@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Character } from '../types';
+import type { TimelineEvent } from './useTimelineStore';
 
 // Maximum number of undo states to keep in history
 const MAX_HISTORY_SIZE = 50;
@@ -7,7 +8,26 @@ const MAX_HISTORY_SIZE = 50;
 // Debounce time in ms - changes within this window are merged
 const DEBOUNCE_MS = 300;
 
+// Prefix keeps ids from a previous session (persisted on timeline events) from colliding.
+const SESSION_PREFIX = Date.now().toString(36);
+let snapshotCounter = 0;
+
+let coveringSnapshot: { characterId: string; id: string } | null = null;
+
+function markCoveringSnapshot(characterId: string, id: string) {
+  coveringSnapshot = { characterId, id };
+  queueMicrotask(() => {
+    if (coveringSnapshot?.id === id) coveringSnapshot = null;
+  });
+}
+
+/** Id of the undo snapshot covering the change being made in the current tick, if any. */
+export function getCoveringSnapshotId(characterId: string): string | undefined {
+  return coveringSnapshot?.characterId === characterId ? coveringSnapshot.id : undefined;
+}
+
 export interface UndoState {
+  id: string;
   // The character ID this state applies to
   characterId: string;
   // Snapshot of character state (just the character object)
@@ -16,6 +36,8 @@ export interface UndoState {
   actionDescription: string;
   // Timestamp for debouncing
   timestamp: number;
+  // Timeline events removed by the undo that created this redo state
+  removedTimelineEvents?: TimelineEvent[];
 }
 
 interface UndoStoreState {
@@ -37,14 +59,24 @@ interface UndoStoreState {
   /**
    * Undo the last action for the given character.
    * Returns the character state to restore, or null if nothing to undo.
+   * `removeTimelineEvents` receives the undone snapshot id and returns the timeline events it removed.
    */
-  undo: (currentCharacterId: string, currentCharacter: Character) => Character | null;
+  undo: (
+    currentCharacterId: string,
+    currentCharacter: Character,
+    removeTimelineEvents?: (snapshotId: string) => TimelineEvent[],
+  ) => Character | null;
   
   /**
    * Redo the last undone action for the given character.
    * Returns the character state to restore, or null if nothing to redo.
+   * `restoreTimelineEvents` receives the events removed by the matching undo and the new undo snapshot id.
    */
-  redo: (currentCharacterId: string, currentCharacter: Character) => Character | null;
+  redo: (
+    currentCharacterId: string,
+    currentCharacter: Character,
+    restoreTimelineEvents?: (events: TimelineEvent[], snapshotId: string) => void,
+  ) => Character | null;
   
   /**
    * Check if undo is available for the given character.
@@ -91,16 +123,19 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
     if (lastState && (now - lastState.timestamp) < DEBOUNCE_MS) {
       // Same action within debounce window - don't create a new snapshot
       // This allows rapid changes (like slider dragging) to be treated as one action
+      markCoveringSnapshot(characterId, lastState.id);
       return;
     }
     
     // Create a deep clone of the character to snapshot
     const snapshot: UndoState = {
+      id: `${SESSION_PREFIX}-${++snapshotCounter}`,
       characterId,
       character: JSON.parse(JSON.stringify(character)),
       actionDescription,
       timestamp: now,
     };
+    markCoveringSnapshot(characterId, snapshot.id);
     
     set((state) => {
       // Add to past, trim if needed
@@ -117,7 +152,7 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
     });
   },
   
-  undo: (currentCharacterId, currentCharacter) => {
+  undo: (currentCharacterId, currentCharacter, removeTimelineEvents) => {
     const state = get();
     
     // Find the last state for this character in past
@@ -129,10 +164,12 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
     
     // Save current state to future for redo
     const futureState: UndoState = {
+      id: `${SESSION_PREFIX}-${++snapshotCounter}`,
       characterId: currentCharacterId,
       character: JSON.parse(JSON.stringify(currentCharacter)),
       actionDescription: 'redo point',
       timestamp: Date.now(),
+      removedTimelineEvents: removeTimelineEvents?.(stateToRestore.id),
     };
     
     set((state) => ({
@@ -151,7 +188,7 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
     return stateToRestore.character;
   },
   
-  redo: (currentCharacterId, currentCharacter) => {
+  redo: (currentCharacterId, currentCharacter, restoreTimelineEvents) => {
     const state = get();
     
     // Find the last state for this character in future
@@ -163,11 +200,16 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
     
     // Save current state to past for undo
     const pastState: UndoState = {
+      id: `${SESSION_PREFIX}-${++snapshotCounter}`,
       characterId: currentCharacterId,
       character: JSON.parse(JSON.stringify(currentCharacter)),
       actionDescription: 'undo point',
       timestamp: Date.now(),
     };
+
+    if (stateToRestore.removedTimelineEvents?.length) {
+      restoreTimelineEvents?.(stateToRestore.removedTimelineEvents, pastState.id);
+    }
     
     set((state) => ({
       // Add current state to past

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Widget, FormItem } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { getCoveringSnapshotId } from '../../store/useUndoStore';
 import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
@@ -43,6 +44,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
 
   // Track previous values for timeline on blur
   const prevFormValues = useRef<Record<number, string>>({});
+  const editUndoIds = useRef<Record<number, string | undefined>>({});
 
   const handleValueChange = (index: number, value: string) => {
     const updated = [...formItems] as FormItem[];
@@ -51,15 +53,20 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
     }
     updated[index] = { ...updated[index], value };
     updateWidgetData(widget.id, { formItems: updated });
+    const characterId = useStore.getState().activeCharacterId;
+    if (characterId && !(index in editUndoIds.current)) {
+      editUndoIds.current[index] = getCoveringSnapshotId(characterId);
+    }
   };
 
   const handleValueBlur = (index: number) => {
     const item = (formItems as FormItem[])[index];
     const prevVal = prevFormValues.current[index];
     if (prevVal !== undefined && prevVal !== item.value) {
-      addTimelineEvent(label || 'Form', 'FORM', `${item.name} changed`, '📝');
+      addTimelineEvent(label || 'Form', 'FORM', `${item.name} changed`, '📝', editUndoIds.current[index]);
     }
     delete prevFormValues.current[index];
+    delete editUndoIds.current[index];
   };
 
   const addField = () => {

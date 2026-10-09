@@ -40,6 +40,8 @@ const CHANGELOG_ENTRIES = [
     version: '1.10.1',
     changes: [
       'New "Hide attached edges" setting in the main menu: removes the visible line between attached widgets.',
+      'The timeline panel can now be resized by dragging its left edge (or its top edge when it opens at the bottom on small screens). The size is remembered.',
+      'New "Live pop-ups" toggle in the timeline panel: when on, new events briefly appear in the bottom right corner while the panel is closed.',
     ],
   },
   {

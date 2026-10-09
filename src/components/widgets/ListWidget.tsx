@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { getCoveringSnapshotId } from '../../store/useUndoStore';
 import { Tooltip } from '../Tooltip';
 import { InlineDiceText } from '../InlineDiceText';
 import { SelectionActions } from './StructureDialogControls';
@@ -92,28 +93,36 @@ export default function ListWidget({ widget, mode, width, height, showFieldContr
 
   // Track previous values for timeline on blur
   const prevListValues = useRef<Record<number, string>>({});
+  const editUndoIds = useRef<Record<number, string | undefined>>({});
 
   const handleFocus = (index: number) => {
     prevListValues.current[index] = normalizedItems[index];
+    delete editUndoIds.current[index];
   };
 
   const handleBlur = (index: number) => {
     const prev = prevListValues.current[index];
     const current = normalizedItems[index];
+    const undoId = editUndoIds.current[index];
     if (prev !== undefined && prev !== current) {
       if (!prev && current) {
-        addTimelineEvent(label || 'List', 'LIST', `Added: "${current}"`, '\u270f\ufe0f');
+        addTimelineEvent(label || 'List', 'LIST', `Added: "${current}"`, '\u270f\ufe0f', undoId);
       } else if (prev && current) {
-        addTimelineEvent(label || 'List', 'LIST', `Changed: "${prev}" \u2192 "${current}"`, '\ud83d\udcdd');
+        addTimelineEvent(label || 'List', 'LIST', `Changed: "${prev}" \u2192 "${current}"`, '\ud83d\udcdd', undoId);
       }
     }
     delete prevListValues.current[index];
+    delete editUndoIds.current[index];
   };
 
   const updateItem = (index: number, value: string) => {
     const newItems = [...normalizedItems];
     newItems[index] = value;
     updateWidgetData(widget.id, { items: newItems });
+    const characterId = useStore.getState().activeCharacterId;
+    if (characterId && !(index in editUndoIds.current)) {
+      editUndoIds.current[index] = getCoveringSnapshotId(characterId);
+    }
   };
 
   const clearItem = (index: number) => {

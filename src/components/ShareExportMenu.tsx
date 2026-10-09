@@ -245,7 +245,7 @@ export default function ShareExportMenu({
                   <div className="flex min-w-0 items-center gap-2.5">
                     <DiceIcon className="h-4 w-4 shrink-0 text-theme-ink" />
                     <div className="min-w-0">
-                      <span className="block text-sm font-semibold font-body text-theme-ink">3D Dice</span>
+                      <span className="block text-sm font-body text-theme-ink">3D Dice</span>
                     </div>
                   </div>
                   <Tooltip content={threeDDiceEnabled ? 'Disable physics-based 3D dice' : 'Enable physics-based 3D dice'} placement="below"><button
@@ -264,7 +264,7 @@ export default function ShareExportMenu({
                   <div className="flex min-w-0 items-center gap-2.5">
                     <LinkIcon className="h-4 w-4 shrink-0 text-theme-ink" />
                     <div className="min-w-0">
-                      <span className="block text-sm font-semibold font-body text-theme-ink">Attachment controls</span>
+                      <span className="block text-sm font-body text-theme-ink">Attachment controls</span>
                     </div>
                   </div>
                   <Tooltip content={attachmentControlsVisible ? 'Hide attach and detach controls' : 'Show attach and detach controls'} placement="below"><button
@@ -283,7 +283,7 @@ export default function ShareExportMenu({
                   <div className="flex min-w-0 items-center gap-2.5">
                     <UnlinkIcon className="h-4 w-4 shrink-0 text-theme-ink" />
                     <div className="min-w-0">
-                      <span className="block text-sm font-semibold font-body text-theme-ink">Hide attached edges</span>
+                      <span className="block text-sm font-body text-theme-ink">Hide attached edges</span>
                     </div>
                   </div>
                   <Tooltip content={hideAttachedEdges ? 'Show the line between attached widgets' : 'Hide the line between attached widgets'} placement="below"><button
@@ -323,7 +323,7 @@ export default function ShareExportMenu({
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="flex items-center gap-2 font-semibold"><SaveIcon className="h-4 w-4" />Save as Preset</span>
+              <span className="flex items-center gap-2"><SaveIcon className="h-4 w-4" />Save as Preset</span>
             </button></Tooltip>}
             {!inlineActionIds.has('export-character') && <Tooltip content="Download this character as a JSON file" placement="below"><button
               type="button"
@@ -334,7 +334,7 @@ export default function ShareExportMenu({
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="flex items-center gap-2 font-semibold"><DownloadIcon className="h-4 w-4" />Export Character</span>
+              <span className="flex items-center gap-2"><DownloadIcon className="h-4 w-4" />Export Character</span>
             </button></Tooltip>}
             {!inlineActionIds.has('publish') && <Tooltip content="Submit an image-free preset to the community gallery" placement="below"><button
               type="button"
@@ -344,7 +344,7 @@ export default function ShareExportMenu({
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="flex items-center gap-2 font-semibold"><UploadIcon className="h-4 w-4" />Publish to Community</span>
+              <span className="flex items-center gap-2"><UploadIcon className="h-4 w-4" />Publish to Community</span>
             </button></Tooltip>}
             {!inlineActionIds.has('print-preview') && <Tooltip content="Prepare this sheet for paper or PDF" placement="below"><button
               type="button"
@@ -355,7 +355,7 @@ export default function ShareExportMenu({
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="flex items-center gap-2 font-semibold"><PrintIcon className="h-4 w-4" />Print Preview</span>
+              <span className="flex items-center gap-2"><PrintIcon className="h-4 w-4" />Print Preview</span>
             </button></Tooltip>}
             </div>
             <div className="py-1">
@@ -375,7 +375,7 @@ export default function ShareExportMenu({
               }}
               className="block w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
             >
-              <span className="flex items-center gap-2 font-semibold"><MessageIcon className="h-4 w-4" />Feedback</span>
+              <span className="flex items-center gap-2"><MessageIcon className="h-4 w-4" />Feedback</span>
             </a></Tooltip>
             <Tooltip content="Return to character selection" placement="below"><button
               type="button"
@@ -385,7 +385,7 @@ export default function ShareExportMenu({
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors"
             >
-              <span className="flex items-center gap-2 font-semibold"><XIcon className="h-4 w-4" />Exit</span>
+              <span className="flex items-center gap-2"><XIcon className="h-4 w-4" />Exit</span>
             </button></Tooltip>
             </div>
           </div>

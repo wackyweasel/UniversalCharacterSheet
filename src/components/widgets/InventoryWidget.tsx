@@ -3,6 +3,7 @@ import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemField, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
+import { addTimelineEvent } from '../../store/useTimelineStore';
 import {
   getCharacterGlobalInventoryLoad,
   getInventoryItemQuantity,
@@ -71,6 +72,45 @@ function formatFieldValue(item: InventoryItem, fieldIndex: number): string {
 function isInventoryFieldEmpty(field: InventoryItemField): boolean {
   return (field.type === 'text' || field.type === 'textarea' || field.type === 'number')
     && String(field.value).trim() === '';
+}
+
+function formatTimelineFieldValue(field: InventoryItemField): string {
+  if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
+  return String(field.value) || '-';
+}
+
+function describeInventoryItemChange(previous: InventoryItem, next: InventoryItem): string | null {
+  const changes: string[] = [];
+  if (previous.name !== next.name) changes.push(`renamed to "${next.name}"`);
+
+  const previousQuantity = getInventoryItemQuantity(previous);
+  const nextQuantity = getInventoryItemQuantity(next);
+  if (previousQuantity !== nextQuantity) {
+    changes.push(`quantity ${previousQuantity ?? 'none'} → ${nextQuantity ?? 'none'}`);
+  }
+
+  next.fields.forEach((field) => {
+    const previousField = previous.fields.find((entry) => entry.id === field.id);
+    const fieldName = field.name || 'Field';
+    if (!previousField) changes.push(`added ${fieldName}`);
+    else if (previousField.value !== field.value) {
+      changes.push(`${fieldName} ${formatTimelineFieldValue(previousField)} → ${formatTimelineFieldValue(field)}`);
+    }
+  });
+  previous.fields
+    .filter((field) => !next.fields.some((entry) => entry.id === field.id))
+    .forEach((field) => changes.push(`removed ${field.name || 'Field'}`));
+
+  if ((previous.description || '') !== (next.description || '')) changes.push('description updated');
+  return changes.length > 0 ? `${previous.name}: ${changes.join(', ')}` : null;
+}
+
+function findInventoryWidget(widgetId: string): Widget | undefined {
+  const state = useStore.getState();
+  const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+  return character?.sheets
+    .find((sheet) => sheet.id === character.activeSheetId)
+    ?.widgets.find((entry) => entry.id === widgetId);
 }
 
 function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?: number; unit: string; label: string }) {
@@ -174,6 +214,24 @@ function InventoryWidget({
   const dragRef = useRef<ActiveDrag | null>(null);
   const removeDragListenersRef = useRef<(() => void) | null>(null);
   const activeDropZoneRef = useRef<HTMLElement | null>(null);
+
+  const moveItemWithTimeline = (targetWidgetId: string, itemId: string, targetIndex: number) => {
+    const item = inventoryItems.find((entry) => entry.id === itemId);
+    const previousIndex = inventoryItems.findIndex((entry) => entry.id === itemId);
+    moveInventoryItem({ sourceWidgetId: widget.id, targetWidgetId, itemId, targetIndex });
+    if (!item) return;
+
+    const targetWidget = findInventoryWidget(targetWidgetId);
+    const nextIndex = targetWidget?.data.inventoryItems?.findIndex((entry) => entry.id === itemId) ?? -1;
+    if (nextIndex < 0) return;
+
+    if (targetWidgetId === widget.id) {
+      if (nextIndex === previousIndex) return;
+      addTimelineEvent(label || 'Inventory', 'INVENTORY', `Reordered ${item.name} (position ${previousIndex + 1} → ${nextIndex + 1})`, '↕️');
+    } else {
+      addTimelineEvent(label || 'Inventory', 'INVENTORY', `Moved ${item.name} to ${targetWidget?.data.label || 'another inventory'}`, '📦');
+    }
+  };
 
   const clearDragPreview = () => {
     document.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]').forEach((element) => {
@@ -285,12 +343,7 @@ function InventoryWidget({
       drag.sourceElement.classList.remove('inventory-item--dragging');
       clearDragPreview();
       if (commit && drag.didMove && drag.target) {
-        moveInventoryItem({
-          sourceWidgetId: widget.id,
-          targetWidgetId: drag.target.widgetId,
-          itemId: drag.item.id,
-          targetIndex: drag.target.index,
-        });
+        moveItemWithTimeline(drag.target.widgetId, drag.item.id, drag.target.index);
         animateToCommittedPositions(previousRects);
       }
     }
@@ -396,15 +449,17 @@ function InventoryWidget({
     event.preventDefault();
     event.stopPropagation();
     if (event.key === 'ArrowUp' && index > 0) {
-      moveInventoryItem({ sourceWidgetId: widget.id, targetWidgetId: widget.id, itemId: inventoryItems[index].id, targetIndex: index - 1 });
+      moveItemWithTimeline(widget.id, inventoryItems[index].id, index - 1);
     }
     if (event.key === 'ArrowDown' && index < inventoryItems.length - 1) {
-      moveInventoryItem({ sourceWidgetId: widget.id, targetWidgetId: widget.id, itemId: inventoryItems[index].id, targetIndex: index + 2 });
+      moveItemWithTimeline(widget.id, inventoryItems[index].id, index + 2);
     }
   };
 
   const deleteItem = (itemId: string) => {
+    const removedItem = inventoryItems.find((item) => item.id === itemId);
     updateWidgetData(widget.id, { inventoryItems: inventoryItems.filter((item) => item.id !== itemId) });
+    if (removedItem) addTimelineEvent(label || 'Inventory', 'INVENTORY', `Removed: ${removedItem.name}`, '➖');
     setDialogItem(undefined);
   };
 
@@ -424,9 +479,11 @@ function InventoryWidget({
 
   const removeSelectedItems = () => {
     if (selectedItemIds.size === 0) return;
+    const removedNames = inventoryItems.filter((item) => selectedItemIds.has(item.id)).map((item) => item.name);
     updateWidgetData(widget.id, {
       inventoryItems: inventoryItems.filter((item) => !selectedItemIds.has(item.id)),
     });
+    if (removedNames.length > 0) addTimelineEvent(label || 'Inventory', 'INVENTORY', `Removed: ${removedNames.join(', ')}`, '➖');
     closeRemoveDialog();
   };
 
@@ -620,11 +677,21 @@ function InventoryWidget({
           item={dialogItem || undefined}
           defaultFields={inventoryDefaultFields}
           onClose={() => setDialogItem(undefined)}
-          onSave={(item) => saveInventoryItem({
-            sourceWidgetId: widget.id,
-            targetWidgetId: widget.id,
-            item,
-          })}
+          onSave={(item) => {
+            const previousItem = inventoryItems.find((entry) => entry.id === item.id);
+            saveInventoryItem({
+              sourceWidgetId: widget.id,
+              targetWidgetId: widget.id,
+              item,
+            });
+            if (!previousItem) {
+              const quantity = getInventoryItemQuantity(item);
+              addTimelineEvent(label || 'Inventory', 'INVENTORY', `Added: ${item.name}${quantity !== undefined ? ` (x${quantity})` : ''}`, '➕');
+              return;
+            }
+            const description = describeInventoryItemChange(previousItem, item);
+            if (description) addTimelineEvent(label || 'Inventory', 'INVENTORY', description, '✏️');
+          }}
           onDelete={dialogItem ? () => deleteItem(dialogItem.id) : undefined}
         />
       )}
@@ -635,11 +702,15 @@ function InventoryWidget({
           item={quantityDialogItem}
           onClose={() => setQuantityDialogItem(null)}
           onSave={(quantity) => {
+            const previousQuantity = getInventoryItemQuantity(quantityDialogItem) ?? 0;
             saveInventoryItem({
               sourceWidgetId: widget.id,
               targetWidgetId: widget.id,
               item: { ...quantityDialogItem, quantity },
             });
+            if (quantity !== previousQuantity) {
+              addTimelineEvent(label || 'Inventory', 'INVENTORY', `${quantityDialogItem.name}: ${previousQuantity} → ${quantity}`, '🎒');
+            }
             setQuantityDialogItem(null);
           }}
           onSplit={(keptQuantity, splitQuantity) => {
@@ -649,6 +720,7 @@ function InventoryWidget({
               keptQuantity,
               splitQuantity,
             });
+            addTimelineEvent(label || 'Inventory', 'INVENTORY', `Split ${quantityDialogItem.name}: ${keptQuantity} kept, ${splitQuantity} separated`, '🎒');
             setQuantityDialogItem(null);
           }}
         />

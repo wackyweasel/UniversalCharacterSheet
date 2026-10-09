@@ -23,6 +23,7 @@ import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
+import TimelineToasts from './TimelineToasts';
 import ShareExportMenu from './ShareExportMenu';
 import SheetSearch from './SheetSearch';
 import WorkspaceToggleGroup from './WorkspaceToggleGroup';
@@ -1676,6 +1677,7 @@ export default function Sheet() {
 
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
+        {workspace === 'play' && <TimelineToasts />}
 
         {/* Tutorial Bubble */}
         {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}
@@ -2524,6 +2526,7 @@ export default function Sheet() {
 
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}
+      {mode === 'play' && <TimelineToasts />}
 
       {/* Tutorial Bubble */}
       {tutorialActiveOnPage && <TutorialBubble darkMode={darkMode} />}

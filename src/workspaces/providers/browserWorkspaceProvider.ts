@@ -37,6 +37,7 @@ interface BrowserTimelineData {
   eventsByCharacter?: Record<string, WorkspaceCharacterTimeline>;
   orderNewestFirst?: boolean;
   showFormulas?: boolean;
+  showToasts?: boolean;
 }
 
 interface BrowserLibraryData {
@@ -106,6 +107,7 @@ export function createBrowserWorkspaceProvider(storage: StorageLike = localStora
         eventsByCharacter: document.eventsByCharacter,
         orderNewestFirst: currentTimeline?.orderNewestFirst ?? false,
         showFormulas: currentTimeline?.showFormulas ?? true,
+        showToasts: currentTimeline?.showToasts,
       }));
 
       storage.setItem(LIBRARIES_STORAGE_KEY, JSON.stringify({

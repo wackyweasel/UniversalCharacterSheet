@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getTimelineDayKey,
   useTimelineStore,
@@ -7,7 +8,7 @@ import {
 } from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
 import { Tooltip } from './Tooltip';
-import { TrashIcon, XIcon } from './icons';
+import { ArrowDownIcon, ArrowUpIcon, MenuIcon, MessageIcon, TrashIcon, XIcon } from './icons';
 
 function formatClockTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -91,6 +92,192 @@ interface UndoState {
   message: string;
 }
 
+const SIZE_STORAGE_KEY = 'ucs-timeline-panel-size';
+const DEFAULT_WIDTH = 390;
+const MIN_WIDTH = 300;
+const MIN_HEIGHT = 180;
+const BOTTOM_LAYOUT_QUERY = '(max-width: 639px)';
+
+function loadPanelSize(): { width: number; height: number | null } {
+  try {
+    const data = JSON.parse(localStorage.getItem(SIZE_STORAGE_KEY) || '{}');
+    return {
+      width: typeof data.width === 'number' ? data.width : DEFAULT_WIDTH,
+      height: typeof data.height === 'number' ? data.height : null,
+    };
+  } catch {
+    return { width: DEFAULT_WIDTH, height: null };
+  }
+}
+
+interface MenuToggleRowProps {
+  icon: React.ReactNode;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  title?: string;
+}
+
+function MenuToggleRow({ icon, label, checked, onToggle, title }: MenuToggleRowProps) {
+  return (
+    <button
+      type="button"
+      role="menuitemcheckbox"
+      aria-checked={checked}
+      title={title}
+      onClick={onToggle}
+      className="w-full h-9 flex items-center justify-between gap-3 px-3 text-left hover:bg-theme-accent/15 transition-colors"
+    >
+      <span className="flex min-w-0 items-center gap-2.5 text-sm font-body text-theme-ink">
+        <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center" aria-hidden="true">{icon}</span>
+        <span className="truncate">{label}</span>
+      </span>
+      <span
+        aria-hidden="true"
+        className={`relative h-6 w-11 shrink-0 rounded-full border border-theme-border transition-colors ${checked ? 'bg-theme-accent' : 'bg-theme-background'}`}
+      >
+        <span className={`absolute left-0 top-0.5 h-4 w-4 rounded-full border border-black/25 bg-white shadow-sm transition-transform ${checked ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+      </span>
+    </button>
+  );
+}
+
+interface TimelineMenuProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  showToasts: boolean;
+  onToggleToasts: () => void;
+  formulaEventCount: number;
+  showFormulas: boolean;
+  onToggleFormulas: () => void;
+  orderNewestFirst: boolean;
+  onSetNewestFirst: (newestFirst: boolean) => void;
+  canClear: boolean;
+  onClear: () => void;
+}
+
+function TimelineMenu({
+  open,
+  onOpenChange,
+  showToasts,
+  onToggleToasts,
+  formulaEventCount,
+  showFormulas,
+  onToggleFormulas,
+  orderNewestFirst,
+  onSetNewestFirst,
+  canClear,
+  onClear,
+}: TimelineMenuProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+
+  // Portaled so the panel's overflow clipping cannot cut the menu off.
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setPosition({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      onOpenChange(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open, onOpenChange]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Timeline options"
+        className={`w-9 h-9 flex-shrink-0 flex items-center justify-center border border-theme-border rounded-button transition-colors ${
+          open ? 'bg-theme-accent text-theme-paper' : 'text-theme-muted hover:text-theme-paper hover:bg-theme-accent'
+        }`}
+      >
+        <MenuIcon className="w-4.5 h-4.5" />
+      </button>
+      {open && position && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Timeline options"
+          data-touch-camera-ignore="true"
+          className="fixed z-[60] w-64 py-1 bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-button shadow-2xl animate-dropdown-in"
+          style={{ top: position.top, right: position.right }}
+        >
+          <MenuToggleRow
+            icon={<MessageIcon className="h-4 w-4" />}
+            label="Live pop-ups"
+            checked={showToasts}
+            onToggle={onToggleToasts}
+            title="Briefly show new events in the bottom right corner while this panel is closed"
+          />
+          {formulaEventCount > 0 && (
+            <MenuToggleRow
+              icon={<span className="italic font-semibold text-xs">fx</span>}
+              label="Formula updates"
+              checked={showFormulas}
+              onToggle={onToggleFormulas}
+              title="Show events logged when a formula's value changes"
+            />
+          )}
+          <div role="group" aria-label="Event order" className="grid grid-cols-2 gap-1 px-2 py-1">
+            {([
+              { newestFirst: false, label: 'Oldest first', icon: <ArrowDownIcon className="h-4 w-4" /> },
+              { newestFirst: true, label: 'Newest first', icon: <ArrowUpIcon className="h-4 w-4" /> },
+            ]).map(({ newestFirst, label, icon }) => (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={orderNewestFirst === newestFirst}
+                onClick={() => onSetNewestFirst(newestFirst)}
+                className={`flex h-8 items-center justify-center gap-1.5 rounded-button text-xs font-body transition-colors ${
+                  orderNewestFirst === newestFirst ? 'bg-theme-ink text-theme-paper' : 'bg-theme-background text-theme-ink hover:bg-theme-accent/20'
+                }`}
+              >
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+          <div role="separator" className="my-1 border-t border-theme-border" />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!canClear}
+            onClick={() => { onOpenChange(false); onClear(); }}
+            className="w-full h-9 flex items-center gap-2.5 px-3 text-left text-sm font-body text-theme-ink transition-colors disabled:opacity-40 enabled:hover:bg-red-500 enabled:hover:text-white"
+          >
+            <TrashIcon className="h-4 w-4 flex-shrink-0" />
+            Clear all events…
+          </button>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+function useIsBottomLayout(): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(BOTTOM_LAYOUT_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(BOTTOM_LAYOUT_QUERY);
+    const update = () => setMatches(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return matches;
+}
+
 export default function TimelineSidebar() {
   const isOpen = useTimelineStore((s) => s.isOpen);
   const events = useCurrentCharacterEvents();
@@ -98,6 +285,8 @@ export default function TimelineSidebar() {
   const toggleOrder = useTimelineStore((s) => s.toggleOrder);
   const showFormulas = useTimelineStore((s) => s.showFormulas);
   const toggleShowFormulas = useTimelineStore((s) => s.toggleShowFormulas);
+  const showToasts = useTimelineStore((s) => s.showToasts);
+  const toggleShowToasts = useTimelineStore((s) => s.toggleShowToasts);
   const clearEvents = useTimelineStore((s) => s.clearEvents);
   const clearEventsForDay = useTimelineStore((s) => s.clearEventsForDay);
   const removeEvent = useTimelineStore((s) => s.removeEvent);
@@ -112,6 +301,11 @@ export default function TimelineSidebar() {
   const [confirmingClearDay, setConfirmingClearDay] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
   const [isAtLatest, setIsAtLatest] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isBottom = useIsBottomLayout();
+  const [panelSize, setPanelSize] = useState(loadPanelSize);
+  const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const eventsListRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -173,7 +367,9 @@ export default function TimelineSidebar() {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (confirmingClear) {
+      if (menuOpen) {
+        setMenuOpen(false);
+      } else if (confirmingClear) {
         setConfirmingClear(false);
       } else if (confirmingClearDay) {
         setConfirmingClearDay(null);
@@ -184,11 +380,12 @@ export default function TimelineSidebar() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmingClear, confirmingClearDay, isOpen, setOpen]);
+  }, [confirmingClear, confirmingClearDay, isOpen, menuOpen, setOpen]);
 
   useEffect(() => {
     if (isOpen) return;
     setSearchQuery('');
+    setMenuOpen(false);
     setConfirmingClear(false);
     setConfirmingClearDay(null);
     setUndoState(null);
@@ -266,6 +463,56 @@ export default function TimelineSidebar() {
     setUndoState(null);
   };
 
+  useEffect(() => {
+    const handleResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const maxWidth = Math.max(MIN_WIDTH, Math.round(viewport.w * 0.9));
+  const maxHeight = Math.max(MIN_HEIGHT, Math.round(viewport.h * 0.95));
+  const effectiveWidth = Math.min(Math.max(panelSize.width, MIN_WIDTH), maxWidth);
+  const effectiveHeight = Math.min(
+    Math.max(panelSize.height ?? Math.round(viewport.h * 0.72), MIN_HEIGHT),
+    maxHeight,
+  );
+
+  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      width: effectiveWidth,
+      height: effectiveHeight,
+    };
+  };
+
+  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = resizeStartRef.current;
+    if (!start) return;
+    if (isBottom) {
+      const height = Math.min(Math.max(start.height + (start.y - event.clientY), MIN_HEIGHT), maxHeight);
+      setPanelSize((size) => ({ ...size, height }));
+    } else {
+      const width = Math.min(Math.max(start.width + (start.x - event.clientX), MIN_WIDTH), maxWidth);
+      setPanelSize((size) => ({ ...size, width }));
+    }
+  };
+
+  const handleResizeEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeStartRef.current) return;
+    resizeStartRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    try {
+      localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(panelSize));
+    } catch {
+      // Size persistence is best-effort.
+    }
+  };
+
   const resetFilters = () => {
     setSearchQuery('');
     if (!showFormulas) toggleShowFormulas();
@@ -279,35 +526,77 @@ export default function TimelineSidebar() {
       data-tutorial="timeline-panel"
       data-touch-camera-panel="true"
       aria-labelledby="timeline-title"
-      aria-describedby="timeline-summary"
-      className="fixed inset-x-0 bottom-0 h-[72dvh] sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-0 sm:h-auto sm:w-[390px] z-40 flex flex-col overflow-hidden bg-theme-paper text-theme-ink border-t-[length:var(--border-width)] sm:border-t-0 sm:border-l-[length:var(--border-width)] border-theme-border shadow-2xl touch-pan-y"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      aria-describedby={isBottom ? undefined : 'timeline-summary'}
+      className={`fixed z-40 flex flex-col overflow-hidden bg-theme-paper text-theme-ink border-theme-border shadow-2xl touch-pan-y ${
+        isBottom
+          ? 'inset-x-0 bottom-0 border-t-[length:var(--border-width)]'
+          : 'right-0 top-0 bottom-0 border-l-[length:var(--border-width)]'
+      }`}
+      style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        ...(isBottom ? { height: effectiveHeight } : { width: effectiveWidth }),
+      }}
     >
+      <div
+        role="separator"
+        aria-orientation={isBottom ? 'horizontal' : 'vertical'}
+        aria-label="Resize timeline"
+        onPointerDown={handleResizeStart}
+        onPointerMove={handleResizeMove}
+        onPointerUp={handleResizeEnd}
+        onPointerCancel={handleResizeEnd}
+        className={`absolute z-20 touch-none hover:bg-theme-accent/40 active:bg-theme-accent/60 transition-colors ${
+          isBottom ? 'top-0 inset-x-0 h-2 cursor-row-resize' : 'left-0 inset-y-0 w-2 cursor-col-resize'
+        }`}
+      />
+
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 px-4 py-3 border-b-[length:var(--border-width)] border-theme-border flex-shrink-0">
+      <div className={`flex justify-between gap-4 px-4 border-b-[length:var(--border-width)] border-theme-border flex-shrink-0 ${isBottom ? 'py-2 items-center' : 'py-3 items-start'}`}>
         <div className="min-w-0">
           <h2 id="timeline-title" className="font-bold text-lg leading-tight text-theme-ink font-heading">Timeline</h2>
-          <p id="timeline-summary" className="mt-0.5 text-xs text-theme-muted font-body truncate">
-            {events.length === 0
-              ? `No activity recorded for ${activeCharacterName}`
-              : `${events.length} ${events.length === 1 ? 'event' : 'events'} recorded for ${activeCharacterName}`}
-          </p>
+          {!isBottom && (
+            <p id="timeline-summary" className="mt-0.5 text-xs text-theme-muted font-body truncate">
+              {events.length === 0
+                ? `No activity recorded for ${activeCharacterName}`
+                : `${events.length} ${events.length === 1 ? 'event' : 'events'} recorded for ${activeCharacterName}`}
+            </p>
+          )}
         </div>
-        <button
-          ref={closeButtonRef}
-          type="button"
-          onClick={() => setOpen(false)}
-          className="w-9 h-9 flex-shrink-0 flex items-center justify-center border border-theme-border rounded-button text-theme-muted hover:text-theme-paper hover:bg-theme-accent transition-colors"
-          aria-label="Close timeline"
-          title="Close timeline"
-        >
-          <XIcon className="w-4.5 h-4.5" />
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <TimelineMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            showToasts={showToasts}
+            onToggleToasts={toggleShowToasts}
+            formulaEventCount={formulaEventCount}
+            showFormulas={showFormulas}
+            onToggleFormulas={toggleShowFormulas}
+            orderNewestFirst={orderNewestFirst}
+            onSetNewestFirst={(newestFirst) => {
+              if (newestFirst !== orderNewestFirst) toggleOrder();
+            }}
+            canClear={events.length > 0}
+            onClear={() => {
+              setConfirmingClearDay(null);
+              setConfirmingClear(true);
+            }}
+          />
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={() => setOpen(false)}
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center border border-theme-border rounded-button text-theme-muted hover:text-theme-paper hover:bg-theme-accent transition-colors"
+            aria-label="Close timeline"
+            title="Close timeline"
+          >
+            <XIcon className="w-4.5 h-4.5" />
+          </button>
+        </div>
       </div>
 
       {/* Controls */}
       {events.length > 0 && (
-        <div className="px-4 py-3 border-b border-theme-border flex-shrink-0 space-y-2.5">
+        <div className={`px-4 border-b border-theme-border flex-shrink-0 ${isBottom ? 'py-2' : 'py-3 space-y-2.5'}`}>
           <div>
             <label htmlFor="timeline-search" className="sr-only">Search timeline events</label>
             <span className="relative block">
@@ -332,48 +621,7 @@ export default function TimelineSidebar() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <label className="flex items-center gap-2 min-w-0 text-xs text-theme-muted font-body">
-              <span className="flex-shrink-0">Order</span>
-              <select
-                value={orderNewestFirst ? 'newest' : 'oldest'}
-                onChange={(event) => {
-                  const nextNewestFirst = event.target.value === 'newest';
-                  if (nextNewestFirst !== orderNewestFirst) toggleOrder();
-                }}
-                aria-label="Timeline event order"
-                className="h-8 min-w-0 bg-theme-background border border-theme-border rounded-button px-2 text-xs text-theme-ink font-body"
-              >
-                <option value="oldest">Oldest first</option>
-                <option value="newest">Newest first</option>
-              </select>
-            </label>
-
-            {formulaEventCount > 0 && (
-              <label className="h-8 flex items-center gap-1.5 px-2 border border-theme-border rounded-button text-xs text-theme-ink font-body whitespace-nowrap cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showFormulas}
-                  onChange={toggleShowFormulas}
-                  style={{ accentColor: 'var(--color-accent)' }}
-                />
-                Formulas
-              </label>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmingClearDay(null);
-                setConfirmingClear(true);
-              }}
-              className="h-8 ml-auto px-2 text-xs text-theme-muted font-body hover:text-red-500 transition-colors whitespace-nowrap"
-            >
-              Clear all…
-            </button>
-          </div>
-
-          {filtersActive && (
+          {filtersActive && !isBottom && (
             <p className="text-xs text-theme-muted font-body" role="status">
               Showing {displayedEvents.length} of {events.length} events
             </p>
