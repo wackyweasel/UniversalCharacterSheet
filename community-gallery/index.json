@@ -287,6 +287,22 @@
       "description": "A character sheet for Umerica (DCC) that includes classes from Umerican Survival Guide, Umerican Road Atlas, and Umerica Unnatural. A lot of the fields are automatically calculated",
       "file": "presets/umerican_master_sheet.json",
       "gameSystem": "Umerica (DCC)"
+    },
+    {
+      "id": "37",
+      "name": "Phoenix Down Template",
+      "author": "@rhsr",
+      "description": "This is for an RPG set in the Fairy Tail universe that I run with a couple of friends. If you want to adapt it for your own purposes, go ahead.",
+      "file": "presets/phoenix_down_template.json",
+      "gameSystem": "Phoenix Down"
+    },
+    {
+      "id": "38",
+      "name": "ROTGF SHEET",
+      "author": "@RazorHollow",
+      "description": "Made for my custom Zombie System",
+      "file": "presets/rotgf_sheet.json",
+      "gameSystem": "Custom Zombie System"
     }
   ],
   "themes": [
