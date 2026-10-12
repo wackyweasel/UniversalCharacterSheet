@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import packageInfo from '../../package.json';
 import { useStore } from '../store/useStore';
-import { ChevronDownIcon, ChevronUpIcon, XIcon } from './icons';
+import { useTelemetryStore } from '../store/useTelemetryStore';
+import { ChevronDownIcon, ChevronUpIcon, MessageIcon, XIcon } from './icons';
 
 const LAST_SEEN_VERSION_STORAGE_KEY = 'ucs:lastSeenVersion';
 
@@ -285,7 +286,37 @@ const CHANGELOG_ENTRIES = [
   },
 ] as const;
 
+const EXTERNAL_LINKS = [
+  {
+    label: 'Feedback',
+    href: 'https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog',
+    eventName: 'external_feedback_opened',
+    icon: <MessageIcon className="h-5 w-5" />,
+  },
+  {
+    label: 'Reddit',
+    href: 'https://www.reddit.com/r/UniversalCharSheet/',
+    eventName: 'external_reddit_opened',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M18 10.1c0-1-.8-1.8-1.8-1.7-.4 0-.9.2-1.2.5-1.4-.9-3-1.5-4.7-1.5l.8-3.8 2.6.6c0 .7.6 1.2 1.3 1.2.7 0 1.2-.6 1.2-1.3 0-.7-.6-1.2-1.3-1.2-.5 0-.9.3-1.1.7L11 2.9h-.2c-.1 0-.1.1-.1.2l-1 4.3C8 7.4 6.4 7.9 5 8.9c-.7-.7-1.8-.7-2.5 0s-.7 1.8 0 2.5c.1.1.3.3.5.3v.5c0 2.7 3.1 4.9 7 4.9s7-2.2 7-4.9v-.5c.6-.3 1-.9 1-1.6zM6 11.4c0-.7.6-1.2 1.2-1.2.7 0 1.2.6 1.2 1.2s-.6 1.2-1.2 1.2c-.7 0-1.2-.5-1.2-1.2zm7 3.3c-.9.6-1.9 1-3 .9-1.1 0-2.1-.3-3-.9-.1-.1-.1-.3 0-.5.1-.1.3-.1.4 0 .7.5 1.6.8 2.5.7.9.1 1.8-.2 2.5-.7.1-.1.3-.1.5 0s.2.3.1.5zm-.3-2.1c-.7 0-1.2-.6-1.2-1.2s.6-1.2 1.2-1.2c.7 0 1.2.6 1.2 1.2.1.7-.5 1.2-1.2 1.2z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Donate',
+    href: 'https://buymeacoffee.com/wackyweasel',
+    eventName: 'external_donate_opened',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    ),
+  },
+] as const;
+
 export default function ChangelogDialog({ darkMode, onClose }: { darkMode: boolean; onClose: () => void }) {
+  const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
   const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>(() => ({
     [CHANGELOG_ENTRIES[0].version]: true,
   }));
@@ -318,6 +349,30 @@ export default function ChangelogDialog({ darkMode, onClose }: { darkMode: boole
           >
             <XIcon className="h-6 w-6" />
           </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {EXTERNAL_LINKS.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => recordTelemetryEvent({
+                eventName: link.eventName,
+                category: 'app',
+                source: 'changelog_dialog',
+              })}
+              className={`flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-button px-1 font-body text-[10px] transition-colors active:translate-y-px sm:h-10 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
+                darkMode
+                  ? 'text-white border border-white/30 bg-black hover:bg-white/10'
+                  : 'text-theme-ink border-[length:var(--border-width)] border-theme-border bg-theme-paper hover:bg-theme-accent hover:text-theme-paper'
+              }`}
+            >
+              {link.icon}
+              <span>{link.label}</span>
+            </a>
+          ))}
         </div>
 
         <div className="mt-5 space-y-6">
