@@ -817,9 +817,9 @@ export default function MixedFieldsWidget({
               role="switch"
               aria-checked={field.value}
               aria-label={field.name || 'Switch'}
-              disabled={!canInteract}
+              disabled={!canInteract || Boolean(field.valueFormula)}
               onClick={() => {
-                if (!canInteract) return;
+                if (!canInteract || field.valueFormula) return;
                 const value = !field.value;
                 updateField(index, { ...field, value });
                 announceChange(field, value ? 'On' : 'Off');
@@ -827,7 +827,7 @@ export default function MixedFieldsWidget({
               onMouseDown={(event) => event.stopPropagation()}
               className={`relative h-6 w-11 flex-shrink-0 rounded-full border border-theme-border transition-colors ${
                 field.value ? 'bg-theme-accent' : 'bg-theme-background'
-              } ${canInteract ? 'cursor-pointer' : 'cursor-default opacity-70'}`}
+              } ${canInteract && !field.valueFormula ? 'cursor-pointer' : 'cursor-default'} ${canInteract ? '' : 'opacity-70'}`}
               style={field.value && field.toggleColor ? { backgroundColor: field.toggleColor, borderColor: field.toggleColor } : undefined}
             >
               <span

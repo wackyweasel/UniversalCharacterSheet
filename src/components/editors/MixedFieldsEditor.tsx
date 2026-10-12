@@ -155,23 +155,16 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
         );
       case 'switch':
         return (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs text-theme-muted">Formula label</label>
-              <input
-                value={field.valueLabel || ''}
-                onChange={(event) => updateField(index, { ...field, valueLabel: event.target.value })}
-                placeholder="e.g. torchLit"
-                className="mt-1 h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-sm font-body text-theme-ink"
-              />
-              <p className="mt-1 text-[10px] text-theme-muted">Use in formulas: 1 when on, 0 when off.</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-16 flex-shrink-0 text-xs text-theme-muted">Formula</span>
+              <TextFormulaControls valueLabel={field.valueLabel} formula={field.valueFormula} onValueLabelChange={(valueLabel) => updateField(index, { ...field, valueLabel })} onFormulaChange={(valueFormula) => updateField(index, { ...field, valueFormula })} resultType="number" />
+              <p className="min-w-0 flex-1 text-[10px] text-theme-muted">Label: 1 when on, 0 when off. With a formula, the switch is on unless the result is 0.</p>
             </div>
-            <div>
-              <label className="block text-xs text-theme-muted">On color</label>
-              <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={field.toggleColor || '#2563eb'} onChange={(event) => updateField(index, { ...field, toggleColor: event.target.value })} className="h-8 w-8 rounded-button border border-theme-border bg-theme-paper p-1" />
-                <button type="button" onClick={() => updateField(index, { ...field, toggleColor: undefined })} disabled={!field.toggleColor} className="widget-control min-h-0 px-2 py-1 text-xs disabled:opacity-50">Use theme</button>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="w-16 flex-shrink-0 text-xs text-theme-muted">On color</span>
+              <input type="color" aria-label={`${field.name || 'Switch'} on color`} value={field.toggleColor || '#2563eb'} onChange={(event) => updateField(index, { ...field, toggleColor: event.target.value })} className="h-8 w-8 rounded-button border border-theme-border bg-theme-paper p-1" />
+              <button type="button" onClick={() => updateField(index, { ...field, toggleColor: undefined })} disabled={!field.toggleColor} className="widget-control min-h-0 px-2 py-1 text-xs disabled:opacity-50">Use theme</button>
             </div>
           </div>
         );

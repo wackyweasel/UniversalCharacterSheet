@@ -1,18 +1,27 @@
 import { EditorProps } from './types';
 import { CollapsibleSection } from './CollapsibleSection';
+import { TextFormulaControls } from './TextFormulaControls';
 
 export function ToggleEditor({ widget, updateData }: EditorProps) {
   const {
     toggleColor,
     inlineLabel = false,
     fieldLabels = {},
+    fieldFormulas = {},
   } = widget.data;
 
-  const setStateLabel = (value: string) => {
+  const setStateLabel = (value: string | undefined) => {
     const nextLabels = { ...fieldLabels };
-    if (value.trim()) nextLabels.state = value.trim();
+    if (value?.trim()) nextLabels.state = value.trim();
     else delete nextLabels.state;
     updateData({ fieldLabels: nextLabels });
+  };
+
+  const setStateFormula = (formula: string | undefined) => {
+    const nextFormulas = { ...fieldFormulas };
+    if (formula) nextFormulas.state = formula;
+    else delete nextFormulas.state;
+    updateData({ fieldFormulas: nextFormulas });
   };
 
   return (
@@ -22,17 +31,19 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
         <div className="widget-editor__section-heading">
           <h3 id="toggle-logic-title" className="widget-editor__section-title">Logic &amp; color</h3>
         </div>
-        <label className="mb-1 block text-sm font-medium text-theme-ink" htmlFor={`toggle-state-label-${widget.id}`}>
-          Formula label
-        </label>
-        <input
-          id={`toggle-state-label-${widget.id}`}
-          value={fieldLabels.state || ''}
-          onChange={(event) => setStateLabel(event.target.value)}
-          placeholder="e.g. torchLit"
-          className="w-full rounded-button border border-theme-border bg-theme-paper px-3 py-2 text-theme-ink focus:border-theme-accent focus:outline-none"
-        />
-        <p className="widget-editor__hint mt-2 text-xs text-theme-muted">Use this label in formulas: 1 when on, 0 when off.</p>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="text-sm font-medium text-theme-ink">Formula label &amp; formula</span>
+          <div className="flex items-center gap-2">
+            <TextFormulaControls
+              valueLabel={fieldLabels.state}
+              formula={fieldFormulas.state}
+              onValueLabelChange={setStateLabel}
+              onFormulaChange={setStateFormula}
+              resultType="number"
+            />
+          </div>
+        </div>
+        <p className="widget-editor__hint mt-2 text-xs text-theme-muted">Use the label in formulas: 1 when on, 0 when off. With a formula, the switch is on unless the result is 0.</p>
 
         <div className="mt-3">
           <label htmlFor={`toggle-color-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">

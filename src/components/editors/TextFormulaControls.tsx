@@ -10,10 +10,11 @@ interface TextFormulaControlsProps {
   onValueLabelChange: (label: string | undefined) => void;
   onFormulaChange: (formula: string | undefined) => void;
   sizeClassName?: string;
+  resultType?: 'number' | 'text';
 }
 
-/** Variable label and text-result formula buttons for editable text values. */
-export function TextFormulaControls({ valueLabel, formula, onValueLabelChange, onFormulaChange, sizeClassName = 'h-8 w-8' }: TextFormulaControlsProps) {
+/** Variable label and formula buttons for editable text values (or numeric results with `resultType="number"`). */
+export function TextFormulaControls({ valueLabel, formula, onValueLabelChange, onFormulaChange, sizeClassName = 'h-8 w-8', resultType = 'text' }: TextFormulaControlsProps) {
   const [showFormula, setShowFormula] = useState(false);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -46,7 +47,7 @@ export function TextFormulaControls({ valueLabel, formula, onValueLabelChange, o
           formula={formula}
           character={character}
           sourceLabels={valueLabel ? [valueLabel] : []}
-          resultType="text"
+          resultType={resultType}
           onApply={(next) => {
             onFormulaChange(next);
             setShowFormula(false);

@@ -1069,7 +1069,9 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
           const currentVal = getFieldValue(widget.data, field);
           const resolvedValue = field === 'localCapacity' || field === 'globalCapacity' || field === 'temporaryValue'
             ? Math.max(0, computed)
-            : computed;
+            : field === 'state'
+              ? Number(computed !== 0)
+              : computed;
           if (currentVal !== resolvedValue) {
             changed = true;
             switch (field) {
@@ -1082,6 +1084,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
               case 'currentPool': updates.currentPool = resolvedValue; break;
               case 'modifier': updates.modifier = resolvedValue; break;
               case 'healFlatAmount': updates.healFlatAmount = resolvedValue; break;
+              case 'state': updates.toggleState = resolvedValue === 1; break;
               case 'localCapacity':
               case 'globalCapacity':
                 if (widget.data.inventoryEncumbrance) {
@@ -1341,6 +1344,14 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
         if (computed !== null && String(computed) !== field.value) {
           fieldsChanged = true;
           return { ...field, value: String(computed) };
+        }
+      }
+
+      if (field.type === 'switch' && field.valueFormula) {
+        const computed = evaluateFormula(field.valueFormula, labels);
+        if (computed !== null && (computed !== 0) !== field.value) {
+          fieldsChanged = true;
+          return { ...field, value: computed !== 0 };
         }
       }
 
@@ -1760,6 +1771,9 @@ export function buildDependencyGraph(character: Character): Record<string, strin
             if (field.maxLabel && field.maxFormula) graph[field.maxLabel] = extractFormulaRefs(field.maxFormula, labels);
           }
           if (field.type === 'text' && field.valueLabel && field.valueFormula) {
+            graph[field.valueLabel] = extractFormulaRefs(field.valueFormula, labels);
+          }
+          if (field.type === 'switch' && field.valueLabel && field.valueFormula) {
             graph[field.valueLabel] = extractFormulaRefs(field.valueFormula, labels);
           }
         }

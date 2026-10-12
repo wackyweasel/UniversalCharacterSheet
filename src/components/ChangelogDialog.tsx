@@ -37,6 +37,14 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.10.2',
+    changes: [
+      'Fields and Stats, Mixed Fields, Number Tracker and Step Dice have a new "Wrap item names" option in their editor.',
+      'Dialogs now only close when the click starts outside them, not when a click started inside is released outside.',
+      'The Switch widget and the Switch field of Mixed Fields can now be set by a formula (0 is off, anything else is on).',
+    ],
+  },
+  {
     version: '1.10.1',
     changes: [
       'New "Hide attached edges" setting in the main menu: removes the visible line between attached widgets.',

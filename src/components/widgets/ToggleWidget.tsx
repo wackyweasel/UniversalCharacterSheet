@@ -11,8 +11,9 @@ interface Props {
 
 export default function ToggleWidget({ widget, mode, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, toggleState = false, toggleColor, inlineLabel = false } = widget.data;
-  const isInteractive = interactive && mode !== 'print';
+  const { label, toggleState = false, toggleColor, inlineLabel = false, fieldFormulas } = widget.data;
+  const isFormulaDriven = Boolean(fieldFormulas?.state);
+  const isInteractive = interactive && mode !== 'print' && !isFormulaDriven;
 
   const toggle = () => {
     if (!isInteractive) return;
@@ -32,7 +33,7 @@ export default function ToggleWidget({ widget, mode, interactive = true }: Props
       onMouseDown={(event) => event.stopPropagation()}
       className={`relative h-6 w-11 flex-shrink-0 rounded-full border border-theme-border transition-colors ${
         toggleState ? 'bg-theme-accent' : 'bg-theme-background'
-      } ${isInteractive ? 'cursor-pointer' : 'cursor-default opacity-70'}`}
+      } ${isInteractive ? 'cursor-pointer' : 'cursor-default'} ${isInteractive || isFormulaDriven ? '' : 'opacity-70'}`}
       style={toggleState && toggleColor ? { backgroundColor: toggleColor, borderColor: toggleColor } : undefined}
     >
       <span
