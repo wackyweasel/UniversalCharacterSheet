@@ -37,7 +37,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true, itemColumns } = widget.data;
+  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true, itemColumns, wrapItemNames = false } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [numberDialog, setNumberDialog] = useState<NumberEditDialog | null>(null);
@@ -312,7 +312,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           }
         }}
       >
-        <WidgetItemColumns columns={itemColumns} rowGap={2} items={(numberItems as NumberItem[]).map((item, idx) => {
+        <WidgetItemColumns columns={itemColumns} rowGap={2} balanceByHeight items={(numberItems as NumberItem[]).map((item, idx) => {
           const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
           const atMaximum = item.maxValue !== undefined && item.value >= item.maxValue;
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
@@ -329,7 +329,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
                 onClick={() => openRenameDialog(idx)}
                 onMouseDown={(event) => event.stopPropagation()}
                 onTouchStart={(event) => event.stopPropagation()}
-                className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-left ${itemClass} text-theme-ink font-body truncate enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+                className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-left ${itemClass} text-theme-ink font-body ${wrapItemNames ? 'break-words' : 'truncate'} enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
               >
                 {mode === 'play' && item.tooltip ? (
                   <Tooltip content={item.tooltip}><span><InlineFormulaText text={item.name} /></span></Tooltip>

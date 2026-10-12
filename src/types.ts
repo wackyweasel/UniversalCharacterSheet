@@ -426,6 +426,8 @@ export interface WidgetData {
   secondaryDisplayModifierRanges?: ModifierRange[];
   // Form, Mixed Fields, Number, Pool, List & Step Dice
   itemColumns?: number;
+  // Form, Mixed Fields, Number & Step Dice: wrap long item names instead of truncating
+  wrapItemNames?: boolean;
   // Form
   formItems?: FormItem[];
   // Form & Mixed Fields

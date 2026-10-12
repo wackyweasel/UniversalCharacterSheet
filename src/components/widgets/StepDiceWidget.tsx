@@ -30,7 +30,7 @@ export const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d1
 
 export default function StepDiceWidget({ widget, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, stepDiceItems = [], stepDiceChain, itemColumns } = widget.data;
+  const { label, stepDiceItems = [], stepDiceChain, itemColumns, wrapItemNames = false } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [lastResults, setLastResults] = useState<Record<number, DiceExpressionRollResult>>({});
@@ -177,7 +177,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
         <WidgetEmptyState title="No step dice configured" hint={controlsVisible ? 'Use + to add a die track.' : undefined} />
       ) : (
         <div className="flex flex-col gap-1">
-          <WidgetItemColumns columns={itemColumns} rowGap={4} items={stepDiceItems.map((item: StepDiceItem, i: number) => {
+          <WidgetItemColumns columns={itemColumns} rowGap={4} balanceByHeight items={stepDiceItems.map((item: StepDiceItem, i: number) => {
         const expression = formatDiceStep(diceChain[item.currentStep]);
         const isValidExpression = !!parseDiceStep(diceChain[item.currentStep]);
         const isAtMin = item.currentStep === 0;
@@ -195,7 +195,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
               onClick={() => openRenameDialog(i)}
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
-              className="min-w-0 flex-shrink truncate border-0 bg-transparent p-0 text-left text-xs text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
+              className={`min-w-0 flex-shrink ${wrapItemNames ? 'break-words' : 'truncate'} border-0 bg-transparent p-0 text-left text-xs text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
               style={{ flex: '1 1 0' }}
             >
               <InlineFormulaText text={item.name} />

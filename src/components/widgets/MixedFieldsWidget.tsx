@@ -652,7 +652,7 @@ export default function MixedFieldsWidget({
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right' } = widget.data;
+  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right', wrapItemNames = false } = widget.data;
   const justifyClass = CONTROL_JUSTIFY[mixedFieldsAlignment];
   const textAlignClass = CONTROL_TEXT_ALIGN[mixedFieldsAlignment];
   const isPrintMode = mode === 'print';
@@ -907,7 +907,7 @@ export default function MixedFieldsWidget({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px`, rowGap: `${itemSpacing}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
-        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} items={mixedFields.map((field, index) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} balanceByHeight items={mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
             <button
               type="button"
@@ -916,7 +916,7 @@ export default function MixedFieldsWidget({
               onClick={() => openRenameField(index)}
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
-              className="min-w-0 flex-shrink-0 truncate border-0 bg-transparent p-0 text-left text-xs font-body text-theme-ink enabled:cursor-pointer enabled:hover:underline disabled:cursor-default"
+              className={`min-w-0 flex-shrink-0 ${wrapItemNames ? 'break-words' : 'truncate'} border-0 bg-transparent p-0 text-left text-xs font-body text-theme-ink enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
               style={{ width: `${labelWidth}%` }}
             >
               {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span><InlineFormulaText text={field.name} /></span></Tooltip> : <InlineFormulaText text={field.name} />}

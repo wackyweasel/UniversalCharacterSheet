@@ -93,7 +93,13 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
         <div className="widget-editor__section-heading">
           <h3 id={`step-dice-layout-title-${widget.id}`} className="widget-editor__section-title">Layout</h3>
         </div>
-        <ItemColumnsControl id={`step-dice-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+        <div className="space-y-3">
+          <ItemColumnsControl id={`step-dice-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={widget.data.wrapItemNames ?? false} onChange={(event) => updateData({ wrapItemNames: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+            <span className="text-sm text-theme-ink">Wrap item names</span>
+          </label>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection>

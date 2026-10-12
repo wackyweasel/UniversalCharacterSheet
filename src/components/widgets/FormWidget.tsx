@@ -22,7 +22,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
-  const { label, formItems = [], labelWidth = 33, itemSpacing = 2, itemColumns } = widget.data;
+  const { label, formItems = [], labelWidth = 33, itemSpacing = 2, itemColumns, wrapItemNames = false } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
@@ -201,12 +201,12 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
           }
         }}
       >
-        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} items={(formItems as FormItem[]).map((item, idx) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} balanceByHeight items={(formItems as FormItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
             <button
               type="button"
-              className={`${itemClass} min-w-0 truncate flex-shrink-0 border-0 bg-transparent p-0 text-left text-theme-ink font-body ${isPrintMode ? 'cursor-default' : 'cursor-pointer hover:underline'}`}
+              className={`${itemClass} min-w-0 ${wrapItemNames ? 'break-words' : 'truncate'} flex-shrink-0 border-0 bg-transparent p-0 text-left text-theme-ink font-body ${isPrintMode ? 'cursor-default' : 'cursor-pointer hover:underline'}`}
               style={{ width: `${labelWidth}%` }}
               onClick={() => openRenameFieldDialog(idx)}
               onMouseDown={(event) => event.stopPropagation()}

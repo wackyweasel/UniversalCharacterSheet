@@ -411,6 +411,10 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
         </div>
         <div className="space-y-3">
           <ItemColumnsControl id="mixed-fields-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={widget.data.wrapItemNames ?? false} onChange={(event) => updateData({ wrapItemNames: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+            <span className="text-sm text-theme-ink">Wrap item names</span>
+          </label>
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="mixed-fields-label-width" className="text-xs font-bold uppercase text-theme-muted">Label width</label>

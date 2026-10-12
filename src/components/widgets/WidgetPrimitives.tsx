@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { distributeIntoColumns, normalizeItemColumns } from '../../utils/itemColumns';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { distributeIntoColumns, distributeIntoColumnsByHeight, normalizeItemColumns } from '../../utils/itemColumns';
 
 interface ValueAdjustRowProps {
   onAdjust: (delta: number) => void;
@@ -100,12 +100,55 @@ interface WidgetItemColumnsProps {
   items: ReactNode[];
   columns?: number;
   rowGap?: number;
+  // Balance columns by rendered item height instead of item count (for items whose height varies, e.g. wrapped names).
+  balanceByHeight?: boolean;
+}
+
+function HeightBalancedColumns({ items, columns, rowGap }: { items: ReactNode[]; columns: number; rowGap: number }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [heights, setHeights] = useState<number[]>([]);
+
+  const measure = () => {
+    const elements = rootRef.current?.querySelectorAll<HTMLElement>('[data-column-item]');
+    if (!elements) return;
+    const next: number[] = [];
+    elements.forEach((element) => { next[Number(element.dataset.columnItem)] = element.offsetHeight; });
+    setHeights((current) => (current.length === next.length && current.every((height, index) => height === next[index]) ? current : next));
+  };
+
+  // Item heights are the same in any column (equal widths), so measuring the current layout is enough.
+  useLayoutEffect(measure);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  const columnItems = distributeIntoColumnsByHeight(items, heights, columns, rowGap);
+  let itemIndex = 0;
+
+  return (
+    <div ref={rootRef} className="flex w-full min-w-0 items-start gap-3">
+      {columnItems.map((group, index) => (
+        <div key={index} className="flex min-w-0 flex-1 flex-col" style={{ rowGap }}>
+          {group.map((item) => {
+            const currentIndex = itemIndex++;
+            return <div key={currentIndex} data-column-item={currentIndex} className="min-w-0">{item}</div>;
+          })}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // Renders items unchanged for one column; otherwise spreads them evenly across side-by-side columns.
-export function WidgetItemColumns({ items, columns, rowGap = 4 }: WidgetItemColumnsProps) {
+export function WidgetItemColumns({ items, columns, rowGap = 4, balanceByHeight = false }: WidgetItemColumnsProps) {
   const columnCount = normalizeItemColumns(columns);
   if (columnCount === 1 || items.length === 0) return <>{items}</>;
+  if (balanceByHeight) return <HeightBalancedColumns items={items} columns={columnCount} rowGap={rowGap} />;
 
   return (
     <div className="flex w-full min-w-0 items-start gap-3">
