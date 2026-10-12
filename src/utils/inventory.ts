@@ -143,6 +143,14 @@ export function splitInventoryItem(
   ];
 }
 
+export function duplicateInventoryItem(item: InventoryItem): InventoryItem {
+  return {
+    ...item,
+    id: uuidv4(),
+    fields: item.fields.map((field) => ({ ...field, id: uuidv4() })),
+  };
+}
+
 export function cloneInventoryData(data: WidgetData): WidgetData {
   return {
     ...data,

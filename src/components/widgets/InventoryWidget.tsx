@@ -6,6 +6,7 @@ import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import {
   getCharacterGlobalInventoryLoad,
+  duplicateInventoryItem,
   getInventoryItemQuantity,
   getInventoryLoad,
 } from '../../utils/inventory';
@@ -693,6 +694,16 @@ function InventoryWidget({
             if (description) addTimelineEvent(label || 'Inventory', 'INVENTORY', description, '✏️');
           }}
           onDelete={dialogItem ? () => deleteItem(dialogItem.id) : undefined}
+          onClone={dialogItem ? (item) => {
+            const clone = duplicateInventoryItem(item);
+            saveInventoryItem({
+              sourceWidgetId: widget.id,
+              targetWidgetId: widget.id,
+              item: clone,
+            });
+            const quantity = getInventoryItemQuantity(clone);
+            addTimelineEvent(label || 'Inventory', 'INVENTORY', `Added: ${clone.name}${quantity !== undefined ? ` (x${quantity})` : ''}`, '➕');
+          } : undefined}
         />
       )}
 

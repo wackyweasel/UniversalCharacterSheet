@@ -7,6 +7,7 @@ import { getCharacterTransferData } from '../utils/characterTransfer';
 import GalleryShareModal from './GalleryShareModal';
 import { Tooltip } from './Tooltip';
 import {
+  ArrowLeftIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   ClockIcon,
@@ -25,7 +26,6 @@ import {
   UndoIcon,
   UnlinkIcon,
   UploadIcon,
-  XIcon,
 } from './icons';
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
 import { useSheetSettingsStore } from '../store/useSheetSettingsStore';
@@ -358,8 +358,8 @@ export default function ShareExportMenu({
               <span className="flex items-center gap-2"><PrintIcon className="h-4 w-4" />Print Preview</span>
             </button></Tooltip>}
             </div>
-            <div className="py-1">
-              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Application</p>
+            <div className="border-b border-theme-border/50 py-1">
+              <p className="px-3 pb-1 pt-1.5 font-body text-[10px] font-bold uppercase text-theme-muted">Contribute</p>
             <Tooltip content="Report a bug or request a feature" placement="below"><a
               href="https://docs.google.com/forms/d/e/1FAIpQLScDC-2AnN7OXojo3C-6TdoOfpco1qLAhW7wbB93C4POC4y8KA/viewform?usp=dialog"
               target="_blank"
@@ -377,6 +377,50 @@ export default function ShareExportMenu({
             >
               <span className="flex items-center gap-2"><MessageIcon className="h-4 w-4" />Feedback</span>
             </a></Tooltip>
+            <Tooltip content="Join the UCS community on Reddit" placement="below"><a
+              href="https://www.reddit.com/r/UniversalCharSheet/"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                recordTelemetryEvent({
+                  eventName: 'external_reddit_opened',
+                  category: 'app',
+                  source: 'sheet_menu',
+                });
+                onOpenChange(false);
+              }}
+              className="block w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M18 10.1c0-1-.8-1.8-1.8-1.7-.4 0-.9.2-1.2.5-1.4-.9-3-1.5-4.7-1.5l.8-3.8 2.6.6c0 .7.6 1.2 1.3 1.2.7 0 1.2-.6 1.2-1.3 0-.7-.6-1.2-1.3-1.2-.5 0-.9.3-1.1.7L11 2.9h-.2c-.1 0-.1.1-.1.2l-1 4.3C8 7.4 6.4 7.9 5 8.9c-.7-.7-1.8-.7-2.5 0s-.7 1.8 0 2.5c.1.1.3.3.5.3v.5c0 2.7 3.1 4.9 7 4.9s7-2.2 7-4.9v-.5c.6-.3 1-.9 1-1.6zM6 11.4c0-.7.6-1.2 1.2-1.2.7 0 1.2.6 1.2 1.2s-.6 1.2-1.2 1.2c-.7 0-1.2-.5-1.2-1.2zm7 3.3c-.9.6-1.9 1-3 .9-1.1 0-2.1-.3-3-.9-.1-.1-.1-.3 0-.5.1-.1.3-.1.4 0 .7.5 1.6.8 2.5.7.9.1 1.8-.2 2.5-.7.1-.1.3-.1.5 0s.2.3.1.5zm-.3-2.1c-.7 0-1.2-.6-1.2-1.2s.6-1.2 1.2-1.2c.7 0 1.2.6 1.2 1.2.1.7-.5 1.2-1.2 1.2z" />
+                </svg>
+                Reddit
+              </span>
+            </a></Tooltip>
+            <Tooltip content="Support UCS development" placement="below"><a
+              href="https://buymeacoffee.com/wackyweasel"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                recordTelemetryEvent({
+                  eventName: 'external_donate_opened',
+                  category: 'app',
+                  source: 'sheet_menu',
+                });
+                onOpenChange(false);
+              }}
+              className="block w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                Donate
+              </span>
+            </a></Tooltip>
+            </div>
+            <div className="py-1">
             <Tooltip content="Return to character selection" placement="below"><button
               type="button"
               onClick={() => {
@@ -385,7 +429,7 @@ export default function ShareExportMenu({
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-red-500 hover:bg-red-500 hover:text-white transition-colors"
             >
-              <span className="flex items-center gap-2"><XIcon className="h-4 w-4" />Exit</span>
+              <span className="flex items-center gap-2"><ArrowLeftIcon className="h-4 w-4" />Back to Character Selection</span>
             </button></Tooltip>
             </div>
           </div>

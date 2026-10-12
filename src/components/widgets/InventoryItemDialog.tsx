@@ -28,6 +28,7 @@ interface InventoryItemDialogProps {
   onClose: () => void;
   onSave: (item: InventoryItem) => void;
   onDelete?: () => void;
+  onClone?: (item: InventoryItem) => void;
 }
 
 const FIELD_TYPES: { value: Exclude<InventoryFieldType, 'textarea'>; label: string }[] = [
@@ -44,6 +45,7 @@ export default function InventoryItemDialog({
   onClose,
   onSave,
   onDelete,
+  onClone,
 }: InventoryItemDialogProps) {
   const isEditing = Boolean(item);
   const [draft, setDraft] = useState<InventoryItem>(() => item
@@ -193,6 +195,13 @@ export default function InventoryItemDialog({
       )}
     </div>
   );
+
+  const handleClone = () => {
+    const name = draft.name.trim();
+    if (!name) return;
+    onClone?.({ ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined });
+    onClose();
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -414,6 +423,11 @@ export default function InventoryItemDialog({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {isEditing && onClone && (
+              <button type="button" onClick={handleClone} disabled={!draft.name.trim()} className="widget-control px-2.5 py-1 text-xs">
+                Clone item
+              </button>
+            )}
             <button type="button" onClick={onClose} className="widget-control px-2.5 py-1 text-xs">Cancel</button>
             <button type="submit" disabled={!draft.name.trim()} className="widget-control widget-control--primary px-3 py-1 text-xs">
               {isEditing ? 'Save item' : 'Add item'}
