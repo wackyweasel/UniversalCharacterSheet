@@ -10,6 +10,29 @@ import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue, getMo
 import { formatNumberWithSign } from '../../utils/numberFormatting';
 import { CollapsibleSection } from './CollapsibleSection';
 
+// Keeps a text draft so the field can be fully erased while typing; only valid numbers are committed.
+function ModifierRangeInput({ value, onCommit, ...props }: { value: number; onCommit: (value: number) => void; 'aria-label': string; className: string }) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft((current) => (Number(current) === value && current.trim() !== '' ? current : String(value)));
+  }, [value]);
+
+  return (
+    <input
+      {...props}
+      type="number"
+      value={draft}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        const parsed = Number(event.target.value);
+        if (event.target.value.trim() !== '' && Number.isFinite(parsed)) onCommit(parsed);
+      }}
+      onBlur={() => setDraft(String(value))}
+    />
+  );
+}
+
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   const { displayNumbers = [], displayLayout = 'horizontal', numberBoxFixedAspectRatio = false } = widget.data;
   const numberBoxScale = Math.min(100, Math.max(50, widget.data.numberBoxScale ?? 100));
@@ -387,24 +410,21 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
               <div className="max-h-52 space-y-1 overflow-y-auto pr-1">
                 {modifierRanges.map((range, rangeIndex) => (
                   <div key={rangeIndex} className="grid grid-cols-[1fr_1fr_1fr_28px] items-center gap-1">
-                    <input
-                      type="number"
+                    <ModifierRangeInput
                       value={range.min}
-                      onChange={(event) => updateModifierRange(rangeIndex, { min: Number(event.target.value) })}
+                      onCommit={(min) => updateModifierRange(rangeIndex, { min })}
                       aria-label={`Range ${rangeIndex + 1} minimum`}
                       className="min-w-0 rounded-theme border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
                     />
-                    <input
-                      type="number"
+                    <ModifierRangeInput
                       value={range.max}
-                      onChange={(event) => updateModifierRange(rangeIndex, { max: Number(event.target.value) })}
+                      onCommit={(max) => updateModifierRange(rangeIndex, { max })}
                       aria-label={`Range ${rangeIndex + 1} maximum`}
                       className="min-w-0 rounded-theme border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs text-theme-ink"
                     />
-                    <input
-                      type="number"
+                    <ModifierRangeInput
                       value={range.modifier}
-                      onChange={(event) => updateModifierRange(rangeIndex, { modifier: Number(event.target.value) })}
+                      onCommit={(modifier) => updateModifierRange(rangeIndex, { modifier })}
                       aria-label={`Range ${rangeIndex + 1} modifier`}
                       className="min-w-0 rounded-theme border border-theme-border bg-theme-paper px-1.5 py-1 text-center text-xs font-semibold text-theme-ink"
                     />

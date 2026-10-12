@@ -6,7 +6,9 @@ import { applyTheme } from './store/useThemeStore'
 import { prepareServiceWorker } from './pwa/update'
 import { isInstalledApp } from './pwa/runtimeContext'
 import './pwa/install'
+import { installPressStartClicks } from './utils/pressStartClicks'
 
+installPressStartClicks()
 void prepareServiceWorker()
 if (isInstalledApp() && navigator.storage) {
   void navigator.storage.persist().catch((error) => {
