@@ -303,6 +303,22 @@
       "description": "Made for my custom Zombie System",
       "file": "presets/rotgf_sheet.json",
       "gameSystem": "Custom Zombie System"
+    },
+    {
+      "id": "39",
+      "name": "Sheet Template",
+      "author": "@Vikkitsnikkit",
+      "description": "For custom built Falling Skies",
+      "file": "presets/falling_skies_sheet_template.json",
+      "gameSystem": "Falling Skies"
+    },
+    {
+      "id": "40",
+      "name": "ROTGF v2",
+      "author": "@RazorHollow",
+      "description": "custom system for me",
+      "file": "presets/rotgf_sheet_v2.json",
+      "gameSystem": "Custom Zombie System"
     }
   ],
   "themes": [
