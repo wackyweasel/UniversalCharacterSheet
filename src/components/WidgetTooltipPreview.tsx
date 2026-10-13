@@ -1,4 +1,5 @@
 import { Widget, WidgetType } from '../types';
+import { AnyTemplate, isGroupTemplate } from '../store/useTemplateStore';
 
 import NumberWidget from './widgets/NumberWidget';
 import NumberDisplayWidget from './widgets/NumberDisplayWidget';
@@ -767,13 +768,80 @@ export default function WidgetTooltipPreview({ type }: { type: WidgetType }) {
   return (
     <div className={`pointer-events-none${type === 'DECK_OF_CARDS' ? ' widget-tooltip-preview--deck-of-cards' : ''}`}>
       <div
-        className="bg-theme-paper border-[length:var(--border-width)] border-theme-border p-1 rounded-theme shadow-theme overflow-hidden"
+        className="bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme overflow-hidden"
         style={{
           width: `${widget.w || 220}px`,
           height: `${widget.h || 120}px`,
         }}
       >
-        {renderWidget(widget)}
+        <div className="widget-content">{renderWidget(widget)}</div>
+      </div>
+    </div>
+  );
+}
+
+const TEMPLATE_PREVIEW_MAX_WIDTH = 240;
+const TEMPLATE_PREVIEW_MAX_HEIGHT = 280;
+
+interface TemplatePreviewItem {
+  widget: Widget;
+  x: number;
+  y: number;
+}
+
+function getTemplatePreviewItems(template: AnyTemplate): TemplatePreviewItem[] {
+  const toItem = (type: WidgetType, index: number, data: any, w: number | undefined, h: number | undefined, x: number, y: number): TemplatePreviewItem => {
+    const fallback = PREVIEW_WIDGETS[type];
+    return {
+      widget: {
+        id: `preview-template-${index}`,
+        type,
+        x: 0,
+        y: 0,
+        w: w || fallback?.w || 220,
+        h: h || fallback?.h || 120,
+        locked: true,
+        data: data ?? {},
+      },
+      x,
+      y,
+    };
+  };
+
+  if (isGroupTemplate(template)) {
+    return template.widgets.map((item, index) => toItem(item.type, index, item.data, item.w, item.h, item.relativeX, item.relativeY));
+  }
+  return [toItem(template.type, 0, { ...template.data, label: template.data?.label || template.name }, template.w, template.h, 0, 0)];
+}
+
+export function TemplateTooltipPreview({ template }: { template: AnyTemplate }) {
+  const items = getTemplatePreviewItems(template);
+  if (items.length === 0) return null;
+
+  const minX = Math.min(...items.map((item) => item.x));
+  const minY = Math.min(...items.map((item) => item.y));
+  const boxWidth = Math.max(...items.map((item) => item.x - minX + (item.widget.w || 0)));
+  const boxHeight = Math.max(...items.map((item) => item.y - minY + (item.widget.h || 0)));
+  const scale = Math.min(1, TEMPLATE_PREVIEW_MAX_WIDTH / boxWidth, TEMPLATE_PREVIEW_MAX_HEIGHT / boxHeight);
+
+  return (
+    <div
+      className="pointer-events-none relative"
+      style={{ width: `${boxWidth * scale}px`, height: `${boxHeight * scale}px` }}
+    >
+      <div
+        className="absolute left-0 top-0"
+        style={{ width: `${boxWidth}px`, height: `${boxHeight}px`, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+      >
+        {items.map(({ widget, x, y }) => (
+          <div
+            key={widget.id}
+            className="absolute bg-theme-paper text-theme-ink border-[length:var(--border-width)] border-theme-border rounded-theme shadow-theme overflow-hidden"
+            style={{ left: `${x - minX}px`, top: `${y - minY}px`, width: `${widget.w}px`, height: `${widget.h}px` }}
+          >
+            <div className="widget-content">{renderWidget(widget)}</div>
+          </div>
+        ))}
       </div>
     </div>
   );

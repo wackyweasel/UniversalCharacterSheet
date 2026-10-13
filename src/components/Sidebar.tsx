@@ -8,8 +8,8 @@ import { getCustomTheme } from '../store/useCustomThemeStore';
 import { submitToGallery } from '../hooks/useGallery';
 import { Tooltip } from './Tooltip';
 import GalleryShareModal from './GalleryShareModal';
-import WidgetTooltipPreview from './WidgetTooltipPreview';
-import { XIcon } from './icons';
+import WidgetTooltipPreview, { TemplateTooltipPreview } from './WidgetTooltipPreview';
+import { CheckIcon, ChevronDownIcon, TrashIcon, UploadIcon, XIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { WIDGET_CATEGORIES, WIDGET_OPTIONS } from '../utils/widgetMetadata';
 
@@ -39,6 +39,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [sharingTemplateId, setSharingTemplateId] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState('');
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const suppressWidgetClickUntilRef = useRef(0);
 
   // Tutorial state
@@ -48,6 +49,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
 
   useEffect(() => {
     if (isCurrentTutorialStep('templates-load-widget-template') || isCurrentTutorialStep('templates-share-template')) {
+      setTemplatesOpen(true);
       const selector = isCurrentTutorialStep('templates-share-template')
         ? '[data-tutorial="template-share-button"]'
         : '[data-tutorial="template-load-item"]';
@@ -57,7 +59,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
         behavior: 'smooth',
       });
     }
-  }, [tutorialStep, templates.length]);
+  }, [tutorialStep, templates.length, templatesOpen]);
 
   // Map tutorial steps to widget types
   const tutorialWidgetSteps: Record<string, WidgetType> = {
@@ -178,14 +180,12 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
         </Tooltip>
         
         {/* Sidebar content */}
-        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 pl-1 -mr-3 pr-4">
+        <div className="relative z-10 flex flex-col h-full overflow-y-auto touch-pan-y pt-12 pb-8 pl-1 -mr-3 pr-4">
 
         <div className="mb-4">
-          <p className="text-[10px] font-body font-bold uppercase tracking-[0.18em] text-theme-accent">Build</p>
           <h2 className="text-xl font-bold border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
-            Add to this sheet
+            Add a Widget
           </h2>
-          <p className="font-body text-xs text-theme-muted mt-2">Choose what the character needs to track or use.</p>
         </div>
 
         <label className="relative block mb-4">
@@ -202,6 +202,125 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
             className="w-full pl-9 pr-3 py-2 bg-theme-background border-[length:var(--border-width)] border-theme-border rounded-button text-xs text-theme-ink placeholder:text-theme-muted font-body focus:outline-none focus:ring-2 focus:ring-theme-accent"
           />
         </label>
+
+        {templates.length > 0 && (
+          <section data-tutorial="templates-section" className="mb-4">
+            <button
+              type="button"
+              onClick={() => setTemplatesOpen((open) => !open)}
+              aria-expanded={templatesOpen}
+              className="w-full flex items-center justify-between gap-2 py-1 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted hover:text-theme-ink transition-colors"
+            >
+              <span>Templates ({templates.length})</span>
+              <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${templatesOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {templatesOpen && (
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {templates.map((template, index) => {
+                  const isGroup = isGroupTemplate(template);
+                  const isConfirmingDelete = confirmingDeleteId === template.id;
+                  const shouldHighlightTemplateLoad = index === 0 && isCurrentTutorialStep('templates-load-widget-template');
+                  const isShareHighlighted = index === 0 && isCurrentTutorialStep('templates-share-template');
+                  const iconButtonClass = 'w-6 h-6 flex flex-shrink-0 items-center justify-center rounded-button opacity-60 hover:opacity-100 hover:bg-theme-paper/25 focus-visible:opacity-100 transition-opacity';
+
+                  return (
+                    <div
+                      key={template.id}
+                      data-tutorial="template-card"
+                      className={`min-h-12 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all font-bold active:translate-y-px flex items-center bg-theme-background text-theme-ink rounded-button relative ${shouldHighlightTemplateLoad || isShareHighlighted ? 'outline outline-4 outline-blue-500 outline-offset-2' : ''}`}
+                    >
+                      {isConfirmingDelete ? (
+                        <>
+                          <span className="flex-1 min-w-0 p-2 text-[11px] leading-tight font-body truncate">Delete "{template.name}"?</span>
+                          <div className="flex items-center gap-0.5 pr-1">
+                            <Tooltip content="Confirm delete">
+                              <button
+                                type="button"
+                                className={`${iconButtonClass} opacity-100`}
+                                onClick={() => {
+                                  removeTemplate(template.id);
+                                  setConfirmingDeleteId(null);
+                                }}
+                                aria-label="Confirm delete template"
+                              >
+                                <CheckIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Cancel">
+                              <button
+                                type="button"
+                                className={`${iconButtonClass} opacity-100`}
+                                onClick={() => setConfirmingDeleteId(null)}
+                                aria-label="Cancel delete"
+                              >
+                                <XIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Tooltip content={<TemplateTooltipPreview template={template} />} placement="below">
+                            <div
+                              data-tutorial={index === 0 ? 'template-load-item' : undefined}
+                              className="flex-1 min-w-0 self-stretch p-2 pr-1 flex items-center gap-1 cursor-pointer"
+                              onClick={() => {
+                                if (isGroup) {
+                                  addGroupFromTemplate(template, viewport);
+                                } else {
+                                  addWidgetFromTemplate(template, viewport);
+                                }
+
+                                if (isCurrentTutorialStep('templates-load-widget-template')) {
+                                  advanceTutorial();
+                                  onToggle();
+                                }
+                              }}
+                            >
+                              <span className="text-[11px] leading-tight font-body break-words min-w-0">
+                                + {template.name}
+                                {isGroup && <span className="ml-1 text-[10px] opacity-70">({template.widgets.length})</span>}
+                              </span>
+                            </div>
+                          </Tooltip>
+                          <div className="flex items-center gap-0.5 pr-1">
+                            <Tooltip content="Submit this template for the community gallery">
+                              <button
+                                type="button"
+                                data-tutorial="template-share-button"
+                                className={iconButtonClass}
+                                onClick={() => {
+                                  setSharingTemplateId(template.id);
+
+                                  if (isCurrentTutorialStep('templates-share-template')) {
+                                    advanceTutorial();
+                                  }
+                                }}
+                                aria-label="Share template"
+                              >
+                                <UploadIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Delete template">
+                              <button
+                                type="button"
+                                className={iconButtonClass}
+                                onClick={() => setConfirmingDeleteId(template.id)}
+                                aria-label="Delete template"
+                              >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="flex flex-col gap-5 py-1">
           {WIDGET_CATEGORIES.map((category) => {
@@ -242,120 +361,6 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
           )}
         </div>
 
-        {/* Templates Section */}
-        {templates.length > 0 && (
-          <>
-            <div data-tutorial="templates-section" className="mt-6 mb-4">
-              <h2 className="text-xl font-bold uppercase tracking-wider border-b-[length:var(--border-width)] border-theme-border pb-2 text-theme-ink font-heading">
-                Templates
-              </h2>
-            </div>
-            <div className="flex flex-col gap-2">
-              {templates.map((template, index) => {
-                const isGroup = isGroupTemplate(template);
-                const shouldHighlightTemplateLoad = index === 0 && isCurrentTutorialStep('templates-load-widget-template');
-                return (
-                  <div
-                    key={template.id}
-                    data-tutorial="template-card"
-                    className={`p-2 border-[length:var(--border-width)] border-theme-border hover:bg-theme-accent hover:text-theme-paper transition-all text-left font-bold shadow-theme active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer flex items-center justify-between bg-theme-paper text-theme-ink rounded-theme group ${shouldHighlightTemplateLoad ? 'ring-4 ring-blue-500 ring-offset-2' : ''}`}
-                  >
-                    <span 
-                      data-tutorial={index === 0 ? 'template-load-item' : undefined}
-                      className="text-xs font-body flex-1 truncate flex items-center gap-1.5"
-                      onClick={() => {
-                        if (isGroup) {
-                          addGroupFromTemplate(template, viewport);
-                        } else {
-                          addWidgetFromTemplate(template, viewport);
-                        }
-
-                        if (isCurrentTutorialStep('templates-load-widget-template')) {
-                          advanceTutorial();
-                          onToggle();
-                        }
-                      }}
-                    >
-                      {isGroup && (
-                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <rect x="3" y="3" width="7" height="7" rx="1" />
-                          <rect x="14" y="3" width="7" height="7" rx="1" />
-                          <rect x="3" y="14" width="7" height="7" rx="1" />
-                          <rect x="14" y="14" width="7" height="7" rx="1" />
-                        </svg>
-                      )}
-                      + {template.name}
-                      {isGroup && (
-                        <span className="text-[10px] opacity-70">({template.widgets.length})</span>
-                      )}
-                    </span>
-                    {confirmingDeleteId === template.id ? (
-                      <div className="flex gap-1 ml-2">
-                        <button
-                          className="px-2 py-0.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeTemplate(template.id);
-                            setConfirmingDeleteId(null);
-                          }}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          className="px-2 py-0.5 text-xs bg-theme-border text-theme-ink rounded hover:bg-theme-muted transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmingDeleteId(null);
-                          }}
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <div className={`flex items-center gap-1 ml-2 transition-opacity ${isCurrentTutorialStep('templates-share-template') ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <Tooltip content="Submit this template for the community gallery">
-                          <button
-                            data-tutorial="template-share-button"
-                            className={`px-1.5 py-0.5 text-[10px] font-bold rounded-button text-theme-muted hover:text-white hover:bg-blue-600 transition-colors ${isCurrentTutorialStep('templates-share-template') ? 'opacity-100 bg-blue-600 text-white ring-2 ring-blue-500 ring-offset-1' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSharingTemplateId(template.id);
-
-                              if (isCurrentTutorialStep('templates-share-template')) {
-                                advanceTutorial();
-                              }
-                            }}
-                          >
-                            Share
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Delete template">
-                          <button
-                            className="w-5 h-5 flex items-center justify-center text-theme-muted hover:text-red-500 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setConfirmingDeleteId(template.id);
-                            }}
-                            aria-label="Delete template"
-                          >
-                            <XIcon className="w-3.5 h-3.5" />
-                          </button>
-                        </Tooltip>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        <div className="mt-auto pt-4 text-[10px] text-theme-muted border-t border-theme-border/50 font-body">
-          <p>Tap to add widgets.</p>
-          <p>Pan with finger/mouse.</p>
-          <p>Pinch/scroll to zoom.</p>
-          <p>Long-press or drag a widget's top edge to move it.</p>
-        </div>
         </div>
       </div>
     </>
