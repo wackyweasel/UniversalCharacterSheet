@@ -1,11 +1,10 @@
-import { useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useState } from 'react';
 import { Widget, WalletCurrency } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { Tooltip } from '../Tooltip';
-import { WidgetEmptyState } from './WidgetPrimitives';
+import { WidgetDialogShell, WidgetEmptyState } from './WidgetPrimitives';
 import {
   addToWallet,
   consolidateWallet,
@@ -38,50 +37,6 @@ const SELECT_CLASS = 'h-10 w-full min-w-0 rounded-button border border-theme-bor
 
 const stopPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
 
-function WalletDialogShell({
-  titleId,
-  title,
-  onCancel,
-  onSubmit,
-  children,
-}: {
-  titleId: string;
-  title: string;
-  onCancel: () => void;
-  onSubmit: () => void;
-  children: ReactNode;
-}) {
-  return createPortal(
-    <div
-      data-touch-camera-ignore="true"
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 animate-fade-in"
-      onClick={onCancel}
-      onMouseDown={stopPropagation}
-      onTouchStart={stopPropagation}
-      onWheel={stopPropagation}
-    >
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-modal-in"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-        onClick={stopPropagation}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') onCancel();
-        }}
-      >
-        <h3 id={titleId} className="font-heading text-base font-bold">{title}</h3>
-        {children}
-      </form>
-    </div>,
-    document.body,
-  );
-}
-
 function TransactionDialog({
   kind,
   widgetId,
@@ -103,7 +58,7 @@ function TransactionDialog({
   const isSpend = kind === 'spend';
 
   return (
-    <WalletDialogShell
+    <WidgetDialogShell
       titleId={`wallet-${kind}-title-${widgetId}`}
       title={isSpend ? 'Spend money' : 'Add money'}
       onCancel={onCancel}
@@ -152,7 +107,7 @@ function TransactionDialog({
           {isSpend ? 'Spend' : 'Add'}
         </button>
       </div>
-    </WalletDialogShell>
+    </WidgetDialogShell>
   );
 }
 
@@ -200,7 +155,7 @@ function ConvertDialog({
   };
 
   return (
-    <WalletDialogShell
+    <WidgetDialogShell
       titleId={`wallet-convert-title-${widgetId}`}
       title="Convert money"
       onCancel={onCancel}
@@ -269,7 +224,7 @@ function ConvertDialog({
           Consolidate all coins
         </button>
       </div>
-    </WalletDialogShell>
+    </WidgetDialogShell>
   );
 }
 
@@ -290,7 +245,7 @@ function SetAmountDialog({
   const inputId = `wallet-set-${widgetId}`;
 
   return (
-    <WalletDialogShell
+    <WidgetDialogShell
       titleId={`wallet-set-title-${widgetId}`}
       title={`Set ${currencyName}`}
       onCancel={onCancel}
@@ -313,7 +268,7 @@ function SetAmountDialog({
         <button type="button" onClick={onCancel} className="widget-control px-3 py-1.5 text-sm">Cancel</button>
         <button type="submit" className="widget-control widget-control--primary px-3 py-1.5 text-sm">Save</button>
       </div>
-    </WalletDialogShell>
+    </WidgetDialogShell>
   );
 }
 

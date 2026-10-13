@@ -1,5 +1,49 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { distributeIntoColumns, distributeIntoColumnsByHeight, normalizeItemColumns } from '../../utils/itemColumns';
+
+const stopEventPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
+
+interface WidgetDialogShellProps {
+  titleId: string;
+  title: string;
+  onCancel: () => void;
+  onSubmit: () => void;
+  children: ReactNode;
+}
+
+// Small centered form dialog rendered above the sheet; clicks and wheel never reach the canvas underneath.
+export function WidgetDialogShell({ titleId, title, onCancel, onSubmit, children }: WidgetDialogShellProps) {
+  return createPortal(
+    <div
+      data-touch-camera-ignore="true"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4 animate-fade-in"
+      onClick={onCancel}
+      onMouseDown={stopEventPropagation}
+      onTouchStart={stopEventPropagation}
+      onWheel={stopEventPropagation}
+    >
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme animate-modal-in"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+        onClick={stopEventPropagation}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') onCancel();
+        }}
+      >
+        <h3 id={titleId} className="font-heading text-base font-bold">{title}</h3>
+        {children}
+      </form>
+    </div>,
+    document.body,
+  );
+}
 
 interface ValueAdjustRowProps {
   onAdjust: (delta: number) => void;

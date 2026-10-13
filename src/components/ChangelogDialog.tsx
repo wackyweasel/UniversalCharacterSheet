@@ -38,6 +38,15 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.11.0',
+    changes: [
+      'New Threshold Track widget: a track of cells or a bar with named zones (and optional modifiers) that start at chosen values, for Doom, stress, sanity, wounds and similar.',
+      'New XP & Level widget: track experience points against a table of levels (D&D 5e, Pathfinder 2e, even steps or your own) with a progress bar to the next level.',
+      'New Skill Tree widget: skills that unlock in tiers once their prerequisites are taken, optionally paid for from a pool of points, with refunds and a timeline record.',
+      'New Dice Pool widget: build a pool from named traits (attribute, skill, gear), add or remove extra dice, and roll it together. Count successes against a target (with optional botches) or take the highest die for tiered outcomes. Trait dice can come from formulas.',
+    ],
+  },
+  {
     version: '1.10.2',
     changes: [
       'Fields and Stats, Mixed Fields, Number Tracker and Step Dice have a new "Wrap item names" option in their editor.',

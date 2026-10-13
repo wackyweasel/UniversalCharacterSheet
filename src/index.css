@@ -2036,6 +2036,633 @@ td .inline-dice-token {
     color: var(--color-ink);
   }
 
+  .threshold-track__main,
+  .xp-level__main {
+    position: relative;
+    z-index: 70;
+  }
+
+  .threshold-track__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .threshold-track__steps {
+    display: grid;
+    gap: 2px;
+    height: 24px;
+  }
+
+  .threshold-track__cell {
+    background: var(--track-tint);
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    border-radius: calc(var(--button-radius) * 0.6);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-shadow) 14%, transparent);
+    min-width: 0;
+    padding: 0;
+    transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 120ms ease;
+  }
+
+  .threshold-track__cell--filled {
+    background: var(--track-fill);
+    border-color: color-mix(in srgb, var(--track-fill) 60%, var(--color-ink));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
+  }
+
+  .threshold-track__cell--zone-start {
+    border-left-color: color-mix(in srgb, var(--color-ink) 55%, transparent);
+    border-left-width: 2px;
+  }
+
+  .threshold-track__cell--filled.threshold-track__cell--zone-start {
+    border-left-color: color-mix(in srgb, var(--color-paper) 75%, var(--track-fill));
+  }
+
+  button.threshold-track__cell {
+    cursor: pointer;
+  }
+
+  button.threshold-track__cell:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-1px);
+  }
+
+  .threshold-track__bar {
+    background: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+    height: 24px;
+    overflow: hidden;
+    position: relative;
+    touch-action: none;
+  }
+
+  .threshold-track__bar--editable {
+    cursor: ew-resize;
+  }
+
+  .threshold-track__bar-zone {
+    background: var(--track-tint);
+    bottom: 0;
+    box-sizing: border-box;
+    position: absolute;
+    top: 0;
+  }
+
+  .threshold-track__bar-zone:not(:first-child) {
+    border-left: 1px solid color-mix(in srgb, var(--color-ink) 40%, transparent);
+  }
+
+  .threshold-track__bar-zone-fill {
+    background: var(--track-fill);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
+    height: 100%;
+    transition: width 160ms ease-out;
+  }
+
+  .threshold-track__bar--scrubbing .threshold-track__bar-zone-fill {
+    transition: none;
+  }
+
+  .threshold-track__legend {
+    display: flex;
+    min-height: 12px;
+  }
+
+  .threshold-track__legend-item {
+    color: var(--color-muted);
+    flex-basis: 0;
+    font-size: 10px;
+    line-height: 12px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0 2px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .threshold-track__legend-item--active {
+    color: var(--color-ink);
+    font-weight: 700;
+  }
+
+  .threshold-track__value {
+    align-items: baseline;
+    color: var(--color-ink);
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .threshold-track__value strong {
+    font-size: 13px;
+  }
+
+  .threshold-track__value-max {
+    color: var(--color-muted);
+  }
+
+  .threshold-track__zone-chip {
+    align-items: center;
+    background: color-mix(in srgb, var(--zone-color) 20%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--zone-color) 60%, transparent);
+    border-radius: var(--button-radius);
+    color: var(--color-ink);
+    display: inline-flex;
+    flex: 0 1 auto;
+    font-size: 10px;
+    font-weight: 700;
+    gap: 4px;
+    line-height: 14px;
+    max-width: 60%;
+    min-width: 0;
+    padding: 0 6px;
+  }
+
+  .threshold-track__zone-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .threshold-track__zone-modifier {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+  }
+
+  .xp-level__badge {
+    align-items: center;
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+    border-radius: var(--button-radius);
+    color: var(--color-ink);
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 46px;
+    padding: 3px 8px;
+  }
+
+  .xp-level__badge-caption {
+    color: var(--color-muted);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 11px;
+    text-transform: uppercase;
+  }
+
+  .xp-level__badge-number {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    line-height: 26px;
+  }
+
+  .xp-level__badge--level-up {
+    animation: xp-level-up 1200ms ease-out;
+  }
+
+  @keyframes xp-level-up {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 70%, transparent);
+      transform: scale(1);
+    }
+    25% {
+      transform: scale(1.12);
+    }
+    100% {
+      box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-accent) 0%, transparent);
+      transform: scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .xp-level__badge--level-up {
+      animation: none;
+    }
+  }
+
+  .xp-level__details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .xp-level__title {
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 15px;
+  }
+
+  .xp-level__bar {
+    background: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+    height: 12px;
+    overflow: hidden;
+  }
+
+  .xp-level__bar-fill {
+    background: var(--color-accent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-paper) 28%, transparent);
+    height: 100%;
+    transition: width 220ms ease-out;
+  }
+
+  .xp-level__xp {
+    color: var(--color-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    line-height: 14px;
+    white-space: nowrap;
+  }
+
+  .xp-level__xp strong {
+    color: var(--color-ink);
+    font-size: 12px;
+  }
+
+  .skill-tree__scroll {
+    display: flex;
+    overflow: auto;
+    position: relative;
+    z-index: 70;
+  }
+
+  .skill-tree__canvas {
+    flex: none;
+    margin: auto;
+    position: relative;
+  }
+
+  .skill-tree__links {
+    inset: 0;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .skill-tree__link {
+    fill: none;
+    stroke: color-mix(in srgb, var(--color-border) 70%, transparent);
+    stroke-dasharray: 3 3;
+    stroke-width: 1.5;
+    transition: stroke 160ms ease;
+  }
+
+  .skill-tree__link--ready {
+    stroke: color-mix(in srgb, var(--skill-color, var(--color-accent)) 70%, transparent);
+    stroke-dasharray: none;
+  }
+
+  .skill-tree__link--active {
+    stroke: var(--skill-color, var(--color-accent));
+    stroke-dasharray: none;
+    stroke-width: 2.5;
+  }
+
+  .skill-tree__node {
+    align-items: center;
+    background: var(--color-paper);
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    color: var(--color-ink);
+    display: flex;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    justify-content: center;
+    line-height: 13px;
+    padding: 4px 8px;
+    position: absolute;
+    text-align: center;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease, transform 120ms ease;
+  }
+
+  .skill-tree__node-name {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .skill-tree__node--unlocked {
+    background: var(--skill-color, var(--color-accent));
+    border-color: color-mix(in srgb, var(--skill-color, var(--color-accent)) 60%, var(--color-ink));
+    color: var(--color-paper);
+  }
+
+  .skill-tree__node--available {
+    border-color: var(--skill-color, var(--color-accent));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--skill-color, var(--color-accent)) 22%, transparent);
+  }
+
+  .skill-tree__node--unaffordable {
+    border-style: dashed;
+    color: var(--color-muted);
+  }
+
+  .skill-tree__node--locked {
+    border-style: dashed;
+    opacity: 0.55;
+  }
+
+  .skill-tree__node--actionable {
+    cursor: pointer;
+  }
+
+  .skill-tree__node--actionable:hover {
+    transform: translateY(-1px);
+  }
+
+  .skill-tree__node--actionable:active {
+    transform: translateY(0);
+  }
+
+  .skill-tree__node--selected {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  .skill-tree__details {
+    align-items: center;
+    background: color-mix(in srgb, var(--color-background) 52%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+    border-radius: var(--button-radius);
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    max-height: 45%;
+    overflow-y: auto;
+    padding: 6px 8px;
+    position: relative;
+    z-index: 70;
+  }
+
+  .skill-tree__details-name {
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+  }
+
+  .skill-tree__details-text {
+    color: var(--color-ink);
+    font-size: 11px;
+    line-height: 15px;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .skill-tree__details-hint {
+    color: var(--color-muted);
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .skill-tree__badge {
+    align-items: center;
+    background: var(--color-ink);
+    border: 1px solid var(--color-paper);
+    border-radius: 999px;
+    color: var(--color-paper);
+    display: flex;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    height: 16px;
+    justify-content: center;
+    min-width: 16px;
+    padding: 0 3px;
+    position: absolute;
+    right: -7px;
+    top: -7px;
+  }
+
+  .skill-tree__badge--check {
+    background: var(--color-paper);
+    border-color: color-mix(in srgb, var(--skill-color, var(--color-accent)) 60%, var(--color-ink));
+    color: var(--skill-color, var(--color-accent));
+  }
+
+  .skill-tree__points {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .skill-tree__points-value {
+    color: var(--color-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .skill-tree__points-value strong {
+    color: var(--color-ink);
+    font-size: 13px;
+  }
+
+  .skill-tree__points-value--over strong {
+    color: #dc2626;
+  }
+
+  .dice-pool__size {
+    color: var(--color-muted);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .dice-pool__chips,
+  .dice-pool__controls {
+    position: relative;
+    z-index: 70;
+  }
+
+  .dice-pool__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .dice-pool__controls {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+  }
+
+  .dice-pool__chip {
+    align-items: center;
+    background: var(--color-paper);
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: var(--button-radius);
+    color: var(--color-ink);
+    display: inline-flex;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    gap: 6px;
+    line-height: 14px;
+    max-width: 100%;
+    min-height: 24px;
+    padding: 2px 8px;
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+
+  button.dice-pool__chip {
+    cursor: pointer;
+  }
+
+  button.dice-pool__chip:hover {
+    border-color: var(--color-accent);
+  }
+
+  .dice-pool__chip--active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  button.dice-pool__chip--active:hover {
+    border-color: var(--color-ink);
+  }
+
+  .dice-pool__chip-count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    opacity: 0.8;
+  }
+
+  .dice-pool__bonus {
+    color: var(--color-ink);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  .dice-pool__result {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dice-pool__dice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+  }
+
+  .dice-pool__die {
+    align-items: center;
+    animation: dice-pool-pop 220ms ease-out backwards;
+    background: color-mix(in srgb, var(--color-ink) 8%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    border-radius: calc(var(--button-radius) * 0.6);
+    color: var(--color-muted);
+    display: flex;
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    height: 24px;
+    justify-content: center;
+    min-width: 24px;
+    padding: 0 4px;
+  }
+
+  .dice-pool__die--hit,
+  .dice-pool__die--best {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  .dice-pool__die--cancel {
+    background: color-mix(in srgb, #dc2626 16%, var(--color-paper));
+    border-color: #dc2626;
+    color: #dc2626;
+  }
+
+  .dice-pool__die--dropped {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+
+  .dice-pool__die--group-start {
+    margin-left: 6px;
+  }
+
+  button.dice-pool__die--selectable {
+    cursor: pointer;
+    transition: box-shadow 120ms ease, transform 120ms ease;
+  }
+
+  button.dice-pool__die--selectable:hover {
+    transform: translateY(-1px);
+  }
+
+  .dice-pool__die--selected {
+    box-shadow: 0 0 0 2px var(--color-ink);
+    transform: translateY(-1px);
+  }
+
+  .dice-pool__summary {
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+  }
+
+  .dice-pool__summary--failure {
+    color: var(--color-muted);
+  }
+
+  .dice-pool__summary--botch {
+    color: #dc2626;
+  }
+
+  .dice-pool__summary--critical {
+    color: var(--color-accent);
+  }
+
+  @keyframes dice-pool-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.7);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dice-pool__die {
+      animation: none;
+    }
+  }
+
   .health-bar__actions {
     justify-content: flex-end;
   }

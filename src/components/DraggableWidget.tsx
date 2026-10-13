@@ -53,6 +53,10 @@ import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WalletWidget from './widgets/WalletWidget';
+import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
+import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
+import SkillTreeWidget from './widgets/SkillTreeWidget';
+import DicePoolWidget from './widgets/DicePoolWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
@@ -118,6 +122,10 @@ const MIN_DIMENSIONS: Record<WidgetType, { width: number; height: number }> = {
   'TIMER': { width: 80, height: 60 },
   'STEP_DICE': { width: 70, height: 40 },
   'WALLET': { width: 120, height: 60 },
+  'THRESHOLD_TRACK': { width: 120, height: 56 },
+  'XP_LEVEL': { width: 140, height: 60 },
+  'SKILL_TREE': { width: 120, height: 80 },
+  'DICE_POOL': { width: 130, height: 70 },
 };
 
 type StoreState = ReturnType<typeof useStore.getState>;
@@ -734,6 +742,10 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       case 'WALLET': return <WalletWidget {...props} />;
+      case 'THRESHOLD_TRACK': return <ThresholdTrackWidget {...props} />;
+      case 'XP_LEVEL': return <ExperienceLevelWidget {...props} />;
+      case 'SKILL_TREE': return <SkillTreeWidget {...props} />;
+      case 'DICE_POOL': return <DicePoolWidget {...props} />;
       default: return null;
     }
   };

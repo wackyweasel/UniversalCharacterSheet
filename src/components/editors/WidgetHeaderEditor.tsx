@@ -13,6 +13,7 @@ const LABEL_WIDGET_TYPES = new Set<WidgetType>([
   'DECK',
   'DICE_ROLLER',
   'DICE_TRAY',
+  'DICE_POOL',
   'FORM',
   'MIXED_FIELDS',
   'GRID_MAP',
@@ -29,14 +30,17 @@ const LABEL_WIDGET_TYPES = new Set<WidgetType>([
   'ROLL_TABLE',
   'SPELL_SLOT',
   'STEP_DICE',
+  'SKILL_TREE',
   'TABLE',
   'TEXT',
+  'THRESHOLD_TRACK',
   'TIME_TRACKER',
   'TIMER',
   'TOGGLE',
   'TOGGLE_GROUP',
   'IMAGE',
   'WALLET',
+  'XP_LEVEL',
 ]);
 
 const HEADER_CONTROL_WIDGET_TYPES = new Set<WidgetType>([

@@ -31,6 +31,10 @@ import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WalletWidget from './widgets/WalletWidget';
+import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
+import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
+import SkillTreeWidget from './widgets/SkillTreeWidget';
+import DicePoolWidget from './widgets/DicePoolWidget';
 
 const PREVIEW_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
@@ -627,6 +631,86 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       walletShowTotal: true,
     },
   },
+  THRESHOLD_TRACK: {
+    id: 'preview-threshold-track',
+    type: 'THRESHOLD_TRACK',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 92,
+    locked: true,
+    data: {
+      label: 'Wounds',
+      currentValue: 5,
+      minValue: 0,
+      maxValue: 10,
+      trackStyle: 'steps',
+      trackThresholds: [
+        { id: 'preview-zone-1', name: 'Bruised', value: 3 },
+        { id: 'preview-zone-2', name: 'Hurt', value: 6, modifier: -1 },
+        { id: 'preview-zone-3', name: 'Crippled', value: 9, modifier: -2 },
+      ],
+    },
+  },
+  XP_LEVEL: {
+    id: 'preview-xp-level',
+    type: 'XP_LEVEL',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 96,
+    locked: true,
+    data: {
+      label: 'Experience',
+      currentValue: 1450,
+      xpLevels: [
+        { id: 'preview-level-1', xp: 0 },
+        { id: 'preview-level-2', xp: 300 },
+        { id: 'preview-level-3', xp: 900 },
+        { id: 'preview-level-4', xp: 2700 },
+      ],
+    },
+  },
+  SKILL_TREE: {
+    id: 'preview-skill-tree',
+    type: 'SKILL_TREE',
+    x: 0,
+    y: 0,
+    w: 300,
+    h: 130,
+    locked: true,
+    data: {
+      label: 'Talents',
+      currentValue: 3,
+      skillNodes: [
+        { id: 'preview-skill-1', name: 'Foundation', cost: 1, requires: [], unlocked: true },
+        { id: 'preview-skill-2', name: 'Technique', cost: 1, requires: ['preview-skill-1'], unlocked: true },
+        { id: 'preview-skill-3', name: 'Mastery', cost: 2, requires: ['preview-skill-2'], unlocked: false },
+        { id: 'preview-skill-4', name: 'Specialty', cost: 2, requires: ['preview-skill-1'], unlocked: false },
+      ],
+    },
+  },
+  DICE_POOL: {
+    id: 'preview-dice-pool',
+    type: 'DICE_POOL',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 130,
+    locked: true,
+    data: {
+      label: 'Dice pool',
+      dicePoolFaces: 10,
+      dicePoolRule: 'successes',
+      dicePoolTarget: 8,
+      dicePoolOnesCancel: true,
+      dicePoolComponents: [
+        { id: 'preview-pool-1', name: 'Strength', dice: 3, active: true },
+        { id: 'preview-pool-2', name: 'Brawl', dice: 2, active: true },
+        { id: 'preview-pool-3', name: 'Knife', dice: 1, active: false },
+      ],
+    },
+  },
 };
 
 function renderWidget(widget: Widget) {
@@ -669,6 +753,10 @@ function renderWidget(widget: Widget) {
     case 'TIMER': return <TimerWidget {...props} />;
     case 'STEP_DICE': return <StepDiceWidget {...props} showFieldControls={false} interactive={false} />;
     case 'WALLET': return <WalletWidget {...props} interactive={false} />;
+    case 'THRESHOLD_TRACK': return <ThresholdTrackWidget {...props} interactive={false} />;
+    case 'XP_LEVEL': return <ExperienceLevelWidget {...props} interactive={false} />;
+    case 'SKILL_TREE': return <SkillTreeWidget {...props} interactive={false} />;
+    case 'DICE_POOL': return <DicePoolWidget {...props} interactive={false} />;
     default: return null;
   }
 }

@@ -38,6 +38,10 @@ import {
   TimerEditor,
   StepDiceEditor,
   WalletEditor,
+  ThresholdTrackEditor,
+  ExperienceLevelEditor,
+  SkillTreeEditor,
+  DicePoolEditor,
   WidgetHeaderEditor,
 } from './editors';
 
@@ -73,6 +77,10 @@ import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WalletWidget from './widgets/WalletWidget';
+import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
+import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
+import SkillTreeWidget from './widgets/SkillTreeWidget';
+import DicePoolWidget from './widgets/DicePoolWidget';
 
 interface Props {
   widget: Widget;
@@ -112,6 +120,10 @@ function getWidgetTitle(type: WidgetType): string {
     'TIMER': 'Timer',
     'STEP_DICE': 'Step Dice',
     'WALLET': 'Wallet',
+    'THRESHOLD_TRACK': 'Threshold Track',
+    'XP_LEVEL': 'XP & Level',
+    'SKILL_TREE': 'Skill Tree',
+    'DICE_POOL': 'Dice Pool',
   };
   return titles[type] || 'Widget';
 }
@@ -197,6 +209,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TIMER': return <TimerEditor {...editorProps} />;
       case 'STEP_DICE': return <StepDiceEditor {...editorProps} />;
       case 'WALLET': return <WalletEditor {...editorProps} />;
+      case 'THRESHOLD_TRACK': return <ThresholdTrackEditor {...editorProps} />;
+      case 'XP_LEVEL': return <ExperienceLevelEditor {...editorProps} />;
+      case 'SKILL_TREE': return <SkillTreeEditor {...editorProps} />;
+      case 'DICE_POOL': return <DicePoolEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -254,6 +270,10 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       case 'WALLET': return <WalletWidget {...props} interactive={false} />;
+      case 'THRESHOLD_TRACK': return <ThresholdTrackWidget {...props} interactive={false} />;
+      case 'XP_LEVEL': return <ExperienceLevelWidget {...props} interactive={false} />;
+      case 'SKILL_TREE': return <SkillTreeWidget {...props} interactive={false} />;
+      case 'DICE_POOL': return <DicePoolWidget {...props} interactive={false} />;
       default: return null;
     }
   };

@@ -156,6 +156,21 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
     case 'WALLET':
       data.walletCurrencies?.forEach((currency) => add('Currency', currency.name));
       break;
+    case 'THRESHOLD_TRACK':
+      data.trackThresholds?.forEach((threshold) => add('Zone', threshold.name));
+      break;
+    case 'XP_LEVEL':
+      data.xpLevels?.forEach((level) => add('Level title', level.name));
+      break;
+    case 'SKILL_TREE':
+      data.skillNodes?.forEach((skill) => {
+        add('Skill', skill.name);
+        add(skill.name || 'Skill description', skill.description);
+      });
+      break;
+    case 'DICE_POOL':
+      data.dicePoolComponents?.forEach((component) => add('Pool trait', component.name));
+      break;
   }
 
   return segments;

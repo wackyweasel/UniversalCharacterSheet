@@ -30,4 +30,8 @@ export { CardTableEditor } from './CardDeckEditor';
 export { TimerEditor } from './TimerEditor';
 export { StepDiceEditor } from './StepDiceEditor';
 export { WalletEditor } from './WalletEditor';
+export { ThresholdTrackEditor } from './ThresholdTrackEditor';
+export { ExperienceLevelEditor } from './ExperienceLevelEditor';
+export { SkillTreeEditor } from './SkillTreeEditor';
+export { DicePoolEditor } from './DicePoolEditor';
 export { WidgetHeaderEditor } from './WidgetHeaderEditor';

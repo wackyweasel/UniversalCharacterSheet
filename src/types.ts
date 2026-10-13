@@ -32,7 +32,11 @@ export type WidgetType =
   | 'DECK_OF_CARDS'
   | 'TIMER'
   | 'STEP_DICE'
-  | 'WALLET';
+  | 'WALLET'
+  | 'THRESHOLD_TRACK'
+  | 'XP_LEVEL'
+  | 'SKILL_TREE'
+  | 'DICE_POOL';
 
 export interface GridMapPoint {
   column: number;
@@ -345,6 +349,61 @@ export interface ProgressClockItem {
   fillColor?: string;
 }
 
+export interface TrackThreshold {
+  id: string;
+  name: string;
+  /** Track value at which this zone becomes active. */
+  value: number;
+  valueLabel?: string;
+  valueFormula?: string;
+  /** Number exposed while this zone is active (e.g. -1 for a wound penalty). */
+  modifier?: number;
+  color?: string;
+}
+
+export interface ExperienceLevel {
+  id: string;
+  /** Optional title shown with the level (e.g. "Apprentice"). */
+  name?: string;
+  /** Total XP needed to reach this level. */
+  xp: number;
+  xpLabel?: string;
+  xpFormula?: string;
+}
+
+export interface SkillTreeNode {
+  id: string;
+  name: string;
+  description?: string;
+  /** Points spent while the skill is unlocked. */
+  cost: number;
+  /** Ids of the skills that must be unlocked first. */
+  requires: string[];
+  unlocked: boolean;
+  /** Variable label that is 1 while the skill is unlocked and 0 otherwise. */
+  unlockedLabel?: string;
+}
+
+export interface DicePoolComponent {
+  id: string;
+  name: string;
+  /** Number of dice this trait adds while it is in the pool. */
+  dice: number;
+  diceLabel?: string;
+  diceFormula?: string;
+  /** Die size for this trait; the pool's die size is used when empty. */
+  faces?: number;
+  /** Whether the trait is currently part of the pool. */
+  active: boolean;
+}
+
+export interface DicePoolTier {
+  id: string;
+  /** Lowest die result that reaches this tier. */
+  min: number;
+  label: string;
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -564,6 +623,32 @@ export interface WidgetData {
   walletCurrencies?: WalletCurrency[]; // Ordered from smallest to largest
   walletShowTotal?: boolean;
   walletTotalCurrency?: number;        // Index of the currency used for the total (default: largest)
+  // Threshold Track (also uses currentValue, minValue, maxValue, increment, showIncrementButtons and fillColor)
+  trackThresholds?: TrackThreshold[];
+  trackStyle?: 'steps' | 'bar';
+  trackThresholdMode?: 'rising' | 'falling'; // Whether zones start at or above, or at or below, their threshold
+  trackShowZoneNames?: boolean;
+  // XP & Level (currentValue holds the total XP; also uses fillColor)
+  xpLevels?: ExperienceLevel[];
+  xpFirstLevel?: number;
+  xpShowLevelName?: boolean;
+  // Skill Tree (currentValue holds the total points to spend; also uses fillColor)
+  skillNodes?: SkillTreeNode[];
+  skillTreeUsePoints?: boolean;
+  skillTreeOrientation?: 'horizontal' | 'vertical' | 'bottom-up';
+  // Dice Pool
+  dicePoolComponents?: DicePoolComponent[];
+  dicePoolFaces?: number;
+  dicePoolRule?: 'successes' | 'highest';
+  dicePoolTarget?: number;          // Successes rule: lowest die result that counts
+  dicePoolOnesCancel?: boolean;     // Successes rule: each 1 removes a success, and a roll of only failures with a 1 is a botch
+  dicePoolTiers?: DicePoolTier[];   // Highest rule: outcomes by the best die
+  dicePoolCritical?: boolean;       // Highest rule: two or more dice in the top tier
+  dicePoolEmptyRoll?: boolean;      // Highest rule: an empty pool rolls two dice and keeps the lowest
+  dicePoolBonus?: number;           // Extra (or removed) dice for this roll
+  dicePoolShowBonus?: boolean;
+  dicePoolClearAfterRoll?: boolean;
+  dicePoolButtonText?: string;
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values

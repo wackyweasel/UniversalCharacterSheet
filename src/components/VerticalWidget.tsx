@@ -39,6 +39,10 @@ import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
 import StepDiceWidget from './widgets/StepDiceWidget';
 import WalletWidget from './widgets/WalletWidget';
+import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
+import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
+import SkillTreeWidget from './widgets/SkillTreeWidget';
+import DicePoolWidget from './widgets/DicePoolWidget';
 
 interface Props {
   widget: Widget;
@@ -200,6 +204,10 @@ export default function VerticalWidget({
       case 'TIMER': return <TimerWidget {...props} />;
       case 'STEP_DICE': return <StepDiceWidget {...props} />;
       case 'WALLET': return <WalletWidget {...props} />;
+      case 'THRESHOLD_TRACK': return <ThresholdTrackWidget {...props} />;
+      case 'XP_LEVEL': return <ExperienceLevelWidget {...props} />;
+      case 'SKILL_TREE': return <SkillTreeWidget {...props} />;
+      case 'DICE_POOL': return <DicePoolWidget {...props} />;
       default: return null;
     }
   };

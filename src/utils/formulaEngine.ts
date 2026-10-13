@@ -1,7 +1,11 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField, RollTableItem } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
-import type { ProgressClockItem, TableMerge } from '../types';
+import type { DicePoolComponent, ExperienceLevel, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
+import { clampTrackValue, getTrackBounds, getTrackDerivedValue } from './thresholdTrack';
+import { getExperienceDerivedValue, normalizeXp } from './experienceLevel';
+import { getSkillDerivedValue, normalizeSkillPoints } from './skillTree';
+import { getDicePoolDerivedValue, normalizeDiceCount, normalizePoolTarget } from './dicePool';
 import { isCoveredTableCell, validateTableMerges } from './tableCells';
 import {
   extractFormulaLabelReferences,
@@ -89,6 +93,22 @@ export function collectLabels(character: Character): FormulaLabels {
       for (const clock of data.clockItems ?? []) {
         if (clock.segmentsLabel) labels[clock.segmentsLabel] = getClockSegments(clock.segments);
         if (clock.valueLabel) labels[clock.valueLabel] = getClockValue(clock.value, clock.segments);
+      }
+
+      for (const threshold of data.trackThresholds ?? []) {
+        if (threshold.valueLabel) labels[threshold.valueLabel] = threshold.value;
+      }
+
+      for (const level of data.xpLevels ?? []) {
+        if (level.xpLabel) labels[level.xpLabel] = level.xp;
+      }
+
+      for (const skill of data.skillNodes ?? []) {
+        if (skill.unlockedLabel) labels[skill.unlockedLabel] = skill.unlocked ? 1 : 0;
+      }
+
+      for (const component of data.dicePoolComponents ?? []) {
+        if (component.diceLabel) labels[component.diceLabel] = normalizeDiceCount(component.dice);
       }
 
       if (data.poolResources) {
@@ -207,6 +227,14 @@ function getFieldValue(data: WidgetData, field: string): number | undefined {
     case 'state': return typeof data.toggleState === 'boolean' ? Number(data.toggleState) : undefined;
     case 'localCapacity': return typeof data.inventoryEncumbrance?.localCapacity === 'number' ? data.inventoryEncumbrance.localCapacity : undefined;
     case 'globalCapacity': return typeof data.inventoryEncumbrance?.globalCapacity === 'number' ? data.inventoryEncumbrance.globalCapacity : undefined;
+    case 'trackZone':
+    case 'trackModifier': return getTrackDerivedValue(data, field);
+    case 'xpLevel':
+    case 'xpToNext': return getExperienceDerivedValue(data, field);
+    case 'skillPointsLeft':
+    case 'skillsUnlocked': return getSkillDerivedValue(data, field);
+    case 'dicePoolTarget': return typeof data.dicePoolTarget === 'number' ? data.dicePoolTarget : undefined;
+    case 'dicePoolSize': return getDicePoolDerivedValue(data, field);
     default: return undefined;
   }
 }
@@ -974,6 +1002,9 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'value', 'valueFormula', 'name');
   checkArrayChanges(oldWidget.data.clockItems, newWidget.data.clockItems, 'segments', 'segmentsFormula', 'name');
   checkArrayChanges(oldWidget.data.clockItems, newWidget.data.clockItems, 'value', 'valueFormula', 'name');
+  checkArrayChanges(oldWidget.data.trackThresholds, newWidget.data.trackThresholds, 'value', 'valueFormula', 'name');
+  checkArrayChanges(oldWidget.data.xpLevels, newWidget.data.xpLevels, 'xp', 'xpFormula', 'name');
+  checkArrayChanges(oldWidget.data.dicePoolComponents, newWidget.data.dicePoolComponents, 'dice', 'diceFormula', 'name');
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'minValue', 'minValueFormula', 'name');
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'maxValue', 'maxValueFormula', 'name');
   checkArrayChanges(oldWidget.data.displayNumbers, newWidget.data.displayNumbers, 'value', 'valueFormula', 'label');
@@ -1061,7 +1092,13 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
       if (formula) {
         const computed = evaluateFormula(formula, labels);
         if (computed !== null) {
-          if (widget.type === 'PROGRESS_BAR' && field === 'currentValue' && !widget.data.allowOutOfRange) {
+          const clampsCurrentValue = field === 'currentValue' && (
+            (widget.type === 'PROGRESS_BAR' && !widget.data.allowOutOfRange)
+            || widget.type === 'THRESHOLD_TRACK'
+            || widget.type === 'XP_LEVEL'
+            || widget.type === 'SKILL_TREE'
+          );
+          if (clampsCurrentValue) {
             updates.currentValue = computed;
             continue;
           }
@@ -1069,7 +1106,9 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
           const currentVal = getFieldValue(widget.data, field);
           const resolvedValue = field === 'localCapacity' || field === 'globalCapacity' || field === 'temporaryValue'
             ? Math.max(0, computed)
-            : field === 'state'
+            : field === 'dicePoolTarget'
+              ? normalizePoolTarget(computed)
+              : field === 'state'
               ? Number(computed !== 0)
               : computed;
           if (currentVal !== resolvedValue) {
@@ -1084,6 +1123,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
               case 'currentPool': updates.currentPool = resolvedValue; break;
               case 'modifier': updates.modifier = resolvedValue; break;
               case 'healFlatAmount': updates.healFlatAmount = resolvedValue; break;
+              case 'dicePoolTarget': updates.dicePoolTarget = resolvedValue; break;
               case 'state': updates.toggleState = resolvedValue === 1; break;
               case 'localCapacity':
               case 'globalCapacity':
@@ -1136,6 +1176,46 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
     if (originalCurrentValue !== clampedValue) {
       changed = true;
       updates.currentValue = clampedValue;
+    }
+  }
+
+  if (widget.type === 'THRESHOLD_TRACK') {
+    const { min, max } = getTrackBounds({
+      minValue: updates.minValue ?? widget.data.minValue,
+      maxValue: updates.maxValue ?? widget.data.maxValue,
+    });
+    const originalValue = widget.data.currentValue;
+    const nextValue = updates.currentValue ?? originalValue;
+    if (nextValue !== undefined) {
+      const clampedValue = clampTrackValue(nextValue, min, max);
+      if (clampedValue !== originalValue) {
+        changed = true;
+        updates.currentValue = clampedValue;
+      }
+    }
+  }
+
+  if (widget.type === 'XP_LEVEL') {
+    const originalValue = widget.data.currentValue;
+    const nextValue = updates.currentValue ?? originalValue;
+    if (nextValue !== undefined) {
+      const normalizedValue = normalizeXp(nextValue);
+      if (normalizedValue !== originalValue) {
+        changed = true;
+        updates.currentValue = normalizedValue;
+      }
+    }
+  }
+
+  if (widget.type === 'SKILL_TREE') {
+    const originalValue = widget.data.currentValue;
+    const nextValue = updates.currentValue ?? originalValue;
+    if (nextValue !== undefined) {
+      const normalizedValue = normalizeSkillPoints(nextValue);
+      if (normalizedValue !== originalValue) {
+        changed = true;
+        updates.currentValue = normalizedValue;
+      }
     }
   }
 
@@ -1240,6 +1320,30 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
     if (clockItems.some((clock, index) => clock !== widget.data.clockItems![index])) {
       changed = true;
       updates.clockItems = clockItems;
+    }
+  }
+
+  if (widget.data.trackThresholds) {
+    const trackThresholds = widget.data.trackThresholds.map((threshold) => resolveTrackThresholdFormulas(threshold, labels));
+    if (trackThresholds.some((threshold, index) => threshold !== widget.data.trackThresholds![index])) {
+      changed = true;
+      updates.trackThresholds = trackThresholds;
+    }
+  }
+
+  if (widget.data.xpLevels) {
+    const xpLevels = widget.data.xpLevels.map((level) => resolveExperienceLevelFormulas(level, labels));
+    if (xpLevels.some((level, index) => level !== widget.data.xpLevels![index])) {
+      changed = true;
+      updates.xpLevels = xpLevels;
+    }
+  }
+
+  if (widget.data.dicePoolComponents) {
+    const dicePoolComponents = widget.data.dicePoolComponents.map((component) => resolveDicePoolComponentFormulas(component, labels));
+    if (dicePoolComponents.some((component, index) => component !== widget.data.dicePoolComponents![index])) {
+      changed = true;
+      updates.dicePoolComponents = dicePoolComponents;
     }
   }
 
@@ -1500,6 +1604,30 @@ export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: F
   return segments === clock.segments && value === clock.value ? clock : { ...clock, segments, value };
 }
 
+export function resolveTrackThresholdFormulas(threshold: TrackThreshold, labels: FormulaLabels): TrackThreshold {
+  if (!threshold.valueFormula || isFormulaBroken(threshold.valueFormula, labels)) return threshold;
+  const computed = evaluateFormula(threshold.valueFormula, labels);
+  if (computed === null || !Number.isFinite(computed)) return threshold;
+  const value = Math.round(computed);
+  return value === threshold.value ? threshold : { ...threshold, value };
+}
+
+export function resolveExperienceLevelFormulas(level: ExperienceLevel, labels: FormulaLabels): ExperienceLevel {
+  if (!level.xpFormula || isFormulaBroken(level.xpFormula, labels)) return level;
+  const computed = evaluateFormula(level.xpFormula, labels);
+  if (computed === null || !Number.isFinite(computed)) return level;
+  const xp = normalizeXp(computed);
+  return xp === level.xp ? level : { ...level, xp };
+}
+
+export function resolveDicePoolComponentFormulas(component: DicePoolComponent, labels: FormulaLabels): DicePoolComponent {
+  if (!component.diceFormula || isFormulaBroken(component.diceFormula, labels)) return component;
+  const computed = evaluateFormula(component.diceFormula, labels);
+  if (computed === null || !Number.isFinite(computed)) return component;
+  const dice = normalizeDiceCount(computed);
+  return dice === component.dice ? component : { ...component, dice };
+}
+
 export function getAvailableLabels(character: Character): { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] {
   const result: { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] = [];
 
@@ -1566,6 +1694,22 @@ export function getAvailableLabels(character: Character): { label: string; value
       for (const clock of data.clockItems ?? []) {
         if (clock.segmentsLabel) result.push({ label: clock.segmentsLabel, value: getClockSegments(clock.segments), widgetLabel, sheetName: sheet.name });
         if (clock.valueLabel) result.push({ label: clock.valueLabel, value: getClockValue(clock.value, clock.segments), widgetLabel, sheetName: sheet.name });
+      }
+
+      for (const threshold of data.trackThresholds ?? []) {
+        if (threshold.valueLabel) result.push({ label: threshold.valueLabel, value: threshold.value, widgetLabel, sheetName: sheet.name });
+      }
+
+      for (const level of data.xpLevels ?? []) {
+        if (level.xpLabel) result.push({ label: level.xpLabel, value: level.xp, widgetLabel, sheetName: sheet.name });
+      }
+
+      for (const skill of data.skillNodes ?? []) {
+        if (skill.unlockedLabel) result.push({ label: skill.unlockedLabel, value: skill.unlocked ? 1 : 0, widgetLabel, sheetName: sheet.name });
+      }
+
+      for (const component of data.dicePoolComponents ?? []) {
+        if (component.diceLabel) result.push({ label: component.diceLabel, value: normalizeDiceCount(component.dice), widgetLabel, sheetName: sheet.name });
       }
 
       if (data.mixedFields) {
@@ -1704,6 +1848,26 @@ export function buildDependencyGraph(character: Character): Record<string, strin
         }
       }
 
+      // Labels derived from the widget state (active zone, level) depend on the labels that feed that state
+      if (data.fieldLabels && (widget.type === 'THRESHOLD_TRACK' || widget.type === 'XP_LEVEL' || widget.type === 'SKILL_TREE' || widget.type === 'DICE_POOL')) {
+        const isTrack = widget.type === 'THRESHOLD_TRACK';
+        const isSkillTree = widget.type === 'SKILL_TREE';
+        const isDicePool = widget.type === 'DICE_POOL';
+        const sources = [
+          data.fieldLabels.currentValue,
+          ...(isTrack ? [data.fieldLabels.minValue, data.fieldLabels.maxValue] : []),
+          ...(isTrack ? (data.trackThresholds ?? []).map((threshold) => threshold.valueLabel) : []),
+          ...(widget.type === 'XP_LEVEL' ? (data.xpLevels ?? []).map((level) => level.xpLabel) : []),
+          ...(isSkillTree ? (data.skillNodes ?? []).map((skill) => skill.unlockedLabel) : []),
+          ...(isDicePool ? (data.dicePoolComponents ?? []).map((component) => component.diceLabel) : []),
+        ].filter((source): source is string => !!source);
+        const derivedFields = isTrack ? ['trackZone', 'trackModifier'] : isSkillTree ? ['skillPointsLeft', 'skillsUnlocked'] : isDicePool ? ['dicePoolSize'] : ['xpLevel', 'xpToNext'];
+        for (const field of derivedFields) {
+          const derivedLabel = data.fieldLabels[field];
+          if (derivedLabel) graph[derivedLabel] = Array.from(new Set(sources));
+        }
+      }
+
       // Roll-table option weights
       if (data.rollTableItems) {
         for (const item of data.rollTableItems as RollTableItem[]) {
@@ -1750,6 +1914,18 @@ export function buildDependencyGraph(character: Character): Record<string, strin
       for (const clock of data.clockItems ?? []) {
         if (clock.segmentsLabel && clock.segmentsFormula) graph[clock.segmentsLabel] = extractFormulaRefs(clock.segmentsFormula, labels);
         if (clock.valueLabel && clock.valueFormula) graph[clock.valueLabel] = extractFormulaRefs(clock.valueFormula, labels);
+      }
+
+      for (const threshold of data.trackThresholds ?? []) {
+        if (threshold.valueLabel && threshold.valueFormula) graph[threshold.valueLabel] = extractFormulaRefs(threshold.valueFormula, labels);
+      }
+
+      for (const level of data.xpLevels ?? []) {
+        if (level.xpLabel && level.xpFormula) graph[level.xpLabel] = extractFormulaRefs(level.xpFormula, labels);
+      }
+
+      for (const component of data.dicePoolComponents ?? []) {
+        if (component.diceLabel && component.diceFormula) graph[component.diceLabel] = extractFormulaRefs(component.diceFormula, labels);
       }
 
       if (data.poolResources) {

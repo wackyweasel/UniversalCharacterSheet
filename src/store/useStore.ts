@@ -16,6 +16,7 @@ import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, 
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
+import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -825,11 +826,11 @@ export const useStore = create<StoreState>((set, get) => {
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
         const newWidgetWidth = snapWidgetDimension(
-          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : DEFAULT_WIDTH,
+          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : type === 'THRESHOLD_TRACK' ? 280 : type === 'XP_LEVEL' ? 240 : type === 'SKILL_TREE' ? 440 : type === 'DICE_POOL' ? 260 : DEFAULT_WIDTH,
           DEFAULT_WIDTH,
         ) ?? DEFAULT_WIDTH;
         const newWidgetHeight = snapWidgetDimension(
-          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : DEFAULT_HEIGHT,
+          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : type === 'THRESHOLD_TRACK' || type === 'XP_LEVEL' ? 100 : type === 'SKILL_TREE' ? 190 : type === 'DICE_POOL' ? 230 : DEFAULT_HEIGHT,
           DEFAULT_HEIGHT,
         ) ?? DEFAULT_HEIGHT;
         const GAP = 20;
@@ -938,6 +939,10 @@ export const useStore = create<StoreState>((set, get) => {
             'TIMER': 'Timer',
             'STEP_DICE': 'Step Dice',
             'WALLET': 'Wallet',
+            'THRESHOLD_TRACK': 'Track',
+            'XP_LEVEL': 'Experience',
+            'SKILL_TREE': 'Skills',
+            'DICE_POOL': 'Dice pool',
           };
           return defaultLabels[widgetType] || '';
         };
@@ -1007,6 +1012,53 @@ export const useStore = create<StoreState>((set, get) => {
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
             ...(type === 'WALLET' ? { walletCurrencies: createDefaultWalletCurrencies(), walletShowTotal: true } : {}),
+            ...(type === 'THRESHOLD_TRACK' ? {
+              currentValue: 0,
+              minValue: 0,
+              maxValue: 10,
+              trackStyle: 'steps' as const,
+              trackThresholdMode: 'rising' as const,
+              trackShowZoneNames: true,
+              showValues: true,
+              showIncrementButtons: true,
+              trackThresholds: [
+                { id: uuidv4(), name: 'Uneasy', value: 3 },
+                { id: uuidv4(), name: 'Strained', value: 6, modifier: -1 },
+                { id: uuidv4(), name: 'Critical', value: 9, modifier: -2 },
+              ],
+            } : {}),
+            ...(type === 'XP_LEVEL' ? {
+              currentValue: 0,
+              xpLevels: createExperienceLevels(EXPERIENCE_PRESETS[0].thresholds),
+              xpFirstLevel: 1,
+              xpShowLevelName: true,
+            } : {}),
+            ...(type === 'SKILL_TREE' ? (() => {
+              const [foundation, technique, specialty, capstone] = [uuidv4(), uuidv4(), uuidv4(), uuidv4()];
+              return {
+                currentValue: 3,
+                skillTreeUsePoints: true,
+                skillTreeOrientation: 'horizontal' as const,
+                skillNodes: [
+                  { id: foundation, name: 'Foundation', cost: 1, requires: [], unlocked: false },
+                  { id: technique, name: 'Technique', cost: 1, requires: [foundation], unlocked: false },
+                  { id: specialty, name: 'Specialty', cost: 2, requires: [foundation], unlocked: false },
+                  { id: capstone, name: 'Capstone', cost: 3, requires: [technique, specialty], unlocked: false },
+                ],
+              };
+            })() : {}),
+            ...(type === 'DICE_POOL' ? {
+              dicePoolFaces: 10,
+              dicePoolRule: 'successes' as const,
+              dicePoolTarget: 8,
+              dicePoolOnesCancel: true,
+              dicePoolShowBonus: true,
+              dicePoolComponents: [
+                { id: uuidv4(), name: 'Attribute', dice: 3, active: false },
+                { id: uuidv4(), name: 'Skill', dice: 2, active: false },
+                { id: uuidv4(), name: 'Gear', dice: 1, active: false },
+              ],
+            } : {}),
             ...(type === 'DECK_OF_CARDS' ? {
               cardTableCards: [],
               cardTableDiscardedCards: [],
