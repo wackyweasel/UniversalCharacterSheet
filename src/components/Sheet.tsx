@@ -566,9 +566,8 @@ export default function Sheet() {
   });
 
   // Auto-stack hook
-  const { handleAutoStack } = useAutoStack({
+  const { handleAutoStack, isAutoStacking } = useAutoStack({
     widgets: activeSheetWidgets,
-    scale,
   });
 
   // Fit widgets hook
@@ -1745,7 +1744,9 @@ export default function Sheet() {
           ref={printAreaRef}
           className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${isPanning ? 'camera-gesture-active' : ''} ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
-            transform: getCameraTransform(pan, scale)
+            transform: getCameraTransform(pan, scale),
+            // Widgets render at probe sizes while auto stack measures them.
+            opacity: isAutoStacking ? 0 : undefined,
           }}
         >
           {/* Shadow Layer - rendered below all widgets (respect shadowsDisabled in print mode) */}
@@ -2424,7 +2425,7 @@ export default function Sheet() {
               </button>
               <button
                 onClick={() => {
-                  handleAutoStack();
+                  void handleAutoStack();
                   recordSheetWorkflowEvent('widgets_auto_stacked', 'widget', { widgetCount: activeSheetWidgets.length });
                   setShowAutoStackConfirm(false);
                 }}
@@ -2435,6 +2436,14 @@ export default function Sheet() {
             </div>
           </div>
         </>
+      )}
+
+      {isAutoStacking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center cursor-wait" role="status" aria-live="polite">
+          <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme px-4 py-2 font-body text-sm text-theme-ink animate-fade-in">
+            Arranging widgets…
+          </div>
+        </div>
       )}
 
       <div

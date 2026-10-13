@@ -1,234 +1,333 @@
-import { useCallback } from 'react';
-import { Widget } from '../types';
+import { useCallback, useRef, useState } from 'react';
+import type { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
-import { snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
+import { clearWidgetProbeSizes, setWidgetProbeSizes, type WidgetProbeSize } from '../components/widgetSizeProbe';
+import { computeAutoStackLayout, type AutoStackItem, type AutoStackResult, type AutoStackShape } from '../utils/autoStackLayout';
+import { getMinWidgetDimensions, snapWidgetCoordinate, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 
 interface UseAutoStackOptions {
   widgets: Widget[];
-  scale: number;
 }
 
-const GRID_SIZE = WIDGET_GRID_SIZE;
 const GAP = 10;
+const GRID = WIDGET_GRID_SIZE;
+const ROW_THRESHOLD = 50;
+const CANDIDATE_WIDTHS = [100, 120, 140, 160, 180, 200, 230, 260, 300, 340, 390, 450, 520, 600];
+const MAX_PROBE_WIDTH = 900;
+// Narrower flowing content wraps into hard-to-read columns.
+const MIN_FLOWING_WIDTH = 160;
+// Fill widgets may only grow, so repeated auto stacks do not shrink them.
+const FILL_SCALES = [1, 1.1, 1.25];
+const MAX_GROW_PASSES = 4;
+const MAX_FIX_ROUNDS = 3;
+// Content that fills whatever box it gets; scaled proportionally instead of measured.
+const FILL_TYPES = new Set<WidgetType>(['IMAGE', 'MAP_SKETCHER', 'GRID_MAP', 'DECK_OF_CARDS', 'PROGRESS_CLOCK']);
+// Content that reflows and benefits from extra height.
+const FLOWING_TYPES = new Set<WidgetType>(['TEXT', 'LIST', 'INVENTORY', 'TABLE', 'ROLL_TABLE', 'INITIATIVE_TRACKER', 'TIME_TRACKER', 'SKILL_TREE']);
 
-interface Rect {
+interface Block {
+  id: string;
+  members: { widget: Widget; dx: number; dy: number }[];
   x: number;
   y: number;
   w: number;
   h: number;
+  // Single widget whose size the layout may set.
+  resizable: boolean;
+  measured: boolean;
+  // Takes the largest of its shapes that fits the slot instead of stretching to it.
+  keepAspect: boolean;
+  shapes: AutoStackShape[];
+  growX: number;
+  growY: number;
 }
 
-interface StackableItem {
-  type: 'group' | 'single';
-  id: string;
-  widgets: { id: string; groupId?: string; x: number; y: number; w: number; h: number }[];
-  boundingBox: Rect;
-  originalOffset: { x: number; y: number };
+interface Probe {
+  block: Block;
+  widths: number[];
+  index: number;
+  minHeight: number;
+  height: number;
+  previousHeight: number;
+  previousOverflow: number;
+  previousOverflowX: number;
+  passes: number;
+  heights: number[];
+  overflowingShapes: (AutoStackShape & { overflow: number })[];
 }
 
-export function useAutoStack({ widgets, scale }: UseAutoStackOptions) {
-  const _takeSnapshot = useStore((state) => state._takeSnapshot);
-  const updateWidgetPositionNoSnapshot = useStore((state) => state.updateWidgetPositionNoSnapshot);
-  
-  const handleAutoStack = useCallback(() => {
-    if (widgets.length === 0) return;
-    
-    // Take snapshot before auto-stack (batch operation)
-    _takeSnapshot('Auto stack');
+const snapUp = (value: number) => Math.ceil(value / GRID - 1e-6) * GRID;
 
-    // Get all widget DOM elements and measure their actual sizes
-    const widgetElements = document.querySelectorAll('.canvas-widget[data-widget-id]');
-    const widgetSizes: { id: string; w: number; h: number }[] = [];
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-    widgetElements.forEach((el) => {
-      const id = el.getAttribute('data-widget-id');
-      if (id) {
-        const rect = el.getBoundingClientRect();
-        widgetSizes.push({
-          id,
-          w: Math.ceil(rect.width / scale / GRID_SIZE) * GRID_SIZE,
-          h: Math.ceil(rect.height / scale / GRID_SIZE) * GRID_SIZE,
-        });
-      }
+async function settle() {
+  await nextFrame();
+  await nextFrame();
+}
+
+const findWidgetNode = (id: string) => document.querySelector<HTMLElement>(`.canvas-widget[data-widget-id="${CSS.escape(id)}"]`);
+
+// Largest clipped, scrolled, ellipsised or spilled-text overflow inside a widget, in unscaled CSS pixels.
+function measureOverflow(node: HTMLElement) {
+  let x = 0;
+  let y = 0;
+  const elements = [node, ...Array.from(node.querySelectorAll<HTMLElement>('*'))];
+  for (const element of elements) {
+    const dy = element.scrollHeight - element.clientHeight;
+    const dx = element.scrollWidth - element.clientWidth;
+    if (dy <= 1 && dx <= 1) continue;
+    const style = getComputedStyle(element);
+    if (dy > 1 && style.overflowY !== 'visible') y = Math.max(y, dy);
+    if (dx > 1 && (style.overflowX !== 'visible' || hasOwnText(element))) x = Math.max(x, dx);
+  }
+  return { x, y };
+}
+
+const hasOwnText = (element: HTMLElement) => Array.from(element.childNodes).some((child) => (
+  child.nodeType === Node.TEXT_NODE && !!child.textContent?.trim()
+));
+
+function readRenderedSize(widget: Widget) {
+  const node = findWidgetNode(widget.id);
+  return {
+    w: snapUp(node?.offsetWidth || widget.w || 200),
+    h: snapUp(node?.offsetHeight || widget.h || 120),
+  };
+}
+
+function buildBlocks(widgets: Widget[]): Block[] {
+  const blocks: Block[] = [];
+  const groups = new Map<string, Widget[]>();
+  for (const widget of widgets) {
+    if (widget.groupId) {
+      groups.set(widget.groupId, [...(groups.get(widget.groupId) ?? []), widget]);
+      continue;
+    }
+    const size = readRenderedSize(widget);
+    const resizable = !widget.locked;
+    const keepAspect = resizable && FILL_TYPES.has(widget.type);
+    const measured = resizable && !keepAspect;
+    const flowing = FLOWING_TYPES.has(widget.type);
+    const min = getMinWidgetDimensions(widget.type);
+    const fillShapes = FILL_SCALES
+      .map((scale) => ({ w: snapUp(size.w * scale), h: snapUp(size.h * scale) }))
+      .filter((shape) => shape.w >= min.width && shape.h >= min.height);
+    blocks.push({
+      id: widget.id,
+      members: [{ widget, dx: 0, dy: 0 }],
+      x: widget.x,
+      y: widget.y,
+      ...size,
+      resizable,
+      measured,
+      keepAspect,
+      shapes: measured ? [] : keepAspect && fillShapes.length > 0 ? fillShapes : [size],
+      growX: measured ? 1 : 0,
+      growY: !measured ? 0 : flowing ? 1 : 0.25,
     });
-
-    // Build widget info with measured sizes
-    const widgetInfos = widgets.map(w => {
-      const measured = widgetSizes.find(s => s.id === w.id);
-      return {
-        id: w.id,
-        groupId: w.groupId,
-        x: w.x,
-        y: w.y,
-        w: measured ? measured.w : (w.w || 200),
-        h: measured ? measured.h : (w.h || 120),
-      };
+  }
+  for (const [groupId, members] of groups) {
+    const boxes = members.map((widget) => ({ widget, ...readRenderedSize(widget) }));
+    const minX = Math.min(...boxes.map((box) => box.widget.x));
+    const minY = Math.min(...boxes.map((box) => box.widget.y));
+    const w = snapUp(Math.max(...boxes.map((box) => box.widget.x + box.w)) - minX);
+    const h = snapUp(Math.max(...boxes.map((box) => box.widget.y + box.h)) - minY);
+    blocks.push({
+      id: `group:${groupId}`,
+      members: members.map((widget) => ({ widget, dx: widget.x - minX, dy: widget.y - minY })),
+      x: minX,
+      y: minY,
+      w,
+      h,
+      resizable: false,
+      measured: false,
+      keepAspect: false,
+      shapes: [{ w, h }],
+      growX: 0,
+      growY: 0,
     });
+  }
+  // Reading order: rows top to bottom, then left to right.
+  return blocks.sort((a, b) => (
+    Math.floor(a.y / ROW_THRESHOLD) - Math.floor(b.y / ROW_THRESHOLD) || a.x - b.x
+  ));
+}
 
-    // Group widgets by groupId
-    const groupedWidgets = new Map<string, typeof widgetInfos>();
-    const ungroupedWidgets: typeof widgetInfos = [];
-    
-    for (const widget of widgetInfos) {
-      if (widget.groupId) {
-        const group = groupedWidgets.get(widget.groupId) || [];
-        group.push(widget);
-        groupedWidgets.set(widget.groupId, group);
-      } else {
-        ungroupedWidgets.push(widget);
-      }
+function createProbe(block: Block): Probe {
+  const widget = block.members[0].widget;
+  const min = getMinWidgetDimensions(widget.type);
+  const minWidth = snapUp(FLOWING_TYPES.has(widget.type) ? Math.max(min.width, MIN_FLOWING_WIDTH) : min.width);
+  const minHeight = snapUp(min.height);
+  const widths = Array.from(new Set([...CANDIDATE_WIDTHS, block.w]))
+    .filter((width) => width >= minWidth)
+    .sort((a, b) => a - b);
+  return {
+    block,
+    widths: widths.length > 0 ? widths : [minWidth],
+    index: 0,
+    minHeight,
+    height: minHeight,
+    previousHeight: minHeight,
+    previousOverflow: Infinity,
+    previousOverflowX: Infinity,
+    passes: 0,
+    heights: [],
+    overflowingShapes: [],
+  };
+}
+
+// Applies one measurement to a probe; returns false once the probe is done.
+function stepProbe(probe: Probe): boolean {
+  const node = findWidgetNode(probe.block.id);
+  if (!node) return false;
+  const overflow = measureOverflow(node);
+  if (overflow.y > 1 && probe.passes < MAX_GROW_PASSES && overflow.y < probe.previousOverflow) {
+    probe.previousOverflow = overflow.y;
+    probe.previousHeight = probe.height;
+    probe.height = snapUp(probe.height + overflow.y);
+    probe.passes += 1;
+    return true;
+  }
+  // Overflow that does not shrink when the widget grows is intrinsic; drop the useless growth.
+  let height = probe.height;
+  if (overflow.y > 1) height = overflow.y >= probe.previousOverflow ? probe.previousHeight : snapUp(probe.height + overflow.y);
+  const width = probe.widths[probe.index];
+  probe.index += 1;
+  // Horizontal overflow that a wider probe did not reduce is intrinsic (e.g. fixed-size cells).
+  const clipped = overflow.x > 1 && overflow.x < probe.previousOverflowX;
+  probe.previousOverflowX = overflow.x;
+  if (clipped) {
+    probe.overflowingShapes.push({ w: width, h: height, overflow: overflow.x });
+    // Skip widths that are still too narrow for the clipped content.
+    const needed = width + overflow.x;
+    while (probe.index < probe.widths.length && probe.widths[probe.index] < needed) probe.index += 1;
+    if (probe.index >= probe.widths.length && needed <= MAX_PROBE_WIDTH) probe.widths.push(snapUp(needed));
+  } else {
+    probe.block.shapes.push({ w: width, h: height });
+    probe.heights.push(height);
+    const { heights } = probe;
+    const plateau = heights.length >= 3 && heights[heights.length - 1] === heights[heights.length - 3];
+    if (height <= probe.minHeight || plateau) return false;
+  }
+  if (probe.index >= probe.widths.length) return false;
+  probe.height = probe.minHeight;
+  probe.previousHeight = probe.minHeight;
+  probe.previousOverflow = Infinity;
+  probe.passes = 0;
+  return true;
+}
+
+async function measureShapes(blocks: Block[]) {
+  const probes = blocks.filter((block) => block.measured).map(createProbe);
+  const sizes = new Map<string, WidgetProbeSize>();
+  let active = probes;
+  while (active.length > 0) {
+    for (const probe of active) {
+      const w = probe.widths[probe.index];
+      const previous = sizes.get(probe.block.id);
+      if (!previous || previous.w !== w || previous.h !== probe.height) sizes.set(probe.block.id, { w, h: probe.height });
     }
+    setWidgetProbeSizes(new Map(sizes));
+    // One frame is enough while probing; fixOverflow re-checks the final sizes after two.
+    await nextFrame();
+    active = active.filter(stepProbe);
+  }
+  for (const probe of probes) {
+    const { block } = probe;
+    if (block.shapes.length === 0 && probe.overflowingShapes.length > 0) {
+      // Overflow that no width removes is intrinsic; keep the least overflowing shapes.
+      const least = Math.min(...probe.overflowingShapes.map((shape) => shape.overflow));
+      block.shapes = probe.overflowingShapes
+        .filter((shape) => shape.overflow <= least + 1)
+        .map(({ w, h }) => ({ w, h }));
+    }
+    if (block.shapes.length === 0) {
+      block.measured = false;
+      block.shapes = [{ w: block.w, h: block.h }];
+    }
+  }
+}
 
-    const stackableItems: StackableItem[] = [];
+function getTargetAspect() {
+  const surface = document.querySelector<HTMLElement>('.canvas-touch-surface');
+  const width = surface?.clientWidth || window.innerWidth;
+  const height = surface?.clientHeight || window.innerHeight;
+  return Math.min(3, Math.max(0.5, width / Math.max(1, height)));
+}
 
-    // Process groups
-    for (const [groupId, groupWidgets] of groupedWidgets) {
-      if (groupWidgets.length === 0) continue;
-      
-      const minX = Math.min(...groupWidgets.map(w => w.x));
-      const minY = Math.min(...groupWidgets.map(w => w.y));
-      const maxX = Math.max(...groupWidgets.map(w => w.x + w.w));
-      const maxY = Math.max(...groupWidgets.map(w => w.y + w.h));
-      
-      stackableItems.push({
-        type: 'group',
-        id: groupId,
-        widgets: groupWidgets,
-        boundingBox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
-        originalOffset: { x: minX, y: minY },
+function layoutBlocks(blocks: Block[], targetAspect: number) {
+  const items: AutoStackItem[] = blocks.map((block) => ({
+    id: block.id,
+    shapes: block.shapes,
+    growX: block.growX,
+    growY: block.growY,
+  }));
+  return computeAutoStackLayout(items, { gap: GAP, grid: GRID, targetAspect });
+}
+
+// Renders measured widgets in their final slots and raises shapes that still overflow.
+async function fixOverflow(blocks: Block[], result: AutoStackResult) {
+  const rects = new Map(result.rects.map((rect) => [rect.id, rect]));
+  const sizes = new Map<string, WidgetProbeSize>();
+  for (const block of blocks) {
+    const rect = rects.get(block.id);
+    if (rect && block.measured) sizes.set(block.id, { w: rect.w, h: rect.h });
+  }
+  setWidgetProbeSizes(sizes);
+  await settle();
+  let changed = false;
+  for (const block of blocks) {
+    const rect = rects.get(block.id);
+    const node = block.measured && rect ? findWidgetNode(block.id) : null;
+    if (!rect || !node) continue;
+    const overflow = measureOverflow(node).y;
+    if (overflow <= 1) continue;
+    const needed = snapUp(rect.h + overflow);
+    block.shapes = block.shapes.map((shape) => (shape.w <= rect.w && shape.h < needed ? { w: shape.w, h: needed } : shape));
+    changed = true;
+  }
+  return changed;
+}
+
+export function useAutoStack({ widgets }: UseAutoStackOptions) {
+  const applyWidgetLayouts = useStore((state) => state.applyWidgetLayouts);
+  const [isAutoStacking, setIsAutoStacking] = useState(false);
+  const runningRef = useRef(false);
+
+  const handleAutoStack = useCallback(async () => {
+    if (widgets.length === 0 || runningRef.current) return;
+    runningRef.current = true;
+    setIsAutoStacking(true);
+    try {
+      const originX = snapWidgetCoordinate(Math.min(...widgets.map((widget) => widget.x)));
+      const originY = snapWidgetCoordinate(Math.min(...widgets.map((widget) => widget.y)));
+      const blocks = buildBlocks(widgets);
+      await measureShapes(blocks);
+      const targetAspect = getTargetAspect();
+      let result = layoutBlocks(blocks, targetAspect);
+      for (let round = 0; round < MAX_FIX_ROUNDS && await fixOverflow(blocks, result); round++) {
+        result = layoutBlocks(blocks, targetAspect);
+      }
+
+      const rects = new Map(result.rects.map((rect) => [rect.id, rect]));
+      const layouts = blocks.flatMap((block) => {
+        const rect = rects.get(block.id);
+        if (!rect) return [];
+        if (block.resizable) {
+          const size = block.keepAspect
+            ? block.shapes.filter((shape) => shape.w <= rect.w && shape.h <= rect.h).pop() ?? block.shapes[0]
+            : rect;
+          return [{ id: block.id, x: originX + rect.x, y: originY + rect.y, w: size.w, h: size.h }];
+        }
+        return block.members.map(({ widget, dx, dy }) => ({ id: widget.id, x: originX + rect.x + dx, y: originY + rect.y + dy }));
       });
+      applyWidgetLayouts(layouts, 'Auto stack');
+    } finally {
+      clearWidgetProbeSizes();
+      runningRef.current = false;
+      setIsAutoStacking(false);
     }
+  }, [widgets, applyWidgetLayouts]);
 
-    // Process ungrouped widgets
-    for (const widget of ungroupedWidgets) {
-      stackableItems.push({
-        type: 'single',
-        id: widget.id,
-        widgets: [widget],
-        boundingBox: { x: widget.x, y: widget.y, w: widget.w, h: widget.h },
-        originalOffset: { x: widget.x, y: widget.y },
-      });
-    }
-
-    // Calculate container width based on total area
-    const totalArea = stackableItems.reduce((sum, item) => sum + (item.boundingBox.w + GAP) * (item.boundingBox.h + GAP), 0);
-    const CONTAINER_WIDTH = Math.max(800, Math.ceil(Math.sqrt(totalArea * 1.5) / GRID_SIZE) * GRID_SIZE);
-
-    // Sort by original position: top-to-bottom, left-to-right
-    const sortedItems = [...stackableItems].sort((a, b) => {
-      const ROW_THRESHOLD = 50;
-      const rowA = Math.floor(a.boundingBox.y / ROW_THRESHOLD);
-      const rowB = Math.floor(b.boundingBox.y / ROW_THRESHOLD);
-      if (rowA !== rowB) return rowA - rowB;
-      return a.boundingBox.x - b.boundingBox.x;
-    });
-
-    // MaxRects bin packing algorithm
-    let freeRects: Rect[] = [{ x: 0, y: 0, w: CONTAINER_WIDTH, h: 100000 }];
-    const placed: { item: StackableItem; x: number; y: number }[] = [];
-
-    const findBestPosition = (width: number, height: number): { x: number; y: number } | null => {
-      let bestScore = Infinity;
-      let bestX = 0;
-      let bestY = 0;
-      let found = false;
-
-      for (const rect of freeRects) {
-        if (width <= rect.w && height <= rect.h) {
-          const leftoverH = rect.w - width;
-          const leftoverV = rect.h - height;
-          const shortSide = Math.min(leftoverH, leftoverV);
-          const score = rect.y * 10000 + shortSide;
-
-          if (score < bestScore) {
-            bestScore = score;
-            bestX = rect.x;
-            bestY = rect.y;
-            found = true;
-          }
-        }
-      }
-
-      return found ? { x: bestX, y: bestY } : null;
-    };
-
-    const splitFreeRects = (px: number, py: number, pw: number, ph: number) => {
-      const newFreeRects: Rect[] = [];
-
-      for (const rect of freeRects) {
-        // No intersection - keep as is
-        if (px >= rect.x + rect.w || px + pw <= rect.x ||
-            py >= rect.y + rect.h || py + ph <= rect.y) {
-          newFreeRects.push(rect);
-          continue;
-        }
-
-        // Left part
-        if (px > rect.x) {
-          newFreeRects.push({ x: rect.x, y: rect.y, w: px - rect.x, h: rect.h });
-        }
-        // Right part
-        if (px + pw < rect.x + rect.w) {
-          newFreeRects.push({ x: px + pw, y: rect.y, w: rect.x + rect.w - (px + pw), h: rect.h });
-        }
-        // Top part
-        if (py > rect.y) {
-          newFreeRects.push({ x: rect.x, y: rect.y, w: rect.w, h: py - rect.y });
-        }
-        // Bottom part
-        if (py + ph < rect.y + rect.h) {
-          newFreeRects.push({ x: rect.x, y: py + ph, w: rect.w, h: rect.y + rect.h - (py + ph) });
-        }
-      }
-
-      // Remove rects contained in others
-      freeRects = newFreeRects.filter((a, i) => {
-        for (let j = 0; j < newFreeRects.length; j++) {
-          if (i === j) continue;
-          const b = newFreeRects[j];
-          if (a.x >= b.x && a.y >= b.y &&
-              a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
-            return false;
-          }
-        }
-        return true;
-      });
-    };
-
-    // Place each stackable item
-    for (const item of sortedItems) {
-      const itemWidth = item.boundingBox.w + GAP;
-      const itemHeight = item.boundingBox.h + GAP;
-      const pos = findBestPosition(itemWidth, itemHeight);
-
-      if (pos) {
-        const snapX = snapWidgetCoordinate(pos.x);
-        const snapY = snapWidgetCoordinate(pos.y);
-        placed.push({ item, x: snapX, y: snapY });
-        splitFreeRects(snapX, snapY, itemWidth, itemHeight);
-      } else {
-        // Fallback: place below all others
-        const maxY = placed.reduce((max, p) => {
-          return Math.max(max, p.y + p.item.boundingBox.h + GAP);
-        }, 0);
-        placed.push({ item, x: 0, y: maxY });
-        splitFreeRects(0, maxY, itemWidth, itemHeight);
-      }
-    }
-
-    // Update all widget positions
-    for (const placement of placed) {
-      const { item, x: newX, y: newY } = placement;
-      const offsetX = newX - item.originalOffset.x;
-      const offsetY = newY - item.originalOffset.y;
-      
-      for (const widget of item.widgets) {
-        const finalX = snapWidgetCoordinate(widget.x + offsetX);
-        const finalY = snapWidgetCoordinate(widget.y + offsetY);
-        updateWidgetPositionNoSnapshot(widget.id, finalX, finalY);
-      }
-    }
-  }, [widgets, scale, _takeSnapshot, updateWidgetPositionNoSnapshot]);
-
-  return { handleAutoStack };
+  return { handleAutoStack, isAutoStacking };
 }

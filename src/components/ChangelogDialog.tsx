@@ -38,6 +38,12 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.11.1',
+    changes: [
+      'Auto Stack got a major upgrade and is now actually usable.',
+    ],
+  },
+  {
     version: '1.11.0',
     changes: [
       'New Threshold Track widget: a track of cells or a bar with named zones (and optional modifiers) that start at chosen values, for Doom, stress, sanity, wounds and similar.',
