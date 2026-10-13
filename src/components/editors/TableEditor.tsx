@@ -7,6 +7,7 @@ import { getTableCellOwner, tableCellObject, tableCellValue, transformTableAxis,
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon, XIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { TableImportDialog, TableImportMode } from './TableImportDialog';
 
 type LabelScope = 'column' | 'row';
 
@@ -125,6 +126,7 @@ export function TableEditor({ widget, updateData }: EditorProps) {
   const [expandedCell, setExpandedCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<{ axis: LabelScope; id: string; data: WidgetData } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const validation = validateTableMerges(widget.data);
   const { merges } = validation;
   const columnIdsRef = useRef<string[]>([]);
@@ -303,6 +305,32 @@ export function TableEditor({ widget, updateData }: EditorProps) {
     applyAxisChange('row', rows.map((_, i) => i).filter(i => i !== index));
   };
 
+  const importTableGrid = (grid: string[][], mode: TableImportMode, firstRowIsHeader: boolean) => {
+    const body = firstRowIsHeader ? grid.slice(1) : grid;
+    if (mode === 'replace') {
+      const width = grid[0].length;
+      columnIdsRef.current = [];
+      rowIdsRef.current = [];
+      updateData({
+        columns: firstRowIsHeader ? grid[0] : Array.from({ length: width }, (_, index) => `Column ${index + 1}`),
+        rows: body.map(cells => ({ cells })),
+        tableColumnSettings: [],
+        tableRowSettings: [],
+        tableMergedCells: [],
+      });
+    } else {
+      updateData({
+        rows: [...rows, ...body.map(cells => ({ cells: columns.map((_: string, index: number) => cells[index] ?? '') }))],
+        tableRowSettings: Array.from({ length: rows.length + body.length }, (_, index) => tableRowSettings[index] ?? {}),
+      });
+    }
+    setExpandedCell(null);
+    setEditingLabel(null);
+    setLabelDraft('');
+    setOperationError(null);
+    setImportOpen(false);
+  };
+
   const confirmRemoval = () => {
     if (!pendingRemoval) return;
     const { axis, id, data } = pendingRemoval;
@@ -346,6 +374,24 @@ export function TableEditor({ widget, updateData }: EditorProps) {
             />
             Use the theme corner radius
           </label>
+      </CollapsibleSection>
+
+      <CollapsibleSection>
+        <div className="widget-editor__section-heading">
+          <h3 id={`import-title-${widget.id}`} className="widget-editor__section-title">Import</h3>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+          >
+            Import from text…
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-theme-muted">
+          Paste a table copied from a PDF, spreadsheet or CSV to fill in the rows and columns at once.
+        </p>
       </CollapsibleSection>
 
       <CollapsibleSection>
@@ -589,6 +635,14 @@ export function TableEditor({ widget, updateData }: EditorProps) {
           )}
         </div>
       </CollapsibleSection>
+      {importOpen && (
+        <TableImportDialog
+          widgetId={widget.id}
+          columnCount={columns.length}
+          onImport={importTableGrid}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
       {pendingRemoval && createPortal(
         <div
           data-touch-camera-ignore="true"

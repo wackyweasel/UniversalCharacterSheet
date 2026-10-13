@@ -45,6 +45,7 @@ const CHANGELOG_ENTRIES = [
       'New Skill Tree widget: skills that unlock in tiers once their prerequisites are taken, optionally paid for from a pool of points, with refunds and a timeline record.',
       'New Dice Pool widget: build a pool from named traits (attribute, skill, gear), add or remove extra dice, and roll it together. Count successes against a target (with optional botches) or take the highest die for tiered outcomes. Trait dice can come from formulas.',
       'The widget panel has a cleaner look: every widget has a preview, and saved templates now sit at the top in a collapsible section with previews of their own.',
+      'Tables can now be filled in at once: paste a table copied from a PDF, spreadsheet or CSV in the Table editor\'s Import section, optionally let it assign columns by type, and drag words between cells to fix any mistakes.',
     ],
   },
   {
