@@ -12,9 +12,10 @@ import {
   formatDiceExpression,
   formatDiceRolls,
   formatDiceTermBody,
-  parseDiceExpression,
   type DiceExpressionRollResult,
 } from '../../utils/diceExpression';
+import { resolveDiceExpressionField } from '../../utils/inlineDice';
+import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 import { rollDiceTerms } from '../../utils/diceRoll';
 import {
   isPhysicalDieSupported,
@@ -72,7 +73,9 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
     autoShowRollDetails = false,
   } = widget.data;
   const useExpression = widget.data.diceUseExpression === true;
-  const expressionTerms = useExpression ? parseDiceExpression(widget.data.diceExpression ?? '') : null;
+  const diceExpressionText = widget.data.diceExpression ?? '';
+  const formulaLabels = useFormulaLabels(useExpression && /[@{]/.test(diceExpressionText));
+  const expressionTerms = useExpression ? resolveDiceExpressionField(diceExpressionText, formulaLabels).terms ?? null : null;
   const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const resultSummaryRef = useRef<HTMLDivElement>(null);

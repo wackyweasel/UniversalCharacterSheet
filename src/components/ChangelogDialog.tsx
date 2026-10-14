@@ -41,6 +41,7 @@ const CHANGELOG_ENTRIES = [
     version: '1.11.1',
     changes: [
       'Auto Stack got a major upgrade and is now actually usable.',
+      'Dice expressions (inline {...} tokens and the Dice Roller expression) can use labels and formulas for the count, faces and keep, such as {@amount}d{@faces}{@keep} + @mod.',
     ],
   },
   {

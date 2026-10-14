@@ -6,7 +6,8 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
-import { parseDiceExpression } from '../../utils/diceExpression';
+import { resolveDiceExpressionField } from '../../utils/inlineDice';
+import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -74,7 +75,9 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     diceUseExpression: useDiceExpression = false,
     diceExpression = '',
   } = widget.data;
-  const diceExpressionInvalid = diceExpression.trim() !== '' && parseDiceExpression(diceExpression) === null;
+  const formulaLabels = useFormulaLabels(useDiceExpression && /[@{]/.test(diceExpression));
+  const diceExpressionError = diceExpression.trim() === '' ? undefined : resolveDiceExpressionField(diceExpression, formulaLabels).reason;
+  const diceExpressionInvalid = diceExpressionError !== undefined;
   const [customFacesModal, setCustomFacesModal] = useState<{ open: boolean; groupIndex: number; faces: string[]; diceName: string }>({ open: false, groupIndex: -1, faces: [], diceName: '' });
   const [newFaceValue, setNewFaceValue] = useState('');
 
@@ -293,14 +296,14 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
               rows={2}
               value={diceExpression}
               onChange={(e) => updateData({ diceExpression: e.target.value })}
-              placeholder="e.g. 2d8 + 3, 4d6dl, 2d20kh"
+              placeholder="e.g. 2d8 + 3, 4d6dl, 2d20kh, {@amount}d@faces"
               aria-invalid={diceExpressionInvalid}
               className="w-full resize-y px-3 py-2 border border-theme-border rounded-button bg-theme-paper text-theme-ink text-sm font-mono focus:outline-none focus:border-theme-accent"
             />
             <p className={`mt-1 text-[11px] ${diceExpressionInvalid ? 'text-red-500' : 'text-theme-muted'}`}>
               {diceExpressionInvalid
-                ? 'Not a valid dice expression. Use dice and numbers added or subtracted, such as 2d8 + 3.'
-                : 'Dice added or subtracted, with kh/kl (keep) and dh/dl (drop). The modifier below is added to the result.'}
+                ? `Not a valid dice expression: ${diceExpressionError}. Use dice and numbers added or subtracted, such as 2d8 + 3.`
+                : 'Dice added or subtracted, with kh/kl (keep) and dh/dl (drop). Use @labels or {formulas} for count, faces and keep, e.g. {@level}d@faces. The modifier below is added to the result.'}
             </p>
           </div>
         ) : (<>
