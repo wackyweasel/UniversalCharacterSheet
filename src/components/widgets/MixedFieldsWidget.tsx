@@ -659,7 +659,7 @@ export default function MixedFieldsWidget({
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && !isPrintMode;
   const canInteract = interactive && !isPrintMode;
-  const { show: showResult, panel: resultPanel } = useDiceResult(widget.id, widget.data.diceResultOverlay === true, isPrintMode);
+  const { show: showResult } = useDiceResult(widget.id, true);
   const [dialog, setDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldName, setFieldName] = useState('');
   const [fieldType, setFieldType] = useState<MixedFieldType>('text');
@@ -931,8 +931,6 @@ export default function MixedFieldsWidget({
         ))} />
         {mixedFields.length === 0 && <WidgetEmptyState title="No fields yet" hint={controlsVisible ? 'Use + to add a field.' : undefined} compact />}
       </div>
-
-      {resultPanel}
 
       {dialog && createPortal(
         <div data-touch-camera-ignore="true" className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4" onClick={closeDialog} onMouseDown={(event) => event.stopPropagation()}>

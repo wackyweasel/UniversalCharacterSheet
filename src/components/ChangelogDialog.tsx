@@ -42,7 +42,7 @@ const CHANGELOG_ENTRIES = [
     changes: [
       'Auto Stack got a major upgrade and is now actually usable.',
       'Dice expressions (inline {...} tokens and the Dice Roller expression) can use labels and formulas for the count, faces and keep, such as {@amount}d{@faces}{@keep} + @mod.',
-      'Dice results look the same in every dice widget, with click-to-select rerolls and an optional overlay (always on for Step Dice and inline dice).',
+      'Dice results look the same in every dice widget, with click-to-select rerolls and an optional overlay (always on for Step Dice, Mixed Fields and inline dice).',
     ],
   },
   {

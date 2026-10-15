@@ -12,7 +12,6 @@ import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, TrashIcon } from '
 import { Tooltip } from '../Tooltip';
 import { TooltipEditButton } from './TooltipEditButton';
 import { CollapsibleSection } from './CollapsibleSection';
-import { DiceResultOverlayOption } from './DiceResultOverlayOption';
 import { ItemColumnsControl } from './ItemColumnsControl';
 import { LabeledNumberField } from './LabeledNumberField';
 import { VariableLabelControl } from '../VariableLabelControl';
@@ -409,7 +408,6 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
             <input type="checkbox" checked={widget.data.wrapItemNames ?? false} onChange={(event) => updateData({ wrapItemNames: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
             <span className="text-sm text-theme-ink">Wrap item names</span>
           </label>
-          <DiceResultOverlayOption widget={widget} updateData={updateData} />
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="mixed-fields-label-width" className="text-xs font-bold uppercase text-theme-muted">Label width</label>
