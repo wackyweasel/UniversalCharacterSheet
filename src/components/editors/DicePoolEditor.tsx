@@ -28,6 +28,7 @@ export function DicePoolEditor({ widget, updateData }: EditorProps) {
     dicePoolCritical = false,
     dicePoolEmptyRoll = false,
     dicePoolShowBonus = true,
+    dicePoolShowTarget = false,
     dicePoolClearAfterRoll = false,
     dicePoolButtonText = '',
     fieldLabels = {},
@@ -75,10 +76,6 @@ export function DicePoolEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--dice-pool space-y-4">
-      <CollapsibleSection title="Display">
-        <DiceResultOverlayOption widget={widget} updateData={updateData} />
-      </CollapsibleSection>
-
       <CollapsibleSection title="Rolling rule">
         <label htmlFor={`dice-pool-faces-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">Die size</label>
         <div className="w-24">
@@ -221,10 +218,17 @@ export function DicePoolEditor({ widget, updateData }: EditorProps) {
           <input type="checkbox" checked={dicePoolShowBonus} onChange={(event) => updateData({ dicePoolShowBonus: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
           <span className="text-sm text-theme-ink">Show extra dice buttons</span>
         </label>
+        <label className="mb-2 flex cursor-pointer items-center gap-2">
+          <input type="checkbox" checked={dicePoolShowTarget} onChange={(event) => updateData({ dicePoolShowTarget: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+          <span className="text-sm text-theme-ink">Let players change the success threshold on the widget ("Success on 8+")</span>
+        </label>
         <label className="mb-3 flex cursor-pointer items-center gap-2">
           <input type="checkbox" checked={dicePoolClearAfterRoll} onChange={(event) => updateData({ dicePoolClearAfterRoll: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
           <span className="text-sm text-theme-ink">Clear the pool after each roll</span>
         </label>
+        <div className="mb-3">
+          <DiceResultOverlayOption widget={widget} updateData={updateData} />
+        </div>
         <label htmlFor={`dice-pool-button-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">Roll button text</label>
         <input id={`dice-pool-button-${widget.id}`} className={inputClass} value={dicePoolButtonText} placeholder="Roll" onChange={(event) => updateData({ dicePoolButtonText: event.target.value })} />
         <div className="mt-4">

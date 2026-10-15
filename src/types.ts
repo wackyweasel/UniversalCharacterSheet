@@ -641,6 +641,7 @@ export interface WidgetData {
   dicePoolEmptyRoll?: boolean;      // Highest rule: an empty pool rolls two dice and keeps the lowest
   dicePoolBonus?: number;           // Extra (or removed) dice for this roll
   dicePoolShowBonus?: boolean;
+  dicePoolShowTarget?: boolean;
   dicePoolClearAfterRoll?: boolean;
   dicePoolButtonText?: string;
   // Print Settings (per-widget print customization)

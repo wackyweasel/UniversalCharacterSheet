@@ -2652,6 +2652,7 @@ button.dice-result__die--selectable:hover {
   .dice-pool__controls {
     align-items: center;
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
 

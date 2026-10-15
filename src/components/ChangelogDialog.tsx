@@ -40,10 +40,11 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.11.1',
     changes: [
-      'Auto Stack got a major upgrade and is now actually usable.',
-      'New "Advanced Automations" tutorial: tour the formula editor and its commands, then use formulas and dice expressions in dice rollers and in text.',
-      'Dice rolls (inline dice in text and the Dice Roller expression) can now use your labels and formulas for how many dice to roll, how many faces they have, and how many to keep. For example, {@level}d6 rolls one d6 per level.',
       'Dice results look the same in every dice widget, with click-to-select rerolls and an optional overlay (always on for Step Dice, Mixed Fields and inline dice).',
+      'Dice rolls (inline dice in text and the Dice Roller expression) can now use your labels and formulas for how many dice to roll, how many faces they have, and how many to keep. For example, {@level}d6 rolls one d6 per level.',
+      'New Dice Pool option: show buttons directly on the widget to change the success threshold (off by default, enable it in the editor).',
+      'New "Advanced Automations" tutorial: tour the formula editor and its commands, then use formulas and dice expressions in dice rollers and in text.',
+      'Auto Stack got a major upgrade and is now actually usable.',
     ],
   },
   {

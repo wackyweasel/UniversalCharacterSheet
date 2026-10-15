@@ -19,6 +19,8 @@ import {
   getRollPlan,
   normalizeDiceCount,
   normalizePoolBonus,
+  normalizePoolFaces,
+  normalizePoolTarget,
   type PoolGroup,
   type PoolOutcome,
 } from '../../utils/dicePool';
@@ -70,6 +72,19 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
   const canRoll = canEdit && plan.groups.length > 0 && !rolling;
   const showBonus = widget.data.dicePoolShowBonus !== false || components.length === 0;
   const hasSelection = components.some((component) => component.active) || bonus !== 0;
+  const countsSuccesses = widget.data.dicePoolRule !== 'highest' && widget.data.dicePoolShowTarget === true;
+  const target = normalizePoolTarget(widget.data.dicePoolTarget);
+  const targetFromFormula = !!fieldFormulas?.dicePoolTarget;
+  const maxTarget = Math.max(
+    normalizePoolFaces(widget.data.dicePoolFaces),
+    ...components.map((component) => normalizePoolFaces(component.faces, normalizePoolFaces(widget.data.dicePoolFaces))),
+  );
+
+  const changeTarget = (delta: number) => {
+    if (!canEdit || targetFromFormula) return;
+    const next = Math.min(maxTarget, Math.max(1, target + delta));
+    if (next !== target) updateWidgetData(widget.id, { dicePoolTarget: next });
+  };
 
   const toggleComponent = (id: string) => {
     if (!canEdit) return;
@@ -257,6 +272,42 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
                   onClick={(event) => {
                     event.stopPropagation();
                     changeBonus(1);
+                  }}
+                >
+                  +
+                </button>
+              </Tooltip>
+            </div>
+          )}
+          {countsSuccesses && (
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-theme-muted">Success on</span>
+              <Tooltip content={targetFromFormula ? 'Set by a formula' : 'Lower the success threshold'}>
+                <button
+                  type="button"
+                  aria-label="Lower the success threshold"
+                  disabled={!canEdit || targetFromFormula || target <= 1}
+                  className="widget-control h-5 min-h-0 w-5 flex-shrink-0 text-xs font-bold"
+                  onMouseDown={stopPropagation}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    changeTarget(-1);
+                  }}
+                >
+                  −
+                </button>
+              </Tooltip>
+              <span className="dice-pool__bonus" aria-live="polite">{target}+</span>
+              <Tooltip content={targetFromFormula ? 'Set by a formula' : 'Raise the success threshold'}>
+                <button
+                  type="button"
+                  aria-label="Raise the success threshold"
+                  disabled={!canEdit || targetFromFormula || target >= maxTarget}
+                  className="widget-control h-5 min-h-0 w-5 flex-shrink-0 text-xs font-bold"
+                  onMouseDown={stopPropagation}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    changeTarget(1);
                   }}
                 >
                   +
