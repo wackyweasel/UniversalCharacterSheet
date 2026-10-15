@@ -3,6 +3,7 @@ import { useStore } from './store/useStore';
 import CharacterList from './components/CharacterList';
 import ChangelogDialog, { useChangelogOnLoad } from './components/ChangelogDialog';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
+import DiceResultHost from './components/DiceResultDialog';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -157,6 +158,7 @@ function App() {
       ) : <CharacterList />}
       {showChangelog && <ChangelogDialog darkMode={darkMode} onClose={closeChangelog} />}
       {!isSwitchingWorkspace && <DicePhysicsOverlay />}
+      <DiceResultHost />
     </div>
   );
 }

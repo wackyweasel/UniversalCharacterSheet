@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { CSSProperties } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { Tooltip } from '../Tooltip';
 import type { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { useDiceResult } from '../../hooks/useDiceResult';
+import { ClearDiceResultButton } from '../ClearDiceResultButton';
 import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 import { isFormulaBroken } from '../../utils/formulaEngine';
 import type { DiceExpressionTerm } from '../../utils/diceExpression';
@@ -18,13 +19,12 @@ import {
   getRollPlan,
   normalizeDiceCount,
   normalizePoolBonus,
-  type PoolDieState,
   type PoolGroup,
   type PoolOutcome,
-  type PoolOutcomeKind,
 } from '../../utils/dicePool';
 
 interface PoolResult {
+  data: Widget['data'];
   groups: PoolGroup[];
   rolls: number[][];
   keepLowest: boolean;
@@ -42,22 +42,6 @@ interface Props {
   interactive?: boolean;
 }
 
-const DIE_STATE_CLASS: Record<PoolDieState, string> = {
-  hit: 'dice-pool__die--hit',
-  best: 'dice-pool__die--best',
-  miss: '',
-  cancel: 'dice-pool__die--cancel',
-  dropped: 'dice-pool__die--dropped',
-};
-
-const SUMMARY_CLASS: Record<PoolOutcomeKind, string> = {
-  critical: 'dice-pool__summary--critical',
-  success: 'dice-pool__summary--success',
-  partial: 'dice-pool__summary--partial',
-  failure: 'dice-pool__summary--failure',
-  botch: 'dice-pool__summary--botch',
-};
-
 const stopPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
 
 export default function DicePoolWidget({ widget, mode, interactive = true }: Props) {
@@ -74,11 +58,9 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
   const brokenFormula = formulas.find((formula) => isFormulaBroken(formula, labels));
 
   const [rolling, setRolling] = useState(false);
-  const [result, setResult] = useState<PoolResult | null>(null);
-  const [selected, setSelected] = useState<Set<number>>(() => new Set());
-  const outcome = result?.outcome ?? null;
   const canEdit = interactive && mode === 'play';
   const timelineLabel = label || 'Dice pool';
+  const { show: showOutput, close: closeResult, hasResult, panel: resultPanel } = useDiceResult(widget.id, widget.data.diceResultOverlay === true, mode === 'print');
 
   const groups = getPoolGroups(widget.data);
   const poolSize = groups.reduce((sum, group) => sum + group.count, 0);
@@ -86,7 +68,6 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
   const sizeText = poolSize === 0 ? 'No dice' : faces.length === 1 ? `${poolSize}d${faces[0]}` : `${poolSize} dice`;
   const plan = getRollPlan(widget.data);
   const canRoll = canEdit && plan.groups.length > 0 && !rolling;
-  const canRerollDice = canEdit && !!result && !result.keepLowest;
   const showBonus = widget.data.dicePoolShowBonus !== false || components.length === 0;
   const hasSelection = components.some((component) => component.active) || bonus !== 0;
 
@@ -111,6 +92,27 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
     });
   };
 
+  const showResult = (result: PoolResult) => {
+    const { outcome } = result;
+    showOutput({
+      view: {
+        title: timelineLabel,
+        subtitle: describePoolGroups(result.groups),
+        dice: outcome.dice.map((die, index) => ({
+          value: String(die.value),
+          title: `${die.group} (d${die.faces})`,
+          faces: die.faces,
+          state: die.state === 'miss' ? 'plain' : die.state,
+          groupStart: index > 0 && outcome.dice[index - 1].group !== die.group,
+          version: result.versions[index] ?? 0,
+        })),
+        summary: outcome.summary,
+        kind: outcome.kind,
+      },
+      reroll: canEdit && !result.keepLowest ? (indices) => reroll(result, indices) : undefined,
+    });
+  };
+
   const roll = async () => {
     if (!canRoll) return;
     setRolling(true);
@@ -119,7 +121,8 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
       const result = await rollDiceTerms(terms);
       const rolls = plan.groups.map((_, index) => result.terms[index]?.rolls ?? []);
       const next = evaluatePoolRoll(widget.data, plan.groups, rolls, plan.keepLowest);
-      setResult({
+      showResult({
+        data: widget.data,
         groups: plan.groups,
         rolls,
         keepLowest: plan.keepLowest,
@@ -127,7 +130,6 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
         rerollCount: 0,
         versions: next.dice.map(() => 0),
       });
-      setSelected(new Set());
       addTimelineEvent(timelineLabel, 'DICE_POOL', `${describePoolGroups(plan.groups)}: ${formatPoolDice(next)} → ${next.summary}`, '🎲');
       if (widget.data.dicePoolClearAfterRoll && hasSelection) clearPool();
     } finally {
@@ -135,16 +137,8 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
     }
   };
 
-  const toggleDie = (index: number) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (!next.delete(index)) next.add(index);
-      return next;
-    });
-  };
-
-  const reroll = async () => {
-    if (!canEdit || !result || selected.size === 0 || rolling) return;
+  const reroll = async (result: PoolResult, indices: number[]) => {
+    const selected = new Set(indices);
     const offsets: number[] = [];
     let total = 0;
     for (const group of result.rolls) {
@@ -160,38 +154,27 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
       .filter((target) => target.positions.length > 0);
     if (targets.length === 0) return;
 
-    setRolling(true);
-    try {
-      const terms: DiceExpressionTerm[] = targets.map(({ group, positions }) => ({ type: 'dice', sign: 1, count: positions.length, faces: group.faces }));
-      const rolled = await rollDiceTerms(terms);
-      const rolls = result.rolls.map((group) => [...group]);
-      const versions = [...result.versions];
-      const rerollCount = result.rerollCount + 1;
-      targets.forEach(({ groupIndex, positions }, termIndex) => {
-        const values = rolled.terms[termIndex]?.rolls ?? [];
-        positions.forEach((position, k) => {
-          if (values[k] === undefined) return;
-          rolls[groupIndex][position] = values[k];
-          versions[offsets[groupIndex] + position] = rerollCount;
-        });
+    const terms: DiceExpressionTerm[] = targets.map(({ group, positions }) => ({ type: 'dice', sign: 1, count: positions.length, faces: group.faces }));
+    const rolled = await rollDiceTerms(terms);
+    const rolls = result.rolls.map((group) => [...group]);
+    const versions = [...result.versions];
+    const rerollCount = result.rerollCount + 1;
+    targets.forEach(({ groupIndex, positions }, termIndex) => {
+      const values = rolled.terms[termIndex]?.rolls ?? [];
+      positions.forEach((position, k) => {
+        if (values[k] === undefined) return;
+        rolls[groupIndex][position] = values[k];
+        versions[offsets[groupIndex] + position] = rerollCount;
       });
-      const next = evaluatePoolRoll(widget.data, result.groups, rolls, result.keepLowest);
-      setResult({ ...result, rolls, outcome: next, rerollCount, versions });
-      setSelected(new Set());
-      addTimelineEvent(
-        timelineLabel,
-        'DICE_POOL',
-        `Rerolled ${selected.size} ${selected.size === 1 ? 'die' : 'dice'}: ${formatPoolDice(next)} → ${next.summary}`,
-        '🎲',
-      );
-    } finally {
-      setRolling(false);
-    }
-  };
-
-  const clearResults = () => {
-    setResult(null);
-    setSelected(new Set());
+    });
+    const next = evaluatePoolRoll(result.data, result.groups, rolls, result.keepLowest);
+    showResult({ ...result, rolls, outcome: next, rerollCount, versions });
+    addTimelineEvent(
+      timelineLabel,
+      'DICE_POOL',
+      `Rerolled ${selected.size} ${selected.size === 1 ? 'die' : 'dice'}: ${formatPoolDice(next)} → ${next.summary}`,
+      '🎲',
+    );
   };
 
   return (
@@ -298,86 +281,24 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
       )}
 
       {mode === 'play' && (
-        <button
-          type="button"
-          disabled={!canRoll}
-          className="widget-control widget-control--primary h-8 min-h-0 flex-shrink-0 px-3 text-sm font-semibold"
-          onMouseDown={stopPropagation}
-          onClick={(event) => {
-            event.stopPropagation();
-            void roll();
-          }}
-        >
-          {rolling ? 'Rolling…' : plan.groups.length === 0 ? 'Add dice to roll' : dicePoolButtonText?.trim() || 'Roll'}
-        </button>
-      )}
-
-      {result && outcome && !rolling && (
-        <div className="dice-pool__result" aria-live="polite">
-          <div className="dice-pool__dice" data-touch-camera-ignore={canEdit ? 'true' : undefined}>
-            {outcome.dice.map((die, index) => {
-              const className = [
-                'dice-pool__die',
-                DIE_STATE_CLASS[die.state],
-                index > 0 && outcome.dice[index - 1].group !== die.group ? 'dice-pool__die--group-start' : '',
-                selected.has(index) ? 'dice-pool__die--selected' : '',
-                canRerollDice ? 'dice-pool__die--selectable' : '',
-              ].join(' ');
-              const key = `${index}-${result.versions[index] ?? 0}`;
-              const style = { animationDelay: `${Math.min(index, 20) * 25}ms` } as CSSProperties;
-              if (!canRerollDice) {
-                return <span key={key} title={`${die.group} (d${die.faces})`} className={className} style={style}>{die.value}</span>;
-              }
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  title={`${die.group} (d${die.faces})`}
-                  aria-pressed={selected.has(index)}
-                  className={className}
-                  style={style}
-                  onMouseDown={stopPropagation}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleDie(index);
-                  }}
-                >
-                  {die.value}
-                </button>
-              );
-            })}
-          </div>
-          <div className={`dice-pool__summary ${SUMMARY_CLASS[outcome.kind]}`}>{outcome.summary}</div>
-          {canEdit && (
-            <div className="flex items-center justify-center gap-1.5" data-touch-camera-ignore="true">
-              {selected.size > 0 && (
-                <button
-                  type="button"
-                  className="widget-control widget-control--primary h-5 min-h-0 px-2 text-[11px] font-semibold"
-                  onMouseDown={stopPropagation}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void reroll();
-                  }}
-                >
-                  Reroll {selected.size} {selected.size === 1 ? 'die' : 'dice'}
-                </button>
-              )}
-              <button
-                type="button"
-                className="widget-control widget-control--subtle h-5 min-h-0 px-2 text-[11px]"
-                onMouseDown={stopPropagation}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  clearResults();
-                }}
-              >
-                Clear results
-              </button>
-            </div>
-          )}
+        <div className="flex h-8 flex-shrink-0 gap-1">
+          <button
+            type="button"
+            disabled={!canRoll}
+            className="widget-control widget-control--primary h-8 min-h-0 min-w-0 flex-1 px-3 text-sm font-semibold"
+            onMouseDown={stopPropagation}
+            onClick={(event) => {
+              event.stopPropagation();
+              void roll();
+            }}
+          >
+            {rolling ? 'Rolling…' : plan.groups.length === 0 ? 'Add dice to roll' : dicePoolButtonText?.trim() || 'Roll'}
+          </button>
+          {hasResult && <ClearDiceResultButton onClear={closeResult} />}
         </div>
       )}
+
+      {resultPanel}
     </div>
   );
 }

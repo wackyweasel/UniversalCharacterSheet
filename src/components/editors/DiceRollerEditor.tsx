@@ -6,6 +6,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { DiceResultOverlayOption } from './DiceResultOverlayOption';
 import { resolveDiceExpressionField } from '../../utils/inlineDice';
 import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 
@@ -70,8 +71,6 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
     modifier = 0,
     fieldLabels = {},
     fieldFormulas = {},
-    showRollDetailsButton = true,
-    autoShowRollDetails = false,
     diceUseExpression: useDiceExpression = false,
     diceExpression = '',
   } = widget.data;
@@ -251,29 +250,9 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
         <div className="widget-editor__section-heading">
           <h3 id={`dice-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={showRollDetailsButton}
-            onChange={(e) => updateData({
-              showRollDetailsButton: e.target.checked,
-              showRollDetails: e.target.checked ? widget.data.showRollDetails : false,
-            })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show roll details control</span>
-        </label>
-        <label className="mt-3 flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={autoShowRollDetails}
-            onChange={(e) => updateData({ autoShowRollDetails: e.target.checked })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Automatically show roll details after rolling</span>
-        </label>
+        <DiceResultOverlayOption widget={widget} updateData={updateData} />
       </CollapsibleSection>
-      
+
       <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`dice-groups-title-${widget.id}`} className="widget-editor__section-title">Dices</h3>

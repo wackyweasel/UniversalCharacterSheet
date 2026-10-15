@@ -38,7 +38,7 @@
       },
       {
         "id": "7725888a-be7b-431b-885a-04685ed9a673", "type": "DICE_ROLLER", "x": 1220, "y": 360, "w": 110, "h": 100,
-        "data": { "label": "", "diceGroups": [{ "count": 1, "faces": 100 }], "showRollDetails": false, "showRollDetailsButton": false, "hideWidgetHeader": true },
+        "data": { "label": "", "diceGroups": [{ "count": 1, "faces": 100 }], "hideWidgetHeader": true },
         "groupId": "b8cfee79-90a8-41c9-a0f5-5e6041f0197b", "attachedTo": ["fbe0b0d6-df33-4aa2-ad27-2eccb042ff17", "adbdbb00-4c96-4fe0-9878-c51a3e35857a", "a12a30b9-0e8f-4708-8c24-14d3222fec2e"]
       },
       {

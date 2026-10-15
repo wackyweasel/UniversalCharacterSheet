@@ -4,6 +4,7 @@ import {
   formatDiceExpression,
   resolveDiceRolls,
 } from './diceExpression';
+import { flattenExpressionDice } from './diceResult';
 import {
   isPhysicalDieSupported,
   rollPhysicalDice,
@@ -75,4 +76,39 @@ export const rollDiceTerms = async (terms: DiceExpressionTerm[]): Promise<DiceEx
     total,
     terms: rollTerms,
   };
+};
+
+/** Rerolls the dice at these `flattenExpressionDice` positions and re-applies keep/drop. */
+export const rerollExpressionDice = async (
+  result: DiceExpressionRollResult,
+  indices: number[],
+): Promise<DiceExpressionRollResult> => {
+  const flat = flattenExpressionDice(result);
+  const positionsByTerm = new Map<number, number[]>();
+  indices.forEach((index) => {
+    const position = flat[index];
+    if (!position) return;
+    positionsByTerm.set(position.termIndex, [...(positionsByTerm.get(position.termIndex) ?? []), position.rollIndex]);
+  });
+  const targets = [...positionsByTerm.entries()];
+  if (targets.length === 0) return result;
+
+  const rolled = await rollDiceTerms(targets.map(([termIndex, positions]) => {
+    const term = result.terms[termIndex].term as Extract<DiceExpressionTerm, { type: 'dice' }>;
+    return { type: 'dice', sign: 1, count: positions.length, faces: term.faces } as const;
+  }));
+
+  const terms = result.terms.map((rollTerm, termIndex) => {
+    const positions = positionsByTerm.get(termIndex);
+    if (!positions || rollTerm.term.type !== 'dice') return rollTerm;
+    const targetIndex = targets.findIndex(([target]) => target === termIndex);
+    const values = rolled.terms[targetIndex]?.rolls ?? [];
+    const rolls = [...(rollTerm.rolls ?? [])];
+    positions.forEach((position, k) => {
+      if (values[k] !== undefined) rolls[position] = values[k];
+    });
+    return resolveDiceRolls(rollTerm.term, rolls);
+  });
+
+  return { ...result, total: terms.reduce((sum, rollTerm) => sum + rollTerm.signedTotal, 0), terms };
 };

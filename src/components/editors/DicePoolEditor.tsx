@@ -3,6 +3,7 @@ import type { DicePoolComponent, DicePoolTier } from '../../types';
 import { PlusIcon, ResetIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { CollapsibleSection } from './CollapsibleSection';
+import { DiceResultOverlayOption } from './DiceResultOverlayOption';
 import { IntegerInput } from './IntegerInput';
 import { LabeledNumberField } from './LabeledNumberField';
 import {
@@ -74,6 +75,10 @@ export function DicePoolEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--dice-pool space-y-4">
+      <CollapsibleSection title="Display">
+        <DiceResultOverlayOption widget={widget} updateData={updateData} />
+      </CollapsibleSection>
+
       <CollapsibleSection title="Rolling rule">
         <label htmlFor={`dice-pool-faces-${widget.id}`} className="mb-1 block text-sm font-medium text-theme-ink">Die size</label>
         <div className="w-24">

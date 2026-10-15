@@ -54,7 +54,7 @@ td .inline-dice-token {
   opacity: 0.65;
 }
 
-.inline-dice-popover {
+.dice-result-dialog {
   background: var(--color-paper);
   background-image: var(--card-texture);
   background-blend-mode: multiply;
@@ -62,74 +62,222 @@ td .inline-dice-token {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-style);
   color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-body);
-  max-width: min(300px, calc(100vw - 16px));
-  min-width: min(230px, calc(100vw - 16px));
-  padding: 10px;
+  gap: 4px;
+  max-width: min(340px, calc(100vw - 16px));
+  min-width: min(150px, calc(100vw - 16px));
+  padding: 8px;
   position: fixed;
+  width: max-content;
   z-index: 10020;
 }
 
-.inline-dice-popover__header {
+.dice-result-dialog--hidden {
+  visibility: hidden;
+}
+
+.dice-result-dialog__header {
   align-items: flex-start;
   display: flex;
   gap: 8px;
   justify-content: space-between;
 }
 
-.inline-dice-popover__source {
-  font-size: 12px;
+.dice-result-dialog__title {
+  font-family: var(--font-heading);
+  font-size: 13px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.inline-dice-popover__resolved {
+.dice-result-dialog__subtitle {
   color: var(--color-muted);
   font-size: 10px;
-  margin-top: 2px;
   overflow-wrap: anywhere;
 }
 
-.inline-dice-popover__close {
+.dice-result-dialog__close {
   align-items: center;
   color: var(--color-muted);
   display: flex;
   flex: none;
   height: 24px;
   justify-content: center;
+  margin: -4px -4px 0 0;
   width: 24px;
 }
 
-.inline-dice-popover__close:hover {
+.dice-result-dialog__close:hover {
   color: var(--color-ink);
 }
 
-.inline-dice-popover__message,
-.inline-dice-popover__error {
+.dice-result-dialog__error {
+  color: #dc2626;
   font-size: 12px;
-  margin-top: 10px;
 }
 
-.inline-dice-popover__error {
+.dice-result-dialog__modifiers {
+  color: var(--color-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: center;
+}
+
+.dice-result-dialog__note {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.dice-result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dice-result-content--inline {
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.dice-result-content__footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  justify-content: center;
+}
+
+.dice-result__dice {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+}
+
+.dice-result__die {
+  --die-fill: color-mix(in srgb, var(--color-ink) 8%, var(--color-paper));
+  --die-stroke: color-mix(in srgb, var(--color-border) 70%, transparent);
+  --die-stroke-width: 1px;
+  align-items: center;
+  animation: dice-result-pop 220ms ease-out backwards;
+  background: transparent;
+  border: 0;
+  color: var(--color-muted);
+  display: flex;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  height: 28px;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0 4px;
+  position: relative;
+}
+
+.dice-result__shape {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.dice-result__shape > * {
+  fill: var(--die-fill);
+  stroke: var(--die-stroke);
+  stroke-linejoin: round;
+  stroke-width: var(--die-stroke-width);
+  vector-effect: non-scaling-stroke;
+}
+
+.dice-result__die-value {
+  position: relative;
+}
+
+.dice-result__die--triangle .dice-result__die-value {
+  transform: translateY(3px);
+}
+
+.dice-result__die--hit,
+.dice-result__die--best {
+  --die-fill: var(--color-accent);
+  --die-stroke: var(--color-accent);
+  color: var(--color-paper);
+}
+
+.dice-result__die--cancel {
+  --die-fill: color-mix(in srgb, #dc2626 16%, var(--color-paper));
+  --die-stroke: #dc2626;
   color: #dc2626;
 }
 
-.inline-dice-popover__total {
-  color: var(--color-accent);
-  font-family: var(--font-heading);
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1;
-  margin-top: 10px;
+.dice-result__die--dropped {
+  opacity: 0.4;
+  text-decoration: line-through;
 }
 
-.inline-dice-popover__terms {
+.dice-result__die--group-start {
+  margin-left: 6px;
+}
+
+button.dice-result__die--selectable {
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+button.dice-result__die--selectable:hover {
+  transform: translateY(-1px);
+}
+
+.dice-result__die--selected {
+  --die-stroke: var(--color-ink);
+  --die-stroke-width: 2.5px;
+  transform: translateY(-1px);
+}
+
+.dice-result__summary {
+  color: var(--color-ink);
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.dice-result__summary--failure {
   color: var(--color-muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 10px;
-  gap: 4px 8px;
-  margin-top: 7px;
+}
+
+.dice-result__summary--botch {
+  color: #dc2626;
+}
+
+.dice-result__summary--critical {
+  color: var(--color-accent);
+}
+
+@keyframes dice-result-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-result__die {
+    animation: none;
+  }
 }
 
 @keyframes inline-dice-spin {
@@ -2556,111 +2704,6 @@ td .inline-dice-token {
     font-weight: 700;
     min-width: 22px;
     text-align: center;
-  }
-
-  .dice-pool__result {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .dice-pool__dice {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
-    justify-content: center;
-  }
-
-  .dice-pool__die {
-    align-items: center;
-    animation: dice-pool-pop 220ms ease-out backwards;
-    background: color-mix(in srgb, var(--color-ink) 8%, var(--color-paper));
-    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-    border-radius: calc(var(--button-radius) * 0.6);
-    color: var(--color-muted);
-    display: flex;
-    font-family: var(--font-heading);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    height: 24px;
-    justify-content: center;
-    min-width: 24px;
-    padding: 0 4px;
-  }
-
-  .dice-pool__die--hit,
-  .dice-pool__die--best {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    color: var(--color-paper);
-  }
-
-  .dice-pool__die--cancel {
-    background: color-mix(in srgb, #dc2626 16%, var(--color-paper));
-    border-color: #dc2626;
-    color: #dc2626;
-  }
-
-  .dice-pool__die--dropped {
-    opacity: 0.4;
-    text-decoration: line-through;
-  }
-
-  .dice-pool__die--group-start {
-    margin-left: 6px;
-  }
-
-  button.dice-pool__die--selectable {
-    cursor: pointer;
-    transition: box-shadow 120ms ease, transform 120ms ease;
-  }
-
-  button.dice-pool__die--selectable:hover {
-    transform: translateY(-1px);
-  }
-
-  .dice-pool__die--selected {
-    box-shadow: 0 0 0 2px var(--color-ink);
-    transform: translateY(-1px);
-  }
-
-  .dice-pool__summary {
-    color: var(--color-ink);
-    font-family: var(--font-heading);
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 20px;
-    text-align: center;
-  }
-
-  .dice-pool__summary--failure {
-    color: var(--color-muted);
-  }
-
-  .dice-pool__summary--botch {
-    color: #dc2626;
-  }
-
-  .dice-pool__summary--critical {
-    color: var(--color-accent);
-  }
-
-  @keyframes dice-pool-pop {
-    from {
-      opacity: 0;
-      transform: scale(0.7);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dice-pool__die {
-      animation: none;
-    }
   }
 
   .health-bar__actions {

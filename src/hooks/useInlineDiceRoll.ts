@@ -1,83 +1,60 @@
-import { useRef, useState } from 'react';
-import type { DiceExpressionRollResult } from '../utils/diceExpression';
+import { useState } from 'react';
 import { formatDiceRollDetail } from '../utils/diceExpression';
 import { rollDiceTerms } from '../utils/diceRoll';
 import {
   resolveInlineDiceExpression,
   type ResolvedInlineDiceExpression,
 } from '../utils/inlineDice';
+import { showExpressionRoll } from '../utils/showExpressionRoll';
 import { useFormulaLabels } from './useFormulaLabels';
 import { addTimelineEvent } from '../store/useTimelineStore';
+import { showDiceResult } from '../store/useDiceResultStore';
 import type { Widget } from '../types';
-
-export interface InlineDiceRollState {
-  anchor: HTMLElement;
-  sourceExpression: string;
-  resolvedExpression?: string;
-  result?: DiceExpressionRollResult;
-  error?: string;
-  rolling: boolean;
-}
 
 /** `hasTokens = false` skips label subscriptions for plain text, which has nothing to resolve or roll. */
 export function useInlineDiceRoll(widget: Widget, hasTokens = true) {
   const labels = useFormulaLabels(hasTokens);
-  const [rollState, setRollState] = useState<InlineDiceRollState | null>(null);
-  const requestIdRef = useRef(0);
+  const [rollingExpression, setRollingExpression] = useState<string | null>(null);
 
   const resolveExpression = (expression: string): ResolvedInlineDiceExpression => (
     resolveInlineDiceExpression(expression, labels)
   );
 
-  const rollExpression = async (expression: string, anchor: HTMLElement) => {
+  const logRoll = (expression: string, detail: string) => addTimelineEvent(
+    widget.data.label || 'Inline roll',
+    widget.type,
+    `{${expression}}: ${detail}`,
+    '🎲',
+  );
+
+  const rollExpression = async (expression: string) => {
     const resolution = resolveExpression(expression);
-    requestIdRef.current += 1;
-    const requestId = requestIdRef.current;
+    const title = `{${expression}}`;
 
     if (!resolution.valid) {
-      setRollState({
-        anchor,
-        sourceExpression: expression,
-        error: resolution.reason,
-        rolling: false,
-      });
+      showDiceResult({ widgetId: widget.id, view: { title, dice: [], error: resolution.reason } });
       return;
     }
 
-    setRollState({
-      anchor,
-      sourceExpression: expression,
-      resolvedExpression: resolution.resolvedExpression,
-      rolling: true,
-    });
-
-    const result = await rollDiceTerms(resolution.terms);
-    addTimelineEvent(
-      widget.data.label || 'Inline roll',
-      widget.type,
-      `{${expression}}: ${formatDiceRollDetail(result)}`,
-      '🎲',
-    );
-
-    if (requestIdRef.current !== requestId) return;
-    setRollState({
-      anchor,
-      sourceExpression: expression,
-      resolvedExpression: resolution.resolvedExpression,
-      result,
-      rolling: false,
-    });
-  };
-
-  const closeResult = () => {
-    requestIdRef.current += 1;
-    setRollState(null);
+    setRollingExpression(expression);
+    try {
+      const result = await rollDiceTerms(resolution.terms);
+      logRoll(expression, formatDiceRollDetail(result));
+      showExpressionRoll({
+        show: (output) => showDiceResult({ widgetId: widget.id, ...output }),
+        title,
+        subtitle: resolution.resolvedExpression !== expression ? resolution.resolvedExpression : undefined,
+        result,
+        onReroll: (next) => logRoll(expression, `rerolled ${formatDiceRollDetail(next)}`),
+      });
+    } finally {
+      setRollingExpression(null);
+    }
   };
 
   return {
-    closeResult,
     resolveExpression,
     rollExpression,
-    rollState,
+    rollingExpression,
   };
 }

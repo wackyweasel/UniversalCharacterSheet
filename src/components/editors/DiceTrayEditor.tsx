@@ -5,6 +5,7 @@ import { DiceGroup, CustomDie } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { LabeledNumberField } from './LabeledNumberField';
 import { CollapsibleSection } from './CollapsibleSection';
+import { DiceResultOverlayOption } from './DiceResultOverlayOption';
 
 // Type guard to check if a die is a custom die
 const isCustomDie = (die: number | CustomDie): die is CustomDie => {
@@ -17,8 +18,6 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
     modifier = 0,
     fieldLabels = {},
     fieldFormulas = {},
-    showTrayRollDetailsButton = true,
-    autoShowTrayRollDetails = false,
     diceButtonScale: diceButtonScaleSetting = 100,
   } = widget.data;
   const diceButtonScale = Math.min(100, Math.max(50, diceButtonScaleSetting));
@@ -234,27 +233,7 @@ export function DiceTrayEditor({ widget, updateData }: EditorProps) {
         <div className="widget-editor__section-heading">
           <h3 id={`tray-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={showTrayRollDetailsButton}
-            onChange={(e) => updateData({
-              showTrayRollDetailsButton: e.target.checked,
-              showTrayRollDetails: e.target.checked ? widget.data.showTrayRollDetails : false,
-            })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show roll details control</span>
-        </label>
-        <label className="mt-3 flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={autoShowTrayRollDetails}
-            onChange={(e) => updateData({ autoShowTrayRollDetails: e.target.checked })}
-            className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Automatically show roll details after rolling</span>
-        </label>
+        <DiceResultOverlayOption widget={widget} updateData={updateData} />
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between">
             <label htmlFor={`tray-dice-button-size-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">

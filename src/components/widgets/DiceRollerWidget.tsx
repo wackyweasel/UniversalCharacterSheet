@@ -1,22 +1,18 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
-import { createPortal } from 'react-dom';
 import { Widget, DiceGroup } from '../../types';
-import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { useDiceResult } from '../../hooks/useDiceResult';
+import { ClearDiceResultButton } from '../ClearDiceResultButton';
 import { Tooltip } from '../Tooltip';
 import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
-import { ChevronDownIcon, ChevronUpIcon } from '../icons';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
-import {
-  formatDiceExpression,
-  formatDiceRolls,
-  formatDiceTermBody,
-  type DiceExpressionRollResult,
-} from '../../utils/diceExpression';
+import { formatDiceExpression } from '../../utils/diceExpression';
 import { resolveDiceExpressionField } from '../../utils/inlineDice';
 import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 import { rollDiceTerms } from '../../utils/diceRoll';
+import { showExpressionRoll } from '../../utils/showExpressionRoll';
+import type { DiceResultView } from '../../utils/diceResult';
 import {
   isPhysicalDieSupported,
   rollPhysicalDice,
@@ -45,8 +41,9 @@ interface RollResult {
   modifier: number;
   total: number | null; // null if no numeric results
   aggregatedResults: AggregatedResult[];
-  /** Set when the roll came from a dice expression instead of dice groups. */
-  expression?: DiceExpressionRollResult;
+  /** Reroll number that last produced each die, to replay the pop animation on rerolled dice only. */
+  versions: number[];
+  rerollCount: number;
 }
 
 interface AggregatedResult {
@@ -57,92 +54,25 @@ interface AggregatedResult {
 }
 
 const MAX_EXPLOSION_ROLLS = 100;
-const DETAILS_VIEWPORT_PADDING = 8;
-const DETAILS_OFFSET = 4;
-const MIN_DETAILS_WIDTH = 180;
-const MAX_DETAILS_WIDTH = 240;
 
-export default function DiceRollerWidget({ widget, mode, interactive = true, sheetScale = 1 }: Props) {
-  const updateWidgetData = useStore((state) => state.updateWidgetData);
+export default function DiceRollerWidget({ widget, mode, interactive = true }: Props) {
   const {
     label,
     diceGroups = [{ count: 1, faces: 20 }],
     modifier = 0,
-    showRollDetails = false,
-    showRollDetailsButton = true,
-    autoShowRollDetails = false,
   } = widget.data;
   const useExpression = widget.data.diceUseExpression === true;
   const diceExpressionText = widget.data.diceExpression ?? '';
   const formulaLabels = useFormulaLabels(useExpression && /[@{]/.test(diceExpressionText));
   const expressionTerms = useExpression ? resolveDiceExpressionField(diceExpressionText, formulaLabels).terms ?? null : null;
-  const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
-  const resultSummaryRef = useRef<HTMLDivElement>(null);
-  const detailsDropdownRef = useRef<HTMLDivElement>(null);
-  const [detailsPosition, setDetailsPosition] = useState({ left: 0, top: 0, width: 0, maxHeight: 0 });
   const controlsVisible = interactive && mode !== 'print';
+  const overlayResults = widget.data.diceResultOverlay === true;
+  const { show: showOutput, close: closeResult, hasResult, panel: resultPanel } = useDiceResult(widget.id, overlayResults, mode === 'print');
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   const isAttackDiceRoller = String(label || '').toLowerCase() === 'attack';
-
-  useLayoutEffect(() => {
-    if (!showRollDetails || !result || isRolling) return;
-
-    const updateDetailsPosition = () => {
-      const anchor = resultSummaryRef.current;
-      if (!anchor) return;
-
-      const anchorRect = anchor.getBoundingClientRect();
-      const viewportWidth = Math.max(0, window.innerWidth - DETAILS_VIEWPORT_PADDING * 2);
-      const width = Math.min(Math.max(anchorRect.width, MIN_DETAILS_WIDTH), viewportWidth, MAX_DETAILS_WIDTH);
-      const maxHeight = Math.max(0, window.innerHeight - DETAILS_VIEWPORT_PADDING * 2);
-      const dropdownHeight = Math.min(
-        detailsDropdownRef.current?.getBoundingClientRect().height ?? 0,
-        maxHeight,
-      );
-      const below = anchorRect.bottom + DETAILS_OFFSET;
-      const top = below + dropdownHeight <= window.innerHeight - DETAILS_VIEWPORT_PADDING
-        ? below
-        : Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.top - dropdownHeight - DETAILS_OFFSET);
-      const left = Math.min(
-        Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.left),
-        Math.max(DETAILS_VIEWPORT_PADDING, window.innerWidth - width - DETAILS_VIEWPORT_PADDING),
-      );
-
-      setDetailsPosition({ left, top, width, maxHeight });
-    };
-
-    updateDetailsPosition();
-    window.addEventListener('resize', updateDetailsPosition);
-    window.addEventListener('scroll', updateDetailsPosition, true);
-    return () => {
-      window.removeEventListener('resize', updateDetailsPosition);
-      window.removeEventListener('scroll', updateDetailsPosition, true);
-    };
-  }, [isRolling, result, showRollDetails, sheetScale]);
-
-  useEffect(() => {
-    if (!showRollDetails || !result || isRolling) return;
-
-    const closeDetails = () => updateWidgetData(widget.id, { showRollDetails: false });
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (detailsDropdownRef.current?.contains(target) || resultSummaryRef.current?.contains(target)) return;
-      closeDetails();
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeDetails();
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isRolling, result, showRollDetails, updateWidgetData, widget.id]);
 
   // Check if a string is purely numeric
   const isNumericString = (val: string | number): boolean => {
@@ -356,8 +286,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
 
   // Fixed small sizing
   const buttonClass = 'py-1 px-2 text-xs';
-  const resultClass = 'text-xl';
-  const smallTextClass = 'text-[10px]';
   const gapClass = 'gap-1';
 
   const rollDice = async () => {
@@ -373,19 +301,19 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
         return;
       }
       const expressionResult = await rollDiceTerms(expressionTerms);
-      const expressionTotal = expressionResult.total + modifier;
-      setResult({
-        groups: [],
-        modifier,
-        total: expressionTotal,
-        aggregatedResults: [{ value: String(expressionResult.total), count: 1, isNumeric: true, numericTotal: expressionResult.total }],
-        expression: expressionResult,
-      });
       setIsRolling(false);
-      if (autoShowRollDetails) {
-        updateWidgetData(widget.id, { showRollDetails: true });
-      }
-      addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Rolled ${buildDiceNotation()} = ${expressionTotal}`, '🎲');
+      const describeRoll = (verb: string, next: typeof expressionResult) => (
+        `${verb} ${buildDiceNotation()} = ${next.total + modifier}`
+      );
+      showExpressionRoll({
+        show: showOutput,
+        title: label || 'Dice Roller',
+        subtitle: buildDiceNotation(),
+        result: expressionResult,
+        modifier,
+        onReroll: (next) => addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', describeRoll('Rerolled', next), '🎲'),
+      });
+      addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', describeRoll('Rolled', expressionResult), '🎲');
       return;
     }
     
@@ -399,7 +327,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
 
     let physicalValueIndex = 0;
     const groups: RollGroupResult[] = [];
-    const allRolls: (number | string)[] = [];
 
     for (const group of diceGroups as DiceGroup[]) {
       const rolls: (number | string)[] = [];
@@ -412,7 +339,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
         const rollSequence = rollDieSequenceFromInitial(group, roll);
         diceRolls.push(rollSequence);
         rolls.push(...rollSequence);
-        allRolls.push(...rollSequence);
       }
 
       groups.push({
@@ -428,58 +354,101 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
       });
     }
 
-    const aggregated = aggregateResults(allRolls);
-    const numericResult = aggregated.find(r => r.isNumeric);
-    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-    
-    setResult({ groups, modifier, total, aggregatedResults: aggregated });
+    const next = buildGroupsResult(groups, modifier, groups.flatMap((g) => g.diceRolls.map(() => 0)), 0);
     setIsRolling(false);
-    if (autoShowRollDetails) {
-      updateWidgetData(widget.id, { showRollDetails: true });
-    }
+    showGroupsResult(next);
     trackGoatCounterEvent('roll-dice');
 
     // Timeline event
     const notation = buildDiceNotation();
-    const desc = total !== null ? `Rolled ${notation} = ${total}` : `Rolled ${notation}`;
+    const desc = next.total !== null ? `Rolled ${notation} = ${next.total}` : `Rolled ${notation}`;
     addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', desc, '🎲');
   };
 
-  const rerollDie = async (groupIdx: number, dieIdx: number) => {
-    if (!result || isRolling) return;
-    const group = result.groups[groupIdx];
-    setIsRolling(true);
+  const buildGroupsResult = (
+    groups: RollGroupResult[],
+    resultModifier: number,
+    versions: number[],
+    rerollCount: number,
+  ): RollResult => {
+    const aggregated = aggregateResults(groups.flatMap((group) => group.rolls));
+    const numericResult = aggregated.find((entry) => entry.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + resultModifier : null;
+    return { groups, modifier: resultModifier, total, aggregatedResults: aggregated, versions, rerollCount };
+  };
 
-    const physicalDice = getPhysicalDiceRequests(group.configuration);
-    const physicalValues = physicalDice.length > 0
-      ? await rollPhysicalDice(physicalDice)
-      : null;
-    const { roll: initialRoll } = getPhysicalInitialRoll(group.configuration, physicalValues, 0);
-    const newRollsForDie = rollDieSequenceFromInitial(group.configuration, initialRoll);
+  const formatAggregatedResult = (result: RollResult) => result.aggregatedResults
+    .map((agg) => (agg.isNumeric ? String((agg.numericTotal || 0) + (result.modifier || 0)) : `${agg.count}${agg.value}`))
+    .join(' | ');
 
-    const newGroups = result.groups.map((g, gi) => {
-      if (gi !== groupIdx) return g;
-      const diceRolls = g.diceRolls.map((rolls, index) => index === dieIdx ? newRollsForDie : rolls);
-      return { ...g, diceRolls, rolls: diceRolls.flat() };
+  const showGroupsResult = (result: RollResult) => {
+    const dice = result.groups.flatMap((group, groupIndex) => group.diceRolls.map((rolls) => ({ group, groupIndex, rolls })));
+    const view: DiceResultView = {
+      title: label || 'Dice Roller',
+      subtitle: buildDiceNotation(),
+      dice: dice.map(({ group, groupIndex, rolls }, index) => ({
+        value: rolls.map(String).join(' → '),
+        faces: group.faces,
+        title: group.customFaces && group.customFaces.length > 0
+          ? group.configuration.customDiceName || 'custom'
+          : `d${group.faces}`,
+        state: 'plain',
+        groupStart: index > 0 && dice[index - 1].groupIndex !== groupIndex,
+        version: result.versions[index] ?? 0,
+      })),
+      modifiers: result.modifier !== 0 ? [`${result.modifier < 0 ? '−' : '+'}${Math.abs(result.modifier)}`] : undefined,
+      summary: formatAggregatedResult(result) || '—',
+      kind: 'neutral',
+    };
+
+    // A lone d20 gets a critical callout.
+    const only = result.groups.length === 1 && result.groups[0].rolls.length === 1 ? result.groups[0] : null;
+    if (only && only.faces === 20 && !only.customFaces) {
+      if (only.rolls[0] === 20) view.note = { text: 'NAT 20!', tone: 'good' };
+      else if (only.rolls[0] === 1) view.note = { text: 'NAT 1!', tone: 'bad' };
+    }
+
+    showOutput({
+      view,
+      reroll: controlsVisible ? (indices) => rerollDice(result, indices) : undefined,
+    });
+  };
+
+  const rerollDice = async (result: RollResult, indices: number[]) => {
+    const flat = result.groups.flatMap((group, groupIndex) => group.diceRolls.map((_, dieIndex) => ({ groupIndex, dieIndex })));
+    const targets = indices.map((index) => flat[index]).filter(Boolean);
+    if (targets.length === 0) return;
+
+    const physicalDice = targets.flatMap(({ groupIndex }) => getPhysicalDiceRequests(result.groups[groupIndex].configuration));
+    const physicalValues = physicalDice.length > 0 ? await rollPhysicalDice(physicalDice) : null;
+
+    let physicalValueIndex = 0;
+    const diceRolls = result.groups.map((group) => [...group.diceRolls]);
+    targets.forEach(({ groupIndex, dieIndex }) => {
+      const configuration = result.groups[groupIndex].configuration;
+      const { roll, consumedValues } = getPhysicalInitialRoll(configuration, physicalValues, physicalValueIndex);
+      physicalValueIndex += consumedValues;
+      diceRolls[groupIndex][dieIndex] = rollDieSequenceFromInitial(configuration, roll);
     });
 
-    const allRolls: (number | string)[] = [];
-    for (const g of newGroups) for (const r of g.rolls) allRolls.push(r);
-    const aggregated = aggregateResults(allRolls);
-    const numericResult = aggregated.find(r => r.isNumeric);
-    const newTotal = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
-
-    setResult({ groups: newGroups, modifier: result.modifier, total: newTotal, aggregatedResults: aggregated });
-    setIsRolling(false);
-    if (autoShowRollDetails) {
-      updateWidgetData(widget.id, { showRollDetails: true });
-    }
+    const groups = result.groups.map((group, groupIndex) => ({
+      ...group,
+      diceRolls: diceRolls[groupIndex],
+      rolls: diceRolls[groupIndex].flat(),
+    }));
+    const rerollCount = result.rerollCount + 1;
+    const versions = result.versions.map((version, index) => (indices.includes(index) ? rerollCount : version));
+    const next = buildGroupsResult(groups, result.modifier, versions, rerollCount);
+    showGroupsResult(next);
     trackGoatCounterEvent('roll-dice');
 
-    const dieName = group.customFaces && group.customFaces.length > 0
-      ? group.configuration.customDiceName || 'custom'
-      : `d${group.faces}`;
-    addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', `Re-rolled ${dieName}: ${newRollsForDie.join(' → ')}`, '🎲');
+    const summary = next.total !== null ? `= ${next.total}` : `= ${formatAggregatedResult(next)}`;
+    addTimelineEvent(
+      label || 'Dice Roller',
+      'DICE_ROLLER',
+      `Re-rolled ${targets.length} ${targets.length === 1 ? 'die' : 'dice'} ${summary}`,
+      '🎲',
+    );
   };
 
   const buildDiceNotation = () => {
@@ -510,25 +479,6 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
 
   const diceNotation = buildDiceNotation();
 
-  // Format the aggregated result for display
-  const formatAggregatedResult = () => {
-    if (!result) return '';
-
-    const parts: string[] = [];
-    
-    for (const agg of result.aggregatedResults) {
-      if (agg.isNumeric) {
-        // Add modifier to numeric total
-        const withMod = (agg.numericTotal || 0) + (result.modifier || 0);
-        parts.push(String(withMod));
-      } else {
-        parts.push(`${agg.count}${agg.value}`);
-      }
-    }
-    
-    return parts.join(' | ');
-  };
-
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {label && (
@@ -538,147 +488,26 @@ export default function DiceRollerWidget({ widget, mode, interactive = true, she
       )}
 
       {/* Roll Button */}
-      <Tooltip content={`Roll ${diceNotation}`}>
-        <button
-          data-tutorial={isAttackDiceRoller ? 'automation-roll-dice' : undefined}
-          onClick={rollDice}
-          onMouseDown={(e) => e.stopPropagation()}
-          className={`${buttonClass} border border-theme-border font-bold transition-all rounded-button flex-shrink-0 font-body ${
-            isRolling 
-              ? 'bg-theme-muted animate-pulse text-theme-paper' 
-              : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
-          }`}
-          disabled={isRolling || !controlsVisible || (useExpression && !expressionTerms)}
-        >
-          {useExpression && !expressionTerms ? 'Set a dice expression' : `Roll ${diceNotation}`}
-        </button>
-      </Tooltip>
-
-      {/* Result Display - Always visible to maintain consistent height */}
-      <div
-        className="text-center flex-1 flex flex-col min-h-0 justify-center"
-        onWheel={(e) => e.stopPropagation()}
-      >
-        {result && !isRolling ? (
-          <>
-            <div ref={resultSummaryRef} className="relative flex min-h-5 items-center justify-center">
-              <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-                {formatAggregatedResult() || '—'}
-              </div>
-              {controlsVisible && showRollDetailsButton && (
-                <Tooltip content={showRollDetails ? 'Hide roll details' : 'Show roll details'}>
-                  <button
-                    type="button"
-                    onClick={() => updateWidgetData(widget.id, { showRollDetails: !showRollDetails })}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    aria-label={showRollDetails ? 'Hide roll details' : 'Show roll details'}
-                    aria-expanded={showRollDetails}
-                    className="absolute right-0 inline-flex h-5 w-5 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
-                  >
-                    {showRollDetails ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
-                  </button>
-                </Tooltip>
-              )}
-            </div>
-            {/* Critical roll detection for single d20 (only for standard dice) */}
-            {result.groups.length === 1 && 
-             result.groups[0].rolls.length === 1 && 
-             result.groups[0].faces === 20 && 
-             !result.groups[0].customFaces && (
-              <>
-                {result.groups[0].rolls[0] === 20 && (
-                  <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT 20!</div>
-                )}
-                {result.groups[0].rolls[0] === 1 && (
-                  <div className={`text-red-600 font-bold ${smallTextClass}`}>NAT 1!</div>
-                )}
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>
-            <div className={`${smallTextClass} text-theme-muted font-body`}>&nbsp;</div>
-          </>
-        )}
+      <div className={`flex gap-1 ${overlayResults ? 'min-h-0 flex-1' : 'flex-shrink-0'}`}>
+        <Tooltip content={`Roll ${diceNotation}`}>
+          <button
+            data-tutorial={isAttackDiceRoller ? 'automation-roll-dice' : undefined}
+            onClick={rollDice}
+            onMouseDown={(e) => e.stopPropagation()}
+            className={`${buttonClass} min-w-0 flex-1 border border-theme-border font-bold transition-all rounded-button font-body ${
+              isRolling 
+                ? 'bg-theme-muted animate-pulse text-theme-paper' 
+                : 'bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper'
+            }`}
+            disabled={isRolling || !controlsVisible || (useExpression && !expressionTerms)}
+          >
+            {useExpression && !expressionTerms ? 'Set a dice expression' : `Roll ${diceNotation}`}
+          </button>
+        </Tooltip>
+        {hasResult && <ClearDiceResultButton onClear={closeResult} />}
       </div>
-      {showRollDetails && result && !isRolling && createPortal(
-        <div
-          id={`dice-roll-details-${widget.id}`}
-          ref={detailsDropdownRef}
-          role="region"
-          aria-label="Roll details"
-          className="fixed z-[10020] max-w-[calc(100vw-16px)] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-0.5 shadow-theme font-body animate-dropdown-in"
-          style={{
-            left: detailsPosition.left,
-            top: detailsPosition.top,
-            width: detailsPosition.width || undefined,
-            maxHeight: detailsPosition.maxHeight || undefined,
-          }}
-          data-touch-camera-ignore="true"
-          onPointerDown={(event) => event.stopPropagation()}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div className="mt-1 flex flex-col gap-0.5">
-            {result.expression && result.expression.terms.map((rollTerm, index) => (
-              <div key={`expression-${index}`} className="flex items-center justify-between gap-0 px-0 py-0.5 border-b border-theme-border/30 last:border-b-0">
-                <span className="text-sm text-theme-muted font-body flex-shrink-0">
-                  {rollTerm.term.type === 'dice' ? formatDiceTermBody(rollTerm.term) : 'modifier'}
-                </span>
-                <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center truncate">
-                  {rollTerm.term.type === 'dice'
-                    ? formatDiceRolls(rollTerm)
-                    : `${rollTerm.term.sign === -1 ? '-' : '+'}${rollTerm.term.value}`}
-                </span>
-                <span className="w-4 flex-shrink-0" />
-              </div>
-            ))}
-            {result.groups.flatMap((g, gi) =>
-              g.diceRolls.map((rolls, dieIndex) => {
-                const dieLabel = g.customFaces && g.customFaces.length > 0
-                  ? g.configuration.customDiceName || 'custom'
-                  : `d${g.faces}`;
-                return (
-                  <div
-                    key={`${gi}-${dieIndex}`}
-                    className="flex items-center justify-between gap-0 px-0 py-0.5 border-b border-theme-border/30 last:border-b-0"
-                  >
-                    <span className="text-sm text-theme-muted font-body flex-shrink-0">{dieLabel}</span>
-                    <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center truncate">
-                      {rolls.map((roll, index) => (
-                        <span key={index}>
-                          {index > 0 && <span className="text-theme-muted"> → </span>}
-                          {String(roll)}
-                        </span>
-                      ))}
-                    </span>
-                    {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
-                      <button
-                        onClick={() => rerollDie(gi, dieIndex)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0"
-                        aria-label={`Re-roll ${dieLabel} ${dieIndex + 1}`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                    </Tooltip> : <span className="w-4 flex-shrink-0" />}
-                  </div>
-                );
-              }))}
-            {result.modifier !== 0 && (
-              <div className="flex items-center justify-between gap-0 px-0 py-0.5">
-                <span className="text-sm text-theme-muted font-body flex-shrink-0">modifier</span>
-                <span className="flex-1 text-center font-heading text-xl font-bold text-theme-ink">
-                  {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
-                </span>
-                <span className="w-4 flex-shrink-0" />
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body,
+      {resultPanel && (
+        <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto">{resultPanel}</div>
       )}
     </div>
   );

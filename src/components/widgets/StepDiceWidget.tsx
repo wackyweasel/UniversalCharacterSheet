@@ -3,13 +3,14 @@ import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, StepDiceItem } from '../../types';
 import {
-  DiceExpressionRollResult,
   DiceStep,
   formatDiceRollDetail,
   formatDiceStep,
   parseDiceStep,
 } from '../../utils/diceExpression';
 import { rollDiceTerms } from '../../utils/diceRoll';
+import { showExpressionRoll } from '../../utils/showExpressionRoll';
+import { useDiceResult } from '../../hooks/useDiceResult';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
@@ -33,7 +34,6 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
   const { label, stepDiceItems = [], stepDiceChain, itemColumns, wrapItemNames = false } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
-  const [lastResults, setLastResults] = useState<Record<number, DiceExpressionRollResult>>({});
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [addMultiple, setAddMultiple] = useState(false);
@@ -42,6 +42,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
+  const { show: showResult } = useDiceResult(widget.id, true);
 
   const stepUp = (index: number) => {
     const items = [...stepDiceItems] as StepDiceItem[];
@@ -67,7 +68,18 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
     setRollingIndex(index);
     try {
       const result = await rollDiceTerms(terms);
-      setLastResults(prev => ({ ...prev, [index]: result }));
+      showExpressionRoll({
+        show: showResult,
+        title: item.name || label || 'Step Dice',
+        source: item.name,
+        result,
+        onReroll: (next) => addTimelineEvent(
+          label || 'Step Dice',
+          'STEP_DICE',
+          `${item.name}: rerolled ${formatDiceRollDetail(next)}`,
+          '🎲'
+        ),
+      });
       addTimelineEvent(
         label || 'Step Dice',
         'STEP_DICE',
@@ -183,7 +195,6 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
         const isAtMin = item.currentStep === 0;
         const isAtMax = item.currentStep === diceChain.length - 1;
         const isRolling = rollingIndex === i;
-        const result = lastResults[i];
 
         const row = (
           <div key={i} className="flex items-center gap-1 min-h-[28px]">
@@ -239,13 +250,6 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
               >
                 ▲
               </button>
-            )}
-
-            {/* Result */}
-            {result !== undefined && mode !== 'print' && (
-              <div className="min-w-[24px] text-center text-xs font-bold text-theme-accent flex-shrink-0" title={formatDiceRollDetail(result)}>
-                {isRolling ? '…' : result.total}
-              </div>
             )}
           </div>
         );

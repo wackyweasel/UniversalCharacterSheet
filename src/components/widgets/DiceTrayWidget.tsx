@@ -1,12 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
-import { createPortal } from 'react-dom';
 import { Widget, CustomDie } from '../../types';
-import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { useDiceResult } from '../../hooks/useDiceResult';
+import { ClearDiceResultButton } from '../ClearDiceResultButton';
 import { Tooltip } from '../Tooltip';
-import { ChevronDownIcon, ChevronUpIcon } from '../icons';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
+import type { DiceResultView } from '../../utils/diceResult';
 import {
   isPhysicalDieSupported,
   rollPhysicalDice,
@@ -40,6 +40,9 @@ interface RollResult {
   modifier: number;
   total: number | null; // null if no numeric results
   aggregatedResults: AggregatedResult[];
+  /** Reroll number that last produced each die, to replay the pop animation on rerolled dice only. */
+  versions: number[];
+  rerollCount: number;
 }
 
 interface AggregatedResult {
@@ -54,85 +57,15 @@ const isCustomDie = (die: number | CustomDie): die is CustomDie => {
   return typeof die === 'object' && 'faces' in die && Array.isArray(die.faces);
 };
 
-const DETAILS_VIEWPORT_PADDING = 8;
-const DETAILS_OFFSET = 4;
-const MIN_DETAILS_WIDTH = 180;
-const MAX_DETAILS_WIDTH = 240;
-
-export default function DiceTrayWidget({ widget, mode, interactive = true, sheetScale = 1 }: Props) {
-  const updateWidgetData = useStore((state) => state.updateWidgetData);
+export default function DiceTrayWidget({ widget, mode, interactive = true }: Props) {
   const { label, availableDice = [4, 6, 8, 10, 12, 20], modifier = 0 } = widget.data;
   const diceButtonScale = Math.min(100, Math.max(50, widget.data.diceButtonScale ?? 100)) / 100;
-  const showTrayRollDetails = widget.data.showTrayRollDetails ?? widget.data.showIndividualResults ?? false;
-  const showTrayRollDetailsButton = widget.data.showTrayRollDetailsButton ?? true;
-  const autoShowTrayRollDetails = widget.data.autoShowTrayRollDetails ?? false;
   const [dicePool, setDicePool] = useState<DiceInPool[]>([]);
   const [lastRolledPool, setLastRolledPool] = useState<DiceInPool[]>([]);
-  const [result, setResult] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
-  const [rerollingDieId, setRerollingDieId] = useState<number | null>(null);
   const [nextId, setNextId] = useState(1);
-  const resultSummaryRef = useRef<HTMLDivElement>(null);
-  const detailsDropdownRef = useRef<HTMLDivElement>(null);
-  const [detailsPosition, setDetailsPosition] = useState({ left: 0, top: 0, width: 0, maxHeight: 0 });
   const controlsVisible = interactive && mode !== 'print';
-
-  useLayoutEffect(() => {
-    if (!showTrayRollDetails || !result || isRolling) return;
-
-    const updateDetailsPosition = () => {
-      const anchor = resultSummaryRef.current;
-      if (!anchor) return;
-
-      const anchorRect = anchor.getBoundingClientRect();
-      const viewportWidth = Math.max(0, window.innerWidth - DETAILS_VIEWPORT_PADDING * 2);
-      const width = Math.min(Math.max(anchorRect.width, MIN_DETAILS_WIDTH), viewportWidth, MAX_DETAILS_WIDTH);
-      const maxHeight = Math.max(0, window.innerHeight - DETAILS_VIEWPORT_PADDING * 2);
-      const dropdownHeight = Math.min(
-        detailsDropdownRef.current?.getBoundingClientRect().height ?? 0,
-        maxHeight,
-      );
-      const below = anchorRect.bottom + DETAILS_OFFSET;
-      const top = below + dropdownHeight <= window.innerHeight - DETAILS_VIEWPORT_PADDING
-        ? below
-        : Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.top - dropdownHeight - DETAILS_OFFSET);
-      const left = Math.min(
-        Math.max(DETAILS_VIEWPORT_PADDING, anchorRect.left),
-        Math.max(DETAILS_VIEWPORT_PADDING, window.innerWidth - width - DETAILS_VIEWPORT_PADDING),
-      );
-
-      setDetailsPosition({ left, top, width, maxHeight });
-    };
-
-    updateDetailsPosition();
-    window.addEventListener('resize', updateDetailsPosition);
-    window.addEventListener('scroll', updateDetailsPosition, true);
-    return () => {
-      window.removeEventListener('resize', updateDetailsPosition);
-      window.removeEventListener('scroll', updateDetailsPosition, true);
-    };
-  }, [isRolling, result, showTrayRollDetails, sheetScale]);
-
-  useEffect(() => {
-    if (!showTrayRollDetails || !result || isRolling) return;
-
-    const closeDetails = () => updateWidgetData(widget.id, { showTrayRollDetails: false });
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (detailsDropdownRef.current?.contains(target) || resultSummaryRef.current?.contains(target)) return;
-      closeDetails();
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeDetails();
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isRolling, result, showTrayRollDetails, updateWidgetData, widget.id]);
+  const { show: showOutput, close: closeResult, hasResult, panel: resultPanel } = useDiceResult(widget.id, widget.data.diceResultOverlay === true, mode === 'print');
 
   // Fixed small sizing
   const buttonClass = 'py-1 px-2 text-xs';
@@ -141,8 +74,6 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     padding: `${0.25 * diceButtonScale}rem ${0.5 * diceButtonScale}rem`,
     minWidth: `${40 * diceButtonScale}px`,
   };
-  const resultClass = 'text-xl';
-  const smallTextClass = 'text-[10px]';
   const gapClass = 'gap-1';
 
   // Check if a string is purely numeric
@@ -290,13 +221,13 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
       setDicePool(prev => [...prev, { faces: die, id: nextId }]);
     }
     setNextId(prev => prev + 1);
-    setResult(null);
+    closeResult();
     setLastRolledPool([]);
   };
 
   const clearPool = () => {
     setDicePool([]);
-    setResult(null);
+    closeResult();
   };
 
   const rollPool = async (pool: DiceInPool[]) => {
@@ -356,29 +287,73 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     return { rolls, allRolls };
   };
 
+  const buildResult = (rolls: RollResultItem[], resultModifier: number, versions: number[], rerollCount: number): RollResult => {
+    const aggregated = aggregateResults(rolls.map((die) => die.roll));
+    const numericResult = aggregated.find(r => r.isNumeric);
+    const total = numericResult ? (numericResult.numericTotal || 0) + resultModifier : null;
+    return { dice: rolls, modifier: resultModifier, total, aggregatedResults: aggregated, versions, rerollCount };
+  };
+
+  const formatAggregatedResult = (result: RollResult) => result.aggregatedResults
+    .map((agg) => (agg.isNumeric ? String((agg.numericTotal || 0) + (result.modifier || 0)) : `${agg.count}${agg.value}`))
+    .join(' | ');
+
+  const getDieLabel = (die: RollResultItem) => (Array.isArray(die.faces) ? (die.customDieName || 'custom') : `d${die.faces}`);
+
+  const showTrayResult = (result: RollResult) => {
+    const hasNonNumericResults = result.aggregatedResults.some(r => !r.isNumeric);
+    const view: DiceResultView = {
+      title: label || 'Dice Tray',
+      subtitle: buildPoolNotation(
+        result.dice.map(({ faces, id, customDieName }) => ({ faces, id, customDieName })),
+        result.modifier,
+      ),
+      dice: result.dice.map((die, index) => ({
+        value: String(die.roll),
+        title: getDieLabel(die),
+        faces: Array.isArray(die.faces) ? die.faces.length : die.faces,
+        state: 'plain',
+        version: result.versions[index] ?? 0,
+      })),
+      modifiers: result.modifier !== 0 ? [`${result.modifier < 0 ? '−' : '+'}${Math.abs(result.modifier)}`] : undefined,
+      summary: hasNonNumericResults ? formatAggregatedResult(result) : String(result.total ?? '—'),
+      kind: 'neutral',
+    };
+
+    // A lone d20 gets a critical callout.
+    const only = result.dice.length === 1 ? result.dice[0] : null;
+    if (only && only.faces === 20) {
+      if (only.roll === 20) view.note = { text: 'NAT 20!', tone: 'good' };
+      else if (only.roll === 1) view.note = { text: 'NAT 1!', tone: 'bad' };
+    }
+
+    showOutput({
+      view,
+      reroll: controlsVisible ? (indices) => rerollSelectedDice(result, indices) : undefined,
+    });
+  };
+
+  const describeTotal = (result: RollResult) => (
+    result.total !== null ? `= ${result.total}` : `= ${formatAggregatedResult(result)}`
+  );
+
   const rollDice = async () => {
     if (dicePool.length === 0 || isRolling) return;
 
     const pool = [...dicePool];
     setIsRolling(true);
-    const { rolls, allRolls } = await rollPool(pool);
+    const { rolls } = await rollPool(pool);
 
-    const aggregated = aggregateResults(allRolls);
-    const numericResult = aggregated.find(r => r.isNumeric);
-    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-
-    setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
+    const next = buildResult(rolls, modifier, rolls.map(() => 0), 0);
     setIsRolling(false);
-    if (autoShowTrayRollDetails) {
-      updateWidgetData(widget.id, { showTrayRollDetails: true });
-    }
+    showTrayResult(next);
     setLastRolledPool(pool);
     setDicePool([]);
     setNextId(1);
     trackGoatCounterEvent('roll-dice');
 
     const notation = buildPoolNotation(pool, modifier);
-    const desc = total !== null ? `Rolled ${notation} = ${total}` : `Rolled ${notation}`;
+    const desc = next.total !== null ? `Rolled ${notation} = ${next.total}` : `Rolled ${notation}`;
     addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
   };
 
@@ -388,67 +363,44 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     const pool = [...lastRolledPool];
     setDicePool(pool);
     setIsRolling(true);
-    const { rolls, allRolls } = await rollPool(pool);
+    const { rolls } = await rollPool(pool);
 
-    const aggregated = aggregateResults(allRolls);
-    const numericResult = aggregated.find(r => r.isNumeric);
-    const total = numericResult ? (numericResult.numericTotal || 0) + modifier : null;
-
-    setResult({ dice: rolls, modifier, total, aggregatedResults: aggregated });
+    const next = buildResult(rolls, modifier, rolls.map(() => 0), 0);
     setIsRolling(false);
-    if (autoShowTrayRollDetails) {
-      updateWidgetData(widget.id, { showTrayRollDetails: true });
-    }
+    showTrayResult(next);
     setDicePool([]);
     trackGoatCounterEvent('roll-dice');
 
     const rerollNotation = buildPoolNotation(pool, modifier);
-    const rerollDesc = total !== null ? `Rerolled ${rerollNotation} = ${total}` : `Rerolled ${rerollNotation}`;
+    const rerollDesc = next.total !== null ? `Rerolled ${rerollNotation} = ${next.total}` : `Rerolled ${rerollNotation}`;
     addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
   };
 
-  // Re-roll a single die by its index in the result
-  const rerollSingleDie = async (dieIndex: number) => {
-    if (!result || isRolling || rerollingDieId !== null) return;
-    
-    const dieToReroll = result.dice[dieIndex];
-    setRerollingDieId(dieToReroll.id);
+  // Rerolls the dice picked in the result dialog
+  const rerollSelectedDice = async (result: RollResult, indices: number[]) => {
+    const targets = indices.filter((index) => result.dice[index]);
+    if (targets.length === 0) return;
 
-    const { rolls } = await rollPool([{
-      faces: dieToReroll.faces,
-      id: dieToReroll.id,
-      customDieName: dieToReroll.customDieName,
-    }]);
-    const newRoll = rolls[0].roll;
+    const { rolls } = await rollPool(targets.map((index) => ({
+      faces: result.dice[index].faces,
+      id: result.dice[index].id,
+      customDieName: result.dice[index].customDieName,
+    })));
 
-    const newDice = result.dice.map((die, index) =>
-      index === dieIndex ? { ...die, roll: newRoll } : die
-    );
-
-    const allRolls = newDice.map(die => die.roll);
-    const aggregated = aggregateResults(allRolls);
-    const numericResult = aggregated.find(r => r.isNumeric);
-    const total = numericResult ? (numericResult.numericTotal || 0) + result.modifier : null;
-
-    setResult({ dice: newDice, modifier: result.modifier, total, aggregatedResults: aggregated });
-    if (autoShowTrayRollDetails) {
-      updateWidgetData(widget.id, { showTrayRollDetails: true });
-    }
+    const rerollCount = result.rerollCount + 1;
+    const dice = result.dice.map((die, index) => {
+      const position = targets.indexOf(index);
+      return position >= 0 ? { ...die, roll: rolls[position].roll } : die;
+    });
+    const versions = result.versions.map((version, index) => (targets.includes(index) ? rerollCount : version));
+    const next = buildResult(dice, result.modifier, versions, rerollCount);
+    showTrayResult(next);
     trackGoatCounterEvent('roll-dice');
 
-    const dieFacesLabel = Array.isArray(dieToReroll.faces)
-      ? (dieToReroll.customDieName || 'custom')
-      : `d${dieToReroll.faces}`;
-    const desc = total !== null
-      ? `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll} (total: ${total})`
-      : `Rerolled ${dieFacesLabel}: ${dieToReroll.roll} \u2192 ${newRoll}`;
-    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '\ud83c\udfb2');
-
-    setLastRolledPool(prev => prev.map((die, index) =>
-      index === dieIndex ? { ...die } : die
-    ));
-
-    setRerollingDieId(null);
+    const changes = targets
+      .map((index, position) => `${getDieLabel(result.dice[index])}: ${result.dice[index].roll} \u2192 ${rolls[position].roll}`)
+      .join(', ');
+    addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', `Rerolled ${changes} (${describeTotal(next)})`, '\ud83c\udfb2');
   };
 
   // Group dice in pool by type for display
@@ -485,26 +437,6 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
     }
     return notation;
   };
-
-  // Format the aggregated result for display
-  const formatAggregatedResult = () => {
-    if (!result) return '';
-
-    const parts: string[] = [];
-    
-    for (const agg of result.aggregatedResults) {
-      if (agg.isNumeric) {
-        parts.push(String((agg.numericTotal || 0) + (result.modifier || 0)));
-      } else {
-        parts.push(`${agg.count}${agg.value}`);
-      }
-    }
-    
-    return parts.join(' | ');
-  };
-
-  // Check if result has any non-numeric values
-  const hasNonNumericResults = result?.aggregatedResults.some(r => !r.isNumeric);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -593,116 +525,10 @@ export default function DiceTrayWidget({ widget, mode, interactive = true, sheet
               </button>
             </Tooltip>
           )}
+          {hasResult && <ClearDiceResultButton onClear={closeResult} />}
       </div>
-
-      {/* Result Display */}
-      <div
-        className="text-center flex-1 flex flex-col min-h-0 justify-center"
-        onWheel={(e) => e.stopPropagation()}
-      >
-        {result && !isRolling ? (
-          <>
-            <div ref={resultSummaryRef} className="relative flex min-h-5 items-center justify-center">
-              <div className={`${resultClass} font-bold text-theme-ink font-heading`}>
-                {hasNonNumericResults ? formatAggregatedResult() : (result.total ?? '—')}
-              </div>
-              {controlsVisible && showTrayRollDetailsButton && (
-                <Tooltip content={showTrayRollDetails ? 'Hide roll details' : 'Show roll details'}>
-                  <button
-                    type="button"
-                    onClick={() => updateWidgetData(widget.id, { showTrayRollDetails: !showTrayRollDetails })}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    aria-label={showTrayRollDetails ? 'Hide roll details' : 'Show roll details'}
-                    aria-expanded={showTrayRollDetails}
-                    className="absolute right-0 inline-flex h-5 w-5 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
-                  >
-                    {showTrayRollDetails ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
-                  </button>
-                </Tooltip>
-              )}
-            </div>
-            {/* Critical roll detection for single d20 (only for standard dice) */}
-            {result.dice.length === 1 && 
-             typeof result.dice[0].faces === 'number' && 
-             result.dice[0].faces === 20 && (
-              <>
-                {result.dice[0].roll === 20 && (
-                  <div className={`text-green-600 font-bold ${smallTextClass}`}>NAT 20!</div>
-                )}
-                {result.dice[0].roll === 1 && (
-                  <div className={`text-red-600 font-bold ${smallTextClass}`}>NAT 1!</div>
-                )}
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <div className={`${resultClass} font-bold text-theme-muted font-heading`}>—</div>
-            <div className={`${smallTextClass} text-theme-muted font-body`}>&nbsp;</div>
-          </>
-        )}
-      </div>
-      {showTrayRollDetails && result && !isRolling && createPortal(
-        <div
-          id={`dice-tray-roll-details-${widget.id}`}
-          ref={detailsDropdownRef}
-          role="region"
-          aria-label="Roll details"
-          className="fixed z-[10020] max-w-[calc(100vw-16px)] overflow-y-auto rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper p-0.5 shadow-theme font-body animate-dropdown-in"
-          style={{
-            left: detailsPosition.left,
-            top: detailsPosition.top,
-            width: detailsPosition.width || undefined,
-            maxHeight: detailsPosition.maxHeight || undefined,
-          }}
-          data-touch-camera-ignore="true"
-          onPointerDown={(event) => event.stopPropagation()}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <div className="mt-1 flex flex-col gap-0.5">
-            {result.dice.map((d, i) => {
-              const dieLabel = Array.isArray(d.faces)
-                ? (d.customDieName || 'custom')
-                : `d${d.faces}`;
-              return (
-                <div
-                  key={d.id}
-                  className="flex items-center justify-between gap-0 px-0 py-0.5 border-b border-theme-border/30 last:border-b-0"
-                >
-                  <span className="text-sm text-theme-muted font-body flex-shrink-0">{dieLabel}</span>
-                  <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center truncate">
-                    {String(d.roll)}
-                  </span>
-                  {controlsVisible ? <Tooltip content={`Re-roll ${dieLabel}`}>
-                    <button
-                      onClick={() => rerollSingleDie(i)}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      disabled={rerollingDieId !== null}
-                      className={`p-0.5 rounded-button text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex-shrink-0 ${
-                        rerollingDieId === d.id ? 'animate-pulse bg-theme-accent text-theme-paper' : ''
-                      }`}
-                      aria-label={`Re-roll ${dieLabel} ${i + 1}`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </button>
-                  </Tooltip> : <span className="w-4 flex-shrink-0" />}
-                </div>
-              );
-            })}
-            {result.modifier !== 0 && (
-              <div className="flex items-center justify-between gap-0 px-0 py-0.5">
-                <span className="text-sm text-theme-muted font-body flex-shrink-0">modifier</span>
-                <span className="text-xl font-bold text-theme-ink font-heading flex-1 text-center">
-                  {result.modifier >= 0 ? `+${result.modifier}` : String(result.modifier)}
-                </span>
-                <span className="w-[18px] flex-shrink-0" />
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body,
+      {resultPanel && (
+        <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto">{resultPanel}</div>
       )}
     </div>
   );

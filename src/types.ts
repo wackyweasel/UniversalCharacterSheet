@@ -453,16 +453,10 @@ export interface WidgetData {
   diceGroups?: DiceGroup[];
   diceUseExpression?: boolean;
   diceExpression?: string;
-  showRollDetails?: boolean;
-  showRollDetailsButton?: boolean;
-  autoShowRollDetails?: boolean;
+  /** Dice widgets: show roll results in a floating dialog over the widget instead of below the controls. */
+  diceResultOverlay?: boolean;
   // Dice Tray
-  showTrayRollDetails?: boolean;
-  showTrayRollDetailsButton?: boolean;
-  autoShowTrayRollDetails?: boolean;
   diceButtonScale?: number;
-  // Legacy setting used to initialize details for existing saved widgets.
-  showIndividualResults?: boolean;
   availableDice?: (number | CustomDie)[];  // Support both standard (number) and custom dice
   // Spell Slot
   spellLevels?: SpellLevel[];

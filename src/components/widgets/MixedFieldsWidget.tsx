@@ -1,7 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
-import type { DiceExpressionRollResult } from '../../utils/diceExpression';
+import { showExpressionRoll } from '../../utils/showExpressionRoll';
+import { useDiceResult } from '../../hooks/useDiceResult';
 import { formatDiceRollDetail, formatDiceStep, parseDiceStep } from '../../utils/diceExpression';
 import { rollDiceTerms } from '../../utils/diceRoll';
 import type { MixedField, MixedFieldType, Widget } from '../../types';
@@ -658,13 +659,13 @@ export default function MixedFieldsWidget({
   const isPrintMode = mode === 'print';
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && !isPrintMode;
   const canInteract = interactive && !isPrintMode;
+  const { show: showResult, panel: resultPanel } = useDiceResult(widget.id, widget.data.diceResultOverlay === true, isPrintMode);
   const [dialog, setDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldName, setFieldName] = useState('');
   const [fieldType, setFieldType] = useState<MixedFieldType>('text');
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
-  const [rollResults, setRollResults] = useState<Record<number, DiceExpressionRollResult>>({});
   const [editingTextIndex, setEditingTextIndex] = useState<number | null>(null);
   const [renamingFieldIndex, setRenamingFieldIndex] = useState<number | null>(null);
   const previousTextValues = useRef<Record<number, string>>({});
@@ -728,7 +729,13 @@ export default function MixedFieldsWidget({
     setRollingIndex(index);
     try {
       const result = await rollDiceTerms(terms);
-      setRollResults((current) => ({ ...current, [index]: result }));
+      showExpressionRoll({
+        show: showResult,
+        title: field.name || label || 'Mixed fields',
+        source: field.name,
+        result,
+        onReroll: (next) => announceChange(field, `rerolled ${formatDiceRollDetail(next)}`),
+      });
       announceChange(field, formatDiceRollDetail(result));
     } finally {
       setRollingIndex(null);
@@ -873,7 +880,6 @@ export default function MixedFieldsWidget({
       case 'step-dice': {
         const chain = field.diceChain?.length ? field.diceChain : DEFAULT_MIXED_FIELD_DICE_CHAIN;
         const currentStep = clampMixedFieldValue(field.currentStep, 0, chain.length - 1);
-        const result = rollResults[index];
         return (
           <div className={`flex min-w-0 flex-1 items-center ${justifyClass} gap-1`}>
             {!isPrintMode && <button type="button" aria-label={`Step ${field.name} down`} onClick={() => updateField(index, { ...field, currentStep: Math.max(0, currentStep - 1) })} disabled={!canInteract || currentStep === 0} className="widget-control h-6 w-6 min-h-0 text-[9px]">▼</button>}
@@ -881,7 +887,6 @@ export default function MixedFieldsWidget({
               {formatDiceStep(chain[currentStep])}
             </button>
             {!isPrintMode && <button type="button" aria-label={`Step ${field.name} up`} onClick={() => updateField(index, { ...field, currentStep: Math.min(chain.length - 1, currentStep + 1) })} disabled={!canInteract || currentStep === chain.length - 1} className="widget-control h-6 w-6 min-h-0 text-[9px]">▲</button>}
-            {result && !isPrintMode && <span className="min-w-5 text-center text-xs font-bold font-body text-theme-accent">{result.total}</span>}
           </div>
         );
       }
@@ -926,6 +931,8 @@ export default function MixedFieldsWidget({
         ))} />
         {mixedFields.length === 0 && <WidgetEmptyState title="No fields yet" hint={controlsVisible ? 'Use + to add a field.' : undefined} compact />}
       </div>
+
+      {resultPanel}
 
       {dialog && createPortal(
         <div data-touch-camera-ignore="true" className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4" onClick={closeDialog} onMouseDown={(event) => event.stopPropagation()}>

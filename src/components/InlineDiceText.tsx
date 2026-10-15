@@ -4,7 +4,6 @@ import { useStore } from '../store/useStore';
 import { useInlineDiceRoll } from '../hooks/useInlineDiceRoll';
 import { tokenizeInlineDiceText } from '../utils/inlineDice';
 import { DiceIcon } from './icons';
-import { InlineDiceResultPopover } from './InlineDiceResultPopover';
 import { Tooltip } from './Tooltip';
 
 interface Props {
@@ -17,7 +16,7 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
   const mode = useStore((state) => state.mode);
   const segments = useMemo(() => tokenizeInlineDiceText(text), [text]);
   const hasTokens = segments.some((segment) => segment.type !== 'text');
-  const { closeResult, resolveExpression, rollExpression, rollState } = useInlineDiceRoll(widget, hasTokens);
+  const { resolveExpression, rollExpression, rollingExpression } = useInlineDiceRoll(widget, hasTokens);
 
   if (mode !== 'play' && mode !== 'vertical') {
     return <span className={className}>{text}</span>;
@@ -51,8 +50,8 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
               type="button"
               className={`inline-dice-token ${resolution.valid ? '' : 'inline-dice-token--invalid'}`}
               aria-label={label}
-              aria-busy={rollState?.rolling && rollState.sourceExpression === segment.expression}
-              disabled={!resolution.valid || (rollState?.rolling && rollState.sourceExpression === segment.expression)}
+              aria-busy={rollingExpression === segment.expression}
+              disabled={!resolution.valid || rollingExpression === segment.expression}
               title={label}
               onPointerDown={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
@@ -60,7 +59,7 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
               onTouchEnd={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
-                void rollExpression(segment.expression, event.currentTarget);
+                void rollExpression(segment.expression);
               }}
             >
               <DiceIcon />
@@ -68,7 +67,6 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
           );
         })}
       </span>
-      {rollState && <InlineDiceResultPopover state={rollState} onClose={closeResult} />}
     </>
   );
 }
