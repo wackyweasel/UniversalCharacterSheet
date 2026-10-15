@@ -166,15 +166,27 @@ function mergeById<T extends { id: string }>(existing: T[], incoming: T[]): T[] 
   ];
 }
 
-function applyWorkspaceDocument(document: WorkspaceDocument, restoreActiveCharacter = true): void {
+// 'current' keeps this device's selected character when it still exists in the document.
+type SelectionRestore = 'document' | 'reset' | 'current';
+
+function applyWorkspaceDocument(document: WorkspaceDocument, selection: SelectionRestore = 'document'): void {
+  const local = useStore.getState();
+  const keepCurrent = selection === 'current'
+    && local.activeCharacterId !== null
+    && document.characters.some((character) => character.id === local.activeCharacterId);
+  const activeCharacterId = keepCurrent
+    ? local.activeCharacterId
+    : selection === 'reset' ? null : document.activeCharacterId;
+  const mode = keepCurrent ? local.mode : selection === 'reset' ? 'play' : document.mode;
+
   useUndoStore.getState().clearAllHistory();
   useCustomThemeStore.getState().replaceCustomThemes(document.customThemes);
   useTemplateStore.getState().replaceTemplates(document.templates);
   useUserPresetStore.getState().replaceUserPresets(document.userPresets);
   useStore.getState()._replaceWorkspaceState({
     characters: document.characters,
-    activeCharacterId: restoreActiveCharacter ? document.activeCharacterId : null,
-    mode: restoreActiveCharacter ? document.mode : 'play',
+    activeCharacterId,
+    mode,
   });
   useTimelineStore.getState().replaceWorkspaceEvents(document.eventsByCharacter);
 }
@@ -331,7 +343,7 @@ function startSubscriptions(): void {
   });
 }
 
-async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter = true): Promise<void> {
+async function loadWorkspace(workspace: StorageWorkspace, selection: SelectionRestore = 'document'): Promise<void> {
   suppressPersistence = true;
   useStorageWorkspaceStore.setState({ syncStatus: 'loading', error: null, conflict: null });
   let cache = null;
@@ -341,7 +353,7 @@ async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter
       if (!cache) throw new WorkspaceReconnectRequiredError('Reconnect Google Drive to load this workspace.');
       currentDocument = cache.document;
       currentFingerprint = cache.fingerprint;
-      applyWorkspaceDocument(cache.document, restoreActiveCharacter);
+      applyWorkspaceDocument(cache.document, selection);
       useStorageWorkspaceStore.setState({
         syncStatus: 'reconnect',
         error: 'Reconnect Google Drive to resume syncing this workspace.',
@@ -354,7 +366,7 @@ async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter
       const cached = cache.document;
       currentDocument = cached;
       currentFingerprint = cache.fingerprint;
-      applyWorkspaceDocument(cached, restoreActiveCharacter);
+      applyWorkspaceDocument(cached, selection);
 
       if (result.fingerprint !== cache.fingerprint) {
         const conflict = new WorkspaceConflictError(undefined, result.document, result.fingerprint);
@@ -379,7 +391,7 @@ async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter
     if (workspace.provider !== 'browser') {
       await requireRegistry().setCache({ workspaceId: workspace.id, document: result.document, fingerprint: result.fingerprint, pendingSync: false });
     }
-    applyWorkspaceDocument(result.document, restoreActiveCharacter);
+    applyWorkspaceDocument(result.document, selection);
     useStorageWorkspaceStore.setState({ syncStatus: 'synced' });
   } catch (error) {
     if (!cache) {
@@ -391,7 +403,7 @@ async function loadWorkspace(workspace: StorageWorkspace, restoreActiveCharacter
     }
     currentDocument = cache.document;
     currentFingerprint = cache.fingerprint;
-    applyWorkspaceDocument(cache.document, restoreActiveCharacter);
+    applyWorkspaceDocument(cache.document, selection);
     useStorageWorkspaceStore.setState({
       syncStatus: error instanceof WorkspaceReconnectRequiredError ? 'reconnect' : 'pending',
       error: error instanceof Error ? error.message : 'The cached workspace was loaded.',
@@ -492,7 +504,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
         enqueueSave();
       }
       await saveQueue;
-      await loadWorkspace(workspace, false);
+      await loadWorkspace(workspace, 'reset');
       const updatedWorkspace = { ...workspace, lastOpenedAt: new Date().toISOString() };
       requireRegistry().setActiveWorkspaceId(workspaceId);
       set({
@@ -645,15 +657,15 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       throw new Error('The selected directory belongs to a different workspace.');
     }
     await requireRegistry().setDirectoryHandle(workspaceId, selectedHandle);
-    if (workspaceId === get().activeWorkspaceId) await loadWorkspace(workspace);
+    if (workspaceId === get().activeWorkspaceId) await loadWorkspace(workspace, 'current');
   },
 
   reconnectGoogleDriveWorkspace: async (workspaceId) => {
     clearGoogleDriveAccessToken();
-    await authorizeGoogleDrive();
+    if (!await restoreGoogleDriveAccessToken()) await authorizeGoogleDrive();
     if (workspaceId === get().activeWorkspaceId) {
       const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
-      if (workspace) await loadWorkspace(workspace);
+      if (workspace) await loadWorkspace(workspace, 'current');
     }
   },
 
@@ -799,7 +811,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       suppressPersistence = true;
       currentDocument = activeDocument;
       currentFingerprint = activeWorkspaceId === sourceWorkspace.id ? sourceFingerprint : targetFingerprint;
-      applyWorkspaceDocument(activeDocument);
+      applyWorkspaceDocument(activeDocument, 'current');
       suppressPersistence = false;
     }
   },
@@ -815,7 +827,7 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       try {
         currentDocument = conflict.remoteDocument;
         currentFingerprint = conflict.remoteFingerprint;
-        applyWorkspaceDocument(conflict.remoteDocument);
+        applyWorkspaceDocument(conflict.remoteDocument, 'current');
         await requireRegistry().setCache({
           workspaceId: workspace.id,
           document: conflict.remoteDocument,

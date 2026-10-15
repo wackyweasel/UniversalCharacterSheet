@@ -3,6 +3,7 @@ const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
 const SILENT_TOKEN_TIMEOUT_MS = 5000;
 const SESSION_TOKEN_STORAGE_KEY = 'ucs:google-drive-session-token';
+const REFRESH_LEAD_MS = 3 * 60 * 1000;
 
 interface TokenResponse {
   access_token?: string;
@@ -71,14 +72,25 @@ let identityLibraryPromise: Promise<void> | null = null;
 let pickerLibraryPromise: Promise<void> | null = null;
 let tokenRequestPromise: Promise<string> | null = null;
 let rejectTokenRequest: ((error: Error) => void) | null = null;
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Tokens last about an hour and have no refresh token, so renew silently before expiry while the Google session is alive.
+function scheduleTokenRefresh(): void {
+  if (refreshTimer !== null) clearTimeout(refreshTimer);
+  const delay = Math.max(0, accessTokenExpiresAt - Date.now() - REFRESH_LEAD_MS);
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    requestGoogleDriveAccessToken('none', SILENT_TOKEN_TIMEOUT_MS, true).catch(() => undefined);
+  }, delay);
+}
 
 function readSessionToken(): { token: string; expiresAt: number } | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+    const raw = localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as { token?: unknown; expiresAt?: unknown };
     if (typeof value.token !== 'string' || typeof value.expiresAt !== 'number' || Date.now() >= value.expiresAt) {
-      sessionStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
       return null;
     }
     return { token: value.token, expiresAt: value.expiresAt };
@@ -89,18 +101,31 @@ function readSessionToken(): { token: string; expiresAt: number } | null {
 
 function writeSessionToken(token: string, expiresAt: number): void {
   try {
-    sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, JSON.stringify({ token, expiresAt }));
+    localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, JSON.stringify({ token, expiresAt }));
   } catch {
-    // The in-memory token still works when session storage is unavailable.
+    // The in-memory token still works when local storage is unavailable.
   }
 }
 
 function removeSessionToken(): void {
   try {
-    sessionStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
   } catch {
-    // Nothing else is required when session storage is unavailable.
+    // Nothing else is required when local storage is unavailable.
   }
+}
+
+// Pick up renewals and disconnects made by other tabs.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== SESSION_TOKEN_STORAGE_KEY) return;
+    accessToken = null;
+    accessTokenExpiresAt = 0;
+    if (!getGoogleDriveAccessToken() && refreshTimer !== null) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+  });
 }
 
 function loadScript(id: string, source: string): Promise<void> {
@@ -168,6 +193,7 @@ export function getGoogleDriveAccessToken(): string | null {
     if (sessionToken) {
       accessToken = sessionToken.token;
       accessTokenExpiresAt = sessionToken.expiresAt;
+      scheduleTokenRefresh();
     }
   }
   if (accessToken && Date.now() >= accessTokenExpiresAt) {
@@ -179,14 +205,16 @@ export function getGoogleDriveAccessToken(): string | null {
 }
 
 export function clearGoogleDriveAccessToken(): void {
+  if (refreshTimer !== null) clearTimeout(refreshTimer);
+  refreshTimer = null;
   accessToken = null;
   accessTokenExpiresAt = 0;
   removeSessionToken();
 }
 
-async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: number): Promise<string> {
+async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: number, force = false): Promise<string> {
   const existingToken = getGoogleDriveAccessToken();
-  if (existingToken) return existingToken;
+  if (existingToken && !force) return existingToken;
   if (tokenRequestPromise) return tokenRequestPromise;
 
   const request = (async () => {
@@ -218,6 +246,7 @@ async function requestGoogleDriveAccessToken(prompt: '' | 'none', timeoutMs?: nu
         accessToken = response.access_token;
         accessTokenExpiresAt = Date.now() + Math.max(0, (response.expires_in ?? 3600) - 60) * 1000;
         writeSessionToken(accessToken, accessTokenExpiresAt);
+        scheduleTokenRefresh();
         resolve(response.access_token);
       };
       tokenClient!.requestAccessToken({ prompt });

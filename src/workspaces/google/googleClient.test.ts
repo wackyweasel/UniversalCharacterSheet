@@ -44,9 +44,9 @@ function installGoogleLibraries(responses: TokenResult[]) {
   return prompts;
 }
 
-function installSessionStorage() {
+function installLocalStorage() {
   const values = new Map<string, string>();
-  vi.stubGlobal('sessionStorage', {
+  vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
@@ -78,8 +78,8 @@ describe('Google Drive authorization', () => {
     expect(prompts).toEqual(['none']);
   });
 
-  it('restores a live token from session storage after a page reload', async () => {
-    installSessionStorage();
+  it('restores a live token from local storage after a page reload', async () => {
+    installLocalStorage();
     const prompts = installGoogleLibraries([{ access_token: 'session-token', expires_in: 3600 }]);
     const firstPage = await import('./googleClient');
 
@@ -92,8 +92,8 @@ describe('Google Drive authorization', () => {
     expect(prompts).toEqual(['']);
   });
 
-  it('discards an expired session token before restoring authorization', async () => {
-    const sessionValues = installSessionStorage();
+  it('discards an expired stored token before restoring authorization', async () => {
+    const sessionValues = installLocalStorage();
     sessionValues.set('ucs:google-drive-session-token', JSON.stringify({
       token: 'expired-token',
       expiresAt: Date.now() - 1,
