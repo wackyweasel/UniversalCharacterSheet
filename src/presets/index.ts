@@ -102,3 +102,21 @@ export function getPresetDefinition(id: string): PresetDefinition | undefined {
 
 // Tutorial preset (used internally by tutorial system, not shown in preset list)
 export const TUTORIAL_PRESET = TutorialPreset as CharacterPreset;
+
+// Starter sheet for the Advanced Automations tutorial: Strength is already tagged @str and the Notes use inline formulas and dice.
+export const ADVANCED_TUTORIAL_PRESET: CharacterPreset = (() => {
+  const preset = JSON.parse(JSON.stringify(TutorialPreset)) as CharacterPreset;
+  for (const sheet of preset.sheets ?? []) {
+    for (const widget of sheet.widgets ?? []) {
+      if (widget.type === 'NUMBER_DISPLAY') {
+        widget.data.displayNumbers = widget.data.displayNumbers?.map((item) => (
+          item.label === 'Strength' ? { ...item, valueLabel: 'str' } : item
+        ));
+      }
+      if (widget.type === 'TEXT' && widget.data.label === 'Notes') {
+        widget.data.text = 'The King wants us to save his son.\n\nStrength plus ten: {@str+10}\nSword attack: {1d20+@str}\nSword damage: {2d6+@str}';
+      }
+    }
+  }
+  return preset;
+})();

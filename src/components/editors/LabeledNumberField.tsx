@@ -120,8 +120,8 @@ export function LabeledNumberField({
   const hasValidLabelDraft = labelDraft.trim().replace(/\s+/g, '_').length > 0;
   const shouldHighlightStrengthTagButton = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-strength-tag-button');
   const shouldHighlightStrengthTagConfirm = tutorialTargetPrefix === 'automation-strength' && isCurrentTutorialStep('automation-set-strength-tag') && hasValidLabelDraft;
-  const shouldHighlightDiceFormulaButton = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button');
-  const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula');
+  const shouldHighlightDiceFormulaButton = tutorialTargetPrefix === 'automation-dice-modifier' && (isCurrentTutorialStep('automation-dice-formula-button') || isCurrentTutorialStep('advanced-open-formula-editor'));
+  const shouldHighlightDiceFormulaConfirm = tutorialTargetPrefix === 'automation-dice-modifier' && (isCurrentTutorialStep('automation-type-dice-formula') || isCurrentTutorialStep('advanced-apply-formula'));
   const radiusClass = radius === 'theme' ? 'rounded-theme' : 'rounded-button';
 
   const handleIncrement = () => {
@@ -215,7 +215,7 @@ export function LabeledNumberField({
   const confirmFormula = (nextFormula: string) => {
     onFormulaChange(nextFormula);
     setShowFormulaInput(false);
-    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-type-dice-formula')) {
+    if (tutorialTargetPrefix === 'automation-dice-modifier' && (isCurrentTutorialStep('automation-type-dice-formula') || isCurrentTutorialStep('advanced-apply-formula'))) {
       advanceTutorial();
     }
   };
@@ -237,7 +237,7 @@ export function LabeledNumberField({
   const openFormulaInput = () => {
     setShowFormulaInput(true);
     setShowLabelInput(false);
-    if (tutorialTargetPrefix === 'automation-dice-modifier' && isCurrentTutorialStep('automation-dice-formula-button')) {
+    if (tutorialTargetPrefix === 'automation-dice-modifier' && (isCurrentTutorialStep('automation-dice-formula-button') || isCurrentTutorialStep('advanced-open-formula-editor'))) {
       advanceTutorial();
     }
   };

@@ -15,7 +15,22 @@ import {
 } from '../utils/formulaReference';
 import { extractFormulaLabelReferences, type FormulaValue } from '../utils/formulaSyntax';
 import { findFormulaIssues } from '../utils/formulaDiagnostics';
+import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import { SearchIcon, XIcon } from './icons';
+
+// Advanced Automations tutorial: what the editor shows on each step.
+const TUTORIAL_LESSONS: Record<string, { formula?: string; reference?: string; panel?: 'labels' | 'reference'; scrollToLabel?: string }> = {
+  'advanced-formula-labels': { panel: 'labels', scrollToLabel: 'str' },
+  'advanced-formula-reference': { reference: 'labels', panel: 'reference' },
+  'advanced-formula-arithmetic': { formula: '(@str + 4) * 2', reference: 'arithmetic', panel: 'reference' },
+  'advanced-formula-conditions': { formula: 'IF(@str >= 10, 2, 0)', reference: 'if', panel: 'reference' },
+  'advanced-formula-switch': { formula: 'SWITCH(@str, 1..9, 0, 10..14, 1, 2)', reference: 'switch', panel: 'reference' },
+  'advanced-formula-math': { formula: 'max(0, min(@str, 8))', reference: 'min-max', panel: 'reference' },
+  'advanced-formula-text': { reference: 'text-join', panel: 'reference' },
+  'advanced-formula-tables': { reference: 'sum-rows', panel: 'reference' },
+  'advanced-formula-errors': { formula: '@str +' },
+  'advanced-apply-formula': { formula: 'floor((@str - 10) / 2)' },
+};
 
 interface FormulaEditorDialogProps {
   formula?: string;
@@ -240,8 +255,23 @@ export function FormulaEditorDialog({
     requestAnimationFrame(() => referenceDetailRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
 
+  const tutorialStepId = useTutorialStore((state) => (state.tutorialStep !== null ? TUTORIAL_STEPS[state.tutorialStep]?.id : undefined));
+  useEffect(() => {
+    const lesson = tutorialStepId ? TUTORIAL_LESSONS[tutorialStepId] : undefined;
+    if (!lesson) return;
+    if (lesson.formula !== undefined) setDraft(lesson.formula);
+    if (lesson.reference) selectReference(lesson.reference);
+    if (lesson.panel) setMobilePanel(lesson.panel);
+    if (lesson.scrollToLabel) {
+      const label = lesson.scrollToLabel;
+      window.setTimeout(() => {
+        document.querySelector(`[data-formula-label="${label}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 100);
+    }
+  }, [tutorialStepId]);
+
   const renderLabelBrowser = () => (
-    <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="formula-labels-title">
+    <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="formula-labels-title" data-tutorial="formula-labels">
       <div className="mb-2 flex items-end justify-between gap-3">
         <div>
           <h3 id="formula-labels-title" className="text-sm font-bold text-theme-ink">Available labels</h3>
@@ -279,6 +309,7 @@ export function FormulaEditorDialog({
                     key={`${item.label}-${index}`}
                     type="button"
                     onClick={() => insertLabel(item.label)}
+                    data-formula-label={item.label}
                     className="flex min-w-0 items-center justify-between gap-2 rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-left transition-colors hover:border-theme-accent hover:bg-theme-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent"
                     title={`Insert @${item.label}`}
                   >
@@ -295,7 +326,7 @@ export function FormulaEditorDialog({
   );
 
   const renderReferenceBrowser = () => (
-    <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="formula-reference-title">
+    <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="formula-reference-title" data-tutorial="formula-reference">
       <div className="mb-2">
         <h3 id="formula-reference-title" className="text-sm font-bold text-theme-ink">Symbols and commands</h3>
       </div>
@@ -408,7 +439,7 @@ export function FormulaEditorDialog({
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 sm:p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5 lg:overflow-hidden">
           <div className={`flex min-h-0 flex-col ${mobilePanel === 'labels' ? 'flex-1 overflow-y-auto' : 'flex-none'}`}>
-            <section className="flex-none" aria-labelledby="formula-expression-title">
+            <section className="flex-none" aria-labelledby="formula-expression-title" data-tutorial="formula-expression">
               <div className="mb-1.5 flex items-end justify-between gap-3">
                 <h3 id="formula-expression-title" className="text-sm font-bold text-theme-ink">Expression</h3>
                 <span className="hidden font-mono text-[10px] text-theme-muted sm:block">fx</span>

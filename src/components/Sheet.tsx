@@ -966,6 +966,23 @@ export default function Sheet() {
   }, [tutorialStep, frameWidgetForTutorial]);
 
   useEffect(() => {
+    const frameAttackRoller = isCurrentTutorialStep('advanced-open-dice-menu') || isCurrentTutorialStep('advanced-roll-dice');
+    const frameNotes = isCurrentTutorialStep('advanced-inline-notes') || isCurrentTutorialStep('advanced-inline-dice-roll');
+    if (!frameAttackRoller && !frameNotes) return;
+
+    setMode('play');
+    setSidebarCollapsed(true);
+    setThemeSidebarCollapsed(true);
+    setTimeout(() => {
+      if (frameAttackRoller) {
+        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
+      } else {
+        frameWidgetForTutorial('TEXT');
+      }
+    }, 200);
+  }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
     if (isCurrentTutorialStep('templates-share-template')) {
       setMode('play');
       setThemeSidebarCollapsed(true);

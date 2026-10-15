@@ -289,7 +289,7 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
   const gapClass = 'gap-1';
 
   const rollDice = async () => {
-    if (isAttackDiceRoller && isCurrentTutorialStep('automation-roll-dice')) {
+    if (isAttackDiceRoller && (isCurrentTutorialStep('automation-roll-dice') || isCurrentTutorialStep('advanced-roll-dice'))) {
       advanceTutorial();
     }
 

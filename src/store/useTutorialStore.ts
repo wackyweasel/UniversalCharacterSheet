@@ -5,6 +5,7 @@ const TUTORIAL_STORAGE_KEY = 'ucs:tutorialStep';
 export const THEME_TUTORIAL_START_ID = 'themes-open-panel';
 export const TEMPLATE_TUTORIAL_START_ID = 'templates-open-widget-menu';
 export const AUTOMATION_TUTORIAL_START_ID = 'automation-intro';
+export const ADVANCED_AUTOMATION_TUTORIAL_START_ID = 'advanced-intro';
 export const VARIOUS_TUTORIAL_START_ID = 'various-open-gallery';
 
 // Tutorial step definitions
@@ -476,6 +477,220 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'sheet',
   },
   {
+    id: ADVANCED_AUTOMATION_TUTORIAL_START_ID,
+    title: 'Advanced Automations',
+    message: 'This tour goes deeper than the Automation tutorial. You will explore the formula editor and its commands, then use formulas and dice expressions in a dice roller and inside text. It helps to finish the Automation tutorial first.',
+    position: 'center',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-load-character',
+    title: 'Load the Tutorial Character',
+    message: 'Loading a tutorial character where Strength is already tagged @str.',
+    position: 'center',
+    page: 'character-list',
+  },
+  {
+    id: 'advanced-open-dice-menu',
+    title: 'Open the Dice Roller',
+    message: 'Open the menu on the Attack dice roller. We will give its modifier a formula.',
+    targetSelector: '[data-tutorial="widget-menu-DICE_ROLLER"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-edit-dice-roller',
+    title: 'Edit the Dice Roller',
+    message: 'Choose Edit to open the dice roller settings.',
+    targetSelector: '[data-tutorial="edit-button-DICE_ROLLER"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-open-formula-editor',
+    title: 'Open the Formula Editor',
+    message: 'Click the fx button beside Modifier to open the formula editor.',
+    targetSelector: '[data-tutorial="automation-dice-modifier-fx-button"]',
+    scrollTargetIntoView: true,
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-formula-overview',
+    title: 'The Formula Editor',
+    message: 'This is where formulas are written. Type in the Expression box and the result appears live under it. When something is wrong, the editor underlines the problem and explains it.',
+    targetSelector: '[data-tutorial="formula-expression"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-labels',
+    title: 'Available Labels',
+    message: 'Every tagged value on your character is listed here, such as @str. Click one to insert it into the formula. Tags are how a formula reads values from other widgets.',
+    targetSelector: '[data-tutorial="formula-labels"]',
+    position: 'right',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-reference',
+    title: 'Symbols and Commands',
+    message: 'Everything a formula can do is grouped here: Operators, Text, Conditions, Math and Tables. Click any item to see its syntax and examples. The next steps visit each group.',
+    targetSelector: '[data-tutorial="formula-reference"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-arithmetic',
+    title: 'Operators',
+    message: 'The editor typed (@str + 4) * 2 for you. With Strength at 10 the result is 28. Use + - * / and parentheses; multiplication and division are calculated first. Edit the formula to experiment.',
+    targetSelector: '[data-tutorial="formula-expression"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-conditions',
+    title: 'Conditions with IF',
+    message: 'IF(@str >= 10, 2, 0) gives 2 when Strength is 10 or more, and 0 otherwise. You can compare with = <> < > <= >=, and nest IF inside IF.',
+    targetSelector: '[data-tutorial="formula-expression"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-switch',
+    title: 'SWITCH and Ranges',
+    message: 'SWITCH(@str, 1..9, 0, 10..14, 1, 2) picks a result by value. 1..9 is a range, and the final 2 is the default. It is ideal for bonus tables.',
+    targetSelector: '[data-tutorial="formula-expression"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-math',
+    title: 'Math Functions',
+    message: 'max(0, min(@str, 8)) caps Strength at 8 and never goes below 0. You also have floor, ceil and round to round numbers, and abs for the distance from zero.',
+    targetSelector: '[data-tutorial="formula-expression"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-text',
+    title: 'Text',
+    message: 'Formulas can also build text: "Level " + @level joins words and numbers. Text results belong in text fields and in {formula} text, so a number field like this one would not accept them.',
+    targetSelector: '[data-tutorial="formula-reference"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-tables',
+    title: 'Tables',
+    message: 'THRESHOLD, VALUE and SUM read whole columns of a Table widget. For example, SUM(@qty * @weight) multiplies each row and adds the rows up. They are handy for XP levels and inventory weight.',
+    targetSelector: '[data-tutorial="formula-reference"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-formula-errors',
+    title: 'When a Formula Is Broken',
+    message: 'The editor typed the unfinished formula @str + . Notice the underlined problem and the message under the box. Add a number after the + and the error disappears.',
+    targetSelector: '[data-tutorial="formula-expression"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-apply-formula',
+    title: 'Use the Formula',
+    message: 'The editor typed floor((@str - 10) / 2), the classic ability modifier. Click Apply formula to use it as the Attack modifier.',
+    targetSelector: '[data-tutorial="automation-dice-modifier-formula-target"]',
+    position: 'top',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-use-dice-expression',
+    title: 'Dice Expressions',
+    message: 'Dice can be written as text too. Check Use dice expression to replace the fixed dice with an expression.',
+    targetSelector: '[data-tutorial="advanced-use-dice-expression"]',
+    scrollTargetIntoView: true,
+    position: 'top',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-dice-expression-basics',
+    title: 'Write the Roll',
+    message: 'We filled in 2d20kh: roll two d20 and keep the highest. The modifier you just built is added on top. Dice can be added or subtracted, and labels work directly, like 2d20kh + @str. kh and kl keep the highest or lowest, dh and dl drop them, so 4d6dl drops the lowest of four d6.',
+    targetSelector: '[data-tutorial="advanced-dice-expression"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-dice-expression-labels',
+    title: 'Formulas in Dice',
+    message: 'Counts and sizes can come from your sheet. {@level}d6 rolls one d6 per level, and 2d@die uses a die size tagged as @die. Try one in the box if you like.',
+    targetSelector: '[data-tutorial="advanced-dice-expression"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-close-dice-roller',
+    title: 'Close the Dice Editor',
+    message: 'Click Done to return to the sheet.',
+    targetSelector: '[data-tutorial="edit-done-button"]',
+    position: 'top',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-roll-dice',
+    title: 'Roll the Expression',
+    message: 'Roll the Attack dice. The result opens with every die shown. Click dice to select them and reroll only those.',
+    targetSelector: '[data-tutorial="automation-roll-dice"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-inline-notes',
+    title: 'Formulas in Text',
+    message: 'Formulas inside curly braces also work in text. These notes contain {@str+10}, shown as 20, and it updates whenever Strength changes. This works in widget titles, field names, tooltips and most other text.',
+    targetSelector: '.canvas-widget[data-tutorial="widget-TEXT"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-inline-dice-roll',
+    title: 'Dice in Text',
+    message: 'Dice in curly braces become roll buttons, like {1d20+@str} or {2d6+@str}. Click one of the dice icons in the notes to roll it.',
+    targetSelector: '.canvas-widget[data-tutorial="widget-TEXT"] .inline-dice-token',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'advanced-inline-dice-result',
+    title: 'The Roll Result',
+    message: 'The result opens over the widget. Everything from the dice editor works here too, such as {2d20kh+@str}. To show braces without rolling or calculating, double them: {{like this}}.',
+    targetSelector: '.dice-result-dialog',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'advanced-complete',
+    title: 'Advanced Automations Complete',
+    message: 'You have seen the formula editor and its commands, dice expressions with keep, drop and labels, and formulas and dice inside text. Combine them to automate your own sheet.',
+    position: 'center',
+    page: 'sheet',
+  },
+  {
     id: VARIOUS_TUTORIAL_START_ID,
     title: 'Open the Gallery',
     message: 'The Various tutorial covers tools that do not fit into the other tutorials. Start by opening the Community Gallery.',
@@ -622,6 +837,7 @@ interface TutorialState {
   startThemesTutorial: () => void;
   startTemplatesTutorial: () => void;
   startAutomationTutorial: () => void;
+  startAdvancedAutomationTutorial: () => void;
   startVariousTutorial: () => void;
   exitTutorial: () => void;
   advanceTutorial: () => void;
@@ -653,6 +869,13 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   startAutomationTutorial: () => {
     const automationTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === AUTOMATION_TUTORIAL_START_ID);
     const tutorialStep = automationTutorialStart >= 0 ? automationTutorialStart : 0;
+    set({ tutorialStep });
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+  },
+
+  startAdvancedAutomationTutorial: () => {
+    const advancedTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === ADVANCED_AUTOMATION_TUTORIAL_START_ID);
+    const tutorialStep = advancedTutorialStart >= 0 ? advancedTutorialStart : 0;
     set({ tutorialStep });
     localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },

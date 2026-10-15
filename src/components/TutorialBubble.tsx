@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
+  ADVANCED_AUTOMATION_TUTORIAL_START_ID,
   AUTOMATION_TUTORIAL_START_ID,
   TEMPLATE_TUTORIAL_START_ID,
   THEME_TUTORIAL_START_ID,
@@ -26,6 +27,7 @@ const TUTORIAL_SECTIONS = [
   { name: 'Themes', startId: THEME_TUTORIAL_START_ID },
   { name: 'Templates', startId: TEMPLATE_TUTORIAL_START_ID },
   { name: 'Automation', startId: AUTOMATION_TUTORIAL_START_ID },
+  { name: 'Advanced Automations', startId: ADVANCED_AUTOMATION_TUTORIAL_START_ID },
   { name: 'Various', startId: VARIOUS_TUTORIAL_START_ID },
 ];
 
@@ -157,7 +159,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
-  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete' || step?.id === 'templates-complete' || step?.id === 'automation-complete' || step?.id === 'various-complete';
+  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete' || step?.id === 'templates-complete' || step?.id === 'automation-complete' || step?.id === 'advanced-complete' || step?.id === 'various-complete';
 
   const handleAdvanceTutorial = () => {
     if (step?.id === 'various-feedback') {
@@ -226,6 +228,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
     step.id === 'form-click-done' ||
     step.id === 'automation-close-number-display' ||
     step.id === 'automation-close-dice-roller' ||
+    step.id === 'advanced-close-dice-roller' ||
     step.id === 'templates-load-widget-template';
 
   // For narrow windows, show at bottom or top depending on step
@@ -274,7 +277,7 @@ function PositionedBubble({
   const [isCentered, setIsCentered] = useState(false);
   const [effectivePosition, setEffectivePosition] = useState<TutorialPosition>(step.position || 'center');
   const bubbleRef = useRef<HTMLDivElement>(null);
-  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete' || step.id === 'automation-complete' || step.id === 'various-complete';
+  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete' || step.id === 'automation-complete' || step.id === 'advanced-complete' || step.id === 'various-complete';
 
   useEffect(() => {
     if (step?.dock === 'top' && !step?.targetSelector) {

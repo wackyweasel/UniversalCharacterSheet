@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { DiceGroup, CustomDie } from '../../types';
 import { EditorProps } from './types';
 import { useStore } from '../../store/useStore';
+import { TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
@@ -97,6 +98,18 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
   // Get all custom dice from the current character (from both DICE_ROLLER and DICE_TRAY widgets)
   const characters = useStore(state => state.characters);
   const activeCharacterId = useStore(state => state.activeCharacterId);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+
+  // The tutorial fills in an example so its roll button is ready to use.
+  const toggleDiceExpression = (checked: boolean) => {
+    const isTutorialStep = tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === 'advanced-use-dice-expression';
+    updateData({
+      diceUseExpression: checked,
+      ...(isTutorialStep && checked && !diceExpression.trim() ? { diceExpression: '2d20kh' } : {}),
+    });
+    if (isTutorialStep && checked) advanceTutorial();
+  };
   
   const existingCustomDice = useMemo(() => {
     const activeChar = characters.find(c => c.id === activeCharacterId);
@@ -261,7 +274,8 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             <input
               type="checkbox"
               checked={useDiceExpression}
-              onChange={(e) => updateData({ diceUseExpression: e.target.checked })}
+              onChange={(e) => toggleDiceExpression(e.target.checked)}
+              data-tutorial="advanced-use-dice-expression"
               className="w-4 h-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
             />
             <span>Use dice expression</span>
@@ -272,6 +286,7 @@ export function DiceRollerEditor({ widget, updateData }: EditorProps) {
             <label htmlFor={`dice-expression-${widget.id}`} className="sr-only">Dice expression</label>
             <textarea
               id={`dice-expression-${widget.id}`}
+              data-tutorial="advanced-dice-expression"
               rows={2}
               value={diceExpression}
               onChange={(e) => updateData({ diceExpression: e.target.value })}

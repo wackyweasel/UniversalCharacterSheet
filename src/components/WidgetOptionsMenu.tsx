@@ -41,7 +41,9 @@ const isAutomationAttackRoller = (widget: Widget) => (
 export function isWidgetEditTutorialTarget(widget: Widget, tutorialStep: number | null) {
   return (widget.type === 'FORM' && isTutorialStep(tutorialStep, 'edit-widget'))
     || (widget.type === 'NUMBER_DISPLAY' && isTutorialStep(tutorialStep, 'automation-edit-number-display'))
-    || (isAutomationAttackRoller(widget) && isTutorialStep(tutorialStep, 'automation-edit-dice-roller'));
+    || (isAutomationAttackRoller(widget) && (
+      isTutorialStep(tutorialStep, 'automation-edit-dice-roller') || isTutorialStep(tutorialStep, 'advanced-edit-dice-roller')
+    ));
 }
 
 export function isWidgetMenuTutorialTarget(widget: Widget, tutorialStep: number | null) {
@@ -51,7 +53,9 @@ export function isWidgetMenuTutorialTarget(widget: Widget, tutorialStep: number 
     || isTutorialStep(tutorialStep, 'templates-open-group-menu')
   ))
     || (widget.type === 'NUMBER_DISPLAY' && isTutorialStep(tutorialStep, 'automation-open-number-display-menu'))
-    || (isAutomationAttackRoller(widget) && isTutorialStep(tutorialStep, 'automation-open-dice-menu'));
+    || (isAutomationAttackRoller(widget) && (
+      isTutorialStep(tutorialStep, 'automation-open-dice-menu') || isTutorialStep(tutorialStep, 'advanced-open-dice-menu')
+    ));
 }
 
 export function getWidgetMenuTutorialTarget(widget: Widget) {

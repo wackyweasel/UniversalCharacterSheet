@@ -142,10 +142,11 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const isWidgetEditButtonHidden = localData.hideWidgetEditButton === true;
   const hasEditableWidgetHeader = widget.type !== 'LABEL' && !isWidgetHeaderHidden && !isWidgetEditButtonHidden;
   const hasInlineWidgetHeader = (widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && localData.inlineLabel === true;
+  const currentTutorialId = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : undefined;
   const isAutomationCloseStep =
-    tutorialStep !== null &&
-    (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
-      TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller');
+    currentTutorialId === 'automation-close-number-display' ||
+    currentTutorialId === 'automation-close-dice-roller' ||
+    currentTutorialId === 'advanced-close-dice-roller';
   // Keep Done disabled while the form-editing tutorial steps are in progress.
   const isDoneLockedForTutorial = tutorialStep !== null
     && tutorialStep >= getTutorialStepIndex('widget-label')
@@ -423,11 +424,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               if (isTutorialStep(tutorialStep, 'form-click-done')) {
                 advanceTutorial();
               }
-              if (
-                tutorialStep !== null &&
-                (TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-number-display' ||
-                  TUTORIAL_STEPS[tutorialStep]?.id === 'automation-close-dice-roller')
-              ) {
+              if (isAutomationCloseStep) {
                 advanceTutorial();
               }
               onClose();

@@ -9,6 +9,7 @@ import { showExpressionRoll } from '../utils/showExpressionRoll';
 import { useFormulaLabels } from './useFormulaLabels';
 import { addTimelineEvent } from '../store/useTimelineStore';
 import { showDiceResult } from '../store/useDiceResultStore';
+import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import type { Widget } from '../types';
 
 /** `hasTokens = false` skips label subscriptions for plain text, which has nothing to resolve or roll. */
@@ -47,6 +48,12 @@ export function useInlineDiceRoll(widget: Widget, hasTokens = true) {
         result,
         onReroll: (next) => logRoll(expression, `rerolled ${formatDiceRollDetail(next)}`),
       });
+
+      const { tutorialStep, advanceTutorial } = useTutorialStore.getState();
+      if (tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === 'advanced-inline-dice-roll') {
+        // Let the result dialog mount so the next step can point at it.
+        window.setTimeout(advanceTutorial, 150);
+      }
     } finally {
       setRollingExpression(null);
     }
