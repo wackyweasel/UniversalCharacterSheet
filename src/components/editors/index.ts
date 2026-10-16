@@ -34,4 +34,5 @@ export { ThresholdTrackEditor } from './ThresholdTrackEditor';
 export { ExperienceLevelEditor } from './ExperienceLevelEditor';
 export { SkillTreeEditor } from './SkillTreeEditor';
 export { DicePoolEditor } from './DicePoolEditor';
+export { CalendarEditor } from './CalendarEditor';
 export { WidgetHeaderEditor } from './WidgetHeaderEditor';

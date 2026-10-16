@@ -280,6 +280,9 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
               </p>
             </div>
           )}
+          <p className="widget-editor__hint text-xs leading-4 text-theme-muted">
+            Calendar widgets can also move forward on each new round (set it up in the Calendar editor).
+          </p>
         </div>
       </CollapsibleSection>
 

@@ -36,6 +36,7 @@ import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
 import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
 import SkillTreeWidget from './widgets/SkillTreeWidget';
 import DicePoolWidget from './widgets/DicePoolWidget';
+import CalendarWidget from './widgets/CalendarWidget';
 
 const PREVIEW_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
@@ -712,6 +713,25 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       ],
     },
   },
+  CALENDAR: {
+    id: 'preview-calendar',
+    type: 'CALENDAR',
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 220,
+    locked: true,
+    data: {
+      label: 'Calendar',
+      calendarMode: 'gregorian',
+      calendarTime: Date.UTC(2026, 9, 16, 18, 30) / 1000,
+      calendarViews: ['month'],
+      calendarNotes: [
+        { id: 'preview-note-1', time: Date.UTC(2026, 9, 21, 12) / 1000, title: 'Festival' },
+        { id: 'preview-note-2', time: Date.UTC(2026, 9, 31, 20) / 1000, title: 'Full moon', color: '#9333ea' },
+      ],
+    },
+  },
 };
 
 function renderWidget(widget: Widget) {
@@ -758,6 +778,7 @@ function renderWidget(widget: Widget) {
     case 'XP_LEVEL': return <ExperienceLevelWidget {...props} interactive={false} />;
     case 'SKILL_TREE': return <SkillTreeWidget {...props} interactive={false} />;
     case 'DICE_POOL': return <DicePoolWidget {...props} interactive={false} />;
+    case 'CALENDAR': return <CalendarWidget {...props} interactive={false} />;
     default: return null;
   }
 }

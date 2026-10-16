@@ -171,6 +171,11 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
     case 'DICE_POOL':
       data.dicePoolComponents?.forEach((component) => add('Pool trait', component.name));
       break;
+    case 'CALENDAR':
+      data.calendarNotes?.forEach((note) => add('Calendar note', note.title));
+      data.calendarUnits?.forEach((unit) => unit.names?.forEach((name) => add(unit.name || 'Name', name)));
+      data.calendarWeekdays?.forEach((name) => add('Day of the week', name));
+      break;
   }
 
   return segments;

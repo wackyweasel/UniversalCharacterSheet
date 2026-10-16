@@ -14,6 +14,7 @@ const LABEL_WIDGET_TYPES = new Set<WidgetType>([
   'DICE_ROLLER',
   'DICE_TRAY',
   'DICE_POOL',
+  'CALENDAR',
   'FORM',
   'MIXED_FIELDS',
   'GRID_MAP',

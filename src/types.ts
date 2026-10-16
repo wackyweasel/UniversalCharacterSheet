@@ -36,7 +36,8 @@ export type WidgetType =
   | 'THRESHOLD_TRACK'
   | 'XP_LEVEL'
   | 'SKILL_TREE'
-  | 'DICE_POOL';
+  | 'DICE_POOL'
+  | 'CALENDAR';
 
 export interface GridMapPoint {
   column: number;
@@ -404,6 +405,39 @@ export interface DicePoolTier {
   label: string;
 }
 
+export type CalendarViewId = 'clock' | 'year' | 'month' | 'week' | 'day';
+
+export interface CalendarUnit {
+  id: string;
+  name: string;
+  plural?: string;
+  /** How many of the previous (smaller) unit make one of this; ignored for the first unit. */
+  count: number;
+  /** Number shown for the first one (usually 0 for hours, 1 for days). */
+  startAt?: number;
+  /** Optional name for each one inside the next unit up (e.g. month names). */
+  names?: string[];
+  /** Optional length of each one inside the next unit up, overriding `count` (e.g. days per month). */
+  lengths?: number[];
+  role?: 'day' | 'month' | 'year';
+}
+
+export interface CalendarStep {
+  id: string;
+  amount: number;
+  amountFormula?: string;
+  /** Unit key: a custom unit id, a Gregorian unit name, or "week". */
+  unit: string;
+}
+
+export interface CalendarNote {
+  id: string;
+  /** Time the note happens at, in the calendar's smallest unit. */
+  time: number;
+  title: string;
+  color?: string;
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -644,6 +678,29 @@ export interface WidgetData {
   dicePoolShowTarget?: boolean;
   dicePoolClearAfterRoll?: boolean;
   dicePoolButtonText?: string;
+  // Calendar & clock
+  calendarMode?: 'gregorian' | 'custom';
+  calendarTime?: number;                 // Current time, in the smallest unit (Gregorian: seconds since 1970-01-01 UTC)
+  calendarUnits?: CalendarUnit[];        // Custom units, smallest first
+  calendarWeekdays?: string[];           // Custom week: one name per day of the week (empty = no weeks)
+  calendarWeekName?: string;             // Custom name of a week (e.g. "Tenday")
+  calendarWeekResetsEachMonth?: boolean; // Custom: every month starts on the first day of the week
+  calendarWeekOffset?: number;           // Custom: day of the week of the very first day
+  calendarWeekStart?: number;            // Gregorian: 0 = weeks start on Sunday, 1 = Monday
+  calendarViews?: CalendarViewId[];      // Enabled views, in display order
+  calendarDefaultView?: CalendarViewId;
+  calendarDateFormat?: string;
+  calendarTimeFormat?: string;
+  calendarSteps?: CalendarStep[];        // Quick advance / rewind amounts
+  calendarShowRewind?: boolean;
+  calendarAdvanceOnRound?: boolean;      // Advance when an Initiative Tracker starts a new round
+  calendarRoundAmount?: number;
+  calendarRoundUnit?: string;
+  calendarSyncEffects?: boolean;         // Also pass time in Temporary Effects widgets
+  calendarSecondsPerUnit?: number;       // Custom: how many seconds the smallest unit lasts, for Temporary Effects
+  calendarRoundSeconds?: number;         // Length of a round, in seconds, for round-based Temporary Effects
+  calendarNotes?: CalendarNote[];
+  calendarLabels?: Record<string, string>; // Calendar value key -> variable label
   // Print Settings (per-widget print customization)
   printSettings?: {
     hideValues?: boolean; // For Number Tracker: hide the number values

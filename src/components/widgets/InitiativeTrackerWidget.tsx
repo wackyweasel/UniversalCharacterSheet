@@ -9,6 +9,7 @@ import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle } from './StructureDialogControls';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
 import { getInitiativeDiceExpression, normalizeDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
+import { advanceCalendarsForNewRound } from '../../utils/calendarActions';
 
 interface Props {
   widget: Widget;
@@ -616,6 +617,7 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
       if (initiativeAdvanceTimeTrackers) {
         advanceTimeTrackers();
       }
+      advanceCalendarsForNewRound({ effectsAlreadyAdvanced: initiativeAdvanceTimeTrackers });
     }
     
     moveToParticipant(newIndex);

@@ -58,6 +58,7 @@ import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
 import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
 import SkillTreeWidget from './widgets/SkillTreeWidget';
 import DicePoolWidget from './widgets/DicePoolWidget';
+import CalendarWidget from './widgets/CalendarWidget';
 import WidgetEditModal from './WidgetEditModal';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
@@ -711,6 +712,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'XP_LEVEL': return <ExperienceLevelWidget {...props} />;
       case 'SKILL_TREE': return <SkillTreeWidget {...props} />;
       case 'DICE_POOL': return <DicePoolWidget {...props} />;
+      case 'CALENDAR': return <CalendarWidget {...props} />;
       default: return null;
     }
   };

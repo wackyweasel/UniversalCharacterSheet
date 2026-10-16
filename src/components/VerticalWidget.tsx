@@ -43,6 +43,7 @@ import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
 import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
 import SkillTreeWidget from './widgets/SkillTreeWidget';
 import DicePoolWidget from './widgets/DicePoolWidget';
+import CalendarWidget from './widgets/CalendarWidget';
 
 interface Props {
   widget: Widget;
@@ -208,6 +209,7 @@ export default function VerticalWidget({
       case 'XP_LEVEL': return <ExperienceLevelWidget {...props} />;
       case 'SKILL_TREE': return <SkillTreeWidget {...props} />;
       case 'DICE_POOL': return <DicePoolWidget {...props} />;
+      case 'CALENDAR': return <CalendarWidget {...props} />;
       default: return null;
     }
   };

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { Character, Widget, WidgetData, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
@@ -17,6 +17,7 @@ import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/c
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
 import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
+import { createDefaultCalendarData } from '../utils/calendar';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -197,6 +198,8 @@ interface StoreState {
   bringWidgetToFront: (id: string) => void;
   updateWidgetSize: (id: string, w: number | undefined, h: number | undefined) => void;
   updateWidgetData: (id: string, data: any) => void;
+  // Updates widgets on any sheet of the active character as one undo step.
+  updateWidgetsData: (updates: { id: string; data: Partial<WidgetData> }[], actionDescription?: string) => void;
   toggleCardTableCard: (widgetId: string, cardId: string) => void;
   setCardTableCardsFaceUp: (widgetId: string, faceUp: boolean) => void;
   moveCardTableCard: (options: { sourceWidgetId: string; targetWidgetId: string; cardId: string }) => void;
@@ -827,11 +830,11 @@ export const useStore = create<StoreState>((set, get) => {
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
         const newWidgetWidth = snapWidgetDimension(
-          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : type === 'THRESHOLD_TRACK' ? 280 : type === 'XP_LEVEL' ? 240 : type === 'SKILL_TREE' ? 440 : type === 'DICE_POOL' ? 260 : DEFAULT_WIDTH,
+          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : type === 'THRESHOLD_TRACK' ? 280 : type === 'XP_LEVEL' ? 240 : type === 'SKILL_TREE' ? 440 : type === 'DICE_POOL' ? 260 : type === 'CALENDAR' ? 340 : DEFAULT_WIDTH,
           DEFAULT_WIDTH,
         ) ?? DEFAULT_WIDTH;
         const newWidgetHeight = snapWidgetDimension(
-          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : type === 'THRESHOLD_TRACK' || type === 'XP_LEVEL' ? 100 : type === 'SKILL_TREE' ? 190 : type === 'DICE_POOL' ? 230 : DEFAULT_HEIGHT,
+          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : type === 'THRESHOLD_TRACK' || type === 'XP_LEVEL' ? 100 : type === 'SKILL_TREE' ? 190 : type === 'DICE_POOL' ? 230 : type === 'CALENDAR' ? 340 : DEFAULT_HEIGHT,
           DEFAULT_HEIGHT,
         ) ?? DEFAULT_HEIGHT;
         const GAP = 20;
@@ -944,6 +947,7 @@ export const useStore = create<StoreState>((set, get) => {
             'XP_LEVEL': 'Experience',
             'SKILL_TREE': 'Skills',
             'DICE_POOL': 'Dice pool',
+            'CALENDAR': 'Calendar',
           };
           return defaultLabels[widgetType] || '';
         };
@@ -1046,6 +1050,7 @@ export const useStore = create<StoreState>((set, get) => {
                 ],
               };
             })() : {}),
+            ...(type === 'CALENDAR' ? createDefaultCalendarData() : {}),
             ...(type === 'DICE_POOL' ? {
               dicePoolFaces: 10,
               dicePoolRule: 'successes' as const,
@@ -1522,6 +1527,35 @@ export const useStore = create<StoreState>((set, get) => {
         // Then, resolve formulas across the entire character
         updatedCharacters = resolveActiveCharacterFormulas(state, updatedCharacters);
 
+        return { characters: updatedCharacters };
+      });
+    },
+
+    updateWidgetsData: (updates, actionDescription = 'Update widgets') => {
+      if (updates.length === 0) return;
+      get()._takeSnapshot(actionDescription);
+
+      set((state) => {
+        const dataById = new Map<string, Partial<WidgetData>>();
+        for (const update of updates) dataById.set(update.id, { ...dataById.get(update.id), ...update.data });
+        let updatedCharacters = state.characters.map((character) => {
+          if (character.id !== state.activeCharacterId) return character;
+          return {
+            ...character,
+            sheets: character.sheets.map((sheet) => (
+              sheet.widgets.some((widget) => dataById.has(widget.id))
+                ? {
+                    ...sheet,
+                    widgets: sheet.widgets.map((widget) => {
+                      const data = dataById.get(widget.id);
+                      return data ? { ...widget, data: { ...widget.data, ...data } } : widget;
+                    }),
+                  }
+                : sheet
+            )),
+          };
+        });
+        updatedCharacters = resolveActiveCharacterFormulas(state, updatedCharacters);
         return { characters: updatedCharacters };
       });
     },

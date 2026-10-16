@@ -41,6 +41,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'DECK', label: 'Legacy Deck of Cards', category: 'Randomize', keywords: 'draw shuffle cards' },
   { type: 'DECK_OF_CARDS', label: 'Deck of Cards', category: 'Randomize', keywords: 'cards deck tabletop flip drag discard' },
   { type: 'INITIATIVE_TRACKER', label: 'Initiative tracker', category: 'Time Management', keywords: 'combat turn order' },
+  { type: 'CALENDAR', label: 'Calendar & clock', category: 'Time Management', keywords: 'date time day night hour week month year season world clock campaign travel downtime advance rewind' },
   { type: 'TIMER', label: 'Timer', category: 'Time Management', keywords: 'countdown time' },
   { type: 'TIME_TRACKER', label: 'Temporary effects', category: 'Time Management', keywords: 'duration rounds conditions' },
   { type: 'GRID_MAP', label: 'Grid map', category: 'Mapping', keywords: 'battle vtt tokens walls tactical' },

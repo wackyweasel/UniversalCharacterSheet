@@ -42,6 +42,7 @@ import {
   ExperienceLevelEditor,
   SkillTreeEditor,
   DicePoolEditor,
+  CalendarEditor,
   WidgetHeaderEditor,
 } from './editors';
 
@@ -81,6 +82,7 @@ import ThresholdTrackWidget from './widgets/ThresholdTrackWidget';
 import ExperienceLevelWidget from './widgets/ExperienceLevelWidget';
 import SkillTreeWidget from './widgets/SkillTreeWidget';
 import DicePoolWidget from './widgets/DicePoolWidget';
+import CalendarWidget from './widgets/CalendarWidget';
 
 interface Props {
   widget: Widget;
@@ -124,6 +126,7 @@ function getWidgetTitle(type: WidgetType): string {
     'XP_LEVEL': 'XP & Level',
     'SKILL_TREE': 'Skill Tree',
     'DICE_POOL': 'Dice Pool',
+    'CALENDAR': 'Calendar',
   };
   return titles[type] || 'Widget';
 }
@@ -214,6 +217,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'XP_LEVEL': return <ExperienceLevelEditor {...editorProps} />;
       case 'SKILL_TREE': return <SkillTreeEditor {...editorProps} />;
       case 'DICE_POOL': return <DicePoolEditor {...editorProps} />;
+      case 'CALENDAR': return <CalendarEditor {...editorProps} />;
       default: return null;
     }
   };
@@ -275,6 +279,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'XP_LEVEL': return <ExperienceLevelWidget {...props} interactive={false} />;
       case 'SKILL_TREE': return <SkillTreeWidget {...props} interactive={false} />;
       case 'DICE_POOL': return <DicePoolWidget {...props} interactive={false} />;
+      case 'CALENDAR': return <CalendarWidget {...props} interactive={false} />;
       default: return null;
     }
   };

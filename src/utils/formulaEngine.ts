@@ -6,6 +6,7 @@ import { clampTrackValue, getTrackBounds, getTrackDerivedValue } from './thresho
 import { getExperienceDerivedValue, normalizeXp } from './experienceLevel';
 import { getSkillDerivedValue, normalizeSkillPoints } from './skillTree';
 import { getDicePoolDerivedValue, normalizeDiceCount, normalizePoolTarget } from './dicePool';
+import { getCalendarLabelValues } from './calendar';
 import { isCoveredTableCell, validateTableMerges } from './tableCells';
 import {
   extractFormulaLabelReferences,
@@ -206,6 +207,10 @@ export function collectLabels(character: Character): FormulaLabels {
             labels[effect.name] = effect.remainingSeconds > 0 ? 1 : 0;
           }
         }
+      }
+
+      if (widget.type === 'CALENDAR' && data.calendarLabels) {
+        Object.assign(labels, getCalendarLabelValues(data));
       }
     }
   }
@@ -1796,6 +1801,12 @@ export function getAvailableLabels(character: Character): { label: string; value
           if (effect.name) {
             result.push({ label: effect.name, value: effect.remainingSeconds > 0 ? 1 : 0, widgetLabel, sheetName: sheet.name });
           }
+        }
+      }
+
+      if (widget.type === 'CALENDAR' && data.calendarLabels) {
+        for (const [label, value] of Object.entries(getCalendarLabelValues(data))) {
+          result.push({ label, value, widgetLabel, sheetName: sheet.name });
         }
       }
     }

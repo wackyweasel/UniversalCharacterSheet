@@ -39,6 +39,7 @@ const MIN_WIDGET_DIMENSIONS: Record<WidgetType, { width: number; height: number 
   'XP_LEVEL': { width: 140, height: 60 },
   'SKILL_TREE': { width: 120, height: 80 },
   'DICE_POOL': { width: 130, height: 70 },
+  'CALENDAR': { width: 180, height: 140 },
 };
 
 export function getMinWidgetDimensions(type: WidgetType): { width: number; height: number } {
