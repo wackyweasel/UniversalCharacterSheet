@@ -15,11 +15,12 @@ export function PoolEditor({ widget, updateData, resourceEditorOnly = false, can
     poolStyle = 'dots', 
     showPoolCount = false,
     poolResources = [],
-    inlineLabels = false,
     poolTooltip,
     fieldLabels = {},
     fieldFormulas = {}
   } = widget.data;
+  const symbolGap = widget.data.poolSymbolGap ?? 6;
+  const symbolAlignment = widget.data.poolSymbolAlignment ?? (showPoolCount ? 'center' : 'right');
 
   const resources: PoolResource[] = poolResources.length > 0 ? poolResources : [{
     name: 'Resource 1',
@@ -200,26 +201,52 @@ export function PoolEditor({ widget, updateData, resourceEditorOnly = false, can
         <div className="widget-editor__section-heading">
           <h3 id={`pool-display-title-${widget.id}`} className="widget-editor__section-title">Display</h3>
         </div>
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={showPoolCount}
-            onChange={(e) => updateData({ showPoolCount: e.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show counter (e.g., 3 / 5)</span>
-        </label>
+        <div className="space-y-4">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showPoolCount}
+              onChange={(e) => updateData({ showPoolCount: e.target.checked })}
+              className="h-4 w-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show counter (e.g., 3 / 5)</span>
+          </label>
 
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={inlineLabels}
-            onChange={(e) => updateData({ inlineLabels: e.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Inline labels with icons</span>
-        </label>
-        <ItemColumnsControl id={`pool-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+          <div>
+            <span className="mb-1 block text-xs font-bold uppercase text-theme-muted">Symbol alignment</span>
+            <div role="group" aria-label="Symbol alignment" className="grid grid-cols-3 gap-1">
+              {([{ id: 'left', name: 'Left' }, { id: 'center', name: 'Center' }, { id: 'right', name: 'Right' }] as const).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={symbolAlignment === option.id}
+                  onClick={() => updateData({ poolSymbolAlignment: option.id })}
+                  className={`widget-control min-w-0 px-3 py-2 text-sm ${symbolAlignment === option.id ? 'widget-control--primary' : ''}`}
+                >
+                  {option.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor={`pool-symbol-gap-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">Space between symbols</label>
+
+            </div>
+            <input
+              id={`pool-symbol-gap-${widget.id}`}
+              type="range"
+              min="-8"
+              max="24"
+              value={symbolGap}
+              onChange={(event) => updateData({ poolSymbolGap: Number(event.target.value) })}
+              className="w-full accent-theme-accent"
+            />
+          </div>
+
+          <ItemColumnsControl id={`pool-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+        </div>
       </CollapsibleSection>}
     </div>
   );

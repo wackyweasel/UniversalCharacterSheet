@@ -40,6 +40,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
   const [sharingTemplateId, setSharingTemplateId] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState('');
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [legacyOpen, setLegacyOpen] = useState(false);
   const suppressWidgetClickUntilRef = useRef(0);
 
   // Tutorial state
@@ -327,10 +328,25 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
             const categoryWidgets = filteredWidgets.filter((option) => option.category === category);
             if (categoryWidgets.length === 0) return null;
 
+            const isCollapsible = category === 'Legacy';
+            const isOpen = !isCollapsible || legacyOpen || normalizedSearch !== '';
+
             return (
               <section key={category}>
-                <h3 className="mb-2 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted">{category}</h3>
-                <div className="grid grid-cols-2 gap-2">
+                {isCollapsible ? (
+                  <button
+                    type="button"
+                    onClick={() => setLegacyOpen((open) => !open)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center justify-between gap-2 mb-2 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted hover:text-theme-ink transition-colors"
+                  >
+                    <span>{category}</span>
+                    <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                ) : (
+                  <h3 className="mb-2 text-[11px] font-body font-bold uppercase tracking-wider text-theme-muted">{category}</h3>
+                )}
+                {isOpen && <div className="grid grid-cols-2 gap-2">
                   {categoryWidgets.map(({ type, label }) => {
                     const isHighlighted = tutorialWidgetType === type;
 
@@ -349,7 +365,7 @@ export default function Sidebar({ collapsed, onToggle, viewport }: SidebarProps)
                       </Tooltip>
                     );
                   })}
-                </div>
+                </div>}
               </section>
             );
           })}

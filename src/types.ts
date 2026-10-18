@@ -549,6 +549,8 @@ export interface WidgetData {
   poolResources?: PoolResource[];
   inlineLabels?: boolean;
   poolTooltip?: string;
+  poolSymbolAlignment?: 'left' | 'center' | 'right'; // Defaults to center with a counter, otherwise right
+  poolSymbolGap?: number; // Space between symbols in px, negative to overlap (default 6)
   // Toggle
   toggleState?: boolean;
   toggleColor?: string;

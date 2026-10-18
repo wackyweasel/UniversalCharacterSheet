@@ -5,6 +5,7 @@ import { Widget, PoolResource } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { collectLabels, isFormulaBroken } from '../../utils/formulaEngine';
+import { getResourceSymbol as getSymbolForStyle, isEmojiResourceStyle, isLiteralResourceStyle } from '../../utils/resourceSymbols';
 import { Tooltip } from '../Tooltip';
 import { ResourceStylePicker } from '../ResourceStylePicker';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
@@ -20,51 +21,14 @@ interface Props {
   interactive?: boolean;
 }
 
-// Helper to get symbol for a style
-const getSymbolForStyle = (filled: boolean, style: string) => {
-  switch (style) {
-    case 'hearts':
-      return filled ? '❤️' : '🖤';
-    case 'boxes':
-      return filled ? '■' : '□';
-    case 'stars':
-      return filled ? '★' : '☆';
-    case 'diamonds':
-      return filled ? '◆' : '◇';
-    case 'crosses':
-      return filled ? '✖' : '✕';
-    case 'checkmarks':
-      return filled ? '✔' : '○';
-    case 'flames':
-      return filled ? '🔥' : '·';
-    case 'skulls':
-      return filled ? '💀' : '·';
-    case 'shields':
-      return filled ? '🛡️' : '·';
-    case 'swords':
-      return filled ? '⚔️' : '·';
-    case 'lightning':
-      return filled ? '⚡' : '·';
-    case 'moons':
-      return filled ? '🌙' : '·';
-    case 'suns':
-      return filled ? '☀️' : '·';
-    case 'coins':
-      return filled ? '🪙' : '·';
-    case 'gems':
-      return filled ? '💎' : '·';
-    case 'dots':
-    default:
-      return filled ? '●' : '○';
-  }
-};
-
 // Helper to get className for a style
 const getClassNameForStyle = (filled: boolean, style: string, symbolSize: string) => {
   const base = `${symbolSize} flex items-center justify-center transition-all cursor-pointer hover:scale-125`;
-  const emojiStyles = ['hearts', 'flames', 'skulls', 'shields', 'swords', 'lightning', 'moons', 'suns', 'coins', 'gems'];
-  if (emojiStyles.includes(style)) {
+  if (isEmojiResourceStyle(style)) {
     return base;
+  }
+  if (isLiteralResourceStyle(style)) {
+    return `${base} ${filled ? 'text-theme-ink' : 'opacity-30 grayscale'}`;
   }
   return `${base} ${filled ? 'text-theme-ink' : 'text-theme-muted'}`;
 };
@@ -219,8 +183,9 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     poolStyle = 'dots',
     showPoolCount = false,
     poolResources = [],
-    inlineLabels = false,
     poolTooltip,
+    poolSymbolAlignment = showPoolCount ? 'center' : 'right',
+    poolSymbolGap = 6,
     fieldLabels = {},
     itemColumns,
   } = widget.data;
@@ -231,7 +196,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
   const [renamingResourceIndex, setRenamingResourceIndex] = useState<number | null>(null);
 
   // Fixed small sizing
-  const symbolSize = 'w-6 h-6 text-base';
+  const symbolSize = 'h-6 flex-shrink-0 text-base leading-none';
   const counterClass = 'text-[11px]';
   const gapClass = 'gap-1';
 
@@ -360,8 +325,8 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
         }}
       >
           <WidgetItemColumns columns={itemColumns} rowGap={8} items={resources.map((resource: PoolResource, idx: number) => (
-            <div key={idx} className={`flex flex-col ${gapClass}`}>
-              {resource.name && !inlineLabels && (
+            <div key={idx} className="flex items-start gap-2">
+              {resource.name && (
                 <button
                   type="button"
                   disabled={!resourceInteractive}
@@ -369,30 +334,14 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
                   onClick={() => openRenameResource(idx)}
                   onMouseDown={(event) => event.stopPropagation()}
                   onTouchStart={(event) => event.stopPropagation()}
-                  className={`border-0 bg-transparent p-0 text-left font-medium ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+                  className={`flex h-6 min-w-0 max-w-[40%] flex-shrink-0 items-center border-0 bg-transparent p-0 text-left font-bold ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
                 >
                   {mode === 'play' && resource.tooltip ? (
                     <Tooltip content={resource.tooltip}><span><InlineFormulaText text={resource.name} /></span></Tooltip>
                   ) : <InlineFormulaText text={resource.name} />}
                 </button>
               )}
-              <div className={`flex ${inlineLabels ? 'justify-between items-center' : 'flex-wrap gap-0.5 content-start items-center'}`}>
-                {resource.name && inlineLabels && (
-                  <button
-                    type="button"
-                    disabled={!resourceInteractive}
-                    aria-label={`Edit resource ${resource.name}`}
-                    onClick={() => openRenameResource(idx)}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onTouchStart={(event) => event.stopPropagation()}
-                    className={`border-0 bg-transparent p-0 text-left font-medium ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
-                  >
-                    {mode === 'play' && resource.tooltip ? (
-                      <Tooltip content={resource.tooltip}><span><InlineFormulaText text={resource.name} /></span></Tooltip>
-                    ) : <InlineFormulaText text={resource.name} />}
-                  </button>
-                )}
-                <div className={`flex ${inlineLabels ? 'gap-0.5' : 'flex-wrap gap-0.5'}`}>
+              <div className={`flex min-w-0 flex-1 flex-wrap content-start items-center ${poolSymbolAlignment === 'left' ? 'justify-start' : poolSymbolAlignment === 'center' ? 'justify-center' : 'justify-end'}`} style={{ columnGap: Math.max(0, poolSymbolGap) }}>
                 {Array.from({ length: resource.max }).map((_, pointIdx) => (
                   <Tooltip key={pointIdx} content={resource.currentFormula ? 'Value set by formula' : (pointIdx < resource.current ? 'Click to use' : 'Click to restore')}>
                     <button
@@ -401,20 +350,22 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
                       disabled={!resourceInteractive || !!resource.currentFormula}
                       aria-label={`${resource.name || 'Resource'} ${pointIdx + 1}: ${pointIdx < resource.current ? 'filled' : 'empty'}`}
                       aria-pressed={pointIdx < resource.current}
-                      className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                      style={poolSymbolGap < 0 ? { marginInline: poolSymbolGap / 2 } : undefined}                      className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
                     >
-                      {getSymbolForStyle(pointIdx < resource.current, resource.style)}
+                      <span className="grid place-items-center">
+                        <span className="invisible [grid-area:1/1]" aria-hidden="true">{getSymbolForStyle(true, resource.style)}</span>
+                        <span className="[grid-area:1/1]">{getSymbolForStyle(pointIdx < resource.current, resource.style)}</span>
+                      </span>
                     </button>
                   </Tooltip>
                 ))}
-                </div>
               </div>
               {showPoolCount && (
-                <div className={`${counterClass} text-theme-muted font-body tabular-nums`}>
+                <div className={`flex h-6 flex-shrink-0 items-center whitespace-nowrap ${counterClass} text-theme-muted font-body tabular-nums`}>
                   {resource.currentFormula && isFormulaBroken(resource.currentFormula, labels) && (
                     <span className="text-red-500 text-[9px] mr-0.5" title={`Broken formula: ${resource.currentFormula}`}>⚠</span>
                   )}
-                  {resource.current} / {resource.max}
+                  <strong className="text-[13px] font-bold text-theme-ink">{resource.current}</strong>/{resource.max}
                   {resource.maxFormula && isFormulaBroken(resource.maxFormula, labels) && (
                     <span className="text-red-500 text-[9px] ml-0.5" title={`Broken formula: ${resource.maxFormula}`}>⚠</span>
                   )}

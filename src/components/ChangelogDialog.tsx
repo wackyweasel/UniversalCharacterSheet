@@ -38,6 +38,14 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.12.1',
+    changes: [
+      'Resource Pool: a cleaner layout with bold names, symbols beside them and the counter on the right, more symbols to choose from, and options for symbol alignment and spacing.',
+      'New Legacy section in the widget panel (collapsed by default) for the Legacy Deck of Cards.',
+      'Table: importing from text should work a bit better.',
+    ],
+  },
+  {
     version: '1.12.0',
     changes: [
       'New Calendar & clock widget (Time Management): track in-game time with real-world dates or your own units (e.g. 4 quarter days make a day, 10-day weeks, months of different lengths). Switch between Now, Year, Month, Week and Day views and click a month, week or day to jump to it. Advance or rewind time from a single Change time dialog with one-click quick steps (amounts can be formulas), a custom amount or an exact date, add notes on dates that show up on the timeline when reached, and expose the date and its parts as labels for formulas. It can move forward on each Initiative Tracker round and pass time in Temporary Effects.',

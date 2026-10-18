@@ -1,6 +1,6 @@
 import type { WidgetType } from '../types';
 
-export type WidgetCategory = 'Character Info' | 'Ressources and Status' | 'Organization' | 'Randomize' | 'Time Management' | 'Mapping';
+export type WidgetCategory = 'Character Info' | 'Ressources and Status' | 'Organization' | 'Randomize' | 'Time Management' | 'Mapping' | 'Legacy';
 
 export interface WidgetOption {
   type: WidgetType;
@@ -38,7 +38,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'STEP_DICE', label: 'Step dice', category: 'Randomize', keywords: 'die rating savage' },
   { type: 'DICE_POOL', label: 'Dice pool', category: 'Randomize', keywords: 'successes world of darkness shadowrun year zero blades in the dark d10 d6 hits botch traits attribute skill' },
   { type: 'ROLL_TABLE', label: 'Roll table', category: 'Randomize', keywords: 'random result generator' },
-  { type: 'DECK', label: 'Legacy Deck of Cards', category: 'Randomize', keywords: 'draw shuffle cards' },
+  { type: 'DECK', label: 'Legacy Deck of Cards', category: 'Legacy', keywords: 'draw shuffle cards' },
   { type: 'DECK_OF_CARDS', label: 'Deck of Cards', category: 'Randomize', keywords: 'cards deck tabletop flip drag discard' },
   { type: 'INITIATIVE_TRACKER', label: 'Initiative tracker', category: 'Time Management', keywords: 'combat turn order' },
   { type: 'CALENDAR', label: 'Calendar & clock', category: 'Time Management', keywords: 'date time day night hour week month year season world clock campaign travel downtime advance rewind' },
@@ -48,7 +48,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'MAP_SKETCHER', label: 'Map sketcher', category: 'Mapping', keywords: 'draw map diagram' },
 ];
 
-export const WIDGET_CATEGORIES: WidgetCategory[] = ['Character Info', 'Ressources and Status', 'Organization', 'Randomize', 'Time Management', 'Mapping'];
+export const WIDGET_CATEGORIES: WidgetCategory[] = ['Character Info', 'Ressources and Status', 'Organization', 'Randomize', 'Time Management', 'Mapping', 'Legacy'];
 
 const WIDGET_LABELS = Object.fromEntries(
   WIDGET_OPTIONS.map(({ type, label }) => [type, label]),
