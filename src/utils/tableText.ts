@@ -1,4 +1,4 @@
-export type TableTextDelimiter = 'auto' | 'tab' | 'comma' | 'semicolon' | 'pipe' | 'spaces' | 'space';
+export type TableTextDelimiter = 'auto' | 'tab' | 'comma' | 'semicolon' | 'pipe' | 'spaces' | 'space' | 'capitals';
 
 export const TABLE_TEXT_DELIMITERS: { value: TableTextDelimiter; label: string }[] = [
   { value: 'auto', label: 'Auto-detect' },
@@ -8,6 +8,7 @@ export const TABLE_TEXT_DELIMITERS: { value: TableTextDelimiter; label: string }
   { value: 'pipe', label: 'Pipe ( | )' },
   { value: 'spaces', label: '2+ spaces' },
   { value: 'space', label: 'Any whitespace' },
+  { value: 'capitals', label: 'Capital letters (wrapped text)' },
 ];
 
 const CHAR_SEPARATORS = { tab: '\t', comma: ',', semicolon: ';' } as const;
@@ -59,23 +60,193 @@ export function detectTableDelimiter(text: string): Exclude<TableTextDelimiter, 
   if (mostLines(line => /\S\s{2,}\S/.test(line))) return 'spaces';
   if (mostLines(line => line.includes(';'))) return 'semicolon';
   if (mostLines(line => line.includes(','))) return 'comma';
+  if (looksLikeWrappedText(text)) return 'capitals';
   return 'space';
 }
 
 const isSeparatorRow = (row: string[]) => row.length > 0 && row.every(cell => /^:?-{2,}:?$/.test(cell));
 
-// Returns a rectangular grid of trimmed cells; blank rows and markdown separator rows are dropped.
-export function parseTableText(text: string, delimiter: TableTextDelimiter = 'auto'): string[][] {
+// Returns the rows as split (not padded to the same width); blank rows and markdown separator rows are dropped.
+// `columns` only applies to capital-letter splitting, where the rows depend on how many cells each one has.
+export function parseTableTextRows(
+  text: string,
+  delimiter: TableTextDelimiter = 'auto',
+  columns?: number,
+): { rows: string[][]; delimiter: Exclude<TableTextDelimiter, 'auto'> } {
   const source = text.replace(/\r\n?/g, '\n');
   const resolved = delimiter === 'auto' ? detectTableDelimiter(source) : delimiter;
+  if (resolved === 'capitals') return { rows: splitByCapitals(source, columns), delimiter: resolved };
   const raw = resolved === 'tab' || resolved === 'comma' || resolved === 'semicolon'
     ? splitQuoted(source, CHAR_SEPARATORS[resolved])
     : splitLines(source, resolved);
   const rows = raw
     .map(row => row.map(cell => cell.replace(/\s+/g, ' ').trim()))
     .filter(row => row.some(Boolean) && !isSeparatorRow(row));
+  return { rows, delimiter: resolved };
+}
+
+const padRow = (row: string[], width: number) => [...row, ...Array<string>(Math.max(0, width - row.length)).fill('')];
+
+// Returns a rectangular grid of trimmed cells; blank rows and markdown separator rows are dropped.
+export function parseTableText(text: string, delimiter: TableTextDelimiter = 'auto'): string[][] {
+  const { rows } = parseTableTextRows(text, delimiter);
   const width = Math.max(0, ...rows.map(row => row.length));
-  return rows.map(row => [...row, ...Array<string>(width - row.length).fill('')]);
+  return rows.map(row => padRow(row, width));
+}
+
+const CONNECTOR_WORDS = new Set([
+  'a', 'an', 'and', 'or', 'nor', 'but', 'the', 'of', 'to', 'in', 'on', 'at', 'by', 'for', 'from', 'with', 'its', 'their',
+  'his', 'her', 'your', 'per', 'into', 'onto', 'than', 'as', 'if', 'is', 'are', 'be',
+]);
+const lastWord = (value: string) => value.trim().split(' ').pop() ?? '';
+const firstChar = (value: string) => value.trim().charAt(0);
+const isLower = (char: string) => char !== '' && char !== char.toUpperCase() && char === char.toLowerCase();
+const isUpper = (char: string) => char !== '' && char !== char.toLowerCase() && char === char.toUpperCase();
+const endsAsContinuation = (value: string) =>
+  /[,(\-–—/&+]$/.test(value.trim()) || CONNECTOR_WORDS.has(lastWord(value).toLowerCase());
+const endsSentence = (value: string) => /[.!?:]$/.test(value.trim());
+
+// A capitalised word starts a new cell when it follows a lowercase word or the end of a sentence.
+const startsCell = (previous: string, word: string) =>
+  isUpper(firstChar(word)) && (isLower(firstChar(previous)) || endsSentence(previous));
+
+function capitalCells(words: string[]): string[] {
+  const cells: string[] = [];
+  words.forEach((word, index) => {
+    if (index === 0 || startsCell(words[index - 1], word)) cells.push(word);
+    else cells[cells.length - 1] += ` ${word}`;
+  });
+  return cells;
+}
+
+// For text whose cells wrap over several lines (e.g. copied from a PDF). The first line sets the number of
+// columns; after that, capitals start new cells, and a row ends once it is full and a new line starts a cell.
+export function splitByCapitals(text: string, columns?: number): string[][] {
+  const lines = tableTextLines(text);
+  if (lines.length === 0) return [];
+  const firstWords = lines[0].split(' ');
+  const header = columns ? fitRowToColumns(firstWords, columns) : capitalCells(firstWords);
+  const rows = [header];
+  let current: string[] | null = null;
+  let previous = firstWords[firstWords.length - 1];
+  for (const line of lines.slice(1)) {
+    const words = line.split(' ');
+    for (let index = 0; index < words.length; index++) {
+      const word = words[index];
+      if (!current || (current.length >= header.length && index === 0 && startsCell(previous, word))) {
+        current = [word];
+        rows.push(current);
+      } else if (current.length < header.length && startsCell(previous, word)) {
+        current.push(word);
+      } else {
+        current[current.length - 1] += ` ${word}`;
+      }
+      previous = word;
+    }
+  }
+  return rows;
+}
+
+// Picks capital-letter splitting when splitting on spaces would give ragged rows and the capitals give full ones.
+function looksLikeWrappedText(text: string): boolean {
+  const lines = tableTextLines(text);
+  if (lines.length < 3) return false;
+  const wordCounts = lines.map(line => line.split(' ').length);
+  if (wordCounts.filter(count => count !== wordCounts[0]).length < lines.length / 4) return false;
+  const rows = splitByCapitals(text);
+  const width = rows[0].length;
+  if (width < 2) return false;
+  return rows.filter(row => row.length === width).length >= rows.length * 0.8;
+}
+
+// How likely `next` is a wrapped continuation of `previous` rather than a new row.
+function continuationScore(previous: string, next: string): number {
+  let score = 0;
+  if (isLower(firstChar(next))) score += 3;
+  if (endsAsContinuation(previous)) score += 2;
+  if (/[.!?]$/.test(previous.trim())) score -= 2;
+  if (isUpper(firstChar(next)) || /^\d/.test(next.trim())) score -= 1;
+  return score;
+}
+
+// Groups consecutive lines into `count` rows by joining the lines that most look like wrapped continuations.
+export function groupWrappedLines(lines: string[], count: number): number[][] {
+  const target = Math.max(1, Math.min(count, lines.length));
+  const boundaries = lines.slice(1).map((line, index) => ({ index, score: continuationScore(lines[index], line) }));
+  const joined = new Set(
+    [...boundaries].sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, lines.length - target)
+      .map(boundary => boundary.index),
+  );
+  const groups: number[][] = [];
+  lines.forEach((_, index) => {
+    if (index > 0 && joined.has(index - 1)) groups[groups.length - 1].push(index);
+    else groups.push([index]);
+  });
+  return groups;
+}
+
+// How likely a new cell starts between `previous` and `next`.
+function cellBreakScore(previous: string, next: string): number {
+  let score = 0;
+  if (isLower(firstChar(next))) score -= 2;
+  if (endsAsContinuation(previous)) score -= 2;
+  if (isUpper(firstChar(next))) score += 1;
+  if (startsCell(previous, next)) score += 1;
+  if (/^[+-]?\d/.test(next.trim())) score += 1;
+  return score;
+}
+
+// Fits a row to exactly `count` cells: short rows get blank cells, and long rows are joined at the
+// boundaries that least look like the start of a new cell (e.g. before a lowercase word).
+export function fitRowToColumns(cells: string[], count: number): string[] {
+  if (count <= 0) return [];
+  const filled = cells.length > count ? cells.filter(Boolean) : cells;
+  if (filled.length <= count) return padRow(filled, count);
+  const breaks = new Set(
+    filled.slice(1).map((cell, index) => ({ index, score: cellBreakScore(filled[index], cell) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, count - 1)
+      .map(boundary => boundary.index),
+  );
+  const result: string[] = [filled[0]];
+  filled.slice(1).forEach((cell, index) => {
+    if (breaks.has(index)) result.push(cell);
+    else result[result.length - 1] += ` ${cell}`;
+  });
+  return result;
+}
+
+export interface TableShape {
+  columns?: number;
+  bodyRows?: number;
+}
+
+// Applies a row/column count to rows as parsed by `parseTableTextRows`. With fewer body rows than parsed,
+// wrapped lines are joined: word by word for whitespace-split text, cell by cell otherwise.
+export function reshapeTableRows(
+  rows: string[][],
+  delimiter: Exclude<TableTextDelimiter, 'auto'>,
+  hasHeader: boolean,
+  shape: TableShape,
+): string[][] {
+  const header = hasHeader ? rows.slice(0, 1) : [];
+  let body = hasHeader ? rows.slice(1) : rows;
+  const bodyRows = shape.bodyRows ?? body.length;
+  if (bodyRows < body.length && body.length > 0) {
+    const groups = groupWrappedLines(body.map(row => row.filter(Boolean).join(' ')), bodyRows);
+    body = groups.map(group => {
+      const parts = group.map(index => body[index]);
+      if (delimiter === 'space') return parts.flat().filter(Boolean);
+      const width = Math.max(...parts.map(part => part.length));
+      return Array.from({ length: width }, (_, column) => parts.map(part => part[column] ?? '').filter(Boolean).join(' '));
+    });
+  } else if (bodyRows > body.length) {
+    body = [...body, ...Array.from({ length: bodyRows - body.length }, () => [] as string[])];
+  }
+  const all = [...header, ...body];
+  const columns = shape.columns ?? Math.max(0, ...rows.map(row => row.length));
+  return all.map(row => fitRowToColumns(row, columns));
 }
 
 export type TableColumnType = 'text' | 'number' | 'unit' | 'keywords';
@@ -125,12 +296,45 @@ export function columnSpecsFromFirstLine(text: string, useHeader: boolean): Tabl
   }));
 }
 
+// Changes the number of column specs, keeping existing types; header names are re-read from the first line.
+export function resizeColumnSpecs(specs: TableColumnSpec[], count: number, text: string, useHeader: boolean): TableColumnSpec[] {
+  const firstLine = tableTextLines(text)[0] ?? '';
+  const names = fitRowToColumns(firstLine.split(' ').filter(Boolean), count);
+  return Array.from({ length: count }, (_, index) => ({
+    type: specs[index]?.type ?? 'text',
+    keywords: specs[index]?.keywords ?? '',
+    name: useHeader && names[index] ? names[index] : `Column ${index + 1}`,
+  }));
+}
+
+export function tableTextLines(text: string): string[] {
+  return text.replace(/\r\n?/g, '\n').split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+// Adjacent text columns cannot be told apart by the pattern, so their words are re-split at likely cell breaks.
+function splitAdjacentTextColumns(cells: string[], columns: TableColumnSpec[]): string[] {
+  const result = [...cells];
+  let start = 0;
+  while (start < columns.length) {
+    let end = start;
+    while (columns[start].type === 'text' && end + 1 < columns.length && columns[end + 1].type === 'text') end++;
+    if (end > start) {
+      const words = result.slice(start, end + 1).join(' ').split(' ').filter(Boolean);
+      result.splice(start, end - start + 1, ...fitRowToColumns(words, end - start + 1));
+    }
+    start = end + 1;
+  }
+  return result;
+}
+
 // Matches each line against the column types: numbers anchor the cells and text columns take the words in between.
 // Lines that do not fit are kept whole in the first cell and reported in `unmatched`.
+// When `bodyRows` is lower than the number of lines, wrapped lines are joined first.
 export function parseTableTextByColumns(
   text: string,
   columns: TableColumnSpec[],
   skipFirstLine: boolean,
+  bodyRows?: number,
 ): { rows: string[][]; unmatched: number[] } {
   if (columns.length === 0) return { rows: [], unmatched: [] };
   const pattern = columns.map((spec, index) => {
@@ -139,18 +343,22 @@ export function parseTableTextByColumns(
     return optional ? String.raw`(?:\s+(${source}))?` : String.raw`\s+(${source})`;
   }).join('');
   const matcher = new RegExp(String.raw`^\s*${pattern}\s*$`, 'i');
-  const lines = text.replace(/\r\n?/g, '\n').split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const allLines = tableTextLines(text).slice(skipFirstLine ? 1 : 0);
+  const lines = bodyRows !== undefined && bodyRows < allLines.length && allLines.length > 0
+    ? groupWrappedLines(allLines, bodyRows).map(group => group.map(index => allLines[index]).join(' '))
+    : allLines;
   const rows: string[][] = [];
   const unmatched: number[] = [];
-  lines.slice(skipFirstLine ? 1 : 0).forEach((line, index) => {
+  lines.forEach((line, index) => {
     const match = line.length <= MAX_MATCHED_LINE_LENGTH ? matcher.exec(line) : null;
     if (match) {
-      rows.push(columns.map((_, column) => (match[column + 1] ?? '').trim()));
+      rows.push(splitAdjacentTextColumns(columns.map((_, column) => (match[column + 1] ?? '').trim()), columns));
     } else {
       unmatched.push(index);
       rows.push([line, ...Array<string>(columns.length - 1).fill('')]);
     }
   });
+  while (bodyRows !== undefined && rows.length < bodyRows) rows.push(Array<string>(columns.length).fill(''));
   return { rows, unmatched };
 }
 

@@ -3,12 +3,15 @@ import { createPortal } from 'react-dom';
 import {
   columnSpecsFromFirstLine,
   moveTableCellWords,
-  parseTableText,
   parseTableTextByColumns,
+  parseTableTextRows,
+  reshapeTableRows,
+  resizeColumnSpecs,
   TABLE_COLUMN_TYPES,
   TABLE_TEXT_DELIMITERS,
   TableColumnSpec,
   TableColumnType,
+  tableTextLines,
   TableTextDelimiter,
 } from '../../utils/tableText';
 
@@ -25,6 +28,37 @@ interface CellRef { row: number; col: number; word: number | null }
 interface ManualEdit { source: string[][]; grid: string[][]; rows: number[] }
 
 const MAX_PREVIEW_ROWS = 200;
+const MAX_COLUMNS = 50;
+const MAX_ROWS = 1000;
+
+interface CountInputProps {
+  label: string;
+  value: number;
+  max: number;
+  onChange: (value: number) => void;
+}
+
+// Keeps a text draft so the field can be cleared while typing; only whole numbers in range are applied.
+function CountInput({ label, value, max, onChange }: CountInputProps) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  return (
+    <input
+      type="number"
+      min={1}
+      max={max}
+      value={draft}
+      aria-label={label}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        const next = Number(event.target.value);
+        if (event.target.value !== '' && Number.isInteger(next) && next >= 1 && next <= max) onChange(next);
+      }}
+      onBlur={() => setDraft(String(value))}
+      className="h-7 w-16 rounded border border-theme-border bg-theme-paper px-1.5 text-xs text-theme-ink focus:border-theme-accent focus:outline-none"
+    />
+  );
+}
 
 export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: TableImportDialogProps) {
   const [text, setText] = useState('');
@@ -33,6 +67,8 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
   const [firstRowIsHeader, setFirstRowIsHeader] = useState(true);
   const [byType, setByType] = useState(false);
   const [specs, setSpecs] = useState<TableColumnSpec[]>([]);
+  const [columnOverride, setColumnOverride] = useState<number | null>(null);
+  const [rowOverride, setRowOverride] = useState<number | null>(null);
   const [picked, setPicked] = useState<CellRef | null>(null);
   const [dragging, setDragging] = useState<CellRef | null>(null);
   const [dropTarget, setDropTarget] = useState<{ row: number; col: number } | null>(null);
@@ -40,13 +76,26 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
   const useHeader = mode === 'replace' && firstRowIsHeader;
 
   const parsed = useMemo(() => {
+    const bodyRows = rowOverride ?? undefined;
     if (byType) {
-      const { rows, unmatched } = parseTableTextByColumns(text, specs, useHeader);
+      const { rows, unmatched } = parseTableTextByColumns(text, specs, useHeader, bodyRows);
       const grid = specs.length === 0 ? [] : useHeader ? [specs.map(spec => spec.name), ...rows] : rows;
-      return { grid, unmatched: new Set(unmatched.map(index => index + (useHeader ? 1 : 0))) };
+      return {
+        grid,
+        unmatched: new Set(unmatched.map(index => index + (useHeader ? 1 : 0))),
+        detectedRows: Math.max(0, tableTextLines(text).length - (useHeader ? 1 : 0)),
+        detectedColumns: columnSpecsFromFirstLine(text, useHeader).length,
+      };
     }
-    return { grid: parseTableText(text, delimiter), unmatched: new Set<number>() };
-  }, [text, delimiter, byType, specs, useHeader]);
+    const { rows, delimiter: resolved } = parseTableTextRows(text, delimiter);
+    const current = columnOverride && resolved === 'capitals' ? parseTableTextRows(text, resolved, columnOverride).rows : rows;
+    return {
+      grid: reshapeTableRows(current, resolved, useHeader, { columns: columnOverride ?? undefined, bodyRows }),
+      unmatched: new Set<number>(),
+      detectedRows: Math.max(0, rows.length - (useHeader ? 1 : 0)),
+      detectedColumns: Math.max(0, ...rows.map(row => row.length)),
+    };
+  }, [text, delimiter, byType, specs, useHeader, columnOverride, rowOverride]);
 
   // Manual moves apply to one parse result; any change to the text or settings discards them.
   const activeManual = manual && manual.source === parsed.grid ? manual : null;
@@ -61,14 +110,34 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
   const selectClass = 'h-8 rounded-button border border-theme-border bg-theme-paper px-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
   const inputClass = 'h-7 w-full rounded border border-theme-border bg-theme-paper px-1.5 text-xs text-theme-ink focus:border-theme-accent focus:outline-none';
 
+  const initialSpecs = (source: string) => columnOverride
+    ? resizeColumnSpecs([], columnOverride, source, useHeader)
+    : columnSpecsFromFirstLine(source, useHeader);
+
   const handleTextChange = (value: string) => {
     setText(value);
-    if (byType && specs.length === 0) setSpecs(columnSpecsFromFirstLine(value, useHeader));
+    if (!value.trim()) {
+      setColumnOverride(null);
+      setRowOverride(null);
+    }
+    if (byType && specs.length === 0) setSpecs(initialSpecs(value));
   };
 
   const handleByTypeChange = (enabled: boolean) => {
     setByType(enabled);
-    if (enabled && specs.length === 0) setSpecs(columnSpecsFromFirstLine(text, useHeader));
+    if (enabled && specs.length === 0) setSpecs(initialSpecs(text));
+  };
+
+  const columnTotal = byType ? specs.length : width;
+  const setColumnTotal = (count: number) => {
+    if (byType) setSpecs(resizeColumnSpecs(specs, count, text, useHeader));
+    else setColumnOverride(count);
+  };
+  const sizeChanged = bodyRows !== parsed.detectedRows || columnTotal !== parsed.detectedColumns;
+  const resetSize = () => {
+    setRowOverride(null);
+    setColumnOverride(null);
+    if (byType) setSpecs(resizeColumnSpecs(specs, parsed.detectedColumns, text, useHeader));
   };
 
   const updateSpec = (index: number, patch: Partial<TableColumnSpec>) =>
@@ -261,8 +330,25 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
 
         {grid.length > 0 && (
           <div>
-            <p className="mb-1 text-xs font-medium">
-              Preview: {bodyRows} row{bodyRows === 1 ? '' : 's'} × {width} column{width === 1 ? '' : 's'}
+            <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <span className="font-medium">Preview:</span>
+              <label className="flex items-center gap-1.5">
+                Rows
+                <CountInput label="Rows" value={Math.max(1, bodyRows)} max={MAX_ROWS} onChange={setRowOverride} />
+              </label>
+              <label className="flex items-center gap-1.5">
+                Columns
+                <CountInput label="Columns" value={Math.max(1, columnTotal)} max={MAX_COLUMNS} onChange={setColumnTotal} />
+              </label>
+              {sizeChanged && (
+                <span className="text-theme-muted">
+                  Detected {parsed.detectedRows} × {parsed.detectedColumns}.{' '}
+                  <button type="button" onClick={resetSize} className="text-theme-accent hover:underline">Reset</button>
+                </span>
+              )}
+            </div>
+            <p className="mb-1 text-xs text-theme-muted">
+              Wrong size? Lower the rows to join lines that wrapped, and change the columns to split or join cells.
             </p>
             {mode === 'append' && width !== columnCount && (
               <p role="status" className="mb-1 text-xs text-theme-accent">

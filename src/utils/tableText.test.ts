@@ -1,5 +1,101 @@
 import { describe, expect, it } from 'vitest';
-import { moveTableCellWords, parseTableText, parseTableTextByColumns, TableColumnSpec } from './tableText';
+import {
+  detectTableDelimiter,
+  fitRowToColumns,
+  moveTableCellWords,
+  parseTableText,
+  parseTableTextByColumns,
+  parseTableTextRows,
+  reshapeTableRows,
+  TableColumnSpec,
+} from './tableText';
+
+const fumbleText = [
+  'Roll type Fumble effect',
+  'Hero attack or',
+  'weapon parry',
+  'The weapon loses 1',
+  'Durability.',
+  'Hero shield parry The shield loses 1 Durability',
+  'and the parry fails.',
+  'Hero dodge or',
+  'shove The hero falls prone.',
+  'Armed enemy',
+  'attack',
+  'The enemy drops its',
+  'weapon.',
+  'Unarmed enemy',
+  'attack The enemy falls prone.',
+].join('\n');
+
+const fumbleTable = [
+  ['Roll type', 'Fumble effect'],
+  ['Hero attack or weapon parry', 'The weapon loses 1 Durability.'],
+  ['Hero shield parry', 'The shield loses 1 Durability and the parry fails.'],
+  ['Hero dodge or shove', 'The hero falls prone.'],
+  ['Armed enemy attack', 'The enemy drops its weapon.'],
+  ['Unarmed enemy attack', 'The enemy falls prone.'],
+];
+
+describe('capital-letter detection', () => {
+  it('auto-detects cells and rows from capitals in wrapped text', () => {
+    expect(detectTableDelimiter(fumbleText)).toBe('capitals');
+    expect(parseTableText(fumbleText)).toEqual(fumbleTable);
+  });
+
+  it('keeps splitting on spaces when every line has the same number of words', () => {
+    expect(detectTableDelimiter('Item name Weight\nLong sword 3\nShort bow 2')).toBe('space');
+  });
+
+  it('does not use capitals for title-case headers', () => {
+    expect(detectTableDelimiter('Name Qty\nRope 1\nTorch 3 lit\nOil flask 2')).toBe('space');
+  });
+});
+
+describe('reshapeTableRows', () => {
+  it('keeps the detected size when nothing is overridden', () => {
+    const { rows, delimiter } = parseTableTextRows('A\tB\nC');
+    expect(reshapeTableRows(rows, delimiter, true, {})).toEqual([['A', 'B'], ['C', '']]);
+  });
+
+  it('joins wrapped lines and splits cells to the requested size', () => {
+    const { rows, delimiter } = parseTableTextRows(fumbleText);
+    expect(reshapeTableRows(rows, delimiter, true, { columns: 2, bodyRows: 5 })).toEqual(fumbleTable);
+  });
+
+  it('joins wrapped cells column by column for separated text', () => {
+    const { rows, delimiter } = parseTableTextRows('Name\tEffect\nLong\tFirst part\nsword\tsecond part', 'tab');
+    expect(reshapeTableRows(rows, delimiter, true, { bodyRows: 1 })).toEqual([
+      ['Name', 'Effect'],
+      ['Long sword', 'First part second part'],
+    ]);
+  });
+
+  it('adds blank rows and columns when asked for more', () => {
+    const { rows, delimiter } = parseTableTextRows('A\tB');
+    expect(reshapeTableRows(rows, delimiter, false, { columns: 3, bodyRows: 2 })).toEqual([['A', 'B', ''], ['', '', '']]);
+  });
+});
+
+describe('fitRowToColumns', () => {
+  it('joins words that continue a cell and keeps numbers apart', () => {
+    expect(fitRowToColumns(['Long', 'sword', '1d8', 'Two-handed'], 3)).toEqual(['Long sword', '1d8', 'Two-handed']);
+  });
+
+  it('pads short rows', () => {
+    expect(fitRowToColumns(['A'], 3)).toEqual(['A', '', '']);
+  });
+});
+
+describe('parseTableTextByColumns with a size', () => {
+  it('joins wrapped lines and splits adjacent text columns at likely breaks', () => {
+    const columns: TableColumnSpec[] = [
+      { name: 'Roll type', type: 'text', keywords: '' },
+      { name: 'Fumble effect', type: 'text', keywords: '' },
+    ];
+    expect(parseTableTextByColumns(fumbleText, columns, true, 5).rows).toEqual(fumbleTable.slice(1));
+  });
+});
 
 const armourColumns: TableColumnSpec[] = [
   { name: 'Armour', type: 'text', keywords: '' },
