@@ -319,6 +319,22 @@
       "description": "custom system for me",
       "file": "presets/rotgf_sheet_v2.json",
       "gameSystem": "Custom Zombie System"
+    },
+    {
+      "id": "41",
+      "name": "Ghost Ops 2e",
+      "author": "@Johnny Goober",
+      "description": "Custom character sheet tailored to the Ghost Ops: Second Strike D6 Rules",
+      "file": "presets/ghost_ops_2e.json",
+      "gameSystem": "Ghost Ops: Second Strike (2e)"
+    },
+    {
+      "id": "42",
+      "name": "Ghost Ops 2e v2",
+      "author": "@John Goober",
+      "description": "Designed for Ghost Ops: Second Strike with the D6 alternative rules in mind.",
+      "file": "presets/ghost_ops_2e_v2.json",
+      "gameSystem": "Ghost Ops: Second Strike (2e)"
     }
   ],
   "themes": [
