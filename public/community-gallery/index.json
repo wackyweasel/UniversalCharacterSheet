@@ -351,6 +351,22 @@
       "description": "Homebrew Deadlock character sheet.",
       "file": "presets/deadlock_hb.json",
       "gameSystem": "Deadlock HB"
+    },
+    {
+      "id": "45",
+      "name": "Daggerheart - Grimdark",
+      "author": "@SidheFire",
+      "description": "My take on the Daggerheart character sheet, with a grimdark twist for my campaign I am running. It may not be for everyone, since I have some clearly-not Daggerheart info/text boxes, but it's mainly for me anyways. But... If you truly like it, I did make a non-grimdark version that I will be uploading here soon as well.",
+      "file": "presets/daggerheart_grimdark.json",
+      "gameSystem": "Daggerheart"
+    },
+    {
+      "id": "46",
+      "name": "Daggerheart - Regular",
+      "author": "@SidheFire",
+      "description": "Here's that regular version of my take on the Daggerheart character sheet. If you wanna check out the character sheet that I put more effort it(but only slightly more) check out the Daggerheart - Grimdark character sheet.",
+      "file": "presets/daggerheart_regular.json",
+      "gameSystem": "Daggerheart"
     }
   ],
   "themes": [
