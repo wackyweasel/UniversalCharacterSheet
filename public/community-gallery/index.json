@@ -335,6 +335,22 @@
       "description": "Designed for Ghost Ops: Second Strike with the D6 alternative rules in mind.",
       "file": "presets/ghost_ops_2e_v2.json",
       "gameSystem": "Ghost Ops: Second Strike (2e)"
+    },
+    {
+      "id": "43",
+      "name": "Deadlock HB (Russian)",
+      "author": "@SRG_E",
+      "description": "Homebrew Deadlock character sheet (Russian).",
+      "file": "presets/deadlock_hb_russian.json",
+      "gameSystem": "Deadlock HB"
+    },
+    {
+      "id": "44",
+      "name": "Deadlock HB",
+      "author": "@SRG_E",
+      "description": "Homebrew Deadlock character sheet.",
+      "file": "presets/deadlock_hb.json",
+      "gameSystem": "Deadlock HB"
     }
   ],
   "themes": [
