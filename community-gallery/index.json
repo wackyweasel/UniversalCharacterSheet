@@ -319,6 +319,54 @@
       "description": "custom system for me",
       "file": "presets/rotgf_sheet_v2.json",
       "gameSystem": "Custom Zombie System"
+    },
+    {
+      "id": "41",
+      "name": "Ghost Ops 2e",
+      "author": "@Johnny Goober",
+      "description": "Custom character sheet tailored to the Ghost Ops: Second Strike D6 Rules",
+      "file": "presets/ghost_ops_2e.json",
+      "gameSystem": "Ghost Ops: Second Strike (2e)"
+    },
+    {
+      "id": "42",
+      "name": "Ghost Ops 2e v2",
+      "author": "@John Goober",
+      "description": "Designed for Ghost Ops: Second Strike with the D6 alternative rules in mind.",
+      "file": "presets/ghost_ops_2e_v2.json",
+      "gameSystem": "Ghost Ops: Second Strike (2e)"
+    },
+    {
+      "id": "43",
+      "name": "Deadlock HB (Russian)",
+      "author": "@SRG_E",
+      "description": "Homebrew Deadlock character sheet (Russian).",
+      "file": "presets/deadlock_hb_russian.json",
+      "gameSystem": "Deadlock HB"
+    },
+    {
+      "id": "44",
+      "name": "Deadlock HB",
+      "author": "@SRG_E",
+      "description": "Homebrew Deadlock character sheet.",
+      "file": "presets/deadlock_hb.json",
+      "gameSystem": "Deadlock HB"
+    },
+    {
+      "id": "45",
+      "name": "Daggerheart - Grimdark",
+      "author": "@SidheFire",
+      "description": "My take on the Daggerheart character sheet, with a grimdark twist for my campaign I am running. It may not be for everyone, since I have some clearly-not Daggerheart info/text boxes, but it's mainly for me anyways. But... If you truly like it, I did make a non-grimdark version that I will be uploading here soon as well.",
+      "file": "presets/daggerheart_grimdark.json",
+      "gameSystem": "Daggerheart"
+    },
+    {
+      "id": "46",
+      "name": "Daggerheart - Regular",
+      "author": "@SidheFire",
+      "description": "Here's that regular version of my take on the Daggerheart character sheet. If you wanna check out the character sheet that I put more effort it(but only slightly more) check out the Daggerheart - Grimdark character sheet.",
+      "file": "presets/daggerheart_regular.json",
+      "gameSystem": "Daggerheart"
     }
   ],
   "themes": [
