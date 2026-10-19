@@ -21,6 +21,7 @@ export class WorkspaceConflictError extends Error {
     message = 'The workspace changed outside Universal Character Sheet.',
     public readonly remoteDocument: WorkspaceDocument | null = null,
     public readonly remoteFingerprint: string | null = null,
+    public readonly localDocument: WorkspaceDocument | null = null,
   ) {
     super(message);
     this.name = 'WorkspaceConflictError';

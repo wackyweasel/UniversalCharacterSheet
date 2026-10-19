@@ -9,28 +9,33 @@ export default function GoogleDriveAutoReconnect() {
   const syncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
   const reconnectGoogleDriveWorkspace = useStorageWorkspaceStore((state) => state.reconnectGoogleDriveWorkspace);
   const reconnectingRef = useRef(false);
+  const failedWorkspaceRef = useRef<string | null>(null);
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
 
   useEffect(() => {
     if (!isHydrated || activeWorkspace?.provider !== 'google-drive') return;
+    if (syncStatus === 'synced' && getGoogleDriveAccessToken()) failedWorkspaceRef.current = null;
 
     const reconnectIfNeeded = () => {
       if (
         document.visibilityState === 'hidden'
         || reconnectingRef.current
+        || failedWorkspaceRef.current === activeWorkspace.id
         || (syncStatus !== 'reconnect' && (syncStatus !== 'synced' || getGoogleDriveAccessToken()))
       ) {
         return;
       }
 
       reconnectingRef.current = true;
-      void reconnectGoogleDriveWorkspace(activeWorkspace.id)
+      void reconnectGoogleDriveWorkspace(activeWorkspace.id, { reuseToken: true })
         .catch((error) => {
           console.warn('Google Drive could not be reconnected automatically.', error);
         })
         .finally(() => {
           reconnectingRef.current = false;
+          // After a failed or cancelled attempt, wait for the user instead of re-prompting on every focus.
+          if (useStorageWorkspaceStore.getState().syncStatus !== 'synced') failedWorkspaceRef.current = activeWorkspace.id;
         });
     };
 

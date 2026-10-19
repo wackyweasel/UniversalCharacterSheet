@@ -71,6 +71,8 @@ function App() {
   const workspaceSyncStatus = useStorageWorkspaceStore((state) => state.syncStatus);
   const workspaceError = useStorageWorkspaceStore((state) => state.error);
   const initializeWorkspaces = useStorageWorkspaceStore((state) => state.initialize);
+  const driveStartupPending = useStorageWorkspaceStore((state) => state.driveStartupPending);
+  const endDriveStartup = useStorageWorkspaceStore((state) => state.endDriveStartup);
   const resetBrowserWorkspace = useStorageWorkspaceStore((state) => state.resetBrowserWorkspace);
   const darkMode = isDarkModeEnabled();
   const [showChangelog, closeChangelog] = useChangelogOnLoad(isWorkspaceHydrated && !isSwitchingWorkspace);
@@ -115,8 +117,8 @@ function App() {
       <UpdatePrompt />
       <StorageWarning />
       <GoogleDriveAutoReconnect />
-      {!isSwitchingWorkspace && <WorkspaceConflictDialog />}
-      {!isWorkspaceHydrated || isSwitchingWorkspace ? (
+      {!isSwitchingWorkspace && <WorkspaceConflictDialog darkMode={darkMode} />}
+      {!isWorkspaceHydrated || isSwitchingWorkspace || driveStartupPending ? (
         <main className={`h-full flex items-center justify-center p-6 ${darkMode ? 'bg-black text-white' : 'bg-gray-100 text-gray-900'}`}>
           {!isSwitchingWorkspace && workspaceSyncStatus === 'error' ? (
             <section className={`w-full max-w-lg border p-6 ${darkMode ? 'border-white/30 bg-black' : 'border-gray-300 bg-white'}`}>
@@ -146,6 +148,18 @@ function App() {
                   Reset Browser workspace
                 </button>
               </div>
+            </section>
+          ) : driveStartupPending ? (
+            <section className="text-center">
+              <p className="font-bold">Connecting to Google Drive...</p>
+              <p className={`mt-2 text-sm ${darkMode ? 'text-white/60' : 'text-gray-600'}`}>Sign in if prompted. Your saved copy stays safe on this device.</p>
+              <button
+                type="button"
+                onClick={endDriveStartup}
+                className={`mt-4 border px-4 py-2 font-bold ${darkMode ? 'border-white/40 hover:bg-white/10' : 'border-gray-400 hover:bg-gray-100'}`}
+              >
+                Continue offline
+              </button>
             </section>
           ) : (
             <p className="font-bold">{isSwitchingWorkspace ? 'Switching workspace...' : 'Loading workspace...'}</p>

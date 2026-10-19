@@ -63,6 +63,8 @@ interface StorageWorkspaceState {
   syncStatus: WorkspaceSyncStatus;
   error: string | null;
   conflict: WorkspaceConflictError | null;
+  driveStartupPending: boolean;
+  endDriveStartup: () => void;
   initialize: () => Promise<void>;
   resetBrowserWorkspace: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
@@ -71,7 +73,7 @@ interface StorageWorkspaceState {
   addGoogleDriveWorkspace: (name: string) => Promise<void>;
   openGoogleDriveWorkspace: () => Promise<void>;
   reconnectDirectoryWorkspace: (workspaceId: string, handle?: WorkspaceDirectoryHandle) => Promise<void>;
-  reconnectGoogleDriveWorkspace: (workspaceId: string) => Promise<void>;
+  reconnectGoogleDriveWorkspace: (workspaceId: string, options?: { reuseToken?: boolean }) => Promise<void>;
   copyCharacterToWorkspace: (characterId: string, targetWorkspaceId: string) => Promise<void>;
   getWorkspaceContents: (workspaceId: string) => Promise<WorkspaceDocument>;
   transferWorkspaceData: (
@@ -102,7 +104,7 @@ let saveTimeout: number | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
 let saveInProgress = false;
 let saveRequested = false;
-
+let driveReconnectPromise: Promise<void> | null = null;
 function requireRegistry(): WorkspaceRegistry {
   if (!registry) throw new Error('External workspaces are unavailable in this browser.');
   return registry;
@@ -273,7 +275,11 @@ async function persistActiveWorkspace(): Promise<void> {
       ? ' Changes are only in this tab because the local recovery cache is unavailable. Keep this tab open and try again.'
       : '';
     if (error instanceof WorkspaceConflictError) {
-      useStorageWorkspaceStore.setState({ syncStatus: 'conflict', conflict: error, error: `${error.message}${recoveryWarning}` });
+      useStorageWorkspaceStore.setState({
+        syncStatus: 'conflict',
+        conflict: new WorkspaceConflictError(error.message, error.remoteDocument, error.remoteFingerprint, document),
+        error: `${error.message}${recoveryWarning}`,
+      });
     } else if (error instanceof WorkspaceReconnectRequiredError) {
       useStorageWorkspaceStore.setState({ syncStatus: 'reconnect', error: `${error.message}${recoveryWarning}` });
     } else {
@@ -369,7 +375,7 @@ async function loadWorkspace(workspace: StorageWorkspace, selection: SelectionRe
       applyWorkspaceDocument(cached, selection);
 
       if (result.fingerprint !== cache.fingerprint) {
-        const conflict = new WorkspaceConflictError(undefined, result.document, result.fingerprint);
+        const conflict = new WorkspaceConflictError(undefined, result.document, result.fingerprint, cached);
         useStorageWorkspaceStore.setState({ syncStatus: 'conflict', conflict, error: conflict.message });
         return;
       }
@@ -422,6 +428,8 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
   syncStatus: 'idle',
   error: null,
   conflict: null,
+  driveStartupPending: false,
+  endDriveStartup: () => set({ driveStartupPending: false }),
 
   initialize: async () => {
     if (get().isHydrated || get().syncStatus === 'loading') return;
@@ -456,7 +464,8 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
       set({ workspaces, activeWorkspaceId: workspace.id });
       try {
         await loadWorkspace(workspace);
-        set({ isHydrated: true });
+        // Hold the UI back so stale cached data isn't shown before Drive reconnects.
+        set({ isHydrated: true, driveStartupPending: workspace.provider === 'google-drive' && get().syncStatus === 'reconnect' });
       } catch (error) {
         if (workspace.id === BROWSER_WORKSPACE_ID) throw error;
         requireRegistry().setActiveWorkspaceId(BROWSER_WORKSPACE_ID);
@@ -660,13 +669,24 @@ export const useStorageWorkspaceStore = create<StorageWorkspaceState>((set, get)
     if (workspaceId === get().activeWorkspaceId) await loadWorkspace(workspace, 'current');
   },
 
-  reconnectGoogleDriveWorkspace: async (workspaceId) => {
-    clearGoogleDriveAccessToken();
-    if (!await restoreGoogleDriveAccessToken()) await authorizeGoogleDrive();
-    if (workspaceId === get().activeWorkspaceId) {
-      const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
-      if (workspace) await loadWorkspace(workspace, 'current');
-    }
+  reconnectGoogleDriveWorkspace: (workspaceId, options) => {
+    // Concurrent callers share one attempt so Google never shows two sign-in prompts.
+    driveReconnectPromise ??= (async () => {
+      try {
+        if (!(options?.reuseToken && getGoogleDriveAccessToken())) {
+          clearGoogleDriveAccessToken();
+          if (!await restoreGoogleDriveAccessToken()) await authorizeGoogleDrive();
+        }
+        if (workspaceId === get().activeWorkspaceId) {
+          const workspace = get().workspaces.find((candidate) => candidate.id === workspaceId);
+          if (workspace) await loadWorkspace(workspace, 'current');
+        }
+      } finally {
+        driveReconnectPromise = null;
+        set({ driveStartupPending: false });
+      }
+    })();
+    return driveReconnectPromise;
   },
 
   copyCharacterToWorkspace: async (characterId, targetWorkspaceId) => {

@@ -41,6 +41,8 @@ const CHANGELOG_ENTRIES = [
     version: '1.12.2',
     changes: [
       'Table: fixed editing and selecting text in cells on touch devices.',
+      'Workspace sync conflicts: simpler choices with a "Keep most recent" option and the date, time and character count of each version.',
+      'Google Drive workspaces: smoother startup with a single sign-in and no more character switching while loading.',
     ],
   },
   {
