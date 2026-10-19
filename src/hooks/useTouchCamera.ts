@@ -382,9 +382,12 @@ export function useTouchCamera({
         const onIgnoredControl = touchStartTarget && isOnTouchCameraIgnoredControl(touchStartTarget);
         // Touch-selected widgets move with one finger instead of panning.
         const onArrangingWidget = !!touchStartTarget?.closest('[data-widget-arranging="true"]');
+        const onFocusedTextField = !!touchStartTarget && document.activeElement instanceof HTMLElement
+          && document.activeElement.contains(touchStartTarget)
+          && document.activeElement.matches('input, textarea, [contenteditable="true"]');
         
         // Don't pan if on a canvas (map sketcher), or print area handles - let them handle their own gestures
-        const shouldPan = !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && !onArrangingWidget && !isViewLockedRef.current?.();
+        const shouldPan = !onFocusedTextField && !onScrollable && !onCanvas && !onPrintArea && !onIgnoredControl && !onArrangingWidget && !isViewLockedRef.current?.();
         
         if (shouldPan) {
           const touch = activeTouches.current.values().next().value;

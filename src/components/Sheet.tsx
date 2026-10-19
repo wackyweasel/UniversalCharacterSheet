@@ -430,6 +430,11 @@ export default function Sheet() {
     setSelectedWidgetId(null);
     if (preserveOverlayFocus) return;
 
+    // Touching inside the focused text field moves the caret or selection instead of dismissing it.
+    const activeElement = document.activeElement;
+    if (touchTarget && activeElement instanceof HTMLElement && activeElement.contains(touchTarget)
+      && activeElement.matches('input, textarea, [contenteditable="true"]')) return;
+
     // Blur any focused input/textarea element
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();

@@ -38,6 +38,12 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.12.2',
+    changes: [
+      'Table: fixed editing and selecting text in cells on touch devices.',
+    ],
+  },
+  {
     version: '1.12.1',
     changes: [
       'Resource Pool: a cleaner layout with bold names, symbols beside them and the counter on the right, more symbols to choose from, and options for symbol alignment and spacing.',
