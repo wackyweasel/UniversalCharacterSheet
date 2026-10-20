@@ -1,0 +1,616 @@
+{
+  "name": "Sequence Template",
+  "sheets": [
+    {
+      "id": "43328b6a-b5d7-46c3-aca9-bc8e4ccaf051",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "4413543c-6131-4e5a-9704-c7bdb3f07c73",
+          "type": "NUMBER_DISPLAY",
+          "x": 290,
+          "y": 40,
+          "w": 360,
+          "h": 120,
+          "zIndex": 227,
+          "data": {
+            "label": "Stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "auto",
+            "numberBoxFixedAspectRatio": true,
+            "numberBoxScale": 100,
+            "displayNumbers": [
+              {
+                "label": "Intellect",
+                "value": 0,
+                "showPositiveSign": false
+              },
+              {
+                "label": "Strength",
+                "value": 0
+              },
+              {
+                "label": "Will",
+                "value": 0
+              },
+              {
+                "label": "Dexterity",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "id": "673a3c50-ff2a-48be-9027-5560618043d2",
+          "type": "HEALTH_BAR",
+          "x": 40,
+          "y": 160,
+          "w": 200,
+          "h": 120,
+          "zIndex": 126,
+          "data": {
+            "label": "Health",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showIncrementButtons": true,
+            "temporaryValue": 0,
+            "enableTemporaryHp": true
+          }
+        },
+        {
+          "id": "a24b1c65-9f3b-4a69-ac05-89f1e681094c",
+          "type": "INVENTORY",
+          "x": 370,
+          "y": 160,
+          "w": 280,
+          "h": 500,
+          "zIndex": 377,
+          "data": {
+            "label": "Inventory",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "inventoryItems": [],
+            "inventoryDefaultFields": [
+              {
+                "id": "35eed187-be59-46c3-8117-8ae9f8a3ce86",
+                "name": "Weight",
+                "type": "number",
+                "defaultValue": 0,
+                "reserved": "weight"
+              },
+              {
+                "id": "ac6ad7bc-9620-4aa5-af74-6420e81d17cb",
+                "name": "Value",
+                "type": "text",
+                "defaultValue": ""
+              },
+              {
+                "id": "4b23aded-8a99-4528-a5b2-3ed850c7fa0f",
+                "name": "Notes",
+                "type": "text",
+                "defaultValue": ""
+              }
+            ],
+            "inventoryEncumbrance": {
+              "enabled": true,
+              "unit": "kg",
+              "includeInGlobalLoad": true,
+              "showGlobalCounter": false
+            }
+          }
+        },
+        {
+          "id": "ce540495-d628-4cd7-bd62-1a2f80b6e194",
+          "type": "LABEL",
+          "x": 40,
+          "y": 10,
+          "w": 160,
+          "h": 30,
+          "zIndex": 224,
+          "data": {
+            "label": "Label",
+            "value": 0,
+            "items": [],
+            "text": ""
+          }
+        },
+        {
+          "id": "37fb3bf2-631d-477f-8d85-047d84924e4e",
+          "type": "FORM",
+          "x": 40,
+          "y": 280,
+          "w": 200,
+          "h": 380,
+          "zIndex": 220,
+          "data": {
+            "label": "Skills",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Fight",
+                "value": ""
+              },
+              {
+                "name": "Physique",
+                "value": ""
+              },
+              {
+                "name": "Lore",
+                "value": ""
+              },
+              {
+                "name": "Crafting",
+                "value": ""
+              },
+              {
+                "name": "Athletics",
+                "value": ""
+              },
+              {
+                "name": "Contacts",
+                "value": ""
+              },
+              {
+                "name": "Notice",
+                "value": ""
+              },
+              {
+                "name": "Empathy",
+                "value": ""
+              },
+              {
+                "name": "Thievery",
+                "value": ""
+              },
+              {
+                "name": "Deceive",
+                "value": ""
+              },
+              {
+                "name": "Rapport",
+                "value": ""
+              },
+              {
+                "name": "Provoke",
+                "value": ""
+              },
+              {
+                "name": "Investigate",
+                "value": ""
+              },
+              {
+                "name": "Resources",
+                "value": ""
+              },
+              {
+                "name": "Survival",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "3cd4d065-9605-4ffc-8d72-ba968902fc68",
+          "type": "FORM",
+          "x": 40,
+          "y": 40,
+          "w": 250,
+          "h": 120,
+          "zIndex": 223,
+          "data": {
+            "label": "Character Info",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              {
+                "name": "Name",
+                "value": ""
+              },
+              {
+                "name": "Level",
+                "value": ""
+              },
+              {
+                "name": "Casket Design",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "4232a51c-146c-4a40-8d44-7f8376de3a87",
+          "type": "REST_BUTTON",
+          "x": -160,
+          "y": 40,
+          "w": 200,
+          "h": 120,
+          "zIndex": 290,
+          "data": {
+            "label": "Rest",
+            "value": 0,
+            "items": [],
+            "text": ""
+          }
+        },
+        {
+          "id": "bfbfc48d-318e-47ca-8bc3-1299c381ee8d",
+          "type": "NUMBER_DISPLAY",
+          "x": 650,
+          "y": 40,
+          "w": 310,
+          "h": 120,
+          "zIndex": 417,
+          "data": {
+            "label": "Advantage n Such",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "auto",
+            "numberBoxFixedAspectRatio": true,
+            "numberBoxScale": 100,
+            "displayNumbers": [
+              {
+                "label": "Advantage",
+                "value": 0
+              },
+              {
+                "label": "Disadvantage",
+                "value": 0
+              },
+              {
+                "label": "Speed",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "id": "6e442529-8c7e-40a1-9402-f7e18fc52c9f",
+          "type": "NUMBER_DISPLAY",
+          "x": 650,
+          "y": 160,
+          "w": 310,
+          "h": 120,
+          "zIndex": 416,
+          "data": {
+            "label": "IP and Equipment",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "auto",
+            "numberBoxFixedAspectRatio": true,
+            "numberBoxScale": 100,
+            "displayNumbers": [
+              {
+                "label": "Inscription Point",
+                "value": 0,
+                "showPositiveSign": false
+              },
+              {
+                "label": "Equipment Points",
+                "value": 0
+              },
+              {
+                "label": "Fatigue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "id": "86521db3-648d-4389-ae78-36060f6a9a42",
+          "type": "TOGGLE_GROUP",
+          "x": -160,
+          "y": 160,
+          "w": 200,
+          "h": 500,
+          "zIndex": 288,
+          "data": {
+            "label": "Conditions",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleItems": [
+              {
+                "name": "Dazed",
+                "active": false
+              },
+              {
+                "name": "Burning",
+                "active": false
+              },
+              {
+                "name": "Immobilized",
+                "active": false
+              },
+              {
+                "name": "Invisible",
+                "active": false
+              },
+              {
+                "name": "Fatigue",
+                "active": false
+              },
+              {
+                "name": "Blinded",
+                "active": false
+              },
+              {
+                "name": "Wounded",
+                "active": false
+              },
+              {
+                "name": "Suppressed",
+                "active": false
+              },
+              {
+                "name": "Stunned",
+                "active": false
+              },
+              {
+                "name": "Exposed",
+                "active": false
+              },
+              {
+                "name": "Prone",
+                "active": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "d675d226-a416-43c3-9943-845794c9f8a2",
+          "type": "POOL",
+          "x": 240,
+          "y": 160,
+          "w": 130,
+          "h": 500,
+          "zIndex": 402,
+          "data": {
+            "label": "Stress",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              {
+                "name": "Stress",
+                "max": 3,
+                "current": 0,
+                "style": "dots"
+              }
+            ],
+            "showPoolCount": false
+          }
+        },
+        {
+          "id": "63acad68-cf40-472b-9d4e-dc1ca8343275",
+          "type": "TABLE",
+          "x": 1010,
+          "y": 40,
+          "w": 680,
+          "h": 260,
+          "zIndex": 372,
+          "data": {
+            "label": "Weapon Template",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "rows": [
+              {
+                "cells": [
+                  {
+                    "value": "IP amount:",
+                    "format": {}
+                  },
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  {
+                    "value": "Inscriptions",
+                    "format": {}
+                  },
+                  {
+                    "value": "",
+                    "format": {}
+                  },
+                  {
+                    "value": "",
+                    "format": {}
+                  }
+                ]
+              }
+            ],
+            "tableRowSettings": [
+              {},
+              {}
+            ],
+            "columns": [
+              "Item",
+              "Properties",
+              "Active Feature"
+            ],
+            "tableCornerRadius": false,
+            "tableMergedCells": [
+              {
+                "row": 1,
+                "col": 0,
+                "rowSpan": 1,
+                "colSpan": 3
+              }
+            ],
+            "tableColumnSettings": [
+              {
+                "width": 92
+              },
+              {
+                "width": 109
+              }
+            ]
+          }
+        },
+        {
+          "id": "05e81e84-f10d-4987-acd4-0145a0759eb4",
+          "type": "TABLE",
+          "x": 1010,
+          "y": 300,
+          "w": 680,
+          "h": 260,
+          "zIndex": 404,
+          "data": {
+            "label": "Equipment Template",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "rows": [
+              {
+                "cells": [
+                  {
+                    "value": "IP amount:",
+                    "format": {}
+                  },
+                  "",
+                  ""
+                ]
+              },
+              {
+                "cells": [
+                  {
+                    "value": "Inscriptions",
+                    "format": {}
+                  },
+                  {
+                    "value": "",
+                    "format": {}
+                  },
+                  {
+                    "value": "",
+                    "format": {}
+                  }
+                ]
+              }
+            ],
+            "tableRowSettings": [
+              {},
+              {}
+            ],
+            "columns": [
+              "Item",
+              "Properties",
+              "Active Feature"
+            ],
+            "tableCornerRadius": false,
+            "tableMergedCells": [
+              {
+                "row": 1,
+                "col": 0,
+                "rowSpan": 1,
+                "colSpan": 3
+              }
+            ],
+            "tableColumnSettings": [
+              {
+                "width": 92
+              },
+              {
+                "width": 109
+              }
+            ]
+          }
+        },
+        {
+          "id": "b6eb5601-3a45-4186-938e-38455b969963",
+          "type": "TEXT",
+          "x": -160,
+          "y": 660,
+          "w": 400,
+          "h": 260,
+          "zIndex": 400,
+          "data": {
+            "label": "Inscription Styles",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          }
+        },
+        {
+          "id": "7f80278d-1508-49ad-adc8-79c81c25d412",
+          "type": "DICE_TRAY",
+          "x": 650,
+          "y": 280,
+          "w": 310,
+          "h": 380,
+          "zIndex": 403,
+          "data": {
+            "label": "Dice Tray",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "autoShowTrayRollDetails": false
+          }
+        },
+        {
+          "id": "9d0db658-ed48-4a6b-a578-fa7e3e68b2f5",
+          "type": "TEXT",
+          "x": 240,
+          "y": 660,
+          "w": 410,
+          "h": 260,
+          "zIndex": 392,
+          "data": {
+            "label": "Outline",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          }
+        },
+        {
+          "id": "2c75de91-c704-4d2a-9814-6e83a15c5c9f",
+          "type": "TEXT",
+          "x": 650,
+          "y": 660,
+          "w": 410,
+          "h": 260,
+          "zIndex": 398,
+          "data": {
+            "label": "Aptitudes",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          }
+        },
+        {
+          "id": "c3ff69ce-640e-4578-b97f-d64786a072a3",
+          "type": "TEXT",
+          "x": 1100,
+          "y": 570,
+          "w": 420,
+          "h": 160,
+          "zIndex": 425,
+          "data": {
+            "label": "Action Template",
+            "value": 0,
+            "items": [],
+            "text": "One Handed Action/two handed action:\nMinor Action : Stab and slash\nTarget character within range takes 2 Physical Damage.\nDC: 4 (Overflow 4: Deal +1 Physical damage and target gains 1 Hinderance.)\nStat: Strength\nTags: Melee, Attack, Unarmed,",
+            "richText": "<p><strong>One Handed Action/two handed action:</strong><br><strong>Minor Action : Stab and slash</strong><br>Target character within range takes 2 Physical Damage.<br><strong>DC: 4 (Overflow 4: </strong>Deal +1 Physical damage and target gains 1 Hinderance.<strong>)</strong><br><strong>Stat:</strong> Strength<br><strong>Tags</strong>: Melee, Attack, Unarmed,</p>"
+          }
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "43328b6a-b5d7-46c3-aca9-bc8e4ccaf051",
+  "theme": "custom-68b4780d-0ee3-44cd-9a5b-1b3b895f4281",
+  "gameSystem": "Sequence"
+}

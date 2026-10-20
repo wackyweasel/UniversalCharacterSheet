@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Faceted U icon concept</title>
+  <path fill="#171717" d="M48 56h128v252l80 80 80-80V56h128v316L256 512 48 372V56Z"/>
+  <path fill="#33312f" d="m48 372 128-64 80 80-80 68-128-84ZM464 372l-128-64-80 80 80 68 128-84Z"/>
+  <path fill="#d64f43" d="m256 388 80 68-80 56-80-56 80-68Z"/>
+</svg>

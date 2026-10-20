@@ -1,0 +1,346 @@
+{
+  "name": "Carolina Radlands",
+  "sheets": [
+    {
+      "id": "ca026603-06c5-4439-8baf-aaf7df659012",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "5ac3cd6a-f583-45e9-877f-20c544a1c047",
+          "type": "IMAGE",
+          "x": 560,
+          "y": -120,
+          "w": 260,
+          "h": 230,
+          "zIndex": 612,
+          "data": { "label": "", "value": 0, "items": [], "text": "", "hideWidgetEditButton": true }
+        },
+        {
+          "id": "7cd44e4c-c302-40c1-8f8d-787cb6245ea9",
+          "type": "FORM",
+          "x": 40,
+          "y": -120,
+          "w": 300,
+          "h": 230,
+          "zIndex": 610,
+          "data": {
+            "label": "Citizen Info",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Name", "value": "" },
+              { "name": "Species", "value": "" },
+              { "name": "Gender", "value": "" },
+              { "name": "Birthdate", "value": "" },
+              { "name": "Birthplace", "value": "" },
+              { "name": "Background", "value": "" },
+              { "name": "Faction", "value": "" },
+              { "name": "Aliases", "value": "" }
+            ],
+            "labelWidth": 28,
+            "itemSpacing": 7,
+            "hideWidgetHeader": true,
+            "hideWidgetEditButton": true,
+            "showFieldControls": false
+          }
+        },
+        {
+          "id": "4808c4a9-48c0-4b37-9d28-8031f1bd0f80",
+          "type": "LABEL",
+          "x": 40,
+          "y": -160,
+          "w": 780,
+          "h": 40,
+          "zIndex": 619,
+          "data": { "label": "Bartertown Citizen Information Form", "value": 0, "items": [], "text": "", "labelAlignment": "center", "hideWidgetEditButton": true }
+        },
+        {
+          "id": "e55a9704-d199-41af-a7b7-28505dfd421e",
+          "type": "FORM",
+          "x": 560,
+          "y": 110,
+          "w": 260,
+          "h": 250,
+          "zIndex": 660,
+          "data": {
+            "label": "Perks",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Gen 1", "value": "" },
+              { "name": "Gen 2 45 RWN", "value": "" },
+              { "name": "Gen 3 65 RWN", "value": "" },
+              { "name": "Mutation", "value": "" },
+              { "name": "Psychic", "value": "" },
+              { "name": "Cybernetic", "value": "" },
+              { "name": "Unused Perk", "value": "" },
+              { "name": "Unused Perk", "value": "" },
+              { "name": "Unused Perk", "value": "" },
+              { "name": "Unused Perk", "value": "" },
+              { "name": "Unused Perk", "value": "" }
+            ],
+            "labelWidth": 40,
+            "itemSpacing": 0,
+            "hideWidgetEditButton": true,
+            "showFieldControls": false
+          }
+        },
+        {
+          "id": "26e1efb7-b377-4ffe-8c4b-3e7544fdfe6f",
+          "type": "FORM",
+          "x": 340,
+          "y": -120,
+          "w": 220,
+          "h": 140,
+          "zIndex": 615,
+          "data": {
+            "label": "Physical Description",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "formItems": [
+              { "name": "Height", "value": "" },
+              { "name": "Weight", "value": "" },
+              { "name": "Hair Color", "value": "" },
+              { "name": "Eye Color", "value": "" },
+              { "name": "Skin Tone", "value": "" }
+            ],
+            "labelWidth": 41,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "3e7b4b11-6eab-4702-8b1c-bf91ffc52cb9",
+          "type": "FORM",
+          "x": 40,
+          "y": 610,
+          "w": 260,
+          "h": 250,
+          "zIndex": 652,
+          "data": {
+            "label": "Weapons",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 10,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "eecb1fe0-a03a-46e5-8708-7a4e4b029f5c",
+          "type": "FORM",
+          "x": 560,
+          "y": 360,
+          "w": 260,
+          "h": 250,
+          "zIndex": 641,
+          "data": {
+            "label": "Aid",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Stim-Pack", "value": "" }, { "name": "Stim Dbl", "value": "" }, { "name": "Rad-Away", "value": "" },
+              { "name": "Med-X", "value": "" }, { "name": "Med-X LRG", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 30,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "5aae7ea0-5f27-4d41-a352-7859203d497e",
+          "type": "FORM",
+          "x": 300,
+          "y": 360,
+          "w": 260,
+          "h": 250,
+          "zIndex": 640,
+          "data": {
+            "label": "Ammo",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Ballistic", "value": "" }, { "name": "Energy Cell", "value": "" }, { "name": "Plasma Cartridge", "value": "" },
+              { "name": "Grenade", "value": "" }, { "name": "Arrow/Bolt", "value": "" }, { "name": "Rocket", "value": "" },
+              { "name": "Mini-Nuke", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 53,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "af080cb1-8b55-48d7-afda-7f487334d4ec",
+          "type": "FORM",
+          "x": 40,
+          "y": 360,
+          "w": 260,
+          "h": 250,
+          "zIndex": 656,
+          "data": {
+            "label": "Currency",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Caps", "value": "" }, { "name": "Caps Chit", "value": "" }, { "name": "Branded Cap", "value": "" },
+              { "name": "LRG Star Cap", "value": "" }, { "name": "Junk Cap", "value": "" }, { "name": "LRG Junk Cap", "value": "" },
+              { "name": "NCRGB", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 39,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "dd483f03-38e7-454c-8ba7-1e6660cd9442",
+          "type": "TABLE",
+          "x": 340,
+          "y": 20,
+          "w": 220,
+          "h": 90,
+          "zIndex": 617,
+          "data": {
+            "label": "Renown",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "hideWidgetEditButton": true,
+            "showTableEditButton": false,
+            "tableCornerRadius": false,
+            "columns": ["Unspent", "Total"],
+            "rows": [{ "cells": ["", ""] }],
+            "tableColumnSettings": [{}, {}],
+            "tableMergedCells": [],
+            "tableRowSettings": [{}],
+            "hideTableHeader": false
+          }
+        },
+        {
+          "id": "149f8e42-4536-4b10-853e-b2e490d75ab7",
+          "type": "FORM",
+          "x": 300,
+          "y": 610,
+          "w": 260,
+          "h": 250,
+          "zIndex": 649,
+          "data": {
+            "label": "Defense",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 10,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "f399d830-f5cb-423b-b828-0c9500a69d04",
+          "type": "FORM",
+          "x": 560,
+          "y": 610,
+          "w": 260,
+          "h": 250,
+          "zIndex": 650,
+          "data": {
+            "label": "Misc",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 10,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "d98cd5b7-76d4-495d-8f16-161b79966a96",
+          "type": "FORM",
+          "x": 40,
+          "y": 110,
+          "w": 260,
+          "h": 250,
+          "zIndex": 630,
+          "data": {
+            "label": "Personality Traits",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 10,
+            "itemSpacing": 0
+          }
+        },
+        {
+          "id": "5ef53e87-c4a3-4726-950d-4c28f8099400",
+          "type": "FORM",
+          "x": 300,
+          "y": 110,
+          "w": 260,
+          "h": 250,
+          "zIndex": 658,
+          "data": {
+            "label": "Professions---------------Ranks",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }, { "name": ">", "value": "" },
+              { "name": ">", "value": "" }, { "name": ">", "value": "" }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "labelWidth": 10,
+            "itemSpacing": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "ca026603-06c5-4439-8baf-aaf7df659012",
+  "theme": "custom-42b95f7f-9d28-4131-9321-7e680409fcd5",
+  "gameSystem": "Carolina Radlands"
+}

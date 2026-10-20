@@ -1,0 +1,295 @@
+{
+  "name": "Blank Haver Sheet",
+  "sheets": [
+    {
+      "id": "c831deb1-39d3-4202-8384-0ea0a4a20e99",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "e3fa5c3f-93fd-4feb-93b5-40e0c8bd315b",
+          "type": "IMAGE",
+          "x": 590,
+          "y": 130,
+          "w": 220,
+          "h": 220,
+          "zIndex": 1065,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "imageCropTop": 0,
+            "imageCropRight": 10.6,
+            "imageCropBottom": 21,
+            "imageCropLeft": 0,
+            "hideWidgetEditButton": false,
+            "hideImageTitle": false,
+            "imageTitleAlignment": "center",
+            "imageTitlePosition": "above",
+            "imageBorderStyle": "none",
+            "imageFrameColor": "#0c50e4",
+            "imageFrameThickness": 2
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "8042b3f5-b253-4a7b-b15b-ebefc2cc4d40",
+          "type": "FORM",
+          "x": 810,
+          "y": 130,
+          "w": 210,
+          "h": 170,
+          "zIndex": 1117,
+          "data": {
+            "label": "Information",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "formItems": [
+              { "name": "Level", "value": "" },
+              { "name": "Race", "value": "" },
+              { "name": "Class", "value": "" },
+              { "name": "Origin", "value": "" }
+            ],
+            "labelWidth": 27,
+            "itemSpacing": 10,
+            "showFieldControls": true,
+            "hideWidgetHeader": false
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "d11e6a87-6696-47c2-9871-fddf622f55b3",
+          "type": "NUMBER_DISPLAY",
+          "x": 590,
+          "y": 350,
+          "w": 220,
+          "h": 300,
+          "zIndex": 1070,
+          "data": {
+            "label": "Attributes",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "vertical",
+            "showDisplayNumberMax": false,
+            "showDisplayNumberLabels": true,
+            "showSecondaryDisplayNumbers": false,
+            "displayNumbers": [
+              { "label": "Strength", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Agility", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Vigor", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Intelligence", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Discernment", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Presence", "value": 0, "secondaryValue": 0, "showPositiveSign": false }
+            ],
+            "hideWidgetEditButton": false,
+            "showFieldControls": true,
+            "secondaryDisplayAutoCompute": false,
+            "secondaryDisplayModifierRanges": [
+              { "min": 1, "max": 1, "modifier": -5 },
+              { "min": 2, "max": 3, "modifier": -4 },
+              { "min": 4, "max": 5, "modifier": -3 },
+              { "min": 6, "max": 7, "modifier": -2 },
+              { "min": 8, "max": 9, "modifier": -1 },
+              { "min": 10, "max": 11, "modifier": 0 },
+              { "min": 12, "max": 13, "modifier": 1 },
+              { "min": 14, "max": 15, "modifier": 2 },
+              { "min": 16, "max": 17, "modifier": 3 },
+              { "min": 18, "max": 19, "modifier": 4 },
+              { "min": 20, "max": 21, "modifier": 5 },
+              { "min": 22, "max": 23, "modifier": 6 },
+              { "min": 24, "max": 25, "modifier": 7 },
+              { "min": 26, "max": 27, "modifier": 8 },
+              { "min": 28, "max": 29, "modifier": 9 },
+              { "min": 30, "max": 30, "modifier": 10 }
+            ]
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "9b5ea39e-05e9-4fe9-8dde-9c377d2fe8df",
+          "type": "HEALTH_BAR",
+          "x": 810,
+          "y": 410,
+          "w": 210,
+          "h": 120,
+          "zIndex": 1072,
+          "data": {
+            "label": "Health Points",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showIncrementButtons": true,
+            "temporaryValue": 0,
+            "enableTemporaryHp": true,
+            "currentValue": 10,
+            "maxValue": 10,
+            "hideWidgetEditButton": false,
+            "fillColor": "#b30000"
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "834e1472-d332-46f5-afab-1691fc4d3c44",
+          "type": "HEALTH_BAR",
+          "x": 810,
+          "y": 530,
+          "w": 210,
+          "h": 120,
+          "zIndex": 1059,
+          "data": {
+            "label": "Mana Threads",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showIncrementButtons": true,
+            "temporaryValue": 0,
+            "enableTemporaryHp": true,
+            "fillColor": "#004ffa",
+            "hideWidgetHeader": false,
+            "increment": 1,
+            "currentValue": 10,
+            "maxValue": 10
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "b7323441-7fca-4033-bc8a-c2fb12960f22",
+          "type": "INVENTORY",
+          "x": 1020,
+          "y": 960,
+          "w": 430,
+          "h": 310,
+          "zIndex": 1098,
+          "data": {
+            "label": "Inventory",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "inventoryItems": [],
+            "inventoryDefaultFields": [
+              { "id": "05e803c6-2c81-44e2-ae3a-f89866da1c77", "name": "Weight", "type": "number", "defaultValue": "", "reserved": "weight" },
+              { "id": "f32bd34d-5194-434d-afd5-640541f7e873", "name": "Value", "type": "text", "defaultValue": "" },
+              { "id": "05aa6757-e32f-4a91-9d40-afc4442cecfb", "name": "Notes", "type": "text", "defaultValue": "" }
+            ],
+            "inventoryEncumbrance": {
+              "enabled": true,
+              "unit": "kg",
+              "includeInGlobalLoad": true,
+              "showGlobalCounter": false,
+              "localCapacity": 12
+            },
+            "hideWidgetEditButton": true,
+            "showFieldControls": true
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "c644b466-bbd4-4d19-8818-0e47792719ad",
+          "type": "NUMBER_DISPLAY",
+          "x": 810,
+          "y": 300,
+          "w": 210,
+          "h": 110,
+          "zIndex": 1124,
+          "data": {
+            "label": "Movement",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "vertical",
+            "showDisplayNumberMax": false,
+            "displayNumbers": [{ "label": "HEX", "value": 0, "showPositiveSign": false }],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "hideWidgetHeader": true
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "a6ce225f-60a9-44c5-b4bd-87f39203d764",
+          "type": "TEXT",
+          "x": 590,
+          "y": 650,
+          "w": 430,
+          "h": 310,
+          "zIndex": 1083,
+          "data": {
+            "label": "Racial Features",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>",
+            "hideWidgetEditButton": false,
+            "hideWidgetHeader": false
+          }
+        },
+        {
+          "id": "d49daadc-9f61-4da8-8d07-dff95bfd1d09",
+          "type": "TEXT",
+          "x": 590,
+          "y": 960,
+          "w": 430,
+          "h": 310,
+          "zIndex": 1086,
+          "data": { "label": "Class Features", "value": 0, "items": [], "text": "", "richText": "<p></p>" }
+        },
+        {
+          "id": "df8e776d-c97a-4c70-8da2-fe3701e44abe",
+          "type": "TEXT",
+          "x": 1020,
+          "y": 650,
+          "w": 430,
+          "h": 310,
+          "zIndex": 1102,
+          "data": { "label": "Skills, Powers, Spells...", "value": 0, "items": [], "text": "", "richText": "<p></p>" }
+        },
+        {
+          "id": "664de820-256d-4520-9b10-9c488304a093",
+          "type": "TEXT",
+          "x": 1020,
+          "y": 130,
+          "w": 430,
+          "h": 520,
+          "zIndex": 1106,
+          "data": { "label": "Class Abilities", "value": 0, "items": [], "text": "", "richText": "<p></p>" }
+        },
+        {
+          "id": "3dbfad3e-2583-4980-b69d-5ccd18575f7b",
+          "type": "TEXT",
+          "x": 1450,
+          "y": 130,
+          "w": 430,
+          "h": 520,
+          "zIndex": 1105,
+          "data": { "label": "Subclass Abilities", "value": 0, "items": [], "text": "", "richText": "<p></p>" }
+        },
+        {
+          "id": "e05bbd7a-37bd-45b2-b6d9-970ad4c2ab24",
+          "type": "NUMBER_DISPLAY",
+          "x": 1450,
+          "y": 1150,
+          "w": 170,
+          "h": 120,
+          "zIndex": 944,
+          "data": { "label": "Coins", "value": 0, "items": [], "text": "", "displayNumbers": [{ "label": "", "value": 50, "showPositiveSign": false }] }
+        },
+        {
+          "id": "a1cfd00d-ea3e-45f3-b238-585ef5735c88",
+          "type": "TEXT",
+          "x": 1450,
+          "y": 650,
+          "w": 430,
+          "h": 310,
+          "zIndex": 1101,
+          "data": { "label": "Proficiencies", "value": 0, "items": [], "text": "\n", "richText": "<p></p><p></p>" }
+        }
+      ],
+      "cardTableUnhostedCards": []
+    }
+  ],
+  "activeSheetId": "c831deb1-39d3-4202-8384-0ea0a4a20e99",
+  "theme": "pen-and-paper",
+  "gameSystem": "Haver"
+}
