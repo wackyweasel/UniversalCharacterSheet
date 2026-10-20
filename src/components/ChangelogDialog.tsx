@@ -38,6 +38,13 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.13.0',
+    changes: [
+      'New Labels panel (next to Timeline in the toolbar): see every label on your character at a glance, grouped by widget, with its current value. Search them, see which formulas each one reads and which widgets use it, jump to its widget, copy it, rename it (formulas that use it are updated too) or remove it. Filters show unused labels and labels used in formulas but never defined.',
+      'Standalone variables: create labels that are not attached to any widget, holding a value or a formula, and use them in any formula as @label. Handy for proficiency bonuses, modifiers and other constants.',
+    ],
+  },
+  {
     version: '1.12.2',
     changes: [
       'Table: fixed editing and selecting text in cells on touch devices.',

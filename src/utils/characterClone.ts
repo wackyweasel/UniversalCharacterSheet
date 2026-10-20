@@ -94,6 +94,7 @@ export function migrateCharacter(character: Character): Character {
     customTheme: character.customTheme,
     sheets: [defaultSheet],
     activeSheetId: defaultSheet.id,
+    ...(character.variables ? { variables: character.variables } : {}),
   };
 }
 

@@ -103,6 +103,42 @@ describe('text formula results', () => {
   });
 });
 
+describe('custom character variables', () => {
+  function withVariables(variables: Character['variables']): Character {
+    return {
+      ...createCharacter({
+        formItems: [
+          { name: 'Base', value: '4', valueLabel: 'base' },
+          { name: 'Total', value: '', valueFormula: '@bonus + @base' },
+        ],
+      } as WidgetData),
+      variables,
+    };
+  }
+
+  it('exposes literal and calculated variables to widget formulas', () => {
+    const character = withVariables([
+      { id: 'v1', label: 'flat', value: 2 },
+      { id: 'v2', label: 'bonus', value: 0, formula: '@flat * @base' },
+    ]);
+
+    expect(collectLabels(character)).toMatchObject({ flat: 2, base: 4 });
+    const resolved = resolveCharacterFormulas(character);
+    expect(resolved?.variables?.[1].value).toBe(8);
+    expect(resolved?.sheets[0].widgets[0].data.formItems?.[1].value).toBe('12');
+  });
+
+  it('lets widget labels win over a variable with the same name', () => {
+    const character = withVariables([{ id: 'v1', label: 'base', value: 100 }]);
+    expect(collectLabels(character).base).toBe(4);
+  });
+
+  it('lists variables first in the label browser', () => {
+    const labels = getAvailableLabels(withVariables([{ id: 'v1', label: 'bonus', value: 3 }]));
+    expect(labels[0]).toMatchObject({ label: 'bonus', value: 3, widgetLabel: 'Standalone variables' });
+  });
+});
+
 describe('roll table weight formulas', () => {
   it('collects weight labels and resolves formulas into option weights', () => {
     const character = createCharacter({

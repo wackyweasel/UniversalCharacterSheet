@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, Widget, WidgetData, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { Character, CharacterVariable, Widget, WidgetData, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
@@ -18,6 +18,7 @@ import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WID
 import { createDefaultWalletCurrencies } from '../utils/wallet';
 import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
 import { createDefaultCalendarData } from '../utils/calendar';
+import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -253,6 +254,12 @@ interface StoreState {
     resetSpellSlots?: boolean;
     passTimeSeconds?: number;
   }) => void;
+
+  // Variable and label actions (active character)
+  addVariable: (variable: Omit<CharacterVariable, 'id'>) => string | null;
+  updateVariable: (id: string, patch: Partial<Omit<CharacterVariable, 'id'>>, options?: { updateReferences?: boolean }) => void;
+  renameLabel: (from: string, to: string, updateReferences: boolean) => void;
+  removeLabel: (label: string) => void;
   
   // Undo/Redo Actions
   undo: () => void;
@@ -305,6 +312,22 @@ function resolveActiveCharacterFormulas(
 }
 
 export const useStore = create<StoreState>((set, get) => {
+  // Applies an undoable change to the active character, then re-resolves its formulas.
+  const applyCharacterTransform = (description: string, transform: (character: Character) => Character) => {
+    const state = get();
+    const current = state.characters.find((character) => character.id === state.activeCharacterId);
+    if (!current) return;
+    const updated = transform(current);
+    if (updated === current) return;
+    get()._takeSnapshot(description);
+    set((latest) => ({
+      characters: resolveActiveCharacterFormulas(
+        latest,
+        latest.characters.map((character) => character.id === current.id ? updated : character),
+      ),
+    }));
+  };
+
   const api: StoreState = {
     characters: [],
     transientCharacterIds: [],
@@ -349,6 +372,7 @@ export const useStore = create<StoreState>((set, get) => {
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
+        ...(preset.variables ? { variables: preset.variables.map((variable) => ({ ...variable })) } : {}),
         activeSheetId
       };
 
@@ -385,6 +409,7 @@ export const useStore = create<StoreState>((set, get) => {
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
+        ...(preset.variables ? { variables: preset.variables.map((variable) => ({ ...variable })) } : {}),
         activeSheetId,
       };
 
@@ -450,6 +475,7 @@ export const useStore = create<StoreState>((set, get) => {
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
+        ...(preset.variables ? { variables: preset.variables.map((variable) => ({ ...variable })) } : {}),
         activeSheetId
       };
 
@@ -2944,6 +2970,50 @@ export const useStore = create<StoreState>((set, get) => {
       });
     },
     
+    addVariable: (variable) => {
+      const state = get();
+      if (!state.activeCharacterId || !variable.label) return null;
+      const id = uuidv4();
+      applyCharacterTransform(`Add variable @${variable.label}`, (character) => ({
+        ...character,
+        variables: [...(character.variables ?? []), { ...variable, id }],
+      }));
+      return id;
+    },
+
+    updateVariable: (id, patch, options) => {
+      applyCharacterTransform('Update variable', (character) => {
+        const existing = character.variables?.find((variable) => variable.id === id);
+        if (!existing) return character;
+        const { label, ...rest } = patch;
+        let next = label && label !== existing.label
+          ? renameLabelInCharacter(character, existing.label, label, options?.updateReferences ?? true)
+          : character;
+        if (Object.keys(rest).length === 0) return next;
+        next = {
+          ...next,
+          variables: (next.variables ?? []).map((variable) => {
+            if (variable.id !== id) return variable;
+            const updated = { ...variable, ...rest };
+            if (!updated.formula) delete updated.formula;
+            return updated;
+          }),
+        };
+        const after = next.variables?.find((variable) => variable.id === id);
+        return after && after.value === existing.value && after.formula === existing.formula && after.label === existing.label
+          ? character
+          : next;
+      });
+    },
+
+    renameLabel: (from, to, updateReferences) => {
+      applyCharacterTransform(`Rename @${from} to @${to}`, (character) => renameLabelInCharacter(character, from, to, updateReferences));
+    },
+
+    removeLabel: (label) => {
+      applyCharacterTransform(`Delete @${label}`, (character) => removeLabelFromCharacter(character, label));
+    },
+
     // Undo/Redo implementations
     _takeSnapshot: (actionDescription) => {
       const state = get();

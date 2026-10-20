@@ -23,6 +23,7 @@ import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
+import VariablesPanel from './VariablesPanel';
 import TimelineToasts from './TimelineToasts';
 import ShareExportMenu from './ShareExportMenu';
 import SheetSearch from './SheetSearch';
@@ -34,6 +35,7 @@ import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon, CheckI
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
+import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
@@ -240,6 +242,16 @@ export default function Sheet() {
       setTimelineOpen(false);
     }
   }, [mode, setTimelineOpen, timelineIsOpen]);
+
+  const variablesIsOpen = useVariablesPanelStore((state) => state.isOpen);
+  const toggleVariables = useVariablesPanelStore((state) => state.toggleOpen);
+  const setVariablesOpen = useVariablesPanelStore((state) => state.setOpen);
+
+  useEffect(() => {
+    if (mode === 'print' && variablesIsOpen) {
+      setVariablesOpen(false);
+    }
+  }, [mode, setVariablesOpen, variablesIsOpen]);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -363,14 +375,18 @@ export default function Sheet() {
     return () => window.removeEventListener('resize', updateWideListLayout);
   }, []);
 
-  const handleSearchResult = useCallback((result: SheetSearchResult) => {
+  const revealWidget = useCallback((sheetId: string, widgetId: string) => {
     setSearchReveal({
-      sheetId: result.sheetId,
-      widgetId: result.widgetId,
+      sheetId,
+      widgetId,
       key: ++searchRevealSequenceRef.current,
     });
-    if (activeCharacter?.activeSheetId !== result.sheetId) selectSheet(result.sheetId);
+    if (activeCharacter?.activeSheetId !== sheetId) selectSheet(sheetId);
   }, [activeCharacter?.activeSheetId, selectSheet]);
+
+  const handleSearchResult = useCallback((result: SheetSearchResult) => {
+    revealWidget(result.sheetId, result.widgetId);
+  }, [revealWidget]);
   
   const verticalListScrollRef = useRef<HTMLDivElement>(null);
   const verticalWidgetRefs = useRef(new Map<string, HTMLDivElement>());
@@ -1455,6 +1471,8 @@ export default function Sheet() {
           onToggleSheetSwitcher={() => setSheetDropdownOpen((open) => !open)}
           timelineOpen={timelineIsOpen}
           onToggleTimeline={toggleTimeline}
+          variablesOpen={variablesIsOpen}
+          onToggleVariables={toggleVariables}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={undo}
@@ -1698,6 +1716,7 @@ export default function Sheet() {
 
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
+        {variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
         {workspace === 'play' && <TimelineToasts />}
 
         {/* Tutorial Bubble */}
@@ -2127,6 +2146,8 @@ export default function Sheet() {
         changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
         onAutoStack={() => setShowAutoStackConfirm(true)}
         onSearch={() => setSheetSearchOpen(true)}
+        variablesOpen={variablesIsOpen}
+        onToggleVariables={toggleVariables}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
@@ -2557,6 +2578,7 @@ export default function Sheet() {
 
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}
+      {mode !== 'print' && variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
       {mode === 'play' && <TimelineToasts />}
 
       {/* Tutorial Bubble */}

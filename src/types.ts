@@ -766,6 +766,15 @@ export type ThemeId =
   | 'cyberpunk'
   | 'nature';
 
+/** A standalone formula variable that is not attached to any widget. */
+export interface CharacterVariable {
+  id: string;
+  label: string;
+  value: number | string;
+  /** When set, `value` is computed from this formula. */
+  formula?: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -773,6 +782,7 @@ export interface Character {
   customTheme?: CustomTheme;
   sheets: Sheet[];
   activeSheetId: string;
+  variables?: CharacterVariable[];
   // Legacy: widgets array for migration (will be moved to sheets)
   widgets?: Widget[];
 }
