@@ -1,8 +1,9 @@
-import { DragEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import { KeyboardEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   columnSpecsFromFirstLine,
-  moveTableCellWords,
+  isNoopTableWordMove,
+  moveTableWords,
   parseTableTextByColumns,
   parseTableTextRows,
   reshapeTableRows,
@@ -11,8 +12,11 @@ import {
   TABLE_TEXT_DELIMITERS,
   TableColumnSpec,
   TableColumnType,
+  tableCellWords,
   tableTextLines,
   TableTextDelimiter,
+  TableWordRange,
+  TableWordSlot,
 } from '../../utils/tableText';
 
 export type TableImportMode = 'replace' | 'append';
@@ -24,8 +28,48 @@ interface TableImportDialogProps {
   onClose: () => void;
 }
 
-interface CellRef { row: number; col: number; word: number | null }
-interface ManualEdit { source: string[][]; grid: string[][]; rows: number[] }
+// `origins` maps each current row to its row in the parsed grid (null for added rows); `edited` lists parsed rows already fixed by hand.
+interface ManualEdit { source: string[][]; grid: string[][]; origins: (number | null)[]; edited: number[] }
+
+// A pointer press starts as 'pending' and becomes a click, a word-range selection or a move.
+interface Gesture {
+  pointerId: number;
+  x: number;
+  y: number;
+  row: number;
+  col: number;
+  word: number | null;
+  anchor: number;
+  mode: 'pending' | 'select' | 'move';
+  source: TableWordRange | null;
+}
+
+const DRAG_THRESHOLD = 4;
+
+const sameSlot = (a: TableWordSlot | null, b: TableWordSlot | null) =>
+  a === b || (!!a && !!b && a.row === b.row && a.col === b.col && a.index === b.index);
+
+const inRange = (range: TableWordRange | null, row: number, col: number, word: number) =>
+  !!range && range.row === row && range.col === col && word >= range.start && word <= range.end;
+
+const cellAt = (x: number, y: number) =>
+  document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-import-cell]') ?? null;
+
+// Finds the word position under the pointer, following the cell's wrapped lines.
+function slotAt(x: number, y: number): TableWordSlot | null {
+  const cell = cellAt(x, y);
+  if (!cell) return null;
+  const words = [...cell.querySelectorAll<HTMLElement>('[data-import-word]')];
+  let index = words.length;
+  for (let i = 0; i < words.length; i++) {
+    const rect = words[i].getBoundingClientRect();
+    if (y < rect.top || (y <= rect.bottom && x < rect.left + rect.width / 2)) {
+      index = i;
+      break;
+    }
+  }
+  return { row: Number(cell.dataset.row), col: Number(cell.dataset.col), index };
+}
 
 const MAX_PREVIEW_ROWS = 200;
 const MAX_COLUMNS = 50;
@@ -69,9 +113,10 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
   const [specs, setSpecs] = useState<TableColumnSpec[]>([]);
   const [columnOverride, setColumnOverride] = useState<number | null>(null);
   const [rowOverride, setRowOverride] = useState<number | null>(null);
-  const [picked, setPicked] = useState<CellRef | null>(null);
-  const [dragging, setDragging] = useState<CellRef | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ row: number; col: number } | null>(null);
+  const [selection, setSelection] = useState<TableWordRange | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [dropTarget, setDropTarget] = useState<TableWordSlot | null>(null);
+  const gesture = useRef<Gesture | null>(null);
   const [manual, setManual] = useState<ManualEdit | null>(null);
   const useHeader = mode === 'replace' && firstRowIsHeader;
 
@@ -100,12 +145,17 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
   // Manual moves apply to one parse result; any change to the text or settings discards them.
   const activeManual = manual && manual.source === parsed.grid ? manual : null;
   const grid = activeManual?.grid ?? parsed.grid;
-  useEffect(() => { setPicked(null); }, [parsed.grid]);
+  useEffect(() => { setSelection(null); }, [grid]);
 
   const width = grid[0]?.length ?? 0;
   const bodyRows = grid.length - (useHeader ? 1 : 0);
   const canImport = width > 0 && bodyRows > 0;
-  const unmatchedCount = [...parsed.unmatched].filter(row => !activeManual?.rows.includes(row)).length;
+  const origins = activeManual?.origins ?? grid.map((_, index) => index);
+  const isFlagged = (row: number) => {
+    const origin = origins[row];
+    return origin != null && parsed.unmatched.has(origin) && !activeManual?.edited.includes(origin);
+  };
+  const unmatchedCount = grid.reduce((count, _, row) => count + (isFlagged(row) ? 1 : 0), 0);
   const titleId = `table-import-title-${widgetId}`;
   const selectClass = 'h-8 rounded-button border border-theme-border bg-theme-paper px-2 text-sm text-theme-ink focus:border-theme-accent focus:outline-none';
   const inputClass = 'h-7 w-full rounded border border-theme-border bg-theme-paper px-1.5 text-xs text-theme-ink focus:border-theme-accent focus:outline-none';
@@ -146,48 +196,178 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
   const addSpec = () =>
     setSpecs(current => [...current, { name: `Column ${current.length + 1}`, type: 'text', keywords: '' }]);
 
-  const moveCell = (row: number, from: number, word: number | null, to: number) => {
-    setManual({ source: parsed.grid, grid: moveTableCellWords(grid, row, from, to, word), rows: [...(activeManual?.rows ?? []), row] });
-    setPicked(null);
-    setDragging(null);
+  const wordsOf = (row: number, col: number) => tableCellWords(grid[row]?.[col] ?? '');
+  const wholeCell = (row: number, col: number): TableWordRange | null => {
+    const count = wordsOf(row, col).length;
+    return count > 0 ? { row, col, start: 0, end: count - 1 } : null;
+  };
+  const validSlot = (range: TableWordRange | null, slot: TableWordSlot | null) =>
+    range && slot && !isNoopTableWordMove(range, slot) ? slot : null;
+
+  const moveWords = (range: TableWordRange, slot: TableWordSlot) => {
+    const touched = [origins[range.row], origins[slot.row]].filter((origin): origin is number => origin != null);
+    setManual({
+      source: parsed.grid,
+      grid: moveTableWords(grid, range, slot),
+      origins,
+      edited: [...(activeManual?.edited ?? []), ...touched],
+    });
+    setSelection(null);
     setDropTarget(null);
   };
 
-  const activate = (row: number, col: number, word: number | null) => {
-    if (picked && picked.row === row && picked.col !== col) {
-      moveCell(row, picked.col, picked.word, col);
-      return;
-    }
-    if (!grid[row][col]) {
-      setPicked(null);
-      return;
-    }
-    const alreadyPicked = picked?.row === row && picked.col === col && picked.word === word;
-    setPicked(alreadyPicked ? null : { row, col, word });
+  const insertRow = (after: number) => {
+    const blank = Array<string>(width).fill('');
+    setManual({
+      source: parsed.grid,
+      grid: [...grid.slice(0, after + 1), blank, ...grid.slice(after + 1)],
+      origins: [...origins.slice(0, after + 1), null, ...origins.slice(after + 1)],
+      edited: activeManual?.edited ?? [],
+    });
+    setSelection(null);
   };
 
-  const activateOnKey = (event: KeyboardEvent, row: number, col: number, word: number | null) => {
+  const deleteRow = (row: number) => {
+    if (grid.length <= 1) return;
+    setManual({
+      source: parsed.grid,
+      grid: grid.filter((_, index) => index !== row),
+      origins: origins.filter((_, index) => index !== row),
+      edited: activeManual?.edited ?? [],
+    });
+    setSelection(null);
+  };
+
+  // Click: with words selected, place them at the clicked position; otherwise select the word or whole cell.
+  const handleClick = (row: number, col: number, word: number | null, slot: TableWordSlot | null, extend: boolean) => {
+    if (selection && extend && word !== null && selection.row === row && selection.col === col) {
+      setSelection({ row, col, start: Math.min(selection.start, word), end: Math.max(selection.end, word) });
+      return;
+    }
+    if (selection) {
+      const target = validSlot(selection, slot);
+      if (target && !(word !== null && inRange(selection, row, col, word))) moveWords(selection, target);
+      else setSelection(null);
+      return;
+    }
+    setSelection(word !== null ? { row, col, start: word, end: word } : wholeCell(row, col));
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLTableElement>) => {
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    const cell = target.closest<HTMLElement>('[data-import-cell]');
+    if (!cell) return;
+    const wordElement = target.closest<HTMLElement>('[data-import-word]');
+    const word = wordElement ? Number(wordElement.dataset.word) : null;
+    gesture.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      row: Number(cell.dataset.row),
+      col: Number(cell.dataset.col),
+      word,
+      anchor: word ?? 0,
+      mode: 'pending',
+      source: null,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const startMove = (current: Gesture, source: TableWordRange | null) => {
+    if (!source) {
+      gesture.current = null;
+      return;
+    }
+    current.mode = 'move';
+    current.source = source;
+    setSelection(source);
+    setMoving(true);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLTableElement>) => {
+    const current = gesture.current;
+    if (!current || current.pointerId !== event.pointerId) {
+      // Hovering with a selection previews where a click would place it.
+      if (!current && selection && event.pointerType === 'mouse') {
+        const next = validSlot(selection, slotAt(event.clientX, event.clientY));
+        if (!sameSlot(next, dropTarget)) setDropTarget(next);
+      }
+      return;
+    }
+    if (current.mode === 'pending') {
+      if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < DRAG_THRESHOLD) return;
+      if (current.word !== null && inRange(selection, current.row, current.col, current.word)) startMove(current, selection);
+      else if (current.word !== null) {
+        current.mode = 'select';
+        current.source = { row: current.row, col: current.col, start: current.word, end: current.word };
+        setSelection(current.source);
+      } else startMove(current, wholeCell(current.row, current.col));
+      if (!gesture.current) return;
+    }
+    if (current.mode === 'select') {
+      const cell = cellAt(event.clientX, event.clientY);
+      const sameCell = cell && Number(cell.dataset.row) === current.row && Number(cell.dataset.col) === current.col;
+      if (sameCell) {
+        const wordElement = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-import-word]');
+        if (wordElement) {
+          const word = Number(wordElement.dataset.word);
+          const next = { row: current.row, col: current.col, start: Math.min(current.anchor, word), end: Math.max(current.anchor, word) };
+          if (current.source?.start !== next.start || current.source.end !== next.end) {
+            current.source = next;
+            setSelection(next);
+          }
+        }
+        return;
+      }
+      // Leaving the cell carries the selected words along.
+      startMove(current, current.source);
+    }
+    if (current.mode === 'move') {
+      const next = validSlot(current.source, slotAt(event.clientX, event.clientY));
+      if (!sameSlot(next, dropTarget)) setDropTarget(next);
+    }
+  };
+
+  const endGesture = () => {
+    gesture.current = null;
+    setMoving(false);
+    setDropTarget(null);
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLTableElement>) => {
+    const current = gesture.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    const slot = slotAt(event.clientX, event.clientY);
+    endGesture();
+    if (current.mode === 'pending') handleClick(current.row, current.col, current.word, slot, event.shiftKey);
+    else if (current.mode === 'move' && current.source) {
+      const target = validSlot(current.source, slot);
+      if (target) moveWords(current.source, target);
+    }
+  };
+
+  // Keyboard: Enter/Space selects a word (Shift extends), or places the selection before the focused word / at the end of the focused cell.
+  const handleKeyDown = (event: KeyboardEvent, row: number, col: number, word: number | null) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     event.stopPropagation();
-    activate(row, col, word);
-  };
-
-  const startDrag = (event: DragEvent, ref: CellRef, label: string) => {
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', label);
-    setDragging(ref);
-    setPicked(null);
+    const slot = { row, col, index: word ?? wordsOf(row, col).length };
+    handleClick(row, col, word, slot, event.shiftKey);
   };
 
   const wordClass = (row: number, col: number, word: number) => {
-    const isPicked = picked?.row === row && picked.col === col && (picked.word === null || picked.word === word);
-    const isDragged = dragging?.row === row && dragging.col === col && (dragging.word === null || dragging.word === word);
-    return `mb-0.5 mr-1 inline-block cursor-grab select-none rounded px-1 py-0.5 ${
-      isPicked ? 'bg-theme-accent text-theme-paper' : 'bg-theme-accent/15 hover:bg-theme-accent/30'
-    } ${isDragged ? 'opacity-40' : ''}`;
+    const selected = inRange(selection, row, col, word);
+    return `mb-0.5 mr-1 inline-block rounded px-1 py-0.5 touch-none ${
+      selected ? 'cursor-grab bg-theme-accent text-theme-paper' : 'cursor-pointer bg-theme-accent/15 hover:bg-theme-accent/30'
+    } ${selected && moving ? 'opacity-40' : ''}`;
   };
+
+  const insertMarker = (
+    <span aria-hidden="true" className="pointer-events-none relative inline-block h-5 w-0 align-top">
+      <span className="absolute -left-[3px] top-0 bottom-0 w-0.5 rounded bg-theme-accent" />
+    </span>
+  );
 
   return createPortal(
     <div
@@ -199,7 +379,7 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.stopPropagation();
-          if (picked) setPicked(null);
+          if (selection) setSelection(null);
           else onClose();
         }
       }}
@@ -364,62 +544,83 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
               </p>
             )}
             <p className="mb-1 text-xs text-theme-muted">
-              Wrong cell? Drag a word, or a whole cell, onto another cell in the same row. You can also click it, then
-              click where it belongs.
+              Wrong cell? Drag across words to select them (or click a word, Shift+click to extend, or click a cell's
+              empty space for the whole cell). Then drag the selection, or click, to place it at any word position in
+              any cell.
             </p>
             <div className="max-h-64 overflow-auto rounded-button border border-theme-border">
-              <table className="w-full border-collapse text-xs">
+              <table
+                className={`w-full select-none border-collapse text-xs ${moving ? 'cursor-grabbing' : ''}`}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={endGesture}
+                onPointerLeave={() => { if (!gesture.current) setDropTarget(null); }}
+              >
                 <tbody>
                   {grid.slice(0, MAX_PREVIEW_ROWS).map((row, rowIndex) => {
                     const isHeader = useHeader && rowIndex === 0;
-                    const flagged = parsed.unmatched.has(rowIndex) && !activeManual?.rows.includes(rowIndex);
+                    const flagged = isFlagged(rowIndex);
                     return (
                       <tr key={rowIndex} className={isHeader ? 'bg-theme-accent/20 font-semibold' : flagged ? 'bg-red-500/10' : undefined}>
+                        <td className="w-px whitespace-nowrap border border-theme-border-soft px-1 py-0.5 align-middle">
+                          <div className="flex gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => insertRow(rowIndex)}
+                              aria-label={`Add a row below row ${rowIndex + 1}`}
+                              title="Add a row below"
+                              className="flex h-5 w-5 items-center justify-center rounded text-sm leading-none text-theme-accent hover:bg-theme-accent hover:text-theme-paper"
+                            >
+                              +
+                            </button>
+                            {!isHeader && (
+                              <button
+                                type="button"
+                                disabled={grid.length <= 1}
+                                onClick={() => deleteRow(rowIndex)}
+                                aria-label={`Delete row ${rowIndex + 1}`}
+                                title="Delete row"
+                                className="flex h-5 w-5 items-center justify-center rounded text-sm leading-none text-red-500 hover:bg-red-500 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-red-500"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         {row.map((cell, colIndex) => {
-                          if (isHeader) {
-                            return <td key={colIndex} className="max-w-[12rem] truncate border border-theme-border-soft px-1.5 py-1">{cell}</td>;
-                          }
-                          const words = cell.split(' ').filter(Boolean);
-                          const isTarget = dropTarget?.row === rowIndex && dropTarget.col === colIndex;
-                          const canDrop = dragging?.row === rowIndex && dragging.col !== colIndex;
+                          const words = tableCellWords(cell);
+                          const isTarget = !!selection && dropTarget?.row === rowIndex && dropTarget.col === colIndex;
                           return (
                             <td
                               key={colIndex}
                               tabIndex={0}
-                              draggable={words.length > 0}
+                              data-import-cell=""
+                              data-row={rowIndex}
+                              data-col={colIndex}
                               aria-label={`Row ${rowIndex + 1}, column ${colIndex + 1}: ${cell || 'empty'}`}
-                              onClick={() => activate(rowIndex, colIndex, null)}
-                              onKeyDown={(event) => { if (event.target === event.currentTarget) activateOnKey(event, rowIndex, colIndex, null); }}
-                              onDragStart={(event) => startDrag(event, { row: rowIndex, col: colIndex, word: null }, cell)}
-                              onDragEnd={() => { setDragging(null); setDropTarget(null); }}
-                              onDragOver={(event) => {
-                                if (!canDrop) return;
-                                event.preventDefault();
-                                if (!isTarget) setDropTarget({ row: rowIndex, col: colIndex });
-                              }}
-                              onDragLeave={() => { if (isTarget) setDropTarget(null); }}
-                              onDrop={(event) => {
-                                event.preventDefault();
-                                if (dragging && canDrop) moveCell(rowIndex, dragging.col, dragging.word, colIndex);
-                              }}
+                              onKeyDown={(event) => { if (event.target === event.currentTarget) handleKeyDown(event, rowIndex, colIndex, null); }}
                               className={`min-w-[4rem] cursor-pointer border border-theme-border-soft p-1 align-top ${
                                 isTarget ? 'bg-theme-accent/30 outline outline-2 -outline-offset-2 outline-theme-accent' : ''
-                              } ${picked && picked.row === rowIndex && picked.col !== colIndex ? 'hover:bg-theme-accent/20' : ''}`}
+                              }`}
                             >
                               {words.map((word, wordIndex) => (
-                                <span
-                                  key={wordIndex}
-                                  role="button"
-                                  tabIndex={0}
-                                  draggable
-                                  onClick={(event) => { event.stopPropagation(); activate(rowIndex, colIndex, wordIndex); }}
-                                  onKeyDown={(event) => activateOnKey(event, rowIndex, colIndex, wordIndex)}
-                                  onDragStart={(event) => startDrag(event, { row: rowIndex, col: colIndex, word: wordIndex }, word)}
-                                  className={wordClass(rowIndex, colIndex, wordIndex)}
-                                >
-                                  {word}
+                                <span key={wordIndex}>
+                                  {isTarget && dropTarget?.index === wordIndex && insertMarker}
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    data-import-word=""
+                                    data-word={wordIndex}
+                                    aria-pressed={inRange(selection, rowIndex, colIndex, wordIndex)}
+                                    onKeyDown={(event) => handleKeyDown(event, rowIndex, colIndex, wordIndex)}
+                                    className={wordClass(rowIndex, colIndex, wordIndex)}
+                                  >
+                                    {word}
+                                  </span>
                                 </span>
                               ))}
+                              {isTarget && dropTarget?.index === words.length && insertMarker}
                             </td>
                           );
                         })}
@@ -434,7 +635,7 @@ export function TableImportDialog({ widgetId, columnCount, onImport, onClose }: 
             )}
             {activeManual && (
               <button type="button" onClick={() => setManual(null)} className="mt-1 text-xs text-theme-accent hover:underline">
-                Undo manual moves
+                Undo manual changes
               </button>
             )}
           </div>

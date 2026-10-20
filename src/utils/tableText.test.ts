@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   detectTableDelimiter,
   fitRowToColumns,
-  moveTableCellWords,
+  isNoopTableWordMove,
+  moveTableWords,
   parseTableText,
   parseTableTextByColumns,
   parseTableTextRows,
@@ -142,14 +143,34 @@ describe('parseTableTextByColumns', () => {
   });
 });
 
-describe('moveTableCellWords', () => {
-  const grid = [['Padded', 'Cap 2', '']];
+describe('moveTableWords', () => {
+  const grid = [['Padded', 'Cap 2', ''], ['Leather Armor', 'Light 3', 'Stackable']];
 
-  it('moves a single word right, ahead of the target words', () => {
-    expect(moveTableCellWords(grid, 0, 1, 2, 1)).toEqual([['Padded', 'Cap', '2']]);
+  it('moves a single word into an empty cell', () => {
+    expect(moveTableWords(grid, { row: 0, col: 1, start: 1, end: 1 }, { row: 0, col: 2, index: 0 })[0])
+      .toEqual(['Padded', 'Cap', '2']);
   });
 
-  it('moves a whole cell left, after the target words', () => {
-    expect(moveTableCellWords(grid, 0, 1, 0, null)).toEqual([['Padded Cap 2', '', '']]);
+  it('moves a whole cell to the end of another cell', () => {
+    expect(moveTableWords(grid, { row: 0, col: 1, start: 0, end: 1 }, { row: 0, col: 0, index: 1 })[0])
+      .toEqual(['Padded Cap 2', '', '']);
+  });
+
+  it('moves several words into the middle of a cell in another row', () => {
+    const result = moveTableWords(grid, { row: 0, col: 0, start: 0, end: 0 }, { row: 1, col: 0, index: 1 });
+    expect(result).toEqual([['', 'Cap 2', ''], ['Leather Padded Armor', 'Light 3', 'Stackable']]);
+    expect(grid[0][0]).toBe('Padded');
+  });
+
+  it('reorders a run of words within the same cell', () => {
+    const cell = [['a b c d e']];
+    expect(moveTableWords(cell, { row: 0, col: 0, start: 1, end: 2 }, { row: 0, col: 0, index: 5 })).toEqual([['a d e b c']]);
+    expect(moveTableWords(cell, { row: 0, col: 0, start: 3, end: 4 }, { row: 0, col: 0, index: 0 })).toEqual([['d e a b c']]);
+  });
+
+  it('ignores drops next to the moved words', () => {
+    const cell = [['a b c']];
+    expect(isNoopTableWordMove({ row: 0, col: 0, start: 1, end: 1 }, { row: 0, col: 0, index: 2 })).toBe(true);
+    expect(moveTableWords(cell, { row: 0, col: 0, start: 1, end: 1 }, { row: 0, col: 0, index: 1 })).toBe(cell);
   });
 });

@@ -364,20 +364,36 @@ export function parseTableTextByColumns(
 
 const cellWords = (cell: string) => cell.split(' ').filter(Boolean);
 
-// Moves one word (or the whole cell when `wordIndex` is null) to another cell in the same row.
-export function moveTableCellWords(grid: string[][], row: number, fromCol: number, toCol: number, wordIndex: number | null): string[][] {
-  const source = cellWords(grid[row][fromCol]);
-  const moved = wordIndex === null ? source : source.slice(wordIndex, wordIndex + 1);
-  if (moved.length === 0 || fromCol === toCol) return grid;
-  const remaining = wordIndex === null ? [] : source.filter((_, index) => index !== wordIndex);
-  const target = cellWords(grid[row][toCol]);
-  // Words keep their reading order: moving right puts them before the target's words.
-  const combined = toCol > fromCol ? [...moved, ...target] : [...target, ...moved];
-  return grid.map((cells, index) => {
-    if (index !== row) return cells;
-    const next = [...cells];
-    next[fromCol] = remaining.join(' ');
-    next[toCol] = combined.join(' ');
-    return next;
-  });
+/** A run of consecutive words (inclusive indexes) inside one cell. */
+export interface TableWordRange { row: number; col: number; start: number; end: number }
+/** An insertion point in a cell: `index` is the word position before which words are inserted. */
+export interface TableWordSlot { row: number; col: number; index: number }
+
+export const tableCellWords = cellWords;
+
+// Dropping a range inside or right next to itself leaves the cell unchanged.
+export const isNoopTableWordMove = (range: TableWordRange, slot: TableWordSlot) =>
+  range.row === slot.row && range.col === slot.col && slot.index >= range.start && slot.index <= range.end + 1;
+
+// Moves a run of words to any word position of any cell, including elsewhere in the same cell.
+export function moveTableWords(grid: string[][], range: TableWordRange, slot: TableWordSlot): string[][] {
+  const source = cellWords(grid[range.row]?.[range.col] ?? '');
+  const start = Math.max(0, range.start);
+  const end = Math.min(source.length - 1, range.end);
+  const targetRow = grid[slot.row];
+  if (end < start || !targetRow || slot.col < 0 || slot.col >= targetRow.length) return grid;
+  if (isNoopTableWordMove({ ...range, start, end }, slot)) return grid;
+
+  const moved = source.slice(start, end + 1);
+  const remaining = [...source.slice(0, start), ...source.slice(end + 1)];
+  const sameCell = range.row === slot.row && range.col === slot.col;
+  const target = sameCell ? [...remaining] : cellWords(targetRow[slot.col]);
+  let index = Math.min(Math.max(0, slot.index), sameCell ? source.length : target.length);
+  if (sameCell && index > end) index -= moved.length;
+  target.splice(index, 0, ...moved);
+
+  const next = grid.map((cells, rowIndex) => rowIndex === range.row || rowIndex === slot.row ? [...cells] : cells);
+  next[range.row][range.col] = remaining.join(' ');
+  next[slot.row][slot.col] = target.join(' ');
+  return next;
 }
