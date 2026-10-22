@@ -3535,6 +3535,7 @@ button.dice-result__die--selectable:hover {
   }
 
   .notes-rich-text {
+    background-color: var(--color-paper);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
     display: flex;
