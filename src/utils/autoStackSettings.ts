@@ -2,13 +2,14 @@ import type { AutoStackPosition, WidgetAutoStackOptions } from '../types';
 import { WIDGET_GRID_SIZE } from './widgetGeometry';
 
 export type AutoStackAspectId = 'screen' | 'wide' | 'landscape' | 'square' | 'portrait' | 'tall' | 'a4-portrait' | 'a4-landscape' | 'custom';
-export type AutoStackStrictness = 'flexible' | 'balanced' | 'strict';
+export type AutoStackPriorityId = 'aspect' | 'compactness' | 'position' | 'order' | 'size';
 
 export interface AutoStackSettings {
   aspect: AutoStackAspectId;
   customWidth: number;
   customHeight: number;
-  strictness: AutoStackStrictness;
+  // How much each trade-off matters, 0 to 100; 50 is the balanced default.
+  priorities: Record<AutoStackPriorityId, number>;
   // Space between widgets in pixels; a multiple of the widget grid.
   gap: number;
   // Attach widgets that end up touching each other.
@@ -19,15 +20,24 @@ export const AUTO_STACK_MAX_GAP = 60;
 export const AUTO_STACK_MIN_SHRINK = 0.1;
 export const AUTO_STACK_MAX_SHRINK = 0.8;
 export const AUTO_STACK_DEFAULT_SHRINK = 0.4;
+export const AUTO_STACK_PRIORITY_DEFAULT = 50;
 
 export const DEFAULT_AUTO_STACK_SETTINGS: AutoStackSettings = {
   aspect: 'screen',
   customWidth: 3,
   customHeight: 2,
-  strictness: 'balanced',
+  priorities: { aspect: AUTO_STACK_PRIORITY_DEFAULT, compactness: AUTO_STACK_PRIORITY_DEFAULT, position: AUTO_STACK_PRIORITY_DEFAULT, order: AUTO_STACK_PRIORITY_DEFAULT, size: 0 },
   gap: WIDGET_GRID_SIZE,
   autoAttach: false,
 };
+
+export const AUTO_STACK_PRIORITIES: { id: AutoStackPriorityId; label: string; hint: string }[] = [
+  { id: 'aspect', label: 'Match the aspect ratio', hint: 'Low: any shape is fine. High: stay close to the ratio, even if some space is wasted.' },
+  { id: 'compactness', label: 'Pack tightly', hint: 'Low: leave gaps rather than distort widgets. High: waste as little space as possible.' },
+  { id: 'size', label: 'Keep current widget sizes', hint: 'Low: resize widgets freely. High: widgets stay close to their current size, at the cost of the rest. Use "Keep its current size" on a widget to lock it exactly.' },
+  { id: 'position', label: 'Honour preferred positions', hint: 'Low: positions are hints. High: widgets with a position go to it, even at a cost to the rest.' },
+  { id: 'order', label: 'Keep the current order', hint: 'Low: shuffle widgets freely. High: keep them roughly where they are now, reading left to right.' },
+];
 
 export const AUTO_STACK_ASPECTS: { id: AutoStackAspectId; label: string; ratio?: number }[] = [
   { id: 'screen', label: 'Screen' },
@@ -41,11 +51,29 @@ export const AUTO_STACK_ASPECTS: { id: AutoStackAspectId; label: string; ratio?:
   { id: 'custom', label: 'Custom' },
 ];
 
-export const AUTO_STACK_STRICTNESS_WEIGHTS: Record<AutoStackStrictness, number> = {
-  flexible: 0.25,
-  balanced: 1,
-  strict: 4,
-};
+export interface AutoStackWeights {
+  aspectWeight: number;
+  compactWeight: number;
+  positionWeight: number;
+  orderWeight: number;
+  sizeWeight: number;
+}
+
+// Each step of 50 multiplies the weight by 4, so the slider is usable at both ends.
+const scaleWeight = (value: number, base: number, canBeZero: boolean) => (
+  canBeZero && value <= 0 ? 0 : base * 4 ** ((value - AUTO_STACK_PRIORITY_DEFAULT) / 50)
+);
+
+export function resolveAutoStackWeights(settings: AutoStackSettings): AutoStackWeights {
+  const { priorities } = settings;
+  return {
+    aspectWeight: scaleWeight(priorities.aspect, 1, true),
+    compactWeight: scaleWeight(priorities.compactness, 1, false),
+    positionWeight: scaleWeight(priorities.position, 1.2, true),
+    orderWeight: scaleWeight(priorities.order, 0.05, true),
+    sizeWeight: scaleWeight(priorities.size, 1, true),
+  };
+}
 
 export const AUTO_STACK_POSITIONS: { id: AutoStackPosition; label: string; x: number; y: number }[] = [
   { id: 'top-left', label: 'Top left', x: 0, y: 0 },
@@ -75,9 +103,13 @@ export function normalizeAutoStackSettings(raw: unknown): AutoStackSettings {
   const aspect = AUTO_STACK_ASPECTS.some((candidate) => candidate.id === raw.aspect)
     ? raw.aspect as AutoStackAspectId
     : defaults.aspect;
-  const strictness = raw.strictness === 'flexible' || raw.strictness === 'balanced' || raw.strictness === 'strict'
-    ? raw.strictness
-    : defaults.strictness;
+  const legacyAspect = raw.strictness === 'flexible' ? 25 : raw.strictness === 'strict' ? 100 : undefined;
+  const rawPriorities = isRecord(raw.priorities) ? raw.priorities : {};
+  const priority = (id: AutoStackPriorityId) => {
+    const value = rawPriorities[id];
+    if (typeof value === 'number' && Number.isFinite(value)) return clamp(Math.round(value), 0, 100);
+    return id === 'aspect' && legacyAspect !== undefined ? legacyAspect : defaults.priorities[id];
+  };
   const dimension = (value: unknown, fallback: number) => (
     typeof value === 'number' && Number.isFinite(value) ? clamp(value, 0.1, 100) : fallback
   );
@@ -88,7 +120,13 @@ export function normalizeAutoStackSettings(raw: unknown): AutoStackSettings {
     aspect,
     customWidth: dimension(raw.customWidth, defaults.customWidth),
     customHeight: dimension(raw.customHeight, defaults.customHeight),
-    strictness,
+    priorities: {
+      aspect: priority('aspect'),
+      compactness: priority('compactness'),
+      position: priority('position'),
+      order: priority('order'),
+      size: priority('size'),
+    },
     gap,
     autoAttach: raw.autoAttach === true,
   };

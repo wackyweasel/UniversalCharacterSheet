@@ -5,7 +5,7 @@ import { clearWidgetProbeSizes } from '../components/widgetSizeProbe';
 import {
   createAutoStackPlan,
   layoutPlanBlocks,
-  placeBlocks,
+  finalizePlacements,
   placementsToLayouts,
   type BlockOptions,
 } from '../utils/autoStackPlan';
@@ -48,7 +48,7 @@ export function useAutoStack({ widgets }: UseAutoStackOptions) {
         result = layoutPlanBlocks(plan.blocks, settings, plan.targetAspect);
       }
 
-      const placements = placeBlocks(plan.blocks, result);
+      const { placements } = finalizePlacements(plan.blocks, result, settings.gap);
       const autoStackOptions: Record<string, WidgetAutoStackOptions | undefined> = {};
       for (const block of measurement.blocks) {
         const normalized = normalizeWidgetAutoStack(options[block.id]);

@@ -5,13 +5,14 @@ import {
   findTouchingPairs,
   normalizeAutoStackSettings,
   normalizeWidgetAutoStack,
+  resolveAutoStackWeights,
   resolveTargetAspect,
 } from './autoStackSettings';
 
 describe('normalizeAutoStackSettings', () => {
   it('falls back to defaults for garbage', () => {
     expect(normalizeAutoStackSettings(null)).toEqual(DEFAULT_AUTO_STACK_SETTINGS);
-    expect(normalizeAutoStackSettings({ aspect: 'nope', strictness: 3, gap: 'x' })).toEqual(DEFAULT_AUTO_STACK_SETTINGS);
+    expect(normalizeAutoStackSettings({ aspect: 'nope', strictness: 3, gap: 'x', priorities: 4 })).toEqual(DEFAULT_AUTO_STACK_SETTINGS);
   });
 
   it('allows no gap and snaps the gap to the grid within limits', () => {
@@ -22,11 +23,44 @@ describe('normalizeAutoStackSettings', () => {
   });
 
   it('keeps valid choices', () => {
-    expect(normalizeAutoStackSettings({ aspect: 'a4-landscape', strictness: 'strict', autoAttach: true })).toMatchObject({
+    expect(normalizeAutoStackSettings({ aspect: 'a4-landscape', priorities: { aspect: 80, order: 0 }, autoAttach: true })).toMatchObject({
       aspect: 'a4-landscape',
-      strictness: 'strict',
+      priorities: { aspect: 80, compactness: 50, position: 50, order: 0, size: 0 },
       autoAttach: true,
     });
+  });
+
+  it('clamps priorities and migrates the old strictness choice', () => {
+    expect(normalizeAutoStackSettings({ priorities: { aspect: 500, position: -3, order: 'x' } }).priorities).toEqual({
+      aspect: 100, compactness: 50, position: 0, order: 50, size: 0,
+    });
+    expect(normalizeAutoStackSettings({ strictness: 'strict' }).priorities.aspect).toBe(100);
+    expect(normalizeAutoStackSettings({ strictness: 'flexible' }).priorities.aspect).toBe(25);
+    expect(normalizeAutoStackSettings({ strictness: 'balanced' }).priorities.aspect).toBe(50);
+  });
+});
+
+describe('resolveAutoStackWeights', () => {
+  const withPriorities = (priorities: Partial<typeof DEFAULT_AUTO_STACK_SETTINGS.priorities>) => (
+    resolveAutoStackWeights(normalizeAutoStackSettings({ priorities }))
+  );
+
+  it('maps the balanced default to the engine defaults', () => {
+    expect(withPriorities({})).toEqual({ aspectWeight: 1, compactWeight: 1, positionWeight: 1.2, orderWeight: 0.05, sizeWeight: 0 });
+  });
+
+  it('keeping sizes is off by default and strong at the top', () => {
+    expect(withPriorities({ size: 100 }).sizeWeight).toBeCloseTo(4);
+  });
+
+  it('turns a trade-off off at zero but never ignores compactness', () => {
+    const off = withPriorities({ aspect: 0, position: 0, order: 0, compactness: 0 });
+    expect(off).toMatchObject({ aspectWeight: 0, positionWeight: 0, orderWeight: 0 });
+    expect(off.compactWeight).toBeCloseTo(0.25);
+  });
+
+  it('quadruples a weight at the top of the slider', () => {
+    expect(withPriorities({ aspect: 100 }).aspectWeight).toBeCloseTo(4);
   });
 });
 

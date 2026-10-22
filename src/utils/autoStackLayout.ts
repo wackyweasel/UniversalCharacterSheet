@@ -17,6 +17,9 @@ export interface AutoStackItem {
   // Preferred place in the whole layout per axis: 0 = start (left/top), 0.5 = middle, 1 = end. Undefined = no preference.
   anchorX?: number;
   anchorY?: number;
+  // Current size of an item whose slot size is free; drifting from it costs `sizeWeight` per unit of log scale.
+  currentW?: number;
+  currentH?: number;
 }
 
 export interface AutoStackOptions {
@@ -25,10 +28,14 @@ export interface AutoStackOptions {
   // Preferred width / height of the whole layout.
   targetAspect: number;
   aspectWeight?: number;
+  // Weight of the wasted area; must stay above 0 so the search keeps a size to minimise.
+  compactWeight?: number;
   // Penalty for each anchored item that ends up away from its preferred place (0 = ignore anchors).
   positionWeight?: number;
   // Penalty for reordering items away from their input order (0 = ignore order).
   orderWeight?: number;
+  // Penalty for resizing items away from their current size (0 = ignore).
+  sizeWeight?: number;
   timeBudgetMs?: number;
   maxMoves?: number;
   seed?: number;
@@ -159,15 +166,15 @@ function evaluateCurve(expression: number[], leaves: Curve[], gap: number, limit
   return stack[0];
 }
 
-function shapeCost(w: number, h: number, targetAspect: number, aspectWeight: number) {
+function shapeCost(w: number, h: number, targetAspect: number, aspectWeight: number, compactWeight: number) {
   const skew = Math.log(w / h / targetAspect);
-  return w * h * (1 + aspectWeight * skew * skew);
+  return w * h * (compactWeight + aspectWeight * skew * skew);
 }
 
-function bestRootPoint(curve: Curve, targetAspect: number, aspectWeight: number) {
+function bestRootPoint(curve: Curve, targetAspect: number, aspectWeight: number, compactWeight: number) {
   let best = { w: curve[0], h: curve[1], cost: Infinity };
   for (let k = 0; k < curve.length; k += 2) {
-    const cost = shapeCost(curve[k], curve[k + 1], targetAspect, aspectWeight);
+    const cost = shapeCost(curve[k], curve[k + 1], targetAspect, aspectWeight, compactWeight);
     if (cost < best.cost) best = { w: curve[k], h: curve[k + 1], cost };
   }
   return best;
@@ -354,8 +361,10 @@ export function computeAutoStackLayout(items: AutoStackItem[], options: AutoStac
     grid,
     targetAspect,
     aspectWeight = 1,
+    compactWeight = 1,
     positionWeight = 1.2,
     orderWeight = 0.05,
+    sizeWeight = 0,
     timeBudgetMs = 400,
     maxMoves = Infinity,
     seed = 1,
@@ -398,16 +407,29 @@ export function computeAutoStackLayout(items: AutoStackItem[], options: AutoStac
     }
     return positionWeight * miss;
   };
+  const sizedItems = sizeWeight > 0 ? items.filter((item) => item.currentW && item.currentH).length : 0;
+  const sizePenalty = (rects: AutoStackRect[]) => {
+    let drift = 0;
+    for (const rect of rects) {
+      const item = itemById.get(rect.id)!;
+      if (!item.currentW || !item.currentH) continue;
+      drift += Math.abs(Math.log(rect.w / item.currentW)) + Math.abs(Math.log(rect.h / item.currentH));
+    }
+    return (sizeWeight * drift) / sizedItems;
+  };
+  const needsRects = hasAnchors || sizedItems > 0;
   const cost = (expression: number[]) => {
-    if (!hasAnchors) {
+    if (!needsRects) {
       const curve = evaluateCurve(expression, leaves, gap, SEARCH_CURVE_LIMIT);
-      return bestRootPoint(curve, targetAspect, aspectWeight).cost / contentArea + orderPenalty(expression);
+      return bestRootPoint(curve, targetAspect, aspectWeight, compactWeight).cost / contentArea + orderPenalty(expression);
     }
     const root = buildTree(expression, items, leaves, gap, SEARCH_CURVE_LIMIT);
-    const point = bestRootPoint(root.curve, targetAspect, aspectWeight);
+    const point = bestRootPoint(root.curve, targetAspect, aspectWeight, compactWeight);
     const rects: AutoStackRect[] = [];
     assignSlots(root, 0, 0, point.w, point.h, gap, grid, items, rects);
-    return point.cost / contentArea + orderPenalty(expression) + positionPenalty(rects, point.w, point.h);
+    return point.cost / contentArea + orderPenalty(expression)
+      + (hasAnchors ? positionPenalty(rects, point.w, point.h) : 0)
+      + (sizedItems > 0 ? sizePenalty(rects) : 0);
   };
 
   let current = initialExpression(leaves, gap, targetAspect);
@@ -474,7 +496,7 @@ export function computeAutoStackLayout(items: AutoStackItem[], options: AutoStac
   }
 
   const root = buildTree(best, items, leaves, gap);
-  const point = bestRootPoint(root.curve, targetAspect, aspectWeight);
+  const point = bestRootPoint(root.curve, targetAspect, aspectWeight, compactWeight);
   const rects: AutoStackRect[] = [];
   assignSlots(root, 0, 0, point.w, point.h, gap, grid, items, rects);
   return { rects, width: point.w, height: point.h, expression: best };

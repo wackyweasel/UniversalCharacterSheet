@@ -8,9 +8,9 @@ import {
 } from './autoStackLayout';
 import {
   AUTO_STACK_DEFAULT_SHRINK,
-  AUTO_STACK_STRICTNESS_WEIGHTS,
   getPositionAnchor,
   normalizeWidgetAutoStack,
+  resolveAutoStackWeights,
   resolveTargetAspect,
   type AutoStackSettings,
 } from './autoStackSettings';
@@ -179,12 +179,14 @@ export function layoutPlanBlocks(
     growY: block.growY,
     anchorX: block.anchorX,
     anchorY: block.anchorY,
+    currentW: block.resizable && block.stretch ? block.base.w : undefined,
+    currentH: block.resizable && block.stretch ? block.base.h : undefined,
   }));
   return computeAutoStackLayout(items, {
     gap: settings.gap,
     grid: GRID,
     targetAspect,
-    aspectWeight: AUTO_STACK_STRICTNESS_WEIGHTS[settings.strictness],
+    ...resolveAutoStackWeights(settings),
     timeBudgetMs: search.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
     maxMoves: search.maxMoves ?? SEARCH_MOVES,
   });
@@ -233,6 +235,129 @@ export function placeBlocks(blocks: PlanBlock[], result: AutoStackResult): AutoS
     }
   }
   return placements;
+}
+
+interface PackUnit {
+  blockId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  anchorX?: number;
+  anchorY?: number;
+  grows: boolean;
+}
+
+type Axis = { pos: 'x' | 'y'; size: 'w' | 'h'; cross: 'x' | 'y'; crossSize: 'w' | 'h' };
+const AXIS_X: Axis = { pos: 'x', size: 'w', cross: 'y', crossSize: 'h' };
+const AXIS_Y: Axis = { pos: 'y', size: 'h', cross: 'x', crossSize: 'w' };
+
+// Two boxes are closer than `gap` on the cross axis, so they block each other along the main axis.
+const sharesLane = (a: PackUnit, b: PackUnit, axis: Axis, gap: number) =>
+  a[axis.cross] < b[axis.cross] + b[axis.crossSize] + gap && b[axis.cross] < a[axis.cross] + a[axis.crossSize] + gap;
+
+function slideToStart(units: PackUnit[], movable: (unit: PackUnit) => boolean, axis: Axis, gap: number) {
+  const ordered = [...units].sort((a, b) => a[axis.pos] - b[axis.pos]);
+  for (const unit of ordered) {
+    if (!movable(unit)) continue;
+    let target = 0;
+    for (const other of units) {
+      if (other === unit || other[axis.pos] >= unit[axis.pos] || !sharesLane(unit, other, axis, gap)) continue;
+      target = Math.max(target, other[axis.pos] + other[axis.size] + gap);
+    }
+    unit[axis.pos] = Math.min(unit[axis.pos], target);
+  }
+}
+
+function slideToEnd(units: PackUnit[], movable: (unit: PackUnit) => boolean, axis: Axis, gap: number, limit: number) {
+  const ordered = [...units].sort((a, b) => b[axis.pos] + b[axis.size] - (a[axis.pos] + a[axis.size]));
+  for (const unit of ordered) {
+    if (!movable(unit)) continue;
+    let target = limit - unit[axis.size];
+    for (const other of units) {
+      if (other === unit || other[axis.pos] <= unit[axis.pos] || !sharesLane(unit, other, axis, gap)) continue;
+      target = Math.min(target, other[axis.pos] - gap - unit[axis.size]);
+    }
+    unit[axis.pos] = Math.max(unit[axis.pos], target);
+  }
+}
+
+function growIntoSpace(units: PackUnit[], axis: Axis, gap: number, limit: number) {
+  for (const unit of units) {
+    if (!unit.grows) continue;
+    let end = limit;
+    for (const other of units) {
+      if (other === unit || other[axis.pos] < unit[axis.pos] + unit[axis.size] || !sharesLane(unit, other, axis, gap)) continue;
+      end = Math.min(end, other[axis.pos] - gap);
+    }
+    unit[axis.size] = Math.max(unit[axis.size], snapDown(end - unit[axis.pos]));
+  }
+}
+
+const extents = (units: PackUnit[]) => ({
+  width: Math.max(0, ...units.map((unit) => unit.x + unit.w)),
+  height: Math.max(0, ...units.map((unit) => unit.y + unit.h)),
+});
+
+// The layout tree leaves holes around widgets that do not fill their slot. Slide such widgets towards
+// the side they prefer (top left by default), then let stretchable ones grow into the room that frees up.
+export function packPlacements(blocks: PlanBlock[], placements: AutoStackPlacement[], gap: number) {
+  const byBlock = new Map<string, AutoStackPlacement[]>();
+  for (const placement of placements) byBlock.set(placement.blockId, [...(byBlock.get(placement.blockId) ?? []), placement]);
+
+  const units: PackUnit[] = [];
+  for (const block of blocks) {
+    const members = byBlock.get(block.base.id);
+    if (!members) continue;
+    const x = Math.min(...members.map((member) => member.x));
+    const y = Math.min(...members.map((member) => member.y));
+    units.push({
+      blockId: block.base.id,
+      x,
+      y,
+      w: Math.max(...members.map((member) => member.x + member.w)) - x,
+      h: Math.max(...members.map((member) => member.y + member.h)) - y,
+      anchorX: block.anchorX,
+      anchorY: block.anchorY,
+      grows: block.resizable && block.stretch,
+    });
+  }
+  if (units.length === 0) return { placements, width: 0, height: 0 };
+
+  const original = new Map(units.map((unit) => [unit.blockId, { x: unit.x, y: unit.y, w: unit.w, h: unit.h }]));
+  const towardsStart = (anchor: number | undefined) => anchor !== 0.5;
+  const towardsEnd = (anchor: number | undefined) => anchor === 1;
+
+  // Compact everything first, then push widgets pinned to the far side out to the new edge.
+  slideToStart(units, (unit) => towardsStart(unit.anchorX), AXIS_X, gap);
+  slideToStart(units, (unit) => towardsStart(unit.anchorY), AXIS_Y, gap);
+  let { width, height } = extents(units);
+  slideToEnd(units, (unit) => towardsEnd(unit.anchorX), AXIS_X, gap, width);
+  slideToEnd(units, (unit) => towardsEnd(unit.anchorY), AXIS_Y, gap, height);
+  ({ width, height } = extents(units));
+  growIntoSpace(units, AXIS_X, gap, width);
+  growIntoSpace(units, AXIS_Y, gap, height);
+
+  const minX = Math.min(...units.map((unit) => unit.x));
+  const minY = Math.min(...units.map((unit) => unit.y));
+  const moved = new Map(units.map((unit) => [unit.blockId, unit]));
+  const packed = placements.map((placement) => {
+    const unit = moved.get(placement.blockId);
+    const before = original.get(placement.blockId);
+    if (!unit || !before) return placement;
+    const next = { ...placement, x: placement.x + unit.x - before.x - minX, y: placement.y + unit.y - before.y - minY };
+    if (placement.resized) {
+      next.w = unit.w;
+      next.h = unit.h;
+    }
+    return next;
+  });
+  return { placements: packed, width: width - minX, height: height - minY };
+}
+
+// Placements of a finished layout, packed tightly, with the size of the whole stack.
+export function finalizePlacements(blocks: PlanBlock[], result: AutoStackResult, gap: number) {
+  return packPlacements(blocks, placeBlocks(blocks, result), gap);
 }
 
 export function placementsToLayouts(placements: AutoStackPlacement[], origin: { x: number; y: number }) {

@@ -5,7 +5,7 @@ import type { AutoStackMeasurement } from '../hooks/autoStackMeasure';
 import {
   createAutoStackPlan,
   initialBlockOptions,
-  placeBlocks,
+  finalizePlacements,
   type AutoStackPlacement,
   type BlockOptions,
   type MeasuredBlock,
@@ -17,14 +17,15 @@ import {
   AUTO_STACK_MAX_SHRINK,
   AUTO_STACK_MIN_SHRINK,
   AUTO_STACK_POSITIONS,
+  AUTO_STACK_PRIORITIES,
   DEFAULT_AUTO_STACK_SETTINGS,
   getPositionAnchor,
   loadAutoStackSettings,
   normalizeAutoStackSettings,
   normalizeWidgetAutoStack,
   saveAutoStackSettings,
+  type AutoStackPriorityId,
   type AutoStackSettings,
-  type AutoStackStrictness,
 } from '../utils/autoStackSettings';
 import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import { WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
@@ -43,12 +44,6 @@ interface Preview {
   height: number;
   targetAspect: number;
 }
-
-const STRICTNESS: { id: AutoStackStrictness; label: string }[] = [
-  { id: 'flexible', label: 'Flexible' },
-  { id: 'balanced', label: 'Balanced' },
-  { id: 'strict', label: 'Strict' },
-];
 
 const sectionTitle = 'font-heading text-sm font-bold text-theme-ink';
 const hint = 'text-xs leading-5 text-theme-muted';
@@ -253,10 +248,11 @@ export default function AutoStackDialog({ measure, onApply, onClose }: Props) {
     const handle = window.setTimeout(() => {
       try {
         const plan = createAutoStackPlan(measurement.blocks, settings, measurement.screenAspect, options);
+        const packed = finalizePlacements(plan.blocks, plan.result, settings.gap);
         setPreview({
-          placements: placeBlocks(plan.blocks, plan.result),
-          width: plan.result.width,
-          height: plan.result.height,
+          placements: packed.placements,
+          width: packed.width,
+          height: packed.height,
           targetAspect: plan.targetAspect,
         });
         setPreviewFailed(false);
@@ -281,6 +277,9 @@ export default function AutoStackDialog({ measure, onApply, onClose }: Props) {
 
   const updateSettings = useCallback((patch: Partial<AutoStackSettings>) => {
     setSettings((current) => normalizeAutoStackSettings({ ...current, ...patch }));
+  }, []);
+  const updatePriority = useCallback((id: AutoStackPriorityId, value: number) => {
+    setSettings((current) => normalizeAutoStackSettings({ ...current, priorities: { ...current.priorities, [id]: value } }));
   }, []);
 
   const customAspectInput = (key: 'customWidth' | 'customHeight', label: string) => (
@@ -368,22 +367,43 @@ export default function AutoStackDialog({ measure, onApply, onClose }: Props) {
                   </div>
                 )}
                 {settings.aspect === 'screen' && <p className={hint}>Matches the visible canvas, so the whole stack fits your screen.</p>}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-theme-ink">How closely to match</span>
-                  <div className="flex gap-1" role="group" aria-label="Aspect ratio strictness">
-                    {STRICTNESS.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        aria-pressed={settings.strictness === option.id}
-                        onClick={() => updateSettings({ strictness: option.id })}
-                        className={chip(settings.strictness === option.id)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
+              </section>
+
+              <section className="space-y-2.5">
+                <div className="flex items-baseline justify-between">
+                  <h3 className={sectionTitle}>Priorities</h3>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-theme-accent hover:underline disabled:opacity-40 disabled:no-underline"
+                    disabled={AUTO_STACK_PRIORITIES.every(({ id }) => settings.priorities[id] === DEFAULT_AUTO_STACK_SETTINGS.priorities[id])}
+                    onClick={() => updateSettings({ priorities: { ...DEFAULT_AUTO_STACK_SETTINGS.priorities } })}
+                  >
+                    Reset
+                  </button>
                 </div>
+                {AUTO_STACK_PRIORITIES.map((priority) => {
+                  const value = settings.priorities[priority.id];
+                  return (
+                    <div key={priority.id} className="space-y-0.5">
+                      <div className="flex items-baseline justify-between">
+                        <label htmlFor={`auto-stack-priority-${priority.id}`} className="text-xs font-semibold text-theme-ink">{priority.label}</label>
+                        <span className="text-xs tabular-nums text-theme-muted">{value === 0 ? 'Ignore' : value}</span>
+                      </div>
+                      <input
+                        id={`auto-stack-priority-${priority.id}`}
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={value}
+                        aria-describedby={`auto-stack-priority-${priority.id}-hint`}
+                        onChange={(event) => updatePriority(priority.id, Number(event.target.value))}
+                        className="h-2 w-full accent-theme-accent"
+                      />
+                      <p id={`auto-stack-priority-${priority.id}-hint`} className={hint}>{priority.hint}</p>
+                    </div>
+                  );
+                })}
               </section>
 
               <section className="space-y-2">
