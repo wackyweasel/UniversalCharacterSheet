@@ -1585,6 +1585,10 @@ button.dice-result__die--selectable:hover {
     z-index: 10;
   }
 
+  .widget-content.widget-content--scrollable {
+    overflow: auto;
+  }
+
   .widget-surface--card-table .widget-content {
     z-index: auto;
   }

@@ -75,6 +75,21 @@ describe('auto stack layout', () => {
     expect(notes.h - 80).toBeGreaterThan(counter.h - 60);
   });
 
+  it('pulls anchored items towards the corner they want', () => {
+    const anchored = (id: string, anchorX: number, anchorY: number): AutoStackItem => ({ ...rigid(id, 100, 100), anchorX, anchorY });
+    const items = [
+      ...['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => rigid(id, 100, 100)),
+      anchored('top-left', 0, 0),
+      anchored('bottom-right', 1, 1),
+    ];
+    const result = computeAutoStackLayout(items, { ...options, targetAspect: 1 });
+    expectValidLayout(items, result);
+    const topLeft = result.rects.find((rect) => rect.id === 'top-left')!;
+    const bottomRight = result.rects.find((rect) => rect.id === 'bottom-right')!;
+    expect([topLeft.x, topLeft.y]).toEqual([0, 0]);
+    expect([bottomRight.x + bottomRight.w, bottomRight.y + bottomRight.h]).toEqual([result.width, result.height]);
+  });
+
   it('packs mixed soft blocks densely and deterministically', () => {
     const items = [
       text('t1', 30000),

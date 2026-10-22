@@ -740,6 +740,26 @@ export interface WalletCurrency {
   rate: number; // How many of the previous (smaller) currency make one of this; ignored for the first
 }
 
+/** Where a widget should end up inside the auto-stacked layout. */
+export type AutoStackPosition =
+  | 'top-left' | 'top' | 'top-right'
+  | 'left' | 'center' | 'right'
+  | 'bottom-left' | 'bottom' | 'bottom-right';
+
+/** Per-widget preferences applied by Auto Stack. Missing fields mean "automatic". */
+export interface WidgetAutoStackOptions {
+  /** Keep the widget at its current size. */
+  fixedSize?: boolean;
+  /** Preferred place in the stack; undefined lets the layout decide. */
+  position?: AutoStackPosition;
+  /** Let the widget get smaller than its content, which then scrolls. */
+  allowScroll?: boolean;
+  /** Largest fraction (0.1 to 0.8) the widget may shrink by when scrolling is allowed. */
+  maxShrink?: number;
+  /** Keep the widget at its natural size instead of stretching it over spare room. */
+  allowWhitespace?: boolean;
+}
+
 export interface Widget {
   id: string;
   type: WidgetType;
@@ -752,6 +772,7 @@ export interface Widget {
   groupId?: string; // ID of the group this widget belongs to (for snap+attach)
   attachedTo?: string[]; // IDs of widgets this widget is directly attached to (graph edges)
   locked?: boolean; // If true, widget cannot be interacted with in play mode
+  autoStack?: WidgetAutoStackOptions;
   data: WidgetData;
 }
 

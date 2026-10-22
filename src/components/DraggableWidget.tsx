@@ -950,7 +950,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
             </>
           )}
 
-          <div ref={contentRef} className={`widget-content ${mode !== 'print' && hasEditableWidgetHeader && widget.type !== 'LABEL' ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''}`}>
+          <div ref={contentRef} className={`widget-content ${mode !== 'print' && widget.autoStack?.allowScroll ? 'widget-content--scrollable' : ''} ${mode !== 'print' && hasEditableWidgetHeader && widget.type !== 'LABEL' ? 'widget-content--editable-header' : ''} ${mode !== 'print' && hasEditableWidgetHeader && hasInlineWidgetHeader ? 'widget-content--progress-inline-edit' : ''} ${isWidgetHeaderHidden ? 'widget-content--header-hidden' : ''}`}>
             {mode !== 'print' && hasEditableWidgetHeader && widget.type !== 'LABEL' && (
               <Tooltip content={`Edit ${widget.data.label || 'widget'}`}>
                 <button

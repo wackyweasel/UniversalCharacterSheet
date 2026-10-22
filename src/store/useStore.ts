@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, CharacterVariable, Widget, WidgetData, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { Character, CharacterVariable, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
 import { CharacterPreset } from '../presets';
 import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
@@ -15,6 +15,7 @@ import {
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
+import { attachWidgetPairs } from '../utils/widgetAttach';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
 import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
 import { createDefaultCalendarData } from '../utils/calendar';
@@ -196,7 +197,15 @@ interface StoreState {
   addGroupFromTemplate: (template: { widgets: { type: WidgetType; relativeX: number; relativeY: number; w?: number; h?: number; data: any }[]; attachments: [number, number][] }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   // Moves (and optionally resizes) many widgets as one undo step.
-  applyWidgetLayouts: (layouts: { id: string; x: number; y: number; w?: number; h?: number }[], actionDescription: string) => void;
+  applyWidgetLayouts: (
+    layouts: { id: string; x: number; y: number; w?: number; h?: number }[],
+    actionDescription: string,
+    extras?: {
+      attachPairs?: [string, string][];
+      // Replaces each listed widget's Auto Stack preferences (undefined clears them).
+      autoStackOptions?: Record<string, WidgetAutoStackOptions | undefined>;
+    },
+  ) => void;
   bringWidgetToFront: (id: string) => void;
   updateWidgetSize: (id: string, w: number | undefined, h: number | undefined) => void;
   updateWidgetData: (id: string, data: any) => void;
@@ -1463,24 +1472,28 @@ export const useStore = create<StoreState>((set, get) => {
       }));
     },
 
-    applyWidgetLayouts: (layouts, actionDescription) => {
+    applyWidgetLayouts: (layouts, actionDescription, extras) => {
       if (layouts.length === 0) return;
       get()._takeSnapshot(actionDescription);
       const layoutById = new Map(layouts.map(layout => [layout.id, layout]));
       set((state) => ({
         characters: state.characters.map(c => {
           if (c.id !== state.activeCharacterId) return c;
-          return updateActiveSheetWidgets(c, widgets => widgets.map(w => {
-            const layout = layoutById.get(w.id);
-            if (!layout) return w;
-            return {
-              ...w,
-              x: snapWidgetCoordinate(layout.x),
-              y: snapWidgetCoordinate(layout.y),
-              ...(layout.w === undefined ? {} : { w: snapWidgetDimension(layout.w) }),
-              ...(layout.h === undefined ? {} : { h: snapWidgetDimension(layout.h) }),
-            };
-          }));
+          return updateActiveSheetWidgets(c, widgets => {
+            const arranged = widgets.map(w => {
+              const layout = layoutById.get(w.id);
+              if (!layout) return w;
+              return {
+                ...w,
+                x: snapWidgetCoordinate(layout.x),
+                y: snapWidgetCoordinate(layout.y),
+                ...(layout.w === undefined ? {} : { w: snapWidgetDimension(layout.w) }),
+                ...(layout.h === undefined ? {} : { h: snapWidgetDimension(layout.h) }),
+                ...(extras?.autoStackOptions && w.id in extras.autoStackOptions ? { autoStack: extras.autoStackOptions[w.id] } : {}),
+              };
+            });
+            return extras?.attachPairs?.length ? attachWidgetPairs(arranged, extras.attachPairs) : arranged;
+          });
         })
       }));
     },

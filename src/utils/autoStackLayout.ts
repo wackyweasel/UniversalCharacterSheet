@@ -14,6 +14,9 @@ export interface AutoStackItem {
   // Relative share of spare width/height this item absorbs; 0 keeps its natural size when possible.
   growX: number;
   growY: number;
+  // Preferred place in the whole layout per axis: 0 = start (left/top), 0.5 = middle, 1 = end. Undefined = no preference.
+  anchorX?: number;
+  anchorY?: number;
 }
 
 export interface AutoStackOptions {
@@ -22,6 +25,8 @@ export interface AutoStackOptions {
   // Preferred width / height of the whole layout.
   targetAspect: number;
   aspectWeight?: number;
+  // Penalty for each anchored item that ends up away from its preferred place (0 = ignore anchors).
+  positionWeight?: number;
   // Penalty for reordering items away from their input order (0 = ignore order).
   orderWeight?: number;
   timeBudgetMs?: number;
@@ -268,7 +273,7 @@ interface LayoutNode {
   operator?: number;
 }
 
-function buildTree(expression: number[], items: AutoStackItem[], leaves: Curve[], gap: number): LayoutNode {
+function buildTree(expression: number[], items: AutoStackItem[], leaves: Curve[], gap: number, limit = Infinity): LayoutNode {
   const stack: LayoutNode[] = [];
   for (const token of expression) {
     if (token >= 0) {
@@ -284,13 +289,21 @@ function buildTree(expression: number[], items: AutoStackItem[], leaves: Curve[]
       left,
       right,
       curve: sideBySide
-        ? combineSideBySide(left.curve, right.curve, gap, Infinity)
-        : combineStacked(left.curve, right.curve, gap, Infinity),
+        ? combineSideBySide(left.curve, right.curve, gap, limit)
+        : combineStacked(left.curve, right.curve, gap, limit),
       growX: sideBySide ? left.growX + right.growX : Math.max(left.growX, right.growX),
       growY: sideBySide ? Math.max(left.growY, right.growY) : left.growY + right.growY,
     });
   }
   return stack[0];
+}
+
+// How far (0 to 1) a slot is from the place an item wants along one axis.
+function axisMiss(anchor: number, start: number, size: number, total: number) {
+  if (total <= 0) return 0;
+  if (anchor <= 0) return start / total;
+  if (anchor >= 1) return (total - start - size) / total;
+  return (Math.abs(start + size / 2 - total / 2) / total) * 2;
 }
 
 function splitSpare(spare: number, growA: number, growB: number, sizeA: number, sizeB: number, grid: number) {
@@ -341,6 +354,7 @@ export function computeAutoStackLayout(items: AutoStackItem[], options: AutoStac
     grid,
     targetAspect,
     aspectWeight = 1,
+    positionWeight = 1.2,
     orderWeight = 0.05,
     timeBudgetMs = 400,
     maxMoves = Infinity,
@@ -373,9 +387,27 @@ export function computeAutoStackLayout(items: AutoStackItem[], options: AutoStac
     }
     return (orderWeight * displacement) / Math.max(1, items.length * items.length / 2);
   };
+  const hasAnchors = positionWeight > 0 && items.some((item) => item.anchorX !== undefined || item.anchorY !== undefined);
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const positionPenalty = (rects: AutoStackRect[], width: number, height: number) => {
+    let miss = 0;
+    for (const rect of rects) {
+      const item = itemById.get(rect.id)!;
+      if (item.anchorX !== undefined) miss += axisMiss(item.anchorX, rect.x, rect.w, width);
+      if (item.anchorY !== undefined) miss += axisMiss(item.anchorY, rect.y, rect.h, height);
+    }
+    return positionWeight * miss;
+  };
   const cost = (expression: number[]) => {
-    const curve = evaluateCurve(expression, leaves, gap, SEARCH_CURVE_LIMIT);
-    return bestRootPoint(curve, targetAspect, aspectWeight).cost / contentArea + orderPenalty(expression);
+    if (!hasAnchors) {
+      const curve = evaluateCurve(expression, leaves, gap, SEARCH_CURVE_LIMIT);
+      return bestRootPoint(curve, targetAspect, aspectWeight).cost / contentArea + orderPenalty(expression);
+    }
+    const root = buildTree(expression, items, leaves, gap, SEARCH_CURVE_LIMIT);
+    const point = bestRootPoint(root.curve, targetAspect, aspectWeight);
+    const rects: AutoStackRect[] = [];
+    assignSlots(root, 0, 0, point.w, point.h, gap, grid, items, rects);
+    return point.cost / contentArea + orderPenalty(expression) + positionPenalty(rects, point.w, point.h);
   };
 
   let current = initialExpression(leaves, gap, targetAspect);
