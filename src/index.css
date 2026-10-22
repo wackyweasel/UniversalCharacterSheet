@@ -3548,6 +3548,78 @@ button.dice-result__die--selectable:hover {
     min-height: 60px;
   }
 
+  .notes-tabs {
+    align-items: center;
+    display: flex;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .notes-tabs__list {
+    align-items: stretch;
+    background: color-mix(in srgb, var(--color-ink) 6%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    border-radius: var(--button-radius);
+    display: flex;
+    flex: 1 1 auto;
+    gap: 1px;
+    min-width: 0;
+    overflow-x: auto;
+    padding: 1px;
+    scrollbar-width: none;
+  }
+
+  .notes-tabs__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .notes-tabs__list--dragging,
+  .notes-tabs__list--dragging .notes-tabs__tab {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .notes-tabs__tab {
+    border-radius: calc(var(--button-radius) - 1px);
+    color: var(--color-muted);
+    flex: 0 0 auto;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    max-width: 10rem;
+    min-width: 2.5rem;
+    overflow: hidden;
+    padding: 2px 7px;
+    text-overflow: ellipsis;
+    transition: background-color 120ms ease, color 120ms ease;
+    white-space: nowrap;
+  }
+
+  .notes-tabs__tab:hover {
+    color: var(--color-ink);
+  }
+
+  .notes-tabs__tab--active,
+  .notes-tabs__tab--active:hover {
+    background: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  .notes-tabs__input {
+    background: var(--color-paper);
+    border: 1px solid var(--color-accent);
+    border-radius: calc(var(--button-radius) - 1px);
+    color: var(--color-ink);
+    flex: 0 0 7rem;
+    font-family: var(--font-body);
+    font-size: 11px;
+    line-height: 16px;
+    min-width: 3rem;
+    outline: none;
+    padding: 1px 5px;
+  }
+
   .notes-rich-text--field .notes-rich-text__scroll {
     max-height: 12rem;
     min-height: 5rem;
@@ -3706,6 +3778,11 @@ button.dice-result__die--selectable:hover {
   .notes-rich-text__content ol {
     margin: 0;
     padding-left: 1.4rem;
+  }
+
+  .notes-rich-text__content li ul,
+  .notes-rich-text__content li ol {
+    padding-left: 0.7rem;
   }
 
   .notes-rich-text__content ul {

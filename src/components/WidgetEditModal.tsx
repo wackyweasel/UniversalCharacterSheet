@@ -89,6 +89,8 @@ interface Props {
   onClose: () => void;
 }
 
+const NOTE_DATA_KEYS = ['text', 'richText', 'noteTabs', 'activeNoteTabId'] as const;
+
 function getWidgetTitle(type: WidgetType): string {
   const titles: Record<WidgetType, string> = {
     'NUMBER': 'Number Tracker',
@@ -160,6 +162,17 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     setLocalData(newData);
     updateWidgetData(widget.id, data);
   };
+
+  // The notes preview edits content and tabs straight in the store; keep the local copy in step.
+  useEffect(() => {
+    if (widget.type !== 'TEXT') return;
+    setLocalData((current) => {
+      if (NOTE_DATA_KEYS.every((key) => current[key] === widget.data[key])) return current;
+      const next = { ...current };
+      for (const key of NOTE_DATA_KEYS) (next as Record<string, unknown>)[key] = widget.data[key];
+      return next;
+    });
+  }, [widget.type, widget.data]);
 
   const handleUpdateWidth = (width: number) => {
     setLocalWidth(width);

@@ -438,6 +438,13 @@ export interface CalendarNote {
   color?: string;
 }
 
+export interface NoteTab {
+  id: string;
+  name: string;
+  text?: string;
+  richText?: string;
+}
+
 export interface WidgetData {
   label?: string;
   value?: number;
@@ -451,6 +458,9 @@ export interface WidgetData {
   wrapText?: boolean;
   text?: string;
   richText?: string;
+  // Notes tabs: when present, note content lives in the tabs instead of text/richText.
+  noteTabs?: NoteTab[];
+  activeNoteTabId?: string;
   // Label
   labelAlignment?: 'left' | 'center' | 'right';
   labelTextColor?: string;

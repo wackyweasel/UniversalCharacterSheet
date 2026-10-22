@@ -58,6 +58,7 @@ const HEADER_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
   'TOGGLE_GROUP',
   'INITIATIVE_TRACKER',
   'INVENTORY',
+  'TEXT',
 ]);
 
 const HEADER_HIDING_SUPPORTED_TYPES = new Set<WidgetType>([

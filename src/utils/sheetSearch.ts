@@ -60,6 +60,10 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
   switch (widget.type) {
     case 'TEXT':
       add('Notes', data.richText ? richTextToPlainText(data.richText) : data.text);
+      data.noteTabs?.forEach((tab) => {
+        add('Notes tab', tab.name);
+        add(tab.name ? `Notes · ${tab.name}` : 'Notes', tab.richText ? richTextToPlainText(tab.richText) : tab.text);
+      });
       break;
     case 'LIST':
       data.items?.forEach((item) => add('List item', item));

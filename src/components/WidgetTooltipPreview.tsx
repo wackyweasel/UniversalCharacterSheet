@@ -747,7 +747,7 @@ function renderWidget(widget: Widget) {
     case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} showFieldControls={false} />;
     case 'LABEL': return <LabelWidget widget={widget} />;
     case 'LIST': return <ListWidget {...props} showFieldControls={false} />;
-    case 'TEXT': return <TextWidget {...props} />;
+    case 'TEXT': return <TextWidget {...props} showFieldControls={false} />;
     case 'CHECKBOX': return <CheckboxWidget {...props} showFieldControls={false} interactive={false} />;
     case 'HEALTH_BAR': return <HealthBarWidget {...props} interactive={false} />;
     case 'DICE_ROLLER': return <DiceRollerWidget {...props} interactive={false} />;

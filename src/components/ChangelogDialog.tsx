@@ -43,6 +43,7 @@ const CHANGELOG_ENTRIES = [
       'New Labels panel: see, search, edit, rename and delete every label on your character. Renaming updates the formulas that use it.',
       'Standalone labels: labels not tied to any widget, organized into your own sections. Use them in any formula.',
       'The Advanced Automations tutorial now covers the Labels panel.',
+      'Notes: split your notes into tabs. Use + and − in the header to add or remove tabs, double-click a tab to rename it, and drag the tab bar to scroll through many tabs.',
     ],
   },
   {

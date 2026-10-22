@@ -21,6 +21,18 @@ import {
 } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { InlineDiceRichText } from '../InlineDiceRichText';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  addNoteTab,
+  getActiveNoteContent,
+  getActiveNoteTab,
+  getNoteContentUpdate,
+  getNoteTabs,
+  hasNoteContent,
+  removeNoteTabs,
+  renameNoteTab,
+} from '../../utils/noteTabs';
+import { SelectionActions } from './StructureDialogControls';
 
 interface Props {
   widget: Widget;
@@ -28,6 +40,7 @@ interface Props {
   width: number;
   height: number;
   sheetScale?: number;
+  showFieldControls?: boolean;
 }
 
 interface ToolbarPosition {
@@ -35,7 +48,7 @@ interface ToolbarPosition {
   top: number;
 }
 
-export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
+export default function TextWidget({ widget, height, sheetScale = 1, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const [isContentEditing, setIsContentEditing] = useState(false);
@@ -43,10 +56,26 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
   const [toolbarPosition, setToolbarPosition] = useState<ToolbarPosition | null>(null);
   const showEditor = isContentEditing && mode !== 'print';
   const canEditContent = !showEditor && mode !== 'print';
-  const { label, text = '', richText } = widget.data;
+  const [renamingTab, setRenamingTab] = useState<{ id: string; name: string } | null>(null);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [selectedTabIds, setSelectedTabIds] = useState<Set<string>>(new Set());
+  const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
+  const { label } = widget.data;
+  const noteTabs = getNoteTabs(widget.data);
+  const activeTab = getActiveNoteTab(widget.data);
+  const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && mode !== 'print';
+  const { text = '', richText } = getActiveNoteContent(widget.data);
+  const showTabBar = mode !== 'print' && noteTabs.length > 0;
   const widgetRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const widgetDataRef = useRef(widget.data);
+  widgetDataRef.current = widget.data;
+  const isCommittingRenameRef = useRef(false);
+  const tabScrollDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number; scale: number; moved: boolean } | null>(null);
+  const suppressTabClickRef = useRef(false);
+  const [isDraggingTabs, setIsDraggingTabs] = useState(false);
+  const tabListRef = useRef<HTMLDivElement>(null);
 
   const initialContent = richText ?? plainTextToHtml(text);
   const editor = useEditor({
@@ -61,10 +90,10 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
     },
     onUpdate: ({ editor: currentEditor }) => {
       if (currentEditor.isDestroyed) return;
-      updateWidgetData(widget.id, {
+      updateWidgetData(widget.id, getNoteContentUpdate(widgetDataRef.current, {
         richText: currentEditor.getHTML(),
         text: currentEditor.getText({ blockSeparator: '\n' }),
-      });
+      }));
     },
   });
 
@@ -129,14 +158,17 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
 
     const margin = 8;
     const editorRect = editorSurface.getBoundingClientRect();
+    // Sit outside the whole widget so the header and tab bar stay visible while typing.
+    const frame = widgetRef.current?.closest<HTMLElement>('[data-widget-id]') ?? widgetRef.current;
+    const frameRect = frame?.getBoundingClientRect() ?? editorRect;
     const toolbarWidth = toolbar.offsetWidth;
     const toolbarHeight = toolbar.offsetHeight;
     const maxLeft = Math.max(margin, window.innerWidth - toolbarWidth - margin);
     const maxTop = Math.max(margin, window.innerHeight - toolbarHeight - margin);
     const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
     const left = clamp(editorRect.right - toolbarWidth, margin, maxLeft);
-    const aboveTop = editorRect.top - toolbarHeight - margin;
-    const belowTop = editorRect.bottom + margin;
+    const aboveTop = frameRect.top - toolbarHeight - margin;
+    const belowTop = frameRect.bottom + margin;
     const top = aboveTop >= margin ? aboveTop : clamp(belowTop, margin, maxTop);
 
     setToolbarPosition((currentPosition) => (
@@ -217,17 +249,287 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
     if (mode === 'print') {
       setIsContentEditing(false);
       setIsToolbarVisible(false);
+      setRenamingTab(null);
+      setShowRemoveDialog(false);
     }
   }, [mode]);
 
+  const selectTab = (tabId: string) => {
+    if (tabId !== activeTab?.id) updateWidgetData(widget.id, { activeNoteTabId: tabId });
+  };
+
+  const startRenamingTab = (tabId: string, name: string) => {
+    isCommittingRenameRef.current = false;
+    setIsContentEditing(false);
+    setRenamingTab({ id: tabId, name });
+  };
+
+  const focusTab = (tabId: string) => {
+    window.requestAnimationFrame(() => tabListRef.current?.querySelector<HTMLButtonElement>(`[data-tab-id="${tabId}"]`)?.focus());
+  };
+
+  const commitRename = () => {
+    if (!renamingTab || isCommittingRenameRef.current) return;
+    isCommittingRenameRef.current = true;
+    setRenamingTab(null);
+    const tab = getNoteTabs(widgetDataRef.current).find((candidate) => candidate.id === renamingTab.id);
+    if (tab && renamingTab.name.trim() && renamingTab.name.trim() !== tab.name) {
+      updateWidgetData(widget.id, renameNoteTab(widgetDataRef.current, tab.id, renamingTab.name));
+    }
+  };
+
+  const cancelRename = () => {
+    isCommittingRenameRef.current = true;
+    setRenamingTab(null);
+  };
+
+  // New tabs get a default name right away and open in rename mode, so naming is optional.
+  const addTab = () => {
+    const tabId = uuidv4();
+    const update = addNoteTab(widgetDataRef.current, '', tabId);
+    updateWidgetData(widget.id, update);
+    startRenamingTab(tabId, update.noteTabs?.find((tab) => tab.id === tabId)?.name ?? '');
+  };
+
+  const openRemoveDialog = () => {
+    setSelectedTabIds(new Set());
+    setIsConfirmingRemoval(false);
+    setIsContentEditing(false);
+    setShowRemoveDialog(true);
+  };
+
+  const closeRemoveDialog = () => {
+    setSelectedTabIds(new Set());
+    setIsConfirmingRemoval(false);
+    setShowRemoveDialog(false);
+  };
+
+  const updateTabSelection = (next: Set<string>) => {
+    setSelectedTabIds(next);
+    setIsConfirmingRemoval(false);
+  };
+
+  const toggleTabSelection = (tabId: string) => {
+    const next = new Set(selectedTabIds);
+    if (next.has(tabId)) next.delete(tabId);
+    else next.add(tabId);
+    updateTabSelection(next);
+  };
+
+  const selectedTabsWithNotes = noteTabs.filter((tab) => selectedTabIds.has(tab.id) && hasNoteContent(tab));
+
+  const removeSelectedTabs = () => {
+    if (selectedTabIds.size === 0) return;
+    if (selectedTabsWithNotes.length > 0 && !isConfirmingRemoval) {
+      setIsConfirmingRemoval(true);
+      return;
+    }
+    updateWidgetData(widget.id, removeNoteTabs(widgetDataRef.current, selectedTabIds));
+    closeRemoveDialog();
+  };
+
+  useEffect(() => {
+    if (!showRemoveDialog) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeRemoveDialog();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showRemoveDialog]);
+
+  const activeTabId = activeTab?.id;
+  useEffect(() => {
+    const list = tabListRef.current;
+    const tab = activeTabId ? list?.querySelector<HTMLElement>(`[data-tab-id="${activeTabId}"]`) : null;
+    if (!list || !tab) return;
+    if (tab.offsetLeft < list.scrollLeft) {
+      list.scrollLeft = tab.offsetLeft;
+    } else if (tab.offsetLeft + tab.offsetWidth > list.scrollLeft + list.clientWidth) {
+      list.scrollLeft = tab.offsetLeft + tab.offsetWidth - list.clientWidth;
+    }
+  }, [activeTabId, noteTabs.length]);
+
+  const [canScrollTabs, setCanScrollTabs] = useState(false);
+  const measureTabOverflow = useCallback(() => {
+    const list = tabListRef.current;
+    setCanScrollTabs(Boolean(list && list.scrollWidth > list.clientWidth + 1));
+  }, []);
+  useLayoutEffect(measureTabOverflow);
+  useEffect(() => {
+    const list = tabListRef.current;
+    if (!showTabBar || !list || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measureTabOverflow);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [showTabBar, measureTabOverflow]);
+
+  const handleTabListPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const list = event.currentTarget;
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    if (!canScrollTabs || (event.target as HTMLElement).closest('input')) return;
+    // The sheet may be zoomed, so convert screen pixels to the list's own pixels.
+    const scale = list.getBoundingClientRect().width / list.offsetWidth || 1;
+    tabScrollDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: list.scrollLeft, scale, moved: false };
+  };
+
+  const handleTabListPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = tabScrollDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    if (!drag.moved) {
+      if (Math.abs(deltaX) < 4) return;
+      drag.moved = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setIsDraggingTabs(true);
+    }
+    event.currentTarget.scrollLeft = drag.startScrollLeft - deltaX / drag.scale;
+  };
+
+  const endTabListDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = tabScrollDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    tabScrollDragRef.current = null;
+    if (!drag.moved) return;
+    setIsDraggingTabs(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    // Swallow the click that follows a drag so the tab under the pointer isn't selected.
+    suppressTabClickRef.current = true;
+    window.setTimeout(() => { suppressTabClickRef.current = false; }, 0);
+  };
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'F2') {
+      event.preventDefault();
+      startRenamingTab(noteTabs[index].id, noteTabs[index].name);
+      return;
+    }
+    const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (!offset || noteTabs.length < 2) return;
+    event.preventDefault();
+    const nextTab = noteTabs[(index + offset + noteTabs.length) % noteTabs.length];
+    selectTab(nextTab.id);
+    const tabList = event.currentTarget.parentElement;
+    window.requestAnimationFrame(() => tabList?.querySelector<HTMLButtonElement>(`[data-tab-id="${nextTab.id}"]`)?.focus());
+  };
+
+  const removeDialogTitleId = `notes-remove-tabs-title-${widget.id}`;
+
   return (
     <div ref={widgetRef} className={`flex flex-col ${gapClass} w-full ${isAutoHeight ? '' : 'h-full'}`}>
-      {label && (
-        <div className="widget-header flex-shrink-0">
-          <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
+      {(label || controlsVisible) && (
+        <div className={`widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'pr-4' : ''}`}>
+          {label && (
+            <div className="widget-structure-title min-w-0 flex-1 truncate">
+              <InlineFormulaText text={label} />
+            </div>
+          )}
+          {controlsVisible && (
+            <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
+              <Tooltip content={noteTabs.length > 0 ? 'Choose tabs to remove' : 'No tabs to remove'}>
+                <button
+                  type="button"
+                  onClick={openRemoveDialog}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  disabled={noteTabs.length === 0}
+                  aria-label="Choose note tabs to remove"
+                  className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
+                >
+                  −
+                </button>
+              </Tooltip>
+              <Tooltip content="Add tab">
+                <button
+                  type="button"
+                  onClick={addTab}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  aria-label="Add note tab"
+                  className="widget-control widget-control--subtle h-6 w-6 text-sm font-bold"
+                >
+                  +
+                </button>
+              </Tooltip>
+            </div>
+          )}
         </div>
       )}
-      <div className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}>
+      {showTabBar && (
+        <div className="notes-tabs flex-shrink-0" data-camera-pan-ignore="true">
+          <div
+            ref={tabListRef}
+            role="tablist"
+            aria-label={label ? `${label} tabs` : 'Notes tabs'}
+            className={`notes-tabs__list ${isDraggingTabs ? 'notes-tabs__list--dragging' : ''}`}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={handleTabListPointerDown}
+            onPointerMove={handleTabListPointerMove}
+            onPointerUp={endTabListDrag}
+            onPointerCancel={endTabListDrag}
+            onClickCapture={(event) => {
+              if (!suppressTabClickRef.current) return;
+              suppressTabClickRef.current = false;
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          >
+            {noteTabs.map((tab, index) => {
+              const isActive = tab.id === activeTab?.id;
+              if (renamingTab?.id === tab.id) {
+                return (
+                  <input
+                    key={tab.id}
+                    autoFocus
+                    type="text"
+                    data-tab-id={tab.id}
+                    className="notes-tabs__input"
+                    aria-label="Tab name"
+                    placeholder={tab.name}
+                    maxLength={60}
+                    value={renamingTab.name}
+                    onChange={(event) => setRenamingTab({ id: tab.id, name: event.target.value })}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === 'Enter') {
+                        commitRename();
+                        focusTab(tab.id);
+                      }
+                      if (event.key === 'Escape') {
+                        cancelRename();
+                        focusTab(tab.id);
+                      }
+                    }}
+                    onBlur={commitRename}
+                  />
+                );
+              }
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  data-tab-id={tab.id}
+                  aria-selected={isActive}
+                  tabIndex={isActive ? 0 : -1}
+                  title={`${tab.name} (double-click to rename)`}
+                  className={`notes-tabs__tab ${isActive ? 'notes-tabs__tab--active' : ''}`}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={() => selectTab(tab.id)}
+                  onDoubleClick={() => startRenamingTab(tab.id, tab.name)}
+                  onKeyDown={(event) => handleTabKeyDown(event, index)}
+                >
+                  {tab.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div
+        className={`notes-rich-text ${isAutoHeight ? 'notes-rich-text--auto' : 'flex-1 min-h-0'}`}
+        role={noteTabs.length > 0 ? 'tabpanel' : undefined}
+        aria-label={noteTabs.length > 0 ? activeTab?.name : undefined}
+      >
         {isToolbarVisible && mode !== 'print' && editor && createPortal(
           <div
             ref={toolbarRef}
@@ -358,6 +660,72 @@ export default function TextWidget({ widget, height, sheetScale = 1 }: Props) {
           )}
         </div>
       </div>
+
+      {showRemoveDialog && createPortal(
+        <div
+          data-touch-camera-ignore="true"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4"
+          onClick={closeRemoveDialog}
+          onMouseDown={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={removeDialogTitleId}
+            className="w-full max-w-sm rounded-button border border-theme-border bg-theme-paper p-4 text-theme-ink shadow-theme"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id={removeDialogTitleId} className="font-heading text-base font-bold">
+              Remove tabs
+            </h3>
+            <p className="mt-3 text-sm text-theme-muted">Select one or more tabs to remove.</p>
+            <SelectionActions
+              onCheckAll={() => updateTabSelection(new Set(noteTabs.map((tab) => tab.id)))}
+              onUncheckAll={() => updateTabSelection(new Set())}
+            />
+            <div className="mt-2 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
+              {noteTabs.map((tab) => (
+                <label
+                  key={tab.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-button border border-theme-border px-3 py-2 text-sm transition-colors hover:bg-theme-accent hover:text-theme-paper"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTabIds.has(tab.id)}
+                    onChange={() => toggleTabSelection(tab.id)}
+                    className="h-4 w-4 flex-shrink-0 accent-theme-accent"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{tab.name}</span>
+                  {hasNoteContent(tab) && <span className="flex-shrink-0 text-xs opacity-70">has notes</span>}
+                </label>
+              ))}
+            </div>
+            {isConfirmingRemoval && (
+              <p role="alert" className="mt-3 rounded-button border border-red-600 bg-red-600/10 px-3 py-2 text-sm text-theme-ink">
+                {selectedTabsWithNotes.length === 1
+                  ? <>The notes in <strong>{selectedTabsWithNotes[0].name}</strong> will be lost.</>
+                  : <>The notes in {selectedTabsWithNotes.length} tabs will be lost: <strong>{selectedTabsWithNotes.map((tab) => tab.name).join(', ')}</strong>.</>}
+                {' '}Remove anyway?
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" autoFocus onClick={closeRemoveDialog} className="widget-control px-3 py-1.5 text-sm">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={removeSelectedTabs}
+                disabled={selectedTabIds.size === 0}
+                className="min-h-8 rounded-button border border-red-700 bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isConfirmingRemoval ? 'Remove anyway' : `Remove${selectedTabIds.size > 0 ? ` (${selectedTabIds.size})` : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
