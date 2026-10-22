@@ -773,6 +773,14 @@ export interface CharacterVariable {
   value: number | string;
   /** When set, `value` is computed from this formula. */
   formula?: string;
+  /** Section the variable is listed in; missing or unknown ids fall back to the default section. */
+  groupId?: string;
+}
+
+/** A named section that organizes standalone variables in the Labels panel. */
+export interface CharacterVariableGroup {
+  id: string;
+  name: string;
 }
 
 export interface Character {
@@ -783,6 +791,7 @@ export interface Character {
   sheets: Sheet[];
   activeSheetId: string;
   variables?: CharacterVariable[];
+  variableGroups?: CharacterVariableGroup[];
   // Legacy: widgets array for migration (will be moved to sheets)
   widgets?: Widget[];
 }

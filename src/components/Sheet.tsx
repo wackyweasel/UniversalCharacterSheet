@@ -259,6 +259,28 @@ export default function Sheet() {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  const handleToggleVariables = () => {
+    if (isCurrentTutorialStep('advanced-open-labels')) {
+      setVariablesOpen(true);
+      advanceTutorial();
+    } else {
+      toggleVariables();
+    }
+  };
+
+  useEffect(() => {
+    const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : null;
+    if (step === 'advanced-open-labels') {
+      setMode('play');
+      setVariablesOpen(false);
+      setTimelineOpen(false);
+    } else if (step === 'advanced-labels-overview' || step === 'advanced-labels-standalone') {
+      setVariablesOpen(true);
+    } else if (step === 'advanced-complete') {
+      setVariablesOpen(false);
+    }
+  }, [tutorialStep, setMode, setTimelineOpen, setVariablesOpen]);
   
   // Print mode state
   const printerFriendly = usePrintStore((state) => state.printerFriendly);
@@ -1472,7 +1494,7 @@ export default function Sheet() {
           timelineOpen={timelineIsOpen}
           onToggleTimeline={toggleTimeline}
           variablesOpen={variablesIsOpen}
-          onToggleVariables={toggleVariables}
+          onToggleVariables={handleToggleVariables}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={undo}
@@ -2147,7 +2169,7 @@ export default function Sheet() {
         onAutoStack={() => setShowAutoStackConfirm(true)}
         onSearch={() => setSheetSearchOpen(true)}
         variablesOpen={variablesIsOpen}
-        onToggleVariables={toggleVariables}
+        onToggleVariables={handleToggleVariables}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}

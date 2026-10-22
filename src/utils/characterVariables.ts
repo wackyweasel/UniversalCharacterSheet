@@ -2,6 +2,7 @@ import type { Character, CharacterVariable, Widget, WidgetData } from '../types'
 import { getCalendarLabelFields } from './calendar';
 import { collectLabels } from './formulaEngine';
 import type { FormulaLabels, FormulaValue } from './formulaSyntax';
+import { createVariableGroupResolver, getVariableGroups } from './variableGroups';
 import { getWidgetTypeLabel } from './widgetMetadata';
 
 export const LABEL_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -20,6 +21,8 @@ export interface LabelEntry {
   formula?: string;
   editable: boolean;
   variableId?: string;
+  /** Section a standalone variable is listed in. */
+  variableGroupId?: string;
   widgetId?: string;
   widgetTitle?: string;
   sheetId?: string;
@@ -280,6 +283,7 @@ function countGenerated(labels: FormulaLabels, prefix: string) {
 /** Every label defined on the character, custom variables first. */
 export function collectLabelEntries(character: Character, labels: FormulaLabels = collectLabels(character)): LabelEntry[] {
   const entries: LabelEntry[] = [];
+  const resolveGroup = createVariableGroupResolver(getVariableGroups(character));
 
   for (const variable of character.variables ?? []) {
     if (!variable.label) continue;
@@ -291,6 +295,7 @@ export function collectLabelEntries(character: Character, labels: FormulaLabels 
       formula: variable.formula || undefined,
       editable: true,
       variableId: variable.id,
+      variableGroupId: resolveGroup(variable),
     });
   }
 

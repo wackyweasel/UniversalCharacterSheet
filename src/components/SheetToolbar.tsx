@@ -569,9 +569,10 @@ export default function SheetToolbar({
         </Tooltip>
       )}
       {onToggleVariables && inlineActionIds.has('variables') && (
-        <Tooltip content={variablesOpen ? 'Close labels' : 'Labels & variables'} placement="below">
+        <Tooltip content={variablesOpen ? 'Close labels' : 'Labels'} placement="below">
           <button
             type="button"
+            data-tutorial="labels-button"
             onClick={onToggleVariables}
             aria-pressed={variablesOpen}
             aria-label="Labels"

@@ -40,8 +40,9 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.13.0',
     changes: [
-      'New Labels panel (next to Timeline in the toolbar): see every label on your character at a glance, grouped by widget, with its current value. Search them, see which formulas each one reads and which widgets use it, jump to its widget, copy it, rename it (formulas that use it are updated too) or remove it. Filters show unused labels and labels used in formulas but never defined.',
-      'Standalone variables: create labels that are not attached to any widget, holding a value or a formula, and use them in any formula as @label. Handy for proficiency bonuses, modifiers and other constants.',
+      'New Labels panel: see, search, edit, rename and delete every label on your character. Renaming updates the formulas that use it.',
+      'Standalone labels: labels not tied to any widget, organized into your own sections. Use them in any formula.',
+      'The Advanced Automations tutorial now covers the Labels panel.',
     ],
   },
   {

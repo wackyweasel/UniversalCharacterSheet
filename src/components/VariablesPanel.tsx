@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
 import type { Character, CharacterVariable } from '../types';
@@ -16,6 +17,7 @@ import {
   type LabelNameError,
   type LabelReference,
 } from '../utils/characterVariables';
+import { DEFAULT_VARIABLE_GROUP_ID, DEFAULT_VARIABLE_GROUP_NAME, getVariableGroups } from '../utils/variableGroups';
 import {
   collectLabels,
   detectCircularReference,
@@ -30,6 +32,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CopyIcon,
+  GripVerticalIcon,
   LayersIcon,
   MinusIcon,
   PencilIcon,
@@ -55,7 +58,15 @@ interface EntryGroup {
   subtitle?: string;
   widgetId?: string;
   sheetId?: string;
+  /** Set for sections of standalone variables. */
+  variableGroupId?: string;
   entries: PanelEntry[];
+}
+
+interface DropTarget {
+  groupId: string;
+  /** Variable to insert before; null appends to the section. */
+  beforeId: string | null;
 }
 
 interface VariablesPanelProps {
@@ -273,7 +284,7 @@ function InlineValueEditor({ initial, onCommit, onCancel }: { initial: string; o
         }
       }}
       onBlur={() => onCommit(draft)}
-      aria-label="Variable value"
+      aria-label="Label value"
       className="h-7 w-24 shrink-0 rounded-button border border-theme-accent bg-theme-background px-2 font-mono text-xs text-theme-ink focus:outline-none focus:ring-2 focus:ring-theme-accent/40"
     />
   );
@@ -334,6 +345,46 @@ interface VariableEditorProps {
   onSave: (draft: { label: string; value: CharacterVariable['value']; formula?: string; updateReferences: boolean }) => void;
   onCancel: () => void;
   className?: string;
+}
+
+function SectionNameInput({ initialName, onCommit, onCancel }: { initialName: string; onCommit: (name: string) => void; onCancel: () => void }) {
+  const [name, setName] = useState(initialName);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const finish = (commit: boolean) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    if (commit) onCommit(name);
+    else onCancel();
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      value={name}
+      maxLength={60}
+      aria-label="Section name"
+      onChange={(event) => setName(event.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          finish(true);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          finish(false);
+        }
+      }}
+      className="relative h-6 min-w-0 flex-1 rounded-button border border-theme-accent bg-theme-paper px-1.5 text-[11px] font-bold uppercase tracking-widest text-theme-ink font-heading focus:outline-none"
+    />
+  );
 }
 
 function VariableEditor({
@@ -413,7 +464,7 @@ function VariableEditor({
         </div>
         <div>
           <span className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-theme-muted font-heading">Type</span>
-          <div role="radiogroup" aria-label="Variable type" className="flex h-9 overflow-hidden rounded-button border border-theme-border">
+          <div role="radiogroup" aria-label="Label type" className="flex h-9 overflow-hidden rounded-button border border-theme-border">
             {(['value', 'formula'] as const).map((option) => (
               <button
                 key={option}
@@ -582,6 +633,10 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
   const updateVariable = useStore((state) => state.updateVariable);
   const renameLabel = useStore((state) => state.renameLabel);
   const removeLabel = useStore((state) => state.removeLabel);
+  const addVariableGroup = useStore((state) => state.addVariableGroup);
+  const renameVariableGroup = useStore((state) => state.renameVariableGroup);
+  const deleteVariableGroup = useStore((state) => state.deleteVariableGroup);
+  const moveVariable = useStore((state) => state.moveVariable);
   const undo = useStore((state) => state.undo);
 
   const [query, setQuery] = useState('');
@@ -592,7 +647,16 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const [editingVariableId, setEditingVariableId] = useState<string | null>(null);
   const [valueEditingId, setValueEditingId] = useState<string | null>(null);
-  const [creating, setCreating] = useState<{ label?: string } | null>(null);
+  const [creating, setCreating] = useState<{ label?: string; groupId: string } | null>(null);
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [dragGhost, setDragGhost] = useState<{ entry: PanelEntry; width: number; x: number; y: number } | null>(null);
+  const dragRef = useRef<object | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const suppressClickRef = useRef(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; undoable: boolean } | null>(null);
   const [panelSize, setPanelSize] = useState(loadPanelSize);
@@ -607,6 +671,8 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
 
   const labels = useMemo(() => (character ? collectLabels(character) : {}), [character]);
   const referenceIndex = useMemo(() => (character ? buildReferenceIndex(character) : null), [character]);
+  const variableGroups = useMemo(() => (character ? getVariableGroups(character) : []), [character]);
+  const groupNameById = useMemo(() => new Map(variableGroups.map((group) => [group.id, group.name])), [variableGroups]);
 
   const entries = useMemo<PanelEntry[]>(() => {
     if (!character || !referenceIndex) return [];
@@ -655,12 +721,12 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
       entry.label,
       `@${entry.label}`,
       entry.context,
-      entry.widgetTitle ?? 'standalone variables',
+      entry.widgetTitle ?? groupNameById.get(entry.variableGroupId ?? '') ?? DEFAULT_VARIABLE_GROUP_NAME,
       entry.sheetName ?? '',
       entry.formula ?? '',
       entry.value === undefined ? '' : String(entry.value),
     ].some((text) => text.toLowerCase().includes(normalizedQuery));
-  }, [normalizedQuery]);
+  }, [groupNameById, normalizedQuery]);
 
   const groups = useMemo<EntryGroup[]>(() => {
     if (filter === 'missing') return [];
@@ -670,21 +736,31 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
       return matchesQuery(entry);
     });
     const result: EntryGroup[] = [];
-    const byKey = new Map<string, EntryGroup>();
+
+    const sections = creating && !variableGroups.some((group) => group.id === creating.groupId)
+      ? [{ id: creating.groupId, name: DEFAULT_VARIABLE_GROUP_NAME }, ...variableGroups]
+      : variableGroups;
+    const showEmptySections = !normalizedQuery && (filter === 'all' || filter === 'custom');
+    for (const section of sections) {
+      const sectionEntries = visible.filter((entry) => entry.kind === 'custom' && entry.variableGroupId === section.id);
+      if (sectionEntries.length === 0 && !showEmptySections && creating?.groupId !== section.id) continue;
+      result.push({ key: `vg:${section.id}`, title: section.name, variableGroupId: section.id, entries: sectionEntries });
+    }
+
+    const byWidget = new Map<string, EntryGroup>();
     for (const entry of visible) {
-      const key = entry.kind === 'custom' ? 'custom' : entry.widgetId!;
-      let group = byKey.get(key);
+      if (entry.kind === 'custom') continue;
+      const key = entry.widgetId!;
+      let group = byWidget.get(key);
       if (!group) {
-        group = entry.kind === 'custom'
-          ? { key, title: 'Standalone variables', entries: [] }
-          : { key, title: entry.widgetTitle ?? 'Widget', subtitle: entry.sheetName, widgetId: entry.widgetId, sheetId: entry.sheetId, entries: [] };
-        byKey.set(key, group);
+        group = { key, title: entry.widgetTitle ?? 'Widget', subtitle: entry.sheetName, widgetId: entry.widgetId, sheetId: entry.sheetId, entries: [] };
+        byWidget.set(key, group);
         result.push(group);
       }
       group.entries.push(entry);
     }
     return result;
-  }, [entries, filter, matchesQuery]);
+  }, [creating, entries, filter, matchesQuery, normalizedQuery, variableGroups]);
 
   const visibleMissing = useMemo(
     () => missingLabels.filter((label) => !normalizedQuery || label.toLowerCase().includes(normalizedQuery)),
@@ -719,6 +795,8 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     setEditingVariableId(null);
     setValueEditingId(null);
     setCreating(null);
+    setRenamingGroupId(null);
+    setConfirmDeleteGroupId(null);
     setToast(null);
   }, [isOpen]);
 
@@ -728,6 +806,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (document.querySelector('[role="dialog"]')) return;
       if (confirmDeleteKey) setConfirmDeleteKey(null);
+      else if (confirmDeleteGroupId) setConfirmDeleteGroupId(null);
       else if (renamingKey) setRenamingKey(null);
       else if (creating) setCreating(null);
       else if (editingVariableId) setEditingVariableId(null);
@@ -736,7 +815,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmDeleteKey, creating, editingVariableId, isOpen, query, renamingKey, setOpen]);
+  }, [confirmDeleteGroupId, confirmDeleteKey, creating, editingVariableId, isOpen, query, renamingKey, setOpen]);
 
   useEffect(() => {
     if (!toast) return;
@@ -775,7 +854,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     setQuery('');
     setFilter('all');
     setExpandedKey(entry.key);
-    const groupKey = entry.kind === 'custom' ? 'custom' : entry.widgetId ?? '';
+    const groupKey = entry.kind === 'custom' ? `vg:${entry.variableGroupId ?? DEFAULT_VARIABLE_GROUP_ID}` : entry.widgetId ?? '';
     setCollapsedGroups((current) => {
       if (!current.has(groupKey)) return current;
       const next = new Set(current);
@@ -825,7 +904,13 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
   };
 
   const handleCreate = (draft: { label: string; value: CharacterVariable['value']; formula?: string }) => {
-    addVariable({ label: draft.label, value: draft.value, ...(draft.formula ? { formula: draft.formula } : {}) });
+    const groupId = creating?.groupId;
+    addVariable({
+      label: draft.label,
+      value: draft.value,
+      ...(draft.formula ? { formula: draft.formula } : {}),
+      ...(groupId && groupId !== DEFAULT_VARIABLE_GROUP_ID ? { groupId } : {}),
+    });
     setCreating(null);
     if (filter !== 'all' && filter !== 'custom') setFilter('all');
     pendingLabelRef.current = draft.label;
@@ -842,11 +927,171 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     focusEntry(entry);
   }, [entries, focusEntry]);
 
-  const startCreate = (label?: string) => {
+  const expandGroup = useCallback((key: string) => {
+    setCollapsedGroups((current) => {
+      if (!current.has(key)) return current;
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const startCreate = (label?: string, groupId: string = variableGroups[0]?.id ?? DEFAULT_VARIABLE_GROUP_ID) => {
     setEditingVariableId(null);
-    setCreating({ label });
-    listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    setConfirmDeleteGroupId(null);
+    if (filter !== 'all' && filter !== 'custom') setFilter('all');
+    expandGroup(`vg:${groupId}`);
+    setCreating({ label, groupId });
   };
+
+  useEffect(() => {
+    if (!creating) return;
+    const frame = window.requestAnimationFrame(() => {
+      listRef.current?.querySelector('[data-create-editor]')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [creating]);
+
+  const handleAddSection = () => {
+    const id = addVariableGroup('New section');
+    if (!id) return;
+    setQuery('');
+    if (filter !== 'all' && filter !== 'custom') setFilter('all');
+    setRenamingGroupId(id);
+  };
+
+  const handleDeleteSection = (group: EntryGroup) => {
+    if (!group.variableGroupId) return;
+    const count = entries.filter((entry) => entry.kind === 'custom' && entry.variableGroupId === group.variableGroupId).length;
+    deleteVariableGroup(group.variableGroupId);
+    setConfirmDeleteGroupId(null);
+    if (creating?.groupId === group.variableGroupId) setCreating(null);
+    setToast({
+      message: count ? `Deleted ${group.title} and ${count} ${count === 1 ? 'label' : 'labels'}` : `Deleted ${group.title}`,
+      undoable: true,
+    });
+  };
+
+  const findDropTarget = (x: number, y: number): DropTarget | null => {
+    const element = document.elementFromPoint(x, y);
+    const section = element instanceof Element ? element.closest<HTMLElement>('[data-drop-section]') : null;
+    const groupId = section?.dataset.dropSection;
+    if (!section || !groupId || !listRef.current?.contains(section)) return null;
+    // Snap to the nearest chip on the pointer's row so gaps between chips don't jump to the end.
+    let nearest: HTMLElement | null = null;
+    let nearestDistance = Infinity;
+    section.querySelectorAll<HTMLElement>('[data-drag-chip]').forEach((chip) => {
+      const rect = chip.getBoundingClientRect();
+      if (y < rect.top - 4 || y > rect.bottom + 4) return;
+      const distance = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0;
+      if (distance < nearestDistance) {
+        nearest = chip;
+        nearestDistance = distance;
+      }
+    });
+    const chip = nearest as HTMLElement | null;
+    if (!chip) return { groupId, beforeId: null };
+    const rect = chip.getBoundingClientRect();
+    const beforeId = x > rect.left + rect.width / 2 ? chip.dataset.nextId || null : chip.dataset.variableId ?? null;
+    return { groupId, beforeId };
+  };
+
+  const beginChipDrag = (event: React.PointerEvent<HTMLElement>, entry: PanelEntry) => {
+    const chip = event.currentTarget.closest<HTMLElement>('[data-drag-chip]');
+    if (event.button !== 0 || !chip || !entry.variableId || dragRef.current) return;
+    const variableId = entry.variableId;
+    const rect = chip.getBoundingClientRect();
+    const drag = {
+      variableId,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      x: event.clientX,
+      y: event.clientY,
+      active: false,
+      frame: 0,
+      target: null as DropTarget | null,
+    };
+    dragRef.current = drag;
+
+    const placeGhost = () => {
+      if (ghostRef.current) ghostRef.current.style.transform = `translate3d(${drag.x - drag.offsetX}px, ${drag.y - drag.offsetY}px, 0)`;
+    };
+    const updateTarget = () => {
+      const target = findDropTarget(drag.x, drag.y);
+      drag.target = target;
+      setDropTarget((current) => (current?.groupId === target?.groupId && current?.beforeId === target?.beforeId ? current : target));
+    };
+    const autoScroll = () => {
+      const list = listRef.current;
+      if (list) {
+        const rect = list.getBoundingClientRect();
+        const edge = 48;
+        const delta = drag.y < rect.top + edge
+          ? -(rect.top + edge - drag.y)
+          : drag.y > rect.bottom - edge ? drag.y - (rect.bottom - edge) : 0;
+        if (delta) {
+          list.scrollTop += Math.max(-18, Math.min(18, delta / 3));
+          updateTarget();
+        }
+      }
+      drag.frame = window.requestAnimationFrame(autoScroll);
+    };
+    const finish = (commit: boolean) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('keydown', onKey, true);
+      window.cancelAnimationFrame(drag.frame);
+      dragCleanupRef.current = null;
+      dragRef.current = null;
+      if (!drag.active) return;
+      document.body.classList.remove('variables-dragging');
+      // The click that follows pointerup must not toggle the chip.
+      suppressClickRef.current = true;
+      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+      if (commit && drag.target) {
+        moveVariable(variableId, drag.target.groupId, drag.target.beforeId);
+        expandGroup(`vg:${drag.target.groupId}`);
+      }
+      setDraggingId(null);
+      setDropTarget(null);
+      setDragGhost(null);
+    };
+    const onMove = (moveEvent: PointerEvent) => {
+      drag.x = moveEvent.clientX;
+      drag.y = moveEvent.clientY;
+      if (!drag.active) {
+        if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) < 5) return;
+        drag.active = true;
+        window.getSelection()?.removeAllRanges();
+        document.body.classList.add('variables-dragging');
+        setExpandedKey((current) => (current === entry.key ? null : current));
+        setDraggingId(variableId);
+        setDragGhost({ entry, width: rect.width, x: drag.x - drag.offsetX, y: drag.y - drag.offsetY });
+        drag.frame = window.requestAnimationFrame(autoScroll);
+      }
+      moveEvent.preventDefault();
+      placeGhost();
+      updateTarget();
+    };
+    const onUp = () => finish(true);
+    const onCancel = () => finish(false);
+    const onKey = (keyEvent: KeyboardEvent) => {
+      if (keyEvent.key !== 'Escape' || !drag.active) return;
+      keyEvent.preventDefault();
+      keyEvent.stopPropagation();
+      finish(false);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('keydown', onKey, true);
+    dragCleanupRef.current = () => finish(false);
+  };
+
+  useEffect(() => () => dragCleanupRef.current?.(), []);
 
   const maxWidth = Math.max(MIN_WIDTH, Math.round(viewport.w * 0.9));
   const maxHeight = Math.max(MIN_HEIGHT, Math.round(viewport.h * 0.95));
@@ -890,8 +1135,24 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     ...(counts.missing > 0 ? [{ id: 'missing' as const, label: 'Missing', count: counts.missing }] : []),
   ];
 
-  const renderChip = (entry: PanelEntry) => {
+  const showNewSection = !normalizedQuery && (filter === 'all' || filter === 'custom');
+  const renderNewSectionButton = (leading: boolean) => (
+    <div key="new-section" data-tutorial={leading ? 'labels-standalone' : undefined} className={`px-4 pb-3 ${leading ? 'pt-3' : ''}`}>
+      <button
+        type="button"
+        onClick={handleAddSection}
+        className="variables-new-section flex h-7 w-full items-center justify-center gap-1.5 rounded-button text-[11px] font-semibold text-theme-muted transition-colors hover:text-theme-accent font-body"
+      >
+        <PlusIcon className="h-3 w-3" /> New section
+      </button>
+    </div>
+  );
+  const renderChip = (entry: PanelEntry, group: EntryGroup, index: number) => {
     const selected = expandedKey === entry.key;
+    const sectionId = group.variableGroupId;
+    const variableId = entry.variableId;
+    const canDrag = Boolean(sectionId && variableId);
+    const dragging = Boolean(variableId && draggingId === variableId);
     const unused = entry.referenceCount === 0;
     const duplicate = entry.duplicateCount > 1;
     const tone = selected
@@ -907,7 +1168,14 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
       ? `${entry.generatedCount} ${entry.generatedCount === 1 ? 'value' : 'values'}`
       : formatValue(entry.value);
     return (
-      <div key={entry.key} role="listitem" className="min-w-0 max-w-full">
+      <div
+        key={entry.key}
+        role="listitem"
+        className={`variables-chip-wrap min-w-0 max-w-full transition-opacity ${dragging ? 'opacity-40' : ''}`}
+        data-drag-chip={canDrag ? '' : undefined}
+        data-variable-id={canDrag ? variableId : undefined}
+        data-next-id={canDrag ? group.entries[index + 1]?.variableId ?? '' : undefined}
+      >
       <button
         type="button"
         data-entry-key={entry.key}
@@ -916,6 +1184,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
         aria-label={`@${entry.label} = ${spokenValue}`}
         title={title}
         onClick={() => {
+          if (suppressClickRef.current) return;
           setExpandedKey(selected ? null : entry.key);
           setRenamingKey(null);
           setConfirmDeleteKey(null);
@@ -923,8 +1192,17 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
         }}
         onMouseEnter={() => highlightWidget(entry.widgetId ?? null)}
         onFocus={() => highlightWidget(entry.widgetId ?? null)}
-        className={`variables-chip relative inline-flex h-7 max-w-full items-center gap-1.5 rounded-button px-2.5 font-mono text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent ${tone}`}
+        className={`variables-chip relative inline-flex h-7 max-w-full items-center gap-1.5 rounded-button ${canDrag ? 'pl-0.5 pr-2.5' : 'px-2.5'} font-mono text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent ${tone}`}
       >
+        {canDrag && (
+          <span
+            className={`variables-chip-handle -mr-1 flex h-6 w-4 shrink-0 items-center justify-center rounded-sm ${selected ? 'opacity-70' : 'text-theme-muted'}`}
+            aria-hidden="true"
+            onPointerDown={(event) => beginChipDrag(event, entry)}
+          >
+            <GripVerticalIcon className="h-3.5 w-3.5" />
+          </span>
+        )}
         <span className="min-w-0 truncate">
           <span className={selected ? 'opacity-70' : 'text-theme-accent'}>@</span>
           <Highlight text={entry.label} query={normalizedQuery.replace(/^@/, '')} />
@@ -971,7 +1249,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     const confirmingDelete = confirmDeleteKey === entry.key;
     const copied = copiedLabel === entry.label;
     const subtitle = entry.kind === 'custom'
-      ? entry.formula ? 'Standalone formula' : 'Standalone variable'
+      ? entry.formula ? 'Standalone formula' : 'Standalone label'
       : entry.context;
     const caption = 'text-[10px] font-bold uppercase tracking-wider text-theme-muted font-heading';
     const actions: { key: string; label: string; icon: ReactNode; onClick: () => void }[] = [
@@ -1089,6 +1367,27 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
               ))
             )}
           </dd>
+
+          {variable && variableGroups.length > 1 && (
+            <>
+              <dt className={caption}><label htmlFor={`variable-section-${variable.id}`}>Section</label></dt>
+              <dd className="min-w-0">
+                <select
+                  id={`variable-section-${variable.id}`}
+                  value={entry.variableGroupId ?? DEFAULT_VARIABLE_GROUP_ID}
+                  onChange={(event) => {
+                    moveVariable(variable.id, event.target.value);
+                    setExpandedKey(entry.key);
+                    expandGroup(`vg:${event.target.value}`);
+                    pendingScrollKeyRef.current = entry.key;
+                  }}
+                  className="h-7 max-w-full rounded-button border border-theme-border bg-theme-paper px-2 text-xs text-theme-ink font-body focus:border-theme-accent focus:outline-none"
+                >
+                  {variableGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+                </select>
+              </dd>
+            </>
+          )}
         </dl>
 
         {renaming ? (
@@ -1109,7 +1408,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
               <span className="font-bold">{entry.kind === 'custom' ? `Delete @${entry.label}?` : `Remove the label @${entry.label}?`}</span>{' '}
               <span className="text-theme-muted">
                 {entry.kind === 'custom'
-                  ? 'The variable will be removed from this character.'
+                  ? 'The label will be removed from this character.'
                   : `The value stays in ${entry.widgetTitle}; only its label is removed.`}
                 {entry.referenceCount > 0 && ` ${entry.referenceCount} ${entry.referenceCount === 1 ? 'reference' : 'references'} will stop working.`}
               </span>
@@ -1157,6 +1456,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
   return (
     <aside
       id="variables-panel"
+      data-tutorial="labels-panel"
       data-touch-camera-panel="true"
       aria-labelledby="variables-title"
       className={`variables-panel fixed z-40 flex flex-col overflow-hidden bg-theme-paper text-theme-ink border-theme-border shadow-2xl touch-pan-y ${
@@ -1264,43 +1564,35 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
         </div>
       )}
 
-      <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain" onMouseLeave={() => highlightWidget(null)}>
-        {creating && (
-          <VariableEditor
-            character={character}
-            labels={labels}
-            takenLabels={takenLabels}
-            initialLabel={creating.label}
-            referenceCount={0}
-            onCancel={() => setCreating(null)}
-            onSave={handleCreate}
-          />
-        )}
-
-        {counts.all === 0 && counts.missing === 0 && !creating ? (
+      <div
+        ref={listRef}
+        className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+        onMouseLeave={() => highlightWidget(null)}
+      >
+        {counts.all === 0 && counts.missing === 0 && groups.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-8 py-12 text-center">
             <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-theme-accent/15 text-theme-accent" aria-hidden="true">
               <TagIcon className="h-6 w-6" />
             </span>
             <p className="font-heading text-base font-bold text-theme-ink">No labels yet</p>
             <p className="mt-2 max-w-xs text-sm leading-relaxed text-theme-muted font-body">
-              Give a widget value a label, or create a standalone variable like <code className="font-mono text-theme-ink">@proficiency</code> to reuse it in any formula.
+              Give a widget value a label, or create a standalone label like <code className="font-mono text-theme-ink">@proficiency</code> to reuse it in any formula.
             </p>
             <button type="button" onClick={() => startCreate()} className={`${primaryButtonClass} mt-4 h-9`}>
               <PlusIcon className="h-4 w-4" /> Create new label
             </button>
           </div>
-        ) : visibleCount === 0 && !creating && filter === 'custom' && !normalizedQuery ? (
+        ) : groups.length === 0 && filter === 'custom' && !normalizedQuery ? (
           <div className="flex h-full flex-col items-center justify-center px-8 py-12 text-center">
-            <p className="font-heading text-base font-bold text-theme-ink">No standalone variables yet</p>
+            <p className="font-heading text-base font-bold text-theme-ink">No standalone labels yet</p>
             <p className="mt-2 max-w-[18rem] text-sm text-theme-muted font-body">
-              Standalone variables are not tied to any widget. Use them for bonuses, modifiers or constants in any formula.
+              Standalone labels are not tied to any widget. Use them for bonuses, modifiers or constants in any formula.
             </p>
             <button type="button" onClick={() => startCreate()} className={`${primaryButtonClass} mt-4 h-9`}>
               <PlusIcon className="h-4 w-4" /> Create new label
             </button>
           </div>
-        ) : visibleCount === 0 && !creating ? (
+        ) : visibleCount === 0 && groups.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-8 py-12 text-center">
             <p className="font-heading text-base font-bold text-theme-ink">No matching labels</p>
             <p className="mt-2 text-sm text-theme-muted font-body">Try another search or filter.</p>
@@ -1347,55 +1639,190 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
             </div>
           </section>
         ) : (
-          groups.map((group) => {
-            const collapsed = !normalizedQuery && collapsedGroups.has(group.key);
-            const selectedEntry = group.entries.find((entry) => entry.key === expandedKey);
-            return (
-              <section key={group.key} aria-label={group.title} onMouseLeave={() => highlightWidget(null)}>
-                <div
-                  className="group/header sticky top-0 z-10 flex items-center gap-1 bg-theme-paper pb-2 pl-4 pr-4 pt-3 text-theme-muted"
-                  onMouseEnter={() => highlightWidget(group.widgetId ?? null)}
+          <>
+            {groups.map((group) => {
+              const collapsed = !normalizedQuery && collapsedGroups.has(group.key);
+              const selectedEntry = group.entries.find((entry) => entry.key === expandedKey);
+              const sectionId = group.variableGroupId;
+              const isDropSection = Boolean(draggingId && sectionId && dropTarget?.groupId === sectionId);
+              const sectionTotal = sectionId ? entries.filter((entry) => entry.kind === 'custom' && entry.variableGroupId === sectionId).length : 0;
+              const showCreate = Boolean(sectionId && creating?.groupId === sectionId);
+              const draggedIndex = draggingId ? group.entries.findIndex((entry) => entry.variableId === draggingId) : -1;
+              const showBarAt = (index: number) => {
+                if (!isDropSection) return false;
+                const beforeId = index < group.entries.length ? group.entries[index].variableId ?? null : null;
+                if (dropTarget?.beforeId !== beforeId) return false;
+                return draggedIndex === -1 || (index !== draggedIndex && index !== draggedIndex + 1);
+              };
+              const dropBar = <span key="drop-bar" className="variables-drop-bar" aria-hidden="true" />;
+              return (
+                <section
+                  key={group.key}
+                  aria-label={group.title}
+                  onMouseLeave={() => highlightWidget(null)}
+                  className={isDropSection ? 'variables-section--drop' : undefined}
+                  data-drop-section={sectionId}
+                  data-tutorial={sectionId && sectionId === groups[0]?.variableGroupId ? 'labels-standalone' : undefined}
                 >
-                  {/* Full-row toggle sits behind the title so the go-to button can follow the widget name. */}
-                  <button
-                    type="button"
-                    aria-expanded={!collapsed}
-                    aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${group.title}`}
-                    onClick={() => toggleGroup(group.key)}
-                    className="peer absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-theme-accent"
-                  />
-                  <h3 className="pointer-events-none relative min-w-0 truncate text-[11px] font-bold uppercase tracking-widest text-theme-ink font-heading">{group.title}</h3>
-                  {group.subtitle && (
-                    <span className="pointer-events-none relative ml-1.5 flex min-w-0 items-center gap-1 text-[11px] opacity-80 font-body">
-                      <LayersIcon className="h-3 w-3 shrink-0 -translate-y-px" aria-hidden="true" />
-                      <span className="truncate">{group.subtitle}</span>
-                    </span>
-                  )}
-                  {group.widgetId && (
-                    <Tooltip content="Go to widget">
+                  <div
+                    className="group/header sticky top-0 z-10 flex items-center gap-1 bg-theme-paper pb-2 pl-4 pr-4 pt-3 text-theme-muted"
+                    onMouseEnter={() => highlightWidget(group.widgetId ?? null)}
+                  >
+                    {/* Full-row toggle sits behind the title so the header buttons can follow the name. */}
+                    <button
+                      type="button"
+                      aria-expanded={!collapsed}
+                      aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${group.title}`}
+                      onClick={() => toggleGroup(group.key)}
+                      className="peer absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-theme-accent"
+                    />
+                    {sectionId && renamingGroupId === sectionId ? (
+                      <SectionNameInput
+                        initialName={group.title}
+                        onCommit={(name) => {
+                          renameVariableGroup(sectionId, name);
+                          setRenamingGroupId(null);
+                        }}
+                        onCancel={() => setRenamingGroupId(null)}
+                      />
+                    ) : (
+                      <h3 className="pointer-events-none relative min-w-0 truncate text-[11px] font-bold uppercase tracking-widest text-theme-ink font-heading">{group.title}</h3>
+                    )}
+                    {group.subtitle && (
+                      <span className="pointer-events-none relative ml-1.5 flex min-w-0 items-center gap-1 text-[11px] opacity-80 font-body">
+                        <LayersIcon className="h-3 w-3 shrink-0 -translate-y-px" aria-hidden="true" />
+                        <span className="truncate">{group.subtitle}</span>
+                      </span>
+                    )}
+                    {group.widgetId && (
+                      <Tooltip content="Go to widget">
+                        <button
+                          type="button"
+                          onClick={() => revealWidget(group.sheetId, group.widgetId)}
+                          className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-button text-theme-muted opacity-0 transition hover:bg-theme-accent hover:text-theme-paper focus:opacity-100 group-hover/header:opacity-100"
+                          aria-label={`Go to ${group.title}`}
+                        >
+                          <ArrowRightIcon className="h-3 w-3" />
+                        </button>
+                      </Tooltip>
+                    )}
+                    {sectionId && renamingGroupId !== sectionId && (
+                      <Tooltip content="Rename section">
+                        <button
+                          type="button"
+                          onClick={() => { setConfirmDeleteGroupId(null); setRenamingGroupId(sectionId); }}
+                          className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-button text-theme-muted opacity-0 transition hover:bg-theme-accent hover:text-theme-paper focus:opacity-100 group-hover/header:opacity-100 [@media(hover:none)]:opacity-100"
+                          aria-label={`Rename ${group.title}`}
+                        >
+                          <PencilIcon className="h-3 w-3" />
+                        </button>
+                      </Tooltip>
+                    )}
+                    {sectionId && (
+                      <span className="relative ml-auto flex shrink-0 items-center gap-1 pl-2">
+                        <Tooltip content="Delete section">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (sectionTotal === 0) handleDeleteSection(group);
+                              else setConfirmDeleteGroupId(confirmDeleteGroupId === sectionId ? null : sectionId);
+                            }}
+                            className="flex h-6 w-6 items-center justify-center rounded-button text-theme-muted opacity-0 transition hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 group-hover/header:opacity-100 [@media(hover:none)]:opacity-100"
+                            aria-label={`Delete ${group.title}`}
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                          </button>
+                        </Tooltip>
+                        <button
+                          type="button"
+                          onClick={() => startCreate(undefined, sectionId)}
+                          className="flex h-6 items-center gap-1 rounded-button px-1.5 text-[11px] font-semibold text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper font-body"
+                          aria-label={`Add label to ${group.title}`}
+                        >
+                          <PlusIcon className="h-3 w-3" /> Add
+                        </button>
+                      </span>
+                    )}
+                    <ChevronDownIcon className={`pointer-events-none relative h-3.5 w-3.5 shrink-0 transition-[transform,color] duration-200 peer-hover:text-theme-ink ${sectionId ? 'ml-1' : 'ml-auto'} ${collapsed ? '-rotate-90' : ''}`} aria-hidden="true" />
+                  </div>
+                  {sectionId && confirmDeleteGroupId === sectionId && (
+                    <div role="alert" className="animate-dropdown-in mx-4 mb-3 flex items-center gap-3 rounded-button border border-red-500/40 bg-red-500/10 px-3 py-2">
+                      <span className="min-w-0 flex-1 text-xs text-theme-ink font-body">
+                        Delete <strong>{group.title}</strong> and its {sectionTotal} {sectionTotal === 1 ? 'label' : 'labels'}?
+                      </span>
+                      <button type="button" onClick={() => setConfirmDeleteGroupId(null)} className={`${buttonClass} h-7`}>Cancel</button>
                       <button
                         type="button"
-                        onClick={() => revealWidget(group.sheetId, group.widgetId)}
-                        className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-button text-theme-muted opacity-0 transition hover:bg-theme-accent hover:text-theme-paper focus:opacity-100 group-hover/header:opacity-100"
-                        aria-label={`Go to ${group.title}`}
+                        onClick={() => handleDeleteSection(group)}
+                        className="flex h-7 items-center rounded-button bg-red-500 px-2.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 font-body"
                       >
-                        <ArrowRightIcon className="h-3 w-3" />
+                        Delete
                       </button>
-                    </Tooltip>
+                    </div>
                   )}
-                  <ChevronDownIcon className={`pointer-events-none relative ml-auto h-3.5 w-3.5 shrink-0 transition-[transform,color] duration-200 peer-hover:text-theme-ink ${collapsed ? '-rotate-90' : ''}`} aria-hidden="true" />
-                </div>
-                {!collapsed && (
-                  <div className="px-4 pb-3">
-                    <div role="list" className="flex flex-wrap gap-2">{group.entries.map(renderChip)}</div>
-                    {selectedEntry && renderDetail(selectedEntry)}
-                  </div>
-                )}
-              </section>
-            );
-          })
+                  {!collapsed && (
+                    <div className="px-4 pb-3">
+                      {sectionId && sectionId === groups[0]?.variableGroupId && (
+                        <p className="-mt-1 mb-2.5 truncate text-[11px] text-theme-muted font-body">
+                          Labels here are not tied to any widget. Use them in any formula.
+                        </p>
+                      )}
+                      {group.entries.length > 0 ? (
+                        <div role="list" className="flex flex-wrap gap-2">
+                          {group.entries.flatMap((entry, index) => (showBarAt(index) ? [dropBar, renderChip(entry, group, index)] : [renderChip(entry, group, index)]))}
+                          {showBarAt(group.entries.length) && dropBar}
+                        </div>
+                      ) : sectionId && !showCreate && (
+                        <p className={`variables-empty-section rounded-button px-3 py-2 text-xs text-theme-muted font-body ${isDropSection ? 'variables-empty-section--active' : ''}`}>
+                          {draggingId ? 'Drop here' : 'Empty. Add a label or drag one here.'}
+                        </p>
+                      )}
+                      {selectedEntry && renderDetail(selectedEntry)}
+                      {showCreate && creating && (
+                        <div data-create-editor className={group.entries.length > 0 ? 'mt-2.5' : undefined}>
+                          <VariableEditor
+                            className="variables-detail animate-dropdown-in space-y-3 rounded-button p-3.5"
+                            character={character}
+                            labels={labels}
+                            takenLabels={takenLabels}
+                            initialLabel={creating.label}
+                            referenceCount={0}
+                            onCancel={() => setCreating(null)}
+                            onSave={handleCreate}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+              );
+            }).flatMap((section, index) => {
+              if (!showNewSection) return [section];
+              if (index === 0 && !groups[0].variableGroupId) return [renderNewSectionButton(true), section];
+              if (groups[index].variableGroupId && !groups[index + 1]?.variableGroupId) return [section, renderNewSectionButton(false)];
+              return [section];
+            })}
+          </>
         )}
       </div>
+
+      {dragGhost && createPortal(
+        <div
+          ref={ghostRef}
+          className="variables-drag-ghost"
+          style={{ width: dragGhost.width, transform: `translate3d(${dragGhost.x}px, ${dragGhost.y}px, 0)` }}
+          aria-hidden="true"
+        >
+          <span className="variables-chip variables-drag-ghost__chip inline-flex h-7 max-w-full items-center gap-1.5 rounded-button pl-0.5 pr-2.5 font-mono text-xs">
+            <span className="-mr-1 flex h-6 w-4 shrink-0 items-center justify-center text-theme-accent"><GripVerticalIcon className="h-3.5 w-3.5" /></span>
+            <span className="min-w-0 truncate"><span className="text-theme-accent">@</span>{dragGhost.entry.label}</span>
+            {dragGhost.entry.formula && <span className="shrink-0 font-body text-[10px] font-semibold italic text-theme-muted">fx</span>}
+            <span className="shrink-0 text-theme-muted">=</span>
+            <ChipValue value={dragGhost.entry.value} generatedCount={dragGhost.entry.generatedCount} />
+          </span>
+        </div>,
+        document.body,
+      )}
 
       {toast && (
         <div className="timeline-toast flex flex-shrink-0 items-center gap-3 border-t border-theme-border bg-theme-accent px-4 py-2.5 text-theme-paper" role="status" aria-live="polite">

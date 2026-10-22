@@ -2,6 +2,7 @@ import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource,
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
 import type { CharacterVariable, DicePoolComponent, ExperienceLevel, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
+import { DEFAULT_VARIABLE_GROUP_NAME, getVariableGroupNames } from './variableGroups';
 import { clampTrackValue, getTrackBounds, getTrackDerivedValue } from './thresholdTrack';
 import { getExperienceDerivedValue, normalizeXp } from './experienceLevel';
 import { getSkillDerivedValue, normalizeSkillPoints } from './skillTree';
@@ -19,7 +20,6 @@ import {
   type FormulaValue,
 } from './formulaSyntax';
 
-export const CUSTOM_VARIABLES_GROUP = 'Standalone variables';
 export const CUSTOM_VARIABLES_SHEET = 'Character';
 
 /**
@@ -958,7 +958,7 @@ export function resolveCharacterFormulas(character: Character): Character | null
       if (computed === null || computed === variable.value) return variable;
       variablesChanged = true;
       allChanges.push({
-        widgetLabel: 'Variables',
+        widgetLabel: 'Standalone labels',
         fieldName: `@${variable.label}`,
         oldValue: variable.value,
         newValue: computed,
@@ -1669,9 +1669,11 @@ export function resolveDicePoolComponentFormulas(component: DicePoolComponent, l
 export function getAvailableLabels(character: Character): { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] {
   const result: { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] = [];
 
+  const groupNames = getVariableGroupNames(character);
   for (const variable of character.variables ?? []) {
     if (variable.label) {
-      result.push({ label: variable.label, value: getVariableLabelValue(variable), widgetLabel: CUSTOM_VARIABLES_GROUP, sheetName: CUSTOM_VARIABLES_SHEET });
+      const widgetLabel = groupNames.get(variable.id) ?? DEFAULT_VARIABLE_GROUP_NAME;
+      result.push({ label: variable.label, value: getVariableLabelValue(variable), widgetLabel, sheetName: CUSTOM_VARIABLES_SHEET });
     }
   }
 

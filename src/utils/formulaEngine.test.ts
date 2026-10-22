@@ -135,7 +135,7 @@ describe('custom character variables', () => {
 
   it('lists variables first in the label browser', () => {
     const labels = getAvailableLabels(withVariables([{ id: 'v1', label: 'bonus', value: 3 }]));
-    expect(labels[0]).toMatchObject({ label: 'bonus', value: 3, widgetLabel: 'Standalone variables' });
+    expect(labels[0]).toMatchObject({ label: 'bonus', value: 3, widgetLabel: 'Standalone labels' });
   });
 });
 

@@ -4190,10 +4190,82 @@ button.dice-result__die--selectable:hover {
   background: color-mix(in srgb, var(--color-ink) 4%, transparent);
 }
 
+.variables-chip-handle {
+  cursor: grab;
+  touch-action: none;
+  transition: color 150ms, background-color 150ms;
+}
+
+.variables-chip:not(.variables-chip--selected) .variables-chip-handle:hover {
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+}
+
+body.variables-dragging,
+body.variables-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.variables-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.variables-drag-ghost__chip {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-paper));
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.2);
+  transform: rotate(-2deg) scale(1.06);
+  animation: variables-drag-pickup 140ms ease-out;
+}
+
+@keyframes variables-drag-pickup {
+  from { transform: rotate(0) scale(1); box-shadow: none; }
+}
+
+.variables-section--drop,
+.variables-section--drop > .sticky {
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-paper));
+}
+
+.variables-drop-bar {
+  align-self: stretch;
+  width: 2px;
+  min-height: 1.75rem;
+  margin: 0 -5px;
+  border-radius: 1px;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.variables-empty-section {
+  border: 1px dashed color-mix(in srgb, var(--color-ink) 18%, transparent);
+  transition: border-color 150ms, color 150ms;
+}
+
+.variables-empty-section--active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.variables-new-section {
+  border: 1px dashed color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+
+.variables-new-section:hover {
+  border-color: var(--color-accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .variables-panel,
   .variables-value-flash,
-  .variables-row-focus {
+  .variables-row-focus,
+  .variables-drag-ghost__chip {
     animation: none;
   }
 

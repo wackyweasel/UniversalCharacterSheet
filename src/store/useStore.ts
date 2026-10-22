@@ -19,6 +19,7 @@ import { createDefaultWalletCurrencies } from '../utils/wallet';
 import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
 import { createDefaultCalendarData } from '../utils/calendar';
 import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
+import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableToGroup, renameVariableGroup } from '../utils/variableGroups';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -259,6 +260,10 @@ interface StoreState {
   addVariable: (variable: Omit<CharacterVariable, 'id'>) => string | null;
   updateVariable: (id: string, patch: Partial<Omit<CharacterVariable, 'id'>>, options?: { updateReferences?: boolean }) => void;
   renameLabel: (from: string, to: string, updateReferences: boolean) => void;
+  addVariableGroup: (name: string) => string | null;
+  renameVariableGroup: (id: string, name: string) => void;
+  deleteVariableGroup: (id: string) => void;
+  moveVariable: (id: string, groupId: string, beforeVariableId?: string | null) => void;
   removeLabel: (label: string) => void;
   
   // Undo/Redo Actions
@@ -372,7 +377,7 @@ export const useStore = create<StoreState>((set, get) => {
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
-        ...(preset.variables ? { variables: preset.variables.map((variable) => ({ ...variable })) } : {}),
+        ...copyVariableData(preset),
         activeSheetId
       };
 
@@ -409,7 +414,7 @@ export const useStore = create<StoreState>((set, get) => {
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
-        ...(preset.variables ? { variables: preset.variables.map((variable) => ({ ...variable })) } : {}),
+        ...copyVariableData(preset),
         activeSheetId,
       };
 
@@ -475,7 +480,7 @@ export const useStore = create<StoreState>((set, get) => {
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
-        ...(preset.variables ? { variables: preset.variables.map((variable) => ({ ...variable })) } : {}),
+        ...copyVariableData(preset),
         activeSheetId
       };
 
@@ -2974,7 +2979,7 @@ export const useStore = create<StoreState>((set, get) => {
       const state = get();
       if (!state.activeCharacterId || !variable.label) return null;
       const id = uuidv4();
-      applyCharacterTransform(`Add variable @${variable.label}`, (character) => ({
+      applyCharacterTransform(`Add label @${variable.label}`, (character) => ({
         ...character,
         variables: [...(character.variables ?? []), { ...variable, id }],
       }));
@@ -2982,7 +2987,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     updateVariable: (id, patch, options) => {
-      applyCharacterTransform('Update variable', (character) => {
+      applyCharacterTransform('Update label', (character) => {
         const existing = character.variables?.find((variable) => variable.id === id);
         if (!existing) return character;
         const { label, ...rest } = patch;
@@ -3012,6 +3017,25 @@ export const useStore = create<StoreState>((set, get) => {
 
     removeLabel: (label) => {
       applyCharacterTransform(`Delete @${label}`, (character) => removeLabelFromCharacter(character, label));
+    },
+
+    addVariableGroup: (name) => {
+      if (!get().activeCharacterId) return null;
+      const id = uuidv4();
+      applyCharacterTransform(`Add section ${name}`, (character) => addVariableGroup(character, { id, name }));
+      return id;
+    },
+
+    renameVariableGroup: (id, name) => {
+      applyCharacterTransform(`Rename section to ${name}`, (character) => renameVariableGroup(character, id, name));
+    },
+
+    deleteVariableGroup: (id) => {
+      applyCharacterTransform('Delete section', (character) => deleteVariableGroup(character, id));
+    },
+
+    moveVariable: (id, groupId, beforeVariableId) => {
+      applyCharacterTransform('Move label', (character) => moveVariableToGroup(character, id, groupId, beforeVariableId));
     },
 
     // Undo/Redo implementations

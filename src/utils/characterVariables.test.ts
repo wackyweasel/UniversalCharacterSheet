@@ -62,7 +62,7 @@ describe('custom variables in the formula engine', () => {
   it('exposes variables as labels and in the label picker', () => {
     const hero = character([stats], [{ id: 'v1', label: 'prof', value: 2 }, { id: 'v2', label: 'title', value: 'Sir' }]);
     expect(collectLabels(hero)).toMatchObject({ prof: 2, title: 'Sir', str: 16 });
-    expect(getAvailableLabels(hero)[0]).toEqual({ label: 'prof', value: 2, widgetLabel: 'Standalone variables', sheetName: 'Character' });
+    expect(getAvailableLabels(hero)[0]).toEqual({ label: 'prof', value: 2, widgetLabel: 'Standalone labels', sheetName: 'Character' });
   });
 
   it('resolves variable formulas and lets widgets use the result', () => {
