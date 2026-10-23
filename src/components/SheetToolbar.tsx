@@ -20,6 +20,7 @@ import {
   PlusIcon,
   RowsIcon,
   SearchIcon,
+  TagIcon,
   UndoIcon,
 } from './icons';
 
@@ -53,6 +54,8 @@ interface SheetToolbarProps {
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
   onSearch: () => void;
+  variablesOpen?: boolean;
+  onToggleVariables?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
   listHighlighted?: boolean;
@@ -377,6 +380,8 @@ export default function SheetToolbar({
   onExpandAll,
   onCollapseAll,
   onSearch,
+  variablesOpen = false,
+  onToggleVariables,
   attachmentControlsVisible,
   onToggleAttachmentControls,
   listHighlighted = false,
@@ -407,9 +412,10 @@ export default function SheetToolbar({
     if (playLayout === 'canvas' && onAutoStack) candidates.push({ id: 'auto-stack', labeledWidth: 110, iconWidth: 42 });
     candidates.push({ id: 'undo-redo', labeledWidth: 80, iconWidth: 80 });
     if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42, pinned: true });
+    if (onToggleVariables) candidates.push({ id: 'variables', labeledWidth: 118, iconWidth: 42, pinned: true });
     candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
     return candidates;
-  }, [onAutoStack, playLayout, workspace]);
+  }, [onAutoStack, onToggleVariables, playLayout, workspace]);
   const { containerRef, containerWidth, inlineActionIds: overflowInlineIds, labeledActionIds } = useToolbarOverflow({
     actions,
     coreWidth: 464,
@@ -421,9 +427,10 @@ export default function SheetToolbar({
     () => {
       if (!compact) return overflowInlineIds;
       const compactIds = workspace === 'play' ? ['undo-redo', 'timeline'] : ['undo-redo'];
+      if (onToggleVariables) compactIds.push('variables');
       return new Set(layoutFitsInline ? ['layout', ...compactIds] : compactIds);
     },
-    [compact, layoutFitsInline, overflowInlineIds, workspace],
+    [compact, layoutFitsInline, onToggleVariables, overflowInlineIds, workspace],
   );
   const compactUtilityClass = compact ? `${utilityButtonClass} !px-1.5` : utilityButtonClass;
   const showLabel = (id: string) => labeledActionIds.has(id);
@@ -558,6 +565,20 @@ export default function SheetToolbar({
             className={compactUtilityClass}
           >
             <ClockIcon className="h-4 w-4" /> {showLabel('timeline') && <span>Timeline</span>}
+          </button>
+        </Tooltip>
+      )}
+      {onToggleVariables && inlineActionIds.has('variables') && (
+        <Tooltip content={variablesOpen ? 'Close labels' : 'Labels'} placement="below">
+          <button
+            type="button"
+            data-tutorial="labels-button"
+            onClick={onToggleVariables}
+            aria-pressed={variablesOpen}
+            aria-label="Labels"
+            className={`${compactUtilityClass} ${variablesOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
+          >
+            <TagIcon className="h-4 w-4" /> {showLabel('variables') && <span>Labels</span>}
           </button>
         </Tooltip>
       )}

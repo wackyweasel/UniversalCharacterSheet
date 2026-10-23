@@ -1700,7 +1700,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
         onDragOver={(e) => e.preventDefault()}
       >
         <table
-          className={`${hasDynamicColumn ? 'w-full' : ''} ${cellClass}`}
+          className={`bg-theme-paper ${hasTableCornerRadius ? 'rounded-theme' : ''} ${hasDynamicColumn ? 'w-full' : ''} ${cellClass}`}
           style={{
             borderCollapse: 'separate',
             borderSpacing: 0,

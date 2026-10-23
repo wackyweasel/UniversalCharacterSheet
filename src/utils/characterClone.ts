@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CardTableCard, Character, Sheet, Widget, WidgetType } from '../types';
 import { cloneInventoryData } from './inventory';
+import { copyVariableData } from './variableGroups';
 import {
   getCardTableBackDesign,
   getCardTableCards,
@@ -94,6 +95,7 @@ export function migrateCharacter(character: Character): Character {
     customTheme: character.customTheme,
     sheets: [defaultSheet],
     activeSheetId: defaultSheet.id,
+    ...copyVariableData(character),
   };
 }
 

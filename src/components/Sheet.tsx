@@ -18,11 +18,13 @@ import ThemeSidebar from './ThemeSidebar';
 import DraggableWidget from './DraggableWidget';
 import VerticalWidget from './VerticalWidget';
 import AttachmentButtons from './AttachmentButtons';
+import AutoStackDialog from './AutoStackDialog';
 import CardDeckLayer from './card-table/CardDeckLayer';
 import WidgetShadows from './WidgetShadows';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
+import VariablesPanel from './VariablesPanel';
 import TimelineToasts from './TimelineToasts';
 import ShareExportMenu from './ShareExportMenu';
 import SheetSearch from './SheetSearch';
@@ -34,6 +36,7 @@ import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon, CheckI
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
+import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
@@ -240,6 +243,16 @@ export default function Sheet() {
       setTimelineOpen(false);
     }
   }, [mode, setTimelineOpen, timelineIsOpen]);
+
+  const variablesIsOpen = useVariablesPanelStore((state) => state.isOpen);
+  const toggleVariables = useVariablesPanelStore((state) => state.toggleOpen);
+  const setVariablesOpen = useVariablesPanelStore((state) => state.setOpen);
+
+  useEffect(() => {
+    if (mode === 'print' && variablesIsOpen) {
+      setVariablesOpen(false);
+    }
+  }, [mode, setVariablesOpen, variablesIsOpen]);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -247,6 +260,28 @@ export default function Sheet() {
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+
+  const handleToggleVariables = () => {
+    if (isCurrentTutorialStep('advanced-open-labels')) {
+      setVariablesOpen(true);
+      advanceTutorial();
+    } else {
+      toggleVariables();
+    }
+  };
+
+  useEffect(() => {
+    const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : null;
+    if (step === 'advanced-open-labels') {
+      setMode('play');
+      setVariablesOpen(false);
+      setTimelineOpen(false);
+    } else if (step === 'advanced-labels-overview' || step === 'advanced-labels-standalone') {
+      setVariablesOpen(true);
+    } else if (step === 'advanced-complete') {
+      setVariablesOpen(false);
+    }
+  }, [tutorialStep, setMode, setTimelineOpen, setVariablesOpen]);
   
   // Print mode state
   const printerFriendly = usePrintStore((state) => state.printerFriendly);
@@ -338,7 +373,7 @@ export default function Sheet() {
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [paperFormatDropdownOpen, setPaperFormatDropdownOpen] = useState(false);
   const paperFormatDropdownRef = useRef<HTMLDivElement>(null);
-  const [showAutoStackConfirm, setShowAutoStackConfirm] = useState(false);
+  const [showAutoStackDialog, setShowAutoStackDialog] = useState(false);
   const [wideListLayout, setWideListLayout] = useState(() => window.innerWidth >= 900);
 
   // Built only while searching: rebuilding on every widget move/raise is costly on large sheets.
@@ -363,14 +398,18 @@ export default function Sheet() {
     return () => window.removeEventListener('resize', updateWideListLayout);
   }, []);
 
-  const handleSearchResult = useCallback((result: SheetSearchResult) => {
+  const revealWidget = useCallback((sheetId: string, widgetId: string) => {
     setSearchReveal({
-      sheetId: result.sheetId,
-      widgetId: result.widgetId,
+      sheetId,
+      widgetId,
       key: ++searchRevealSequenceRef.current,
     });
-    if (activeCharacter?.activeSheetId !== result.sheetId) selectSheet(result.sheetId);
+    if (activeCharacter?.activeSheetId !== sheetId) selectSheet(sheetId);
   }, [activeCharacter?.activeSheetId, selectSheet]);
+
+  const handleSearchResult = useCallback((result: SheetSearchResult) => {
+    revealWidget(result.sheetId, result.widgetId);
+  }, [revealWidget]);
   
   const verticalListScrollRef = useRef<HTMLDivElement>(null);
   const verticalWidgetRefs = useRef(new Map<string, HTMLDivElement>());
@@ -571,7 +610,7 @@ export default function Sheet() {
   });
 
   // Auto-stack hook
-  const { handleAutoStack, isAutoStacking } = useAutoStack({
+  const { measure: measureAutoStack, apply: applyAutoStack, isAutoStacking } = useAutoStack({
     widgets: activeSheetWidgets,
   });
 
@@ -1455,6 +1494,8 @@ export default function Sheet() {
           onToggleSheetSwitcher={() => setSheetDropdownOpen((open) => !open)}
           timelineOpen={timelineIsOpen}
           onToggleTimeline={toggleTimeline}
+          variablesOpen={variablesIsOpen}
+          onToggleVariables={handleToggleVariables}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={undo}
@@ -1698,6 +1739,7 @@ export default function Sheet() {
 
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
+        {variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
         {workspace === 'play' && <TimelineToasts />}
 
         {/* Tutorial Bubble */}
@@ -2125,8 +2167,10 @@ export default function Sheet() {
         onAddWidget={() => handleOpenWidgetSidebar()}
         onChangeTheme={() => handleToggleThemeSidebar()}
         changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-        onAutoStack={() => setShowAutoStackConfirm(true)}
+        onAutoStack={() => setShowAutoStackDialog(true)}
         onSearch={() => setSheetSearchOpen(true)}
+        variablesOpen={variablesIsOpen}
+        onToggleVariables={handleToggleVariables}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
@@ -2178,7 +2222,7 @@ export default function Sheet() {
           onAddWidget={() => handleOpenWidgetSidebar()}
           onChangeTheme={() => handleToggleThemeSidebar()}
           changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
-          onAutoStack={() => setShowAutoStackConfirm(true)}
+          onAutoStack={() => setShowAutoStackDialog(true)}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         />
@@ -2426,41 +2470,25 @@ export default function Sheet() {
         </>
       )}
 
-      {/* Auto Stack Confirmation Modal */}
-      {showAutoStackConfirm && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-50 animate-fade-in" 
-            onClick={() => setShowAutoStackConfirm(false)}
-          />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme p-4 z-50 min-w-[250px] animate-fade-in">
-            <h3 className="font-heading text-theme-ink font-bold mb-2">Auto Stack?</h3>
-            <p className="text-sm text-theme-muted font-body mb-4">
-              This will automatically rearrange all widgets on this sheet. Your current layout will be replaced.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowAutoStackConfirm(false)}
-                className="px-3 py-1.5 text-sm font-body text-theme-ink hover:bg-theme-accent/20 rounded-button transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  void handleAutoStack();
-                  recordSheetWorkflowEvent('widgets_auto_stacked', 'widget', { widgetCount: activeSheetWidgets.length });
-                  setShowAutoStackConfirm(false);
-                }}
-                className="px-3 py-1.5 text-sm font-body bg-theme-accent text-theme-paper hover:bg-theme-accent-hover rounded-button transition-colors"
-              >
-                Auto Stack
-              </button>
-            </div>
-          </div>
-        </>
+      {showAutoStackDialog && (
+        <AutoStackDialog
+          measure={measureAutoStack}
+          onClose={() => setShowAutoStackDialog(false)}
+          onApply={(measurement, settings, options) => {
+            setShowAutoStackDialog(false);
+            void applyAutoStack(measurement, settings, options);
+            recordSheetWorkflowEvent('widgets_auto_stacked', 'widget', {
+              widgetCount: activeSheetWidgets.length,
+              aspect: settings.aspect,
+              gap: settings.gap,
+              autoAttach: settings.autoAttach,
+              customizedWidgetCount: Object.values(options).filter((value) => value && Object.keys(value).length > 0).length,
+            });
+          }}
+        />
       )}
 
-      {isAutoStacking && (
+      {isAutoStacking && !showAutoStackDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center cursor-wait" role="status" aria-live="polite">
           <div className="bg-theme-paper border-[length:var(--border-width)] border-theme-border shadow-theme rounded-theme px-4 py-2 font-body text-sm text-theme-ink animate-fade-in">
             Arranging widgets…
@@ -2557,6 +2585,7 @@ export default function Sheet() {
 
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}
+      {mode !== 'print' && variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
       {mode === 'play' && <TimelineToasts />}
 
       {/* Tutorial Bubble */}

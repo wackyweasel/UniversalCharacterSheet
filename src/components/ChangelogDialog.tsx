@@ -38,6 +38,16 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.13.0',
+    changes: [
+      'New Labels panel: see, search, edit, rename and delete every label on your character. Renaming updates the formulas that use it.',
+      'Standalone labels: labels not tied to any widget, organized into your own sections. Use them in any formula.',
+      'The Advanced Automations tutorial now covers the Labels panel.',
+      'Notes: split your notes into tabs. Use + and − in the header to add or remove tabs, double-click a tab to rename it, and drag the tab bar to scroll through many tabs.',
+      'Auto Stack now opens a dialog: pick an aspect ratio, a gap (even none) and whether touching widgets get attached, with a live preview. Per widget, keep its size, pin it to a position, let it shrink with a scrollbar or allow white space around it.',
+    ],
+  },
+  {
     version: '1.12.2',
     changes: [
       'Table: fixed editing and selecting text in cells on touch devices.',

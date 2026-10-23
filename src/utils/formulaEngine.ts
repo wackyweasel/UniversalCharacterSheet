@@ -1,7 +1,8 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField, RollTableItem } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
-import type { DicePoolComponent, ExperienceLevel, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
+import type { CharacterVariable, DicePoolComponent, ExperienceLevel, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
+import { DEFAULT_VARIABLE_GROUP_NAME, getVariableGroupNames } from './variableGroups';
 import { clampTrackValue, getTrackBounds, getTrackDerivedValue } from './thresholdTrack';
 import { getExperienceDerivedValue, normalizeXp } from './experienceLevel';
 import { getSkillDerivedValue, normalizeSkillPoints } from './skillTree';
@@ -19,12 +20,18 @@ import {
   type FormulaValue,
 } from './formulaSyntax';
 
+export const CUSTOM_VARIABLES_SHEET = 'Character';
+
 /**
  * Collects all labels and their current values from a character.
  * Scans all sheets and all widgets.
  */
 export function collectLabels(character: Character): FormulaLabels {
   const labels: FormulaLabels = {};
+
+  for (const variable of character.variables ?? []) {
+    if (variable.label) labels[variable.label] = getVariableLabelValue(variable);
+  }
 
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
@@ -250,6 +257,11 @@ function getInventoryFieldLabelValue(field: InventoryItemField): FormulaValue | 
   if (field.type === 'checkbox') return field.value ? 1 : 0;
   const value = typeof field.value === 'number' ? field.value : Number(field.value);
   return Number.isFinite(value) ? value : 0;
+}
+
+export function getVariableLabelValue(variable: CharacterVariable): FormulaValue {
+  if (typeof variable.value === 'number') return Number.isFinite(variable.value) ? variable.value : 0;
+  return toTextLabelValue(String(variable.value ?? ''));
 }
 
 /** Text that is entirely a number is exposed as a number so it keeps working in arithmetic. */
@@ -939,9 +951,30 @@ export function resolveCharacterFormulas(character: Character): Character | null
       return passChanged ? { ...sheet, widgets: updatedWidgets } : sheet;
     });
 
-    if (passChanged) {
+    let variablesChanged = false;
+    const updatedVariables = current.variables?.map(variable => {
+      if (!variable.formula?.trim()) return variable;
+      const computed = evaluateFormulaValue(variable.formula, labels);
+      if (computed === null || computed === variable.value) return variable;
+      variablesChanged = true;
+      allChanges.push({
+        widgetLabel: 'Standalone labels',
+        fieldName: `@${variable.label}`,
+        oldValue: variable.value,
+        newValue: computed,
+        formula: variable.formula,
+        sheetName: '',
+      });
+      return { ...variable, value: computed };
+    });
+
+    if (passChanged || variablesChanged) {
       anyChanges = true;
-      current = { ...current, sheets: updatedSheets };
+      current = {
+        ...current,
+        sheets: passChanged ? updatedSheets : current.sheets,
+        ...(variablesChanged ? { variables: updatedVariables } : {}),
+      };
     } else {
       break; // No changes, no need for another pass
     }
@@ -1636,6 +1669,14 @@ export function resolveDicePoolComponentFormulas(component: DicePoolComponent, l
 export function getAvailableLabels(character: Character): { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] {
   const result: { label: string; value: FormulaValue; widgetLabel: string; sheetName: string }[] = [];
 
+  const groupNames = getVariableGroupNames(character);
+  for (const variable of character.variables ?? []) {
+    if (variable.label) {
+      const widgetLabel = groupNames.get(variable.id) ?? DEFAULT_VARIABLE_GROUP_NAME;
+      result.push({ label: variable.label, value: getVariableLabelValue(variable), widgetLabel, sheetName: CUSTOM_VARIABLES_SHEET });
+    }
+  }
+
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
       const widgetLabel = widget.data.label || widget.type;
@@ -1845,6 +1886,10 @@ function extractFormulaRefs(formula: string, labels: FormulaLabels = {}): string
 export function buildDependencyGraph(character: Character): Record<string, string[]> {
   const graph: Record<string, string[]> = {};
   const labels = collectLabels(character);
+
+  for (const variable of character.variables ?? []) {
+    if (variable.label && variable.formula) graph[variable.label] = extractFormulaRefs(variable.formula, labels);
+  }
 
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
