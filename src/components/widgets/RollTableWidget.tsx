@@ -3,6 +3,7 @@ import { InlineFormulaText } from '../InlineFormulaText';
 import { RollTableItem, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
 import { Tooltip } from '../Tooltip';
 import { ChevronDownIcon, MinusIcon, PlusIcon } from '../icons';
 
@@ -69,6 +70,7 @@ export default function RollTableWidget({ widget, mode }: Props) {
     setIsRolling(false);
     const resultDescription = selectedItems.map((item) => `"${item.text}"`).join(', ');
     addTimelineEvent(label || 'Roll Table', 'ROLL_TABLE', `Rolled: ${resultDescription}`, '🎰');
+    emitWidgetAction({ widgetId: widget.id, kind: 'roll', results: selectedItems.map((item) => item.text), text: resultDescription });
   };
 
   const animateRoll = (validItems: typeof normalizedItems, selectedItems: typeof normalizedItems) => {

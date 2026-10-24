@@ -18,7 +18,7 @@ const VISIT_WINDOWS = [
 type VisitWindowKey = typeof VISIT_WINDOWS[number]['key'];
 type LastVisitTime = Partial<Record<VisitWindowKey, number>>;
 
-type TelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'gallery' | 'print' | 'timeline' | 'view' | 'app';
+type TelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'gallery' | 'print' | 'timeline' | 'view' | 'app' | 'event';
 
 type TelemetryMetadata = Record<string, string | number | boolean | null | undefined>;
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
+import { useEventsPanelStore } from '../store/useEventsPanelStore';
 import type { Character, CharacterVariable } from '../types';
 import {
   buildReferenceIndex,
@@ -891,6 +892,10 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
       revealWidget(reference.sheetId, reference.widgetId);
       return;
     }
+    if (reference.sourceId.startsWith('event:')) {
+      useEventsPanelStore.getState().showEvent(reference.sourceId.slice('event:'.length));
+      return;
+    }
     const variableId = reference.sourceId.replace(/^variable:/, '');
     const entry = entries.find((item) => item.variableId === variableId);
     if (entry) focusEntry(entry);
@@ -1361,7 +1366,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
                   onHover={(hovering) => highlightWidget(hovering ? reference.widgetId ?? null : entry.widgetId ?? null)}
                   title={reference.widgetId ? `Go to ${reference.title}${reference.sheetName ? ` (${reference.sheetName})` : ''}` : `Show ${reference.title}`}
                 >
-                  <span className={`truncate ${reference.widgetId ? '' : 'font-mono'}`}>{reference.title}</span>
+                  <span className={`truncate ${reference.widgetId || reference.sourceId.startsWith('event:') ? '' : 'font-mono'}`}>{reference.title}</span>
                   {reference.count > 1 && <span className="opacity-70">×{reference.count}</span>}
                 </Chip>
               ))

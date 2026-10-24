@@ -10,7 +10,7 @@ const VIEWPORT_PADDING = 8;
 const stopPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
 
 function DiceResultDialog({ entry }: { entry: DiceResultEntry }) {
-  const { widgetId, view } = entry;
+  const { widgetId, view, centered } = entry;
   const dialogRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const [rerolling, setRerolling] = useState(false);
@@ -21,15 +21,15 @@ function DiceResultDialog({ entry }: { entry: DiceResultEntry }) {
     // Click point as a fraction of the widget, so the dialog keeps its spot while the sheet pans or zooms.
     let origin: { fx: number; fy: number } | null | undefined;
     const update = () => {
-      const anchor = document.querySelector<HTMLElement>(`[data-widget-id="${CSS.escape(widgetId)}"]`);
-      if (!anchor) {
+      const anchor = centered ? null : document.querySelector<HTMLElement>(`[data-widget-id="${CSS.escape(widgetId)}"]`);
+      if (!anchor && !centered) {
         onClose();
         return;
       }
 
-      const rect = anchor.getBoundingClientRect();
+      const rect = anchor?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
       if (origin === undefined) {
-        const click = getLastClickPoint();
+        const click = centered ? null : getLastClickPoint();
         origin = click && rect.width > 0 && rect.height > 0
           ? { fx: (click.x - rect.left) / rect.width, fy: (click.y - rect.top) / rect.height }
           : null;
@@ -67,7 +67,7 @@ function DiceResultDialog({ entry }: { entry: DiceResultEntry }) {
 
     update();
     return () => cancelAnimationFrame(frame);
-  }, [widgetId, onClose]);
+  }, [widgetId, centered, onClose]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -126,5 +126,5 @@ export default function DiceResultHost() {
     if (mode === 'print') closeDiceResult();
   }, [mode]);
 
-  return entry ? <DiceResultDialog entry={entry} /> : null;
+  return entry ? <DiceResultDialog key={entry.widgetId} entry={entry} /> : null;
 }

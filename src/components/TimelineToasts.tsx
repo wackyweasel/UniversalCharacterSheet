@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTimelineStore, useCurrentCharacterEvents, TimelineEvent } from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
+import { EVENT_TIMELINE_TYPE } from '../events/constants';
 
 const MAX_VISIBLE = 3;
 const VISIBLE_MS = 4200;
@@ -44,6 +45,7 @@ export default function TimelineToasts() {
   const enabled = useTimelineStore((s) => s.showToasts);
   const panelOpen = useTimelineStore((s) => s.isOpen);
   const showFormulas = useTimelineStore((s) => s.showFormulas);
+  const showEvents = useTimelineStore((s) => s.showEvents);
   const activeCharacterId = useStore((s) => s.activeCharacterId);
   const events = useCurrentCharacterEvents();
   const [toasts, setToasts] = useState<TimelineEvent[]>([]);
@@ -66,11 +68,13 @@ export default function TimelineToasts() {
 
     if (!enabled || panelOpen) return;
     const incoming = fresh.filter((event) => (
-      now - event.timestamp < FRESH_MS && (showFormulas || event.widgetType !== 'FORMULA')
+      now - event.timestamp < FRESH_MS
+      && (showFormulas || event.widgetType !== 'FORMULA')
+      && (showEvents || event.widgetType !== EVENT_TIMELINE_TYPE)
     ));
     if (incoming.length === 0) return;
     setToasts((current) => [...current, ...incoming].slice(-MAX_VISIBLE));
-  }, [events, activeCharacterId, enabled, panelOpen, showFormulas]);
+  }, [events, activeCharacterId, enabled, panelOpen, showFormulas, showEvents]);
 
   useEffect(() => {
     if (!enabled || panelOpen) setToasts([]);

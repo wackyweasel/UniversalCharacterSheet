@@ -116,6 +116,24 @@ describe('label references', () => {
     const labels = collectLabels(hero);
     expect(getMissingLabels(index, collectLabelEntries(hero, labels), labels)).toEqual(['ghost', 'prof']);
   });
+
+  it('leaves trigger data used only by events to the event checks', () => {
+    const withEvent: Character = {
+      ...character([stats], [
+        { id: 'v1', label: 'prof', value: 2 },
+        { id: 'v2', label: 'dmg', value: 0, formula: '@event_shared' },
+      ]),
+      events: [{
+        id: 'e1',
+        enabled: true,
+        trigger: { kind: 'health.damaged', widgetId: 'w-hp' },
+        condition: '@event_damage > @event_shared',
+        effects: [{ id: 'f1', kind: 'label.add', target: 'prof', params: { amount: '@event_damage' } }],
+      }],
+    };
+    const labels = collectLabels(withEvent);
+    expect(getMissingLabels(buildReferenceIndex(withEvent), collectLabelEntries(withEvent, labels), labels)).toEqual(['event_shared']);
+  });
 });
 
 describe('renaming and removing labels', () => {

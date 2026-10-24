@@ -48,6 +48,40 @@ describe('cloneCharacterForWorkspace', () => {
     expect(first.attachedTo).toEqual([second.id]);
     expect(second.attachedTo).toEqual([first.id]);
   });
+
+  it('points copied events at the copied widgets', () => {
+    const clone = cloneCharacterForWorkspace({
+      ...character,
+      events: [{
+        id: 'event-1',
+        enabled: true,
+        trigger: { kind: 'notes.changed', widgetId: 'widget-1' },
+        effects: [{ id: 'effect-1', kind: 'notes.append', widgetId: 'widget-2', params: { text: 'Hi' } }],
+      }],
+    });
+    const [first, second] = clone.sheets[0].widgets;
+    const [event] = clone.events!;
+
+    expect(event.id).not.toBe('event-1');
+    expect(event.trigger.widgetId).toBe(first.id);
+    expect(event.effects[0]).toMatchObject({ widgetId: second.id, params: { text: 'Hi' } });
+    expect(event.effects[0].id).not.toBe('effect-1');
+  });
+
+  it('points "run another event" effects at the copied events', () => {
+    const clone = cloneCharacterForWorkspace({
+      ...character,
+      events: [
+        { id: 'event-1', enabled: true, trigger: { kind: 'manual' }, effects: [{ id: 'effect-1', kind: 'event.run', target: 'event-2' }] },
+        { id: 'event-2', enabled: true, trigger: { kind: 'manual' }, effects: [{ id: 'effect-2', kind: 'event.run', target: 'gone' }] },
+      ],
+    });
+    const [first, second] = clone.events!;
+
+    expect(second.id).not.toBe('event-2');
+    expect(first.effects[0].target).toBe(second.id);
+    expect(second.effects[0].target).toBe('gone');
+  });
 });
 
 describe('migrateCharacter', () => {

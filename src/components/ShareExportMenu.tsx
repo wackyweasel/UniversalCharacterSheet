@@ -8,6 +8,7 @@ import GalleryShareModal from './GalleryShareModal';
 import { Tooltip } from './Tooltip';
 import {
   ArrowLeftIcon,
+  BoltIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   ClockIcon,
@@ -54,6 +55,8 @@ interface ShareExportMenuProps {
   onCollapseAll?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
+  eventsOpen?: boolean;
+  onToggleEvents?: () => void;
   inlineActionIds?: ReadonlySet<string>;
   topSection?: ReactNode;
 }
@@ -94,6 +97,8 @@ export default function ShareExportMenu({
   onCollapseAll,
   attachmentControlsVisible,
   onToggleAttachmentControls,
+  eventsOpen = false,
+  onToggleEvents,
   inlineActionIds = new Set(),
   topSection,
 }: ShareExportMenuProps) {
@@ -161,6 +166,7 @@ export default function ShareExportMenu({
     Boolean(onAddWidget && !inlineActionIds.has('add-widget')) ||
     Boolean(onChangeTheme && !inlineActionIds.has('theme')) ||
     Boolean(onAutoStack && !inlineActionIds.has('auto-stack')) ||
+    Boolean(onToggleEvents && !inlineActionIds.has('events')) ||
     Boolean((onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand'));
 
   return (
@@ -306,6 +312,7 @@ export default function ShareExportMenu({
                 {onAddWidget && !inlineActionIds.has('add-widget') && <Tooltip content="Open the widget toolbox" placement="below"><button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PlusIcon className="h-4 w-4" />Add Widget</button></Tooltip>}
                 {onChangeTheme && !inlineActionIds.has('theme') && <Tooltip content={changeThemeLabel === 'Change Theme' ? 'Open theme customization' : 'Close theme customization'} placement="below"><button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PaletteIcon className="h-4 w-4" />{changeThemeLabel}</button></Tooltip>}
                 {onAutoStack && !inlineActionIds.has('auto-stack') && <Tooltip content="Arrange canvas widgets into columns automatically" placement="below"><button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><RowsIcon className="h-4 w-4" />Auto Stack</button></Tooltip>}
+                {onToggleEvents && !inlineActionIds.has('events') && <Tooltip content={eventsOpen ? 'Close the events panel' : 'Things that happen automatically on this sheet'} placement="below"><button type="button" data-tutorial="events-button-mobile" onClick={() => { onToggleEvents(); onOpenChange(false); }} aria-expanded={eventsOpen} aria-controls="events-panel" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><BoltIcon className="h-4 w-4" />Events</button></Tooltip>}
                 {(onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand') && <>
                   {onExpandAll && <Tooltip content="Expand every widget in the list" placement="below"><button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronDownIcon className="h-4 w-4" />Expand All</button></Tooltip>}
                   {onCollapseAll && <Tooltip content="Collapse every widget in the list" placement="below"><button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronUpIcon className="h-4 w-4" />Collapse All</button></Tooltip>}

@@ -1,4 +1,5 @@
 import type { Character, CharacterVariable, Widget, WidgetData } from '../types';
+import { isEventLabel } from '../events/constants';
 import { getCalendarLabelFields } from './calendar';
 import { collectLabels } from './formulaEngine';
 import type { FormulaLabels, FormulaValue } from './formulaSyntax';
@@ -383,6 +384,14 @@ export function buildReferenceIndex(character: Character): LabelReferenceIndex {
     }
   }
 
+  for (const event of character.events ?? []) {
+    const counts = scan({ trigger: event.trigger.params, effects: event.effects.map((effect) => effect.params), formula: event.condition });
+    for (const part of [event.trigger, ...event.effects]) {
+      if (part.kind.startsWith('label.') && part.target) counts.set(part.target, (counts.get(part.target) ?? 0) + 1);
+    }
+    record({ sourceId: `event:${event.id}`, title: `⚡ ${event.name?.trim() || 'Event'}` }, counts);
+  }
+
   return { byRef, formulaRefs };
 }
 
@@ -405,12 +414,13 @@ export function getLabelReferences(index: LabelReferenceIndex, label: string, ki
   return Array.from(merged.values());
 }
 
-/** Labels used in formulas that no widget or variable defines. */
+/** Labels used in formulas that no widget or variable defines. Trigger data used only by events is checked per event. */
 export function getMissingLabels(index: LabelReferenceIndex, entries: LabelEntry[], labels: FormulaLabels): string[] {
   const defined = new Set(entries.map((entry) => entry.label));
   const prefixes = entries.filter((entry) => entry.kind === 'column' || entry.kind === 'row').map((entry) => entry.label);
+  const eventOnly = (ref: string) => isEventLabel(ref) && (index.byRef.get(ref) ?? []).every((source) => source.sourceId.startsWith('event:'));
   return Array.from(index.formulaRefs)
-    .filter((ref) => !(ref in labels) && !defined.has(ref))
+    .filter((ref) => !(ref in labels) && !defined.has(ref) && !eventOnly(ref))
     .filter((ref) => !prefixes.some((prefix) => new RegExp(`^${escapeRegex(prefix)}[1-9]\\d*$`).test(ref)))
     .sort((a, b) => a.localeCompare(b));
 }
@@ -485,11 +495,26 @@ function rewriteReferences(character: Character, from: string, to: string, inclu
     return { ...sheet, widgets };
   });
 
-  if (!variablesChanged && !sheetsChanged) return character;
+  let eventsChanged = false;
+  const retarget = <T extends { kind: string; target?: string }>(part: T): T => (
+    part.kind.startsWith('label.') && part.target === from ? { ...part, target: to } : part
+  );
+  const events = character.events?.map((event) => {
+    const rewritten = rewriteStrings(event, rewrite);
+    const trigger = retarget(rewritten.trigger);
+    const effects = rewritten.effects.map(retarget);
+    const effectsChanged = effects.some((effect, index) => effect !== rewritten.effects[index]);
+    if (rewritten === event && trigger === event.trigger && !effectsChanged) return event;
+    eventsChanged = true;
+    return { ...rewritten, trigger, effects: effectsChanged ? effects : rewritten.effects };
+  });
+
+  if (!variablesChanged && !sheetsChanged && !eventsChanged) return character;
   return {
     ...character,
     sheets: sheetsChanged ? sheets : character.sheets,
     ...(variablesChanged ? { variables } : {}),
+    ...(eventsChanged ? { events } : {}),
   };
 }
 

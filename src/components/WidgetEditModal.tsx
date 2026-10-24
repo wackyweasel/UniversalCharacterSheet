@@ -4,6 +4,7 @@ import { Widget, WidgetType } from '../types';
 import { useStore } from '../store/useStore';
 import { useTutorialStore, TUTORIAL_STEPS, getTutorialStepIndex, isTutorialStep } from '../store/useTutorialStore';
 import { PencilIcon, XIcon } from './icons';
+import { WidgetEventsSection } from './events/WidgetEventsSection';
 
 // Import all editors
 import {
@@ -151,7 +152,8 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   const isAutomationCloseStep =
     currentTutorialId === 'automation-close-number-display' ||
     currentTutorialId === 'automation-close-dice-roller' ||
-    currentTutorialId === 'advanced-close-dice-roller';
+    currentTutorialId === 'advanced-close-dice-roller' ||
+    currentTutorialId === 'events-close-widget';
   // Keep Done disabled while the form-editing tutorial steps are in progress.
   const isDoneLockedForTutorial = tutorialStep !== null
     && tutorialStep >= getTutorialStepIndex('widget-label')
@@ -382,6 +384,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
               <div className="widget-edit-modal__editor-content">
                 <WidgetHeaderEditor widget={previewWidget} updateData={handleUpdateData} />
                 {renderEditor()}
+                <WidgetEventsSection widgetId={widget.id} />
               </div>
             </section>
 

@@ -120,3 +120,44 @@ export const ADVANCED_TUTORIAL_PRESET: CharacterPreset = (() => {
   }
   return preset;
 })();
+
+// Starter sheet for the Events tutorial: Bloodied and Steady again react to Health, and Second Wind runs by hand.
+export const EVENTS_TUTORIAL_PRESET: CharacterPreset = (() => {
+  const preset = JSON.parse(JSON.stringify(TutorialPreset)) as CharacterPreset;
+  const widgets = (preset.sheets ?? []).flatMap((sheet) => sheet.widgets ?? []);
+  const health = widgets.find((widget) => widget.type === 'HEALTH_BAR');
+  const conditions = widgets.find((widget) => widget.type === 'TOGGLE_GROUP' && widget.data.label === 'Conditions');
+  if (!health || !conditions) return preset;
+  preset.events = [
+    {
+      id: 'tutorial-event-bloodied',
+      name: 'Bloodied',
+      enabled: true,
+      trigger: { kind: 'value.crosses', widgetId: health.id, target: 'current', params: { compare: 'below', threshold: '50%' } },
+      effects: [
+        { id: 'tutorial-effect-frightened-on', kind: 'condition.set', widgetId: conditions.id, target: 'Frightened', params: { state: 'on' } },
+        { id: 'tutorial-effect-bloodied-log', kind: 'log.message', params: { message: 'Bloodied! Only {@event_value} HP left.' } },
+      ],
+    },
+    {
+      id: 'tutorial-event-steady',
+      name: 'Steady again',
+      enabled: true,
+      trigger: { kind: 'value.crosses', widgetId: health.id, target: 'current', params: { compare: 'atOrAbove', threshold: '50%' } },
+      effects: [
+        { id: 'tutorial-effect-frightened-off', kind: 'condition.set', widgetId: conditions.id, target: 'Frightened', params: { state: 'off' } },
+      ],
+    },
+    {
+      id: 'tutorial-event-second-wind',
+      name: 'Second Wind',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      effects: [
+        // Heals at least 5, so from below half it always climbs back to half and chains into Steady again.
+        { id: 'tutorial-effect-second-wind', kind: 'health.heal', widgetId: health.id, params: { amount: '1d10+4', overflow: 'lost' } },
+      ],
+    },
+  ];
+  return preset;
+})();

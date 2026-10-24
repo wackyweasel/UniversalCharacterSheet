@@ -814,6 +814,41 @@ export interface CharacterVariableGroup {
   name: string;
 }
 
+/** Kind-specific settings of an event trigger or effect, such as an amount formula or a comparison. */
+export type CharacterEventParams = Record<string, string>;
+
+/** What makes an event fire: a widget change, a widget action (roll, draw, rest…), a label change or manual only. */
+export interface CharacterEventTrigger {
+  kind: string;
+  /** Widget the trigger watches; empty for label and manual triggers. */
+  widgetId?: string;
+  /** Item inside the widget (stable id or name), a label name, or "*" for any item. */
+  target?: string;
+  params?: CharacterEventParams;
+}
+
+/** One thing an event does when it fires. */
+export interface CharacterEventEffect {
+  id: string;
+  kind: string;
+  /** Widget the effect changes; empty for label, dice and message effects. */
+  widgetId?: string;
+  /** Item inside the widget (stable id or name) or a label name. */
+  target?: string;
+  params?: CharacterEventParams;
+}
+
+/** A "when … then …" automation: one trigger, an optional condition and one or more effects. */
+export interface CharacterEvent {
+  id: string;
+  name?: string;
+  enabled: boolean;
+  trigger: CharacterEventTrigger;
+  /** Formula that must be true (non-zero) for the event to fire. */
+  condition?: string;
+  effects: CharacterEventEffect[];
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -823,6 +858,7 @@ export interface Character {
   activeSheetId: string;
   variables?: CharacterVariable[];
   variableGroups?: CharacterVariableGroup[];
+  events?: CharacterEvent[];
   // Legacy: widgets array for migration (will be moved to sheets)
   widgets?: Widget[];
 }

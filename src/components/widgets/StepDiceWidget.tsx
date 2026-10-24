@@ -13,6 +13,8 @@ import { showExpressionRoll } from '../../utils/showExpressionRoll';
 import { useDiceResult } from '../../hooks/useDiceResult';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
+import { expressionRollAction, itemKey } from '../../events/helpers';
 import { Tooltip } from '../Tooltip';
 import { WidgetEmptyState, WidgetItemColumns } from './WidgetPrimitives';
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
@@ -73,12 +75,15 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
         title: item.name || label || 'Step Dice',
         source: item.name,
         result,
-        onReroll: (next) => addTimelineEvent(
-          label || 'Step Dice',
-          'STEP_DICE',
-          `${item.name}: rerolled ${formatDiceRollDetail(next)}`,
-          '🎲'
-        ),
+        onReroll: (next) => {
+          addTimelineEvent(
+            label || 'Step Dice',
+            'STEP_DICE',
+            `${item.name}: rerolled ${formatDiceRollDetail(next)}`,
+            '🎲'
+          );
+          emitWidgetAction(expressionRollAction(widget.id, next, { target: itemKey(item.name, index) }));
+        },
       });
       addTimelineEvent(
         label || 'Step Dice',
@@ -86,6 +91,7 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
         `${item.name}: ${formatDiceRollDetail(result)}`,
         '🎲'
       );
+      emitWidgetAction(expressionRollAction(widget.id, result, { target: itemKey(item.name, index) }));
     } finally {
       setRollingIndex(null);
     }

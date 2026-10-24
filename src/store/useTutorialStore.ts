@@ -6,6 +6,7 @@ export const THEME_TUTORIAL_START_ID = 'themes-open-panel';
 export const TEMPLATE_TUTORIAL_START_ID = 'templates-open-widget-menu';
 export const AUTOMATION_TUTORIAL_START_ID = 'automation-intro';
 export const ADVANCED_AUTOMATION_TUTORIAL_START_ID = 'advanced-intro';
+export const EVENTS_TUTORIAL_START_ID = 'events-intro';
 export const VARIOUS_TUTORIAL_START_ID = 'various-open-gallery';
 
 // Tutorial step definitions
@@ -717,6 +718,206 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'sheet',
   },
   {
+    id: EVENTS_TUTORIAL_START_ID,
+    title: 'Events',
+    message: 'Events make your sheet react on its own: when something happens, they do something for you. You will set off ready-made events, run one by hand, follow a chain in the timeline, then build an event that uses the result of a roll.',
+    position: 'center',
+    page: 'character-list',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-load-character',
+    title: 'Load the Tutorial Character',
+    message: 'Loading a tutorial character that already has three events.',
+    position: 'center',
+    page: 'character-list',
+  },
+  {
+    id: 'events-open-panel',
+    title: 'Open the Events Panel',
+    message: 'Open Events from the toolbar. Every event on this character lives there.',
+    targetSelector: '[data-tutorial="events-button-mobile"], [data-tutorial="events-button"]',
+    position: 'bottom',
+    page: 'sheet',
+  },
+  {
+    id: 'events-panel-overview',
+    title: 'The Events Panel',
+    message: 'Each card is one event. Search by name, widget or label, and filter to see the events that are on, off or need attention. When one change sets off several events, they run from top to bottom.',
+    targetSelector: '[data-tutorial="events-panel"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-card',
+    title: 'Read an Event',
+    message: 'An event reads like a sentence. When Health drops below half, Bloodied turns on Frightened and writes a message in the timeline. Hover a widget name to highlight that widget on the sheet, or click it to jump there.',
+    targetSelector: '[data-tutorial="event-card"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-try-trigger',
+    title: 'Set Off Bloodied',
+    message: 'Health is at 9 of 10. Click Damage and deal 5 or more to drop it below half.',
+    targetSelector: '.canvas-widget[data-tutorial="widget-HEALTH_BAR"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'events-timeline',
+    title: 'Follow It in the Timeline',
+    message: 'Frightened is on now. The timeline logs Bloodied with each of its effects, and its message shows the HP it passed along. Click an event name to find it in the Events panel. Undo reverts the damage and everything the event did, together.',
+    targetSelector: '[data-tutorial="timeline-panel"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-run-manual',
+    title: 'Run an Event by Hand',
+    message: 'Second Wind has no trigger. It only runs when you press Run. Click Run to heal 1d10+4.',
+    targetSelector: '[data-tutorial="event-run-manual"]',
+    scrollTargetIntoView: true,
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'events-chain',
+    title: 'Events Set Off Events',
+    message: 'Second Wind brought Health back to half or more, so Steady again fired too and turned Frightened off. An event set off by another event is marked ↳. Each event fires at most once per chain, so events can\'t loop forever.',
+    targetSelector: '[data-tutorial="timeline-panel"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-card-controls',
+    title: 'Card Controls',
+    message: 'The switch turns an event off without deleting it. Play runs it right away, whatever its trigger. The pencil edits it, and ⋮ duplicates, reorders or deletes it. A card that needs attention, such as one whose widget was deleted, is outlined in amber.',
+    targetSelector: '[data-tutorial="event-card"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-new',
+    title: 'Build Your Own',
+    message: 'Now build an event that reacts to an attack roll. Click New event.',
+    targetSelector: '[data-tutorial="events-new"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'events-editor-trigger',
+    title: 'When: the Trigger',
+    message: 'Every event starts with a trigger: pick a widget, then what to watch for. Each widget offers its own triggers. We named this event Hit and picked the Attack roller: when its dice are rolled.',
+    targetSelector: '[data-tutorial="event-editor-trigger"]',
+    scrollTargetIntoView: true,
+    position: 'right',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-editor-data',
+    title: 'Data from the Trigger',
+    message: 'A trigger passes along what happened. This one passes the roll as @event_total, @event_highest and @event_lowest. Use them in the condition or an effect like any other label. Click a chip to add it where you were typing.',
+    targetSelector: '[data-tutorial="event-editor-data"]',
+    scrollTargetIntoView: true,
+    position: 'right',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-editor-condition',
+    title: 'Only If: the Condition',
+    message: 'A condition is optional. When it is set, the event only fires if the formula is true. We added @event_total >= 12, so only a total of 12 or more is a hit.',
+    targetSelector: '[data-tutorial="event-editor-condition"]',
+    scrollTargetIntoView: true,
+    position: 'right',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-editor-effects',
+    title: 'Then: the Effects',
+    message: 'Effects run in order. We added two: roll the Damage dice, then write "Hit with a {@event_total}!" in the timeline. In text, braces show the value of a formula. Add as many effects as you need, and reorder them with the arrows.',
+    targetSelector: '[data-tutorial="event-editor-effects"]',
+    scrollTargetIntoView: true,
+    position: 'right',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-editor-save',
+    title: 'Save the Event',
+    message: 'Click Create event. If something is missing, the editor points to it.',
+    targetSelector: '[data-tutorial="event-editor-save"]',
+    position: 'right',
+    page: 'sheet',
+  },
+  {
+    id: 'events-try-new',
+    title: 'Roll to Hit',
+    message: 'Roll the Attack dice. On a total of 12 or more, Hit rolls the Damage dice.',
+    targetSelector: '[data-tutorial="automation-roll-dice"]',
+    position: 'bottom',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-try-new-result',
+    title: 'Check the Result',
+    message: 'On a hit of 12 or more, the timeline shows the Damage roll and your message. On a miss, Hit is logged as "condition not met" and does nothing else. You can roll again later to see the other outcome.',
+    targetSelector: '[data-tutorial="timeline-panel"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-open-widget-menu',
+    title: 'Events in Widget Settings',
+    message: 'Widget settings also list the events that use the widget. Open the menu on the Attack dice roller.',
+    targetSelector: '[data-tutorial="widget-menu-DICE_ROLLER"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'events-edit-widget',
+    title: 'Edit the Dice Roller',
+    message: 'Choose Edit to open the dice roller settings.',
+    targetSelector: '[data-tutorial="edit-button-DICE_ROLLER"]',
+    position: 'left',
+    page: 'sheet',
+  },
+  {
+    id: 'events-widget-section',
+    title: 'The Events Section',
+    message: 'Hit is listed here because it uses this roller. Turn it on or off, edit it, or start a new event with this widget already picked. For a widget without events, this section lists what its events can do.',
+    targetSelector: '[data-tutorial="widget-events-section"]',
+    scrollTargetIntoView: true,
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
+    id: 'events-close-widget',
+    title: 'Close the Dice Editor',
+    message: 'Click Done to return to the sheet. Events don\'t run while a widget is being edited.',
+    targetSelector: '[data-tutorial="edit-done-button"]',
+    position: 'top',
+    page: 'sheet',
+  },
+  {
+    id: 'events-complete',
+    title: 'Events Tutorial Complete',
+    message: 'You set off events, ran one by hand, followed a chain in the timeline, and built an event that uses its trigger\'s data in a condition and an effect. Every widget offers its own triggers and effects, so explore the editor to automate your own sheet.',
+    position: 'center',
+    page: 'sheet',
+  },
+  {
     id: VARIOUS_TUTORIAL_START_ID,
     title: 'Open the Gallery',
     message: 'The Various tutorial covers tools that do not fit into the other tutorials. Start by opening the Community Gallery.',
@@ -864,6 +1065,7 @@ interface TutorialState {
   startTemplatesTutorial: () => void;
   startAutomationTutorial: () => void;
   startAdvancedAutomationTutorial: () => void;
+  startEventsTutorial: () => void;
   startVariousTutorial: () => void;
   exitTutorial: () => void;
   advanceTutorial: () => void;
@@ -902,6 +1104,13 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   startAdvancedAutomationTutorial: () => {
     const advancedTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === ADVANCED_AUTOMATION_TUTORIAL_START_ID);
     const tutorialStep = advancedTutorialStart >= 0 ? advancedTutorialStart : 0;
+    set({ tutorialStep });
+    localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
+  },
+
+  startEventsTutorial: () => {
+    const eventsTutorialStart = TUTORIAL_STEPS.findIndex((step) => step.id === EVENTS_TUTORIAL_START_ID);
+    const tutorialStep = eventsTutorialStart >= 0 ? eventsTutorialStart : 0;
     set({ tutorialStep });
     localStorage.setItem(TUTORIAL_STORAGE_KEY, String(tutorialStep));
   },

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { CardTableCard, Character, Sheet, Widget, WidgetType } from '../types';
+import type { CardTableCard, Character, CharacterEvent, Sheet, Widget, WidgetType } from '../types';
+import { RUN_EVENT_KIND } from '../events/constants';
 import { cloneInventoryData } from './inventory';
 import { copyVariableData } from './variableGroups';
 import {
@@ -96,12 +97,32 @@ export function migrateCharacter(character: Character): Character {
     sheets: [defaultSheet],
     activeSheetId: defaultSheet.id,
     ...copyVariableData(character),
+    ...(character.events ? { events: character.events } : {}),
   };
 }
 
-export function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string }): {
+/** Copies events with fresh ids, pointing their widget and event references at the copies. */
+export function remapEventIds(events: CharacterEvent[], widgetIdMap: Map<string, string>): CharacterEvent[] {
+  const remap = (widgetId: string | undefined) => (widgetId ? widgetIdMap.get(widgetId) ?? widgetId : widgetId);
+  const eventIdMap = new Map(events.map((event) => [event.id, uuidv4()]));
+  return events.map((event) => ({
+    ...event,
+    id: eventIdMap.get(event.id)!,
+    trigger: { ...event.trigger, widgetId: remap(event.trigger.widgetId), params: event.trigger.params ? { ...event.trigger.params } : undefined },
+    effects: event.effects.map((effect) => ({
+      ...effect,
+      id: uuidv4(),
+      widgetId: remap(effect.widgetId),
+      ...(effect.kind === RUN_EVENT_KIND && effect.target ? { target: eventIdMap.get(effect.target) ?? effect.target } : {}),
+      params: effect.params ? { ...effect.params } : undefined,
+    })),
+  }));
+}
+
+export function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string; events?: CharacterEvent[] }): {
   sheets: Sheet[];
   activeSheetId: string;
+  events?: CharacterEvent[];
 } {
   const sheetIdMap = new Map<string, string>();
   const widgetIdMap = new Map<string, string>();
@@ -136,15 +157,17 @@ export function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: stri
   return {
     sheets,
     activeSheetId: sheetIdMap.get(source.activeSheetId) || sheets[0]?.id,
+    ...(source.events ? { events: remapEventIds(source.events, widgetIdMap) } : {}),
   };
 }
 
 export function cloneCharacterForWorkspace(character: Character): Character {
-  const { sheets, activeSheetId } = remapCharacterIds(character);
+  const { sheets, activeSheetId, events } = remapCharacterIds(character);
   return {
     ...character,
     id: uuidv4(),
     sheets,
     activeSheetId,
+    events,
   };
 }

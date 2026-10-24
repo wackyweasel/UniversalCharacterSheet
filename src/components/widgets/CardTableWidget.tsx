@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import type { CardTableCard, CardTableRestorePosition, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
 import { getCardOriginBackDesign, getCardTableBackDesign, getCardTableCards, getCardTableContentLayout, getCardTableDiscardedCards } from '../../utils/cardTable';
 import {
   getCardDeckRegistrations,
@@ -111,6 +112,7 @@ export default function CardTableWidget({ widget, mode, interactive = true, rend
     }
     updateCards(shuffled);
     addTimelineEvent(label || 'Deck of Cards', 'DECK_OF_CARDS', `Shuffled ${cards.length} cards`, '🂠');
+    emitWidgetAction({ widgetId: widget.id, kind: 'shuffle', text: `Shuffled ${cards.length} cards` });
   };
 
   const resetCards = () => {

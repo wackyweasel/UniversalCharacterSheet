@@ -7,8 +7,10 @@ import {
   TimelineEvent,
 } from '../store/useTimelineStore';
 import { useStore } from '../store/useStore';
+import { useEventsPanelStore } from '../store/useEventsPanelStore';
+import { EVENT_TIMELINE_TYPE } from '../events/constants';
 import { Tooltip } from './Tooltip';
-import { ArrowDownIcon, ArrowUpIcon, MenuIcon, MessageIcon, TrashIcon, XIcon } from './icons';
+import { ArrowDownIcon, ArrowUpIcon, BoltIcon, MenuIcon, MessageIcon, TrashIcon, XIcon } from './icons';
 
 function formatClockTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -35,7 +37,15 @@ function formatDayHeading(timestamp: number): string {
   });
 }
 
-function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (event: TimelineEvent) => void }) {
+interface EventItemProps {
+  event: TimelineEvent;
+  onDelete: (event: TimelineEvent) => void;
+  /** Opens the character event that logged this entry, when it still exists. */
+  onShowSource?: (characterEventId: string) => void;
+}
+
+function EventItem({ event, onDelete, onShowSource }: EventItemProps) {
+  const title = event.widgetLabel || event.widgetType;
   return (
     <article
       role="listitem"
@@ -52,7 +62,16 @@ function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (event
       <div className="min-w-0">
         <div className="flex items-baseline justify-between gap-2">
           <h4 className="font-bold text-sm text-theme-ink font-heading truncate">
-            {event.widgetLabel || event.widgetType}
+            {onShowSource && event.characterEventId ? (
+              <button
+                type="button"
+                onClick={() => onShowSource(event.characterEventId!)}
+                className="max-w-full truncate text-left hover:underline focus-visible:underline"
+                title="Show this event in the Events panel"
+              >
+                {title}
+              </button>
+            ) : title}
           </h4>
           <time
             dateTime={new Date(event.timestamp).toISOString()}
@@ -72,7 +91,7 @@ function EventItem({ event, onDelete }: { event: TimelineEvent; onDelete: (event
           onClick={() => onDelete(event)}
           onMouseDown={(e) => e.stopPropagation()}
           className="self-start w-8 h-8 flex items-center justify-center rounded-button text-theme-muted hover:text-white hover:bg-red-500 transition-colors"
-          aria-label={`Delete ${event.widgetLabel || event.widgetType} event`}
+          aria-label={`Delete ${title} event`}
         >
           <XIcon className="w-3.5 h-3.5" />
         </button>
@@ -150,6 +169,9 @@ interface TimelineMenuProps {
   formulaEventCount: number;
   showFormulas: boolean;
   onToggleFormulas: () => void;
+  eventEntryCount: number;
+  showEvents: boolean;
+  onToggleEvents: () => void;
   orderNewestFirst: boolean;
   onSetNewestFirst: (newestFirst: boolean) => void;
   canClear: boolean;
@@ -164,6 +186,9 @@ function TimelineMenu({
   formulaEventCount,
   showFormulas,
   onToggleFormulas,
+  eventEntryCount,
+  showEvents,
+  onToggleEvents,
   orderNewestFirst,
   onSetNewestFirst,
   canClear,
@@ -231,6 +256,15 @@ function TimelineMenu({
               title="Show events logged when a formula's value changes"
             />
           )}
+          {eventEntryCount > 0 && (
+            <MenuToggleRow
+              icon={<BoltIcon className="h-4 w-4" />}
+              label="Event activity"
+              checked={showEvents}
+              onToggle={onToggleEvents}
+              title="Show entries logged when one of your events fires"
+            />
+          )}
           <div role="group" aria-label="Event order" className="grid grid-cols-2 gap-1 px-2 py-1">
             {([
               { newestFirst: false, label: 'Oldest first', icon: <ArrowDownIcon className="h-4 w-4" /> },
@@ -285,6 +319,8 @@ export default function TimelineSidebar() {
   const toggleOrder = useTimelineStore((s) => s.toggleOrder);
   const showFormulas = useTimelineStore((s) => s.showFormulas);
   const toggleShowFormulas = useTimelineStore((s) => s.toggleShowFormulas);
+  const showEvents = useTimelineStore((s) => s.showEvents);
+  const toggleShowEvents = useTimelineStore((s) => s.toggleShowEvents);
   const showToasts = useTimelineStore((s) => s.showToasts);
   const toggleShowToasts = useTimelineStore((s) => s.toggleShowToasts);
   const clearEvents = useTimelineStore((s) => s.clearEvents);
@@ -293,6 +329,9 @@ export default function TimelineSidebar() {
   const restoreEvents = useTimelineStore((s) => s.restoreEvents);
   const setOpen = useTimelineStore((s) => s.setOpen);
   const activeCharacterId = useStore((s) => s.activeCharacterId);
+  const characterEvents = useStore((s) => (
+    s.characters.find((character) => character.id === s.activeCharacterId)?.events
+  ));
   const activeCharacterName = useStore((s) => (
     s.characters.find((character) => character.id === s.activeCharacterId)?.name || 'this character'
   ));
@@ -316,16 +355,31 @@ export default function TimelineSidebar() {
     [events],
   );
 
+  const eventEntryCount = useMemo(
+    () => events.filter((event) => event.widgetType === EVENT_TIMELINE_TYPE).length,
+    [events],
+  );
+
+  const existingEventIds = useMemo(
+    () => new Set((characterEvents ?? []).map((characterEvent) => characterEvent.id)),
+    [characterEvents],
+  );
+
+  const showSourceEvent = useCallback((characterEventId: string) => {
+    useEventsPanelStore.getState().showEvent(characterEventId);
+  }, []);
+
   const filteredEvents = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
     return events.filter((event) => {
       if (!showFormulas && event.widgetType === 'FORMULA') return false;
+      if (!showEvents && event.widgetType === EVENT_TIMELINE_TYPE) return false;
       if (!normalizedQuery) return true;
       return `${event.widgetLabel} ${event.widgetType} ${event.description}`
         .toLocaleLowerCase()
         .includes(normalizedQuery);
     });
-  }, [events, searchQuery, showFormulas]);
+  }, [events, searchQuery, showFormulas, showEvents]);
 
   const displayedEvents = useMemo(
     () => orderNewestFirst ? [...filteredEvents].reverse() : filteredEvents,
@@ -343,7 +397,9 @@ export default function TimelineSidebar() {
     return groups;
   }, []), [displayedEvents]);
 
-  const filtersActive = Boolean(searchQuery.trim()) || (!showFormulas && formulaEventCount > 0);
+  const filtersActive = Boolean(searchQuery.trim())
+    || (!showFormulas && formulaEventCount > 0)
+    || (!showEvents && eventEntryCount > 0);
 
   const scrollToLatest = useCallback(() => {
     const list = eventsListRef.current;
@@ -516,6 +572,7 @@ export default function TimelineSidebar() {
   const resetFilters = () => {
     setSearchQuery('');
     if (!showFormulas) toggleShowFormulas();
+    if (!showEvents) toggleShowEvents();
   };
 
   if (!isOpen) return null;
@@ -571,6 +628,9 @@ export default function TimelineSidebar() {
             formulaEventCount={formulaEventCount}
             showFormulas={showFormulas}
             onToggleFormulas={toggleShowFormulas}
+            eventEntryCount={eventEntryCount}
+            showEvents={showEvents}
+            onToggleEvents={toggleShowEvents}
             orderNewestFirst={orderNewestFirst}
             onSetNewestFirst={(newestFirst) => {
               if (newestFirst !== orderNewestFirst) toggleOrder();
@@ -747,7 +807,12 @@ export default function TimelineSidebar() {
                   )}
                   <div role="list">
                     {group.events.map((event) => (
-                      <EventItem key={event.id} event={event} onDelete={handleDeleteEvent} />
+                      <EventItem
+                        key={event.id}
+                        event={event}
+                        onDelete={handleDeleteEvent}
+                        onShowSource={event.characterEventId && existingEventIds.has(event.characterEventId) ? showSourceEvent : undefined}
+                      />
                     ))}
                   </div>
                 </section>

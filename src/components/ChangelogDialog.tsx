@@ -38,6 +38,16 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.14.0',
+    changes: [
+      'New Events panel (⚡ in the toolbar): make your sheet react on its own. WHEN something happens, optionally IF a condition holds, THEN do one or more things. For example: when Health drops below half, turn on Bloodied.',
+      'Every widget offers its own triggers and effects, such as a value crossing a threshold, an item added, money spent or a dice roll. Triggers pass along what happened, like the roll total (@event_total) or the damage taken (@event_damage).',
+      'An event can run other events, so one trigger can set off a whole chain.',
+      'Events that fire are recorded in the timeline, and widget settings list the events that use the widget.',
+      'New Events tutorial: set off events, follow a chain in the timeline and build an event that uses a roll.',
+    ],
+  },
+  {
     version: '1.13.0',
     changes: [
       'New Labels panel: see, search, edit, rename and delete every label on your character. Renaming updates the formulas that use it.',

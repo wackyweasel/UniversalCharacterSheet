@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip';
 import { ToolbarShell } from './ToolbarShell';
 import { WorkspaceStatusDot } from './WorkspaceStatusIndicator';
 import {
+  BoltIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   CheckIcon,
@@ -56,6 +57,8 @@ interface SheetToolbarProps {
   onSearch: () => void;
   variablesOpen?: boolean;
   onToggleVariables?: () => void;
+  eventsOpen?: boolean;
+  onToggleEvents?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
   listHighlighted?: boolean;
@@ -64,6 +67,7 @@ interface SheetToolbarProps {
 
 // Below this toolbar width the canvas/list selector moves into the menu to avoid overlapping the status icons.
 const compactLayoutMinWidth = 340;
+const compactEventsMinWidth = 400;
 
 const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-2 text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-not-allowed disabled:opacity-40';
 
@@ -382,6 +386,8 @@ export default function SheetToolbar({
   onSearch,
   variablesOpen = false,
   onToggleVariables,
+  eventsOpen = false,
+  onToggleEvents,
   attachmentControlsVisible,
   onToggleAttachmentControls,
   listHighlighted = false,
@@ -413,9 +419,10 @@ export default function SheetToolbar({
     candidates.push({ id: 'undo-redo', labeledWidth: 80, iconWidth: 80 });
     if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42, pinned: true });
     if (onToggleVariables) candidates.push({ id: 'variables', labeledWidth: 118, iconWidth: 42, pinned: true });
+    if (onToggleEvents) candidates.push({ id: 'events', labeledWidth: 110, iconWidth: 42, pinned: true });
     candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
     return candidates;
-  }, [onAutoStack, onToggleVariables, playLayout, workspace]);
+  }, [onAutoStack, onToggleEvents, onToggleVariables, playLayout, workspace]);
   const { containerRef, containerWidth, inlineActionIds: overflowInlineIds, labeledActionIds } = useToolbarOverflow({
     actions,
     coreWidth: 464,
@@ -428,9 +435,11 @@ export default function SheetToolbar({
       if (!compact) return overflowInlineIds;
       const compactIds = workspace === 'play' ? ['undo-redo', 'timeline'] : ['undo-redo'];
       if (onToggleVariables) compactIds.push('variables');
+      // On the narrowest toolbars Events moves into the menu.
+      if (onToggleEvents && containerWidth >= compactEventsMinWidth) compactIds.push('events');
       return new Set(layoutFitsInline ? ['layout', ...compactIds] : compactIds);
     },
-    [compact, layoutFitsInline, onToggleVariables, overflowInlineIds, workspace],
+    [compact, containerWidth, layoutFitsInline, onToggleEvents, onToggleVariables, overflowInlineIds, workspace],
   );
   const compactUtilityClass = compact ? `${utilityButtonClass} !px-1.5` : utilityButtonClass;
   const showLabel = (id: string) => labeledActionIds.has(id);
@@ -468,6 +477,8 @@ export default function SheetToolbar({
           onCollapseAll={onCollapseAll}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={onToggleAttachmentControls}
+          eventsOpen={eventsOpen}
+          onToggleEvents={onToggleEvents}
           inlineActionIds={inlineActionIds}
           topSection={compact ? (
             <MenuCharacterSection
@@ -579,6 +590,20 @@ export default function SheetToolbar({
             className={`${compactUtilityClass} ${variablesOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
           >
             <TagIcon className="h-4 w-4" /> {showLabel('variables') && <span>Labels</span>}
+          </button>
+        </Tooltip>
+      )}
+      {onToggleEvents && inlineActionIds.has('events') && (
+        <Tooltip content={eventsOpen ? 'Close events' : 'Events'} placement="below">
+          <button
+            type="button"
+            data-tutorial="events-button"
+            onClick={onToggleEvents}
+            aria-pressed={eventsOpen}
+            aria-label="Events"
+            className={`${compactUtilityClass} ${eventsOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
+          >
+            <BoltIcon className="h-4 w-4" /> {showLabel('events') && <span>Events</span>}
           </button>
         </Tooltip>
       )}

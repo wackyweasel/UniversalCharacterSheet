@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { Widget, CustomDie } from '../../types';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
 import { useDiceResult } from '../../hooks/useDiceResult';
 import { ClearDiceResultButton } from '../ClearDiceResultButton';
 import { Tooltip } from '../Tooltip';
@@ -333,6 +334,16 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
     });
   };
 
+  const emitTrayRoll = (result: RollResult, notation?: string) => {
+    emitWidgetAction({
+      widgetId: widget.id,
+      kind: 'roll',
+      total: result.total ?? undefined,
+      dice: result.dice.map((die) => die.roll).filter((value): value is number => typeof value === 'number'),
+      text: notation,
+    });
+  };
+
   const describeTotal = (result: RollResult) => (
     result.total !== null ? `= ${result.total}` : `= ${formatAggregatedResult(result)}`
   );
@@ -355,6 +366,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
     const notation = buildPoolNotation(pool, modifier);
     const desc = next.total !== null ? `Rolled ${notation} = ${next.total}` : `Rolled ${notation}`;
     addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', desc, '🎲');
+    emitTrayRoll(next, notation);
   };
 
   const rerollDice = async () => {
@@ -374,6 +386,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
     const rerollNotation = buildPoolNotation(pool, modifier);
     const rerollDesc = next.total !== null ? `Rerolled ${rerollNotation} = ${next.total}` : `Rerolled ${rerollNotation}`;
     addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', rerollDesc, '🎲');
+    emitTrayRoll(next, rerollNotation);
   };
 
   // Rerolls the dice picked in the result dialog
@@ -401,6 +414,7 @@ export default function DiceTrayWidget({ widget, mode, interactive = true }: Pro
       .map((index, position) => `${getDieLabel(result.dice[index])}: ${result.dice[index].roll} \u2192 ${rolls[position].roll}`)
       .join(', ');
     addTimelineEvent(label || 'Dice Tray', 'DICE_TRAY', `Rerolled ${changes} (${describeTotal(next)})`, '\ud83c\udfb2');
+    emitTrayRoll(next);
   };
 
   // Group dice in pool by type for display

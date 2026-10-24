@@ -14,8 +14,8 @@ import ChangelogDialog from './ChangelogDialog';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { ChevronDownIcon, GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
-import { ADVANCED_TUTORIAL_PRESET, getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
+import { BoltIcon, ChevronDownIcon, GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
+import { ADVANCED_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET, getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { getCharacterTransferData, getCustomThemeToImport, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
@@ -36,6 +36,7 @@ const TUTORIAL_DESCRIPTIONS = {
   templates: 'Save widgets and groups as templates, load them later, and share them.',
   automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',
   advancedAutomation: 'Tour the formula editor and its commands, then use formulas and dice expressions in dice rollers and in text.',
+  events: 'Set off ready-made events, run one by hand, follow chains in the timeline, and build your own with trigger data and a condition.',
   various: 'Tour Discover, sharing, backup, feedback, Print Preview, the Play List layout, timeline, and sheets.',
 };
 
@@ -164,6 +165,7 @@ export default function CharacterList() {
   const startTemplatesTutorial = useTutorialStore((state) => state.startTemplatesTutorial);
   const startAutomationTutorial = useTutorialStore((state) => state.startAutomationTutorial);
   const startAdvancedAutomationTutorial = useTutorialStore((state) => state.startAdvancedAutomationTutorial);
+  const startEventsTutorial = useTutorialStore((state) => state.startEventsTutorial);
   const startVariousTutorial = useTutorialStore((state) => state.startVariousTutorial);
   const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
@@ -212,6 +214,7 @@ export default function CharacterList() {
   const tutorialDropdownRef = useRef<HTMLDivElement>(null);
   const automationLoadHandledRef = useRef(false);
   const advancedLoadHandledRef = useRef(false);
+  const eventsLoadHandledRef = useRef(false);
   const variousLoadHandledRef = useRef(false);
   const initialTutorialStepRef = useRef(tutorialStep);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -602,6 +605,15 @@ export default function CharacterList() {
     setShowHeaderMenu(false);
   };
 
+  const handleStartEventsTutorial = () => {
+    cleanupTransientCharacters();
+    eventsLoadHandledRef.current = false;
+    startEventsTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
   const handleStartVariousTutorial = () => {
     cleanupTransientCharacters();
     variousLoadHandledRef.current = false;
@@ -694,6 +706,24 @@ export default function CharacterList() {
 
     setPlayLayout('canvas');
     createTransientCharacterFromPreset(ADVANCED_TUTORIAL_PRESET, 'Tutorial Character');
+    const newCharacterId = useStore.getState().activeCharacterId;
+
+    if (newCharacterId && darkMode) {
+      updateCharacterTheme(newCharacterId, 'classic-dark');
+    }
+
+    setMode('play');
+    advanceTutorial();
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, setPlayLayout, advanceTutorial]);
+
+  useEffect(() => {
+    if (tutorialStep === null || TUTORIAL_STEPS[tutorialStep]?.id !== 'events-load-character') return;
+    if (eventsLoadHandledRef.current) return;
+
+    eventsLoadHandledRef.current = true;
+
+    setPlayLayout('canvas');
+    createTransientCharacterFromPreset(EVENTS_TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
     if (newCharacterId && darkMode) {
@@ -1253,17 +1283,23 @@ export default function CharacterList() {
                   <Tooltip content={TUTORIAL_DESCRIPTIONS.automation} placement="left">
                     <button onClick={handleStartAutomationTutorial} className={tutorialOptionClass()}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
                       <span>Automation</span>
                     </button>
                   </Tooltip>
                   <Tooltip content={TUTORIAL_DESCRIPTIONS.advancedAutomation} placement="left">
                     <button onClick={handleStartAdvancedAutomationTutorial} className={tutorialOptionClass()}>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
                       <span>Advanced Automations</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.events} placement="left">
+                    <button onClick={handleStartEventsTutorial} className={tutorialOptionClass()}>
+                      <BoltIcon className="h-5 w-5" />
+                      <span>Events</span>
                     </button>
                   </Tooltip>
                   <Tooltip content={TUTORIAL_DESCRIPTIONS.various} placement="left">
@@ -1519,17 +1555,23 @@ export default function CharacterList() {
                     <Tooltip content={TUTORIAL_DESCRIPTIONS.automation} placement="left">
                       <button onClick={handleStartAutomationTutorial} className={tutorialOptionClass(true)}>
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
                         <span>Automation</span>
                       </button>
                     </Tooltip>
                     <Tooltip content={TUTORIAL_DESCRIPTIONS.advancedAutomation} placement="left">
                       <button onClick={handleStartAdvancedAutomationTutorial} className={tutorialOptionClass(true)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
                         <span>Advanced Automations</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.events} placement="left">
+                      <button onClick={handleStartEventsTutorial} className={tutorialOptionClass(true)}>
+                        <BoltIcon className="h-5 w-5" />
+                        <span>Events</span>
                       </button>
                     </Tooltip>
                     <Tooltip content={TUTORIAL_DESCRIPTIONS.various} placement="left">

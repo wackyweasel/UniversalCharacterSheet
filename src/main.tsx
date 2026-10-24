@@ -7,8 +7,10 @@ import { prepareServiceWorker } from './pwa/update'
 import { isInstalledApp } from './pwa/runtimeContext'
 import './pwa/install'
 import { installPressStartClicks } from './utils/pressStartClicks'
+import { initEventRuntime } from './events/runtime'
 
 installPressStartClicks()
+initEventRuntime()
 void prepareServiceWorker()
 if (isInstalledApp() && navigator.storage) {
   void navigator.storage.persist().catch((error) => {

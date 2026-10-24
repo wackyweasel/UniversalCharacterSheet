@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { Widget, DiceGroup } from '../../types';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
+import { expressionRollAction } from '../../events/helpers';
 import { useDiceResult } from '../../hooks/useDiceResult';
 import { ClearDiceResultButton } from '../ClearDiceResultButton';
 import { Tooltip } from '../Tooltip';
@@ -311,9 +313,13 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
         subtitle: buildDiceNotation(),
         result: expressionResult,
         modifier,
-        onReroll: (next) => addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', describeRoll('Rerolled', next), '🎲'),
+        onReroll: (next) => {
+          addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', describeRoll('Rerolled', next), '🎲');
+          emitWidgetAction(expressionRollAction(widget.id, next, { total: next.total + modifier, text: buildDiceNotation() }));
+        },
       });
       addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', describeRoll('Rolled', expressionResult), '🎲');
+      emitWidgetAction(expressionRollAction(widget.id, expressionResult, { total: expressionResult.total + modifier, text: buildDiceNotation() }));
       return;
     }
     
@@ -363,6 +369,17 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
     const notation = buildDiceNotation();
     const desc = next.total !== null ? `Rolled ${notation} = ${next.total}` : `Rolled ${notation}`;
     addTimelineEvent(label || 'Dice Roller', 'DICE_ROLLER', desc, '🎲');
+    emitGroupsRoll(next);
+  };
+
+  const emitGroupsRoll = (result: RollResult) => {
+    emitWidgetAction({
+      widgetId: widget.id,
+      kind: 'roll',
+      total: result.total ?? undefined,
+      dice: result.groups.flatMap((group) => group.rolls).filter((value): value is number => typeof value === 'number'),
+      text: buildDiceNotation(),
+    });
   };
 
   const buildGroupsResult = (
@@ -449,6 +466,7 @@ export default function DiceRollerWidget({ widget, mode, interactive = true }: P
       `Re-rolled ${targets.length} ${targets.length === 1 ? 'die' : 'dice'} ${summary}`,
       '🎲',
     );
+    emitGroupsRoll(next);
   };
 
   const buildDiceNotation = () => {

@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, CharacterVariable, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet, PoolResource, PoolRestoreTarget } from '../types';
+import { Character, CharacterEvent, CharacterVariable, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
-import { resolveCharacterFormulas, FormulaChange, collectLabels, evaluateFormula } from '../utils/formulaEngine';
+import { resolveCharacterFormulas, FormulaChange } from '../utils/formulaEngine';
+import { applyRest, type RestOptions } from '../utils/rest';
 import { useTimelineStore } from './useTimelineStore';
 import {
   ensureItemWeight,
@@ -21,13 +22,15 @@ import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceL
 import { createDefaultCalendarData } from '../utils/calendar';
 import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
 import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableToGroup, renameVariableGroup } from '../utils/variableGroups';
+import { withEventsSuppressed } from '../events/suppress';
+import { getEventTelemetryDetails, type EventTelemetrySource } from '../events/telemetry';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
 type PresetTelemetrySource = 'builtin_preset' | 'user_preset' | 'unknown';
 type ImportTelemetrySource = 'json_file' | 'raw_json' | 'unknown';
 type CharacterOpenTelemetrySource = 'character_list' | 'character_switcher';
-type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view';
+type StoreTelemetryCategory = 'character' | 'sheet' | 'widget' | 'template' | 'theme' | 'view' | 'event';
 
 interface CharacterCreatorRequest {
   initialName: string;
@@ -257,13 +260,7 @@ interface StoreState {
   detachAllInGroup: (groupId: string) => void;
   
   // Rest Action (for Rest Button widget)
-  performRest: (options: {
-    healAmount?: number | 'full';
-    poolRestores?: PoolRestoreTarget[];
-    clearConditions?: boolean;
-    resetSpellSlots?: boolean;
-    passTimeSeconds?: number;
-  }) => void;
+  performRest: (options: RestOptions) => void;
 
   // Variable and label actions (active character)
   addVariable: (variable: Omit<CharacterVariable, 'id'>) => string | null;
@@ -274,6 +271,14 @@ interface StoreState {
   deleteVariableGroup: (id: string) => void;
   moveVariable: (id: string, groupId: string, beforeVariableId?: string | null) => void;
   removeLabel: (label: string) => void;
+
+  // Event actions (active character)
+  addCharacterEvent: (event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => string | null;
+  updateCharacterEvent: (id: string, event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => void;
+  removeCharacterEvent: (id: string) => void;
+  duplicateCharacterEvent: (id: string) => string | null;
+  moveCharacterEvent: (id: string, newIndex: number) => void;
+  setCharacterEventEnabled: (id: string, enabled: boolean, telemetrySource?: EventTelemetrySource) => void;
   
   // Undo/Redo Actions
   undo: () => void;
@@ -291,6 +296,16 @@ interface StoreState {
     activeCharacterId: string | null;
     mode: Mode;
   }) => void;
+}
+
+function getActiveCharacter(state: Pick<StoreState, 'characters' | 'activeCharacterId'>): Character | undefined {
+  return state.characters.find((character) => character.id === state.activeCharacterId);
+}
+
+function withEffectIds(event: CharacterEvent): CharacterEvent {
+  return event.effects.every((effect) => effect.id)
+    ? event
+    : { ...event, effects: event.effects.map((effect) => (effect.id ? effect : { ...effect, id: uuidv4() })) };
 }
 
 function resolveActiveCharacterFormulas(
@@ -327,12 +342,12 @@ function resolveActiveCharacterFormulas(
 
 export const useStore = create<StoreState>((set, get) => {
   // Applies an undoable change to the active character, then re-resolves its formulas.
-  const applyCharacterTransform = (description: string, transform: (character: Character) => Character) => {
+  const applyCharacterTransform = (description: string, transform: (character: Character) => Character): boolean => {
     const state = get();
     const current = state.characters.find((character) => character.id === state.activeCharacterId);
-    if (!current) return;
+    if (!current) return false;
     const updated = transform(current);
-    if (updated === current) return;
+    if (updated === current) return false;
     get()._takeSnapshot(description);
     set((latest) => ({
       characters: resolveActiveCharacterFormulas(
@@ -340,6 +355,15 @@ export const useStore = create<StoreState>((set, get) => {
         latest.characters.map((character) => character.id === current.id ? updated : character),
       ),
     }));
+    return true;
+  };
+
+  const recordCharacterEvent = (eventName: string, event: Omit<CharacterEvent, 'id'>, source: EventTelemetrySource) => {
+    const state = get();
+    const character = getActiveCharacter(state);
+    if (!character) return;
+    const { widgetType, metadata } = getEventTelemetryDetails(character, event);
+    recordStoreEvent(state, { eventName, category: 'event', widgetType, source, metadata });
   };
 
   const api: StoreState = {
@@ -379,7 +403,7 @@ export const useStore = create<StoreState>((set, get) => {
     }),
 
     createCharacterFromPreset: (preset, name, telemetrySource = 'unknown') => set((state) => {
-      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(preset);
 
       const newChar: Character = {
         id: uuidv4(),
@@ -387,6 +411,7 @@ export const useStore = create<StoreState>((set, get) => {
         theme: preset.theme,
         sheets: newSheets,
         ...copyVariableData(preset),
+        ...(events ? { events } : {}),
         activeSheetId
       };
 
@@ -417,13 +442,14 @@ export const useStore = create<StoreState>((set, get) => {
         return false;
       }
 
-      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(preset);
       const replacement: Character = {
         id: existingCharacter.id,
         name: name || preset.name,
         theme: preset.theme,
         sheets: newSheets,
         ...copyVariableData(preset),
+        ...(events ? { events } : {}),
         activeSheetId,
       };
 
@@ -441,14 +467,14 @@ export const useStore = create<StoreState>((set, get) => {
         },
       });
 
-      set({
+      withEventsSuppressed(() => set({
         characters: state.characters.map((character) => character.id === characterId ? replacement : character),
         activeCharacterId: characterId,
         mode: 'play',
         editingWidgetId: null,
         selectedWidgetId: null,
         selectedWidgetSource: null,
-      });
+      }));
       return true;
     },
 
@@ -482,7 +508,7 @@ export const useStore = create<StoreState>((set, get) => {
       state.transientCharacterIds.forEach((id) => {
         useTimelineStore.getState().clearEvents(id);
       });
-      const { sheets: newSheets, activeSheetId } = remapCharacterIds(preset);
+      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(preset);
 
       const newChar: Character = {
         id: uuidv4(),
@@ -490,6 +516,7 @@ export const useStore = create<StoreState>((set, get) => {
         theme: preset.theme,
         sheets: newSheets,
         ...copyVariableData(preset),
+        ...(events ? { events } : {}),
         activeSheetId
       };
 
@@ -520,14 +547,15 @@ export const useStore = create<StoreState>((set, get) => {
     }),
 
     importCharacter: (character, telemetrySource = 'unknown') => set((state) => {
-      const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
+      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(character);
 
       const newChar: Character = {
         ...character,
         id: uuidv4(),
         name: character.name,
         sheets: newSheets,
-        activeSheetId
+        activeSheetId,
+        events,
       };
 
       recordStoreEvent(state, {
@@ -551,14 +579,15 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find(c => c.id === id);
       if (!character) return state;
 
-      const { sheets: newSheets, activeSheetId } = remapCharacterIds(character);
+      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(character);
 
       const newChar: Character = {
         ...character,
         id: uuidv4(),
         name: `${character.name} (copy)`,
         sheets: newSheets,
-        activeSheetId
+        activeSheetId,
+        events,
       };
 
       recordStoreEvent(state, {
@@ -2862,128 +2891,8 @@ export const useStore = create<StoreState>((set, get) => {
       
       set((state) => {
         if (!state.activeCharacterId) return state;
-        
-        const { healAmount, clearConditions, resetSpellSlots, passTimeSeconds, poolRestores } = options;
-        
-        // Build a lookup of pool restore targets keyed by widget id
-        const poolRestoreMap = new Map<string, PoolRestoreTarget[]>();
-        (poolRestores || []).forEach(target => {
-          const list = poolRestoreMap.get(target.widgetId) || [];
-          list.push(target);
-          poolRestoreMap.set(target.widgetId, list);
-        });
-        
-        // Labels for evaluating per-pool restore formulas
-        const activeChar = state.characters.find(c => c.id === state.activeCharacterId);
-        const restoreLabels = activeChar ? collectLabels(activeChar) : {};
-        
-        // Resolve the flat restore amount for a target (formula overrides amount when set)
-        const resolveRestoreAmount = (target: PoolRestoreTarget): number => {
-          if (target.amountFormula) {
-            const computed = evaluateFormula(target.amountFormula, restoreLabels);
-            if (computed !== null) return Math.max(0, Math.round(computed));
-          }
-          return target.amount ?? 0;
-        };
-        
-        // Apply pool restores to a POOL widget (works on any sheet, targeted by id)
-        const applyPoolRestore = (w: Widget): Widget => {
-          if (w.type !== 'POOL') return w;
-          const targets = poolRestoreMap.get(w.id);
-          if (!targets || targets.length === 0) return w;
-          
-          const poolResources = w.data.poolResources || [];
-          if (poolResources.length > 0) {
-            // Multi-resource mode — match each target by resource index
-            const newResources = poolResources.map((r: PoolResource, idx: number) => {
-              const target = targets.find(t => t.resourceIndex === idx || (idx === 0 && t.resourceIndex === -1));
-              if (!target || r.currentFormula) return r; // skip unselected or formula-driven
-              const newCurrent = target.mode === 'full'
-                ? r.max
-                : Math.min(r.max, (r.current ?? 0) + resolveRestoreAmount(target));
-              return { ...r, current: newCurrent };
-            });
-            return { ...w, data: { ...w.data, poolResources: newResources } };
-          } else {
-            // Legacy single pool mode (resourceIndex === -1)
-            const target = targets.find(t => t.resourceIndex === -1);
-            if (!target) return w;
-            const fieldFormulas = (w.data.fieldFormulas as Record<string, string> | undefined);
-            if (fieldFormulas?.currentPool) return w; // skip formula-driven pool
-            const maxPool = w.data.maxPool ?? 5;
-            const currentPool = w.data.currentPool ?? 0;
-            const newCurrent = target.mode === 'full'
-              ? maxPool
-              : Math.min(maxPool, currentPool + resolveRestoreAmount(target));
-            return { ...w, data: { ...w.data, currentPool: newCurrent } };
-          }
-        };
-        
         return {
-          characters: state.characters.map(c => {
-            if (c.id !== state.activeCharacterId) return c;
-            return {
-              ...c,
-              sheets: c.sheets.map(sheet => {
-                const isActiveSheet = sheet.id === c.activeSheetId;
-                return {
-                  ...sheet,
-                  widgets: sheet.widgets.map(w => {
-                    // Pool restores can target widgets on any sheet
-                    const pooled = applyPoolRestore(w);
-                    if (pooled !== w) return pooled;
-                    
-                    // The remaining effects only apply to the active sheet
-                    if (!isActiveSheet) return w;
-                    
-                    // Handle Health Bar widgets
-                    if (w.type === 'HEALTH_BAR' && healAmount !== undefined) {
-                      const currentValue = w.data.currentValue ?? 0;
-                      const maxValue = w.data.maxValue ?? 10;
-                      
-                      let newValue: number;
-                      if (healAmount === 'full') {
-                        newValue = maxValue;
-                      } else {
-                        newValue = Math.min(maxValue, currentValue + healAmount);
-                      }
-                      
-                      return { ...w, data: { ...w.data, currentValue: newValue } };
-                    }
-                    
-                    // Handle Condition widgets (TOGGLE_GROUP)
-                    if (w.type === 'TOGGLE_GROUP' && clearConditions) {
-                      const toggleItems = w.data.toggleItems || [];
-                      const clearedItems = toggleItems.map((item: { name: string; active: boolean }) => ({ ...item, active: false }));
-                      return { ...w, data: { ...w.data, toggleItems: clearedItems } };
-                    }
-                    
-                    // Handle Spell Slot widgets
-                    if (w.type === 'SPELL_SLOT' && resetSpellSlots) {
-                      const spellLevels = w.data.spellLevels || [];
-                      const resetLevels = spellLevels.map((level: { level: number; max: number; used: number }) => ({ ...level, used: 0 }));
-                      return { ...w, data: { ...w.data, spellLevels: resetLevels } };
-                    }
-                    
-                    // Handle Time Tracker widgets
-                    if (w.type === 'TIME_TRACKER' && passTimeSeconds !== undefined && passTimeSeconds > 0) {
-                      const timedEffects = w.data.timedEffects || [];
-                      const roundMode = w.data.roundMode || false;
-                      // In round mode, passTimeSeconds represents rounds (1 second = 1 round)
-                      const amountToPass = roundMode ? passTimeSeconds : passTimeSeconds;
-                      const updatedEffects = timedEffects.map((effect: { name: string; remainingSeconds: number }) => ({
-                        ...effect,
-                        remainingSeconds: Math.max(0, effect.remainingSeconds - amountToPass)
-                      }));
-                      return { ...w, data: { ...w.data, timedEffects: updatedEffects } };
-                    }
-                    
-                    return w;
-                  })
-                };
-              })
-            };
-          })
+          characters: state.characters.map((c) => (c.id === state.activeCharacterId ? applyRest(c, options) : c)),
         };
       });
     },
@@ -3049,6 +2958,81 @@ export const useStore = create<StoreState>((set, get) => {
 
     moveVariable: (id, groupId, beforeVariableId) => {
       applyCharacterTransform('Move label', (character) => moveVariableToGroup(character, id, groupId, beforeVariableId));
+    },
+
+    addCharacterEvent: (event, telemetrySource = 'events_panel') => {
+      if (!get().activeCharacterId) return null;
+      const id = uuidv4();
+      const added = applyCharacterTransform('Add event', (character) => ({
+        ...character,
+        events: [...(character.events ?? []), withEffectIds({ ...event, id })],
+      }));
+      if (added) recordCharacterEvent('event_created', event, telemetrySource);
+      return id;
+    },
+
+    updateCharacterEvent: (id, event, telemetrySource = 'events_panel') => {
+      const updated = applyCharacterTransform('Edit event', (character) => {
+        if (!character.events?.some((existing) => existing.id === id)) return character;
+        return {
+          ...character,
+          events: character.events.map((existing) => (existing.id === id ? withEffectIds({ ...event, id }) : existing)),
+        };
+      });
+      if (updated) recordCharacterEvent('event_edited', event, telemetrySource);
+    },
+
+    removeCharacterEvent: (id) => {
+      const removed = getActiveCharacter(get())?.events?.find((event) => event.id === id);
+      const applied = applyCharacterTransform('Delete event', (character) => {
+        if (!character.events?.some((event) => event.id === id)) return character;
+        return { ...character, events: character.events.filter((event) => event.id !== id) };
+      });
+      if (applied && removed) recordCharacterEvent('event_deleted', removed, 'events_panel');
+    },
+
+    duplicateCharacterEvent: (id) => {
+      const source = getActiveCharacter(get())?.events?.find((event) => event.id === id);
+      if (!source) return null;
+      const copyId = uuidv4();
+      const duplicated = applyCharacterTransform('Duplicate event', (character) => {
+        const events = [...(character.events ?? [])];
+        const index = events.findIndex((event) => event.id === id);
+        if (index < 0) return character;
+        const copy: CharacterEvent = JSON.parse(JSON.stringify(events[index]));
+        copy.id = copyId;
+        copy.effects = copy.effects.map((effect) => ({ ...effect, id: uuidv4() }));
+        if (copy.name) copy.name = `${copy.name} (copy)`;
+        events.splice(index + 1, 0, copy);
+        return { ...character, events };
+      });
+      if (duplicated) recordCharacterEvent('event_duplicated', source, 'events_panel');
+      return copyId;
+    },
+
+    moveCharacterEvent: (id, newIndex) => {
+      applyCharacterTransform('Reorder events', (character) => {
+        const events = [...(character.events ?? [])];
+        const index = events.findIndex((event) => event.id === id);
+        const target = Math.max(0, Math.min(newIndex, events.length - 1));
+        if (index < 0 || index === target) return character;
+        const [moved] = events.splice(index, 1);
+        events.splice(target, 0, moved);
+        return { ...character, events };
+      });
+    },
+
+    setCharacterEventEnabled: (id, enabled, telemetrySource = 'events_panel') => {
+      const current = getActiveCharacter(get())?.events?.find((event) => event.id === id);
+      const toggled = applyCharacterTransform(enabled ? 'Turn on event' : 'Turn off event', (character) => {
+        const existing = character.events?.find((event) => event.id === id);
+        if (!existing || existing.enabled === enabled) return character;
+        return {
+          ...character,
+          events: character.events!.map((event) => (event.id === id ? { ...event, enabled } : event)),
+        };
+      });
+      if (toggled && current) recordCharacterEvent('event_toggled', { ...current, enabled }, telemetrySource);
     },
 
     // Undo/Redo implementations
@@ -3127,7 +3111,7 @@ export const useStore = create<StoreState>((set, get) => {
       return useUndoStore.getState().canRedo(state.activeCharacterId);
     },
 
-    _replaceWorkspaceState: (workspaceState) => set({
+    _replaceWorkspaceState: (workspaceState) => withEventsSuppressed(() => set({
       characters: workspaceState.characters.map(migrateCharacter),
       transientCharacterIds: [],
       activeCharacterId: workspaceState.activeCharacterId,
@@ -3136,7 +3120,7 @@ export const useStore = create<StoreState>((set, get) => {
       selectedWidgetId: null,
       selectedWidgetSource: null,
       characterCreatorRequest: null,
-    }),
+    })),
   };
 
   return api;

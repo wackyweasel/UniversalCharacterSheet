@@ -12,6 +12,8 @@ export interface TimelineEvent {
   icon: string;
   /** Undo snapshot that reverts the change this event describes. */
   undoId?: string;
+  /** Character event that logged this entry. */
+  characterEventId?: string;
 }
 
 /** Per-character timeline data */
@@ -31,6 +33,8 @@ interface TimelineState {
   isOpen: boolean;
   orderNewestFirst: boolean;
   showFormulas: boolean;
+  /** Shows entries logged by character events. */
+  showEvents: boolean;
   showToasts: boolean;
   
   addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>) => void;
@@ -43,6 +47,7 @@ interface TimelineState {
   setOpen: (open: boolean) => void;
   toggleOrder: () => void;
   toggleShowFormulas: () => void;
+  toggleShowEvents: () => void;
   toggleShowToasts: () => void;
   replaceWorkspaceEvents: (eventsByCharacter: Record<string, CharacterTimeline>) => void;
 }
@@ -50,15 +55,15 @@ interface TimelineState {
 const STORAGE_KEY = 'ucs:timeline';
 
 // Load persisted state from localStorage
-function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTimeline>; orderNewestFirst: boolean; showFormulas: boolean; showToasts: boolean } {
+function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTimeline>; orderNewestFirst: boolean; showFormulas: boolean; showEvents: boolean; showToasts: boolean } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true, showToasts: false };
+    if (!raw) return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true, showEvents: true, showToasts: false };
     const data = JSON.parse(raw);
 
     // Migrate from old single-list format
     if (Array.isArray(data.events)) {
-      return { eventsByCharacter: {}, orderNewestFirst: data.orderNewestFirst ?? false, showFormulas: data.showFormulas ?? true, showToasts: data.showToasts ?? false };
+      return { eventsByCharacter: {}, orderNewestFirst: data.orderNewestFirst ?? false, showFormulas: data.showFormulas ?? true, showEvents: data.showEvents ?? true, showToasts: data.showToasts ?? false };
     }
 
     return {
@@ -67,10 +72,11 @@ function loadPersistedState(): { eventsByCharacter: Record<string, CharacterTime
         : {},
       orderNewestFirst: data.orderNewestFirst ?? false,
       showFormulas: data.showFormulas ?? true,
+      showEvents: data.showEvents ?? true,
       showToasts: data.showToasts ?? false,
     };
   } catch {
-    return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true, showToasts: false };
+    return { eventsByCharacter: {}, orderNewestFirst: false, showFormulas: true, showEvents: true, showToasts: false };
   }
 }
 
@@ -98,6 +104,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   isOpen: false,
   orderNewestFirst: persisted.orderNewestFirst,
   showFormulas: persisted.showFormulas,
+  showEvents: persisted.showEvents,
   showToasts: persisted.showToasts,
   
   addEvent: (characterId, event) => set((state) => {
@@ -235,6 +242,10 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     recordTimelineEvent('timeline_formula_visibility_changed', { showFormulas: !state.showFormulas });
     return { showFormulas: !state.showFormulas };
   }),
+  toggleShowEvents: () => set((state) => {
+    recordTimelineEvent('timeline_event_visibility_changed', { showEvents: !state.showEvents });
+    return { showEvents: !state.showEvents };
+  }),
   toggleShowToasts: () => set((state) => {
     recordTimelineEvent('timeline_toasts_changed', { showToasts: !state.showToasts });
     return { showToasts: !state.showToasts };
@@ -262,6 +273,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
           eventsByCharacter: current.eventsByCharacter ?? {},
           orderNewestFirst: state.orderNewestFirst,
           showFormulas: state.showFormulas,
+          showEvents: state.showEvents,
           showToasts: state.showToasts,
         }));
       } catch (e) {

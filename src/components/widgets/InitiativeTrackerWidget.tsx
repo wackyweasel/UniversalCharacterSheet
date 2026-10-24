@@ -10,6 +10,7 @@ import { AddMultipleToggle } from './StructureDialogControls';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
 import { getInitiativeDiceExpression, normalizeDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
 import { advanceCalendarsForNewRound } from '../../utils/calendarActions';
+import { emitWidgetAction } from '../../events/runtime';
 
 interface Props {
   widget: Widget;
@@ -621,6 +622,8 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
     }
     
     moveToParticipant(newIndex);
+    if (newIndex === 0) emitWidgetAction({ widgetId: widget.id, kind: 'round', text: 'New round' });
+    emitWidgetAction({ widgetId: widget.id, kind: 'turn', text: initiativeEncounter[newIndex]?.name ?? '', total: initiativeEncounter[newIndex]?.rollResult });
   };
 
   // Navigate to previous participant

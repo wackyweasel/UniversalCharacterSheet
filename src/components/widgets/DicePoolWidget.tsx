@@ -4,6 +4,7 @@ import { Tooltip } from '../Tooltip';
 import type { Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
 import { useDiceResult } from '../../hooks/useDiceResult';
 import { ClearDiceResultButton } from '../ClearDiceResultButton';
 import { useFormulaLabels } from '../../hooks/useFormulaLabels';
@@ -128,6 +129,17 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
     });
   };
 
+  const emitPoolRoll = (outcome: PoolOutcome) => {
+    emitWidgetAction({
+      widgetId: widget.id,
+      kind: 'roll',
+      dice: outcome.dice.map((die) => die.value),
+      outcome: outcome.kind,
+      successes: outcome.successes,
+      text: outcome.summary,
+    });
+  };
+
   const roll = async () => {
     if (!canRoll) return;
     setRolling(true);
@@ -146,6 +158,7 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
         versions: next.dice.map(() => 0),
       });
       addTimelineEvent(timelineLabel, 'DICE_POOL', `${describePoolGroups(plan.groups)}: ${formatPoolDice(next)} → ${next.summary}`, '🎲');
+      emitPoolRoll(next);
       if (widget.data.dicePoolClearAfterRoll && hasSelection) clearPool();
     } finally {
       setRolling(false);
@@ -190,6 +203,7 @@ export default function DicePoolWidget({ widget, mode, interactive = true }: Pro
       `Rerolled ${selected.size} ${selected.size === 1 ? 'die' : 'dice'}: ${formatPoolDice(next)} → ${next.summary}`,
       '🎲',
     );
+    emitPoolRoll(next);
   };
 
   return (

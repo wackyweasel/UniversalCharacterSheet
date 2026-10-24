@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ADVANCED_AUTOMATION_TUTORIAL_START_ID,
   AUTOMATION_TUTORIAL_START_ID,
+  EVENTS_TUTORIAL_START_ID,
   TEMPLATE_TUTORIAL_START_ID,
   THEME_TUTORIAL_START_ID,
   TUTORIAL_STEPS,
@@ -28,8 +29,33 @@ const TUTORIAL_SECTIONS = [
   { name: 'Templates', startId: TEMPLATE_TUTORIAL_START_ID },
   { name: 'Automation', startId: AUTOMATION_TUTORIAL_START_ID },
   { name: 'Advanced Automations', startId: ADVANCED_AUTOMATION_TUTORIAL_START_ID },
+  { name: 'Events', startId: EVENTS_TUTORIAL_START_ID },
   { name: 'Various', startId: VARIOUS_TUTORIAL_START_ID },
 ];
+
+const FINAL_STEP_IDS = new Set([
+  'try-widgets',
+  'themes-complete',
+  'templates-complete',
+  'automation-complete',
+  'advanced-complete',
+  'events-complete',
+  'various-complete',
+]);
+
+// Steps that show at the top on narrow screens, such as when the Done button is at the bottom.
+const TOP_ON_NARROW_STEP_IDS = new Set([
+  'click-create',
+  'form-click-done',
+  'automation-close-number-display',
+  'automation-close-dice-roller',
+  'advanced-close-dice-roller',
+  'events-close-widget',
+  'events-editor-save',
+  'templates-load-widget-template',
+]);
+
+const showsAtTopOnNarrow = (step: TutorialStep) => step.dock === 'top' || TOP_ON_NARROW_STEP_IDS.has(step.id);
 
 function getTutorialProgress(stepIndex: number) {
   const sectionStarts = TUTORIAL_SECTIONS.map((section) => ({
@@ -159,7 +185,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
-  const isFinalStep = step?.id === 'try-widgets' || step?.id === 'themes-complete' || step?.id === 'templates-complete' || step?.id === 'automation-complete' || step?.id === 'advanced-complete' || step?.id === 'various-complete';
+  const isFinalStep = !!step && FINAL_STEP_IDS.has(step.id);
 
   const handleAdvanceTutorial = () => {
     if (step?.id === 'various-feedback') {
@@ -196,6 +222,8 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   useEffect(() => {
     if (!step?.scrollTargetIntoView || !step.targetSelector) return;
 
+    // A narrow screen docks the bubble at the top or bottom, so keep the target on the other side of it.
+    const block: ScrollLogicalPosition = !isNarrow ? 'center' : showsAtTopOnNarrow(step) ? 'end' : 'start';
     let frameId: number;
     let remainingAttempts = 60;
     const scrollToTarget = () => {
@@ -205,7 +233,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
       });
 
       if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        target.scrollIntoView({ behavior: 'smooth', block, inline: 'nearest' });
         return;
       }
 
@@ -217,19 +245,11 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
 
     frameId = requestAnimationFrame(scrollToTarget);
     return () => cancelAnimationFrame(frameId);
-  }, [step]);
+  }, [step, isNarrow]);
 
   if (!step) return null;
 
-  // Steps that should show at top on narrow screens (e.g., when Done button is at bottom)
-  const showAtTopOnNarrow =
-    step.dock === 'top' ||
-    step.id === 'click-create' ||
-    step.id === 'form-click-done' ||
-    step.id === 'automation-close-number-display' ||
-    step.id === 'automation-close-dice-roller' ||
-    step.id === 'advanced-close-dice-roller' ||
-    step.id === 'templates-load-widget-template';
+  const showAtTopOnNarrow = showsAtTopOnNarrow(step);
 
   // For narrow windows, show at bottom or top depending on step
   if (isNarrow) {
@@ -277,7 +297,7 @@ function PositionedBubble({
   const [isCentered, setIsCentered] = useState(false);
   const [effectivePosition, setEffectivePosition] = useState<TutorialPosition>(step.position || 'center');
   const bubbleRef = useRef<HTMLDivElement>(null);
-  const isFinalStep = step.id === 'try-widgets' || step.id === 'themes-complete' || step.id === 'templates-complete' || step.id === 'automation-complete' || step.id === 'advanced-complete' || step.id === 'various-complete';
+  const isFinalStep = FINAL_STEP_IDS.has(step.id);
 
   useEffect(() => {
     if (step?.dock === 'top' && !step?.targetSelector) {

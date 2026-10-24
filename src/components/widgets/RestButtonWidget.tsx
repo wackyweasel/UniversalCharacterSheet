@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom';
 import { Widget, PoolResource, PoolRestoreTarget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
+import { emitWidgetAction } from '../../events/runtime';
 import { Tooltip } from '../Tooltip';
 import { XIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
 import { formatDiceExpression, getHealDiceExpression, parseDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
+import { parseTimeToSeconds } from '../../utils/rest';
 
 interface Props {
   widget: Widget;
@@ -72,19 +74,6 @@ function Modal({ title, onClose, children }: ModalProps) {
     </div>,
     document.body
   );
-}
-
-// Parse time input to seconds
-function parseTimeToSeconds(value: number, unit: string): number {
-  switch (unit) {
-    case 'seconds': return value;
-    case 'minutes': return value * 60;
-    case 'hours': return value * 60 * 60;
-    case 'days': return value * 24 * 60 * 60;
-    case 'months': return value * 30 * 24 * 60 * 60;
-    case 'years': return value * 365 * 24 * 60 * 60;
-    default: return value;
-  }
 }
 
 export default function RestButtonWidget({ widget }: Props) {
@@ -211,6 +200,7 @@ export default function RestButtonWidget({ widget }: Props) {
 
     // Timeline event
     addTimelineEvent(buttonText || 'Rest', 'REST_BUTTON', actions.join(' \u2022 ') || 'Rest activated', '\ud83d\udca4');
+    emitWidgetAction({ widgetId: widget.id, kind: 'rest', text: actions.join(' \u2022 ') || 'Rested' });
     
     // Clear animation after a short delay
     setTimeout(() => {

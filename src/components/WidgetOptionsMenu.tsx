@@ -42,7 +42,9 @@ export function isWidgetEditTutorialTarget(widget: Widget, tutorialStep: number 
   return (widget.type === 'FORM' && isTutorialStep(tutorialStep, 'edit-widget'))
     || (widget.type === 'NUMBER_DISPLAY' && isTutorialStep(tutorialStep, 'automation-edit-number-display'))
     || (isAutomationAttackRoller(widget) && (
-      isTutorialStep(tutorialStep, 'automation-edit-dice-roller') || isTutorialStep(tutorialStep, 'advanced-edit-dice-roller')
+      isTutorialStep(tutorialStep, 'automation-edit-dice-roller')
+      || isTutorialStep(tutorialStep, 'advanced-edit-dice-roller')
+      || isTutorialStep(tutorialStep, 'events-edit-widget')
     ));
 }
 
@@ -54,7 +56,9 @@ export function isWidgetMenuTutorialTarget(widget: Widget, tutorialStep: number 
   ))
     || (widget.type === 'NUMBER_DISPLAY' && isTutorialStep(tutorialStep, 'automation-open-number-display-menu'))
     || (isAutomationAttackRoller(widget) && (
-      isTutorialStep(tutorialStep, 'automation-open-dice-menu') || isTutorialStep(tutorialStep, 'advanced-open-dice-menu')
+      isTutorialStep(tutorialStep, 'automation-open-dice-menu')
+      || isTutorialStep(tutorialStep, 'advanced-open-dice-menu')
+      || isTutorialStep(tutorialStep, 'events-open-widget-menu')
     ));
 }
 

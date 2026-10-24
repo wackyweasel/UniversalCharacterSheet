@@ -15,18 +15,32 @@ export const getLastClickPoint = () => lastClick;
 
 interface DiceResultState {
   entry: DiceResultEntry | null;
+  /** Results waiting for the current dialog to close, e.g. rolls made by events. */
+  queue: DiceResultEntry[];
   show: (entry: DiceResultEntry) => void;
-  /** Closes the dialog, or only when it belongs to `widgetId`. */
+  /** Shows the entry now when nothing is open, otherwise after the open dialogs close. */
+  enqueue: (entry: DiceResultEntry) => void;
+  /** Closes the dialog, or only when it belongs to `widgetId`; without `widgetId` it also drops the queue. */
   close: (widgetId?: string) => void;
 }
 
 export const useDiceResultStore = create<DiceResultState>((set) => ({
   entry: null,
-  show: (entry) => set({ entry }),
-  close: (widgetId) => set((state) => (
-    widgetId === undefined || state.entry?.widgetId === widgetId ? { entry: null } : state
-  )),
+  queue: [],
+  // A widget's own result takes the spot, but a pending event roll goes back in line instead of being lost.
+  show: (entry) => set((state) => ({
+    entry,
+    queue: state.entry?.centered && state.entry.widgetId !== entry.widgetId ? [state.entry, ...state.queue] : state.queue,
+  })),
+  enqueue: (entry) => set((state) => (state.entry ? { queue: [...state.queue, entry] } : { entry })),
+  close: (widgetId) => set((state) => {
+    if (widgetId === undefined) return { entry: null, queue: [] };
+    if (state.entry?.widgetId !== widgetId) return state;
+    const [next = null, ...queue] = state.queue;
+    return { entry: next, queue };
+  }),
 }));
 
 export const showDiceResult = (entry: DiceResultEntry) => useDiceResultStore.getState().show(entry);
+export const enqueueDiceResult = (entry: DiceResultEntry) => useDiceResultStore.getState().enqueue(entry);
 export const closeDiceResult = (widgetId?: string) => useDiceResultStore.getState().close(widgetId);

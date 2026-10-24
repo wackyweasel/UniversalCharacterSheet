@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
-import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS } from '../store/useTutorialStore';
+import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS, getTutorialStepIndex } from '../store/useTutorialStore';
 import { applyTheme, applyCustomTheme, THEMES } from '../store/useThemeStore';
 import { getCustomTheme } from '../store/useCustomThemeStore';
 import { usePrintStore, getEffectiveAspectRatio } from '../store/usePrintStore';
@@ -25,6 +25,10 @@ import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
 import VariablesPanel from './VariablesPanel';
+import EventsPanel from './events/EventsPanel';
+import { EventEditorHost } from './events/EventEditorDialog';
+import { subscribeEventFirings } from '../events/runtime';
+import { getTriggerDef } from '../events/registry';
 import TimelineToasts from './TimelineToasts';
 import ShareExportMenu from './ShareExportMenu';
 import SheetSearch from './SheetSearch';
@@ -37,6 +41,7 @@ const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
+import { useEventsPanelStore } from '../store/useEventsPanelStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
@@ -253,13 +258,28 @@ export default function Sheet() {
       setVariablesOpen(false);
     }
   }, [mode, setVariablesOpen, variablesIsOpen]);
+
+  const eventsIsOpen = useEventsPanelStore((state) => state.isOpen);
+  const toggleEvents = useEventsPanelStore((state) => state.toggleOpen);
+  const setEventsOpen = useEventsPanelStore((state) => state.setOpen);
+  const eventEditorOpen = useEventsPanelStore((state) => state.editor !== null);
+  const eventEditorIsNew = useEventsPanelStore((state) => state.editor !== null && !state.editor.eventId);
+  const closeEventEditor = useEventsPanelStore((state) => state.closeEditor);
+
+  useEffect(() => {
+    if (mode !== 'print') return;
+    if (eventsIsOpen) setEventsOpen(false);
+    if (eventEditorOpen) closeEventEditor();
+  }, [closeEventEditor, eventEditorOpen, eventsIsOpen, mode, setEventsOpen]);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
   const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
+  const setTutorialStep = useTutorialStore((state) => state.setTutorialStep);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
+  const tutorialStepId = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : undefined;
 
   const handleToggleVariables = () => {
     if (isCurrentTutorialStep('advanced-open-labels')) {
@@ -270,8 +290,17 @@ export default function Sheet() {
     }
   };
 
+  const handleToggleEvents = () => {
+    if (isCurrentTutorialStep('events-open-panel')) {
+      setEventsOpen(true);
+      advanceTutorial();
+    } else {
+      toggleEvents();
+    }
+  };
+
   useEffect(() => {
-    const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : null;
+    const step = tutorialStepId;
     if (step === 'advanced-open-labels') {
       setMode('play');
       setVariablesOpen(false);
@@ -280,8 +309,59 @@ export default function Sheet() {
       setVariablesOpen(true);
     } else if (step === 'advanced-complete') {
       setVariablesOpen(false);
+    } else if (step === 'events-open-panel') {
+      setMode('play');
+      setVariablesOpen(false);
+      setTimelineOpen(false);
+      setEventsOpen(false);
+    } else if (
+      step === 'events-panel-overview'
+      || step === 'events-card'
+      || step === 'events-run-manual'
+      || step === 'events-card-controls'
+      || step === 'events-new'
+    ) {
+      setMode('play');
+      setEventsOpen(true);
+    } else if (step === 'events-timeline' || step === 'events-chain' || step === 'events-try-new-result') {
+      setMode('play');
+      setTimelineOpen(true);
+    } else if (step === 'events-complete') {
+      setEventsOpen(false);
+      setTimelineOpen(false);
     }
-  }, [tutorialStep, setMode, setTimelineOpen, setVariablesOpen]);
+  }, [tutorialStepId, setEventsOpen, setMode, setTimelineOpen, setVariablesOpen]);
+
+  // Events tutorial: move on once the reader has set off the event the step asks for.
+  useEffect(() => subscribeEventFirings((firings) => {
+    const { tutorialStep: current, advanceTutorial: advance } = useTutorialStore.getState();
+    const stepId = current !== null ? TUTORIAL_STEPS[current]?.id : undefined;
+    if (stepId !== 'events-try-trigger' && stepId !== 'events-run-manual' && stepId !== 'events-try-new') return;
+    const state = useStore.getState();
+    const character = state.characters.find((item) => item.id === state.activeCharacterId);
+    if (!character) return;
+    const attackRoller = character.sheets
+      .flatMap((sheet) => sheet.widgets)
+      .find((widget) => widget.type === 'DICE_ROLLER' && String(widget.data?.label || '').toLowerCase() === 'attack');
+    const matches = firings.some((firing) => {
+      const event = character.events?.find((item) => item.id === firing.eventId);
+      if (!event) return false;
+      const manualTrigger = getTriggerDef(event.trigger.kind)?.mode === 'manual';
+      if (stepId === 'events-try-trigger') return !manualTrigger && !firing.manual && !firing.conditionFailed;
+      if (stepId === 'events-run-manual') return manualTrigger;
+      return !firing.manual && !!attackRoller && event.trigger.widgetId === attackRoller.id;
+    });
+    if (matches) advance();
+  }), []);
+
+  // Events tutorial: the editor lessons need a new event open; closing it goes back to New event.
+  useEffect(() => {
+    if (tutorialStepId === 'events-new' && eventEditorIsNew) {
+      advanceTutorial();
+    } else if (tutorialStepId?.startsWith('events-editor-') && !eventEditorIsNew) {
+      setTutorialStep(getTutorialStepIndex('events-new'));
+    }
+  }, [advanceTutorial, eventEditorIsNew, setTutorialStep, tutorialStepId]);
   
   // Print mode state
   const printerFriendly = usePrintStore((state) => state.printerFriendly);
@@ -1027,6 +1107,27 @@ export default function Sheet() {
   }, [tutorialStep, frameWidgetForTutorial]);
 
   useEffect(() => {
+    const frameHealth = tutorialStepId === 'events-try-trigger';
+    const frameAttackRoller = tutorialStepId === 'events-try-new' || tutorialStepId === 'events-open-widget-menu';
+    if (!frameHealth && !frameAttackRoller) return;
+
+    setMode('play');
+    setSidebarCollapsed(true);
+    setThemeSidebarCollapsed(true);
+    setEventsOpen(false);
+    setTimelineOpen(false);
+    const timer = setTimeout(() => {
+      if (frameHealth) {
+        frameWidgetForTutorial('HEALTH_BAR');
+      } else {
+        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+    // Only frame when the step changes, not every time a roll or damage changes the widgets.
+  }, [tutorialStepId]);
+
+  useEffect(() => {
     if (isCurrentTutorialStep('templates-share-template')) {
       setMode('play');
       setThemeSidebarCollapsed(true);
@@ -1098,6 +1199,15 @@ export default function Sheet() {
     if (needsGridMenuButton) {
       setGridMenuOpen(true);
     }
+  }, [tutorialStep]);
+
+  // On narrow toolbars the Events button lives in the menu.
+  useEffect(() => {
+    if (!isCurrentTutorialStep('events-open-panel')) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (!document.querySelector('[data-tutorial="events-button"]')) setGridMenuOpen(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [tutorialStep]);
 
   const autoFitCharacterIdsRef = useRef(new Set<string>());
@@ -1496,6 +1606,8 @@ export default function Sheet() {
           onToggleTimeline={toggleTimeline}
           variablesOpen={variablesIsOpen}
           onToggleVariables={handleToggleVariables}
+          eventsOpen={eventsIsOpen}
+          onToggleEvents={handleToggleEvents}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={undo}
@@ -1740,6 +1852,8 @@ export default function Sheet() {
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
         {variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
+        {eventsIsOpen && <EventsPanel onRevealWidget={revealWidget} />}
+        <EventEditorHost />
         {workspace === 'play' && <TimelineToasts />}
 
         {/* Tutorial Bubble */}
@@ -2171,6 +2285,8 @@ export default function Sheet() {
         onSearch={() => setSheetSearchOpen(true)}
         variablesOpen={variablesIsOpen}
         onToggleVariables={handleToggleVariables}
+        eventsOpen={eventsIsOpen}
+        onToggleEvents={handleToggleEvents}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
@@ -2586,6 +2702,8 @@ export default function Sheet() {
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}
       {mode !== 'print' && variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
+      {mode !== 'print' && eventsIsOpen && <EventsPanel onRevealWidget={revealWidget} />}
+      {mode !== 'print' && <EventEditorHost />}
       {mode === 'play' && <TimelineToasts />}
 
       {/* Tutorial Bubble */}

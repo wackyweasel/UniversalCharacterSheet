@@ -37,6 +37,7 @@ interface BrowserTimelineData {
   eventsByCharacter?: Record<string, WorkspaceCharacterTimeline>;
   orderNewestFirst?: boolean;
   showFormulas?: boolean;
+  showEvents?: boolean;
   showToasts?: boolean;
 }
 
@@ -107,6 +108,7 @@ export function createBrowserWorkspaceProvider(storage: StorageLike = localStora
         eventsByCharacter: document.eventsByCharacter,
         orderNewestFirst: currentTimeline?.orderNewestFirst ?? false,
         showFormulas: currentTimeline?.showFormulas ?? true,
+        showEvents: currentTimeline?.showEvents,
         showToasts: currentTimeline?.showToasts,
       }));
 
