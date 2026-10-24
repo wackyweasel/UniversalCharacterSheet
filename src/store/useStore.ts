@@ -1000,6 +1000,7 @@ export const useStore = create<StoreState>((set, get) => {
             'FORM': 'Character Info',
             'MIXED_FIELDS': 'Mixed Fields',
             'REST_BUTTON': 'Rest',
+            'EVENT_BUTTON': 'Event button',
             'PROGRESS_BAR': 'Progress',
             'PROGRESS_CLOCK': 'Progress clocks',
             'MAP_SKETCHER': 'Map',
@@ -1053,6 +1054,7 @@ export const useStore = create<StoreState>((set, get) => {
               showPoolCount: false,
             } : {}),
             ...(type === 'TOGGLE' ? { toggleState: false, inlineLabel: true } : {}),
+            ...(type === 'EVENT_BUTTON' ? { buttonText: 'Event button' } : {}),
             ...(type === 'TIME_TRACKER' ? {
               effectSuggestions: [
                 'Poisoned',

@@ -38,7 +38,7 @@ export function WidgetEventsSection({ widgetId }: { widgetId: string }) {
   ].filter((row) => row.labels.length > 0);
 
   return (
-    <CollapsibleSection title="Events" count={events.length > 0 ? events.length : undefined} defaultOpen={events.length > 0}>
+    <CollapsibleSection title="Events" count={events.length > 0 ? events.length : undefined} defaultOpen={events.length > 0 || widget.type === 'EVENT_BUTTON'}>
       <div className="space-y-2.5" data-tutorial="widget-events-section">
         {events.length === 0 && (
           <div className="space-y-1.5 text-sm leading-relaxed text-theme-muted font-body">

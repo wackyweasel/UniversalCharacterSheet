@@ -113,6 +113,7 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
       data.clockItems?.forEach((clock) => add('Clock', clock.name));
       break;
     case 'REST_BUTTON':
+    case 'EVENT_BUTTON':
       add('Button', data.buttonText);
       break;
     case 'ROLL_TABLE':

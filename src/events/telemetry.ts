@@ -1,7 +1,7 @@
 import type { Character, CharacterEvent, WidgetType } from '../types';
 
 /** Where an event was created or changed. */
-export type EventTelemetrySource = 'events_panel' | 'widget_settings' | 'tutorial';
+export type EventTelemetrySource = 'events_panel' | 'widget_settings' | 'event_button' | 'tutorial';
 
 export interface EventTelemetryDetails {
   /** Type of the widget the trigger watches, if any. */

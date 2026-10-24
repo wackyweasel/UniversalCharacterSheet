@@ -23,6 +23,7 @@ const MIN_WIDGET_DIMENSIONS: Record<WidgetType, { width: number; height: number 
   'FORM': { width: 80, height: 30 },
   'MIXED_FIELDS': { width: 140, height: 30 },
   'REST_BUTTON': { width: 60, height: 40 },
+  'EVENT_BUTTON': { width: 60, height: 40 },
   'PROGRESS_BAR': { width: 50, height: 20 },
   'PROGRESS_CLOCK': { width: 80, height: 80 },
   'MAP_SKETCHER': { width: 100, height: 100 },

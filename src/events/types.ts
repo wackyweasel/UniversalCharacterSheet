@@ -48,7 +48,7 @@ export interface TargetSpec {
 
 export const ANY_TARGET = '*';
 
-export type WidgetActionKind = 'roll' | 'draw' | 'shuffle' | 'rest' | 'round' | 'turn' | 'finish';
+export type WidgetActionKind = 'roll' | 'draw' | 'shuffle' | 'rest' | 'round' | 'turn' | 'finish' | 'press';
 
 /** Something a widget did that isn't visible as a data change, such as a dice roll. */
 export interface WidgetAction {

@@ -42,6 +42,7 @@ import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
+import EventButtonWidget from './widgets/EventButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -696,6 +697,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       case 'FORM': return <FormWidget {...props} />;
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
+      case 'EVENT_BUTTON': return <EventButtonWidget {...props} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} />;
       case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={mode === 'play'} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} sheetScale={scale} />;

@@ -21,6 +21,7 @@ export type WidgetType =
   | 'FORM'
   | 'MIXED_FIELDS'
   | 'REST_BUTTON'
+  | 'EVENT_BUTTON'
   | 'PROGRESS_BAR'
   | 'PROGRESS_CLOCK'
   | 'MAP_SKETCHER'

@@ -29,6 +29,7 @@ import {
   TimeTrackerEditor,
   TableEditor,
   RestButtonEditor,
+  EventButtonEditor,
   MapSketcherEditor,
   GridMapEditor,
   RollTableEditor,
@@ -67,6 +68,7 @@ import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
+import EventButtonWidget from './widgets/EventButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -113,6 +115,7 @@ function getWidgetTitle(type: WidgetType): string {
     'FORM': 'Form',
     'MIXED_FIELDS': 'Mixed Fields',
     'REST_BUTTON': 'Rest Button',
+    'EVENT_BUTTON': 'Event Button',
     'PROGRESS_BAR': 'Progress Bar',
     'PROGRESS_CLOCK': 'Progress Clocks',
     'MAP_SKETCHER': 'Map Sketcher',
@@ -216,6 +219,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'FORM': return <FormEditor {...editorProps} />;
       case 'MIXED_FIELDS': return <MixedFieldsEditor {...editorProps} />;
       case 'REST_BUTTON': return <RestButtonEditor {...editorProps} />;
+      case 'EVENT_BUTTON': return <EventButtonEditor {...editorProps} />;
       case 'PROGRESS_BAR': return <ProgressBarEditor {...editorProps} />;
       case 'PROGRESS_CLOCK': return <ProgressClockEditor {...editorProps} />;
       case 'MAP_SKETCHER': return <MapSketcherEditor {...editorProps} />;
@@ -278,6 +282,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
       case 'FORM': return <FormWidget {...props} />;
       case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} />;
       case 'REST_BUTTON': return <RestButtonWidget {...props} />;
+      case 'EVENT_BUTTON': return <EventButtonWidget {...props} interactive={false} />;
       case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
       case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} />;
       case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;

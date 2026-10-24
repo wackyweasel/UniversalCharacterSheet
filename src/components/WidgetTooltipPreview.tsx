@@ -20,6 +20,7 @@ import TimeTrackerWidget from './widgets/TimeTrackerWidget';
 import FormWidget from './widgets/FormWidget';
 import MixedFieldsWidget from './widgets/MixedFieldsWidget';
 import RestButtonWidget from './widgets/RestButtonWidget';
+import EventButtonWidget from './widgets/EventButtonWidget';
 import ProgressBarWidget from './widgets/ProgressBarWidget';
 import ProgressClockWidget from './widgets/ProgressClockWidget';
 import MapSketcherWidget from './widgets/MapSketcherWidget';
@@ -353,6 +354,19 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       buttonText: 'Take Rest',
       healToFull: true,
       clearConditions: true,
+    },
+  },
+  EVENT_BUTTON: {
+    id: 'preview-event-button',
+    type: 'EVENT_BUTTON',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 92,
+    locked: true,
+    data: {
+      label: 'Second Wind',
+      buttonText: 'Second Wind',
     },
   },
   PROGRESS_BAR: {
@@ -762,6 +776,7 @@ function renderWidget(widget: Widget) {
     case 'FORM': return <FormWidget {...props} showFieldControls={false} />;
     case 'MIXED_FIELDS': return <MixedFieldsWidget {...props} showFieldControls={false} interactive={false} />;
     case 'REST_BUTTON': return <RestButtonWidget {...props} />;
+    case 'EVENT_BUTTON': return <EventButtonWidget {...props} interactive={false} />;
     case 'PROGRESS_BAR': return <ProgressBarWidget {...props} interactive={false} />;
     case 'PROGRESS_CLOCK': return <ProgressClockWidget {...props} interactive={false} showFieldControls={false} />;
     case 'MAP_SKETCHER': return <MapSketcherWidget {...props} />;

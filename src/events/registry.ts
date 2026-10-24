@@ -3,6 +3,7 @@ import { getWidgetTitle } from '../utils/characterVariables';
 import { collectLabels } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
 import { eventLabel, findEventLabelRefs, RUN_EVENT_KIND } from './constants';
+import { EVENT_BUTTON_TRIGGERS } from './defs/button';
 import {
   CARD_EFFECTS,
   CARD_TRIGGERS,
@@ -86,6 +87,7 @@ const WIDGET_DEFS: Record<WidgetType, WidgetEventDefs> = {
   TIMER: { triggers: TIMER_TRIGGERS, effects: TIMER_EFFECTS },
   INITIATIVE_TRACKER: { triggers: INITIATIVE_TRIGGERS, effects: [] },
   REST_BUTTON: { triggers: REST_TRIGGERS, effects: REST_EFFECTS },
+  EVENT_BUTTON: { triggers: EVENT_BUTTON_TRIGGERS, effects: [] },
   TIME_TRACKER: { triggers: TIME_TRACKER_TRIGGERS, effects: TIME_TRACKER_EFFECTS },
   CALENDAR: { triggers: CALENDAR_TRIGGERS, effects: CALENDAR_EFFECTS },
   // Their values are reachable through labels.
@@ -116,6 +118,7 @@ export const WIDGET_EVENT_ICONS: Record<WidgetType, string> = {
   FORM: '📄',
   MIXED_FIELDS: '🧩',
   REST_BUTTON: '🛏️',
+  EVENT_BUTTON: '⚡',
   PROGRESS_BAR: '📶',
   PROGRESS_CLOCK: '🕒',
   MAP_SKETCHER: '🗺️',

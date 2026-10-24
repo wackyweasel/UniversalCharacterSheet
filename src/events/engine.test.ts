@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CardTableCard, Character, CharacterEvent, Widget } from '../types';
 import { MAX_CHAIN_DEPTH, interpolateText, runEvents } from './engine';
+import { createEventDraft } from './drafts';
 import { patchWidgetData } from './helpers';
 import { writeLabelValue } from './labelWriter';
 import {
@@ -294,6 +295,28 @@ describe('event engine', () => {
 
     const effectTargets = getWidgetEventDefs('XP_LEVEL').effects.flatMap((def) => def.target?.options({ character: before, widget: xp }) ?? []);
     expect(effectTargets.some((option) => option.value === 'level')).toBe(false);
+  });
+
+  it('runs the events of an event button when that button is pressed', () => {
+    const button: Widget = { id: 'w-wind', type: 'EVENT_BUTTON', x: 0, y: 0, data: { label: 'Second Wind', buttonText: 'Second Wind' } };
+    const other: Widget = { id: 'w-other', type: 'EVENT_BUTTON', x: 0, y: 0, data: { label: 'Rage' } };
+    const event: CharacterEvent = {
+      id: 'e-wind',
+      enabled: true,
+      trigger: { kind: 'button.pressed', widgetId: 'w-wind' },
+      effects: [{ id: 'f1', kind: 'value.add', widgetId: 'w-hp', target: 'current', params: { amount: '5' } }],
+    };
+    const before = character([button, other, { ...health, data: { ...health.data, currentValue: 10 } }], [event]);
+
+    expect(describeTrigger(before, event.trigger)).toBe('Second Wind is pressed');
+    expect(createEventDraft(before, button).trigger).toEqual({ kind: 'button.pressed', widgetId: 'w-wind' });
+
+    const elsewhere = runEvents({ before, after: before, actions: [{ widgetId: 'w-other', kind: 'press' }] });
+    expect(elsewhere.firings).toHaveLength(0);
+
+    const pressed = runEvents({ before, after: before, actions: [{ widgetId: 'w-wind', kind: 'press' }] });
+    expect(widgetData(pressed.character, 'w-hp').currentValue).toBe(15);
+    expect(pressed.firings[0]).toMatchObject({ trigger: 'Button pressed', depth: 0 });
   });
 
   it('runs an event by hand, ignoring its trigger and enabled switch', () => {

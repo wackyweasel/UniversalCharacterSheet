@@ -20,6 +20,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'XP_LEVEL', label: 'XP & level', category: 'Character Info', keywords: 'experience points level up advancement progression milestone' },
   { type: 'SKILL_TREE', label: 'Skill tree', category: 'Character Info', keywords: 'talents perks abilities upgrades advancement prerequisites unlock points progression' },
   { type: 'REST_BUTTON', label: 'Rest button', category: 'Ressources and Status', keywords: 'reset recover refresh' },
+  { type: 'EVENT_BUTTON', label: 'Event button', category: 'Ressources and Status', keywords: 'events trigger run action automation macro click press activate ability' },
   { type: 'HEALTH_BAR', label: 'Health bar', category: 'Ressources and Status', keywords: 'hp wounds damage' },
   { type: 'POOL', label: 'Resource pool', category: 'Ressources and Status', keywords: 'tokens points mana' },
   { type: 'WALLET', label: 'Wallet', category: 'Ressources and Status', keywords: 'money coins currency gold silver copper cp sp gp purse funds' },

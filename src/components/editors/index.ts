@@ -20,6 +20,7 @@ export { ConditionEditor } from './ConditionEditor';
 export { TimeTrackerEditor } from './TimeTrackerEditor';
 export { TableEditor } from './TableEditor';
 export { RestButtonEditor } from './RestButtonEditor';
+export { EventButtonEditor } from './EventButtonEditor';
 export { MapSketcherEditor } from './MapSketcherEditor';
 export { GridMapEditor } from './GridMapEditor';
 export { RollTableEditor } from './RollTableEditor';

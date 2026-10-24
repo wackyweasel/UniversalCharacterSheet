@@ -1610,7 +1610,8 @@ button.dice-result__die--selectable:hover {
   }
 
   .widget-content.widget-content--editable-header:has(.image-widget),
-  .widget-content.widget-content--editable-header:has(.rest-button-widget) {
+  .widget-content.widget-content--editable-header:has(.rest-button-widget),
+  .widget-content.widget-content--editable-header:has(.event-button-widget) {
     padding-top: 6px;
   }
 
