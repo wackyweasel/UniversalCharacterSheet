@@ -6,6 +6,7 @@ import { useTimelineStore } from '../store/useTimelineStore';
 import { useDiceResultStore } from '../store/useDiceResultStore';
 import { EVENT_TIMELINE_TYPE, emitWidgetAction, initEventRuntime, runEventNow } from './runtime';
 import { getEventProblems } from './registry';
+import { findInlineButtonNames } from './defs/textButton';
 import { ADVANCED_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET } from '../presets';
 
 vi.hoisted(() => {
@@ -179,7 +180,7 @@ describe('event runtime', () => {
     useStore.getState().createTransientCharacterFromPreset(EVENTS_TUTORIAL_PRESET, 'Tutorial Character');
     const character = useStore.getState().characters.find((item) => item.id === useStore.getState().activeCharacterId)!;
     const events = character.events ?? [];
-    expect(events.map((event) => event.name)).toEqual(['Bloodied', 'Steady again', 'Second Wind']);
+    expect(events.map((event) => event.name)).toEqual(['Bloodied', 'Steady again', 'Second Wind', 'Rage']);
     for (const event of events) expect(getEventProblems(character, event)).toEqual([]);
 
     const widgets = character.sheets.flatMap((sheet) => sheet.widgets);
@@ -203,6 +204,19 @@ describe('event runtime', () => {
     expect(current().find((widget) => widget.id === health.id)!.data.currentValue).toBeGreaterThanOrEqual(5);
     expect(frightened()).toBe(false);
     expect(timeline().map((entry) => entry.widgetLabel)).toEqual(expect.arrayContaining(['Second Wind', 'Steady again']));
+
+    const eventButton = widgets.find((widget) => widget.type === 'EVENT_BUTTON')!;
+    const pool = widgets.find((widget) => widget.type === 'POOL')!;
+    const rage = () => current().find((widget) => widget.id === pool.id)!.data.poolResources!
+      .find((resource) => resource.name === 'Rage')?.current;
+    expect(rage()).toBe(3);
+    emitWidgetAction({ widgetId: eventButton.id, kind: 'press' });
+    await settle();
+    expect(rage()).toBe(2);
+    expect(timeline().map((entry) => entry.widgetLabel)).toContain('Rage');
+
+    const spells = widgets.find((widget) => widget.type === 'TABLE' && widget.data.label === 'Spells')!;
+    expect(findInlineButtonNames(spells.data)).toContain('Fireball');
     useStore.getState().cleanupTransientCharacters();
   });
 });

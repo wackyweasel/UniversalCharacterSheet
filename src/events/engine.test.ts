@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CardTableCard, Character, CharacterEvent, Widget } from '../types';
 import { MAX_CHAIN_DEPTH, interpolateText, runEvents } from './engine';
-import { createEventDraft } from './drafts';
+import { createEventDraft, createTextButtonDraft, getEventSourceWidgets } from './drafts';
+import { findInlineButtonNames, TEXT_BUTTON_KIND } from './defs/textButton';
 import { patchWidgetData } from './helpers';
 import { writeLabelValue } from './labelWriter';
 import {
@@ -317,6 +318,45 @@ describe('event engine', () => {
     const pressed = runEvents({ before, after: before, actions: [{ widgetId: 'w-wind', kind: 'press' }] });
     expect(widgetData(pressed.character, 'w-hp').currentValue).toBe(15);
     expect(pressed.firings[0]).toMatchObject({ trigger: 'Button pressed', depth: 0 });
+  });
+
+  it('runs the events of a {[Name]} button written in a widget text', () => {
+    const notes: Widget = {
+      id: 'w-notes',
+      type: 'TEXT',
+      x: 0,
+      y: 0,
+      data: { label: 'Notes', richText: '<p>Use {[Second Wind]} or {[Rage]} &amp; {{[Escaped]}}</p><p>{[second  wind]}</p>' },
+    };
+    const plain: Widget = { id: 'w-plain', type: 'TEXT', x: 0, y: 0, data: { label: 'Plain', text: 'No buttons here' } };
+    const table: Widget = { id: 'w-table', type: 'TABLE', x: 0, y: 0, data: { label: 'Table', rows: [{ cells: ['{[Dodge]}'] }] } };
+    const event: CharacterEvent = {
+      id: 'e-wind',
+      enabled: true,
+      trigger: { kind: TEXT_BUTTON_KIND, widgetId: 'w-notes', target: 'Second Wind' },
+      effects: [{ id: 'f1', kind: 'value.add', widgetId: 'w-hp', target: 'current', params: { amount: '5' } }],
+    };
+    const before = character([notes, plain, table, { ...health, data: { ...health.data, currentValue: 10 } }], [event]);
+
+    expect(findInlineButtonNames(notes.data)).toEqual(['Second Wind', 'Rage']);
+    expect(findInlineButtonNames(table.data)).toEqual(['Dodge']);
+    expect(describeTrigger(before, event.trigger)).toBe('Second Wind in Notes is pressed');
+    expect(createTextButtonDraft(notes, 'Rage')).toMatchObject({
+      name: 'Rage',
+      trigger: { kind: TEXT_BUTTON_KIND, widgetId: 'w-notes', target: 'Rage' },
+    });
+    expect(createEventDraft(before, plain).trigger.kind).not.toBe(TEXT_BUTTON_KIND);
+    const triggerSources = getEventSourceWidgets(before, 'trigger').flatMap((group) => group.widgets.map((widget) => widget.id));
+    expect(triggerSources).toEqual(expect.arrayContaining(['w-notes', 'w-table']));
+    expect(triggerSources).not.toContain('w-plain');
+    expect(getEventSourceWidgets(before, 'trigger', 'w-plain').flatMap((group) => group.widgets.map((widget) => widget.id))).toContain('w-plain');
+
+    const otherButton = runEvents({ before, after: before, actions: [{ widgetId: 'w-notes', kind: 'press', target: 'Rage' }] });
+    expect(otherButton.firings).toHaveLength(0);
+
+    const pressed = runEvents({ before, after: before, actions: [{ widgetId: 'w-notes', kind: 'press', target: 'second  WIND' }] });
+    expect(widgetData(pressed.character, 'w-hp').currentValue).toBe(15);
+    expect(pressed.firings[0]).toMatchObject({ trigger: 'second  WIND pressed', depth: 0 });
   });
 
   it('runs an event by hand, ignoring its trigger and enabled switch', () => {

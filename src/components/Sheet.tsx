@@ -29,6 +29,8 @@ import EventsPanel from './events/EventsPanel';
 import { EventEditorHost } from './events/EventEditorDialog';
 import { subscribeEventFirings } from '../events/runtime';
 import { getTriggerDef } from '../events/registry';
+import { BUTTON_PRESSED_KIND } from '../events/defs/button';
+import { TEXT_BUTTON_KIND } from '../events/defs/textButton';
 import TimelineToasts from './TimelineToasts';
 import ShareExportMenu from './ShareExportMenu';
 import SheetSearch from './SheetSearch';
@@ -326,7 +328,11 @@ export default function Sheet() {
     } else if (step === 'events-timeline' || step === 'events-chain' || step === 'events-try-new-result') {
       setMode('play');
       setTimelineOpen(true);
-    } else if (step === 'events-complete') {
+    } else if (
+      step === 'events-button-result'
+      || step === 'events-inline-result'
+      || step === 'events-complete'
+    ) {
       setEventsOpen(false);
       setTimelineOpen(false);
     }
@@ -336,7 +342,13 @@ export default function Sheet() {
   useEffect(() => subscribeEventFirings((firings) => {
     const { tutorialStep: current, advanceTutorial: advance } = useTutorialStore.getState();
     const stepId = current !== null ? TUTORIAL_STEPS[current]?.id : undefined;
-    if (stepId !== 'events-try-trigger' && stepId !== 'events-run-manual' && stepId !== 'events-try-new') return;
+    if (
+      stepId !== 'events-try-trigger'
+      && stepId !== 'events-run-manual'
+      && stepId !== 'events-try-new'
+      && stepId !== 'events-button-widget'
+      && stepId !== 'events-inline-try'
+    ) return;
     const state = useStore.getState();
     const character = state.characters.find((item) => item.id === state.activeCharacterId);
     if (!character) return;
@@ -349,17 +361,21 @@ export default function Sheet() {
       const manualTrigger = getTriggerDef(event.trigger.kind)?.mode === 'manual';
       if (stepId === 'events-try-trigger') return !manualTrigger && !firing.manual && !firing.conditionFailed;
       if (stepId === 'events-run-manual') return manualTrigger;
+      if (stepId === 'events-button-widget') return !firing.manual && event.trigger.kind === BUTTON_PRESSED_KIND;
+      if (stepId === 'events-inline-try') return !firing.manual && event.trigger.kind === TEXT_BUTTON_KIND;
       return !firing.manual && !!attackRoller && event.trigger.widgetId === attackRoller.id;
     });
     if (matches) advance();
   }), []);
 
-  // Events tutorial: the editor lessons need a new event open; closing it goes back to New event.
+  // Events tutorial: the editor lessons need a new event open; closing it goes back to the step that opens it.
   useEffect(() => {
-    if (tutorialStepId === 'events-new' && eventEditorIsNew) {
+    if ((tutorialStepId === 'events-new' || tutorialStepId === 'events-inline-button') && eventEditorIsNew) {
       advanceTutorial();
     } else if (tutorialStepId?.startsWith('events-editor-') && !eventEditorIsNew) {
       setTutorialStep(getTutorialStepIndex('events-new'));
+    } else if (tutorialStepId?.startsWith('events-inline-editor-') && !eventEditorIsNew) {
+      setTutorialStep(getTutorialStepIndex('events-inline-button'));
     }
   }, [advanceTutorial, eventEditorIsNew, setTutorialStep, tutorialStepId]);
   
@@ -717,7 +733,8 @@ export default function Sheet() {
 
     setScale(newScale);
     setPan({
-      x: viewportWidth * 0.68 - targetX * newScale,
+      // Keep the left edge on screen when a wide widget doesn't fit left of the usual spot (phones).
+      x: Math.max(viewportWidth * 0.68 - targetX * newScale, 16 - targetWidget.x * newScale),
       y: viewportHeight * 0.38 - targetY * newScale,
     });
   }, [activeSheetWidgets, handleFitAllWidgets, setPan, setScale]);
@@ -1107,22 +1124,23 @@ export default function Sheet() {
   }, [tutorialStep, frameWidgetForTutorial]);
 
   useEffect(() => {
-    const frameHealth = tutorialStepId === 'events-try-trigger';
-    const frameAttackRoller = tutorialStepId === 'events-try-new' || tutorialStepId === 'events-open-widget-menu';
-    if (!frameHealth && !frameAttackRoller) return;
+    const frames: Record<string, () => void> = {
+      'events-try-trigger': () => frameWidgetForTutorial('HEALTH_BAR'),
+      'events-try-new': () => frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack'),
+      'events-open-widget-menu': () => frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack'),
+      'events-button-widget': () => frameWidgetForTutorial('EVENT_BUTTON'),
+      'events-inline-button': () => frameWidgetForTutorial('TABLE', (widget) => String(widget.data?.label || '').toLowerCase() === 'spells'),
+      'events-inline-try': () => frameWidgetForTutorial('TABLE', (widget) => String(widget.data?.label || '').toLowerCase() === 'spells'),
+    };
+    const frame = tutorialStepId ? frames[tutorialStepId] : undefined;
+    if (!frame) return;
 
     setMode('play');
     setSidebarCollapsed(true);
     setThemeSidebarCollapsed(true);
     setEventsOpen(false);
     setTimelineOpen(false);
-    const timer = setTimeout(() => {
-      if (frameHealth) {
-        frameWidgetForTutorial('HEALTH_BAR');
-      } else {
-        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
-      }
-    }, 200);
+    const timer = setTimeout(frame, 200);
     return () => clearTimeout(timer);
     // Only frame when the step changes, not every time a roll or damage changes the widgets.
   }, [tutorialStepId]);

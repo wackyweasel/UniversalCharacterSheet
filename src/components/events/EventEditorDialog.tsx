@@ -80,7 +80,7 @@ const findDiceRoller = (character: Character, label: string) => character.sheets
   .flatMap((sheet) => sheet.widgets)
   .find((widget) => widget.type === 'DICE_ROLLER' && String(widget.data?.label || '').toLowerCase() === label);
 
-/** Events tutorial: fills in the part of the Hit event that the step explains, unless the reader already chose one. */
+/** Events tutorial: fills in the part of the event that the step explains, unless the reader already chose one. */
 function applyTutorialLesson(character: Character, stepId: string, draft: Draft): Draft {
   if (stepId === 'events-editor-trigger') {
     const attack = findDiceRoller(character, 'attack');
@@ -105,6 +105,19 @@ function applyTutorialLesson(character: Character, stepId: string, draft: Draft)
       effects: [
         createEffect(character, roll, damage),
         { ...createEffect(character, log), params: { message: 'Hit with a {@event_total}!' } },
+      ],
+    };
+  }
+  if (stepId === 'events-inline-editor-effects') {
+    const slots = character.sheets.flatMap((sheet) => sheet.widgets).find((widget) => widget.type === 'SPELL_SLOT');
+    const useSlot = getEffectDef('spell.use');
+    const roll = getEffectDef('dice.roll');
+    if (!slots || !useSlot || !roll || draft.effects.some((effect) => effect.kind)) return draft;
+    return {
+      ...draft,
+      effects: [
+        { ...createEffect(character, useSlot, slots), target: 'level:3', params: { upcast: 'no', count: '1' } },
+        { ...createEffect(character, roll), params: { dice: '8d6', title: 'Fireball' } },
       ],
     };
   }
@@ -262,7 +275,7 @@ function ProblemList({ problems }: { problems: string[] | undefined }) {
 }
 
 function SourceSelect({ character, role, value, onChange }: { character: Character; role: Role; value: string; onChange: (value: string) => void }) {
-  const groups = useMemo(() => getEventSourceWidgets(character, role), [character, role]);
+  const groups = useMemo(() => getEventSourceWidgets(character, role, value), [character, role, value]);
   const titleCounts = useMemo(() => {
     const counts = new Map<string, number>();
     groups.forEach((group) => group.widgets.forEach((widget) => {
@@ -301,7 +314,7 @@ function TargetSelect({ spec, ctx, value, onChange }: { spec: TargetSpec; ctx: S
   if (choices.length === 0) {
     return (
       <select disabled className={fieldClass}>
-        <option>Nothing to choose yet</option>
+        <option>{spec.empty ?? 'Nothing to choose yet'}</option>
       </select>
     );
   }
@@ -519,7 +532,12 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
   const isEditing = !!request.eventId;
   const eventExists = !request.eventId || !!character.events?.some((event) => event.id === request.eventId);
   const tutorialStepId = useTutorialStore((state) => (state.tutorialStep !== null ? TUTORIAL_STEPS[state.tutorialStep]?.id : undefined));
-  const inTutorialLesson = !isEditing && (tutorialStepId === 'events-new' || !!tutorialStepId?.startsWith('events-editor-'));
+  const inTutorialLesson = !isEditing && (
+    tutorialStepId === 'events-new'
+    || tutorialStepId === 'events-inline-button'
+    || !!tutorialStepId?.startsWith('events-editor-')
+    || !!tutorialStepId?.startsWith('events-inline-editor-')
+  );
 
   // A layout effect, so the lesson's fields exist before the tutorial bubble scrolls to them.
   useLayoutEffect(() => {
@@ -623,9 +641,11 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
     let eventId: string | null = request.eventId ?? null;
     if (request.eventId) updateEvent(request.eventId, payload, telemetrySource);
     else eventId = addEvent(payload, telemetrySource);
-    // Move the Events tutorial past the editor before closing it, or the tutorial would send the reader back to "New event".
+    // Move the Events tutorial past the editor before closing it, or the tutorial would send the reader back to the step that opened it.
     if (!isEditing && tutorialStepId?.startsWith('events-editor-')) {
       useTutorialStore.getState().setTutorialStep(getTutorialStepIndex('events-editor-save') + 1);
+    } else if (!isEditing && tutorialStepId?.startsWith('events-inline-editor-')) {
+      useTutorialStore.getState().setTutorialStep(getTutorialStepIndex('events-inline-editor-save') + 1);
     }
     closeEditor();
     if (eventId && useEventsPanelStore.getState().isOpen) useEventsPanelStore.setState({ focusEventId: eventId });
@@ -793,7 +813,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
               type="button"
               onClick={save}
               data-tutorial="event-editor-save"
-              className={`widget-control widget-control--primary px-4 py-2 text-xs font-bold ${!isEditing && tutorialStepId === 'events-editor-save' ? tutorialTargetClass : ''}`}
+              className={`widget-control widget-control--primary px-4 py-2 text-xs font-bold ${!isEditing && (tutorialStepId === 'events-editor-save' || tutorialStepId === 'events-inline-editor-save') ? tutorialTargetClass : ''}`}
             >
               {isEditing ? 'Save' : 'Create event'}
             </button>

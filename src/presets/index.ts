@@ -1,4 +1,4 @@
-import { Character } from '../types';
+import { Character, TableCell } from '../types';
 import DnD5ePreset from './DnD5e_preset.json';
 import DCCLvl0Preset from './DCC_lvl0_preset.json';
 import MothershipPreset from './Mothership_preset.json';
@@ -121,13 +121,28 @@ export const ADVANCED_TUTORIAL_PRESET: CharacterPreset = (() => {
   return preset;
 })();
 
-// Starter sheet for the Events tutorial: Bloodied and Steady again react to Health, and Second Wind runs by hand.
+// Starter sheet for the Events tutorial: Bloodied and Steady again react to Health, Second Wind runs by hand,
+// a Rage event button spends a Rage flame, and the Fireball spell is a {[Fireball]} button waiting for its event.
 export const EVENTS_TUTORIAL_PRESET: CharacterPreset = (() => {
   const preset = JSON.parse(JSON.stringify(TutorialPreset)) as CharacterPreset;
   const widgets = (preset.sheets ?? []).flatMap((sheet) => sheet.widgets ?? []);
   const health = widgets.find((widget) => widget.type === 'HEALTH_BAR');
   const conditions = widgets.find((widget) => widget.type === 'TOGGLE_GROUP' && widget.data.label === 'Conditions');
-  if (!health || !conditions) return preset;
+  const restButton = widgets.find((widget) => widget.type === 'REST_BUTTON');
+  const pool = widgets.find((widget) => widget.type === 'POOL');
+  const rage = pool?.data.poolResources?.find((resource) => resource.style === 'flames');
+  const fireball = widgets
+    .find((widget) => widget.type === 'TABLE' && widget.data.label === 'Spells')
+    ?.data.rows?.flatMap((row) => row.cells)
+    .find((cell): cell is TableCell => typeof cell === 'object' && cell.value === 'Fireball');
+  if (!health || !conditions || !restButton || !pool || !rage || !fireball) return preset;
+
+  // The Event button takes the Long Rest button's place, so the layout stays the same.
+  restButton.type = 'EVENT_BUTTON';
+  restButton.data = { label: 'Rage', value: 0, items: [], text: '', buttonText: 'Rage' };
+  rage.name = 'Rage';
+  fireball.value = '{[Fireball]}';
+
   preset.events = [
     {
       id: 'tutorial-event-bloodied',
@@ -156,6 +171,15 @@ export const EVENTS_TUTORIAL_PRESET: CharacterPreset = (() => {
       effects: [
         // Heals at least 5, so from below half it always climbs back to half and chains into Steady again.
         { id: 'tutorial-effect-second-wind', kind: 'health.heal', widgetId: health.id, params: { amount: '1d10+4', overflow: 'lost' } },
+      ],
+    },
+    {
+      id: 'tutorial-event-rage',
+      name: 'Rage',
+      enabled: true,
+      trigger: { kind: 'button.pressed', widgetId: restButton.id },
+      effects: [
+        { id: 'tutorial-effect-rage-spend', kind: 'value.subtract', widgetId: pool.id, target: 'Rage', params: { amount: '1', clamp: 'yes' } },
       ],
     },
   ];

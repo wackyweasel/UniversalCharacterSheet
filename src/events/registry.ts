@@ -32,6 +32,7 @@ import {
 } from './defs/items';
 import { MIXED_FIELD_DEFS } from './defs/mixed';
 import { NUMERIC_EFFECTS, NUMERIC_TRIGGERS, TRACK_TRIGGERS, XP_TRIGGERS } from './defs/numeric';
+import { TEXT_BUTTON_TRIGGERS } from './defs/textButton';
 import {
   CALENDAR_EFFECTS,
   CALENDAR_TRIGGERS,
@@ -49,6 +50,8 @@ import type { EffectDef, EventOption, EventParamSpec, SpecContext, TargetSpec, T
 
 const NUMERIC: WidgetEventDefs = { triggers: NUMERIC_TRIGGERS, effects: NUMERIC_EFFECTS };
 const NONE: WidgetEventDefs = { triggers: [], effects: [] };
+// For widgets that show their text with `{[Name]}` buttons.
+const TEXT_BUTTONS: Partial<WidgetEventDefs> = { triggers: TEXT_BUTTON_TRIGGERS };
 
 function combine(...parts: Partial<WidgetEventDefs>[]): WidgetEventDefs {
   return {
@@ -70,12 +73,12 @@ const WIDGET_DEFS: Record<WidgetType, WidgetEventDefs> = {
   TOGGLE: SWITCH_DEFS,
   TOGGLE_GROUP: CONDITION_DEFS,
   CHECKBOX: CHECKLIST_DEFS,
-  MIXED_FIELDS: combine(NUMERIC, MIXED_SWITCH_DEFS, MIXED_FIELD_DEFS),
+  MIXED_FIELDS: combine(NUMERIC, MIXED_SWITCH_DEFS, MIXED_FIELD_DEFS, TEXT_BUTTONS),
   SKILL_TREE: combine(SKILL_DEFS, NUMERIC),
-  INVENTORY: combine({ triggers: INVENTORY_TRIGGERS, effects: INVENTORY_EFFECTS }, NUMERIC),
+  INVENTORY: combine({ triggers: INVENTORY_TRIGGERS, effects: INVENTORY_EFFECTS }, NUMERIC, TEXT_BUTTONS),
   WALLET: combine({ triggers: WALLET_TRIGGERS, effects: WALLET_EFFECTS }, NUMERIC),
-  LIST: { triggers: [], effects: LIST_EFFECTS },
-  TEXT: { triggers: [], effects: NOTES_EFFECTS },
+  LIST: combine(TEXT_BUTTONS, { effects: LIST_EFFECTS }),
+  TEXT: combine(TEXT_BUTTONS, { effects: NOTES_EFFECTS }),
   LABEL: { triggers: [], effects: HEADING_EFFECTS },
   DICE_ROLLER: { triggers: [DICE_ROLLED_TRIGGER], effects: ROLLER_EFFECTS },
   DICE_TRAY: { triggers: [DICE_ROLLED_TRIGGER], effects: TRAY_EFFECTS },
@@ -91,8 +94,8 @@ const WIDGET_DEFS: Record<WidgetType, WidgetEventDefs> = {
   TIME_TRACKER: { triggers: TIME_TRACKER_TRIGGERS, effects: TIME_TRACKER_EFFECTS },
   CALENDAR: { triggers: CALENDAR_TRIGGERS, effects: CALENDAR_EFFECTS },
   // Their values are reachable through labels.
-  TABLE: NONE,
-  FORM: NONE,
+  TABLE: combine(TEXT_BUTTONS),
+  FORM: combine(TEXT_BUTTONS),
   IMAGE: NONE,
   MAP_SKETCHER: NONE,
   GRID_MAP: NONE,

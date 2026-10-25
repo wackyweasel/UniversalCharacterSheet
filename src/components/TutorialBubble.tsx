@@ -52,6 +52,7 @@ const TOP_ON_NARROW_STEP_IDS = new Set([
   'advanced-close-dice-roller',
   'events-close-widget',
   'events-editor-save',
+  'events-inline-editor-save',
   'templates-load-widget-template',
 ]);
 

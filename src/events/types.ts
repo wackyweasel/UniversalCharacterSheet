@@ -44,6 +44,8 @@ export interface TargetSpec {
   any?: string;
   /** Name shown for a choice that no longer exists, instead of its stored value (e.g. for ids). */
   missing?: string;
+  /** Shown instead of the choices when there are none yet, e.g. how to add one. */
+  empty?: string;
 }
 
 export const ANY_TARGET = '*';
@@ -123,6 +125,8 @@ export interface TriggerDef {
   label: string;
   mode: 'state' | 'action' | 'manual';
   target?: TargetSpec;
+  /** Only offers its widget as a trigger source once the target has something to choose. */
+  needsTarget?: boolean;
   params?: EventParamSpec[];
   /** Data passed to the event's condition and effects. */
   outputs?: TriggerOutput[];

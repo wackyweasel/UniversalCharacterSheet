@@ -8,7 +8,8 @@ import { maskFormulaStringLiterals, type FormulaLabels } from './formulaSyntax';
 export type InlineDiceSegment =
   | { type: 'text'; value: string }
   | { type: 'formula'; source: string; expression: string }
-  | { type: 'dice'; source: string; expression: string };
+  | { type: 'dice'; source: string; expression: string }
+  | { type: 'button'; source: string; name: string };
 
 export type ResolvedInlineDiceExpression =
   | {
@@ -35,6 +36,11 @@ const DICE_CANDIDATE_PATTERN = new RegExp(String.raw`(?:\b\d+|\{[^{}]*\}|\b)d${D
 const DICE_KEEP_SLOT = String.raw`(?:\{[^{}]*\}|@[a-zA-Z_][a-zA-Z0-9_]*)`;
 const EXACT_DICE_PATTERN = new RegExp(String.raw`^(${DICE_COUNT})?\s*d\s*(${DICE_QUANTITY})(?:\s*(?:([kd])([hl])\s*(${DICE_QUANTITY})?|(${DICE_KEEP_SLOT})))?$`, 'i');
 const KEEP_TEXT_PATTERN = /^([kd])([hl])(\d*)$/i;
+// `{[Name]}` is an event button; formulas can't contain brackets, so it can't clash with them.
+const BUTTON_PATTERN = /^\[([^[\]{}]+)\]$/;
+
+/** A button name with its spacing tidied, so `{[ Second  Wind ]}` and `{[Second Wind]}` are the same button. */
+export const normalizeInlineButtonName = (name: string) => name.replace(/\s+/g, ' ').trim();
 
 const resolveDiceQuantity = (raw: string | undefined, labels: FormulaLabels): { value: number; reason?: undefined } | { value?: undefined; reason: string } => {
   if (raw === undefined) return { value: 1 };
@@ -106,8 +112,11 @@ export const tokenizeInlineDiceText = (text: string): InlineDiceSegment[] => {
 
     const source = text.slice(index, tokenEnd + 1);
     const expression = text.slice(index + 1, tokenEnd).trim();
+    const buttonName = normalizeInlineButtonName(BUTTON_PATTERN.exec(expression)?.[1] ?? '');
     if (!expression) {
       appendText(segments, source);
+    } else if (buttonName) {
+      segments.push({ type: 'button', source, name: buttonName });
     } else if (hasDiceCandidate(expression)) {
       segments.push({ type: 'dice', source, expression });
     } else {
@@ -287,12 +296,12 @@ export const resolveDiceExpressionField = (
   return { terms: resolution.terms };
 };
 
-/** Replaces valid formula tokens with their values; dice and invalid tokens stay as source text. */
+/** Replaces valid formula tokens with their values; dice, button and invalid tokens stay as source text. */
 export const resolveInlineFormulasToText = (text: string, labels: FormulaLabels): string => {
   if (!text.includes('{')) return text;
   return tokenizeInlineDiceText(text).map((segment) => {
     if (segment.type === 'text') return segment.value;
-    if (segment.type === 'dice') return segment.source;
+    if (segment.type === 'dice' || segment.type === 'button') return segment.source;
     const resolution = resolveInlineDiceExpression(segment.expression, labels);
     return resolution.valid ? resolution.resolvedExpression : segment.source;
   }).join('');

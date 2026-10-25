@@ -55,4 +55,17 @@ describe('inline formulas', () => {
   it('returns text resolutions without dice terms', () => {
     expect(resolveInlineDiceExpression('@name', labels)).toMatchObject({ valid: true, resolvedExpression: 'Aria', terms: [] });
   });
+
+  it('tokenizes {[Name]} as an event button, even when the name looks like dice', () => {
+    expect(tokenizeInlineDiceText('Use {[Second Wind]} now')).toEqual([
+      { type: 'text', value: 'Use ' },
+      { type: 'button', source: '{[Second Wind]}', name: 'Second Wind' },
+      { type: 'text', value: ' now' },
+    ]);
+    expect(tokenizeInlineDiceText('{[Roll d20]}')).toEqual([{ type: 'button', source: '{[Roll d20]}', name: 'Roll d20' }]);
+    expect(tokenizeInlineDiceText('{[  Big   Hit ]}')).toEqual([{ type: 'button', source: '{[  Big   Hit ]}', name: 'Big Hit' }]);
+    expect(tokenizeInlineDiceText('{[ ]}')[0].type).toBe('formula');
+    expect(tokenizeInlineDiceText('{{[Rage]}}')).toEqual([{ type: 'text', value: '{[Rage]}' }]);
+    expect(resolveInlineFormulasToText('Use {[Second Wind]} at {@hp} HP', { hp: 3 })).toBe('Use {[Second Wind]} at 3 HP');
+  });
 });

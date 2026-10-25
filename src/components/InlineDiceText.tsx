@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore';
 import { useInlineDiceRoll } from '../hooks/useInlineDiceRoll';
 import { tokenizeInlineDiceText } from '../utils/inlineDice';
 import { DiceIcon } from './icons';
+import { InlineEventButton } from './InlineEventButton';
 import { Tooltip } from './Tooltip';
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 export function InlineDiceText({ text, widget, className = '' }: Props) {
   const mode = useStore((state) => state.mode);
   const segments = useMemo(() => tokenizeInlineDiceText(text), [text]);
-  const hasTokens = segments.some((segment) => segment.type !== 'text');
+  const hasTokens = segments.some((segment) => segment.type === 'formula' || segment.type === 'dice');
   const { resolveExpression, rollExpression, rollingExpression } = useInlineDiceRoll(widget, hasTokens);
 
   if (mode !== 'play' && mode !== 'vertical') {
@@ -27,6 +28,7 @@ export function InlineDiceText({ text, widget, className = '' }: Props) {
       <span className={`inline-dice-text ${className}`}>
         {segments.map((segment, index) => {
           if (segment.type === 'text') return <span key={index}>{segment.value}</span>;
+          if (segment.type === 'button') return <InlineEventButton key={index} name={segment.name} widget={widget} />;
 
           const resolution = resolveExpression(segment.expression);
           if (segment.type === 'formula') {
