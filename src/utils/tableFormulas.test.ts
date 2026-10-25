@@ -36,6 +36,16 @@ function mergedData(): WidgetData {
   };
 }
 
+describe('inline formula table cells', () => {
+  it('labels hold the evaluated result of a whole-cell {formula}, even when it depends on a later cell', () => {
+    const character = characterWithTable({
+      columns: ['A', 'B'],
+      rows: [{ cells: [{ value: '{@hit_cost + 1}', label: 'hit_total' }, { value: '{3 + @source}', label: 'hit_cost' }] }],
+    }, { source: 2 });
+    expect(collectLabels(character)).toMatchObject({ hit_cost: 5, hit_total: 6 });
+  });
+});
+
 describe('merged table formulas', () => {
   it('collects only visible explicit and generated labels, preserving physical indexes', () => {
     const data = mergedData();

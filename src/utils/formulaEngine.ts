@@ -28,6 +28,7 @@ export const CUSTOM_VARIABLES_SHEET = 'Character';
  */
 export function collectLabels(character: Character): FormulaLabels {
   const labels: FormulaLabels = {};
+  const deferredCellFormulas: { expression: string; assign: (value: FormulaValue) => void }[] = [];
 
   for (const variable of character.variables ?? []) {
     if (variable.label) labels[variable.label] = getVariableLabelValue(variable);
@@ -174,6 +175,18 @@ export function collectLabels(character: Character): FormulaLabels {
           for (const [colIndex, cell] of row.cells.entries()) {
             if (isCoveredTableCell(merges, rowIndex, colIndex)) continue;
             const value = typeof cell === 'string' ? cell : cell.value;
+            const inlineFormula = value.trim().match(/^\{([^{}]+)\}$/)?.[1];
+            if (inlineFormula) {
+              // Whole-cell {formula} text is displayed evaluated, so its label must hold the result too.
+              const assignCellLabels = (cellValue: FormulaValue) => {
+                if (typeof cell !== 'string' && cell.label) labels[cell.label] = cellValue;
+                const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
+                if (columnLabel) labels[`${columnLabel}${rowIndex + 1}`] = cellValue;
+                if (rowLabel) labels[`${rowLabel}${colIndex + 1}`] = cellValue;
+              };
+              deferredCellFormulas.push({ expression: inlineFormula, assign: assignCellLabels });
+              continue;
+            }
             const cellValue: FormulaValue | undefined = value.trim() ? toTextLabelValue(value) : undefined;
             if (typeof cell !== 'string' && cell.label) {
               if (cellValue !== undefined) labels[cell.label] = cellValue;
@@ -220,6 +233,19 @@ export function collectLabels(character: Character): FormulaLabels {
         Object.assign(labels, getCalendarLabelValues(data));
       }
     }
+  }
+
+  // Resolve deferred cell formulas repeatedly so cells that depend on other cells also resolve.
+  let pending = deferredCellFormulas;
+  for (let pass = 0; pass < deferredCellFormulas.length && pending.length > 0; pass++) {
+    const unresolved: typeof pending = [];
+    for (const entry of pending) {
+      const result = evaluateFormulaValue(entry.expression, labels);
+      if (result === null || hasUnresolvedRefs(entry.expression, labels)) unresolved.push(entry);
+      else entry.assign(result);
+    }
+    if (unresolved.length === pending.length) break;
+    pending = unresolved;
   }
 
   return labels;
