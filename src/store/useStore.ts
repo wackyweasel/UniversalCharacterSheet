@@ -23,6 +23,7 @@ import { createDefaultCalendarData } from '../utils/calendar';
 import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
 import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableToGroup, renameVariableGroup } from '../utils/variableGroups';
 import { withEventsSuppressed } from '../events/suppress';
+import { normalizeEvent } from '../events/steps';
 import { getEventTelemetryDetails, type EventTelemetrySource } from '../events/telemetry';
 
 type Mode = 'play' | 'vertical' | 'print';
@@ -303,9 +304,7 @@ function getActiveCharacter(state: Pick<StoreState, 'characters' | 'activeCharac
 }
 
 function withEffectIds(event: CharacterEvent): CharacterEvent {
-  return event.effects.every((effect) => effect.id)
-    ? event
-    : { ...event, effects: event.effects.map((effect) => (effect.id ? effect : { ...effect, id: uuidv4() })) };
+  return normalizeEvent(event);
 }
 
 function resolveActiveCharacterFormulas(
@@ -3001,9 +3000,15 @@ export const useStore = create<StoreState>((set, get) => {
         const events = [...(character.events ?? [])];
         const index = events.findIndex((event) => event.id === id);
         if (index < 0) return character;
-        const copy: CharacterEvent = JSON.parse(JSON.stringify(events[index]));
+        const copy: CharacterEvent = JSON.parse(JSON.stringify(normalizeEvent(events[index])));
         copy.id = copyId;
-        copy.effects = copy.effects.map((effect) => ({ ...effect, id: uuidv4() }));
+        const freshEffects = (effects: CharacterEvent['steps'][number]['effects']) => effects.map((effect) => ({ ...effect, id: uuidv4() }));
+        copy.steps = copy.steps.map((step) => ({
+          ...step,
+          id: uuidv4(),
+          effects: freshEffects(step.effects),
+          ...(step.otherwise ? { otherwise: freshEffects(step.otherwise) } : {}),
+        }));
         if (copy.name) copy.name = `${copy.name} (copy)`;
         events.splice(index + 1, 0, copy);
         return { ...character, events };

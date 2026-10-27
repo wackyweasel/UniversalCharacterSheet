@@ -175,6 +175,8 @@ export interface EffectOutcome {
   actions?: WidgetAction[];
   /** Another event to run right away, before the next effect. */
   runEventId?: string;
+  /** Values for the outputs the effect declares, read by later steps under the effect's result name. */
+  result?: TriggerData;
 }
 
 export interface EffectDef {
@@ -182,6 +184,8 @@ export interface EffectDef {
   label: string;
   target?: TargetSpec;
   params?: EventParamSpec[];
+  /** Data the effect passes to later conditions and effects once it has a result name. */
+  outputs?: TriggerOutput[];
   /** Returns null when the effect can't do anything; `text` explains a skipped effect. */
   apply: (ctx: EffectContext) => EffectOutcome | null;
   describe: (ctx: DescribeContext) => string;

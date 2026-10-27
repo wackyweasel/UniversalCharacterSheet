@@ -381,6 +381,8 @@ export interface SkillTreeNode {
   cost: number;
   /** Ids of the skills that must be unlocked first. */
   requires: string[];
+  /** Ids of alternative skills; when present, at least one of them must also be unlocked. */
+  requiresAny?: string[];
   unlocked: boolean;
   /** Variable label that is 1 while the skill is unlocked and 0 otherwise. */
   unlockedLabel?: string;
@@ -837,17 +839,29 @@ export interface CharacterEventEffect {
   /** Item inside the widget (stable id or name) or a label name. */
   target?: string;
   params?: CharacterEventParams;
+  /** Names the effect's result (e.g. a roll), read by later steps as `@event_<name>_total` and so on. */
+  resultName?: string;
 }
 
-/** A "when … then …" automation: one trigger, an optional condition and one or more effects. */
+/** An optional condition, the effects that run when it holds, and the effects that run when it doesn't. */
+export interface CharacterEventStep {
+  id: string;
+  /** Formula that must be true (non-zero) for the effects to run. */
+  condition?: string;
+  effects: CharacterEventEffect[];
+  /** Run when the condition is false. */
+  otherwise?: CharacterEventEffect[];
+  /** When the condition is false, end the event instead of going on to the next step. */
+  stopIfFalse?: boolean;
+}
+
+/** A "when … then …" automation: one trigger followed by steps of condition and effects, run in order. */
 export interface CharacterEvent {
   id: string;
   name?: string;
   enabled: boolean;
   trigger: CharacterEventTrigger;
-  /** Formula that must be true (non-zero) for the event to fire. */
-  condition?: string;
-  effects: CharacterEventEffect[];
+  steps: CharacterEventStep[];
 }
 
 export interface Character {

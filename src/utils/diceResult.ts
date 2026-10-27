@@ -42,6 +42,8 @@ export interface DiceResultEntry extends DiceResultOutput {
   widgetId: string;
   /** Shown in the middle of the screen instead of next to a widget, e.g. rolls made by events. */
   centered?: boolean;
+  /** For centered results: the screen point to open next to, when the player's own press started the roll. */
+  point?: { x: number; y: number };
 }
 
 const formatSigned = (sign: 1 | -1, value: number) => `${sign === -1 ? '−' : '+'}${value}`;

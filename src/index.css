@@ -4505,6 +4505,12 @@ body.variables-dragging * {
   color: var(--color-accent);
 }
 
+.event-flow__pill--else {
+  border: 1px dashed color-mix(in srgb, var(--color-ink) 40%, transparent);
+  background: var(--color-paper);
+  color: var(--color-muted, var(--color-ink));
+}
+
 .event-flow__line {
   display: flex;
   align-items: flex-start;
@@ -4581,6 +4587,11 @@ button.event-flow__line:hover {
   border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
   border-radius: var(--border-radius);
   background: color-mix(in srgb, var(--color-ink) 3%, var(--color-paper));
+}
+
+.event-editor__group {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  border-radius: var(--border-radius);
 }
 
 .event-editor__add {

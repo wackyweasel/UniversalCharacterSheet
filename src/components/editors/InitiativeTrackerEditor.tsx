@@ -6,13 +6,7 @@ import { LabeledNumberField } from './LabeledNumberField';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, PencilIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
-import { getInitiativeDiceExpression, normalizeDiceExpression, parseDiceExpression } from '../../utils/diceExpression';
-
-/** Faces of the first die in an expression, kept so legacy readers still see a sensible die. */
-function getPrimaryFaces(expression: string): number {
-  const first = parseDiceExpression(expression)?.find((term) => term.type === 'dice');
-  return first && first.type === 'dice' ? first.faces : 20;
-}
+import { getInitiativeDiceExpression, getInitiativeDiceLabel, getPrimaryDiceFaces, isInitiativeDiceExpressionValid, normalizeInitiativeDiceExpression } from '../../utils/diceExpression';
 
 function generateEncounterId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -91,11 +85,11 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
   const addParticipant = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
-      const diceExpression = normalizeDiceExpression(newDiceExpression);
-      if (!diceExpression) return;
+      const diceExpression = normalizeInitiativeDiceExpression(newDiceExpression);
+      if (diceExpression === null) return;
       const newParticipant: InitiativeParticipant = {
         name: newName.trim(),
-        diceFaces: getPrimaryFaces(diceExpression),
+        diceFaces: getPrimaryDiceFaces(diceExpression),
         diceExpression,
         flatBonus: parseNumberDraft(newFlatBonus, 0),
         flatBonusLabel: newFlatBonusLabel,
@@ -144,14 +138,14 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
 
   const saveEdit = () => {
     if (editingIndex !== null && editingName.trim()) {
-      const diceExpression = normalizeDiceExpression(editingDiceExpression);
-      if (!diceExpression) return;
+      const diceExpression = normalizeInitiativeDiceExpression(editingDiceExpression);
+      if (diceExpression === null) return;
       const updated = [...initiativePoolList];
       const existing = updated[editingIndex];
       const updatedParticipant = {
         ...existing,
         name: editingName.trim(),
-        diceFaces: getPrimaryFaces(diceExpression),
+        diceFaces: getPrimaryDiceFaces(diceExpression),
         diceExpression,
         flatBonus: parseNumberDraft(editingFlatBonus, 0),
       };
@@ -317,9 +311,9 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                     type="text"
                     value={newDiceExpression}
                     onChange={(e) => setNewDiceExpression(e.target.value)}
-                    placeholder="e.g. 1d20, 2d20kh"
-                    aria-invalid={parseDiceExpression(newDiceExpression) === null}
-                    className={`h-10 w-full rounded-button border bg-theme-paper px-2 py-1 text-sm font-mono text-theme-ink focus:border-theme-accent focus:outline-none ${parseDiceExpression(newDiceExpression) === null ? 'border-red-500' : 'border-theme-border'}`}
+                    placeholder="e.g. 1d20, 2d20kh (empty = bonus only)"
+                    aria-invalid={!isInitiativeDiceExpressionValid(newDiceExpression)}
+                    className={`h-10 w-full rounded-button border bg-theme-paper px-2 py-1 text-sm font-mono text-theme-ink focus:border-theme-accent focus:outline-none ${isInitiativeDiceExpressionValid(newDiceExpression) ? 'border-theme-border' : 'border-red-500'}`}
                   />
                 </div>
                 <div className="flex-1">
@@ -382,10 +376,10 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                             value={editingDiceExpression}
                             onChange={(e) => setEditingDiceExpression(e.target.value)}
                             onKeyDown={handleEditKeyDown}
-                            placeholder="e.g. 1d20, 2d20kh"
+                            placeholder="e.g. 1d20 (empty = bonus only)"
                             aria-label="Dice expression"
-                            aria-invalid={parseDiceExpression(editingDiceExpression) === null}
-                            className={`h-10 w-full rounded-button border bg-theme-paper px-2 text-xs font-mono text-theme-ink focus:border-theme-accent focus:outline-none ${parseDiceExpression(editingDiceExpression) === null ? 'border-red-500' : 'border-theme-border'}`}
+                            aria-invalid={!isInitiativeDiceExpressionValid(editingDiceExpression)}
+                            className={`h-10 w-full rounded-button border bg-theme-paper px-2 text-xs font-mono text-theme-ink focus:border-theme-accent focus:outline-none ${isInitiativeDiceExpressionValid(editingDiceExpression) ? 'border-theme-border' : 'border-red-500'}`}
                           />
                         </div>
                         <div className="flex-1">
@@ -453,7 +447,7 @@ export function InitiativeTrackerEditor({ widget, updateData }: EditorProps) {
                     </span>
                     {initiativeShowRollButton && (
                       <span className="widget-editor__initiative-stats text-xs text-theme-muted flex items-center gap-0.5">
-                        {(normalizeDiceExpression(getInitiativeDiceExpression(participant)) ?? `1d${participant.diceFaces}`).replace(/^1d(\d+)$/, 'd$1')}{participant.flatBonus >= 0 ? '+' : ''}{participant.flatBonus}
+                        {getInitiativeDiceLabel(participant) ? `${getInitiativeDiceLabel(participant)}${participant.flatBonus >= 0 ? '+' : ''}` : ''}{participant.flatBonus}
                         {(participant as InitiativeParticipant).flatBonusLabel && (
                           <span className="text-[9px] bg-theme-accent/15 text-theme-accent px-1 rounded">@{(participant as InitiativeParticipant).flatBonusLabel}</span>
                         )}

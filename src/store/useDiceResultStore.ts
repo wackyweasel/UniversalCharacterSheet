@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { DiceResultEntry } from '../utils/diceResult';
 
 let lastClick: { x: number; y: number } | null = null;
+let lastPointer: { x: number; y: number; time: number } | null = null;
 
 // The dialog anchors its corner to the click that started the roll; keyboard activation has no position.
 if (typeof document !== 'undefined') {
@@ -9,9 +10,18 @@ if (typeof document !== 'undefined') {
     if ((event.target as Element | null)?.closest?.('.dice-result-dialog')) return;
     lastClick = event.detail === 0 ? null : { x: event.clientX, y: event.clientY };
   }, true);
+  document.addEventListener('pointerdown', (event) => {
+    if ((event.target as Element | null)?.closest?.('.dice-result-dialog')) return;
+    lastPointer = { x: event.clientX, y: event.clientY, time: performance.now() };
+  }, true);
 }
 
 export const getLastClickPoint = () => lastClick;
+
+/** Where the pointer last went down, if that was just now; rolls made by events use it to open next to what the player pressed. */
+export function getRecentPointerPoint(maxAgeMs = 1500): { x: number; y: number } | undefined {
+  return lastPointer && performance.now() - lastPointer.time <= maxAgeMs ? { x: lastPointer.x, y: lastPointer.y } : undefined;
+}
 
 interface DiceResultState {
   entry: DiceResultEntry | null;

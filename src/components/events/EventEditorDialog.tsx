@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
 import { useEventsPanelStore, type EventEditorRequest } from '../../store/useEventsPanelStore';
 import { getTutorialStepIndex, TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
-import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventParams, CharacterEventTrigger, Widget } from '../../types';
-import { eventLabel, findEventLabelRefs } from '../../events/constants';
+import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventParams, CharacterEventStep, CharacterEventTrigger, Widget } from '../../types';
+import { eventLabel, findEventLabelRefs, resultLabel } from '../../events/constants';
 import { createBlankEffect, createEffect, createEventDraft, createTrigger, getEffectDefsFor, getEventSourceWidgets, getTriggerDefsFor } from '../../events/drafts';
 import { findWidget } from '../../events/helpers';
 import {
@@ -14,10 +13,12 @@ import {
   fillParams,
   findTargetOption,
   getEffectDef,
+  getEffectOutputs,
   getEffectProblem,
   getEventIcon,
+  getEventLabelsAt,
+  getResultNameProblems,
   getTriggerDef,
-  getTriggerLabels,
   getTriggerOutputs,
   getTriggerProblem,
   getVisibleParams,
@@ -25,6 +26,7 @@ import {
   isGlobalTriggerKind,
   resolveOptions,
 } from '../../events/registry';
+import { createStep, getEventEffects, normalizeEvent } from '../../events/steps';
 import {
   ANY_TARGET,
   type EffectDef,
@@ -33,12 +35,11 @@ import {
   type SpecContext,
   type TargetSpec,
   type TriggerDef,
-  type TriggerOutput,
 } from '../../events/types';
-import { getWidgetTitle } from '../../utils/characterVariables';
+import { getWidgetTitle, sanitizeLabelInput } from '../../utils/characterVariables';
 import { collectLabels, evaluateFormulaValue, hasUnresolvedRefs } from '../../utils/formulaEngine';
 import type { FormulaLabels } from '../../utils/formulaSyntax';
-import { ArrowDownIcon, ArrowUpIcon, BoltIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
+import { ArrowDownIcon, ArrowUpIcon, BoltIcon, ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 
 type Role = 'trigger' | 'effect';
 type Part = CharacterEventTrigger & { id?: string };
@@ -47,17 +48,27 @@ interface Draft {
   name: string;
   enabled: boolean;
   trigger: CharacterEventTrigger;
-  /** null while the event has no "only if" step. */
-  condition: string | null;
-  effects: CharacterEventEffect[];
+  /** In a step, an absent `condition` means no "only if" and an absent `otherwise` means no "otherwise" branch. */
+  steps: CharacterEventStep[];
 }
 
 interface DraftProblems {
   trigger: string[];
-  condition: string[];
+  /** By step id: problems of its condition or of its "otherwise" branch needing one. */
+  conditions: Record<string, string[]>;
+  /** By effect id. */
   effects: Record<string, string[]>;
-  general: string[];
+  /** By step id: problems of the step as a whole, such as having no effects. */
+  steps: Record<string, string[]>;
   count: number;
+}
+
+type DataStatus = { text: string; id: number; owner: string };
+
+/** What the data chips of a part need: where to report, and what to do when one is picked. */
+interface DataChipsContext {
+  status: DataStatus;
+  onPick: (ref: string, owner: string) => void;
 }
 
 /** A field that trigger data chips can add an `@event_…` reference to. */
@@ -72,6 +83,9 @@ interface DataTarget {
 type RegisterDataTarget = (target: DataTarget) => void;
 
 const GENERAL_SOURCE = 'general';
+/** Source choice for an event that nothing sets off by itself; it stores the manual trigger. */
+const NO_TRIGGER_SOURCE = 'none';
+const MANUAL_TRIGGER_KIND = 'manual';
 const fieldClass = 'h-9 w-full min-w-0 rounded-button border bg-theme-paper px-2.5 text-sm font-body text-theme-ink placeholder:text-theme-muted disabled:opacity-60';
 const smallIconButtonClass = 'widget-control h-8 w-8 flex-none text-theme-muted';
 const tutorialTargetClass = 'outline outline-4 outline-blue-500 outline-offset-2';
@@ -93,35 +107,38 @@ function applyTutorialLesson(character: Character, stepId: string, draft: Draft)
     };
   }
   if (stepId === 'events-editor-condition') {
-    return draft.condition?.trim() ? draft : { ...draft, condition: '@event_total >= 12' };
+    return draft.steps[0]?.condition?.trim() ? draft : withFirstStep(draft, { condition: '@event_total >= 12' });
   }
   if (stepId === 'events-editor-effects') {
     const damage = findDiceRoller(character, 'damage');
     const roll = getEffectDef('roller.roll');
     const log = getEffectDef('log.message');
-    if (!damage || !roll || !log || draft.effects.some((effect) => effect.kind)) return draft;
-    return {
-      ...draft,
+    if (!damage || !roll || !log || draft.steps[0]?.effects.some((effect) => effect.kind)) return draft;
+    return withFirstStep(draft, {
       effects: [
         createEffect(character, roll, damage),
         { ...createEffect(character, log), params: { message: 'Hit with a {@event_total}!' } },
       ],
-    };
+    });
   }
   if (stepId === 'events-inline-editor-effects') {
     const slots = character.sheets.flatMap((sheet) => sheet.widgets).find((widget) => widget.type === 'SPELL_SLOT');
     const useSlot = getEffectDef('spell.use');
     const roll = getEffectDef('dice.roll');
-    if (!slots || !useSlot || !roll || draft.effects.some((effect) => effect.kind)) return draft;
-    return {
-      ...draft,
+    if (!slots || !useSlot || !roll || draft.steps[0]?.effects.some((effect) => effect.kind)) return draft;
+    return withFirstStep(draft, {
       effects: [
         { ...createEffect(character, useSlot, slots), target: 'level:3', params: { upcast: 'no', count: '1' } },
         { ...createEffect(character, roll), params: { dice: '8d6', title: 'Fireball' } },
       ],
-    };
+    });
   }
   return draft;
+}
+
+function withFirstStep(draft: Draft, patch: Partial<CharacterEventStep>): Draft {
+  const [first, ...rest] = draft.steps;
+  return { ...draft, steps: [{ ...(first ?? createStep()), ...patch }, ...rest] };
 }
 
 function isGlobalKind(role: Role, kind: string): boolean {
@@ -135,6 +152,7 @@ function getDef(role: Role, kind: string): TriggerDef | EffectDef | undefined {
 /** Choices for a part's source: its widget, else "general" for label and other widget-free kinds. */
 function getSourceValue(role: Role, part: Part): string {
   if (part.widgetId) return part.widgetId;
+  if (role === 'trigger' && part.kind === MANUAL_TRIGGER_KIND) return NO_TRIGGER_SOURCE;
   return part.kind && isGlobalKind(role, part.kind) ? GENERAL_SOURCE : '';
 }
 
@@ -155,24 +173,23 @@ function getTargetChoices(spec: TargetSpec, ctx: SpecContext): EventOption[] {
 
 function initDraft(character: Character, request: EventEditorRequest): Draft | null {
   if (request.eventId) {
-    const event = character.events?.find((item) => item.id === request.eventId);
-    if (!event) return null;
+    const stored = character.events?.find((item) => item.id === request.eventId);
+    if (!stored) return null;
+    const event = normalizeEvent(stored);
     return {
       name: event.name ?? '',
       enabled: event.enabled,
       trigger: event.trigger,
-      condition: event.condition?.trim() ? event.condition : null,
-      effects: event.effects,
+      steps: event.steps.map((step) => ({ ...step, condition: step.condition?.trim() ? step.condition : undefined })),
     };
   }
   const base = createEventDraft(character);
-  const start = request.draft ?? {};
+  const start = request.draft ? normalizeEvent({ id: '', enabled: true, trigger: { kind: '' }, ...request.draft }) : null;
   return {
-    name: start.name ?? '',
-    enabled: start.enabled ?? true,
-    trigger: start.trigger ?? base.trigger,
-    condition: start.condition?.trim() ? start.condition : null,
-    effects: start.effects?.length ? start.effects.map((effect) => (effect.id ? effect : { ...effect, id: uuidv4() })) : base.effects,
+    name: start?.name ?? '',
+    enabled: start?.enabled ?? true,
+    trigger: request.draft?.trigger ?? base.trigger,
+    steps: start?.steps.some((step) => step.effects.length > 0) ? start.steps : base.steps,
   };
 }
 
@@ -183,7 +200,7 @@ function eventRefProblem(role: Role | 'condition', field: string, text: string, 
   const list = refs.map((ref) => `@${ref}`).join(', ');
   return role === 'trigger'
     ? `${field} can't use ${list}; trigger data is only for the condition and effects`
-    : `${field} uses ${list}, which this trigger doesn't provide`;
+    : `${field} uses ${list}, which isn't available at this point`;
 }
 
 function paramProblems(role: Role, part: Part, labels: FormulaLabels): string[] {
@@ -200,33 +217,47 @@ function paramProblems(role: Role, part: Part, labels: FormulaLabels): string[] 
     });
 }
 
-/** Trigger settings are read before the trigger has data, so only the condition and effects see `eventLabels`. */
-function getDraftProblems(character: Character, draft: Draft, baseLabels: FormulaLabels, eventLabels: FormulaLabels): DraftProblems {
-  const labels = { ...baseLabels, ...eventLabels };
+/** Trigger settings are read before the trigger has data, so only conditions and effects see `event_…` labels, and only those available before them. */
+function getDraftProblems(character: Character, draft: Draft, baseLabels: FormulaLabels): DraftProblems {
   const trigger = draft.trigger.kind
     ? [getTriggerProblem(character, draft.trigger), ...paramProblems('trigger', draft.trigger, baseLabels)].filter((problem): problem is string => !!problem)
     : ['Choose what triggers this event'];
 
-  const condition: string[] = [];
-  const formula = draft.condition?.trim();
-  if (formula) {
-    const eventProblem = eventRefProblem('condition', 'The condition', formula, labels);
-    if (eventProblem) condition.push(eventProblem);
-    else if (hasUnresolvedRefs(formula, labels)) condition.push("The condition uses a label that doesn't exist");
-    else if (evaluateFormulaValue(`(${formula}) ? 1 : 0`, labels) === null) condition.push("The condition can't be worked out; check the formula");
-  }
-
+  const conditions: Record<string, string[]> = {};
   const effects: Record<string, string[]> = {};
-  for (const effect of draft.effects) {
-    const problems = effect.kind
-      ? [getEffectProblem(character, effect), ...paramProblems('effect', effect, labels)].filter((problem): problem is string => !!problem)
-      : ['Choose what this effect does'];
-    if (problems.length) effects[effect.id] = problems;
-  }
+  const steps: Record<string, string[]> = {};
 
-  const general = draft.effects.length === 0 ? ['Add at least one effect'] : [];
-  const count = trigger.length + condition.length + general.length + Object.values(effects).reduce((sum, list) => sum + list.length, 0);
-  return { trigger, condition, effects, general, count };
+  const checkEffects = (list: CharacterEventEffect[], stepIndex: number, section: 'effects' | 'otherwise') => {
+    list.forEach((effect, index) => {
+      const labels = { ...baseLabels, ...getEventLabelsAt(draft, stepIndex, section, index) };
+      const problems = effect.kind
+        ? [getEffectProblem(character, effect), ...paramProblems('effect', effect, labels), ...getResultNameProblems(draft, effect)].filter((problem): problem is string => !!problem)
+        : ['Choose what this effect does'];
+      if (problems.length) effects[effect.id] = problems;
+    });
+  };
+
+  draft.steps.forEach((step, stepIndex) => {
+    const conditionProblems: string[] = [];
+    const formula = step.condition?.trim();
+    if (formula) {
+      const labels = { ...baseLabels, ...getEventLabelsAt(draft, stepIndex, 'condition') };
+      const eventProblem = eventRefProblem('condition', 'The condition', formula, labels);
+      if (eventProblem) conditionProblems.push(eventProblem);
+      else if (hasUnresolvedRefs(formula, labels)) conditionProblems.push("The condition uses a label that doesn't exist");
+      else if (evaluateFormulaValue(`(${formula}) ? 1 : 0`, labels) === null) conditionProblems.push("The condition can't be worked out; check the formula");
+    } else if (step.otherwise?.length) {
+      conditionProblems.push('Otherwise effects need a condition to be false');
+    }
+    if (conditionProblems.length) conditions[step.id] = conditionProblems;
+
+    checkEffects(step.effects, stepIndex, 'effects');
+    checkEffects(step.otherwise ?? [], stepIndex, 'otherwise');
+    if (step.effects.length === 0) steps[step.id] = [draft.steps.length > 1 ? 'Add at least one effect to this step' : 'Add at least one effect'];
+  });
+
+  const count = [trigger, ...Object.values(conditions), ...Object.values(effects), ...Object.values(steps)].reduce((sum, list) => sum + list.length, 0);
+  return { trigger, conditions, effects, steps, count };
 }
 
 /** Fills in values a saved event needs, such as a target left on its first choice. */
@@ -245,13 +276,25 @@ function normalizePart<T extends Part>(role: Role, character: Character, part: T
 
 function toPayload(character: Character, draft: Draft): Omit<CharacterEvent, 'id'> {
   const name = draft.name.trim();
-  const condition = draft.condition?.trim();
+  const normalizeEffects = (effects: CharacterEventEffect[]) => effects.map((effect) => {
+    const { resultName, ...rest } = normalizePart('effect', character, effect);
+    const name = resultName?.trim();
+    return name && getEffectDef(effect.kind)?.outputs?.length ? { ...rest, resultName: name } : rest;
+  });
   return {
     ...(name ? { name } : {}),
     enabled: draft.enabled,
     trigger: normalizePart('trigger', character, draft.trigger),
-    ...(condition ? { condition } : {}),
-    effects: draft.effects.map((effect) => normalizePart('effect', character, effect)),
+    steps: draft.steps.map((step) => {
+      const condition = step.condition?.trim();
+      return {
+        id: step.id,
+        ...(condition ? { condition } : {}),
+        effects: normalizeEffects(step.effects),
+        ...(condition && step.otherwise?.length ? { otherwise: normalizeEffects(step.otherwise) } : {}),
+        ...(condition && step.stopIfFalse ? { stopIfFalse: true } : {}),
+      };
+    }),
   };
 }
 
@@ -284,7 +327,7 @@ function SourceSelect({ character, role, value, onChange }: { character: Charact
     }));
     return counts;
   }, [groups]);
-  const missing = value !== '' && value !== GENERAL_SOURCE && !findWidget(character, value);
+  const missing = value !== '' && value !== GENERAL_SOURCE && value !== NO_TRIGGER_SOURCE && !findWidget(character, value);
   const seen = new Map<string, number>();
 
   return (
@@ -292,7 +335,8 @@ function SourceSelect({ character, role, value, onChange }: { character: Charact
       {value === '' && <option value="" disabled>Choose…</option>}
       {missing && <option value={value}>⚠ Deleted widget</option>}
       <optgroup label="General">
-        <option value={GENERAL_SOURCE}>{role === 'trigger' ? '⚡ Labels or the Run button' : '⚡ Labels, dice, the timeline or other events'}</option>
+        {role === 'trigger' && <option value={NO_TRIGGER_SOURCE}>No trigger (run by hand or by another event)</option>}
+        <option value={GENERAL_SOURCE}>{role === 'trigger' ? '⚡ Labels' : '⚡ Labels, dice, the timeline or other events'}</option>
       </optgroup>
       {groups.map((group) => (
         <optgroup key={group.sheetId} label={character.sheets.length > 1 ? group.sheetName : 'Widgets'}>
@@ -393,15 +437,22 @@ function PartFields({ character, role, part, onChange, onDataTarget }: PartField
   const defs = getDefsFor(role, part, widget);
   const def = getDef(role, part.kind);
   const params = fillParams(def?.params, part.params);
-  const kindChoices: EventOption[] = defs.map((item) => ({ value: item.kind, label: item.label }));
-  if (part.kind && !kindChoices.some((choice) => choice.value === part.kind)) {
+  const kindChoices: EventOption[] = defs
+    .filter((item) => role !== 'trigger' || item.kind !== MANUAL_TRIGGER_KIND)
+    .map((item) => ({ value: item.kind, label: item.label }));
+  if (part.kind && source !== NO_TRIGGER_SOURCE && !kindChoices.some((choice) => choice.value === part.kind)) {
     kindChoices.unshift({ value: part.kind, label: `⚠ ${def?.label ?? part.kind}` });
   }
 
   const changeSource = (value: string) => {
+    if (value === NO_TRIGGER_SOURCE) {
+      const manual = getTriggerDef(MANUAL_TRIGGER_KIND);
+      if (manual) onChange(buildPart(role, character, manual, undefined, part.id));
+      return;
+    }
     const nextWidget = value === GENERAL_SOURCE ? undefined : findWidget(character, value);
     if (value !== GENERAL_SOURCE && !nextWidget) return;
-    const first = (role === 'trigger' ? getTriggerDefsFor(nextWidget) : getEffectDefsFor(nextWidget))[0];
+    const first = (role === 'trigger' ? getTriggerDefsFor(nextWidget).filter((item) => item.kind !== MANUAL_TRIGGER_KIND) : getEffectDefsFor(nextWidget))[0];
     if (first) onChange(buildPart(role, character, first, nextWidget, part.id));
   };
 
@@ -426,12 +477,17 @@ function PartFields({ character, role, part, onChange, onDataTarget }: PartField
       <Field label="Widget">
         <SourceSelect character={character} role={role} value={source} onChange={changeSource} />
       </Field>
-      {source !== '' && (
+      {source !== '' && source !== NO_TRIGGER_SOURCE && (
         <Field label={role === 'trigger' ? 'What happens' : 'What to do'}>
           <select value={part.kind} onChange={(event) => changeKind(event.target.value)} className={fieldClass} disabled={kindChoices.length === 0}>
             {kindChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
           </select>
         </Field>
+      )}
+      {source === NO_TRIGGER_SOURCE && (
+        <p className="text-[11px] leading-snug text-theme-muted sm:col-span-2">
+          Nothing sets this event off by itself. Run it with the Run button, or add a "Run another event" effect to another event.
+        </p>
       )}
       {def?.target && (
         <Field label={def.target.label}>
@@ -465,32 +521,40 @@ function insertDataRef(target: DataTarget, ref: string): number {
   return before.length + text.length;
 }
 
-function TriggerData({ outputs, status, onPick }: { outputs: TriggerOutput[]; status: string; onPick: (key: string) => void }) {
-  if (!outputs.length) return null;
+interface DataChipsProps {
+  owner: string;
+  title: string;
+  /** `@event_…` reference and description of each value the part passes along. */
+  items: { ref: string; label: string }[];
+  hint: string;
+  chips: DataChipsContext;
+  tutorial?: boolean;
+}
+
+function DataChips({ owner, title, items, hint, chips, tutorial }: DataChipsProps) {
+  if (!items.length) return null;
+  const titleId = `event-editor-data-${owner}`;
   return (
-    <div className="mt-3 border-t border-dashed border-theme-border pt-2.5" role="group" aria-labelledby="event-editor-data-title" data-tutorial="event-editor-data">
-      <p id="event-editor-data-title" className="text-xs font-bold text-theme-ink">Passes along</p>
+    <div className="mt-3 border-t border-dashed border-theme-border pt-2.5" role="group" aria-labelledby={titleId} data-tutorial={tutorial ? 'event-editor-data' : undefined}>
+      <p id={titleId} className="text-xs font-bold text-theme-ink">{title}</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {outputs.map((output) => {
-          const ref = `@${eventLabel(output.key)}`;
-          return (
-            <button
-              key={output.key}
-              type="button"
-              data-event-data-chip="true"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onPick(output.key)}
-              title={`Add ${ref} to the condition or effect field you're editing`}
-              className="event-editor__chip"
-            >
-              <code>{ref}</code>
-              <span>{output.label}</span>
-            </button>
-          );
-        })}
+        {items.map((item) => (
+          <button
+            key={item.ref}
+            type="button"
+            data-event-data-chip="true"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => chips.onPick(item.ref, owner)}
+            title={`Add ${item.ref} to the condition or effect field you're editing`}
+            className="event-editor__chip"
+          >
+            <code>{item.ref}</code>
+            <span>{item.label}</span>
+          </button>
+        ))}
       </div>
       <p className="mt-1.5 text-[11px] leading-snug text-theme-muted" aria-live="polite">
-        {status || 'Use these in the condition or an effect. Click one to add it where you were typing.'}
+        {(chips.status.owner === owner && chips.status.text) || hint}
       </p>
     </div>
   );
@@ -505,12 +569,125 @@ function Sentence({ icon, text }: { icon: string; text: string }) {
   );
 }
 
-function StepHeader({ pill, pillLabel, title, children }: { pill: 'when' | 'if' | 'then'; pillLabel: string; title: string; children?: React.ReactNode }) {
+function StepHeader({ pill, pillLabel, title, children }: { pill: 'when' | 'if' | 'then' | 'else'; pillLabel: string; title: string; children?: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2.5">
       <span className={`event-flow__pill event-flow__pill--${pill} w-14 flex-none`}>{pillLabel}</span>
       <h3 className="min-w-0 flex-1 text-sm font-bold text-theme-ink">{title}</h3>
       {children}
+    </div>
+  );
+}
+
+/** Keeps an effect's result name in step with its kind: only kinds with outputs have one, and a new one gets a free default. */
+function withResultName(previous: CharacterEventEffect, next: CharacterEventEffect, all: CharacterEventEffect[]): CharacterEventEffect {
+  if (getEffectOutputs(next.kind).length === 0) {
+    const { resultName: _unused, ...rest } = next;
+    return rest;
+  }
+  if (next.resultName !== undefined || previous.kind === next.kind) return next;
+  if (previous.resultName?.trim()) return { ...next, resultName: previous.resultName };
+  const taken = new Set(all.filter((effect) => effect.id !== next.id).map((effect) => effect.resultName?.trim()));
+  let name = 'roll';
+  for (let index = 2; taken.has(name); index += 1) name = `roll_${index}`;
+  return { ...next, resultName: name };
+}
+
+interface EffectListProps {
+  character: Character;
+  effects: CharacterEventEffect[];
+  /** Every effect of the event, so result names stay unique. */
+  allEffects: CharacterEventEffect[];
+  onChange: (effects: CharacterEventEffect[]) => void;
+  problems: DraftProblems['effects'];
+  showProblems: boolean;
+  registerDataTarget: RegisterDataTarget;
+  chips: DataChipsContext;
+}
+
+/** The effects of a step or of its "otherwise" branch, run in order. */
+function EffectList({ character, effects, allEffects, onChange, problems, showProblems, registerDataTarget, chips }: EffectListProps) {
+  const updateEffect = (index: number, effect: CharacterEventEffect) => onChange(effects.map((item, i) => (i === index ? withResultName(item, { ...effect, id: item.id }, allEffects) : item)));
+  const moveEffect = (index: number, offset: number) => {
+    const next = [...effects];
+    const [moved] = next.splice(index, 1);
+    next.splice(index + offset, 0, moved);
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3">
+      {effects.map((effect, index) => {
+        const outputs = getEffectOutputs(effect.kind);
+        const resultName = effect.resultName?.trim() ?? '';
+        return (
+          <div key={effect.id} className="rounded-button border border-theme-border bg-theme-paper p-3">
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="event-flow__pill event-flow__pill--then h-6 w-6 flex-none text-[11px]" aria-hidden="true">{index + 1}</span>
+              <span className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-theme-muted">Effect {index + 1}</span>
+              <button type="button" onClick={() => moveEffect(index, -1)} disabled={index === 0} aria-label={`Move effect ${index + 1} up`} title="Move up" className={smallIconButtonClass}>
+                <ArrowUpIcon className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveEffect(index, 1)}
+                disabled={index === effects.length - 1}
+                aria-label={`Move effect ${index + 1} down`}
+                title="Move down"
+                className={smallIconButtonClass}
+              >
+                <ArrowDownIcon className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange(effects.filter((item) => item.id !== effect.id))}
+                aria-label={`Remove effect ${index + 1}`}
+                title="Remove"
+                className={`${smallIconButtonClass} hover:!border-red-500 hover:!bg-red-500`}
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <PartFields character={character} role="effect" part={effect} onChange={(part) => updateEffect(index, { ...part, id: effect.id })} onDataTarget={registerDataTarget} />
+            {outputs.length > 0 && (
+              <div className="mt-3">
+                <Field
+                  label="Result name"
+                  help={`Later conditions and effects read this result as @${resultLabel(resultName || 'name', outputs[0].key)}. Leave it empty to not pass it along.`}
+                >
+                  <input
+                    type="text"
+                    value={effect.resultName ?? ''}
+                    onChange={(event) => updateEffect(index, { ...effect, resultName: sanitizeLabelInput(event.target.value) })}
+                    placeholder="attack"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={`${fieldClass} font-mono`}
+                  />
+                </Field>
+              </div>
+            )}
+            {resultName && (
+              <DataChips
+                owner={effect.id}
+                title="Passes along"
+                items={outputs.map((output) => ({ ref: `@${resultLabel(resultName, output.key)}`, label: output.label }))}
+                hint="Use these in a later condition or effect. Click one to add it where you were typing."
+                chips={chips}
+              />
+            )}
+            {effect.kind && <Sentence icon={getEventIcon(effect.kind, findWidget(character, effect.widgetId))} text={describeEffect(character, effect)} />}
+            {showProblems && <ProblemList problems={problems[effect.id]} />}
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => onChange([...effects, createBlankEffect()])}
+        className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
+      >
+        <PlusIcon className="h-3.5 w-3.5" /> Add effect
+      </button>
     </div>
   );
 }
@@ -571,11 +748,10 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
   }, [closeEditor]);
 
   const baseLabels = useMemo(() => collectLabels(character), [character]);
-  const triggerKind = draft?.trigger.kind;
-  const eventLabels = useMemo(() => getTriggerLabels(triggerKind), [triggerKind]);
-  const problems = useMemo(() => (draft ? getDraftProblems(character, draft, baseLabels, eventLabels) : null), [baseLabels, character, draft, eventLabels]);
+  const problems = useMemo(() => (draft ? getDraftProblems(character, draft, baseLabels) : null), [baseLabels, character, draft]);
   const dataTarget = useRef<DataTarget | null>(null);
-  const [dataStatus, setDataStatus] = useState({ text: '', id: 0 });
+  const [dataStatus, setDataStatus] = useState<DataStatus>({ text: '', id: 0, owner: '' });
+  const [collapsedSteps, setCollapsedSteps] = useState<ReadonlySet<string>>(() => new Set());
 
   useEffect(() => {
     if (!dataStatus.text) return;
@@ -587,62 +763,75 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
 
   const showProblems = attempted || isEditing;
   const update = (patch: Partial<Draft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
-  const updateEffect = (index: number, effect: CharacterEventEffect) => update({ effects: draft.effects.map((item, i) => (i === index ? effect : item)) });
-  const moveEffect = (index: number, offset: number) => {
-    const effects = [...draft.effects];
-    const [moved] = effects.splice(index, 1);
-    effects.splice(index + offset, 0, moved);
-    update({ effects });
-  };
+  // By step id and through the latest draft, so fields that registered themselves earlier never write stale steps.
+  const changeStep = (stepId: string, change: (step: CharacterEventStep) => CharacterEventStep) => setDraft((current) => (
+    current ? { ...current, steps: current.steps.map((step) => (step.id === stepId ? change(step) : step)) } : current
+  ));
   const triggerWidget = findWidget(character, draft.trigger.widgetId);
   const triggerOutputs = getTriggerOutputs(draft.trigger.kind);
-  const showStatus = (text: string) => setDataStatus((current) => ({ text, id: current.id + 1 }));
+  const allEffects = getEventEffects(draft);
+  const showStatus = (owner: string, text: string) => setDataStatus((current) => ({ text, owner, id: current.id + 1 }));
   const registerDataTarget: RegisterDataTarget = (target) => {
     dataTarget.current = target;
   };
 
-  const pickData = (key: string) => {
-    const ref = `@${eventLabel(key)}`;
+  const pickData = (ref: string, owner: string) => {
     const target = dataTarget.current;
     if (!target?.element.isConnected) {
       dataTarget.current = null;
       if (!navigator.clipboard) {
-        showStatus(`Type ${ref} in the condition or an effect field.`);
+        showStatus(owner, `Type ${ref} in a condition or an effect field.`);
         return;
       }
       navigator.clipboard.writeText(ref).then(
-        () => showStatus(`Copied ${ref}. Paste it into the condition or an effect field.`),
-        () => showStatus(`Type ${ref} in the condition or an effect field.`),
+        () => showStatus(owner, `Copied ${ref}. Paste it into a condition or an effect field.`),
+        () => showStatus(owner, `Type ${ref} in a condition or an effect field.`),
       );
       return;
     }
     const caret = insertDataRef(target, ref);
-    showStatus(`Added ${ref} to ${target.label}.`);
+    showStatus(owner, `Added ${ref} to ${target.label}.`);
     window.requestAnimationFrame(() => {
       target.element.focus({ preventScroll: true });
       target.element.setSelectionRange(caret, caret);
       target.element.scrollIntoView({ block: 'nearest' });
     });
   };
+  const chips: DataChipsContext = { status: dataStatus, onPick: pickData };
+  const toggleStep = (stepId: string) => setCollapsedSteps((current) => {
+    const next = new Set(current);
+    if (!next.delete(stepId)) next.add(stepId);
+    return next;
+  });
+  const stepHasProblems = (step: CharacterEventStep) => (
+    !!problems.conditions[step.id]?.length
+    || !!problems.steps[step.id]?.length
+    || [...step.effects, ...(step.otherwise ?? [])].some((effect) => problems.effects[effect.id]?.length)
+  );
 
   // Focusing anything other than a data target or a chip means chips no longer add to the last field.
   const handleBodyFocus = (event: React.FocusEvent<HTMLDivElement>) => {
     if (!(event.target instanceof Element) || !event.target.closest('[data-event-data-target], [data-event-data-chip]')) dataTarget.current = null;
   };
 
-  const save = () => {
+  // A draft keeps unfinished work, turned off so half-built events never run.
+  const save = (asDraft = false) => {
     setAttempted(true);
-    if (problems.count > 0) {
-      window.requestAnimationFrame(() => bodyRef.current?.querySelector('.event-editor__problem')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    if (!asDraft && problems.count > 0) {
+      // Collapsed steps hide their problems, so open the ones that have some before scrolling to the first.
+      setCollapsedSteps((current) => new Set([...current].filter((id) => !draft.steps.some((step) => step.id === id && stepHasProblems(step)))));
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => bodyRef.current?.querySelector('.event-editor__problem')?.scrollIntoView({ block: 'center', behavior: 'smooth' })));
       return;
     }
-    const payload = toPayload(character, draft);
+    const payload = asDraft ? { ...toPayload(character, draft), enabled: false } : toPayload(character, draft);
     const telemetrySource = inTutorialLesson ? 'tutorial' : request.source ?? 'events_panel';
     let eventId: string | null = request.eventId ?? null;
     if (request.eventId) updateEvent(request.eventId, payload, telemetrySource);
     else eventId = addEvent(payload, telemetrySource);
     // Move the Events tutorial past the editor before closing it, or the tutorial would send the reader back to the step that opened it.
-    if (!isEditing && tutorialStepId?.startsWith('events-editor-')) {
+    if (asDraft) {
+      // The tutorial waits for a finished event.
+    } else if (!isEditing && tutorialStepId?.startsWith('events-editor-')) {
       useTutorialStore.getState().setTutorialStep(getTutorialStepIndex('events-editor-save') + 1);
     } else if (!isEditing && tutorialStepId?.startsWith('events-inline-editor-')) {
       useTutorialStore.getState().setTutorialStep(getTutorialStepIndex('events-inline-editor-save') + 1);
@@ -698,96 +887,181 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
             <StepHeader pill="when" pillLabel="When" title="Something happens on the sheet" />
             <PartFields character={character} role="trigger" part={draft.trigger} onChange={(trigger) => update({ trigger })} />
             {draft.trigger.kind && <Sentence icon={getEventIcon(draft.trigger.kind, triggerWidget)} text={describeTrigger(character, draft.trigger)} />}
-            <TriggerData outputs={triggerOutputs} status={dataStatus.text} onPick={pickData} />
+            <DataChips
+              owner="trigger"
+              title="Passes along"
+              items={triggerOutputs.map((output) => ({ ref: `@${eventLabel(output.key)}`, label: output.label }))}
+              hint="Use these in a condition or an effect. Click one to add it where you were typing."
+              chips={chips}
+              tutorial
+            />
             {showProblems && <ProblemList problems={problems.trigger} />}
           </section>
 
-          {draft.condition === null ? (
-            <button type="button" onClick={() => update({ condition: '' })} data-tutorial="event-editor-condition" className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs">
-              <PlusIcon className="h-3.5 w-3.5" /> Add a condition (only if…)
-            </button>
-          ) : (
-            <section className="event-editor__step p-3 sm:p-4" aria-label="Condition" data-tutorial="event-editor-condition">
-              <StepHeader pill="if" pillLabel="Only if" title="This is true when it happens">
-                <button type="button" onClick={() => update({ condition: null })} aria-label="Remove the condition" title="Remove the condition" className={smallIconButtonClass}>
-                  <TrashIcon className="h-3.5 w-3.5" />
-                </button>
-              </StepHeader>
-              <Field
-                label="Condition"
-                help={triggerOutputs.length
-                  ? `A formula, such as @hp < @max_hp / 2. The trigger's data works here too, such as @${eventLabel(triggerOutputs[0].key)}.`
-                  : 'A formula, such as @hp < @max_hp / 2 or @level >= 5.'}
-              >
-                <input
-                  type="text"
-                  value={draft.condition}
-                  onChange={(event) => update({ condition: event.target.value })}
-                  onFocus={(event) => registerDataTarget({ element: event.currentTarget, mode: 'formula', label: 'the condition', setValue: (condition) => update({ condition }) })}
-                  data-event-data-target="true"
-                  placeholder="@hp < @max_hp / 2"
-                  autoComplete="off"
-                  spellCheck={false}
-                  autoFocus={draft.condition === ''}
-                  className={`${fieldClass} font-mono`}
-                />
-              </Field>
-              {(showProblems || draft.condition.trim() !== '') && <ProblemList problems={problems.condition} />}
-            </section>
-          )}
-
-          <section className="event-editor__step p-3 sm:p-4" aria-label="Effects" data-tutorial="event-editor-effects">
-            <StepHeader pill="then" pillLabel="Then" title={draft.effects.length > 1 ? 'Do these, in order' : 'Do this'} />
-            <div className="space-y-3">
-              {draft.effects.map((effect, index) => (
-                <div key={effect.id} className="rounded-button border border-theme-border bg-theme-paper p-3">
-                  <div className="mb-2.5 flex items-center gap-2">
-                    <span className="event-flow__pill event-flow__pill--then h-6 w-6 flex-none text-[11px]" aria-hidden="true">{index + 1}</span>
-                    <span className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-theme-muted">Effect {index + 1}</span>
-                    <button type="button" onClick={() => moveEffect(index, -1)} disabled={index === 0} aria-label={`Move effect ${index + 1} up`} title="Move up" className={smallIconButtonClass}>
-                      <ArrowUpIcon className="h-3.5 w-3.5" />
-                    </button>
+          {draft.steps.map((step, stepIndex) => {
+            const first = stepIndex === 0;
+            const showNumber = draft.steps.length > 1;
+            const isCollapsed = showNumber && collapsedSteps.has(step.id);
+            const summary = [step.condition?.trim() ? `If ${step.condition.trim()}` : '', ...step.effects.map((effect) => describeEffect(character, effect))].filter(Boolean).join(' → ');
+            return (
+              <div key={step.id} className={showNumber ? 'event-editor__group p-3' : 'space-y-3'}>
+                {showNumber && (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => moveEffect(index, 1)}
-                      disabled={index === draft.effects.length - 1}
-                      aria-label={`Move effect ${index + 1} down`}
-                      title="Move down"
-                      className={smallIconButtonClass}
+                      onClick={() => toggleStep(step.id)}
+                      aria-expanded={!isCollapsed}
+                      aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} step ${stepIndex + 1}`}
+                      className="flex h-8 min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <ArrowDownIcon className="h-3.5 w-3.5" />
+                      {isCollapsed ? <ChevronDownIcon className="h-3.5 w-3.5 flex-none text-theme-muted" /> : <ChevronUpIcon className="h-3.5 w-3.5 flex-none text-theme-muted" />}
+                      <span className="flex-none text-xs font-bold uppercase tracking-wide text-theme-muted">Step {stepIndex + 1}</span>
+                      {isCollapsed && <span className="min-w-0 flex-1 truncate text-xs text-theme-ink" title={summary}>{summary}</span>}
+                      {isCollapsed && stepHasProblems(step) && <span className="flex-none text-xs text-amber-600" title="This step needs attention">⚠</span>}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => update({ effects: draft.effects.filter((item) => item.id !== effect.id) })}
-                      aria-label={`Remove effect ${index + 1}`}
-                      title="Remove"
-                      className={`${smallIconButtonClass} hover:!border-red-500 hover:!bg-red-500`}
-                    >
-                      <TrashIcon className="h-3.5 w-3.5" />
-                    </button>
+                    {!first && (
+                      <button
+                        type="button"
+                        onClick={() => update({ steps: draft.steps.filter((item) => item.id !== step.id) })}
+                        aria-label={`Remove step ${stepIndex + 1}`}
+                        title="Remove this step"
+                        className={`${smallIconButtonClass} hover:!border-red-500 hover:!bg-red-500`}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                  <PartFields
+                )}
+
+                {/* Hidden rather than unmounted, so a collapsed step keeps its fields and data chips. */}
+                <div className={isCollapsed ? 'hidden' : showNumber ? 'mt-3 space-y-3' : 'space-y-3'}>
+                {step.condition === undefined ? (
+                  <button
+                    type="button"
+                    onClick={() => changeStep(step.id, (current) => ({ ...current, condition: '' }))}
+                    data-tutorial={first ? 'event-editor-condition' : undefined}
+                    className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" /> Add a condition (only if…)
+                  </button>
+                ) : (
+                  <section className="event-editor__step p-3 sm:p-4" aria-label={showNumber ? `Condition of step ${stepIndex + 1}` : 'Condition'} data-tutorial={first ? 'event-editor-condition' : undefined}>
+                    <StepHeader pill="if" pillLabel="Only if" title={first ? 'This is true when it happens' : 'This is true at this point'}>
+                      <button
+                        type="button"
+                        onClick={() => changeStep(step.id, ({ condition: _unused, otherwise: _otherwise, stopIfFalse: _stop, ...rest }) => rest)}
+                        aria-label="Remove the condition"
+                        title="Remove the condition"
+                        className={smallIconButtonClass}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </StepHeader>
+                    <Field
+                      label="Condition"
+                      help={first
+                        ? (triggerOutputs.length
+                          ? `A formula, such as @hp < @max_hp / 2. The trigger's data works here too, such as @${eventLabel(triggerOutputs[0].key)}.`
+                          : 'A formula, such as @hp < @max_hp / 2 or @level >= 5.')
+                        : 'A formula, such as @event_attack_total >= 12. Results of earlier effects work here, as does the sheet as the earlier effects changed it.'}
+                    >
+                      <input
+                        type="text"
+                        value={step.condition}
+                        onChange={(event) => changeStep(step.id, (current) => ({ ...current, condition: event.target.value }))}
+                        onFocus={(event) => registerDataTarget({
+                          element: event.currentTarget,
+                          mode: 'formula',
+                          label: 'the condition',
+                          setValue: (condition) => changeStep(step.id, (current) => ({ ...current, condition })),
+                        })}
+                        data-event-data-target="true"
+                        placeholder={first ? '@hp < @max_hp / 2' : '@event_attack_total >= 12'}
+                        autoComplete="off"
+                        spellCheck={false}
+                        autoFocus={step.condition === '' && stepIndex === draft.steps.length - 1}
+                        className={`${fieldClass} font-mono`}
+                      />
+                    </Field>
+                    {stepIndex < draft.steps.length - 1 && (
+                      <div className="mt-3">
+                        <Field label="If it's false">
+                          <select
+                            value={step.stopIfFalse ? 'stop' : 'continue'}
+                            onChange={(event) => changeStep(step.id, (current) => ({ ...current, stopIfFalse: event.target.value === 'stop' }))}
+                            className={fieldClass}
+                          >
+                            <option value="continue">Skip this step and carry on with the next one</option>
+                            <option value="stop">Stop the event here</option>
+                          </select>
+                        </Field>
+                      </div>
+                    )}
+                    {(showProblems || step.condition.trim() !== '') && <ProblemList problems={problems.conditions[step.id]} />}
+                  </section>
+                )}
+
+                <section className="event-editor__step p-3 sm:p-4" aria-label={showNumber ? `Effects of step ${stepIndex + 1}` : 'Effects'} data-tutorial={first ? 'event-editor-effects' : undefined}>
+                  <StepHeader pill="then" pillLabel="Then" title={step.effects.length > 1 ? 'Do these, in order' : 'Do this'} />
+                  <EffectList
                     character={character}
-                    role="effect"
-                    part={effect}
-                    onChange={(part) => updateEffect(index, { ...part, id: effect.id })}
-                    onDataTarget={triggerOutputs.length ? registerDataTarget : undefined}
+                    effects={step.effects}
+                    allEffects={allEffects}
+                    onChange={(effects) => changeStep(step.id, (current) => ({ ...current, effects }))}
+                    problems={problems.effects}
+                    showProblems={showProblems}
+                    registerDataTarget={registerDataTarget}
+                    chips={chips}
                   />
-                  {effect.kind && <Sentence icon={getEventIcon(effect.kind, findWidget(character, effect.widgetId))} text={describeEffect(character, effect)} />}
-                  {showProblems && <ProblemList problems={problems.effects[effect.id]} />}
+                  {showProblems && <ProblemList problems={problems.steps[step.id]} />}
+                </section>
+
+                {step.otherwise !== undefined ? (
+                  <section className="event-editor__step p-3 sm:p-4" aria-label={showNumber ? `Otherwise of step ${stepIndex + 1}` : 'Otherwise'}>
+                    <StepHeader pill="else" pillLabel="Else" title="Otherwise, do this">
+                      <button
+                        type="button"
+                        onClick={() => changeStep(step.id, ({ otherwise: _unused, ...rest }) => rest)}
+                        aria-label="Remove the otherwise effects"
+                        title="Remove the otherwise effects"
+                        className={smallIconButtonClass}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </StepHeader>
+                    <EffectList
+                      character={character}
+                      effects={step.otherwise}
+                      allEffects={allEffects}
+                      onChange={(otherwise) => changeStep(step.id, (current) => ({ ...current, otherwise }))}
+                      problems={problems.effects}
+                      showProblems={showProblems}
+                      registerDataTarget={registerDataTarget}
+                      chips={chips}
+                    />
+                  </section>
+                ) : step.condition !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => changeStep(step.id, (current) => ({ ...current, otherwise: [createBlankEffect()] }))}
+                    className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" /> Add effects for when the condition is false (otherwise…)
+                  </button>
+                )}
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => update({ effects: [...draft.effects, createBlankEffect()] })}
-                className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
-              >
-                <PlusIcon className="h-3.5 w-3.5" /> Add effect
-              </button>
-            </div>
-            {showProblems && <ProblemList problems={problems.general} />}
-          </section>
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => update({ steps: [...draft.steps, createStep([createBlankEffect()], '')] })}
+            data-tutorial="event-editor-add-step"
+            className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
+          >
+            <PlusIcon className="h-3.5 w-3.5" /> Add another step (check a result, then do more)
+          </button>
         </div>
 
         <footer className="widget-edit-modal__footer flex flex-none flex-wrap items-center justify-between gap-2 border-t border-theme-border">
@@ -809,9 +1083,19 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
               </span>
             )}
             <button type="button" onClick={closeEditor} className="widget-control px-4 py-2 text-xs font-bold">Cancel</button>
+            {problems.count > 0 && !inTutorialLesson && (
+              <button
+                type="button"
+                onClick={() => save(true)}
+                title="Keep what you have, turned off, and finish it later"
+                className="widget-control px-4 py-2 text-xs font-bold"
+              >
+                Save as draft
+              </button>
+            )}
             <button
               type="button"
-              onClick={save}
+              onClick={() => save()}
               data-tutorial="event-editor-save"
               className={`widget-control widget-control--primary px-4 py-2 text-xs font-bold ${!isEditing && (tutorialStepId === 'events-editor-save' || tutorialStepId === 'events-inline-editor-save') ? tutorialTargetClass : ''}`}
             >

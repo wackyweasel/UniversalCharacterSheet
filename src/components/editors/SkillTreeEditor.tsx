@@ -46,12 +46,12 @@ export function SkillTreeEditor({ widget, updateData }: EditorProps) {
     updateData({ skillNodes: skillNodes.map((node) => (node.id === id ? { ...node, ...changes } : node)) });
   };
 
-  const toggleRequirement = (node: SkillTreeNode, requiredId: string) => {
-    updateNode(node.id, {
-      requires: node.requires.includes(requiredId)
-        ? node.requires.filter((id) => id !== requiredId)
-        : [...node.requires, requiredId],
-    });
+  const toggleRequirement = (node: SkillTreeNode, requiredId: string, kind: 'all' | 'any') => {
+    const all = node.requires.filter((id) => id !== requiredId);
+    const any = (node.requiresAny ?? []).filter((id) => id !== requiredId);
+    const wasSelected = (kind === 'all' ? node.requires : node.requiresAny ?? []).includes(requiredId);
+    if (!wasSelected) (kind === 'all' ? all : any).push(requiredId);
+    updateNode(node.id, { requires: all, requiresAny: any.length > 0 ? any : undefined });
   };
 
   const addNode = () => {
@@ -136,24 +136,31 @@ export function SkillTreeEditor({ widget, updateData }: EditorProps) {
                 </div>
                 <input aria-label={`${name} description`} className={inputClass} value={node.description ?? ''} placeholder="Description (optional)" onChange={(event) => updateNode(node.id, { description: event.target.value || undefined })} />
                 {selectable.length > 0 && (
-                  <div role="group" aria-label={`${name} requirements`}>
-                    <span className="mb-1 block text-xs text-theme-muted">Requires</span>
-                    <div className="flex flex-wrap gap-1">
-                      {selectable.map((option) => {
-                        const selected = node.requires.includes(option.id);
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            aria-pressed={selected}
-                            className={`widget-control max-w-full px-2 py-1 text-xs ${selected ? 'widget-control--primary' : ''}`}
-                            onClick={() => toggleRequirement(node, option.id)}
-                          >
-                            <span className="truncate">{option.name || 'Skill'}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="space-y-2">
+                    {([
+                      { kind: 'all', title: 'Requires', ids: node.requires },
+                      { kind: 'any', title: 'Requires at least one of (OR)', ids: node.requiresAny ?? [] },
+                    ] as const).map((row) => (
+                      <div key={row.kind} role="group" aria-label={`${name} ${row.kind === 'all' ? 'requirements' : 'alternative requirements'}`}>
+                        <span className="mb-1 block text-xs text-theme-muted">{row.title}</span>
+                        <div className="flex flex-wrap gap-1">
+                          {selectable.map((option) => {
+                            const selected = row.ids.includes(option.id);
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                aria-pressed={selected}
+                                className={`widget-control max-w-full px-2 py-1 text-xs ${selected ? 'widget-control--primary' : ''}`}
+                                onClick={() => toggleRequirement(node, option.id, row.kind)}
+                              >
+                                <span className="truncate">{option.name || 'Skill'}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
                 <label className="flex cursor-pointer items-center gap-2">

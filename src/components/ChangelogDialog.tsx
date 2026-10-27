@@ -38,6 +38,17 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.14.1',
+    changes: [
+      'Expanded events: an event can now have several steps. Each step has an optional condition, the effects to run when it holds and, if you like, effects for when it does not. For example: roll a die, check the result, then deal damage or write "Miss".',
+      'Name an effect\'s result to use it in later steps: a roll named attack is read as @event_attack_total. Choose per step whether a false condition skips just that step or stops the event, and collapse steps to keep long events tidy.',
+      'An event can have no trigger and be run by hand or by another event. You can also save an unfinished event as a draft (it stays turned off) and come back to it.',
+      'Dice results from events now open next to where you pressed. Timeline pop-ups stay twice as long and show their full text.',
+      'Skill tree: a skill can now list alternative requirements. Under "Requires at least one of (OR)" in the editor, pick skills where any one of them is enough to unlock it.',
+      'Initiative tracker: a participant can now have no dice at all. Leave the Dice field empty and only their bonus is used.',
+    ],
+  },
+  {
     version: '1.14.0',
     changes: [
       'New Events panel (⚡ in the toolbar): make your sheet react on its own. WHEN something happens, optionally IF a condition holds, THEN do one or more things. For example: when Health drops below half, turn on Bloodied.',

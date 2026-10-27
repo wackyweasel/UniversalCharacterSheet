@@ -235,6 +235,19 @@ export function plural(count: number, singular: string, pluralForm = `${singular
 /** Every die an expression rolled, in term order. */
 export const flattenRollDice = (roll: DiceExpressionRollResult): number[] => roll.terms.flatMap((term) => term.rolls ?? []);
 
+/** What dice rolls pass along: to an event's trigger conditions and to later steps. */
+export const ROLL_OUTPUTS: TriggerOutput[] = [
+  { key: 'total', label: 'Total of the roll', type: 'number' },
+  { key: 'highest', label: 'Highest die', type: 'number' },
+  { key: 'lowest', label: 'Lowest die', type: 'number' },
+];
+
+export function rollResultData(total: number | undefined, dice: number[]): TriggerData {
+  const data: TriggerData = dice.length ? { highest: Math.max(...dice), lowest: Math.min(...dice) } : {};
+  if (total !== undefined) data.total = total;
+  return data;
+}
+
 /** Describes a widget's expression roll for action triggers; `total` overrides the roll's own, e.g. to add a modifier. */
 export function expressionRollAction(widgetId: string, roll: DiceExpressionRollResult, extra: Partial<WidgetAction> = {}): WidgetAction {
   return { widgetId, kind: 'roll', total: roll.total, dice: flattenRollDice(roll), text: roll.expression, ...extra };

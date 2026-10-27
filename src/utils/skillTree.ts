@@ -19,9 +19,19 @@ export function isSkillTreeUsingPoints(data: Pick<WidgetData, 'skillTreeUsePoint
   return data.skillTreeUsePoints !== false;
 }
 
+/** Every skill this one points back to, whether it is required outright or as one of several alternatives. */
+export function getAllRequiredIds(node: SkillTreeNode): string[] {
+  return [...node.requires, ...(node.requiresAny ?? [])];
+}
+
 function getPrerequisites(nodes: SkillTreeNode[], node: SkillTreeNode): SkillTreeNode[] {
   const requiredIds = new Set(node.requires);
   return nodes.filter((candidate) => candidate.id !== node.id && requiredIds.has(candidate.id));
+}
+
+function getAlternatives(nodes: SkillTreeNode[], node: SkillTreeNode): SkillTreeNode[] {
+  const alternativeIds = new Set(node.requiresAny ?? []);
+  return nodes.filter((candidate) => candidate.id !== node.id && alternativeIds.has(candidate.id));
 }
 
 /** A skill sits one tier after its deepest prerequisite. Cyclic requirements are ignored. */
@@ -36,7 +46,8 @@ export function getSkillTiers(nodes: SkillTreeNode[]): Map<string, number> {
     if (visiting.has(id)) return 0;
     visiting.add(id);
     let tier = 0;
-    for (const requiredId of byId.get(id)?.requires ?? []) {
+    const node = byId.get(id);
+    for (const requiredId of node ? getAllRequiredIds(node) : []) {
       if (requiredId !== id && byId.has(requiredId)) tier = Math.max(tier, tierOf(requiredId) + 1);
     }
     visiting.delete(id);
@@ -74,7 +85,7 @@ export function layoutSkillTree(nodes: SkillTreeNode[], orientation: SkillTreeOr
     const group = nodes.filter((node) => tiers.get(node.id) === tier);
     if (tier > 0) {
       const barycenter = (node: SkillTreeNode) => {
-        const placed = node.requires.map((id) => order.get(id)).filter((value): value is number => value !== undefined);
+        const placed = getAllRequiredIds(node).map((id) => order.get(id)).filter((value): value is number => value !== undefined);
         return placed.length > 0 ? placed.reduce((sum, value) => sum + value, 0) / placed.length : Number.POSITIVE_INFINITY;
       };
       group.sort((a, b) => {
@@ -143,14 +154,38 @@ export function getLockedPrerequisites(nodes: SkillTreeNode[], node: SkillTreeNo
   return getPrerequisites(nodes, node).filter((prerequisite) => !prerequisite.unlocked);
 }
 
+/** The alternatives to choose from while none of them is unlocked yet; empty once one is unlocked or when there are none. */
+export function getLockedAlternatives(nodes: SkillTreeNode[], node: SkillTreeNode): SkillTreeNode[] {
+  const alternatives = getAlternatives(nodes, node);
+  return alternatives.some((alternative) => alternative.unlocked) ? [] : alternatives;
+}
+
+/** Describes what still has to be unlocked, e.g. "A and (B or C)". */
+export function describeMissingRequirements(nodes: SkillTreeNode[], node: SkillTreeNode): string {
+  const nameOf = (item: SkillTreeNode) => item.name || 'a skill';
+  const parts = getLockedPrerequisites(nodes, node).map(nameOf);
+  const alternatives = getLockedAlternatives(nodes, node).map(nameOf);
+  if (alternatives.length > 0) {
+    const text = alternatives.join(' or ');
+    parts.push(parts.length > 0 && alternatives.length > 1 ? `(${text})` : text);
+  }
+  return parts.join(' and ');
+}
+
 /** Unlocked skills that need this one, which therefore block refunding it. */
 export function getUnlockedDependents(nodes: SkillTreeNode[], id: string): SkillTreeNode[] {
-  return nodes.filter((node) => node.unlocked && node.id !== id && node.requires.includes(id));
+  return nodes.filter((node) => {
+    if (!node.unlocked || node.id === id) return false;
+    if (node.requires.includes(id)) return true;
+    if (!node.requiresAny?.includes(id)) return false;
+    // Another unlocked alternative keeps the skill satisfied without this one.
+    return !getAlternatives(nodes, node).some((alternative) => alternative.id !== id && alternative.unlocked);
+  });
 }
 
 export function getSkillNodeStatus(nodes: SkillTreeNode[], node: SkillTreeNode, pointsLeft: number, usePoints: boolean): SkillNodeStatus {
   if (node.unlocked) return 'unlocked';
-  if (getLockedPrerequisites(nodes, node).length > 0) return 'locked';
+  if (getLockedPrerequisites(nodes, node).length > 0 || getLockedAlternatives(nodes, node).length > 0) return 'locked';
   if (usePoints && normalizeSkillCost(node.cost) > pointsLeft) return 'unaffordable';
   return 'available';
 }
@@ -163,7 +198,8 @@ function requiresTransitively(nodes: SkillTreeNode[], startId: string, targetId:
     const id = stack.pop()!;
     if (seen.has(id)) continue;
     seen.add(id);
-    for (const requiredId of byId.get(id)?.requires ?? []) {
+    const node = byId.get(id);
+    for (const requiredId of node ? getAllRequiredIds(node) : []) {
       if (requiredId === targetId) return true;
       stack.push(requiredId);
     }
@@ -179,7 +215,12 @@ export function getSelectablePrerequisites(nodes: SkillTreeNode[], id: string): 
 export function removeSkillNode(nodes: SkillTreeNode[], id: string): SkillTreeNode[] {
   return nodes
     .filter((node) => node.id !== id)
-    .map((node) => (node.requires.includes(id) ? { ...node, requires: node.requires.filter((requiredId) => requiredId !== id) } : node));
+    .map((node) => {
+      if (!getAllRequiredIds(node).includes(id)) return node;
+      const updated: SkillTreeNode = { ...node, requires: node.requires.filter((requiredId) => requiredId !== id) };
+      if (node.requiresAny) updated.requiresAny = node.requiresAny.filter((requiredId) => requiredId !== id);
+      return updated;
+    });
 }
 
 /** Value of the formula-visible fields that are derived from the unlocked skills. */

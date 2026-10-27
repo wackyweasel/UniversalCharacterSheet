@@ -7,10 +7,13 @@ import {
   compareValues,
   DIRECTION_OPTIONS,
   directionMatches,
+  flattenRollDice,
   formatNumber,
   getComparisonText,
   getDirectionText,
   resolveThreshold,
+  ROLL_OUTPUTS,
+  rollResultData,
   VALUE_CHANGE_OUTPUTS,
   valueChangeData,
 } from '../helpers';
@@ -89,9 +92,9 @@ export const labelCrossesTrigger: TriggerDef = {
 
 export const manualTrigger: TriggerDef = {
   kind: 'manual',
-  label: 'Only when I press Run',
+  label: 'No trigger (run by hand or by another event)',
   mode: 'manual',
-  describe: () => 'I press Run',
+  describe: () => 'it is run by hand or by another event',
 };
 
 export const labelSetEffect: EffectDef = {
@@ -148,6 +151,7 @@ export const labelAddEffect: EffectDef = {
 export const diceRollEffect: EffectDef = {
   kind: 'dice.roll',
   label: 'Roll dice',
+  outputs: ROLL_OUTPUTS,
   params: [
     { key: 'dice', label: 'Dice', type: 'dice', default: '1d20', placeholder: '1d20 + @str', help: 'Any dice expression; labels are allowed.' },
     { key: 'title', label: 'Title', type: 'text', default: '', placeholder: 'Shown on the result' },
@@ -162,6 +166,7 @@ export const diceRollEffect: EffectDef = {
     return {
       text: `${ctx.params.title?.trim() ? `${title}: ` : ''}${formatDiceRollDetail(roll)}`,
       rolls: [{ title, subtitle: roll.expression, result: roll }],
+      result: rollResultData(roll.total, flattenRollDice(roll)),
     };
   },
   describe: (d) => `Roll ${d.params.dice || '?'}${d.params.title?.trim() ? ` for ${d.params.title.trim()}` : ''}`,

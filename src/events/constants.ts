@@ -2,6 +2,8 @@
 export const EVENT_LABEL_PREFIX = 'event_';
 
 export const eventLabel = (key: string) => `${EVENT_LABEL_PREFIX}${key}`;
+/** Label carrying one value of a named effect result, e.g. `event_attack_total`. */
+export const resultLabel = (name: string, key: string) => `${EVENT_LABEL_PREFIX}${name}_${key}`;
 export const isEventLabel = (label: string) => label.startsWith(EVENT_LABEL_PREFIX);
 
 /** `event_…` labels referenced in a formula or a text with {formulas}. */

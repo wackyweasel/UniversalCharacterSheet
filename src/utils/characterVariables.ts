@@ -1,5 +1,6 @@
 import type { Character, CharacterVariable, Widget, WidgetData } from '../types';
 import { isEventLabel } from '../events/constants';
+import { getEventEffects, mapEventEffects } from '../events/steps';
 import { getCalendarLabelFields } from './calendar';
 import { collectLabels } from './formulaEngine';
 import type { FormulaLabels, FormulaValue } from './formulaSyntax';
@@ -385,8 +386,15 @@ export function buildReferenceIndex(character: Character): LabelReferenceIndex {
   }
 
   for (const event of character.events ?? []) {
-    const counts = scan({ trigger: event.trigger.params, effects: event.effects.map((effect) => effect.params), formula: event.condition });
-    for (const part of [event.trigger, ...event.effects]) {
+    const effects = getEventEffects(event);
+    const counts = scan({
+      trigger: event.trigger.params,
+      steps: event.steps.map((step) => ({
+        formula: step.condition,
+        effects: [...step.effects, ...(step.otherwise ?? [])].map((effect) => effect.params),
+      })),
+    });
+    for (const part of [event.trigger, ...effects]) {
       if (part.kind.startsWith('label.') && part.target) counts.set(part.target, (counts.get(part.target) ?? 0) + 1);
     }
     record({ sourceId: `event:${event.id}`, title: `⚡ ${event.name?.trim() || 'Event'}` }, counts);
@@ -502,11 +510,10 @@ function rewriteReferences(character: Character, from: string, to: string, inclu
   const events = character.events?.map((event) => {
     const rewritten = rewriteStrings(event, rewrite);
     const trigger = retarget(rewritten.trigger);
-    const effects = rewritten.effects.map(retarget);
-    const effectsChanged = effects.some((effect, index) => effect !== rewritten.effects[index]);
-    if (rewritten === event && trigger === event.trigger && !effectsChanged) return event;
+    const retargeted = mapEventEffects(rewritten, retarget);
+    if (rewritten === event && trigger === event.trigger && retargeted === rewritten) return event;
     eventsChanged = true;
-    return { ...rewritten, trigger, effects: effectsChanged ? effects : rewritten.effects };
+    return { ...retargeted, trigger };
   });
 
   if (!variablesChanged && !sheetsChanged && !eventsChanged) return character;

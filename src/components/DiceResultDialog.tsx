@@ -10,7 +10,7 @@ const VIEWPORT_PADDING = 8;
 const stopPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
 
 function DiceResultDialog({ entry }: { entry: DiceResultEntry }) {
-  const { widgetId, view, centered } = entry;
+  const { widgetId, view, centered, point } = entry;
   const dialogRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const [rerolling, setRerolling] = useState(false);
@@ -29,7 +29,7 @@ function DiceResultDialog({ entry }: { entry: DiceResultEntry }) {
 
       const rect = anchor?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
       if (origin === undefined) {
-        const click = centered ? null : getLastClickPoint();
+        const click = centered ? point ?? null : getLastClickPoint();
         origin = click && rect.width > 0 && rect.height > 0
           ? { fx: (click.x - rect.left) / rect.width, fy: (click.y - rect.top) / rect.height }
           : null;
@@ -67,7 +67,7 @@ function DiceResultDialog({ entry }: { entry: DiceResultEntry }) {
 
     update();
     return () => cancelAnimationFrame(frame);
-  }, [widgetId, centered, onClose]);
+  }, [widgetId, centered, point, onClose]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {

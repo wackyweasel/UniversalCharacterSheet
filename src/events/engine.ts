@@ -3,7 +3,8 @@ import { getWidgetTitle } from '../utils/characterVariables';
 import { collectLabels, evaluateFormulaValue, resolveCharacterFormulas, type FormulaChange } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
 import { evaluateAmount, evaluateCondition, findWidget, formatNumber, patchWidgetData } from './helpers';
-import { fillParams, getEffectDef, getEventIcon, getEventTitle, getTriggerDef, getTriggerLabels, isGlobalEffectKind, isGlobalTriggerKind } from './registry';
+import { fillParams, getEffectDef, getEventIcon, getEventTitle, getResultLabels, getTriggerDef, getTriggerLabels, isGlobalEffectKind, isGlobalTriggerKind } from './registry';
+import { normalizeEvent } from './steps';
 import type { EffectContext, EffectOutcome, EventDiceDisplay, TriggerMatch, WidgetAction } from './types';
 
 /** Longest chain of events firing one another before the engine stops. */
@@ -18,6 +19,10 @@ export interface EventEffectResult {
   text: string;
   /** The effect couldn't run or had nothing to do. */
   skipped?: boolean;
+  /** Index of the step the effect belongs to. */
+  step?: number;
+  /** The effect ran because its step's condition was false. */
+  otherwise?: boolean;
 }
 
 export interface EventFiring {
@@ -26,8 +31,10 @@ export interface EventFiring {
   /** What triggered the event. */
   trigger: string;
   effects: EventEffectResult[];
-  /** The event's "only if" condition was false, so no effect ran. */
+  /** A step's condition was false, so its effects were skipped (and its "otherwise" effects ran). */
   conditionFailed?: boolean;
+  /** Indexes of the steps whose condition was false. */
+  failedSteps?: number[];
   manual?: boolean;
   /** 0 for events fired by the original change, 1+ for events fired by other events. */
   depth: number;
@@ -64,9 +71,9 @@ export function interpolateText(text: string, labels: FormulaLabels): string {
   });
 }
 
-/** The sheet's labels plus the trigger's data as `event_…` labels, which win over sheet labels of the same name. */
-function withEventLabels(labels: FormulaLabels, event: CharacterEvent, match: TriggerMatch): FormulaLabels {
-  return { ...labels, ...getTriggerLabels(event.trigger.kind, match.data) };
+/** The sheet's labels plus the trigger's data and earlier effects' results as `event_…` labels, which win over sheet labels of the same name. */
+function withEventLabels(labels: FormulaLabels, event: CharacterEvent, match: TriggerMatch, results: FormulaLabels): FormulaLabels {
+  return { ...labels, ...getTriggerLabels(event.trigger.kind, match.data), ...results };
 }
 
 function cleanResolved(character: Character, changes: FormulaChange[]): Character {
@@ -217,37 +224,56 @@ export function runEvents(input: EventRunInput): EventRunResult {
     const firing: EventFiring = { eventId: event.id, title, trigger: match.text, effects: [], manual, depth };
     firings.push(firing);
 
-    if (!evaluateCondition(event.condition, withEventLabels(collectLabels(current), event, match))) {
-      firing.conditionFailed = true;
-      return;
-    }
+    // Named results of the effects that ran so far, read by later conditions and effects.
+    const results: FormulaLabels = {};
 
-    for (const effect of event.effects) {
-      const labels = withEventLabels(collectLabels(current), event, match);
-      const { outcome, icon, prefix, error } = runEffect(current, effect, labels);
-      if (!outcome) {
-        firing.effects.push({ effectId: effect.id, icon, text: `${prefix}${error}`, skipped: true });
+    const runEffects = (effects: CharacterEventEffect[], step: number, otherwise: boolean) => {
+      for (const effect of effects) {
+        const labels = withEventLabels(collectLabels(current), event, match, results);
+        const { outcome, icon, prefix, error } = runEffect(current, effect, labels);
+        Object.assign(results, getResultLabels(effect, outcome?.result));
+        const where = { step, ...(otherwise ? { otherwise } : {}) };
+        if (!outcome) {
+          firing.effects.push({ effectId: effect.id, icon, text: `${prefix}${error}`, skipped: true, ...where });
+          continue;
+        }
+
+        let next = outcome.character ?? current;
+        if (outcome.data && effect.widgetId) next = patchWidgetData(next, effect.widgetId, outcome.data);
+        if (next !== current) next = cleanResolved(next, formulaChanges);
+        const changed = next !== current;
+        current = next;
+
+        for (const roll of outcome.rolls ?? []) rolls.push({ ...roll, eventId: event.id });
+        if (outcome.actions) nextActions.push(...outcome.actions);
+
+        const blocker = outcome.runEventId ? runBlocker(outcome.runEventId, depth) : null;
+        firing.effects.push({
+          effectId: effect.id,
+          icon,
+          text: blocker ? `Can't run: ${blocker}` : withPrefix(prefix, outcome.text),
+          skipped: blocker !== null || (!changed && !outcome.rolls?.length && !outcome.actions?.length && !outcome.runEventId && !REPORT_ONLY_EFFECTS.has(effect.kind)),
+          ...where,
+        });
+        const linked = outcome.runEventId && !blocker ? current.events?.find((item) => item.id === outcome.runEventId) : undefined;
+        if (linked) fire(linked, { text: `Run by "${title}"` }, depth + 1);
+      }
+    };
+
+    const steps = normalizeEvent(event).steps;
+    for (let index = 0; index < steps.length; index += 1) {
+      const step = steps[index];
+      const passed = evaluateCondition(step.condition, withEventLabels(collectLabels(current), event, match, results));
+      // Results of the branch that doesn't run still read as 0 or empty text, so later steps can use them.
+      for (const effect of [...step.effects, ...(step.otherwise ?? [])]) Object.assign(results, getResultLabels(effect));
+      if (passed) {
+        runEffects(step.effects, index, false);
         continue;
       }
-
-      let next = outcome.character ?? current;
-      if (outcome.data && effect.widgetId) next = patchWidgetData(next, effect.widgetId, outcome.data);
-      if (next !== current) next = cleanResolved(next, formulaChanges);
-      const changed = next !== current;
-      current = next;
-
-      for (const roll of outcome.rolls ?? []) rolls.push({ ...roll, eventId: event.id });
-      if (outcome.actions) nextActions.push(...outcome.actions);
-
-      const blocker = outcome.runEventId ? runBlocker(outcome.runEventId, depth) : null;
-      firing.effects.push({
-        effectId: effect.id,
-        icon,
-        text: blocker ? `Can't run: ${blocker}` : withPrefix(prefix, outcome.text),
-        skipped: blocker !== null || (!changed && !outcome.rolls?.length && !outcome.actions?.length && !outcome.runEventId && !REPORT_ONLY_EFFECTS.has(effect.kind)),
-      });
-      const linked = outcome.runEventId && !blocker ? current.events?.find((item) => item.id === outcome.runEventId) : undefined;
-      if (linked) fire(linked, { text: `Run by "${title}"` }, depth + 1);
+      firing.conditionFailed = true;
+      firing.failedSteps = [...(firing.failedSteps ?? []), index];
+      runEffects(step.otherwise ?? [], index, true);
+      if (step.stopIfFalse) return;
     }
   };
 

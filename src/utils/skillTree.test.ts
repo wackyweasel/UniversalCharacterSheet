@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Character, SkillTreeNode, Widget } from '../types';
 import { buildDependencyGraph, collectLabels, getAvailableLabels, resolveCharacterFormulas } from './formulaEngine';
 import {
+  describeMissingRequirements,
   getSelectablePrerequisites,
   getSkillConnectorPath,
   getSkillDerivedValue,
@@ -106,6 +107,39 @@ describe('skill tree rules', () => {
     expect(getSkillNodeStatus(onlyB, onlyB[3], 9, true)).toBe('locked');
     const both = onlyB.map((item) => (item.id === 'c' ? { ...item, unlocked: true } : item));
     expect(getSkillNodeStatus(both, both[3], 9, true)).toBe('available');
+  });
+
+  it('unlocks a skill when any one alternative requirement is met', () => {
+    const alt = [node('a'), node('b'), node('c', ['a'], { requiresAny: ['b', 'x'] }), node('x')];
+    expect(getSkillNodeStatus(alt, alt[2], 9, true)).toBe('locked');
+    const aOnly = alt.map((item) => (item.id === 'a' ? { ...item, unlocked: true } : item));
+    expect(getSkillNodeStatus(aOnly, aOnly[2], 9, true)).toBe('locked');
+    const withB = aOnly.map((item) => (item.id === 'b' ? { ...item, unlocked: true } : item));
+    expect(getSkillNodeStatus(withB, withB[2], 9, true)).toBe('available');
+    const withX = aOnly.map((item) => (item.id === 'x' ? { ...item, unlocked: true } : item));
+    expect(getSkillNodeStatus(withX, withX[2], 9, true)).toBe('available');
+    const noA = alt.map((item) => (item.id === 'b' ? { ...item, unlocked: true } : item));
+    expect(getSkillNodeStatus(noA, noA[2], 9, true)).toBe('locked');
+  });
+
+  it('describes what is still missing', () => {
+    const alt = [node('a'), node('b'), node('c'), node('d', ['a'], { requiresAny: ['b', 'c'] }), node('e', [], { requiresAny: ['b', 'c'] })];
+    expect(describeMissingRequirements(alt, alt[3])).toBe('a and (b or c)');
+    expect(describeMissingRequirements(alt, alt[4])).toBe('b or c');
+  });
+
+  it('only blocks refunding the last unlocked alternative', () => {
+    const alt = [node('a', [], { unlocked: true }), node('b', [], { unlocked: true }), node('c', [], { unlocked: true, requiresAny: ['a', 'b'] })];
+    expect(getUnlockedDependents(alt, 'a')).toEqual([]);
+    const onlyA = alt.map((item) => (item.id === 'b' ? { ...item, unlocked: false } : item));
+    expect(getUnlockedDependents(onlyA, 'a').map((item) => item.id)).toEqual(['c']);
+  });
+
+  it('places and guards alternative requirements like regular ones', () => {
+    const alt = [node('a'), node('b', ['a']), node('c', [], { requiresAny: ['b'] })];
+    expect(getSkillTiers(alt).get('c')).toBe(2);
+    expect(getSelectablePrerequisites(alt, 'a').map((item) => item.id)).toEqual([]);
+    expect(removeSkillNode(alt, 'b').find((item) => item.id === 'c')!.requiresAny).toEqual([]);
   });
 
   it('counts spent points and points left', () => {

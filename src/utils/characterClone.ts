@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { CardTableCard, Character, CharacterEvent, Sheet, Widget, WidgetType } from '../types';
+import type { CardTableCard, Character, CharacterEvent, CharacterEventEffect, Sheet, Widget, WidgetType } from '../types';
 import { RUN_EVENT_KIND } from '../events/constants';
+import { normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
 import { cloneInventoryData } from './inventory';
 import { copyVariableData } from './variableGroups';
 import {
@@ -74,8 +75,10 @@ export function migrateLegacyWidgetHeader(widget: Widget): Widget {
 
 export function migrateCharacter(character: Character): Character {
   if (character.sheets && character.sheets.length > 0) {
+    const events = normalizeEvents(character.events);
     return {
       ...character,
+      ...(events ? { events } : {}),
       sheets: character.sheets.map((sheet) => ({
         ...sheet,
         widgets: sheet.widgets.map(migrateLegacyWidgetHeader),
@@ -97,29 +100,35 @@ export function migrateCharacter(character: Character): Character {
     sheets: [defaultSheet],
     activeSheetId: defaultSheet.id,
     ...copyVariableData(character),
-    ...(character.events ? { events: character.events } : {}),
+    ...(character.events ? { events: normalizeEvents(character.events) } : {}),
   };
 }
 
 /** Copies events with fresh ids, pointing their widget and event references at the copies. */
-export function remapEventIds(events: CharacterEvent[], widgetIdMap: Map<string, string>): CharacterEvent[] {
+export function remapEventIds(events: StoredCharacterEvent[], widgetIdMap: Map<string, string>): CharacterEvent[] {
   const remap = (widgetId: string | undefined) => (widgetId ? widgetIdMap.get(widgetId) ?? widgetId : widgetId);
   const eventIdMap = new Map(events.map((event) => [event.id, uuidv4()]));
-  return events.map((event) => ({
+  const remapEffects = (effects: CharacterEventEffect[]) => effects.map((effect) => ({
+    ...effect,
+    id: uuidv4(),
+    widgetId: remap(effect.widgetId),
+    ...(effect.kind === RUN_EVENT_KIND && effect.target ? { target: eventIdMap.get(effect.target) ?? effect.target } : {}),
+    params: effect.params ? { ...effect.params } : undefined,
+  }));
+  return events.map(normalizeEvent).map((event, index) => ({
     ...event,
-    id: eventIdMap.get(event.id)!,
+    id: eventIdMap.get(events[index].id)!,
     trigger: { ...event.trigger, widgetId: remap(event.trigger.widgetId), params: event.trigger.params ? { ...event.trigger.params } : undefined },
-    effects: event.effects.map((effect) => ({
-      ...effect,
+    steps: event.steps.map((step) => ({
+      ...step,
       id: uuidv4(),
-      widgetId: remap(effect.widgetId),
-      ...(effect.kind === RUN_EVENT_KIND && effect.target ? { target: eventIdMap.get(effect.target) ?? effect.target } : {}),
-      params: effect.params ? { ...effect.params } : undefined,
+      effects: remapEffects(step.effects),
+      ...(step.otherwise ? { otherwise: remapEffects(step.otherwise) } : {}),
     })),
   }));
 }
 
-export function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string; events?: CharacterEvent[] }): {
+export function remapCharacterIds(source: { sheets: Sheet[]; activeSheetId: string; events?: StoredCharacterEvent[] }): {
   sheets: Sheet[];
   activeSheetId: string;
   events?: CharacterEvent[];

@@ -25,7 +25,7 @@ const bloodiedEvent: CharacterEvent = {
   id: 'e-bloodied',
   enabled: true,
   trigger: { kind: 'value.crosses', widgetId: 'w-hp', target: 'current', params: { compare: 'below', threshold: '50%' } },
-  effects: [{ id: 'f1', kind: 'switch.set', widgetId: 'w-bloodied', params: { state: 'on' } }],
+  steps: [{ id: 's1', effects: [{ id: 'f1', kind: 'switch.set', widgetId: 'w-bloodied', params: { state: 'on' } }] }],
 };
 
 const critEvent: CharacterEvent = {
@@ -33,7 +33,7 @@ const critEvent: CharacterEvent = {
   name: 'Critical hit',
   enabled: true,
   trigger: { kind: 'dice.rolled', widgetId: 'w-roller', params: { result: 'die', compare: 'equals', threshold: '20' } },
-  effects: [{ id: 'f2', kind: 'log.message', params: { message: 'Natural 20!' } }],
+  steps: [{ id: 's2', effects: [{ id: 'f2', kind: 'log.message', params: { message: 'Natural 20!' } }] }],
 };
 
 const bonusEvent: CharacterEvent = {
@@ -41,7 +41,7 @@ const bonusEvent: CharacterEvent = {
   name: 'Bonus damage',
   enabled: false,
   trigger: { kind: 'manual' },
-  effects: [{ id: 'f3', kind: 'dice.roll', params: { dice: '2d6' } }],
+  steps: [{ id: 's3', effects: [{ id: 'f3', kind: 'dice.roll', params: { dice: '2d6' } }] }],
 };
 
 const hero: Character = {
@@ -142,7 +142,8 @@ describe('event runtime', () => {
     let events = useStore.getState().characters[0].events!;
     expect(events.map((event) => event.id)).toEqual(['e-bloodied', 'e-crit', copyId, 'e-bonus']);
     expect(events[2].name).toBe('Critical hit (copy)');
-    expect(events[2].effects[0].id).not.toBe('f2');
+    expect(events[2].steps[0].effects[0].id).not.toBe('f2');
+    expect(events[2].steps[0].id).not.toBe('s2');
 
     store.moveCharacterEvent(copyId, 0);
     store.setCharacterEventEnabled(copyId, false);
@@ -150,9 +151,9 @@ describe('event runtime', () => {
     events = useStore.getState().characters[0].events!;
     expect(events.map((event) => [event.id, event.enabled])).toEqual([[copyId, false], ['e-bloodied', true], ['e-crit', true]]);
 
-    const newId = store.addCharacterEvent({ enabled: true, trigger: { kind: 'manual' }, effects: [{ id: '', kind: 'log.message', params: { message: 'Hi' } }] })!;
+    const newId = store.addCharacterEvent({ enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 's9', effects: [{ id: '', kind: 'log.message', params: { message: 'Hi' } }] }] })!;
     const added = useStore.getState().characters[0].events!.find((event) => event.id === newId)!;
-    expect(added.effects[0].id).toBeTruthy();
+    expect(added.steps[0].effects[0].id).toBeTruthy();
 
     const sent = fetchMock.mock.calls
       .map(([, init]) => JSON.parse(String(init?.body)))
@@ -166,7 +167,7 @@ describe('event runtime', () => {
     expect(sent[0]).toMatchObject({
       characterId: hero.id,
       widgetType: 'DICE_ROLLER',
-      metadata: { triggerKind: 'dice.rolled', effectKinds: 'log.message', effectCount: 1, hasCondition: false, eventCount: 4 },
+      metadata: { triggerKind: 'dice.rolled', effectKinds: 'log.message', effectCount: 1, hasCondition: false, stepCount: 1, eventCount: 4 },
     });
     expect(sent[1].metadata.enabled).toBe(false);
     expect(sent[3]).toMatchObject({ widgetType: null, metadata: { triggerKind: 'manual', eventCount: 4 } });

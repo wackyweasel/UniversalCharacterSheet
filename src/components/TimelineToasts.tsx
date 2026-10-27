@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 import { EVENT_TIMELINE_TYPE } from '../events/constants';
 
 const MAX_VISIBLE = 3;
-const VISIBLE_MS = 4200;
+const VISIBLE_MS = 8400;
 const EXIT_MS = 260;
 // Events older than this are restores or workspace loads, not live activity.
 const FRESH_MS = 3000;
@@ -34,8 +34,8 @@ function Toast({ event, onDone }: { event: TimelineEvent; onDone: (id: string) =
           : event.icon}
       </span>
       <div className="min-w-0">
-        <p className="font-bold text-sm font-heading truncate">{event.widgetLabel || event.widgetType}</p>
-        <p className="text-sm font-body leading-snug break-words line-clamp-2">{event.description}</p>
+        <p className="font-bold text-sm font-heading break-words">{event.widgetLabel || event.widgetType}</p>
+        <p className="text-sm font-body leading-snug break-words">{event.description}</p>
       </div>
     </div>
   );

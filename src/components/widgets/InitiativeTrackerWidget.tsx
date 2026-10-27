@@ -8,7 +8,7 @@ import { GripVerticalIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon } from '../i
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { AddMultipleToggle } from './StructureDialogControls';
 import { trackGoatCounterEvent } from '../../utils/goatCounter';
-import { getInitiativeDiceExpression, normalizeDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
+import { getInitiativeDiceExpression, getInitiativeDiceLabel, getPrimaryDiceFaces, isInitiativeDiceExpressionValid, normalizeInitiativeDiceExpression, rollDiceExpression } from '../../utils/diceExpression';
 import { advanceCalendarsForNewRound } from '../../utils/calendarActions';
 import { emitWidgetAction } from '../../events/runtime';
 
@@ -25,15 +25,17 @@ function generateId(): string {
 }
 
 function formatInitiativeDice(entry: InitiativeEncounterEntry): string {
-  const expression = normalizeDiceExpression(getInitiativeDiceExpression(entry)) ?? `d${entry.diceFaces}`;
-  const dice = expression.replace(/^1d(\d+)$/, 'd$1');
+  const dice = getInitiativeDiceLabel(entry);
+  if (!dice) return String(entry.flatBonus);
   return entry.flatBonus === 0
     ? dice
     : `${dice}${entry.flatBonus > 0 ? '+' : ''}${entry.flatBonus}`;
 }
 
 function rollInitiativeDice(entry: InitiativeEncounterEntry): number {
-  return rollDiceExpression(getInitiativeDiceExpression(entry))?.total ?? Math.floor(Math.random() * entry.diceFaces) + 1;
+  const expression = getInitiativeDiceExpression(entry);
+  if (!expression) return 0;
+  return rollDiceExpression(expression)?.total ?? Math.floor(Math.random() * entry.diceFaces) + 1;
 }
 
 function sortInitiativeEntries(entries: InitiativeEncounterEntry[]): InitiativeEncounterEntry[] {
@@ -52,8 +54,8 @@ function sortInitiativeEntries(entries: InitiativeEncounterEntry[]): InitiativeE
 interface AddParticipantModalProps {
   showRollButton: boolean;
   onClose: () => void;
-  onAddPermanent: (name: string, diceFaces: number, flatBonus: number) => void;
-  onAddTemporary: (name: string, diceFaces: number, flatBonus: number) => void;
+  onAddPermanent: (name: string, diceExpression: string, flatBonus: number) => void;
+  onAddTemporary: (name: string, diceExpression: string, flatBonus: number) => void;
 }
 
 function AddParticipantModal({
@@ -64,18 +66,20 @@ function AddParticipantModal({
 }: AddParticipantModalProps) {
   const [participantType, setParticipantType] = useState<'permanent' | 'temporary'>('permanent');
   const [name, setName] = useState('');
-  const [diceFaces, setDiceFaces] = useState(20);
+  const [diceExpression, setDiceExpression] = useState('1d20');
   const [flatBonus, setFlatBonus] = useState(0);
   const [addMultiple, setAddMultiple] = useState(false);
+  const diceValid = isInitiativeDiceExpressionValid(diceExpression);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = name.trim();
-    if (!trimmedName) return;
+    const normalizedDice = normalizeInitiativeDiceExpression(diceExpression);
+    if (!trimmedName || normalizedDice === null) return;
     if (participantType === 'permanent') {
-      onAddPermanent(trimmedName, diceFaces, flatBonus);
+      onAddPermanent(trimmedName, normalizedDice, flatBonus);
     } else {
-      onAddTemporary(trimmedName, diceFaces, flatBonus);
+      onAddTemporary(trimmedName, normalizedDice, flatBonus);
     }
     if (addMultiple) setName('');
     else onClose();
@@ -136,14 +140,15 @@ function AddParticipantModal({
           {showRollButton && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label htmlFor="initiative-participant-dice" className="block text-sm font-medium text-theme-ink mb-1">Dice faces</label>
+                <label htmlFor="initiative-participant-dice" className="block text-sm font-medium text-theme-ink mb-1">Dice</label>
                 <input
                   id="initiative-participant-dice"
-                  type="number"
-                  min={1}
-                  value={diceFaces}
-                  onChange={(e) => setDiceFaces(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full px-2 py-1 border border-theme-border rounded bg-theme-paper text-theme-ink"
+                  type="text"
+                  value={diceExpression}
+                  onChange={(e) => setDiceExpression(e.target.value)}
+                  placeholder="None (bonus only)"
+                  aria-invalid={!diceValid}
+                  className={`w-full px-2 py-1 border rounded bg-theme-paper text-theme-ink font-mono ${diceValid ? 'border-theme-border' : 'border-red-500'}`}
                 />
               </div>
               <div>
@@ -487,11 +492,12 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
   };
 
   // Add a temporary participant
-  const addTemporary = (name: string, diceFaces: number, flatBonus: number) => {
+  const addTemporary = (name: string, diceExpression: string, flatBonus: number) => {
     const newEntry: InitiativeEncounterEntry = {
       id: generateId(),
       name,
-      diceFaces,
+      diceFaces: getPrimaryDiceFaces(diceExpression),
+      diceExpression,
       flatBonus,
       isTemporary: true
     };
@@ -500,16 +506,19 @@ export default function InitiativeTrackerWidget({ widget, mode: renderMode }: Pr
     });
   };
 
-  const addPermanent = (name: string, diceFaces: number, flatBonus: number) => {
+  const addPermanent = (name: string, diceExpression: string, flatBonus: number) => {
+    const diceFaces = getPrimaryDiceFaces(diceExpression);
     const newParticipant: InitiativeParticipant = {
       name,
       diceFaces,
+      diceExpression,
       flatBonus,
     };
     const newEntry: InitiativeEncounterEntry = {
       id: generateId(),
       name,
       diceFaces,
+      diceExpression,
       flatBonus,
       isTemporary: false,
     };

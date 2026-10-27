@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CardTableCard, Character, CharacterEvent, Widget } from '../types';
+import type { CardTableCard, Character, CharacterEvent as StepEvent, CharacterEventEffect, Widget } from '../types';
 import { MAX_CHAIN_DEPTH, interpolateText, runEvents } from './engine';
 import { createEventDraft, createTextButtonDraft, getEventSourceWidgets } from './drafts';
 import { findInlineButtonNames, TEXT_BUTTON_KIND } from './defs/textButton';
@@ -11,8 +11,13 @@ import {
   getAllEffectDefs,
   getAllTriggerDefs,
   getEventProblems,
+  getEventLabelsAt,
   getWidgetEventDefs,
 } from './registry';
+import { normalizeEvent, type StoredCharacterEvent } from './steps';
+
+// Most fixtures use the one-step shorthand (a condition and effects), which `normalizeEvent` turns into a step.
+type CharacterEvent = Omit<StoredCharacterEvent, 'steps' | 'effects'> & { effects: CharacterEventEffect[] };
 
 const health: Widget = {
   id: 'w-hp',
@@ -68,14 +73,14 @@ const roller: Widget = {
   data: { label: 'Attack', diceGroups: [{ count: 1, faces: 20 }] },
 };
 
-function character(widgets: Widget[], events: CharacterEvent[], variables: Character['variables'] = []): Character {
+function character(widgets: Widget[], events: (CharacterEvent | StepEvent)[], variables: Character['variables'] = []): Character {
   return {
     id: 'c1',
     name: 'Hero',
     activeSheetId: 's1',
     sheets: [{ id: 's1', name: 'Main', widgets }],
     variables,
-    events,
+    events: events.map(normalizeEvent),
   };
 }
 
@@ -287,7 +292,7 @@ describe('event engine', () => {
       effects: [{ id: 'f1', kind: 'log.message', params: { message: 'Level {@event_before} → {@event_value} (+{@event_change})' } }],
     };
     const before = character([xp], [event]);
-    expect(getEventProblems(before, event)).toEqual([]);
+    expect(getEventProblems(before, normalizeEvent(event))).toEqual([]);
 
     expect(runEvents({ before, after: patchWidgetData(before, 'w-xp', { currentValue: 280 }) }).firings).toHaveLength(0);
     const result = runEvents({ before, after: patchWidgetData(before, 'w-xp', { currentValue: 1000 }) });
@@ -416,7 +421,7 @@ describe('event engine', () => {
     ]);
     expect(describeEffect(before, main.effects[0])).toBe('Run "Gain XP"');
     expect(describeEffect(before, main.effects[4])).toBe('Run a deleted event');
-    expect(getEventProblems(before, main)).toEqual(['Effect 5: Event no longer exists']);
+    expect(getEventProblems(before, normalizeEvent(main))).toEqual(['Effect 5: Event no longer exists']);
   });
 
   it('discards cards and brings them back, with a trigger for each', () => {
@@ -454,7 +459,7 @@ describe('event engine', () => {
       trigger: { kind: 'cards.returned', widgetId: 'w-cards' },
       effects: [{ id: 'f1', kind: 'log.message', params: { message: '{@event_card} x{@event_count}' } }],
     };
-    const later = { ...result.character, events: [restore, returned] };
+    const later = { ...result.character, events: [restore, returned].map(normalizeEvent) };
     const back = runEvents({ before: later, after: later, manualEventId: 'e-restore' });
     expect(widgetData(back.character, 'w-cards').cardTableCards?.map((item) => item.id)).toEqual(['c2', 'c1']);
     expect(widgetData(back.character, 'w-cards').cardTableDiscardedCards).toEqual([]);
@@ -547,7 +552,7 @@ describe('event engine', () => {
       effects: [{ id: 'f1', kind: 'log.message', params: { message: 'Carrying {@event_value}' } }],
     };
     const before = character([pack], [lightAll, lit, heavy], [{ id: 'v1', label: 'hp', value: 2 }]);
-    expect(getEventProblems(before, heavy)).toEqual([]);
+    expect(getEventProblems(before, normalizeEvent(heavy))).toEqual([]);
     const result = runEvents({ before, after: before, manualEventId: 'e-light' });
     const items = widgetData(result.character, 'w-pack').inventoryItems!;
 
@@ -663,7 +668,7 @@ describe('event engine', () => {
     expect(total).toBeGreaterThanOrEqual(102);
     expect(total).toBeLessThanOrEqual(112);
 
-    const plain = { ...before, events: [{ ...roll, effects: [{ ...roll.effects[0], params: { dice: '1d4', modifier: 'no' } }] }] };
+    const plain = { ...before, events: [{ ...roll, effects: [{ ...roll.effects[0], params: { dice: '1d4', modifier: 'no' } }] }].map(normalizeEvent) };
     const plainTotal = runEvents({ before: plain, after: plain, manualEventId: 'e-roll' }).rolls[0].result?.total ?? 0;
     expect(plainTotal).toBeLessThanOrEqual(4);
   });
@@ -697,7 +702,7 @@ describe('event engine', () => {
     const before = character([health], [bloodiedEvent]);
     const result = runEvents({ before, after: patchWidgetData(before, 'w-hp', { currentValue: 2 }) });
     expect(result.firings[0].effects[0]).toMatchObject({ skipped: true });
-    expect(getEventProblems(before, bloodiedEvent)).toEqual(['Effect 1: Its widget was deleted']);
+    expect(getEventProblems(before, normalizeEvent(bloodiedEvent))).toEqual(['Effect 1: Its widget was deleted']);
   });
 
   it('reports trigger data the trigger does not provide', () => {
@@ -709,17 +714,175 @@ describe('event engine', () => {
       effects: [{ id: 'f1', kind: 'label.add', target: 'xp', params: { amount: '@event_total' } }],
     };
     const hero = character([health], [event], [{ id: 'v1', label: 'xp', value: 0 }]);
-    expect(getEventProblems(hero, event)).toEqual(["Uses @event_bonus, @event_total, which its trigger doesn't provide"]);
+    expect(getEventProblems(hero, normalizeEvent(event))).toEqual(["Uses @event_bonus, @event_total, which isn't available where it's used"]);
 
     const withLabel = character([health], [event], [{ id: 'v1', label: 'xp', value: 0 }, { id: 'v2', label: 'event_bonus', value: 1 }]);
-    expect(getEventProblems(withLabel, event)).toEqual(["Uses @event_total, which its trigger doesn't provide"]);
+    expect(getEventProblems(withLabel, normalizeEvent(event))).toEqual(["Uses @event_total, which isn't available where it's used"]);
 
     const inTrigger: CharacterEvent = { ...bloodiedEvent, trigger: { ...bloodiedEvent.trigger, params: { compare: 'below', threshold: '@event_value' } } };
-    expect(getEventProblems(character([health, bloodied], [inTrigger]), inTrigger)).toEqual(["Uses @event_value, which its trigger doesn't provide"]);
+    expect(getEventProblems(character([health, bloodied], [inTrigger]), normalizeEvent(inTrigger))).toEqual(["Uses @event_value, which isn't available where it's used"]);
+  });
+});
+
+describe('multi-step events', () => {
+  // `1d1 + n` always totals n + 1, so the roll is predictable.
+  const attackChain = (bonus: number): StepEvent => ({
+    id: 'e-chain',
+    enabled: true,
+    trigger: { kind: 'manual' },
+    steps: [
+      { id: 's1', effects: [{ id: 'f1', kind: 'dice.roll', resultName: 'attack', params: { dice: `1d1 + ${bonus - 1}`, title: 'Attack' } }] },
+      {
+        id: 's2',
+        condition: '@event_attack_total >= 12',
+        effects: [{ id: 'f2', kind: 'log.message', params: { message: 'Hit with {@event_attack_total}' } }],
+        otherwise: [{ id: 'f3', kind: 'log.message', params: { message: 'Miss with {@event_attack_total}' } }],
+      },
+    ],
+  });
+  const hero = (event: StepEvent) => character([health], [event], [{ id: 'v1', label: 'xp', value: 0 }]);
+
+  it('checks a roll made earlier in the same event and runs the matching effects', () => {
+    const before = hero(attackChain(15));
+    const result = runEvents({ before, after: before, manualEventId: 'e-chain' });
+    const [firing] = result.firings;
+    expect(result.rolls).toHaveLength(1);
+    expect(firing.conditionFailed).toBeUndefined();
+    expect(firing.effects.map((effect) => [effect.step, effect.otherwise])).toEqual([[0, undefined], [1, undefined]]);
+    expect(firing.effects[1].text).toBe('Hit with 15');
+  });
+
+  it('runs the otherwise effects when a condition is false and carries on with the next step', () => {
+    const event = attackChain(5);
+    event.steps.push({ id: 's3', effects: [{ id: 'f4', kind: 'log.message', params: { message: 'Done' } }] });
+    const before = hero(event);
+    const [firing] = runEvents({ before, after: before, manualEventId: 'e-chain' }).firings;
+    expect(firing.conditionFailed).toBe(true);
+    expect(firing.failedSteps).toEqual([1]);
+    expect(firing.effects.map((effect) => effect.text)).toEqual([expect.stringContaining('Attack'), 'Miss with 5', 'Done']);
+    expect(firing.effects[1]).toMatchObject({ step: 1, otherwise: true });
+    expect(firing.effects[2]).toMatchObject({ step: 2 });
+  });
+
+  it('still checks the conditions of later steps after a false one', () => {
+    const event = attackChain(5);
+    event.steps.push({ id: 's3', condition: '@event_attack_total < 10', effects: [{ id: 'f4', kind: 'log.message', params: { message: 'Low roll' } }] });
+    const before = hero(event);
+    const [firing] = runEvents({ before, after: before, manualEventId: 'e-chain' }).firings;
+    expect(firing.failedSteps).toEqual([1]);
+    expect(firing.effects.map((effect) => effect.text)).toContain('Low roll');
+  });
+
+  it('ends the event at a false condition when the step says to stop', () => {
+    const event = attackChain(5);
+    event.steps[1].stopIfFalse = true;
+    event.steps.push({ id: 's3', effects: [{ id: 'f4', kind: 'log.message', params: { message: 'Never' } }] });
+    const before = hero(event);
+    const [firing] = runEvents({ before, after: before, manualEventId: 'e-chain' }).firings;
+    expect(firing.effects.map((effect) => effect.text)).toEqual([expect.stringContaining('Attack'), 'Miss with 5']);
+  });
+
+  it('skips a false step quietly when it has no otherwise effects', () => {
+    const event = attackChain(5);
+    delete event.steps[1].otherwise;
+    const before = hero(event);
+    const result = runEvents({ before, after: before, manualEventId: 'e-chain' });
+    expect(result.firings[0].effects).toHaveLength(1);
+    expect(result.firings[0].conditionFailed).toBe(true);
+  });
+
+  it('reads the result of an otherwise effect as 0 when that branch did not run', () => {
+    const event = attackChain(15);
+    event.steps[1].otherwise = [{ id: 'f3', kind: 'dice.roll', resultName: 'retry', params: { dice: '1d1 + 4' } }];
+    event.steps.push({ id: 's3', condition: '@event_retry_total == 0', effects: [{ id: 'f4', kind: 'log.message', params: { message: 'No retry' } }] });
+    const before = hero(event);
+    expect(getEventProblems(before, event)).toEqual([]);
+    const [firing] = runEvents({ before, after: before, manualEventId: 'e-chain' }).firings;
+    expect(firing.effects.map((effect) => effect.text)).toContain('No retry');
+  });
+
+  it('lets later conditions see sheet changes made by earlier steps', () => {
+    const event: StepEvent = {
+      id: 'e-sheet',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      steps: [
+        { id: 's1', effects: [{ id: 'f1', kind: 'label.add', target: 'xp', params: { amount: '5' } }] },
+        { id: 's2', condition: '@xp >= 5', effects: [{ id: 'f2', kind: 'label.add', target: 'xp', params: { amount: '10' } }] },
+      ],
+    };
+    const before = hero(event);
+    const result = runEvents({ before, after: before, manualEventId: 'e-sheet' });
+    expect(result.character.variables?.find((variable) => variable.label === 'xp')?.value).toBe(15);
+  });
+
+  it('passes the other roll kinds along under the result name', () => {
+    const event: StepEvent = {
+      id: 'e-roller',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      steps: [
+        { id: 's1', effects: [{ id: 'f1', kind: 'roller.roll', widgetId: 'w-roller', resultName: 'swing' }] },
+        { id: 's2', condition: '@event_swing_highest >= 1', effects: [{ id: 'f2', kind: 'log.message', params: { message: 'Rolled {@event_swing_total}' } }] },
+      ],
+    };
+    const before = character([roller], [event]);
+    const [firing] = runEvents({ before, after: before, manualEventId: 'e-roller' }).firings;
+    expect(firing.conditionFailed).toBeUndefined();
+    expect(firing.effects[1].text).toMatch(/^Rolled \d+$/);
+  });
+
+  it('only offers a result to what runs after it', () => {
+    const event = attackChain(15);
+    expect(getEventProblems(hero(event), event)).toEqual([]);
+    expect(getEventLabelsAt(event, 0, 'effects', 0)).toEqual({});
+    expect(Object.keys(getEventLabelsAt(event, 1, 'condition'))).toEqual(['event_attack_total', 'event_attack_highest', 'event_attack_lowest']);
+    expect(getEventLabelsAt(event, 1, 'otherwise', 0)).toHaveProperty('event_attack_total');
+
+    const early: StepEvent = { ...event, steps: [{ ...event.steps[1], id: 's0' }, event.steps[0]] };
+    expect(getEventProblems(hero(early), early)).toEqual(['Uses @event_attack_total, which isn\'t available where it\'s used']);
+
+    const sameStep: StepEvent = {
+      ...event,
+      steps: [{ id: 's1', effects: [event.steps[0].effects[0], { id: 'f9', kind: 'log.message', params: { message: '{@event_attack_total}' } }] }],
+    };
+    expect(getEventProblems(hero(sameStep), sameStep)).toEqual([]);
+    const before: StepEvent = { ...sameStep, steps: [{ id: 's1', effects: [sameStep.steps[0].effects[1], sameStep.steps[0].effects[0]] }] };
+    expect(getEventProblems(hero(before), before)).toHaveLength(1);
+  });
+
+  it('flags result names that are reused or cannot be read', () => {
+    const event = attackChain(15);
+    const second = { ...event.steps[0].effects[0], id: 'f5' };
+    const twice: StepEvent = { ...event, steps: [{ id: 's1', effects: [event.steps[0].effects[0], second] }] };
+    expect(getEventProblems(hero(twice), twice)).toEqual([
+      'Effect 1: Another effect already uses the result name "attack"',
+      'Effect 2: Another effect already uses the result name "attack"',
+    ]);
+  });
+
+  it('flags otherwise effects that have no condition', () => {
+    const event = attackChain(15);
+    delete event.steps[1].condition;
+    expect(getEventProblems(hero(event), event)).toEqual(['Step 2, otherwise effects never run without a condition']);
+  });
+
+  it('reads events saved with a single condition and effect list', () => {
+    const legacy = { id: 'e-old', enabled: true, trigger: { kind: 'manual' }, condition: '@xp == 0', effects: [{ id: 'f1', kind: 'label.add', target: 'xp', params: { amount: '3' } }] };
+    const before = { ...hero(attackChain(5)), events: [legacy as unknown as StepEvent] };
+    const result = runEvents({ before, after: before, manualEventId: 'e-old' });
+    expect(result.character.variables?.find((variable) => variable.label === 'xp')?.value).toBe(3);
   });
 });
 
 describe('event registry', () => {
+  it('declares effect data with unique keys that work as labels', () => {
+    for (const def of getAllEffectDefs()) {
+      const keys = (def.outputs ?? []).map((output) => output.key);
+      expect(new Set(keys).size, def.kind).toBe(keys.length);
+      for (const key of keys) expect(key, def.kind).toMatch(/^[a-z][a-z0-9]*$/);
+    }
+  });
   it('declares trigger data with unique keys that work as labels', () => {
     for (const def of getAllTriggerDefs()) {
       const keys = (def.outputs ?? []).map((output) => output.key);

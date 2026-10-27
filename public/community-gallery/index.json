@@ -367,6 +367,30 @@
       "description": "Here's that regular version of my take on the Daggerheart character sheet. If you wanna check out the character sheet that I put more effort it(but only slightly more) check out the Daggerheart - Grimdark character sheet.",
       "file": "presets/daggerheart_regular.json",
       "gameSystem": "Daggerheart"
+    },
+    {
+      "id": "47",
+      "name": "Arising Character Sheet",
+      "author": "@A2705",
+      "description": "Character sheet",
+      "file": "presets/arising_character_sheet.json",
+      "gameSystem": "Arising"
+    },
+    {
+      "id": "48",
+      "name": "Arising Character Sheet (Spanish)",
+      "author": "@A2705",
+      "description": "Character sheet",
+      "file": "presets/arising_character_sheet_spanish.json",
+      "gameSystem": "Arising"
+    },
+    {
+      "id": "49",
+      "name": "OUaE ver0.1",
+      "author": "@krnlgc",
+      "description": "Private DC Campaign Character Sheet",
+      "file": "presets/ouae_ver0_1.json",
+      "gameSystem": "Once Upon an Eternity"
     }
   ],
   "themes": [

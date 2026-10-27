@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Character } from '../types';
+import type { Character, CharacterEvent } from '../types';
 import { cloneCharacterForWorkspace, migrateCharacter } from './characterClone';
 
 const character: Character = {
@@ -56,7 +56,7 @@ describe('cloneCharacterForWorkspace', () => {
         id: 'event-1',
         enabled: true,
         trigger: { kind: 'notes.changed', widgetId: 'widget-1' },
-        effects: [{ id: 'effect-1', kind: 'notes.append', widgetId: 'widget-2', params: { text: 'Hi' } }],
+        steps: [{ id: 'step-1', effects: [{ id: 'effect-1', kind: 'notes.append', widgetId: 'widget-2', params: { text: 'Hi' } }] }],
       }],
     });
     const [first, second] = clone.sheets[0].widgets;
@@ -64,23 +64,33 @@ describe('cloneCharacterForWorkspace', () => {
 
     expect(event.id).not.toBe('event-1');
     expect(event.trigger.widgetId).toBe(first.id);
-    expect(event.effects[0]).toMatchObject({ widgetId: second.id, params: { text: 'Hi' } });
-    expect(event.effects[0].id).not.toBe('effect-1');
+    expect(event.steps[0].effects[0]).toMatchObject({ widgetId: second.id, params: { text: 'Hi' } });
+    expect(event.steps[0].effects[0].id).not.toBe('effect-1');
+    expect(event.steps[0].id).not.toBe('step-1');
   });
 
-  it('points "run another event" effects at the copied events', () => {
+  it('points "run another event" effects at the copied events, including otherwise branches', () => {
     const clone = cloneCharacterForWorkspace({
       ...character,
       events: [
-        { id: 'event-1', enabled: true, trigger: { kind: 'manual' }, effects: [{ id: 'effect-1', kind: 'event.run', target: 'event-2' }] },
-        { id: 'event-2', enabled: true, trigger: { kind: 'manual' }, effects: [{ id: 'effect-2', kind: 'event.run', target: 'gone' }] },
+        { id: 'event-1', enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 's1', effects: [{ id: 'effect-1', kind: 'event.run', target: 'event-2' }], condition: '1', otherwise: [{ id: 'effect-3', kind: 'event.run', target: 'event-2' }] }] },
+        { id: 'event-2', enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 's2', effects: [{ id: 'effect-2', kind: 'event.run', target: 'gone' }] }] },
       ],
     });
     const [first, second] = clone.events!;
 
     expect(second.id).not.toBe('event-2');
-    expect(first.effects[0].target).toBe(second.id);
-    expect(second.effects[0].target).toBe('gone');
+    expect(first.steps[0].effects[0].target).toBe(second.id);
+    expect(first.steps[0].otherwise?.[0].target).toBe(second.id);
+    expect(second.steps[0].effects[0].target).toBe('gone');
+  });
+
+  it('turns events saved with one condition and one list of effects into a step', () => {
+    const legacy = { id: 'event-1', enabled: true, trigger: { kind: 'manual' }, condition: '@hp > 1', effects: [{ id: 'effect-1', kind: 'log.message', params: { message: 'Hi' } }] };
+    const migrated = migrateCharacter({ ...character, events: [legacy as unknown as CharacterEvent] });
+    expect(migrated.events![0]).not.toHaveProperty('effects');
+    expect(migrated.events![0].steps).toEqual([expect.objectContaining({ condition: '@hp > 1', effects: legacy.effects })]);
+    expect(migrateCharacter(migrated).events![0]).toBe(migrated.events![0]);
   });
 });
 

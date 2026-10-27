@@ -2,7 +2,7 @@ import type { Character } from '../types';
 import { useStore } from '../store/useStore';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { getCoveringSnapshotId, useUndoStore } from '../store/useUndoStore';
-import { enqueueDiceResult } from '../store/useDiceResultStore';
+import { enqueueDiceResult, getRecentPointerPoint } from '../store/useDiceResultStore';
 import { expressionRollToView } from '../utils/diceResult';
 import { MAX_CHAIN_DEPTH, runEvents, type EventFiring, type EventRolls, type EventRunResult } from './engine';
 import { areEventsSuppressed } from './suppress';
@@ -102,11 +102,15 @@ function flush() {
 }
 
 export function describeFiring(firing: EventFiring): string {
-  const effects = firing.conditionFailed
-    ? 'condition not met'
-    : firing.effects.length === 0
-      ? 'no effects'
-      : firing.effects.map((effect) => (effect.skipped ? `${effect.text} (no change)` : effect.text)).join(' • ');
+  const text = (effect: EventFiring['effects'][number]) => (effect.skipped ? `${effect.text} (no change)` : effect.text);
+  const failed = firing.failedSteps ?? [];
+  const steps = [...new Set([...firing.effects.map((effect) => effect.step ?? 0), ...failed])].sort((a, b) => a - b);
+  const parts = steps.flatMap((step) => {
+    const inStep = firing.effects.filter((effect) => (effect.step ?? 0) === step);
+    if (!failed.includes(step)) return inStep.map(text);
+    return [step ? `step ${step + 1} condition not met` : 'condition not met', ...inStep.filter((effect) => effect.otherwise).map(text)];
+  });
+  const effects = parts.length === 0 ? 'no effects' : parts.join(' • ');
   return `${firing.depth > 0 ? '↳ ' : ''}${firing.trigger} → ${effects}`;
 }
 
@@ -114,7 +118,7 @@ function showRoll(roll: EventRolls) {
   const view = roll.view ?? (roll.result ? expressionRollToView(roll.result, roll.title, roll.subtitle) : null);
   if (!view) return;
   rollSerial += 1;
-  enqueueDiceResult({ widgetId: `event-roll:${rollSerial}`, view, centered: true });
+  enqueueDiceResult({ widgetId: `event-roll:${rollSerial}`, view, centered: true, point: getRecentPointerPoint() });
 }
 
 function applyResult(characterId: string, after: Character, result: EventRunResult, undoId: string | undefined) {

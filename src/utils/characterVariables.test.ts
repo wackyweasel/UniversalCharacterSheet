@@ -127,8 +127,11 @@ describe('label references', () => {
         id: 'e1',
         enabled: true,
         trigger: { kind: 'health.damaged', widgetId: 'w-hp' },
-        condition: '@event_damage > @event_shared',
-        effects: [{ id: 'f1', kind: 'label.add', target: 'prof', params: { amount: '@event_damage' } }],
+        steps: [{
+          id: 's1',
+          condition: '@event_damage > @event_shared',
+          effects: [{ id: 'f1', kind: 'label.add', target: 'prof', params: { amount: '@event_damage' } }],
+        }],
       }],
     };
     const labels = collectLabels(withEvent);

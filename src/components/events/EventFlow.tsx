@@ -1,4 +1,5 @@
-import type { Character, CharacterEvent } from '../../types';
+import { Fragment } from 'react';
+import type { Character, CharacterEvent, CharacterEventEffect } from '../../types';
 import { findWidget } from '../../events/helpers';
 import { describeEffect, describeTrigger, getEffectProblem, getEventIcon, getTriggerProblem } from '../../events/registry';
 
@@ -43,15 +44,24 @@ function FlowLine({ character, kind, widgetId, text, problem, onRevealWidget, on
 
 interface EventFlowProps {
   character: Character;
-  event: Pick<CharacterEvent, 'trigger' | 'condition' | 'effects'>;
+  event: Pick<CharacterEvent, 'trigger' | 'steps'>;
   onRevealWidget?: (widgetId: string) => void;
   onHoverWidget?: (widgetId: string | null) => void;
 }
 
-/** An event drawn as linked WHEN → ONLY IF → THEN steps. */
+/** An event drawn as linked WHEN → ONLY IF → THEN → ELSE steps, repeated for each step. */
 export function EventFlow({ character, event, onRevealWidget, onHoverWidget }: EventFlowProps) {
-  const condition = event.condition?.trim();
   const lineProps = { character, onRevealWidget, onHoverWidget };
+  const renderEffects = (effects: CharacterEventEffect[]) => effects.map((effect) => (
+    <FlowLine
+      key={effect.id}
+      {...lineProps}
+      kind={effect.kind}
+      widgetId={effect.widgetId}
+      text={describeEffect(character, effect)}
+      problem={getEffectProblem(character, effect)}
+    />
+  ));
 
   return (
     <div className="event-flow">
@@ -67,31 +77,37 @@ export function EventFlow({ character, event, onRevealWidget, onHoverWidget }: E
           />
         </div>
       </div>
-      {condition && (
-        <div className="event-flow__step">
-          <span className="event-flow__pill event-flow__pill--if" title="Only if">If</span>
-          <div className="flex min-h-6 min-w-0 items-center">
-            <code className="event-flow__condition text-theme-ink">{condition}</code>
-          </div>
-        </div>
-      )}
-      <div className="event-flow__step">
-        <span className="event-flow__pill event-flow__pill--then">Then</span>
-        <div className="min-w-0 space-y-0.5">
-          {event.effects.length === 0 ? (
-            <p className="text-sm italic leading-6 text-theme-muted font-body">Nothing happens yet</p>
-          ) : event.effects.map((effect) => (
-            <FlowLine
-              key={effect.id}
-              {...lineProps}
-              kind={effect.kind}
-              widgetId={effect.widgetId}
-              text={describeEffect(character, effect)}
-              problem={getEffectProblem(character, effect)}
-            />
-          ))}
-        </div>
-      </div>
+      {event.steps.map((step, index) => {
+        const condition = step.condition?.trim();
+        return (
+          <Fragment key={step.id}>
+            {condition && (
+              <div className="event-flow__step">
+                <span className="event-flow__pill event-flow__pill--if" title="Only if">If</span>
+                <div className="flex min-h-6 min-w-0 items-center">
+                  <code className="event-flow__condition text-theme-ink">{condition}</code>
+                </div>
+              </div>
+            )}
+            <div className="event-flow__step">
+              <span className="event-flow__pill event-flow__pill--then">Then</span>
+              <div className="min-w-0 space-y-0.5">
+                {step.effects.length === 0 ? (
+                  <p className="text-sm italic leading-6 text-theme-muted font-body">
+                    {index === 0 && event.steps.length === 1 ? 'Nothing happens yet' : 'Nothing happens'}
+                  </p>
+                ) : renderEffects(step.effects)}
+              </div>
+            </div>
+            {!!step.otherwise?.length && (
+              <div className="event-flow__step">
+                <span className="event-flow__pill event-flow__pill--else" title="Otherwise">Else</span>
+                <div className="min-w-0 space-y-0.5">{renderEffects(step.otherwise)}</div>
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

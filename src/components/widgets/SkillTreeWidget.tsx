@@ -11,7 +11,8 @@ import { isFormulaBroken } from '../../utils/formulaEngine';
 import {
   SKILL_NODE_HEIGHT,
   SKILL_NODE_WIDTH,
-  getLockedPrerequisites,
+  describeMissingRequirements,
+  getAllRequiredIds,
   getSkillConnectorPath,
   getSkillNodeStatus,
   getSpentPoints,
@@ -79,7 +80,7 @@ export default function SkillTreeWidget({ widget, mode, interactive = true }: Pr
       if (!withAction) return 'Unlocked';
       return usePoints && cost > 0 ? `Unlocked. Click to refund ${pluralPoints(cost)}.` : 'Unlocked. Click to lock it again.';
     }
-    if (status === 'locked') return `Requires ${getLockedPrerequisites(nodes, node).map((item) => item.name || 'a skill').join(', ')}`;
+    if (status === 'locked') return `Requires ${describeMissingRequirements(nodes, node)}`;
     if (status === 'unaffordable') return `Costs ${pluralPoints(cost)}; ${pointsLeft} left.`;
     if (!withAction) return usePoints && cost > 0 ? `Costs ${pluralPoints(cost)}` : '';
     return usePoints && cost > 0 ? `Click to unlock for ${pluralPoints(cost)}.` : 'Click to unlock.';
@@ -186,7 +187,7 @@ export default function SkillTreeWidget({ widget, mode, interactive = true }: Pr
           <svg className="skill-tree__links" width={layout.width} height={layout.height} aria-hidden="true">
             {nodes.flatMap((node) => {
               const to = layout.positions.get(node.id);
-              return node.requires.map((requiredId) => {
+              return getAllRequiredIds(node).map((requiredId) => {
                 const prerequisite = byId.get(requiredId);
                 const from = layout.positions.get(requiredId);
                 if (!to || !from || !prerequisite || requiredId === node.id) return null;

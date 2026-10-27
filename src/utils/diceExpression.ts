@@ -154,10 +154,31 @@ export const normalizeDiceExpression = (input: string): string | null => {
   return terms ? formatDiceExpression(terms) : null;
 };
 
-/** Initiative dice: the expression if set, otherwise the legacy single die. */
+/** Initiative dice: the expression if set (empty means no dice, only the bonus), otherwise the legacy single die. */
 export const getInitiativeDiceExpression = (entry: { diceFaces: number; diceExpression?: string }): string => (
-  entry.diceExpression?.trim() ? entry.diceExpression : `1d${Math.max(1, entry.diceFaces || 20)}`
+  entry.diceExpression !== undefined ? entry.diceExpression.trim() : `1d${Math.max(1, entry.diceFaces || 20)}`
 );
+
+/** An empty initiative dice expression is valid and means no dice. */
+export const isInitiativeDiceExpressionValid = (input: string): boolean => !input.trim() || parseDiceExpression(input) !== null;
+
+/** Normalized initiative dice expression, '' for no dice, or null when invalid. */
+export const normalizeInitiativeDiceExpression = (input: string): string | null => (
+  input.trim() ? normalizeDiceExpression(input) : ''
+);
+
+/** Faces of the first die in an expression, kept so legacy readers still see a sensible die. */
+export const getPrimaryDiceFaces = (expression: string): number => {
+  const first = parseDiceExpression(expression)?.find((term) => term.type === 'dice');
+  return first && first.type === 'dice' ? first.faces : 20;
+};
+
+/** Short dice text for an initiative entry such as `d20`, or '' when it uses no dice. */
+export const getInitiativeDiceLabel = (entry: { diceFaces: number; diceExpression?: string }): string => {
+  const expression = getInitiativeDiceExpression(entry);
+  if (!expression) return '';
+  return (normalizeDiceExpression(expression) ?? `d${entry.diceFaces}`).replace(/^1d(\d+)$/, 'd$1');
+};
 
 /** Rest button heal dice: the expression if set, otherwise legacy dice groups converted to one. */
 export const getHealDiceExpression = (data: {

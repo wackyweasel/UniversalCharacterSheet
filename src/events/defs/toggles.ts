@@ -1,5 +1,5 @@
 import type { Widget, WidgetData, WidgetType } from '../../types';
-import { getLockedPrerequisites, getSkillPointsLeft, getUnlockedDependents, isSkillTreeUsingPoints, normalizeSkillCost } from '../../utils/skillTree';
+import { describeMissingRequirements, getSkillPointsLeft, getUnlockedDependents, isSkillTreeUsingPoints, normalizeSkillCost } from '../../utils/skillTree';
 import { isAnyTarget, itemKey, itemTitle, plural } from '../helpers';
 import type { EffectDef, EventOption, SpecContext, TriggerDef } from '../types';
 
@@ -63,8 +63,8 @@ const FLAG_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData) => FlagSlot[
       set: (value) => {
         const name = node.name?.trim() || 'the skill';
         if (value) {
-          const missing = getLockedPrerequisites(nodes, node);
-          if (missing.length > 0) return `${name} needs ${missing.map((item) => item.name || 'another skill').join(', ')} first`;
+          const missing = describeMissingRequirements(nodes, node);
+          if (missing) return `${name} needs ${missing} first`;
           const cost = normalizeSkillCost(node.cost);
           if (isSkillTreeUsingPoints(data) && cost > getSkillPointsLeft(data)) return `Not enough points to unlock ${name}`;
         } else if (getUnlockedDependents(nodes, node.id).length > 0) {

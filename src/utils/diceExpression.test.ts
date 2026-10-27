@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { formatDiceExpression, parseDiceExpression, resolveDiceRolls } from './diceExpression';
+import {
+  formatDiceExpression,
+  getInitiativeDiceExpression,
+  getInitiativeDiceLabel,
+  isInitiativeDiceExpressionValid,
+  normalizeInitiativeDiceExpression,
+  parseDiceExpression,
+  resolveDiceRolls,
+} from './diceExpression';
 import { resolveInlineDiceExpression } from './inlineDice';
 
 describe('keep highest / lowest', () => {
@@ -35,5 +43,23 @@ describe('keep highest / lowest', () => {
     expect(resolution).toMatchObject({ valid: true, resolvedExpression: '2d8kh + 3' });
     expect(resolveInlineDiceExpression('3d6kh', {})).toMatchObject({ valid: true, resolvedExpression: '3d6kh' });
     expect(resolveInlineDiceExpression('4d6dl', {})).toMatchObject({ valid: true, resolvedExpression: '4d6dl' });
+  });
+});
+
+describe('initiative dice', () => {
+  it('treats an empty expression as no dice and falls back to the legacy die only when unset', () => {
+    expect(getInitiativeDiceExpression({ diceFaces: 12 })).toBe('1d12');
+    expect(getInitiativeDiceExpression({ diceFaces: 12, diceExpression: '2d20kh' })).toBe('2d20kh');
+    expect(getInitiativeDiceExpression({ diceFaces: 20, diceExpression: '' })).toBe('');
+    expect(getInitiativeDiceLabel({ diceFaces: 20, diceExpression: '' })).toBe('');
+    expect(getInitiativeDiceLabel({ diceFaces: 20, diceExpression: '1d20' })).toBe('d20');
+  });
+
+  it('accepts an empty expression but still rejects invalid ones', () => {
+    expect(isInitiativeDiceExpressionValid('  ')).toBe(true);
+    expect(isInitiativeDiceExpressionValid('1d20')).toBe(true);
+    expect(isInitiativeDiceExpressionValid('abc')).toBe(false);
+    expect(normalizeInitiativeDiceExpression('')).toBe('');
+    expect(normalizeInitiativeDiceExpression('abc')).toBeNull();
   });
 });

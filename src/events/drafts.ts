@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventTrigger, Widget } from '../types';
 import { TEXT_BUTTON_KIND } from './defs/textButton';
 import { fillParams, getWidgetEventDefs, GLOBAL_EFFECT_DEFS, GLOBAL_TRIGGER_DEFS } from './registry';
+import { createStep, getEventEffects } from './steps';
 import { ANY_TARGET, type EffectDef, type SpecContext, type TargetSpec, type TriggerDef } from './types';
 
 export function getTriggerDefsFor(widget: Widget | undefined): TriggerDef[] {
@@ -52,13 +53,13 @@ export function createBlankEffect(): CharacterEventEffect {
 
 /** A new event; from a widget it starts with the widget's first trigger, or its first effect when it has no triggers to offer. */
 export function createEventDraft(character: Character, widget?: Widget): Omit<CharacterEvent, 'id'> {
-  const draft: Omit<CharacterEvent, 'id'> = { enabled: true, trigger: { kind: '' }, effects: [createBlankEffect()] };
+  const draft: Omit<CharacterEvent, 'id'> = { enabled: true, trigger: { kind: '' }, steps: [createStep([createBlankEffect()])] };
   if (!widget) return draft;
   const triggers = getTriggerDefsFor(widget);
   const trigger = triggers.find((def) => isTriggerOffered(def, { character, widget }));
   if (trigger) return { ...draft, trigger: createTrigger(character, trigger, widget) };
   const effect = getEffectDefsFor(widget)[0];
-  if (effect) return { ...draft, effects: [createEffect(character, effect, widget)] };
+  if (effect) return { ...draft, steps: [createStep([createEffect(character, effect, widget)])] };
   // Still start from the widget, so the editor explains how to make its trigger available.
   if (triggers[0]) return { ...draft, trigger: createTrigger(character, triggers[0], widget) };
   return draft;
@@ -70,14 +71,14 @@ export function createTextButtonDraft(widget: Widget, name: string): Omit<Charac
     name,
     enabled: true,
     trigger: { kind: TEXT_BUTTON_KIND, widgetId: widget.id, target: name },
-    effects: [createBlankEffect()],
+    steps: [createStep([createBlankEffect()])],
   };
 }
 
 /** Events whose trigger or effects use the widget. */
 export function getWidgetEvents(character: Character, widgetId: string): CharacterEvent[] {
   return (character.events ?? []).filter((event) => (
-    event.trigger.widgetId === widgetId || event.effects.some((effect) => effect.widgetId === widgetId)
+    event.trigger.widgetId === widgetId || getEventEffects(event).some((effect) => effect.widgetId === widgetId)
   ));
 }
 

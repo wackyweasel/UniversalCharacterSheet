@@ -149,38 +149,50 @@ export const EVENTS_TUTORIAL_PRESET: CharacterPreset = (() => {
       name: 'Bloodied',
       enabled: true,
       trigger: { kind: 'value.crosses', widgetId: health.id, target: 'current', params: { compare: 'below', threshold: '50%' } },
-      effects: [
-        { id: 'tutorial-effect-frightened-on', kind: 'condition.set', widgetId: conditions.id, target: 'Frightened', params: { state: 'on' } },
-        { id: 'tutorial-effect-bloodied-log', kind: 'log.message', params: { message: 'Bloodied! Only {@event_value} HP left.' } },
-      ],
+      steps: [{
+        id: 'tutorial-step-bloodied',
+        effects: [
+          { id: 'tutorial-effect-frightened-on', kind: 'condition.set', widgetId: conditions.id, target: 'Frightened', params: { state: 'on' } },
+          { id: 'tutorial-effect-bloodied-log', kind: 'log.message', params: { message: 'Bloodied! Only {@event_value} HP left.' } },
+        ],
+      }],
     },
     {
       id: 'tutorial-event-steady',
       name: 'Steady again',
       enabled: true,
       trigger: { kind: 'value.crosses', widgetId: health.id, target: 'current', params: { compare: 'atOrAbove', threshold: '50%' } },
-      effects: [
-        { id: 'tutorial-effect-frightened-off', kind: 'condition.set', widgetId: conditions.id, target: 'Frightened', params: { state: 'off' } },
-      ],
+      steps: [{
+        id: 'tutorial-step-steady',
+        effects: [
+          { id: 'tutorial-effect-frightened-off', kind: 'condition.set', widgetId: conditions.id, target: 'Frightened', params: { state: 'off' } },
+        ],
+      }],
     },
     {
       id: 'tutorial-event-second-wind',
       name: 'Second Wind',
       enabled: true,
       trigger: { kind: 'manual' },
-      effects: [
-        // Heals at least 5, so from below half it always climbs back to half and chains into Steady again.
-        { id: 'tutorial-effect-second-wind', kind: 'health.heal', widgetId: health.id, params: { amount: '1d10+4', overflow: 'lost' } },
-      ],
+      steps: [{
+        id: 'tutorial-step-second-wind',
+        effects: [
+          // Heals at least 5, so from below half it always climbs back to half and chains into Steady again.
+          { id: 'tutorial-effect-second-wind', kind: 'health.heal', widgetId: health.id, params: { amount: '1d10+4', overflow: 'lost' } },
+        ],
+      }],
     },
     {
       id: 'tutorial-event-rage',
       name: 'Rage',
       enabled: true,
       trigger: { kind: 'button.pressed', widgetId: restButton.id },
-      effects: [
-        { id: 'tutorial-effect-rage-spend', kind: 'value.subtract', widgetId: pool.id, target: 'Rage', params: { amount: '1', clamp: 'yes' } },
-      ],
+      steps: [{
+        id: 'tutorial-step-rage',
+        effects: [
+          { id: 'tutorial-effect-rage-spend', kind: 'value.subtract', widgetId: pool.id, target: 'Rage', params: { amount: '1', clamp: 'yes' } },
+        ],
+      }],
     },
   ];
   return preset;

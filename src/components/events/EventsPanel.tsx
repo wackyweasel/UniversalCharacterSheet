@@ -7,6 +7,7 @@ import type { CharacterEvent } from '../../types';
 import { findWidgetSheetId } from '../../events/drafts';
 import { describeEffect, describeTrigger, getEventProblems, getTriggerDef } from '../../events/registry';
 import { runEventNow, subscribeEventFirings } from '../../events/runtime';
+import { getEventEffects } from '../../events/steps';
 import { getEventTelemetryDetails } from '../../events/telemetry';
 import { Tooltip } from '../Tooltip';
 import {
@@ -130,8 +131,8 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
       search: [
         event.name ?? '',
         describeTrigger(character, event.trigger),
-        ...event.effects.map((effect) => describeEffect(character, effect)),
-        event.condition ?? '',
+        ...getEventEffects(event).map((effect) => describeEffect(character, effect)),
+        ...event.steps.map((step) => step.condition ?? ''),
       ].join('\n').toLowerCase(),
     }));
   }, [character]);

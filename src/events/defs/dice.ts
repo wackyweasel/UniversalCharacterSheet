@@ -4,9 +4,9 @@ import { formatDiceExpression, formatDiceRollDetail, formatDiceStep, rollDiceExp
 import { describePoolGroups, evaluatePoolRoll, formatPoolDice, getRollPlan } from '../../utils/dicePool';
 import type { DiceResultDie, DiceResultView } from '../../utils/diceResult';
 import { resolveDiceExpressionField } from '../../utils/inlineDice';
-import { compareValues, findItemIndex, flattenRollDice, formatNumber, isAnyTarget, itemKey, itemOptions, itemTitle, plural, resolveThreshold } from '../helpers';
+import { compareValues, findItemIndex, flattenRollDice, formatNumber, isAnyTarget, itemKey, itemOptions, itemTitle, plural, resolveThreshold, ROLL_OUTPUTS, rollResultData } from '../helpers';
 import { DEFAULT_STEP_DICE_CHAIN } from './numeric';
-import type { EffectDef, EffectOutcome, EventOption, EventParamSpec, TargetSpec, TriggerData, TriggerDef, TriggerOutput } from '../types';
+import type { EffectDef, EffectOutcome, EventOption, EventParamSpec, TargetSpec, TriggerData, TriggerDef } from '../types';
 
 const MAX_EXPLOSIONS = 100;
 
@@ -42,12 +42,6 @@ function describeRollCondition(params: Record<string, string | undefined>): stri
   if (params.result === 'die') return ` with a ${params.face || '?'} on a die`;
   return '';
 }
-
-const ROLL_OUTPUTS: TriggerOutput[] = [
-  { key: 'total', label: 'Total of the roll', type: 'number' },
-  { key: 'highest', label: 'Highest die', type: 'number' },
-  { key: 'lowest', label: 'Lowest die', type: 'number' },
-];
 
 function diceRolledTrigger(kind: string, target?: TargetSpec): TriggerDef {
   return {
@@ -91,6 +85,7 @@ function expressionOutcome(widgetId: string, title: string, roll: DiceExpression
     text: `${source ? `${source}: ` : ''}${formatDiceRollDetail(roll)}`,
     rolls: [{ title, subtitle: roll.expression, result: roll }],
     actions: [{ widgetId, kind: 'roll', total: roll.total, dice: flattenRollDice(roll), text: roll.expression, target }],
+    result: rollResultData(roll.total, flattenRollDice(roll)),
   };
 }
 
@@ -165,12 +160,14 @@ function rollGroups(widget: Widget, groups: DiceGroup[], modifier: number): Effe
     text: `Rolled ${notation} = ${summary}`,
     rolls: [{ title, view }],
     actions: [{ widgetId: widget.id, kind: 'roll', total, dice: numbers, text: notation }],
+    result: rollResultData(total, numbers),
   };
 }
 
 export const rollerRollEffect: EffectDef = {
   kind: 'roller.roll',
   label: 'Roll the dice',
+  outputs: ROLL_OUTPUTS,
   apply: (ctx) => {
     const widget = ctx.widget;
     if (!widget || widget.type !== 'DICE_ROLLER') return null;
@@ -202,6 +199,7 @@ const STEP_TARGET: TargetSpec = {
 export const stepDiceRollEffect: EffectDef = {
   kind: 'stepdice.roll',
   label: 'Roll a trait',
+  outputs: ROLL_OUTPUTS,
   target: { ...STEP_TARGET, any: undefined },
   apply: (ctx) => {
     const widget = ctx.widget;
@@ -284,6 +282,11 @@ export const dicePoolRolledTrigger: TriggerDef = {
 export const dicePoolRollEffect: EffectDef = {
   kind: 'dicepool.roll',
   label: 'Roll the pool',
+  outputs: [
+    { key: 'successes', label: 'Successes', type: 'number' },
+    { key: 'outcome', label: 'Outcome: success, critical, partial, failure or botch', type: 'text' },
+    { key: 'highest', label: 'Highest die', type: 'number' },
+  ],
   apply: (ctx) => {
     const widget = ctx.widget;
     if (!widget || widget.type !== 'DICE_POOL') return null;
@@ -323,6 +326,11 @@ export const dicePoolRollEffect: EffectDef = {
         successes: outcome.successes,
         text: outcome.summary,
       }],
+      result: {
+        successes: outcome.successes ?? 0,
+        outcome: outcome.kind,
+        ...(outcome.dice.length ? { highest: Math.max(...outcome.dice.map((die) => die.value)) } : {}),
+      },
     };
   },
   describe: (d) => `Roll ${d.widget}`,
@@ -353,6 +361,10 @@ export const rollTableRolledTrigger: TriggerDef = {
 export const rollTableRollEffect: EffectDef = {
   kind: 'rolltable.roll',
   label: 'Roll the table',
+  outputs: [
+    { key: 'result', label: 'Result rolled', type: 'text' },
+    { key: 'results', label: 'All results, when it rolls several', type: 'text' },
+  ],
   params: [{ key: 'count', label: 'Results (blank = widget setting)', type: 'amount', default: '', placeholder: 'Widget setting' }],
   apply: (ctx) => {
     const widget = ctx.widget;
@@ -385,6 +397,7 @@ export const rollTableRollEffect: EffectDef = {
       text: `Rolled: ${picks.map((pick) => `"${pick}"`).join(', ')}`,
       rolls: [{ title, view: { title, subtitle: plural(picks.length, 'result'), dice: [], summary: picks.join(' • '), kind: 'neutral' } }],
       actions: [{ widgetId: widget.id, kind: 'roll', results: picks, text: picks.join(', ') }],
+      result: { result: picks[0] ?? '', results: picks.join(', ') },
     };
   },
   describe: (d) => `Roll ${d.widget}${d.params.count?.trim() ? ` (${d.params.count} results)` : ''}`,
@@ -709,6 +722,7 @@ export const cardsRestoreEffect: EffectDef = {
 export const trayRollEffect: EffectDef = {
   kind: 'tray.roll',
   label: 'Roll dice',
+  outputs: ROLL_OUTPUTS,
   params: [
     { key: 'dice', label: 'Dice', type: 'dice', default: '1d20', placeholder: '2d6 or 1d20 + @str', help: 'Any dice expression; labels are allowed.' },
     {

@@ -2,7 +2,7 @@ import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventPar
 import { getWidgetTitle } from '../utils/characterVariables';
 import { collectLabels } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
-import { eventLabel, findEventLabelRefs, RUN_EVENT_KIND } from './constants';
+import { eventLabel, findEventLabelRefs, resultLabel, RUN_EVENT_KIND } from './constants';
 import { EVENT_BUTTON_TRIGGERS } from './defs/button';
 import {
   CARD_EFFECTS,
@@ -46,6 +46,7 @@ import {
 } from './defs/time';
 import { CHECKLIST_DEFS, CONDITION_DEFS, DICE_POOL_TRAIT_DEFS, MIXED_SWITCH_DEFS, SKILL_DEFS, SWITCH_DEFS } from './defs/toggles';
 import { findWidget, isAnyTarget } from './helpers';
+import { getEventEffects } from './steps';
 import type { EffectDef, EventOption, EventParamSpec, SpecContext, TargetSpec, TriggerData, TriggerDef, TriggerOutput, WidgetEventDefs } from './types';
 
 const NUMERIC: WidgetEventDefs = { triggers: NUMERIC_TRIGGERS, effects: NUMERIC_EFFECTS };
@@ -239,16 +240,73 @@ export function getTriggerLabels(kind: string | undefined, data?: TriggerData): 
 
 /** `event_…` labels that won't resolve: ones the trigger doesn't provide, or any used in the trigger's own settings
  *  (those are read before the trigger has data). Labels the sheet itself defines are fine. */
-export function getUnknownEventLabels(character: Character, event: Pick<CharacterEvent, 'trigger' | 'condition' | 'effects'>): string[] {
-  const provided = getTriggerLabels(event.trigger.kind);
-  const sources = [event.condition, ...event.effects.flatMap((effect) => Object.values(effect.params ?? {}))];
-  const unknown = new Set([
-    ...Object.values(event.trigger.params ?? {}).flatMap(findEventLabelRefs),
-    ...sources.flatMap(findEventLabelRefs).filter((ref) => !(ref in provided)),
-  ]);
+export function getUnknownEventLabels(character: Character, event: Pick<CharacterEvent, 'trigger' | 'steps'>): string[] {
+  const unknown = new Set(Object.values(event.trigger.params ?? {}).flatMap(findEventLabelRefs));
+  const check = (source: string | undefined, provided: FormulaLabels) => {
+    for (const ref of findEventLabelRefs(source)) {
+      if (!(ref in provided)) unknown.add(ref);
+    }
+  };
+  event.steps.forEach((step, stepIndex) => {
+    check(step.condition, getEventLabelsAt(event, stepIndex, 'condition'));
+    step.effects.forEach((effect, index) => {
+      const provided = getEventLabelsAt(event, stepIndex, 'effects', index);
+      Object.values(effect.params ?? {}).forEach((value) => check(value, provided));
+    });
+    (step.otherwise ?? []).forEach((effect, index) => {
+      const provided = getEventLabelsAt(event, stepIndex, 'otherwise', index);
+      Object.values(effect.params ?? {}).forEach((value) => check(value, provided));
+    });
+  });
   if (unknown.size === 0) return [];
   const labels = collectLabels(character);
   return Array.from(unknown).filter((ref) => !(ref in labels));
+}
+
+export function getEffectOutputs(kind: string | undefined): TriggerOutput[] {
+  return getEffectDef(kind)?.outputs ?? [];
+}
+
+/** The `event_<name>_…` labels a named effect result gives later steps; outputs missing from `data` read as 0 or empty text. */
+export function getResultLabels(effect: Pick<CharacterEventEffect, 'kind' | 'resultName'>, data?: TriggerData): FormulaLabels {
+  const name = effect.resultName?.trim();
+  const labels: FormulaLabels = {};
+  if (!name) return labels;
+  for (const output of getEffectOutputs(effect.kind)) {
+    labels[resultLabel(name, output.key)] = data?.[output.key] ?? (output.type === 'number' ? 0 : '');
+  }
+  return labels;
+}
+
+export type EventSection = 'condition' | 'effects' | 'otherwise';
+
+/** The `event_…` labels available at a point of an event: the trigger's data and the named results of effects that run before it.
+ *  An `otherwise` branch only follows the condition, so it never sees its own step's effects. */
+export function getEventLabelsAt(
+  event: Pick<CharacterEvent, 'trigger' | 'steps'>,
+  stepIndex: number,
+  section: EventSection,
+  effectIndex = 0,
+): FormulaLabels {
+  const labels = getTriggerLabels(event.trigger.kind);
+  const add = (effects: CharacterEventEffect[]) => effects.forEach((effect) => Object.assign(labels, getResultLabels(effect)));
+  event.steps.slice(0, stepIndex).forEach((step) => add([...step.effects, ...(step.otherwise ?? [])]));
+  const step = event.steps[stepIndex];
+  if (step && section === 'effects') add(step.effects.slice(0, effectIndex));
+  if (step && section === 'otherwise') add((step.otherwise ?? []).slice(0, effectIndex));
+  return labels;
+}
+
+/** Result names that can't be read as labels, or that another effect of the event already uses. */
+export function getResultNameProblems(event: Pick<CharacterEvent, 'steps'>, effect: CharacterEventEffect): string[] {
+  const name = effect.resultName?.trim();
+  if (!name || getEffectOutputs(effect.kind).length === 0) return [];
+  const problems: string[] = [];
+  if (!/^[a-zA-Z0-9_]+$/.test(name)) problems.push('The result name can only use letters, numbers and underscores');
+  if (getEventEffects(event).some((other) => other.id !== effect.id && other.resultName?.trim() === name && getEffectOutputs(other.kind).length > 0)) {
+    problems.push(`Another effect already uses the result name "${name}"`);
+  }
+  return problems;
 }
 
 // ----- Params -----
@@ -305,7 +363,7 @@ function widgetName(widget: Widget | undefined, widgetId: string | undefined): s
 
 export function describeTrigger(character: Character, trigger: CharacterEventTrigger): string {
   const def = getTriggerDef(trigger.kind);
-  if (!def) return 'Unknown trigger';
+  if (!def) return trigger.kind ? 'Unknown trigger' : 'No trigger chosen yet';
   const widget = findWidget(character, trigger.widgetId);
   const ctx: SpecContext = { character, widget };
   return def.describe({
@@ -317,7 +375,7 @@ export function describeTrigger(character: Character, trigger: CharacterEventTri
 
 export function describeEffect(character: Character, effect: CharacterEventEffect): string {
   const def = getEffectDef(effect.kind);
-  if (!def) return 'Unknown effect';
+  if (!def) return effect.kind ? 'Unknown effect' : 'No effect chosen yet';
   const widget = findWidget(character, effect.widgetId);
   const ctx: SpecContext = { character, widget };
   return def.describe({
@@ -336,7 +394,7 @@ function sourceProblem(
   isGlobal: boolean,
   pick: (defs: WidgetEventDefs) => (TriggerDef | EffectDef)[],
 ): string | null {
-  if (!def) return `Unknown kind "${kind}"`;
+  if (!def) return kind ? `Unknown kind "${kind}"` : 'Not chosen yet';
   const widget = findWidget(character, widgetId);
   if (!isGlobal) {
     if (!widget) return 'Its widget was deleted';
@@ -358,18 +416,27 @@ export function getEventProblems(character: Character, event: CharacterEvent): s
   const problems: string[] = [];
   const triggerProblem = getTriggerProblem(character, event.trigger);
   if (triggerProblem) problems.push(`Trigger: ${triggerProblem}`);
-  if (event.effects.length === 0) problems.push('No effects');
-  event.effects.forEach((effect, index) => {
+  if (getEventEffects(event).length === 0) problems.push('No effects');
+  const check = (label: string, effect: CharacterEventEffect) => {
     const problem = getEffectProblem(character, effect);
-    if (problem) problems.push(`Effect ${index + 1}: ${problem}`);
+    if (problem) problems.push(`${label}: ${problem}`);
+    getResultNameProblems(event, effect).forEach((nameProblem) => problems.push(`${label}: ${nameProblem}`));
+  };
+  event.steps.forEach((step, stepIndex) => {
+    const prefix = event.steps.length > 1 ? `Step ${stepIndex + 1}, ` : '';
+    step.effects.forEach((effect, index) => check(`${prefix}${prefix ? 'effect' : 'Effect'} ${index + 1}`, effect));
+    (step.otherwise ?? []).forEach((effect, index) => check(`${prefix}${prefix ? 'otherwise' : 'Otherwise'} ${index + 1}`, effect));
+    if (step.otherwise?.length && !step.condition?.trim()) problems.push(`${prefix}${prefix ? 'otherwise' : 'Otherwise'} effects never run without a condition`);
   });
   const unknown = getUnknownEventLabels(character, event);
-  if (unknown.length) problems.push(`Uses ${unknown.map((ref) => `@${ref}`).join(', ')}, which its trigger doesn't provide`);
+  if (unknown.length) problems.push(`Uses ${unknown.map((ref) => `@${ref}`).join(', ')}, which isn't available where it's used`);
   return problems;
 }
 
 /** Name to show for an event: its own name, else its trigger sentence. */
 export function getEventTitle(character: Character, event: CharacterEvent): string {
+  if (!event.name?.trim() && !event.trigger.kind) return 'Unfinished event';
+  if (!event.name?.trim() && event.trigger.kind === 'manual') return 'Event without a trigger';
   return event.name?.trim() || `When ${describeTrigger(character, event.trigger)}`;
 }
 
