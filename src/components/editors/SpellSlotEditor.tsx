@@ -5,6 +5,7 @@ import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { spellLevelName } from '../../utils/spellLevel';
 
 export function SpellSlotEditor({ widget, updateData }: EditorProps) {
   const { spellLevels = [{ level: 1, max: 4, used: 0 }], fillColor, spellSlotShape = 'circle', spellSlotSize = 20, spellSlotHorizontalSpacing = 4, spellSlotVerticalSpacing = 4, showResetButton = true } = widget.data;
@@ -27,6 +28,9 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
     onReorder: (items) => updateData({ spellLevels: items.map(({ item }) => item) }),
   });
 
+  const hasCantrips = spellLevelsList.some((levelData) => levelData.level === 0);
+  const numberedLevelCount = spellLevelsList.filter((levelData) => levelData.level !== 0).length;
+
   const addLevel = () => {
     const existingLevels = (spellLevels as SpellLevel[]).map(l => l.level);
     const nextLevel = Math.min(9, Math.max(...existingLevels, 0) + 1);
@@ -35,6 +39,11 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
         spellLevels: [...spellLevels, { level: nextLevel, max: 2, used: 0 }]
       });
     }
+  };
+
+  const addCantrips = () => {
+    if (hasCantrips) return;
+    updateData({ spellLevels: [{ level: 0, max: 2, used: 0 }, ...spellLevelsList] });
   };
 
   const removeLevel = (levelIdx: number) => {
@@ -67,7 +76,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
     if (typeof level === 'string') {
       updated[levelIdx] = { ...currentLevel, level: level as unknown as number };
     } else {
-      updated[levelIdx] = { ...currentLevel, level: Math.max(1, Math.min(9, level)) };
+      updated[levelIdx] = { ...currentLevel, level: Math.max(0, Math.min(9, level)) };
     }
     const itemId = spellLevelIdsRef.current.get(currentLevel);
     if (itemId) spellLevelIdsRef.current.set(updated[levelIdx], itemId);
@@ -96,7 +105,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
                   onPointerDown={(event) => startDrag(id, event)}
                   onKeyDown={(event) => handleReorderKey(id, event)}
                   disabled={spellLevelsList.length < 2}
-                  aria-label={`Reorder spell level ${levelData.level}`}
+                  aria-label={`Reorder ${spellLevelName(levelData.level)}`}
                   title="Drag to reorder. Arrow keys also work."
                 >
                   <GripVerticalIcon className="h-4 w-4" />
@@ -107,10 +116,10 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
                 <input
                   type="number"
                   value={levelData.level}
-                  onChange={(e) => updateLevelNumber(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                  onBlur={(e) => updateLevelNumber(levelIdx, Math.max(1, Math.min(9, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => updateLevelNumber(levelIdx, e.target.value === '' ? '' : parseInt(e.target.value, 10) || 0)}
+                  onBlur={(e) => updateLevelNumber(levelIdx, Math.max(0, Math.min(9, parseInt(e.target.value, 10) || 0)))}
                   className="h-10 w-20 flex-shrink-0 rounded-button border border-theme-border bg-theme-paper px-2 py-1 text-center text-sm text-theme-ink [appearance:textfield] focus:border-theme-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  min={1}
+                  min={0}
                   max={9}
                 />
               </div>
@@ -130,7 +139,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
                 type="button"
                 onClick={() => removeLevel(levelIdx)}
                 className="widget-editor__spell-level-delete ml-auto flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-red-500 transition-colors hover:border-red-500 hover:text-red-700"
-                aria-label={`Delete spell level ${levelData.level}`}
+                aria-label={`Delete ${spellLevelName(levelData.level)}`}
                 title="Delete spell level"
               >
                 <TrashIcon className="h-4 w-4" />
@@ -138,14 +147,24 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             </div>
           ))}
         </div>
-        {(spellLevels as SpellLevel[]).length < 9 && (
-          <div className="widget-editor__add-row">
-            <button
-              onClick={addLevel}
-              className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-            >
-              + Add Level
-            </button>
+        {(numberedLevelCount < 9 || !hasCantrips) && (
+          <div className="widget-editor__add-row flex gap-2">
+            {numberedLevelCount < 9 && (
+              <button
+                onClick={addLevel}
+                className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+              >
+                + Add Level
+              </button>
+            )}
+            {!hasCantrips && (
+              <button
+                onClick={addCantrips}
+                className="rounded-button border border-theme-border px-3 py-1 text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+              >
+                + Add Cantrips
+              </button>
+            )}
           </div>
         )}
       </CollapsibleSection>

@@ -4,6 +4,7 @@ import { getInventoryItemQuantity, getInventoryLoad, normalizeInventoryQuantity 
 import { DEFAULT_MIXED_FIELD_DICE_CHAIN } from '../../utils/mixedFields';
 import { getClockSegments, getClockValue } from '../../utils/progressClock';
 import { normalizeSkillPoints } from '../../utils/skillTree';
+import { spellLevelPlainName } from '../../utils/spellLevel';
 import { formatTrackModifier, getTrackBounds, getTrackModifier, getTrackValue, getTrackZone, sortTrackThresholds } from '../../utils/thresholdTrack';
 import { getWalletCurrencyName, getWalletTotal, normalizeWalletAmount } from '../../utils/wallet';
 import { getExperienceProgress, normalizeFirstLevel, normalizeXp } from '../../utils/experienceLevel';
@@ -128,7 +129,7 @@ const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData) => NumericSl
   })),
   SPELL_SLOT: (data) => (data.spellLevels ?? []).map((level, index) => ({
     key: `level:${level.level}`,
-    label: `Level ${level.level} slots left`,
+    label: `${spellLevelPlainName(level.level)} slots left`,
     value: Math.max(0, level.max - level.used),
     min: 0,
     max: level.max,

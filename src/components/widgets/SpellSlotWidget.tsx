@@ -7,6 +7,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
 import { MinusIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { spellLevelName, spellLevelShortName } from '../../utils/spellLevel';
 
 interface Props {
   widget: Widget;
@@ -24,17 +25,19 @@ function SpellSlotManagerModal({
   onChange: (spellLevels: SpellLevel[]) => void;
   onClose: () => void;
 }) {
-  const ordinalSuffix = (n: number) => {
-    const suffixes = ['th', 'st', 'nd', 'rd'];
-    const value = n % 100;
-    return n + (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]);
-  };
+  const hasCantrips = spellLevels.some((spellLevel) => spellLevel.level === 0);
+  const numberedLevelCount = spellLevels.filter((spellLevel) => spellLevel.level !== 0).length;
 
   const addLevel = () => {
     const existingLevels = new Set(spellLevels.map((spellLevel) => spellLevel.level));
     const nextLevel = Array.from({ length: 9 }, (_, index) => index + 1).find((level) => !existingLevels.has(level));
     if (nextLevel === undefined) return;
     onChange([...spellLevels, { level: nextLevel, max: 2, used: 0 }]);
+  };
+
+  const addCantrips = () => {
+    if (hasCantrips) return;
+    onChange([{ level: 0, max: 2, used: 0 }, ...spellLevels]);
   };
 
   const updateSlotCount = (levelIndex: number, change: number) => {
@@ -87,14 +90,14 @@ function SpellSlotManagerModal({
         <div className="mt-3 max-h-64 space-y-2 overflow-y-auto overscroll-contain pr-1">
           {spellLevels.map((spellLevel, levelIndex) => (
             <div key={`${spellLevel.level}-${levelIndex}`} className="flex items-center gap-2 rounded-button border border-theme-border bg-theme-accent/5 p-2">
-              <span className="min-w-16 flex-1 text-sm font-bold">{ordinalSuffix(spellLevel.level)} level</span>
-              <div className="flex items-center gap-1" aria-label={`${ordinalSuffix(spellLevel.level)} level slot count`}>
+              <span className="min-w-16 flex-1 text-sm font-bold">{spellLevelName(spellLevel.level)}</span>
+              <div className="flex items-center gap-1" aria-label={`${spellLevelName(spellLevel.level)} slot count`}>
                 <button
                   type="button"
                   onClick={() => updateSlotCount(levelIndex, -1)}
                   disabled={spellLevel.max <= 1}
                   className="widget-control widget-control--subtle flex h-7 w-7 items-center justify-center disabled:cursor-not-allowed disabled:opacity-35"
-                  aria-label={`Remove a slot from ${ordinalSuffix(spellLevel.level)}`}
+                  aria-label={`Remove a slot from ${spellLevelName(spellLevel.level)}`}
                 >
                   <MinusIcon className="h-3 w-3" />
                 </button>
@@ -104,7 +107,7 @@ function SpellSlotManagerModal({
                   onClick={() => updateSlotCount(levelIndex, 1)}
                   disabled={spellLevel.max >= 10}
                   className="widget-control widget-control--subtle flex h-7 w-7 items-center justify-center disabled:cursor-not-allowed disabled:opacity-35"
-                  aria-label={`Add a slot to ${ordinalSuffix(spellLevel.level)}`}
+                  aria-label={`Add a slot to ${spellLevelName(spellLevel.level)}`}
                 >
                   <PlusIcon className="h-3 w-3" />
                 </button>
@@ -113,7 +116,7 @@ function SpellSlotManagerModal({
                 type="button"
                 onClick={() => removeLevel(levelIndex)}
                 className="widget-control widget-control--subtle flex h-7 w-7 items-center justify-center text-red-500 hover:text-red-700"
-                aria-label={`Remove ${ordinalSuffix(spellLevel.level)} level`}
+                aria-label={`Remove ${spellLevelName(spellLevel.level)}`}
               >
                 <TrashIcon className="h-3 w-3" />
               </button>
@@ -123,16 +126,28 @@ function SpellSlotManagerModal({
             <p className="rounded-button border border-dashed border-theme-border px-3 py-4 text-center text-sm text-theme-muted">No spell levels configured.</p>
           )}
         </div>
-        <div className="mt-4 flex justify-between gap-2">
-          <button
-            type="button"
-            onClick={addLevel}
-            disabled={spellLevels.length >= 9}
-            className="widget-control widget-control--primary flex items-center gap-1 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <PlusIcon className="h-3 w-3" />
-            Add level
-          </button>
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={addLevel}
+              disabled={numberedLevelCount >= 9}
+              className="widget-control widget-control--primary flex items-center gap-1 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <PlusIcon className="h-3 w-3" />
+              Add level
+            </button>
+            {!hasCantrips && (
+              <button
+                type="button"
+                onClick={addCantrips}
+                className="widget-control flex items-center gap-1 px-3 py-1.5 text-sm"
+              >
+                <PlusIcon className="h-3 w-3" />
+                Cantrips
+              </button>
+            )}
+          </div>
           <button type="button" onClick={onClose} className="widget-control px-3 py-1.5 text-sm">Done</button>
         </div>
       </div>
@@ -171,10 +186,10 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
     const levelData = updated[levelIdx];
     if (slotIdx < levelData.used) {
       updated[levelIdx] = { ...levelData, used: slotIdx };
-      addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', `${ordinalSuffix(levelData.level)} level: restored slot (${slotIdx} / ${levelData.max} used)`, '✨');
+      addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', `${spellLevelName(levelData.level)}: restored slot (${slotIdx} / ${levelData.max} used)`, '✨');
     } else {
       updated[levelIdx] = { ...levelData, used: slotIdx + 1 };
-      addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', `${ordinalSuffix(levelData.level)} level: used slot (${slotIdx + 1} / ${levelData.max} used)`, '🔮');
+      addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', `${spellLevelName(levelData.level)}: used slot (${slotIdx + 1} / ${levelData.max} used)`, '🔮');
     }
     updateWidgetData(widget.id, { spellLevels: updated });
   };
@@ -183,12 +198,6 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
     const updated = (spellLevels as SpellLevel[]).map(l => ({ ...l, used: 0 }));
     updateWidgetData(widget.id, { spellLevels: updated });
     addTimelineEvent(label || 'Spell Slots', 'SPELL_SLOT', 'All spell slots reset', '✨');
-  };
-
-  const ordinalSuffix = (n: number) => {
-    const s = ['th', 'st', 'nd', 'rd'];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
   return (
@@ -228,7 +237,7 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
         {(spellLevels as SpellLevel[]).map((levelData, levelIdx) => (
           <div key={levelIdx} className={`flex items-center ${gapClass}`}>
             {/* Level Label */}
-            <span className={`${levelLabelClass} font-bold text-center text-theme-ink font-body`}>{ordinalSuffix(levelData.level)}</span>
+            <span className={`${levelLabelClass} font-bold text-center text-theme-ink font-body`}>{spellLevelShortName(levelData.level)}</span>
 
             {/* Slots */}
             <div className="flex flex-1 flex-wrap" style={{ gap: `${normalizedHorizontalSpacing}px` }}>
@@ -238,7 +247,7 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
                     <button
                       onClick={() => toggleSlot(levelIdx, slotIdx)}
                       onMouseDown={(e) => e.stopPropagation()}
-                      aria-label={`${ordinalSuffix(levelData.level)} level slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
+                      aria-label={`${spellLevelName(levelData.level)} slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
                       aria-pressed={slotIdx < levelData.used}
                       className="flex items-center justify-center border-0 bg-transparent p-0 transition-all hover:opacity-80 focus-visible:scale-110"
                       style={{ width: `${normalizedSpellSlotSize}px`, height: `${normalizedSpellSlotSize}px` }}
@@ -257,7 +266,7 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
                     <button
                       onClick={() => toggleSlot(levelIdx, slotIdx)}
                       onMouseDown={(e) => e.stopPropagation()}
-                      aria-label={`${ordinalSuffix(levelData.level)} level slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
+                      aria-label={`${spellLevelName(levelData.level)} slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
                       aria-pressed={slotIdx < levelData.used}
                       className={`${slotShapeClass} border border-theme-border transition-all focus-visible:scale-110 ${
                         slotIdx < levelData.used 

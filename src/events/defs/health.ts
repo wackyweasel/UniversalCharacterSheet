@@ -1,5 +1,6 @@
 import type { SpellLevel, Widget } from '../../types';
 import { applyHealthDamage, applyHealthHealing } from '../../utils/healthBar';
+import { spellLevelPlainName } from '../../utils/spellLevel';
 import { formatNumber, isAnyTarget, plural } from '../helpers';
 import type { EffectDef, EventOption, EventParamSpec, SpecContext, TargetSpec, TriggerDef, TriggerOutput } from '../types';
 
@@ -179,7 +180,7 @@ function spellLevels(widget: Widget | undefined): SpellLevel[] {
 }
 
 function levelOptions({ widget }: SpecContext): EventOption[] {
-  return spellLevels(widget).map((level) => ({ value: `level:${level.level}`, label: `Level ${level.level}` }));
+  return spellLevels(widget).map((level) => ({ value: `level:${level.level}`, label: spellLevelPlainName(level.level) }));
 }
 
 function parseLevel(target: string | undefined): number | null {
@@ -210,7 +211,7 @@ function spellTrigger(kind: string, label: string, verb: string, test: (before: 
         const left = Math.max(0, after.max - after.used);
         return {
           data: { level: after.level, slots: Math.abs(after.used - old.used), slots_left: left },
-          text: `Level ${after.level} slot ${verb} (${plural(left, 'slot')} left)`,
+          text: `${spellLevelPlainName(after.level)} slot ${verb} (${plural(left, 'slot')} left)`,
         };
       }
       return null;
@@ -250,13 +251,13 @@ export const spellUseEffect: EffectDef = {
       .filter(({ level }) => (ctx.params.upcast === 'yes' ? level.level >= wanted : level.level === wanted))
       .sort((a, b) => a.level.level - b.level.level);
     const pick = candidates.find(({ level }) => level.max - level.used >= count);
-    if (!pick) return { text: `No level ${wanted} slot left${ctx.params.upcast === 'yes' ? ' (or higher)' : ''}` };
+    if (!pick) return { text: `No ${spellLevelPlainName(wanted).toLowerCase()} slot left${ctx.params.upcast === 'yes' ? ' (or higher)' : ''}` };
     const nextLevels = [...levels];
     nextLevels[pick.index] = { ...pick.level, used: pick.level.used + count };
     const left = pick.level.max - pick.level.used - count;
     return {
       data: { spellLevels: nextLevels },
-      text: `Used ${plural(count, `level ${pick.level.level} slot`)} (${plural(left, 'slot')} left)`,
+      text: `Used ${plural(count, `${spellLevelPlainName(pick.level.level).toLowerCase()} slot`)} (${plural(left, 'slot')} left)`,
     };
   },
   describe: (d) => `Use a ${d.target || 'spell'} slot from ${d.widget}${d.params.upcast === 'yes' ? ' (or higher)' : ''}`,
@@ -281,7 +282,7 @@ export const spellRestoreEffect: EffectDef = {
       return back > 0 ? { ...level, used: level.used - back } : level;
     });
     if (restored === 0) return { text: 'No spell slots to restore' };
-    return { data: { spellLevels: nextLevels }, text: `Restored ${plural(restored, 'spell slot')}${wanted !== null ? ` at level ${wanted}` : ''}` };
+    return { data: { spellLevels: nextLevels }, text: `Restored ${plural(restored, 'spell slot')}${wanted !== null ? ` at ${spellLevelPlainName(wanted).toLowerCase()}` : ''}` };
   },
   describe: (d) => `Restore ${d.params.count?.trim() || 'all'} spell slots (${d.target || 'all levels'}) in ${d.widget}`,
 };
