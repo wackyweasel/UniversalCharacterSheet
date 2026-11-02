@@ -391,6 +391,38 @@
       "description": "Private DC Campaign Character Sheet",
       "file": "presets/ouae_ver0_1.json",
       "gameSystem": "Once Upon an Eternity"
+    },
+    {
+      "id": "50",
+      "name": "The Forsaken Character Sheet",
+      "author": "@ReidsInTheGrass",
+      "description": "For a personal campaign",
+      "file": "presets/the_forsaken_character_sheet.json",
+      "gameSystem": "Worlds End Campaign"
+    },
+    {
+      "id": "51",
+      "name": "Ficha",
+      "author": "@Mestre",
+      "description": "Ficha do RPG",
+      "file": "presets/ficha.json",
+      "gameSystem": "WFTD"
+    },
+    {
+      "id": "52",
+      "name": "Ficha WFTD",
+      "author": "@Hairo",
+      "description": "Ficha",
+      "file": "presets/ficha_wftd.json",
+      "gameSystem": "WFTD"
+    },
+    {
+      "id": "53",
+      "name": "Resistance System Sheet",
+      "author": "@Frostitution",
+      "description": "Character sheet for use with The Resistance Toolbox or Spire: The City Must Fall",
+      "file": "presets/resistance_system_sheet.json",
+      "gameSystem": "Resistance System"
     }
   ],
   "themes": [
