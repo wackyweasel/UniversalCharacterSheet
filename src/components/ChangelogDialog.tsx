@@ -38,6 +38,13 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.14.2',
+    changes: [
+      'Notes: the formatting toolbar is now larger, matching the table toolbar, and works on touch devices.',
+      'Number Display: new option to show − and + buttons beside each number, to raise or lower it with one tap.',
+    ],
+  },
+  {
     version: '1.14.1',
     changes: [
       'Expanded events: an event can now have several steps. Each step has an optional condition, the effects to run when it holds and, if you like, effects for when it does not. For example: roll a die, check the result, then deal damage or write "Miss".',

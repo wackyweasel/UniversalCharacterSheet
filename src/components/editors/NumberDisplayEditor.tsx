@@ -363,6 +363,16 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             />
             <span className="text-sm text-theme-ink">Show labels</span>
           </label>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.showDisplayNumberButtons ?? false}
+              onChange={(event) => updateData({ showDisplayNumberButtons: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show − and + buttons</span>
+          </label>
         </div>
       </CollapsibleSection>
 

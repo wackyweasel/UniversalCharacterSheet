@@ -536,6 +536,7 @@ export default function TextWidget({ widget, height, sheetScale = 1, showFieldCo
             className="notes-rich-text__toolbar"
             role="toolbar"
             aria-label="Text formatting"
+            data-touch-camera-ignore="true"
             style={{
               left: toolbarPosition?.left ?? 0,
               top: toolbarPosition?.top ?? 0,

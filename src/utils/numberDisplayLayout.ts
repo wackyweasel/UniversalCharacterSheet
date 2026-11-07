@@ -2,13 +2,14 @@ import type { CSSProperties } from 'react';
 import type { WidgetData } from '../types';
 
 export function getNumberDisplayLayout(data: WidgetData, width: number, height: number) {
+  const hasStepButtons = data.showDisplayNumberButtons ?? false;
   // Missing settings retain the original appearance of saved widgets and templates.
   const layout = data.displayLayout ?? 'horizontal';
   const fixedAspectRatio = data.numberBoxFixedAspectRatio ?? false;
   const scale = Math.min(100, Math.max(50, data.numberBoxScale ?? 100)) / 100;
   const count = data.displayNumbers?.length || 1;
   const isHorizontal = layout === 'horizontal';
-  const boxSize = 70 * scale;
+  const boxSize = (hasStepButtons ? 100 : 70) * scale;
   const columns = Math.max(1, Math.min(count, Math.floor((width - 4) / (boxSize + 4))));
   const fontDimension = fixedAspectRatio
     ? Math.max(1, Math.min(boxSize, width - 8))
@@ -44,7 +45,7 @@ export function getNumberDisplayLayout(data: WidgetData, width: number, height: 
     boxStyle = {
       flex: '1 1 0%',
       minWidth: isHorizontal ? `${30 * scale}px` : undefined,
-      maxWidth: isHorizontal ? `${70 * scale}px` : undefined,
+      maxWidth: isHorizontal ? `${boxSize}px` : undefined,
       minHeight: !isHorizontal ? `${30 * scale}px` : undefined,
       maxHeight: !isHorizontal ? `${55 * scale}px` : undefined,
       width: !isHorizontal ? `${100 * scale}%` : undefined,

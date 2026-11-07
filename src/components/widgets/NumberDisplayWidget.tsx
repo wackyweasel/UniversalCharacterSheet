@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, DisplayNumber } from '../../types';
@@ -48,6 +48,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     printSettings,
     showDisplayNumberMax = false,
     showDisplayNumberLabels = true,
+    showDisplayNumberButtons = false,
     showSecondaryDisplayNumbers = false,
     secondaryDisplayAutoCompute = false,
     secondaryDisplayModifierRanges = DEFAULT_MODIFIER_RANGES,
@@ -116,6 +117,25 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     if (minValue !== undefined) value = Math.max(minValue, value);
     if (maxValue !== undefined) value = Math.min(maxValue, value);
     return value;
+  };
+
+  const adjustItemValue = (index: number, delta: number) => {
+    const item = (displayNumbers as DisplayNumber[])[index];
+    if (!item || item.valueFormula || isPrintMode) return;
+    const newValue = constrainItemValue(Math.round((item.value + delta) * 1e6) / 1e6, item);
+    if (newValue === item.value) return;
+    const modifier = secondaryDisplayAutoCompute
+      ? getModifierForValue(newValue, secondaryDisplayModifierRanges) ?? 0
+      : undefined;
+    const updatedItem: DisplayNumber = {
+      ...item,
+      value: newValue,
+      ...(modifier !== undefined ? { secondaryValue: modifier } : {}),
+    };
+    const updated = [...displayNumbers] as DisplayNumber[];
+    updated[index] = updatedItem;
+    updateWidgetData(widget.id, { displayNumbers: updated });
+    addTimelineEvent(label || 'Number Display', 'NUMBER_DISPLAY', `${item.label}: ${item.value} → ${newValue}`, '🔢');
   };
 
   const handleValueClick = (index: number, currentValue: number, initialFocus: NumberEditDialog['initialFocus'] = 'current') => {
@@ -240,6 +260,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
 
   const { containerClassName, boxStyle, secondaryBoxStyle, numberFontSize, labelFontSize, secondaryFontSize } =
     getNumberDisplayLayout(widget.data, width, height);
+  const stepButtonSize = Math.round(Math.min(22, Math.max(14, numberFontSize * 1.1)));
 
   return (
     <div className="flex h-full w-full flex-col gap-1 overflow-hidden">
@@ -293,18 +314,64 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
         {(displayNumbers as DisplayNumber[]).map((item, idx) => {
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
           const displayedValue = showDisplayNumberMax && item.maxValue !== undefined ? `${formattedValue}/${item.maxValue}` : formattedValue;
+          const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
+          const atMaximum = item.maxValue !== undefined && item.value >= item.maxValue;
+          const renderStepButton = (direction: -1 | 1) => {
+            const disabled = Boolean(item.valueFormula) || (direction < 0 ? atMinimum : atMaximum);
+            const name = direction < 0 ? 'Decrease' : 'Increase';
+            return (
+              <Tooltip content={`${name} value`}>
+                <button
+                  type="button"
+                  onClick={() => adjustItemValue(idx, direction)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  disabled={disabled}
+                  aria-label={`${name} ${item.label || 'value'}`}
+                  tabIndex={isPrintMode ? -1 : undefined}
+                  className={`widget-control min-h-0 flex-shrink-0 p-0 ${isPrintMode ? 'opacity-0' : ''}`}
+                  style={{ width: 'var(--step)', height: 'var(--step)' }}
+                >
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 12 12"
+                    width="55%"
+                    height="55%"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  >
+                    <path d={direction < 0 ? 'M2 6h8' : 'M2 6h8M6 2v8'} />
+                  </svg>
+                </button>
+              </Tooltip>
+            );
+          };
 
           return (
           <div 
             key={idx} 
             className="relative flex flex-col items-center justify-center overflow-visible rounded-theme border border-theme-border bg-theme-paper"
-            style={boxStyle}
+            style={showDisplayNumberButtons ? { ...boxStyle, containerType: 'inline-size' } : boxStyle}
           >
             {showSecondaryDisplayNumbers && <span aria-hidden className="min-h-0" style={{ flex: '1 1 0%' }} />}
+            <div
+              className="flex max-w-full items-center justify-center"
+              style={showDisplayNumberButtons
+                ? { '--step': `min(${stepButtonSize}px, 22cqw)`, gap: 'calc(var(--step) * 0.2)' } as CSSProperties
+                : undefined}
+            >
+            {showDisplayNumberButtons && renderStepButton(-1)}
             <span 
               data-tutorial={item.label === 'Strength' ? 'automation-strength-value' : undefined}
               className={`font-bold text-theme-ink transition-colors leading-none font-body ${item.valueFormula ? 'cursor-default' : 'cursor-pointer hover:text-theme-accent'}`}
-              style={{ fontSize: `${numberFontSize}px`, ...(hideValues ? { visibility: 'hidden' } : {}) }}
+              style={{
+                // With step buttons, shrink long values (like 12/12) so the row always fits the box.
+                fontSize: showDisplayNumberButtons
+                  ? `max(8px, min(${numberFontSize}px, calc((100cqw - var(--step) * 2.4 - 6px) / ${Math.max(2, displayedValue.length) * 0.62})))`
+                  : `${numberFontSize}px`,
+                ...(hideValues ? { visibility: 'hidden' } : {}),
+              }}
               data-print-hide={hideValues ? 'true' : undefined}
               onClick={() => handleValueClick(idx, item.value)}
               onMouseDown={(e) => e.stopPropagation()}
@@ -323,6 +390,8 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
                 <span className="text-red-500 ml-0.5 text-[9px]" title={`Broken formula: ${item.valueFormula}`}>⚠</span>
               )}
             </span>
+            {showDisplayNumberButtons && renderStepButton(1)}
+            </div>
             
             {showDisplayNumberLabels && (
               <span 

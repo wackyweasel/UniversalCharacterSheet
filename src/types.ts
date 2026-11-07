@@ -521,6 +521,7 @@ export interface WidgetData {
   numberBoxScale?: number;
   showDisplayNumberMax?: boolean;
   showDisplayNumberLabels?: boolean;
+  showDisplayNumberButtons?: boolean;
   showSecondaryDisplayNumbers?: boolean;
   secondaryDisplayAutoCompute?: boolean;
   secondaryDisplayModifierRanges?: ModifierRange[];

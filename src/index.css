@@ -3698,12 +3698,27 @@ button.dice-result__die--selectable:hover {
     gap: 2px;
     max-width: calc(100vw - 16px);
     min-width: 0;
-    min-height: 27px;
     overflow: hidden;
-    padding: 2px;
+    padding: 4px;
     position: fixed;
     width: max-content;
     z-index: 9999;
+    --notes-toolbar-control: 28px;
+    --notes-toolbar-icon: 16px;
+  }
+
+  @media (pointer: coarse), (max-width: 767px) {
+    .notes-rich-text__toolbar {
+      --notes-toolbar-control: 36px;
+      --notes-toolbar-icon: 18px;
+    }
+  }
+
+  .notes-rich-text .notes-rich-text__toolbar--inline {
+    min-height: 27px;
+    padding: 2px;
+    --notes-toolbar-control: 22px;
+    --notes-toolbar-icon: 14px;
   }
 
   .notes-rich-text__button,
@@ -3713,11 +3728,11 @@ button.dice-result__die--selectable:hover {
     border-radius: var(--button-radius);
     color: var(--color-ink);
     display: inline-flex;
-    flex: 0 0 22px;
-    height: 22px;
+    flex: 0 0 var(--notes-toolbar-control);
+    height: var(--notes-toolbar-control);
     justify-content: center;
     position: relative;
-    width: 22px;
+    width: var(--notes-toolbar-control);
   }
 
   .notes-rich-text__button:hover:not(:disabled),
@@ -3734,8 +3749,8 @@ button.dice-result__die--selectable:hover {
 
   .notes-rich-text__button svg,
   .notes-rich-text__color svg {
-    height: 14px;
-    width: 14px;
+    height: var(--notes-toolbar-icon);
+    width: var(--notes-toolbar-icon);
   }
 
   .notes-rich-text__font-size {
@@ -3750,10 +3765,10 @@ button.dice-result__die--selectable:hover {
     border-radius: var(--button-radius);
     color: var(--color-ink);
     font-family: var(--font-body);
-    font-size: 0.625rem;
-    height: 22px;
-    max-width: 70px;
-    min-width: 58px;
+    font-size: 0.75rem;
+    height: var(--notes-toolbar-control);
+    max-width: 80px;
+    min-width: 64px;
     padding: 0 2px;
   }
 
@@ -3784,7 +3799,7 @@ button.dice-result__die--selectable:hover {
     align-self: stretch;
     background: color-mix(in srgb, var(--color-border) 55%, transparent);
     flex: 0 0 1px;
-    margin: 2px;
+    margin: 2px 4px;
   }
 
   .notes-rich-text__scroll {

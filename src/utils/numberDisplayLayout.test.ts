@@ -70,6 +70,13 @@ describe('number display layout compatibility', () => {
       .toEqual(getNumberDisplayLayout({ displayLayout: 'vertical' }, 120, 240));
   });
 
+  it('widens boxes only when the step buttons are shown', () => {
+    const base = getNumberDisplayLayout({ displayLayout: 'horizontal' }, 300, 100);
+    const withButtons = getNumberDisplayLayout({ displayLayout: 'horizontal', showDisplayNumberButtons: true }, 300, 100);
+    expect(base.boxStyle.maxWidth).toBe('70px');
+    expect(withButtons.boxStyle.maxWidth).toBe('100px');
+  });
+
   it('keeps the size control effective for adaptive boxes', () => {
     const result = getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxFixedAspectRatio: false, numberBoxScale: 60 }, 220, 112);
     expect(result.secondaryBoxStyle).toEqual({
