@@ -423,6 +423,38 @@
       "description": "Character sheet for use with The Resistance Toolbox or Spire: The City Must Fall",
       "file": "presets/resistance_system_sheet.json",
       "gameSystem": "Resistance System"
+    },
+    {
+      "id": "54",
+      "name": "KNIGHT TTRPG v1.2",
+      "author": "@Xomerian",
+      "description": "Character sheet for Knight RPG, translated from the French version.\nUpdated for website version 1.14.1\n+ Better characteristics\n+ Capabilities and tools\n+ Better automation\n+ Easier to fill in",
+      "file": "presets/knight_ttrpg_v1_2.json",
+      "gameSystem": "Knight"
+    },
+    {
+      "id": "55",
+      "name": "KNIGHT TTRPG v1.2 (French)",
+      "author": "@Xomerian",
+      "description": "Character sheet for Knight RPG (French version)\nUpdated with the website update 1.14.1\n+ Better characteritics\n+ Capacity/Tools\n+ Better automation\n+ Easier to fill",
+      "file": "presets/knight_ttrpg_v1_2_french.json",
+      "gameSystem": "Knight"
+    },
+    {
+      "id": "56",
+      "name": "Society Of Supers",
+      "author": "@Finless",
+      "description": "For a game system I made for a super hero campaign with my friends",
+      "file": "presets/society_of_supers.json",
+      "gameSystem": "Society Of Supers"
+    },
+    {
+      "id": "57",
+      "name": "Fangs of the Bastion CharacterSheet",
+      "author": "@Rewiredguts",
+      "description": "Template",
+      "file": "presets/fangs_of_the_bastion_charactersheet.json",
+      "gameSystem": "Fangs of the Bastion"
     }
   ],
   "themes": [
