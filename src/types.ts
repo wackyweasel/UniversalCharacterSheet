@@ -165,6 +165,13 @@ export interface InventorySlot {
   h: number;
 }
 
+/** A named group of reusable entries in a character's compendium, such as Spells or Gear. */
+export interface CompendiumSection {
+  id: string;
+  name: string;
+  items: InventoryItem[];
+}
+
 export interface InventoryEncumbranceSettings {
   enabled: boolean;
   unit: string;
@@ -890,6 +897,8 @@ export interface Character {
   variables?: CharacterVariable[];
   variableGroups?: CharacterVariableGroup[];
   events?: CharacterEvent[];
+  /** Reusable entries managed in the Compendium panel; absent until the character edits them, which shows the default sections. */
+  compendium?: CompendiumSection[];
   // Legacy: widgets array for migration (will be moved to sheets)
   widgets?: Widget[];
 }

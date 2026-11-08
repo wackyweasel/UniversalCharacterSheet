@@ -4,7 +4,8 @@ import { InlineDiceText } from './InlineDiceText';
 
 interface Props {
   html: string;
-  widget: Widget;
+  /** Without a widget the text is shown as is, with no dice buttons. */
+  widget?: Widget;
 }
 
 const ALLOWED_TAGS = new Set([
@@ -23,7 +24,9 @@ export function InlineDiceRichText({ html, widget }: Props) {
 
   const renderNode = (node: Node, key: string): ReactNode => {
     if (node.nodeType === Node.TEXT_NODE) {
-      return <InlineDiceText key={key} text={node.textContent || ''} widget={widget} />;
+      return widget
+        ? <InlineDiceText key={key} text={node.textContent || ''} widget={widget} />
+        : node.textContent;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return null;
 

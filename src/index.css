@@ -4412,6 +4412,16 @@ body.variables-dragging * {
   }
 }
 
+/* ----- Compendium ----- */
+
+.compendium-panel {
+  animation: variables-panel-in-right 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.compendium-panel--bottom {
+  animation-name: variables-panel-in-bottom;
+}
+
 /* ----- Events ----- */
 
 .events-panel {
@@ -4651,6 +4661,7 @@ button.event-flow__line:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .events-panel,
+  .compendium-panel,
   .event-card--fired,
   .event-card--focus {
     animation: none;

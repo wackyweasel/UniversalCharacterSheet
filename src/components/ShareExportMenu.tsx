@@ -9,6 +9,7 @@ import { Tooltip } from './Tooltip';
 import {
   ArrowLeftIcon,
   BoltIcon,
+  BookIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   ClockIcon,
@@ -57,6 +58,8 @@ interface ShareExportMenuProps {
   onToggleAttachmentControls: () => void;
   eventsOpen?: boolean;
   onToggleEvents?: () => void;
+  compendiumOpen?: boolean;
+  onToggleCompendium?: () => void;
   inlineActionIds?: ReadonlySet<string>;
   topSection?: ReactNode;
 }
@@ -99,6 +102,8 @@ export default function ShareExportMenu({
   onToggleAttachmentControls,
   eventsOpen = false,
   onToggleEvents,
+  compendiumOpen = false,
+  onToggleCompendium,
   inlineActionIds = new Set(),
   topSection,
 }: ShareExportMenuProps) {
@@ -167,6 +172,7 @@ export default function ShareExportMenu({
     Boolean(onChangeTheme && !inlineActionIds.has('theme')) ||
     Boolean(onAutoStack && !inlineActionIds.has('auto-stack')) ||
     Boolean(onToggleEvents && !inlineActionIds.has('events')) ||
+    Boolean(onToggleCompendium && !inlineActionIds.has('compendium')) ||
     Boolean((onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand'));
 
   return (
@@ -313,6 +319,7 @@ export default function ShareExportMenu({
                 {onChangeTheme && !inlineActionIds.has('theme') && <Tooltip content={changeThemeLabel === 'Change Theme' ? 'Open theme customization' : 'Close theme customization'} placement="below"><button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PaletteIcon className="h-4 w-4" />{changeThemeLabel}</button></Tooltip>}
                 {onAutoStack && !inlineActionIds.has('auto-stack') && <Tooltip content="Arrange canvas widgets into columns automatically" placement="below"><button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><RowsIcon className="h-4 w-4" />Auto Stack</button></Tooltip>}
                 {onToggleEvents && !inlineActionIds.has('events') && <Tooltip content={eventsOpen ? 'Close the events panel' : 'Things that happen automatically on this sheet'} placement="below"><button type="button" data-tutorial="events-button-mobile" onClick={() => { onToggleEvents(); onOpenChange(false); }} aria-expanded={eventsOpen} aria-controls="events-panel" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><BoltIcon className="h-4 w-4" />Events</button></Tooltip>}
+                {onToggleCompendium && !inlineActionIds.has('compendium') && <Tooltip content={compendiumOpen ? 'Close the compendium panel' : 'Reusable items, spells and more'} placement="below"><button type="button" onClick={() => { onToggleCompendium(); onOpenChange(false); }} aria-expanded={compendiumOpen} aria-controls="compendium-panel" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><BookIcon className="h-4 w-4" />Compendium</button></Tooltip>}
                 {(onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand') && <>
                   {onExpandAll && <Tooltip content="Expand every widget in the list" placement="below"><button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronDownIcon className="h-4 w-4" />Expand All</button></Tooltip>}
                   {onCollapseAll && <Tooltip content="Collapse every widget in the list" placement="below"><button type="button" onClick={() => { onCollapseAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronUpIcon className="h-4 w-4" />Collapse All</button></Tooltip>}

@@ -26,6 +26,7 @@ import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
 import VariablesPanel from './VariablesPanel';
 import EventsPanel from './events/EventsPanel';
+import CompendiumPanel from './CompendiumPanel';
 import { EventEditorHost } from './events/EventEditorDialog';
 import { subscribeEventFirings } from '../events/runtime';
 import { getTriggerDef } from '../events/registry';
@@ -44,6 +45,7 @@ const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
 import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
 import { useEventsPanelStore } from '../store/useEventsPanelStore';
+import { useCompendiumPanelStore } from '../store/useCompendiumPanelStore';
 import { WidgetType, Widget } from '../types';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { buildSheetSearchIndex, searchSheetIndex, type SheetSearchResult } from '../utils/sheetSearch';
@@ -273,6 +275,14 @@ export default function Sheet() {
     if (eventsIsOpen) setEventsOpen(false);
     if (eventEditorOpen) closeEventEditor();
   }, [closeEventEditor, eventEditorOpen, eventsIsOpen, mode, setEventsOpen]);
+
+  const compendiumIsOpen = useCompendiumPanelStore((state) => state.isOpen);
+  const toggleCompendium = useCompendiumPanelStore((state) => state.toggleOpen);
+  const setCompendiumOpen = useCompendiumPanelStore((state) => state.setOpen);
+
+  useEffect(() => {
+    if (mode === 'print' && compendiumIsOpen) setCompendiumOpen(false);
+  }, [compendiumIsOpen, mode, setCompendiumOpen]);
   
   // Tutorial state
   const tutorialStep = useTutorialStore((state) => state.tutorialStep);
@@ -1626,6 +1636,8 @@ export default function Sheet() {
           onToggleVariables={handleToggleVariables}
           eventsOpen={eventsIsOpen}
           onToggleEvents={handleToggleEvents}
+          compendiumOpen={compendiumIsOpen}
+          onToggleCompendium={toggleCompendium}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={undo}
@@ -1871,6 +1883,7 @@ export default function Sheet() {
         {workspace === 'play' && <TimelineSidebar />}
         {variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
         {eventsIsOpen && <EventsPanel onRevealWidget={revealWidget} />}
+        {compendiumIsOpen && <CompendiumPanel />}
         <EventEditorHost />
         {workspace === 'play' && <TimelineToasts />}
 
@@ -2305,6 +2318,8 @@ export default function Sheet() {
         onToggleVariables={handleToggleVariables}
         eventsOpen={eventsIsOpen}
         onToggleEvents={handleToggleEvents}
+        compendiumOpen={compendiumIsOpen}
+        onToggleCompendium={toggleCompendium}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}
@@ -2721,6 +2736,7 @@ export default function Sheet() {
       {mode === 'play' && <TimelineSidebar />}
       {mode !== 'print' && variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
       {mode !== 'print' && eventsIsOpen && <EventsPanel onRevealWidget={revealWidget} />}
+      {mode !== 'print' && compendiumIsOpen && <CompendiumPanel />}
       {mode !== 'print' && <EventEditorHost />}
       {mode === 'play' && <TimelineToasts />}
 

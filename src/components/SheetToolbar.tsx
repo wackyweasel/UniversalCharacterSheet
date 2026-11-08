@@ -8,6 +8,7 @@ import { ToolbarShell } from './ToolbarShell';
 import { WorkspaceStatusDot } from './WorkspaceStatusIndicator';
 import {
   BoltIcon,
+  BookIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   CheckIcon,
@@ -59,6 +60,8 @@ interface SheetToolbarProps {
   onToggleVariables?: () => void;
   eventsOpen?: boolean;
   onToggleEvents?: () => void;
+  compendiumOpen?: boolean;
+  onToggleCompendium?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
   listHighlighted?: boolean;
@@ -388,6 +391,8 @@ export default function SheetToolbar({
   onToggleVariables,
   eventsOpen = false,
   onToggleEvents,
+  compendiumOpen = false,
+  onToggleCompendium,
   attachmentControlsVisible,
   onToggleAttachmentControls,
   listHighlighted = false,
@@ -420,9 +425,10 @@ export default function SheetToolbar({
     if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42, pinned: true });
     if (onToggleVariables) candidates.push({ id: 'variables', labeledWidth: 118, iconWidth: 42, pinned: true });
     if (onToggleEvents) candidates.push({ id: 'events', labeledWidth: 110, iconWidth: 42, pinned: true });
+    if (onToggleCompendium) candidates.push({ id: 'compendium', labeledWidth: 140, iconWidth: 42, pinned: true });
     candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
     return candidates;
-  }, [onAutoStack, onToggleEvents, onToggleVariables, playLayout, workspace]);
+  }, [onAutoStack, onToggleCompendium, onToggleEvents, onToggleVariables, playLayout, workspace]);
   const { containerRef, containerWidth, inlineActionIds: overflowInlineIds, labeledActionIds } = useToolbarOverflow({
     actions,
     coreWidth: 464,
@@ -479,6 +485,8 @@ export default function SheetToolbar({
           onToggleAttachmentControls={onToggleAttachmentControls}
           eventsOpen={eventsOpen}
           onToggleEvents={onToggleEvents}
+          compendiumOpen={compendiumOpen}
+          onToggleCompendium={onToggleCompendium}
           inlineActionIds={inlineActionIds}
           topSection={compact ? (
             <MenuCharacterSection
@@ -604,6 +612,20 @@ export default function SheetToolbar({
             className={`${compactUtilityClass} ${eventsOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
           >
             <BoltIcon className="h-4 w-4" /> {showLabel('events') && <span>Events</span>}
+          </button>
+        </Tooltip>
+      )}
+      {onToggleCompendium && inlineActionIds.has('compendium') && (
+        <Tooltip content={compendiumOpen ? 'Close compendium' : 'Compendium'} placement="below">
+          <button
+            type="button"
+            data-tutorial="compendium-button"
+            onClick={onToggleCompendium}
+            aria-pressed={compendiumOpen}
+            aria-label="Compendium"
+            className={`${compactUtilityClass} ${compendiumOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
+          >
+            <BookIcon className="h-4 w-4" /> {showLabel('compendium') && <span>Compendium</span>}
           </button>
         </Tooltip>
       )}

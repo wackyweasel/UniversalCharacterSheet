@@ -27,6 +27,19 @@ import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceL
 import { createDefaultCalendarData } from '../utils/calendar';
 import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
 import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableToGroup, renameVariableGroup } from '../utils/variableGroups';
+import {
+  addCompendiumSection,
+  copyCompendiumData,
+  deleteCompendiumItem,
+  deleteCompendiumSection,
+  getCompendiumSections,
+  mergeCompendiumSections,
+  renameCompendiumSection,
+  replaceCompendiumSections,
+  saveCompendiumItem,
+  type CompendiumImportMode,
+  type CompendiumMergeResult,
+} from '../utils/compendium';
 import { withEventsSuppressed } from '../events/suppress';
 import { normalizeEvent } from '../events/steps';
 import { getEventTelemetryDetails, type EventTelemetrySource } from '../events/telemetry';
@@ -280,6 +293,13 @@ interface StoreState {
   moveVariable: (id: string, groupId: string, beforeVariableId?: string | null) => void;
   removeLabel: (label: string) => void;
 
+  // Compendium actions (active character)
+  addCompendiumSection: (name: string) => string | null;
+  renameCompendiumSection: (id: string, name: string) => void;
+  deleteCompendiumSection: (id: string) => void;
+  saveCompendiumItem: (sectionId: string, item: import('../types').InventoryItem) => void;
+  deleteCompendiumItem: (sectionId: string, itemId: string) => void;
+  importCompendiumSections: (sections: import('../types').CompendiumSection[], mode?: CompendiumImportMode) => CompendiumMergeResult | null;
   // Event actions (active character)
   addCharacterEvent: (event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => string | null;
   updateCharacterEvent: (id: string, event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => void;
@@ -417,6 +437,7 @@ export const useStore = create<StoreState>((set, get) => {
         theme: preset.theme,
         sheets: newSheets,
         ...copyVariableData(preset),
+        ...copyCompendiumData(preset),
         ...(events ? { events } : {}),
         activeSheetId
       };
@@ -455,6 +476,7 @@ export const useStore = create<StoreState>((set, get) => {
         theme: preset.theme,
         sheets: newSheets,
         ...copyVariableData(preset),
+        ...copyCompendiumData(preset),
         ...(events ? { events } : {}),
         activeSheetId,
       };
@@ -522,6 +544,7 @@ export const useStore = create<StoreState>((set, get) => {
         theme: preset.theme,
         sheets: newSheets,
         ...copyVariableData(preset),
+        ...copyCompendiumData(preset),
         ...(events ? { events } : {}),
         activeSheetId
       };
@@ -2983,6 +3006,41 @@ export const useStore = create<StoreState>((set, get) => {
 
     moveVariable: (id, groupId, beforeVariableId) => {
       applyCharacterTransform('Move label', (character) => moveVariableToGroup(character, id, groupId, beforeVariableId));
+    },
+
+    addCompendiumSection: (name) => {
+      const trimmed = name.trim();
+      if (!trimmed || !get().activeCharacterId) return null;
+      const id = uuidv4();
+      applyCharacterTransform(`Add compendium section ${trimmed}`, (character) => addCompendiumSection(character, { id, name: trimmed }));
+      return id;
+    },
+
+    renameCompendiumSection: (id, name) => {
+      applyCharacterTransform('Rename compendium section', (character) => renameCompendiumSection(character, id, name));
+    },
+
+    deleteCompendiumSection: (id) => {
+      applyCharacterTransform('Delete compendium section', (character) => deleteCompendiumSection(character, id));
+    },
+
+    saveCompendiumItem: (sectionId, item) => {
+      applyCharacterTransform('Save compendium entry', (character) => saveCompendiumItem(character, sectionId, item));
+    },
+
+    deleteCompendiumItem: (sectionId, itemId) => {
+      applyCharacterTransform('Delete compendium entry', (character) => deleteCompendiumItem(character, sectionId, itemId));
+    },
+
+    importCompendiumSections: (sections, mode = 'add') => {
+      const current = getActiveCharacter(get());
+      if (!current) return null;
+      const result = mode === 'replace'
+        ? replaceCompendiumSections(sections)
+        : mergeCompendiumSections(getCompendiumSections(current), sections);
+      if (result.addedItems === 0 && result.addedSections === 0) return result;
+      applyCharacterTransform(mode === 'replace' ? 'Replace compendium' : 'Import compendium', (character) => ({ ...character, compendium: result.sections }));
+      return result;
     },
 
     addCharacterEvent: (event, telemetrySource = 'events_panel') => {

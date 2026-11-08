@@ -69,6 +69,14 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M9 6l6 6-6 6" />
+    </Base>
+  );
+}
+
 export function ChevronUpIcon(props: IconProps) {
   return (
     <Base {...props}>
@@ -256,6 +264,15 @@ export function RowsIcon(props: IconProps) {
       <rect x="3" y="4" width="18" height="4" rx="1" />
       <rect x="3" y="10" width="18" height="4" rx="1" />
       <rect x="3" y="16" width="18" height="4" rx="1" />
+    </Base>
+  );
+}
+
+export function BookIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3H9a3 3 0 0 1 3 3v15a2.5 2.5 0 0 0-2.5-2.5H3.5A1.5 1.5 0 0 1 2 17z" />
+      <path d="M22 4.5A1.5 1.5 0 0 0 20.5 3H15a3 3 0 0 0-3 3v15a2.5 2.5 0 0 1 2.5-2.5h6a1.5 1.5 0 0 0 1.5-1.5z" />
     </Base>
   );
 }

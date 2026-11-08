@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   InventoryFieldTemplate,
@@ -15,6 +15,8 @@ import {
   normalizeInventoryQuantity,
 } from '../../utils/inventory';
 import { usePointerReorder } from '../../hooks';
+import { useStore } from '../../store/useStore';
+import { compendiumItemMatches, getCompendiumSections, instantiateCompendiumItem } from '../../utils/compendium';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 import { TextFormulaControls } from '../editors/TextFormulaControls';
 import { RichTextField } from '../RichTextField';
@@ -35,6 +37,8 @@ interface InventoryItemDialogProps {
   noun?: string;
   /** Offers quantity tracking. Disabled for compendiums. */
   allowQuantity?: boolean;
+  /** Offers filling a new item from the character's compendium. Disabled in the compendium panel itself. */
+  allowCompendium?: boolean;
 }
 
 const FIELD_TYPES: { value: Exclude<InventoryFieldType, 'textarea'>; label: string }[] = [
@@ -55,6 +59,7 @@ export default function InventoryItemDialog({
   allowAddMultiple = true,
   noun = 'item',
   allowQuantity = true,
+  allowCompendium = true,
 }: InventoryItemDialogProps) {
   const nounLabel = noun.charAt(0).toUpperCase() + noun.slice(1);
   const nounPlural = noun === 'entry' ? 'entries' : `${noun}s`;
@@ -65,6 +70,11 @@ export default function InventoryItemDialog({
   const [addMultiple, setAddMultiple] = useState(false);
   const [descriptionEnabled, setDescriptionEnabled] = useState(() => Boolean(item?.description?.trim()));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [compendiumQuery, setCompendiumQuery] = useState('');
+  const [compendiumOpen, setCompendiumOpen] = useState(false);
+  const compendium = useStore((state) => state.characters.find((character) => character.id === state.activeCharacterId)?.compendium);
+  const compendiumSections = useMemo(() => getCompendiumSections({ compendium }).filter((section) => section.items.length > 0), [compendium]);
+  const showCompendiumPicker = allowCompendium && !isEditing && compendiumSections.length > 0;
   const defaultTemplateIds = new Set(defaultFields.map((field) => field.id));
   const defaultAttributeFields = defaultFields.flatMap((template) => {
     const field = draft.fields.find((entry) => entry.templateId === template.id);
@@ -207,6 +217,13 @@ export default function InventoryItemDialog({
     </div>
   );
 
+  const applyCompendiumEntry = (entry: InventoryItem) => {
+    setDraft(instantiateCompendiumItem(entry, defaultFields, { allowQuantity }));
+    setDescriptionEnabled(Boolean(entry.description?.trim()));
+    setCompendiumOpen(false);
+    setCompendiumQuery('');
+  };
+
   const handleClone = () => {
     const name = draft.name.trim();
     if (!name) return;
@@ -264,6 +281,56 @@ export default function InventoryItemDialog({
               className={inputClass}
             />
           </label>
+
+          {showCompendiumPicker && (
+            <div className="rounded-button border border-theme-border">
+              <button
+                type="button"
+                onClick={() => setCompendiumOpen((open) => !open)}
+                aria-expanded={compendiumOpen}
+                className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-semibold text-theme-ink hover:bg-theme-accent/10"
+              >
+                From compendium
+                <span aria-hidden="true">{compendiumOpen ? '−' : '+'}</span>
+              </button>
+              {compendiumOpen && (
+                <div className="space-y-2 border-t border-theme-border p-2">
+                  <input
+                    type="search"
+                    value={compendiumQuery}
+                    onChange={(event) => setCompendiumQuery(event.target.value)}
+                    placeholder="Search the compendium"
+                    aria-label="Search the compendium"
+                    className={inputClass}
+                  />
+                  <div className="max-h-48 space-y-2 overflow-y-auto overscroll-contain">
+                    {compendiumSections.map((section) => {
+                      const entries = section.items.filter((entry) => compendiumItemMatches(entry, compendiumQuery));
+                      if (entries.length === 0) return null;
+                      return (
+                        <div key={section.id}>
+                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-theme-muted">{section.name}</p>
+                          <ul className="space-y-1">
+                            {entries.map((entry) => (
+                              <li key={entry.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => applyCompendiumEntry(entry)}
+                                  className="w-full truncate rounded-button border border-theme-border px-2 py-1 text-left text-xs text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+                                >
+                                  {entry.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {allowQuantity && (
           <div className="space-y-2">

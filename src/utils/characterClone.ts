@@ -4,6 +4,7 @@ import { RUN_EVENT_KIND } from '../events/constants';
 import { normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
 import { cloneInventoryData, isInventoryWidgetType } from './inventory';
 import { copyVariableData } from './variableGroups';
+import { copyCompendiumData } from './compendium';
 import {
   getCardTableBackDesign,
   getCardTableCards,
@@ -100,6 +101,7 @@ export function migrateCharacter(character: Character): Character {
     sheets: [defaultSheet],
     activeSheetId: defaultSheet.id,
     ...copyVariableData(character),
+    ...copyCompendiumData(character),
     ...(character.events ? { events: normalizeEvents(character.events) } : {}),
   };
 }
