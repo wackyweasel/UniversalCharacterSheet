@@ -21,6 +21,8 @@ const LABEL_WIDGET_TYPES = new Set<WidgetType>([
   'HEALTH_BAR',
   'INITIATIVE_TRACKER',
   'INVENTORY',
+  'INVENTORY_SLOTS',
+  'COMPENDIUM',
   'LIST',
   'MAP_SKETCHER',
   'NUMBER',
@@ -58,6 +60,7 @@ const HEADER_CONTROL_WIDGET_TYPES = new Set<WidgetType>([
   'TOGGLE_GROUP',
   'INITIATIVE_TRACKER',
   'INVENTORY',
+  'COMPENDIUM',
   'TEXT',
 ]);
 

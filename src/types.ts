@@ -29,6 +29,8 @@ export type WidgetType =
   | 'GRID_MAP'
   | 'INITIATIVE_TRACKER'
   | 'INVENTORY'
+  | 'INVENTORY_SLOTS'
+  | 'COMPENDIUM'
   | 'DECK'
   | 'DECK_OF_CARDS'
   | 'TIMER'
@@ -149,6 +151,18 @@ export interface InventoryItem {
   /** Rich text (HTML), shown collapsed on the item card. */
   description?: string;
   fields: InventoryItemField[];
+  /** Only set on items held by an inventory slots widget: the slot the item sits in. */
+  slotId?: string;
+}
+
+/** A named spot on an inventory slots widget. Position and size are percentages of the widget area. */
+export interface InventorySlot {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export interface InventoryEncumbranceSettings {
@@ -652,6 +666,7 @@ export interface WidgetData {
   initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
   // Inventory
   inventoryItems?: InventoryItem[];
+  inventorySlots?: InventorySlot[];
   inventoryDefaultFields?: InventoryFieldTemplate[];
   inventoryEncumbrance?: InventoryEncumbranceSettings;
   // Timer

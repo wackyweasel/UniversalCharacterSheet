@@ -31,6 +31,8 @@ const MIN_WIDGET_DIMENSIONS: Record<WidgetType, { width: number; height: number 
   'ROLL_TABLE': { width: 70, height: 30 },
   'INITIATIVE_TRACKER': { width: 90, height: 60 },
   'INVENTORY': { width: 150, height: 80 },
+  'INVENTORY_SLOTS': { width: 200, height: 200 },
+  'COMPENDIUM': { width: 150, height: 80 },
   'DECK': { width: 70, height: 40 },
   'DECK_OF_CARDS': { width: 100, height: 120 },
   'TIMER': { width: 80, height: 60 },

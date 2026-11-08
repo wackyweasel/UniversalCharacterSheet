@@ -29,6 +29,12 @@ interface InventoryItemDialogProps {
   onSave: (item: InventoryItem) => void;
   onDelete?: () => void;
   onClone?: (item: InventoryItem) => void;
+  /** Offers the "Keep adding items" toggle for new items. Disabled for single-item containers like slots. */
+  allowAddMultiple?: boolean;
+  /** What an item is called in the UI ("item" for inventories, "entry" for compendiums). */
+  noun?: string;
+  /** Offers quantity tracking. Disabled for compendiums. */
+  allowQuantity?: boolean;
 }
 
 const FIELD_TYPES: { value: Exclude<InventoryFieldType, 'textarea'>; label: string }[] = [
@@ -46,7 +52,12 @@ export default function InventoryItemDialog({
   onSave,
   onDelete,
   onClone,
+  allowAddMultiple = true,
+  noun = 'item',
+  allowQuantity = true,
 }: InventoryItemDialogProps) {
+  const nounLabel = noun.charAt(0).toUpperCase() + noun.slice(1);
+  const nounPlural = noun === 'entry' ? 'entries' : `${noun}s`;
   const isEditing = Boolean(item);
   const [draft, setDraft] = useState<InventoryItem>(() => item
     ? { ...item, fields: linkInventoryFieldsToTemplates(item.fields, defaultFields) }
@@ -235,25 +246,26 @@ export default function InventoryItemDialog({
       >
         <div className="flex items-center justify-between border-b border-theme-border px-3 py-2">
           <h2 id="inventory-item-dialog-title" className="font-heading text-base font-bold">
-            {isEditing ? 'Edit item' : 'Add item'}
+            {isEditing ? `Edit ${noun}` : `Add ${noun}`}
           </h2>
-          <button type="button" onClick={onClose} aria-label="Close item dialog" className="widget-control h-7 w-7">
+          <button type="button" onClick={onClose} aria-label={`Close ${noun} dialog`} className="widget-control h-7 w-7">
             <XIcon className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
           <label className="block">
-            <span className="mb-0.5 block text-xs font-semibold">Item name</span>
+            <span className="mb-0.5 block text-xs font-semibold">{nounLabel} name</span>
             <input
               autoFocus
               value={draft.name}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              placeholder="What is this item?"
+              placeholder={noun === 'item' ? 'What is this item?' : 'What is this entry?'}
               className={inputClass}
             />
           </label>
 
+          {allowQuantity && (
           <div className="space-y-2">
             <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold">
               <input
@@ -278,6 +290,7 @@ export default function InventoryItemDialog({
               </label>
             )}
           </div>
+          )}
 
           <section>
             <label className="flex cursor-pointer items-center gap-2 font-heading text-xs font-bold">
@@ -295,7 +308,7 @@ export default function InventoryItemDialog({
                   key={draft.id}
                   value={draft.description ?? ''}
                   onChange={(description) => setDraft((current) => ({ ...current, description }))}
-                  ariaLabel="Item description"
+                  ariaLabel={`${nounLabel} description`}
                   placeholder="Add a description..."
                 />
               </div>
@@ -305,7 +318,7 @@ export default function InventoryItemDialog({
           <section>
             <h3 className="font-heading text-xs font-bold">Default attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
-              Fill in the attributes configured for this inventory.
+              Fill in the attributes configured for this {noun === 'entry' ? 'compendium' : 'inventory'}.
             </p>
 
             <div className="mt-1.5 space-y-1.5 border-y border-theme-border py-1.5">
@@ -330,7 +343,7 @@ export default function InventoryItemDialog({
               <div>
                 <h3 className="font-heading text-xs font-bold">Additional attributes</h3>
                 <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
-                  Add information needed only for this item.
+                  Add information needed only for this {noun}.
                 </p>
               </div>
               <button type="button" onClick={addField} className="widget-control flex items-center gap-1 px-2 py-1 text-[11px]">
@@ -400,8 +413,8 @@ export default function InventoryItemDialog({
             </div>
           </section>
 
-          {!isEditing && (
-            <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} label="Keep adding items" />
+          {!isEditing && allowAddMultiple && (
+            <AddMultipleToggle checked={addMultiple} onChange={setAddMultiple} label={`Keep adding ${nounPlural}`} />
           )}
         </div>
 
@@ -410,14 +423,14 @@ export default function InventoryItemDialog({
             {isEditing && onDelete && (
               confirmDelete ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-theme-muted">Delete this item?</span>
+                  <span className="text-xs text-theme-muted">Delete this {noun}?</span>
                   <button type="button" onClick={onDelete} className="rounded-button bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">Delete</button>
                   <button type="button" onClick={() => setConfirmDelete(false)} className="widget-control px-2 py-1 text-xs">Keep</button>
                 </div>
               ) : (
                 <button type="button" onClick={() => setConfirmDelete(true)} className="widget-control flex items-center gap-1 px-2 py-1 text-xs text-red-500">
                   <TrashIcon className="h-3 w-3" />
-                  Delete item
+                  Delete {noun}
                 </button>
               )
             )}
@@ -425,12 +438,12 @@ export default function InventoryItemDialog({
           <div className="flex items-center gap-2">
             {isEditing && onClone && (
               <button type="button" onClick={handleClone} disabled={!draft.name.trim()} className="widget-control px-2.5 py-1 text-xs">
-                Clone item
+                Clone {noun}
               </button>
             )}
             <button type="button" onClick={onClose} className="widget-control px-2.5 py-1 text-xs">Cancel</button>
             <button type="submit" disabled={!draft.name.trim()} className="widget-control widget-control--primary px-3 py-1 text-xs">
-              {isEditing ? 'Save item' : 'Add item'}
+              {isEditing ? `Save ${noun}` : `Add ${noun}`}
             </button>
           </div>
         </div>

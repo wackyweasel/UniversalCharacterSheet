@@ -9,10 +9,15 @@ import { applyRest, type RestOptions } from '../utils/rest';
 import { useTimelineStore } from './useTimelineStore';
 import {
   ensureItemWeight,
+  getDefaultCompendiumData,
   getDefaultInventoryData,
+  canMoveInventoryItemBetween,
+  isInventoryWidgetType,
   moveInventoryItemBetweenLists,
+  moveInventoryItemToSlot,
   splitInventoryItem as splitInventoryItemData,
 } from '../utils/inventory';
+import { getDefaultInventorySlotsData, INVENTORY_SLOTS_DEFAULT_SIZE } from '../utils/inventorySlots';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
@@ -229,6 +234,8 @@ interface StoreState {
     targetWidgetId: string;
     itemId: string;
     targetIndex: number;
+    /** Drop onto a slot of an inventory slots widget instead of a list position. */
+    targetSlotId?: string;
   }) => void;
   saveInventoryItem: (options: {
     sourceWidgetId: string;
@@ -898,11 +905,11 @@ export const useStore = create<StoreState>((set, get) => {
         const DEFAULT_WIDTH = 200;
         const DEFAULT_HEIGHT = 120;
         const newWidgetWidth = snapWidgetDimension(
-          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' ? 300 : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : type === 'THRESHOLD_TRACK' ? 280 : type === 'XP_LEVEL' ? 240 : type === 'SKILL_TREE' ? 440 : type === 'DICE_POOL' ? 260 : type === 'CALENDAR' ? 340 : DEFAULT_WIDTH,
+          type === 'GRID_MAP' ? 360 : type === 'INVENTORY' || type === 'COMPENDIUM' ? 300 : type === 'INVENTORY_SLOTS' ? INVENTORY_SLOTS_DEFAULT_SIZE.width : type === 'PROGRESS_CLOCK' ? 360 : type === 'DECK_OF_CARDS' ? 150 : type === 'LABEL' ? 160 : type === 'TOGGLE' ? 140 : type === 'THRESHOLD_TRACK' ? 280 : type === 'XP_LEVEL' ? 240 : type === 'SKILL_TREE' ? 440 : type === 'DICE_POOL' ? 260 : type === 'CALENDAR' ? 340 : DEFAULT_WIDTH,
           DEFAULT_WIDTH,
         ) ?? DEFAULT_WIDTH;
         const newWidgetHeight = snapWidgetDimension(
-          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' ? 180 : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : type === 'THRESHOLD_TRACK' || type === 'XP_LEVEL' ? 100 : type === 'SKILL_TREE' ? 190 : type === 'DICE_POOL' ? 230 : type === 'CALENDAR' ? 340 : DEFAULT_HEIGHT,
+          type === 'GRID_MAP' ? 320 : type === 'INVENTORY' || type === 'COMPENDIUM' ? 180 : type === 'INVENTORY_SLOTS' ? INVENTORY_SLOTS_DEFAULT_SIZE.height : type === 'DECK_OF_CARDS' ? 210 : type === 'PROGRESS_CLOCK' ? 180 : type === 'LABEL' ? 30 : type === 'TOGGLE' ? 50 : type === 'WALLET' ? 140 : type === 'THRESHOLD_TRACK' || type === 'XP_LEVEL' ? 100 : type === 'SKILL_TREE' ? 190 : type === 'DICE_POOL' ? 230 : type === 'CALENDAR' ? 340 : DEFAULT_HEIGHT,
           DEFAULT_HEIGHT,
         ) ?? DEFAULT_HEIGHT;
         const GAP = 20;
@@ -1007,6 +1014,8 @@ export const useStore = create<StoreState>((set, get) => {
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'INVENTORY': 'Inventory',
+            'COMPENDIUM': 'Compendium',
+            'INVENTORY_SLOTS': 'Equipment',
             'DECK': 'Legacy Deck of Cards',
             'DECK_OF_CARDS': 'Deck of Cards',
             'TIMER': 'Timer',
@@ -1084,6 +1093,8 @@ export const useStore = create<StoreState>((set, get) => {
               gridMapDistanceUnit: 'ft',
             } : {}),
             ...(type === 'INVENTORY' ? getDefaultInventoryData() : {}),
+            ...(type === 'COMPENDIUM' ? getDefaultCompendiumData() : {}),
+            ...(type === 'INVENTORY_SLOTS' ? getDefaultInventorySlotsData() : {}),
             ...(type === 'WALLET' ? { walletCurrencies: createDefaultWalletCurrencies(), walletShowTotal: true } : {}),
             ...(type === 'THRESHOLD_TRACK' ? {
               currentValue: 0,
@@ -2026,33 +2037,45 @@ export const useStore = create<StoreState>((set, get) => {
       get().gatherCardTableCards(widgetId, false, true);
     },
 
-    moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex }) => {
+    moveInventoryItem: ({ sourceWidgetId, targetWidgetId, itemId, targetIndex, targetSlotId }) => {
       const state = get();
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
-      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'INVENTORY' || targetWidget.type !== 'INVENTORY') return;
+      if (!sourceWidget || !targetWidget || !isInventoryWidgetType(sourceWidget.type) || !isInventoryWidgetType(targetWidget.type)) return;
+      if (!canMoveInventoryItemBetween(sourceWidget.type, targetWidget.type)) return;
+      // Slots need a slot to drop on; lists need a position.
+      if ((targetWidget.type === 'INVENTORY_SLOTS') !== (targetSlotId !== undefined)) return;
 
       const sourceItems = sourceWidget.data.inventoryItems || [];
       const targetItems = sourceWidgetId === targetWidgetId
         ? sourceItems
         : targetWidget.data.inventoryItems || [];
-      const result = moveInventoryItemBetweenLists(
-        sourceItems,
-        targetItems,
-        itemId,
-        targetIndex,
-        targetWidget.data.inventoryEncumbrance?.enabled === true,
-      );
+      const result = targetSlotId !== undefined
+        ? moveInventoryItemToSlot(
+          sourceItems,
+          targetItems,
+          itemId,
+          targetSlotId,
+          sourceWidget.data.inventoryEncumbrance?.enabled === true,
+          targetWidget.data.inventoryEncumbrance?.enabled === true,
+        )
+        : moveInventoryItemBetweenLists(
+          sourceItems,
+          targetItems,
+          itemId,
+          targetIndex,
+          targetWidget.data.inventoryEncumbrance?.enabled === true,
+        );
       if (!result) return;
 
-      get()._takeSnapshot(sourceWidgetId === targetWidgetId ? 'Reorder inventory item' : 'Move inventory item');
+      get()._takeSnapshot(sourceWidgetId === targetWidgetId && targetSlotId === undefined ? 'Reorder inventory item' : 'Move inventory item');
       set((currentState) => {
         recordStoreEvent(currentState, {
-          eventName: sourceWidgetId === targetWidgetId ? 'inventory_item_reordered' : 'inventory_item_moved',
+          eventName: sourceWidgetId === targetWidgetId && targetSlotId === undefined ? 'inventory_item_reordered' : 'inventory_item_moved',
           category: 'widget',
-          widgetType: 'INVENTORY',
+          widgetType: targetWidget.type,
           source: 'inventory',
           metadata: { sourceWidgetId, targetWidgetId },
         });
@@ -2082,7 +2105,8 @@ export const useStore = create<StoreState>((set, get) => {
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
-      if (!sourceWidget || !targetWidget || sourceWidget.type !== 'INVENTORY' || targetWidget.type !== 'INVENTORY') return;
+      if (!sourceWidget || !targetWidget || !isInventoryWidgetType(sourceWidget.type) || !isInventoryWidgetType(targetWidget.type)) return;
+      if (!canMoveInventoryItemBetween(sourceWidget.type, targetWidget.type)) return;
 
       const sourceItems = sourceWidget.data.inventoryItems || [];
       const sourceIndex = sourceItems.findIndex((entry) => entry.id === item.id);
@@ -2118,7 +2142,7 @@ export const useStore = create<StoreState>((set, get) => {
               ? 'inventory_item_edited'
               : 'inventory_item_moved',
           category: 'widget',
-          widgetType: 'INVENTORY',
+          widgetType: targetWidget.type,
           source: 'inventory_dialog',
           metadata: { sourceWidgetId, targetWidgetId },
         });
@@ -2147,7 +2171,7 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
       const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
       const widget = activeSheet?.widgets.find((entry) => entry.id === widgetId);
-      if (!widget || widget.type !== 'INVENTORY') return;
+      if (!widget || (widget.type !== 'INVENTORY' && widget.type !== 'COMPENDIUM')) return;
 
       const items = widget.data.inventoryItems || [];
       const itemIndex = items.findIndex((entry) => entry.id === itemId);
@@ -2166,7 +2190,7 @@ export const useStore = create<StoreState>((set, get) => {
         recordStoreEvent(currentState, {
           eventName: 'inventory_item_split',
           category: 'widget',
-          widgetType: 'INVENTORY',
+          widgetType: widget.type,
           source: 'inventory_quantity_dialog',
           metadata: { widgetId, itemId, keptQuantity, splitQuantity },
         });

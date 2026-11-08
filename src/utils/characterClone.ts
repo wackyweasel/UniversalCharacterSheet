@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { CardTableCard, Character, CharacterEvent, CharacterEventEffect, Sheet, Widget, WidgetType } from '../types';
 import { RUN_EVENT_KIND } from '../events/constants';
 import { normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
-import { cloneInventoryData } from './inventory';
+import { cloneInventoryData, isInventoryWidgetType } from './inventory';
 import { copyVariableData } from './variableGroups';
 import {
   getCardTableBackDesign,
@@ -40,7 +40,7 @@ function cloneCardTableData(data: Widget['data'], widgetId: string): Widget['dat
 export function cloneWidgetData(type: WidgetType, data: Widget['data'], widgetId: string): Widget['data'] {
   return type === 'DECK_OF_CARDS'
     ? cloneCardTableData(data, widgetId)
-    : type === 'INVENTORY'
+    : isInventoryWidgetType(type)
       ? cloneInventoryData(JSON.parse(JSON.stringify(data)))
       : JSON.parse(JSON.stringify(data));
 }

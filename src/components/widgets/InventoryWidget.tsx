@@ -1,7 +1,7 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
-import { InventoryItem, InventoryItemField, Widget } from '../../types';
+import { InventoryItem, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import {
@@ -9,8 +9,9 @@ import {
   duplicateInventoryItem,
   getInventoryItemQuantity,
   getInventoryLoad,
+  getInventoryWidgetTerms,
 } from '../../utils/inventory';
-import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
+import { useInventoryItemDrag } from '../../hooks/useInventoryItemDrag';
 import { InventoryEditor } from '../editors/InventoryEditor';
 import { ChevronDownIcon, GripVerticalIcon, MinusIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
 import { InlineDiceRichText } from '../InlineDiceRichText';
@@ -20,6 +21,13 @@ import { SelectionActions } from './StructureDialogControls';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import InventoryItemDialog from './InventoryItemDialog';
 import InventoryQuantityDialog from './InventoryQuantityDialog';
+import {
+  describeInventoryItemChange,
+  formatFieldValue,
+  InventoryQuantity,
+  isInventoryFieldEmpty,
+  LoadMeter,
+} from './inventoryItemDisplay';
 
 interface InventoryWidgetProps {
   widget: Widget;
@@ -30,161 +38,6 @@ interface InventoryWidgetProps {
   interactive?: boolean;
 }
 
-interface DragTarget {
-  widgetId: string;
-  index: number;
-}
-
-interface ActiveDrag {
-  pointerId: number;
-  item: InventoryItem;
-  sourceElement: HTMLElement;
-  sourceZone: HTMLElement;
-  sourceIndex: number;
-  ghostElement: HTMLElement | null;
-  startX: number;
-  startY: number;
-  startScrollTop: number;
-  scaleX: number;
-  scaleY: number;
-  didMove: boolean;
-  target: DragTarget | null;
-}
-
-function formatFieldValue(item: InventoryItem, fieldIndex: number): string {
-  const field = item.fields[fieldIndex];
-  if (!field) return '';
-  if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
-  if (field.type === 'number') {
-    const value = Number(field.value);
-    const formattedValue = Number.isFinite(value)
-      ? value.toLocaleString(undefined, { maximumFractionDigits: 3 })
-      : '0';
-    const quantity = getInventoryItemQuantity(item);
-    if (field.reserved === 'weight' && quantity !== undefined && quantity !== 1) {
-      const multipliedValue = Number.isFinite(value) ? value * quantity : 0;
-      return `${formattedValue} (${multipliedValue.toLocaleString(undefined, { maximumFractionDigits: 3 })})`;
-    }
-    return formattedValue;
-  }
-  return String(field.value) || '-';
-}
-
-function isInventoryFieldEmpty(field: InventoryItemField): boolean {
-  return (field.type === 'text' || field.type === 'textarea' || field.type === 'number')
-    && String(field.value).trim() === '';
-}
-
-function formatTimelineFieldValue(field: InventoryItemField): string {
-  if (field.type === 'checkbox') return field.value ? 'Yes' : 'No';
-  return String(field.value) || '-';
-}
-
-function describeInventoryItemChange(previous: InventoryItem, next: InventoryItem): string | null {
-  const changes: string[] = [];
-  if (previous.name !== next.name) changes.push(`renamed to "${next.name}"`);
-
-  const previousQuantity = getInventoryItemQuantity(previous);
-  const nextQuantity = getInventoryItemQuantity(next);
-  if (previousQuantity !== nextQuantity) {
-    changes.push(`quantity ${previousQuantity ?? 'none'} → ${nextQuantity ?? 'none'}`);
-  }
-
-  next.fields.forEach((field) => {
-    const previousField = previous.fields.find((entry) => entry.id === field.id);
-    const fieldName = field.name || 'Field';
-    if (!previousField) changes.push(`added ${fieldName}`);
-    else if (previousField.value !== field.value) {
-      changes.push(`${fieldName} ${formatTimelineFieldValue(previousField)} → ${formatTimelineFieldValue(field)}`);
-    }
-  });
-  previous.fields
-    .filter((field) => !next.fields.some((entry) => entry.id === field.id))
-    .forEach((field) => changes.push(`removed ${field.name || 'Field'}`));
-
-  if ((previous.description || '') !== (next.description || '')) changes.push('description updated');
-  return changes.length > 0 ? `${previous.name}: ${changes.join(', ')}` : null;
-}
-
-function findInventoryWidget(widgetId: string): Widget | undefined {
-  const state = useStore.getState();
-  const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
-  return character?.sheets
-    .find((sheet) => sheet.id === character.activeSheetId)
-    ?.widgets.find((entry) => entry.id === widgetId);
-}
-
-function LoadMeter({ value, capacity, unit, label }: { value: number; capacity?: number; unit: string; label: string }) {
-  const hasCapacity = typeof capacity === 'number' && Number.isFinite(capacity) && capacity >= 0;
-  const overloaded = hasCapacity && value > capacity;
-  const percentage = hasCapacity && capacity > 0 ? Math.min(100, (value / capacity) * 100) : 0;
-  const formattedValue = value.toLocaleString(undefined, { maximumFractionDigits: 3 });
-  const formattedCapacity = hasCapacity
-    ? capacity.toLocaleString(undefined, { maximumFractionDigits: 3 })
-    : '';
-  const overage = hasCapacity
-    ? (value - capacity).toLocaleString(undefined, { maximumFractionDigits: 3 })
-    : '';
-
-  return (
-    <div
-      className={`inventory-load ${overloaded ? 'inventory-load--over' : ''}`}
-      role={hasCapacity ? 'progressbar' : 'status'}
-      aria-label={`${label}: ${value}${hasCapacity ? ` of ${capacity}` : ''} ${unit}`}
-      aria-valuemin={hasCapacity ? 0 : undefined}
-      aria-valuemax={hasCapacity ? capacity : undefined}
-      aria-valuenow={hasCapacity ? value : undefined}
-    >
-      <div className="inventory-load__summary">
-        <span className="inventory-load__label">{label}</span>
-        <span className="inventory-load__value">
-          <strong>{formattedValue}</strong>
-          {hasCapacity && <span className="inventory-load__capacity"> / {formattedCapacity}</span>}
-          <span className="inventory-load__unit"> {unit}</span>
-        </span>
-      </div>
-      {overloaded && <div className="inventory-load__warning">Over by {overage} {unit}</div>}
-      {hasCapacity && (
-        <div className="inventory-load__track" aria-hidden="true">
-          <div className="inventory-load__fill" style={{ width: `${percentage}%` }} />
-          <span className="inventory-load__limit" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface InventoryQuantityProps {
-  item: InventoryItem;
-  canInteract: boolean;
-  onEdit: (item: InventoryItem) => void;
-}
-
-function InventoryQuantity({ item, canInteract, onEdit }: InventoryQuantityProps) {
-  const quantity = getInventoryItemQuantity(item);
-  if (quantity === undefined) return null;
-
-  const formattedQuantity = quantity.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (!canInteract) return <span> (x{formattedQuantity})</span>;
-
-  return (
-    <span className="whitespace-nowrap">(x<button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onEdit(item);
-      }}
-      onMouseDown={(event) => event.stopPropagation()}
-      aria-label={`Edit quantity for ${item.name}`}
-      title="Edit quantity"
-      data-touch-camera-ignore="true"
-      className="border-b border-dashed border-theme-muted font-bold text-theme-ink hover:border-theme-accent hover:text-theme-accent"
-    >
-      {formattedQuantity}
-    </button>)</span>
-  );
-}
-
 function InventoryWidget({
   widget,
   mode,
@@ -192,7 +45,6 @@ function InventoryWidget({
   interactive = true,
 }: InventoryWidgetProps) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const moveInventoryItem = useStore((state) => state.moveInventoryItem);
   const saveInventoryItem = useStore((state) => state.saveInventoryItem);
   const splitInventoryItem = useStore((state) => state.splitInventoryItem);
   const characters = useStore((state) => state.characters);
@@ -200,7 +52,10 @@ function InventoryWidget({
   const activeCharacter = characters.find((character) => character.id === activeCharacterId);
 
   const { label, inventoryItems = [], inventoryDefaultFields = [] } = widget.data;
-  const encumbrance = widget.data.inventoryEncumbrance;
+  const isCompendium = widget.type === 'COMPENDIUM';
+  const { title: defaultTitle, noun } = getInventoryWidgetTerms(widget.type);
+  const timelineTitle = label || defaultTitle;
+  const encumbrance = isCompendium ? undefined : widget.data.inventoryEncumbrance;
   const isPrintMode = mode === 'print';
   const canInteract = interactive && !isPrintMode;
   const controlsVisible = canInteract && showFieldControls && widget.data.showFieldControls !== false;
@@ -212,217 +67,7 @@ function InventoryWidget({
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(() => new Set());
   const [expandedDescriptionIds, setExpandedDescriptionIds] = useState<Set<string>>(() => new Set());
-  const dragRef = useRef<ActiveDrag | null>(null);
-  const removeDragListenersRef = useRef<(() => void) | null>(null);
-  const activeDropZoneRef = useRef<HTMLElement | null>(null);
-
-  const moveItemWithTimeline = (targetWidgetId: string, itemId: string, targetIndex: number) => {
-    const item = inventoryItems.find((entry) => entry.id === itemId);
-    const previousIndex = inventoryItems.findIndex((entry) => entry.id === itemId);
-    moveInventoryItem({ sourceWidgetId: widget.id, targetWidgetId, itemId, targetIndex });
-    if (!item) return;
-
-    const targetWidget = findInventoryWidget(targetWidgetId);
-    const nextIndex = targetWidget?.data.inventoryItems?.findIndex((entry) => entry.id === itemId) ?? -1;
-    if (nextIndex < 0) return;
-
-    if (targetWidgetId === widget.id) {
-      if (nextIndex === previousIndex) return;
-      addTimelineEvent(label || 'Inventory', 'INVENTORY', `Reordered ${item.name} (position ${previousIndex + 1} → ${nextIndex + 1})`, '↕️');
-    } else {
-      addTimelineEvent(label || 'Inventory', 'INVENTORY', `Moved ${item.name} to ${targetWidget?.data.label || 'another inventory'}`, '📦');
-    }
-  };
-
-  const clearDragPreview = () => {
-    document.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]').forEach((element) => {
-      element.classList.remove('inventory-item--preview-shift');
-      element.style.removeProperty('transform');
-    });
-    activeDropZoneRef.current?.classList.remove('inventory-drop-zone--active');
-    activeDropZoneRef.current = null;
-  };
-
-  const shiftItem = (element: HTMLElement, viewportOffsetY: number) => {
-    const rect = element.getBoundingClientRect();
-    const scaleY = element.offsetHeight > 0 ? rect.height / element.offsetHeight : 1;
-    element.classList.add('inventory-item--preview-shift');
-    element.style.transform = `translate3d(0, ${viewportOffsetY / scaleY}px, 0)`;
-  };
-
-  const updateDragPreview = (drag: ActiveDrag, target: DragTarget | null) => {
-    clearDragPreview();
-    if (!target) return;
-
-    const targetZone = Array.from(document.querySelectorAll<HTMLElement>('[data-inventory-drop-zone="true"]'))
-      .find((zone) => zone.dataset.inventoryWidgetId === target.widgetId);
-    if (!targetZone) return;
-    targetZone.classList.add('inventory-drop-zone--active');
-    activeDropZoneRef.current = targetZone;
-
-    const sourceRows = Array.from(drag.sourceZone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
-    const targetRows = Array.from(targetZone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
-    const draggedHeight = drag.sourceElement.getBoundingClientRect().height;
-    const sourceGap = parseFloat(getComputedStyle(drag.sourceZone).rowGap || '0');
-    const targetGap = parseFloat(getComputedStyle(targetZone).rowGap || '0');
-
-    if (target.widgetId === widget.id) {
-      const destinationIndex = target.index > drag.sourceIndex ? target.index - 1 : target.index;
-      if (destinationIndex < drag.sourceIndex) {
-        sourceRows.slice(destinationIndex, drag.sourceIndex).forEach((element) => shiftItem(element, draggedHeight + sourceGap));
-      } else if (destinationIndex > drag.sourceIndex) {
-        sourceRows.slice(drag.sourceIndex + 1, destinationIndex + 1).forEach((element) => shiftItem(element, -(draggedHeight + sourceGap)));
-      }
-      return;
-    }
-
-    sourceRows.slice(drag.sourceIndex + 1).forEach((element) => shiftItem(element, -(draggedHeight + sourceGap)));
-    targetRows.slice(target.index).forEach((element) => shiftItem(element, draggedHeight + targetGap));
-  };
-
-  const captureItemRects = () => new Map(
-    Array.from(document.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'))
-      .map((element) => [element.dataset.inventoryItemId || '', element.getBoundingClientRect()] as const)
-      .filter(([id]) => Boolean(id)),
-  );
-
-  const animateToCommittedPositions = (previousRects: Map<string, DOMRect>) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      document.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]').forEach((element) => {
-        const previousRect = previousRects.get(element.dataset.inventoryItemId || '');
-        if (!previousRect) return;
-        const nextRect = element.getBoundingClientRect();
-        const deltaX = previousRect.left - nextRect.left;
-        const deltaY = previousRect.top - nextRect.top;
-        if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
-        element.getAnimations().forEach((animation) => animation.cancel());
-        element.animate(
-          [{ transform: `translate(${deltaX}px, ${deltaY}px)` }, { transform: 'translate(0, 0)' }],
-          { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
-        );
-      });
-    }));
-  };
-
-  const resolveDropTarget = (clientX: number, clientY: number): DragTarget | null => {
-    const zone = document.elementsFromPoint(clientX, clientY)
-      .map((element) => element.closest<HTMLElement>('[data-inventory-drop-zone="true"]'))
-      .find((element): element is HTMLElement => Boolean(element?.dataset.inventoryWidgetId));
-    if (!zone) return null;
-
-    if (activeDropZoneRef.current !== zone) {
-      activeDropZoneRef.current?.classList.remove('inventory-drop-zone--active');
-      zone.classList.add('inventory-drop-zone--active');
-      activeDropZoneRef.current = zone;
-    }
-
-    const zoneRect = zone.getBoundingClientRect();
-    if (zone.scrollHeight > zone.clientHeight) {
-      if (clientY < zoneRect.top + 28) zone.scrollTop -= 12;
-      else if (clientY > zoneRect.bottom - 28) zone.scrollTop += 12;
-    }
-
-    const rows = Array.from(zone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
-    const targetIndex = rows.findIndex((row) => clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2);
-    const index = targetIndex < 0 ? rows.length : targetIndex;
-    return {
-      widgetId: zone.dataset.inventoryWidgetId || '',
-      index,
-    };
-  };
-
-  function finishDrag(pointerId?: number, commit = true) {
-    const drag = dragRef.current;
-    if (pointerId !== undefined && drag?.pointerId !== pointerId) return;
-    removeDragListenersRef.current?.();
-    removeDragListenersRef.current = null;
-    if (drag) {
-      const previousRects = captureItemRects();
-      if (drag.ghostElement) previousRects.set(drag.item.id, drag.ghostElement.getBoundingClientRect());
-      drag.ghostElement?.remove();
-      drag.sourceElement.classList.remove('inventory-item--dragging');
-      clearDragPreview();
-      if (commit && drag.didMove && drag.target) {
-        moveItemWithTimeline(drag.target.widgetId, drag.item.id, drag.target.index);
-        animateToCommittedPositions(previousRects);
-      }
-    }
-    dragRef.current = null;
-    clearDragPreview();
-  }
-
-  const handleDragMove = (event: PointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    if (!drag.didMove && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
-    event.preventDefault();
-    if (!drag.didMove) {
-      drag.didMove = true;
-      drag.sourceElement.classList.add('inventory-item--dragging');
-      const sourceRect = drag.sourceElement.getBoundingClientRect();
-      const ghost = drag.sourceElement.cloneNode(true) as HTMLElement;
-      ghost.removeAttribute('data-inventory-item-row');
-      ghost.classList.remove('inventory-item--dragging', 'inventory-item--preview-shift');
-      ghost.classList.add('inventory-item--drag-ghost');
-      ghost.style.left = `${sourceRect.left}px`;
-      ghost.style.top = `${sourceRect.top}px`;
-      ghost.style.width = `${drag.sourceElement.offsetWidth}px`;
-      ghost.style.height = `${drag.sourceElement.offsetHeight}px`;
-      document.body.appendChild(ghost);
-      drag.ghostElement = ghost;
-    }
-    const sourceScrollDelta = drag.sourceZone.scrollTop - drag.startScrollTop;
-    drag.ghostElement!.style.transform = `translate3d(${event.clientX - drag.startX}px, ${event.clientY - drag.startY + sourceScrollDelta}px, 0) scale(${drag.scaleX * 1.02}, ${drag.scaleY * 1.02}) rotate(0.35deg)`;
-    drag.target = resolveDropTarget(event.clientX, event.clientY);
-    updateDragPreview(drag, drag.target);
-  };
-
-  const startDrag = (item: InventoryItem, event: React.PointerEvent<HTMLButtonElement>) => {
-    if (!canInteract || event.button !== 0) return;
-    const sourceElement = event.currentTarget.closest<HTMLElement>('[data-inventory-item-row="true"]');
-    const sourceZone = sourceElement?.closest<HTMLElement>('[data-inventory-drop-zone="true"]');
-    if (!sourceElement || !sourceZone) return;
-    const sourceRows = Array.from(sourceZone.querySelectorAll<HTMLElement>('[data-inventory-item-row="true"]'));
-    const sourceIndex = sourceRows.indexOf(sourceElement);
-    const sourceRect = sourceElement.getBoundingClientRect();
-    event.preventDefault();
-    event.stopPropagation();
-    removeDragListenersRef.current?.();
-    dragRef.current = {
-      pointerId: event.pointerId,
-      item,
-      sourceElement,
-      sourceZone,
-      sourceIndex,
-      ghostElement: null,
-      startX: event.clientX,
-      startY: event.clientY,
-      startScrollTop: sourceZone.scrollTop,
-      scaleX: sourceElement.offsetWidth > 0 ? sourceRect.width / sourceElement.offsetWidth : 1,
-      scaleY: sourceElement.offsetHeight > 0 ? sourceRect.height / sourceElement.offsetHeight : 1,
-      didMove: false,
-      target: null,
-    };
-    const onMove = (pointerEvent: PointerEvent) => handleDragMove(pointerEvent);
-    const onUp = (pointerEvent: PointerEvent) => finishDrag(pointerEvent.pointerId);
-    const onCancel = (pointerEvent: PointerEvent) => finishDrag(pointerEvent.pointerId, false);
-    const onBlur = () => finishDrag(undefined, false);
-    window.addEventListener('pointermove', onMove, { passive: false });
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
-    window.addEventListener('blur', onBlur);
-    removeDragListenersRef.current = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
-      window.removeEventListener('blur', onBlur);
-    };
-    event.currentTarget.focus({ preventScroll: true });
-  };
-
-  useTouchCameraPinchCancellation(() => finishDrag(undefined, false));
-  useEffect(() => () => removeDragListenersRef.current?.(), []);
+  const { startDrag, moveItemWithTimeline } = useInventoryItemDrag({ widget, items: inventoryItems, canInteract });
 
   useEffect(() => {
     if (!removeDialogOpen) return;
@@ -460,7 +105,7 @@ function InventoryWidget({
   const deleteItem = (itemId: string) => {
     const removedItem = inventoryItems.find((item) => item.id === itemId);
     updateWidgetData(widget.id, { inventoryItems: inventoryItems.filter((item) => item.id !== itemId) });
-    if (removedItem) addTimelineEvent(label || 'Inventory', 'INVENTORY', `Removed: ${removedItem.name}`, '➖');
+    if (removedItem) addTimelineEvent(timelineTitle, widget.type, `Removed: ${removedItem.name}`, '➖');
     setDialogItem(undefined);
   };
 
@@ -484,7 +129,7 @@ function InventoryWidget({
     updateWidgetData(widget.id, {
       inventoryItems: inventoryItems.filter((item) => !selectedItemIds.has(item.id)),
     });
-    if (removedNames.length > 0) addTimelineEvent(label || 'Inventory', 'INVENTORY', `Removed: ${removedNames.join(', ')}`, '➖');
+    if (removedNames.length > 0) addTimelineEvent(timelineTitle, widget.type, `Removed: ${removedNames.join(', ')}`, '➖');
     closeRemoveDialog();
   };
 
@@ -510,10 +155,10 @@ function InventoryWidget({
   return (
     <div className="flex h-full min-h-0 flex-col gap-1 overflow-hidden">
       <div className={`inventory-widget__header widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 ${controlsVisible ? 'inventory-widget__header--edit' : ''}`}>
-        <div className="widget-structure-title min-w-0 flex-1 truncate">{label || 'Inventory'}</div>
+        <div className="widget-structure-title min-w-0 flex-1 truncate">{label || defaultTitle}</div>
         {controlsVisible && (
           <div className="widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
-            <Tooltip content={inventoryItems.length > 0 ? 'Choose items to remove' : 'No items to remove'}>
+            <Tooltip content={inventoryItems.length > 0 ? `Choose ${noun === 'item' ? 'items' : 'entries'} to remove` : `No ${noun === 'item' ? 'items' : 'entries'} to remove`}>
               <button
                 type="button"
                 onClick={() => {
@@ -522,18 +167,18 @@ function InventoryWidget({
                 }}
                 onMouseDown={(event) => event.stopPropagation()}
                 disabled={inventoryItems.length === 0}
-                aria-label="Choose inventory items to remove"
+                aria-label={`Choose ${noun === 'item' ? 'inventory items' : 'compendium entries'} to remove`}
                 className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
               >
                 <MinusIcon className="h-3.5 w-3.5" />
               </button>
             </Tooltip>
-            <Tooltip content="Add inventory item">
+            <Tooltip content={`Add ${defaultTitle.toLowerCase()} ${noun}`}>
               <button
                 type="button"
                 onClick={() => setDialogItem(null)}
                 onMouseDown={(event) => event.stopPropagation()}
-                aria-label="Add inventory item"
+                aria-label={`Add ${defaultTitle.toLowerCase()} ${noun}`}
                 className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
               >
                 <PlusIcon className="h-3.5 w-3.5" />
@@ -555,6 +200,7 @@ function InventoryWidget({
       <div
         data-inventory-drop-zone="true"
         data-inventory-widget-id={widget.id}
+        data-inventory-compendium={isCompendium ? 'true' : undefined}
         className="inventory-drop-zone flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-0.5"
         onWheel={(event) => {
           if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation();
@@ -562,8 +208,8 @@ function InventoryWidget({
       >
         {inventoryItems.length === 0 ? (
           <WidgetEmptyState
-            title={canInteract ? 'No items yet' : 'Empty inventory'}
-            hint={controlsVisible ? 'Add an item or drop one here.' : undefined}
+            title={canInteract ? `No ${noun === 'item' ? 'items' : 'entries'} yet` : `Empty ${defaultTitle.toLowerCase()}`}
+            hint={controlsVisible ? `Add ${noun === 'item' ? 'an item' : 'an entry'} or drop one here.` : undefined}
             compact
           />
         ) : inventoryItems.map((item, index) => {
@@ -597,12 +243,16 @@ function InventoryWidget({
               {!canInteract && <span className={handleCellClass} />}
               <h3 className="col-start-2 row-start-1 -translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
                 <InlineFormulaText text={item.name} />
-                {' '}
-                <InventoryQuantity
-                  item={item}
-                  canInteract={canInteract}
-                  onEdit={setQuantityDialogItem}
-                />
+                {!isCompendium && (
+                  <>
+                    {' '}
+                    <InventoryQuantity
+                      item={item}
+                      canInteract={canInteract}
+                      onEdit={setQuantityDialogItem}
+                    />
+                  </>
+                )}
               </h3>
               <dl className={`col-span-2 col-start-2 row-start-2 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body ${hasVisibleFields ? '' : 'hidden'}`}>
                 {item.fields.map((field, fieldIndex) => (
@@ -676,6 +326,8 @@ function InventoryWidget({
         <InventoryItemDialog
           key={dialogItem?.id || 'new-item'}
           item={dialogItem || undefined}
+          noun={noun}
+          allowQuantity={!isCompendium}
           defaultFields={inventoryDefaultFields}
           onClose={() => setDialogItem(undefined)}
           onSave={(item) => {
@@ -687,11 +339,11 @@ function InventoryWidget({
             });
             if (!previousItem) {
               const quantity = getInventoryItemQuantity(item);
-              addTimelineEvent(label || 'Inventory', 'INVENTORY', `Added: ${item.name}${quantity !== undefined ? ` (x${quantity})` : ''}`, '➕');
+              addTimelineEvent(timelineTitle, widget.type, `Added: ${item.name}${quantity !== undefined ? ` (x${quantity})` : ''}`, '➕');
               return;
             }
             const description = describeInventoryItemChange(previousItem, item);
-            if (description) addTimelineEvent(label || 'Inventory', 'INVENTORY', description, '✏️');
+            if (description) addTimelineEvent(timelineTitle, widget.type, description, '✏️');
           }}
           onDelete={dialogItem ? () => deleteItem(dialogItem.id) : undefined}
           onClone={dialogItem ? (item) => {
@@ -702,7 +354,7 @@ function InventoryWidget({
               item: clone,
             });
             const quantity = getInventoryItemQuantity(clone);
-            addTimelineEvent(label || 'Inventory', 'INVENTORY', `Added: ${clone.name}${quantity !== undefined ? ` (x${quantity})` : ''}`, '➕');
+            addTimelineEvent(timelineTitle, widget.type, `Added: ${clone.name}${quantity !== undefined ? ` (x${quantity})` : ''}`, '➕');
           } : undefined}
         />
       )}
@@ -710,6 +362,7 @@ function InventoryWidget({
       {quantityDialogItem && canInteract && (
         <InventoryQuantityDialog
           key={quantityDialogItem.id}
+          heading={`${defaultTitle} quantity`}
           item={quantityDialogItem}
           onClose={() => setQuantityDialogItem(null)}
           onSave={(quantity) => {
@@ -720,7 +373,7 @@ function InventoryWidget({
               item: { ...quantityDialogItem, quantity },
             });
             if (quantity !== previousQuantity) {
-              addTimelineEvent(label || 'Inventory', 'INVENTORY', `${quantityDialogItem.name}: ${previousQuantity} → ${quantity}`, '🎒');
+              addTimelineEvent(timelineTitle, widget.type, `${quantityDialogItem.name}: ${previousQuantity} → ${quantity}`, '🎒');
             }
             setQuantityDialogItem(null);
           }}
@@ -731,13 +384,13 @@ function InventoryWidget({
               keptQuantity,
               splitQuantity,
             });
-            addTimelineEvent(label || 'Inventory', 'INVENTORY', `Split ${quantityDialogItem.name}: ${keptQuantity} kept, ${splitQuantity} separated`, '🎒');
+            addTimelineEvent(timelineTitle, widget.type, `Split ${quantityDialogItem.name}: ${keptQuantity} kept, ${splitQuantity} separated`, '🎒');
             setQuantityDialogItem(null);
           }}
         />
       )}
 
-      {weightOptionsOpen && canInteract && createPortal(
+      {weightOptionsOpen && canInteract && !isCompendium && createPortal(
         <div
           data-touch-camera-ignore="true"
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 p-4 animate-fade-in"
@@ -796,9 +449,9 @@ function InventoryWidget({
             onClick={(event) => event.stopPropagation()}
           >
             <h3 id={`inventory-remove-dialog-title-${widget.id}`} className="font-heading text-base font-bold">
-              Remove items
+              Remove {noun === 'item' ? 'items' : 'entries'}
             </h3>
-            <p className="mt-3 text-sm text-theme-muted">Select one or more items to remove.</p>
+            <p className="mt-3 text-sm text-theme-muted">Select one or more {noun === 'item' ? 'items' : 'entries'} to remove.</p>
             <SelectionActions
               onCheckAll={() => setSelectedItemIds(new Set(inventoryItems.map((item) => item.id)))}
               onUncheckAll={() => setSelectedItemIds(new Set())}

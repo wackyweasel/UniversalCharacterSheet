@@ -35,6 +35,7 @@ import MapSketcherWidget from './widgets/MapSketcherWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
+import InventorySlotsWidget from './widgets/InventorySlotsWidget';
 import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
@@ -70,6 +71,7 @@ const WIDGETS_WITH_HEADER_CONTROLS = new Set<WidgetType>([
   'SPELL_SLOT',
   'INITIATIVE_TRACKER',
   'INVENTORY',
+  'COMPENDIUM',
 ]);
 
 export default function VerticalWidget({
@@ -202,6 +204,8 @@ export default function VerticalWidget({
       case 'ROLL_TABLE': return <RollTableWidget {...props} />;
       case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
       case 'INVENTORY': return <InventoryWidget {...props} />;
+      case 'COMPENDIUM': return <InventoryWidget {...props} />;
+      case 'INVENTORY_SLOTS': return <InventorySlotsWidget {...props} />;
       case 'DECK': return <DeckWidget {...props} />;
       case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive showControls />;
       case 'TIMER': return <TimerWidget {...props} />;

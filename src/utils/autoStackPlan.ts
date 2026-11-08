@@ -21,7 +21,7 @@ const GRID = WIDGET_GRID_SIZE;
 // Content that fills whatever box it gets; scaled proportionally instead of measured.
 export const FILL_TYPES = new Set<WidgetType>(['IMAGE', 'MAP_SKETCHER', 'GRID_MAP', 'DECK_OF_CARDS', 'PROGRESS_CLOCK']);
 // Content that reflows and benefits from extra height.
-export const FLOWING_TYPES = new Set<WidgetType>(['TEXT', 'LIST', 'INVENTORY', 'TABLE', 'ROLL_TABLE', 'INITIATIVE_TRACKER', 'TIME_TRACKER', 'SKILL_TREE']);
+export const FLOWING_TYPES = new Set<WidgetType>(['TEXT', 'LIST', 'INVENTORY', 'COMPENDIUM', 'TABLE', 'ROLL_TABLE', 'INITIATIVE_TRACKER', 'TIME_TRACKER', 'SKILL_TREE']);
 // Narrower flowing content wraps into hard-to-read columns.
 export const MIN_FLOWING_WIDTH = 160;
 // Scrolling widgets never shrink below this, so they stay usable.

@@ -38,6 +38,14 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.15.0',
+    changes: [
+      'New Equipment widget: show what your character wears and carries. Place named slots (head, torso, hands, rings, amulet, boots and more) wherever you like and size them freely.',
+      'Items work just like in the Inventory widget, with the same attributes, weight and encumbrance. Drag items between an Equipment widget and an Inventory widget to equip or unequip them.',
+      'New Compendium widget: an Inventory-style list for anything that is not carried gear, such as spells, talents, skills or enemy stat blocks. Same attributes and descriptions, without weight or quantity.',
+    ],
+  },
+  {
     version: '1.14.2',
     changes: [
       'Notes: the formatting toolbar is now larger, matching the table toolbar, and works on touch devices.',

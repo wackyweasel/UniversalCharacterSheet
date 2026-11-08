@@ -8,6 +8,7 @@ import {
   InventoryItem,
   InventoryItemField,
   WidgetData,
+  WidgetType,
 } from '../types';
 
 export const DEFAULT_INVENTORY_ENCUMBRANCE: InventoryEncumbranceSettings = {
@@ -30,6 +31,14 @@ export function getDefaultInventoryData(): Pick<
     inventoryItems: [],
     inventoryDefaultFields: ensureWeightTemplate(defaultFields),
     inventoryEncumbrance: { ...DEFAULT_INVENTORY_ENCUMBRANCE },
+  };
+}
+
+/** A compendium is an inventory-style list with no weight or encumbrance. */
+export function getDefaultCompendiumData(): Pick<WidgetData, 'inventoryItems' | 'inventoryDefaultFields'> {
+  return {
+    inventoryItems: [],
+    inventoryDefaultFields: [],
   };
 }
 
@@ -286,12 +295,35 @@ export function getCharacterGlobalInventoryLoad(character: Character | undefined
   if (!character) return 0;
   return character.sheets.reduce((characterTotal, sheet) => (
     characterTotal + sheet.widgets.reduce((sheetTotal, widget) => {
-      if (widget.type !== 'INVENTORY') return sheetTotal;
+      if (!isInventoryWidgetType(widget.type)) return sheetTotal;
       const settings = widget.data.inventoryEncumbrance;
       if (!settings?.enabled || !settings.includeInGlobalLoad) return sheetTotal;
       return sheetTotal + getInventoryLoad(widget.data.inventoryItems || []);
     }, 0)
   ), 0);
+}
+
+/** Widgets that hold inventory items: the list inventory, the slot-based one and the compendium. */
+export function isInventoryWidgetType(type: WidgetType | undefined): type is 'INVENTORY' | 'INVENTORY_SLOTS' | 'COMPENDIUM' {
+  return type === 'INVENTORY' || type === 'INVENTORY_SLOTS' || type === 'COMPENDIUM';
+}
+
+/** Compendium entries have no weight, so they only move between compendiums. */
+export function canMoveInventoryItemBetween(sourceType: WidgetType | undefined, targetType: WidgetType | undefined): boolean {
+  return (sourceType === 'COMPENDIUM') === (targetType === 'COMPENDIUM');
+}
+
+export function getInventoryWidgetTerms(type: WidgetType | undefined): { title: string; noun: string } {
+  return type === 'COMPENDIUM'
+    ? { title: 'Compendium', noun: 'entry' }
+    : { title: 'Inventory', noun: 'item' };
+}
+
+function withSlot(item: InventoryItem, slotId: string | undefined): InventoryItem {
+  if (item.slotId === slotId) return item;
+  const next = { ...item, slotId };
+  if (slotId === undefined) delete next.slotId;
+  return next;
 }
 
 interface InventoryMoveResult {
@@ -322,11 +354,50 @@ export function moveInventoryItemBetweenLists(
   }
 
   if (targetItems.some((item) => item.id === itemId)) return null;
-  const sourceItem = sourceItems[sourceIndex];
+  const sourceItem = withSlot(sourceItems[sourceIndex], undefined);
   const movedItem = targetRequiresWeight ? ensureItemWeight(sourceItem) : sourceItem;
   const nextSourceItems = sourceItems.filter((item) => item.id !== itemId);
   const nextTargetItems = [...targetItems];
   const insertionIndex = Math.max(0, Math.min(targetIndex, nextTargetItems.length));
   nextTargetItems.splice(insertionIndex, 0, movedItem);
+  return { sourceItems: nextSourceItems, targetItems: nextTargetItems };
+}
+
+/**
+ * Puts an item into a slot of a slots widget. A slot holds one item, so an item already
+ * there is swapped out: it takes the dragged item's old slot, or its old position in a list.
+ */
+export function moveInventoryItemToSlot(
+  sourceItems: InventoryItem[],
+  targetItems: InventoryItem[],
+  itemId: string,
+  slotId: string,
+  sourceRequiresWeight: boolean,
+  targetRequiresWeight: boolean,
+): InventoryMoveResult | null {
+  const sourceIndex = sourceItems.findIndex((item) => item.id === itemId);
+  if (sourceIndex < 0) return null;
+  const item = sourceItems[sourceIndex];
+  const sameList = sourceItems === targetItems;
+  if (sameList ? item.slotId === slotId : targetItems.some((entry) => entry.id === itemId)) return null;
+
+  const occupant = targetItems.find((entry) => entry.slotId === slotId && entry.id !== itemId);
+  const placedItem = withSlot(targetRequiresWeight ? ensureItemWeight(item) : item, slotId);
+
+  if (sameList) {
+    const items = sourceItems.map((entry) => {
+      if (entry.id === itemId) return placedItem;
+      return occupant && entry.id === occupant.id ? withSlot(entry, item.slotId) : entry;
+    });
+    return { sourceItems: items, targetItems: items };
+  }
+
+  const nextSourceItems = sourceItems.filter((entry) => entry.id !== itemId);
+  if (occupant) {
+    const returnedItem = withSlot(sourceRequiresWeight ? ensureItemWeight(occupant) : occupant, item.slotId);
+    nextSourceItems.splice(sourceIndex, 0, returnedItem);
+  }
+  const nextTargetItems = targetItems.filter((entry) => entry.id !== occupant?.id);
+  nextTargetItems.push(placedItem);
   return { sourceItems: nextSourceItems, targetItems: nextTargetItems };
 }

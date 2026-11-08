@@ -8,7 +8,9 @@ interface InventoryQuantityDialogProps {
   item: InventoryItem;
   onClose: () => void;
   onSave: (quantity: number) => void;
-  onSplit: (keptQuantity: number, splitQuantity: number) => void;
+  onSplit?: (keptQuantity: number, splitQuantity: number) => void;
+  /** Small heading above the item name. */
+  heading?: string;
 }
 
 type DialogMode = 'quantity' | 'split';
@@ -25,6 +27,7 @@ export default function InventoryQuantityDialog({
   onClose,
   onSave,
   onSplit,
+  heading = 'Inventory quantity',
 }: InventoryQuantityDialogProps) {
   const quantity = getInventoryItemQuantity(item) ?? 0;
   const [mode, setMode] = useState<DialogMode>('quantity');
@@ -71,7 +74,7 @@ export default function InventoryQuantityDialog({
 
   const confirmSplit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!splitIsValid || splitQuantity === undefined) return;
+    if (!onSplit || !splitIsValid || splitQuantity === undefined) return;
     onSplit(keptQuantity, splitQuantity);
   };
 
@@ -92,7 +95,7 @@ export default function InventoryQuantityDialog({
       >
         <div className="flex items-start justify-between gap-3 border-b border-theme-border px-4 py-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Inventory quantity</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{heading}</p>
             <h2 id="inventory-quantity-dialog-title" className="mt-0.5 break-words font-heading text-lg font-bold [overflow-wrap:anywhere]">
               {item.name}
             </h2>
@@ -139,6 +142,7 @@ export default function InventoryQuantityDialog({
                 <p className="mt-2 text-[11px] text-theme-muted">Use the stepper or enter an exact amount.</p>
               </div>
 
+              {onSplit && (
               <button
                 type="button"
                 onClick={openSplitMode}
@@ -155,6 +159,7 @@ export default function InventoryQuantityDialog({
                   </span>
                 </span>
               </button>
+              )}
 
               <div className="mt-4 flex justify-end gap-2">
                 <button type="button" onClick={onClose} className="widget-control px-3 py-1.5 text-xs">Cancel</button>

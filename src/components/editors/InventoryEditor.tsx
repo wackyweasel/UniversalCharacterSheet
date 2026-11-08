@@ -4,6 +4,7 @@ import {
   coerceInventoryFieldValue,
   createInventoryFieldTemplate,
   DEFAULT_INVENTORY_ENCUMBRANCE,
+  getInventoryWidgetTerms,
   normalizeInventoryFieldType,
   setInventoryEncumbranceEnabled,
 } from '../../utils/inventory';
@@ -32,6 +33,8 @@ export function InventoryEditor({
     fieldLabels = {},
     fieldFormulas = {},
   } = widget.data;
+  const isCompendium = widget.type === 'COMPENDIUM';
+  const { noun } = getInventoryWidgetTerms(widget.type);
   const encumbrance = widget.data.inventoryEncumbrance || DEFAULT_INVENTORY_ENCUMBRANCE;
   const {
     setRowRef: setAttributeRowRef,
@@ -126,9 +129,9 @@ export function InventoryEditor({
       {!weightOptionsOnly && <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <div>
-            <h3 id={`inventory-attributes-title-${widget.id}`} className="widget-editor__section-title">New item attributes</h3>
+            <h3 id={`inventory-attributes-title-${widget.id}`}             className="widget-editor__section-title">New {noun} attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
-              Added to every new item and customizable on each item.
+                          Added to every new {noun} and customizable on each {noun}.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -208,7 +211,7 @@ export function InventoryEditor({
         </div>
       </CollapsibleSection>}
 
-      <CollapsibleSection>
+      {!isCompendium && <CollapsibleSection>
         <div className="widget-editor__section-heading">
           <h3 id={`inventory-weight-title-${widget.id}`} className="widget-editor__section-title">Weight &amp; encumbrance</h3>
         </div>
@@ -329,7 +332,7 @@ export function InventoryEditor({
             </div>
           </div>
         )}
-      </CollapsibleSection>
+      </CollapsibleSection>}
     </div>
   );
 }

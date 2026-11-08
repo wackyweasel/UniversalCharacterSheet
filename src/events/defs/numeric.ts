@@ -213,6 +213,9 @@ const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData) => NumericSl
   ],
 };
 
+SLOT_PROVIDERS.INVENTORY_SLOTS = SLOT_PROVIDERS.INVENTORY;
+SLOT_PROVIDERS.COMPENDIUM = SLOT_PROVIDERS.INVENTORY;
+
 export const NUMERIC_WIDGET_TYPES = Object.keys(SLOT_PROVIDERS) as WidgetType[];
 
 export function getNumericSlots(widget: Widget | undefined): NumericSlot[] {

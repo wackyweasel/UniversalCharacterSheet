@@ -1,5 +1,6 @@
 import type { InventoryFieldValue, InventoryItem, InventoryItemField, Widget, WidgetData } from '../../types';
-import { createInventoryItem, getInventoryItemQuantity } from '../../utils/inventory';
+import { createInventoryItem, getInventoryItemQuantity, isInventoryWidgetType } from '../../utils/inventory';
+import { getFirstFreeSlot } from '../../utils/inventorySlots';
 import { getActiveNoteContent, getNoteContentUpdate } from '../../utils/noteTabs';
 import {
   addToWallet,
@@ -26,7 +27,7 @@ const matchesFilter = (name: string, filter: string | undefined) => !filter?.tri
 // ----- Inventory -----
 
 function inventoryItems(widget: Widget | undefined): InventoryItem[] {
-  return widget?.type === 'INVENTORY' ? widget.data.inventoryItems ?? [] : [];
+  return isInventoryWidgetType(widget?.type) ? widget?.data.inventoryItems ?? [] : [];
 }
 
 const quantityOf = (item: InventoryItem) => getInventoryItemQuantity(item) ?? 1;
@@ -74,7 +75,7 @@ function fieldNameOptions({ widget }: SpecContext): EventOption[] {
     const trimmed = name?.trim();
     if (trimmed && !names.has(trimmed.toLowerCase())) names.set(trimmed.toLowerCase(), trimmed);
   };
-  if (widget?.type === 'INVENTORY') (widget.data.inventoryDefaultFields ?? []).forEach((template) => add(template.name));
+  if (isInventoryWidgetType(widget?.type)) (widget?.data.inventoryDefaultFields ?? []).forEach((template) => add(template.name));
   inventoryItems(widget).forEach((item) => item.fields.forEach((field) => add(field.name)));
   return [...names.values()].map((name) => ({ value: name, label: name }));
 }
@@ -152,7 +153,7 @@ export const inventorySetFieldEffect: EffectDef = {
   ],
   apply: (ctx) => {
     const fieldName = ctx.effect.target;
-    if (!ctx.widget || ctx.widget.type !== 'INVENTORY' || !fieldName) return null;
+    if (!ctx.widget || !isInventoryWidgetType(ctx.widget.type) || !fieldName) return null;
     const filter = ctx.text('name').trim();
     const amount = (ctx.params.value ?? '').trim() ? ctx.amount('value') : null;
     const text = amount ? formatNumber(amount.value) : ctx.text('value');
@@ -207,7 +208,7 @@ export const inventoryAddEffect: EffectDef = {
     { key: 'quantity', label: 'Quantity', type: 'amount', default: '1', placeholder: '1 or 1d4' },
   ],
   apply: (ctx) => {
-    if (!ctx.widget || ctx.widget.type !== 'INVENTORY') return null;
+    if (!ctx.widget || !isInventoryWidgetType(ctx.widget.type)) return null;
     const name = ctx.text('name').trim();
     if (!name) return { text: 'No item name' };
     const amount = ctx.amount('quantity');
@@ -224,6 +225,11 @@ export const inventoryAddEffect: EffectDef = {
     }
     const created = createInventoryItem(name, ctx.widget.data.inventoryDefaultFields ?? []);
     if (quantity !== 1) created.quantity = quantity;
+    if (ctx.widget.type === 'INVENTORY_SLOTS') {
+      const slot = getFirstFreeSlot(ctx.widget.data.inventorySlots ?? [], items);
+      if (!slot) return { text: `No free slot for ${name}` };
+      created.slotId = slot.id;
+    }
     return { data: { inventoryItems: [...items, created] }, text: `Added ${quantity !== 1 ? `${formatNumber(quantity)} × ` : ''}${name}${detail}` };
   },
   describe: (d) => `Add ${d.params.quantity && d.params.quantity !== '1' ? `${d.params.quantity} × ` : ''}${d.params.name || '?'} to ${d.widget}`,
@@ -237,7 +243,7 @@ export const inventoryRemoveEffect: EffectDef = {
     { key: 'quantity', label: 'Quantity (blank = all)', type: 'amount', default: '1', placeholder: 'all' },
   ],
   apply: (ctx) => {
-    if (!ctx.widget || ctx.widget.type !== 'INVENTORY') return null;
+    if (!ctx.widget || !isInventoryWidgetType(ctx.widget.type)) return null;
     const name = ctx.text('name').trim();
     const items = ctx.widget.data.inventoryItems ?? [];
     const index = items.findIndex((item) => sameName(item.name, name));

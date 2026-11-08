@@ -26,6 +26,7 @@ export { GridMapEditor } from './GridMapEditor';
 export { RollTableEditor } from './RollTableEditor';
 export { InitiativeTrackerEditor } from './InitiativeTrackerEditor';
 export { InventoryEditor } from './InventoryEditor';
+export { InventorySlotsEditor } from './InventorySlotsEditor';
 export { DeckEditor } from './DeckEditor';
 export { CardTableEditor } from './CardDeckEditor';
 export { TimerEditor } from './TimerEditor';

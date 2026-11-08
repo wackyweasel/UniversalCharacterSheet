@@ -28,6 +28,7 @@ import GridMapWidget from './widgets/GridMapWidget';
 import RollTableWidget from './widgets/RollTableWidget';
 import InitiativeTrackerWidget from './widgets/InitiativeTrackerWidget';
 import InventoryWidget from './widgets/InventoryWidget';
+import InventorySlotsWidget from './widgets/InventorySlotsWidget';
 import DeckWidget from './widgets/DeckWidget';
 import CardTableWidget from './widgets/CardTableWidget';
 import TimerWidget from './widgets/TimerWidget';
@@ -554,6 +555,82 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       },
     },
   },
+  INVENTORY_SLOTS: {
+    id: 'preview-inventory-slots',
+    type: 'INVENTORY_SLOTS',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 220,
+    locked: true,
+    data: {
+      label: 'Equipment',
+      inventorySlots: [
+        { id: 'slot-head', name: 'Head', x: 34, y: 2, w: 32, h: 22 },
+        { id: 'slot-left', name: 'Left hand', x: 2, y: 2, w: 28, h: 70 },
+        { id: 'slot-right', name: 'Right hand', x: 70, y: 2, w: 28, h: 70 },
+        { id: 'slot-torso', name: 'Torso', x: 34, y: 28, w: 32, h: 44 },
+        { id: 'slot-boots', name: 'Boots', x: 34, y: 76, w: 32, h: 22 },
+      ],
+      inventoryItems: [
+        {
+          id: 'item-sword',
+          slotId: 'slot-right',
+          name: 'Longsword',
+          fields: [
+            { id: 'field-sword-weight', name: 'Weight', type: 'number', value: 1.5, reserved: 'weight' },
+            { id: 'field-sword-notes', name: 'Notes', type: 'text', value: '1d8 slashing' },
+          ],
+        },
+        {
+          id: 'item-helm',
+          slotId: 'slot-head',
+          name: 'Iron helm',
+          fields: [
+            { id: 'field-helm-weight', name: 'Weight', type: 'number', value: 1.2, reserved: 'weight' },
+          ],
+        },
+      ],
+      inventoryDefaultFields: [],
+      inventoryEncumbrance: {
+        enabled: false,
+        unit: 'kg',
+        includeInGlobalLoad: true,
+        showGlobalCounter: false,
+      },
+    },
+  },
+  COMPENDIUM: {
+    id: 'preview-compendium',
+    type: 'COMPENDIUM',
+    x: 0,
+    y: 0,
+    w: 220,
+    h: 150,
+    locked: true,
+    data: {
+      label: 'Spellbook',
+      inventoryItems: [
+        {
+          id: 'entry-firebolt',
+          name: 'Firebolt',
+          fields: [
+            { id: 'field-firebolt-level', name: 'Level', type: 'number', value: 1 },
+            { id: 'field-firebolt-range', name: 'Range', type: 'text', value: '120 ft' },
+          ],
+        },
+        {
+          id: 'entry-shield',
+          name: 'Shield',
+          fields: [
+            { id: 'field-shield-level', name: 'Level', type: 'number', value: 1 },
+            { id: 'field-shield-time', name: 'Casting time', type: 'text', value: 'Reaction' },
+          ],
+        },
+      ],
+      inventoryDefaultFields: [],
+    },
+  },
   DECK: {
     id: 'preview-deck',
     type: 'DECK',
@@ -784,6 +861,8 @@ function renderWidget(widget: Widget) {
     case 'ROLL_TABLE': return <RollTableWidget {...props} />;
     case 'INITIATIVE_TRACKER': return <InitiativeTrackerWidget {...props} />;
     case 'INVENTORY': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'COMPENDIUM': return <InventoryWidget {...props} showFieldControls={false} interactive={false} />;
+    case 'INVENTORY_SLOTS': return <InventorySlotsWidget {...props} showFieldControls={false} interactive={false} />;
     case 'DECK': return <DeckWidget {...props} />;
     case 'DECK_OF_CARDS': return <CardTableWidget {...props} interactive={false} render3D={false} showControls previewOnly />;
     case 'TIMER': return <TimerWidget {...props} />;
