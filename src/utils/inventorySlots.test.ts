@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { InventoryItem, InventorySlot } from '../types';
 import {
   applyInventorySlotPreset,
+  fitInventorySlotsHeight,
   INVENTORY_SLOT_PRESETS,
   MIN_SLOT_SIZE,
 } from './inventorySlots';
@@ -73,5 +74,32 @@ describe('applyInventorySlotPreset', () => {
     const result = applyInventorySlotPreset(basic, current, [item('loose')]);
     expect(result.items).toEqual([expect.objectContaining({ id: 'loose', slotId: undefined })]);
     expect(result.removedCount).toBe(0);
+  });
+});
+
+describe('fitInventorySlotsHeight', () => {
+  const at = (id: string, y: number, h: number): InventorySlot => ({ id, name: id, x: 0, y, w: 30, h });
+
+  it('shrinks the widget to the lowest slot and keeps slot sizes in pixels', () => {
+    const result = fitInventorySlotsHeight([at('a', 0, 20), at('b', 20, 20)], 300, 320);
+    expect(result).not.toBeNull();
+    const { height, slots } = result!;
+    expect(height).toBe(130);
+    expect(height).toBeLessThan(300);
+    slots.forEach((s, i) => {
+      expect((s.h / 100) * height).toBeCloseTo(60, 0);
+      expect((s.y / 100) * height).toBeCloseTo(i * 60, 0);
+      expect(s.y + s.h).toBeLessThanOrEqual(100);
+    });
+  });
+
+  it('does nothing when the slots already fill the widget', () => {
+    expect(fitInventorySlotsHeight([at('a', 0, 100)], 300, 320)).toBeNull();
+    expect(fitInventorySlotsHeight([at('a', 2, 96)], 300, 320)).toBeNull();
+  });
+
+  it('does nothing without slots and never goes below a minimum height', () => {
+    expect(fitInventorySlotsHeight([], 300, 320)).toBeNull();
+    expect(fitInventorySlotsHeight([at('a', 0, 6)], 300, 320)?.height).toBe(60);
   });
 });

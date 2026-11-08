@@ -188,6 +188,11 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     updateWidgetSize(widget.id, width, widget.h || 0);
   };
 
+  // Preview and sheet read the height from the store, so there is no local copy to keep in step.
+  const handleUpdateHeight = (height: number) => {
+    updateWidgetSize(widget.id, localWidth, height);
+  };
+
   // Create a preview widget with the current data and width
   const previewWidget = { ...widget, data: localData, w: localWidth };
   const renderedPreviewWidget = {
@@ -201,7 +206,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
   };
 
   const renderEditor = () => {
-    const editorProps = { widget: previewWidget, updateData: handleUpdateData, updateWidth: handleUpdateWidth };
+    const editorProps = { widget: previewWidget, updateData: handleUpdateData, updateWidth: handleUpdateWidth, updateHeight: handleUpdateHeight };
     
     switch (widget.type) {
       case 'NUMBER': return <NumberEditor {...editorProps} />;

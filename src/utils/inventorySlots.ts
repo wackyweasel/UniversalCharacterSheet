@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { InventoryItem, InventorySlot, WidgetData } from '../types';
 import { getDefaultInventoryData } from './inventory';
+import { WIDGET_GRID_SIZE } from './widgetGeometry';
 
 export const INVENTORY_SLOTS_DEFAULT_SIZE = { width: 320, height: 300 };
 
@@ -157,6 +158,34 @@ export function clampInventorySlot(slot: InventorySlot): InventorySlot {
   const x = Math.min(100 - w, Math.max(0, finite(slot.x, 0)));
   const y = Math.min(100 - h, Math.max(0, finite(slot.y, 0)));
   return { ...slot, x, y, w, h };
+}
+
+const FIT_BOTTOM_MARGIN_PX = 6;
+const FIT_MIN_HEIGHT_PX = 60;
+const roundSlotValue = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * Shrinks the widget height so no empty space is left under the lowest slot. Slots are stored in
+ * percent, so their vertical values are rescaled to keep every slot the same size in pixels.
+ * Returns null when the widget is already as short as it can be.
+ */
+export function fitInventorySlotsHeight(
+  slots: InventorySlot[],
+  widgetHeight: number,
+  widgetWidth: number,
+): { slots: InventorySlot[]; height: number } | null {
+  if (slots.length === 0 || !(widgetHeight > 0)) return null;
+  const bottomPx = Math.max(...slots.map((slot) => ((slot.y + slot.h) / 100) * widgetHeight));
+  const margin = Math.min(FIT_BOTTOM_MARGIN_PX, Math.max(2, widgetWidth * 0.02));
+  const target = Math.max(FIT_MIN_HEIGHT_PX, Math.ceil((bottomPx + margin) / WIDGET_GRID_SIZE) * WIDGET_GRID_SIZE);
+  if (target >= widgetHeight) return null;
+  const scale = widgetHeight / target;
+  return {
+    height: target,
+    slots: slots.map((slot) =>
+      clampInventorySlot({ ...slot, y: roundSlotValue(slot.y * scale), h: roundSlotValue(slot.h * scale) }),
+    ),
+  };
 }
 
 /** A new slot placed in the top left, offset so repeated additions do not stack exactly. */

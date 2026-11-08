@@ -4,6 +4,7 @@ import {
   applyInventorySlotPreset,
   clampInventorySlot,
   createInventorySlot,
+  fitInventorySlotsHeight,
   INVENTORY_SLOT_PRESETS,
   InventorySlotPreset,
 } from '../../utils/inventorySlots';
@@ -29,7 +30,7 @@ interface ActiveGesture {
 }
 
 export function InventorySlotsEditor(props: EditorProps) {
-  const { widget, updateData } = props;
+  const { widget, updateData, updateHeight } = props;
   const { inventorySlots = [], inventoryItems = [] } = widget.data;
   const canvasRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<ActiveGesture | null>(null);
@@ -46,7 +47,11 @@ export function InventorySlotsEditor(props: EditorProps) {
   const selected = slots.find((slot) => slot.id === selectedId) ?? null;
   const aspectRatio = `${Math.max(1, widget.w ?? 1)} / ${Math.max(1, widget.h ?? 1)}`;
 
-  const commitSlots = (next: InventorySlot[]) => updateData({ inventorySlots: next });
+  const commitSlots = (next: InventorySlot[], extra: Record<string, unknown> = {}) => {
+    const fitted = updateHeight ? fitInventorySlotsHeight(next, widget.h ?? 0, widget.w ?? 0) : null;
+    updateData({ ...extra, inventorySlots: fitted ? fitted.slots : next });
+    if (fitted) updateHeight?.(fitted.height);
+  };
 
   const updateSlot = (slotId: string, update: Partial<InventorySlot>) => {
     commitSlots(inventorySlots.map((slot) => (slot.id === slotId ? clampInventorySlot({ ...slot, ...update }) : slot)));
@@ -59,10 +64,10 @@ export function InventorySlotsEditor(props: EditorProps) {
   };
 
   const deleteSlot = (slotId: string) => {
-    updateData({
-      inventorySlots: inventorySlots.filter((slot) => slot.id !== slotId),
-      inventoryItems: inventoryItems.filter((item) => item.slotId !== slotId),
-    });
+    commitSlots(
+      inventorySlots.filter((slot) => slot.id !== slotId),
+      { inventoryItems: inventoryItems.filter((item) => item.slotId !== slotId) },
+    );
     setSelectedId(null);
     setConfirmDeleteId(null);
   };
@@ -71,7 +76,7 @@ export function InventorySlotsEditor(props: EditorProps) {
 
   const applyPreset = () => {
     if (!presetOutcome) return;
-    updateData({ inventorySlots: presetOutcome.slots, inventoryItems: presetOutcome.items });
+    commitSlots(presetOutcome.slots, { inventoryItems: presetOutcome.items });
     setSelectedId(null);
     setConfirmDeleteId(null);
     setPendingPreset(null);
