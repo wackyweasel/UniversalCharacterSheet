@@ -1,5 +1,5 @@
 import type { InventorySlot } from '../types';
-import { clampInventorySlot, MIN_SLOT_SIZE } from './inventorySlots';
+import { clampInventorySlot, MAX_SLOT_EXTENT, MIN_SLOT_SIZE } from './inventorySlots';
 
 /** Spacing kept between neighbouring slots, and between slots and the widget edge. Matches the preset layouts. */
 export const SNAP_GAP = 2;
@@ -37,14 +37,18 @@ interface Target {
 const EPS = 0.01;
 const KIND_PRIORITY: Record<SnapKind, number> = { edge: 0, center: 0, gap: 1, size: 2 };
 
+/** `resize` drags the bottom right corner, `resize-start` the top left one. */
+export type SnapMode = 'move' | 'resize' | 'resize-start';
+
 const startOf = (g: Geometry, axis: Axis) => (axis === 'x' ? g.x : g.y);
 const lengthOf = (g: Geometry, axis: Axis) => (axis === 'x' ? g.w : g.h);
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-function subjectFeatures(subject: Geometry, axis: Axis, resizing: boolean): { feature: Feature; position: number }[] {
+function subjectFeatures(subject: Geometry, axis: Axis, mode: SnapMode): { feature: Feature; position: number }[] {
   const start = startOf(subject, axis);
   const length = lengthOf(subject, axis);
-  if (resizing) return [{ feature: 'end', position: start + length }];
+  if (mode === 'resize') return [{ feature: 'end', position: start + length }];
+  if (mode === 'resize-start') return [{ feature: 'start', position: start }];
   return [
     { feature: 'start', position: start },
     { feature: 'center', position: start + length / 2 },
@@ -52,9 +56,10 @@ function subjectFeatures(subject: Geometry, axis: Axis, resizing: boolean): { fe
   ];
 }
 
-function buildTargets(axis: Axis, subject: Geometry, others: Geometry[], resizing: boolean): Target[] {
+function buildTargets(axis: Axis, subject: Geometry, others: Geometry[], mode: SnapMode): Target[] {
   const cross: Axis = axis === 'x' ? 'y' : 'x';
   const subjectStart = startOf(subject, axis);
+  const subjectEnd = subjectStart + lengthOf(subject, axis);
   const crossStart = startOf(subject, cross);
   const crossEnd = crossStart + lengthOf(subject, cross);
 
@@ -70,7 +75,7 @@ function buildTargets(axis: Axis, subject: Geometry, others: Geometry[], resizin
     const otherStart = startOf(other, axis);
     const otherEnd = otherStart + lengthOf(other, axis);
     const span: [number, number] = [startOf(other, cross), startOf(other, cross) + lengthOf(other, cross)];
-    const all: Feature[] = resizing ? ['end'] : ['start', 'center', 'end'];
+    const all: Feature[] = mode === 'resize' ? ['end'] : mode === 'resize-start' ? ['start'] : ['start', 'center', 'end'];
 
     targets.push(
       { value: otherStart, kind: 'edge', features: all, span },
@@ -86,32 +91,43 @@ function buildTargets(axis: Axis, subject: Geometry, others: Geometry[], resizin
       );
     }
 
-    if (resizing) {
+    if (mode === 'resize') {
       targets.push({ value: subjectStart + lengthOf(other, axis), kind: 'size', features: ['end'], span });
+    } else if (mode === 'resize-start') {
+      targets.push({ value: subjectEnd - lengthOf(other, axis), kind: 'size', features: ['start'], span });
     }
   }
 
   return targets;
 }
 
-function constrain(slot: InventorySlot, resizing: boolean): InventorySlot {
-  if (!resizing) return clampInventorySlot(slot);
-  const w = Math.max(MIN_SLOT_SIZE, Math.min(slot.w, 100 - slot.x));
-  const h = Math.max(MIN_SLOT_SIZE, Math.min(slot.h, 100 - slot.y));
-  return { ...slot, w, h };
+/** Keeps a slot inside the widget horizontally, and at most `MAX_SLOT_EXTENT` down vertically. */
+export function constrainInventorySlot(slot: InventorySlot, mode: SnapMode): InventorySlot {
+  if (mode === 'move') return clampInventorySlot(slot, MAX_SLOT_EXTENT);
+  if (mode === 'resize') {
+    const w = Math.max(MIN_SLOT_SIZE, Math.min(slot.w, 100 - slot.x));
+    const h = Math.max(MIN_SLOT_SIZE, Math.min(slot.h, MAX_SLOT_EXTENT - slot.y));
+    return { ...slot, w, h };
+  }
+  // The far edges stay where they were, so the near edges and sizes are derived from them.
+  const right = slot.x + slot.w;
+  const bottom = slot.y + slot.h;
+  const x = Math.min(Math.max(0, slot.x), right - MIN_SLOT_SIZE);
+  const y = Math.min(Math.max(0, slot.y), bottom - MIN_SLOT_SIZE);
+  return { ...slot, x, y, w: right - x, h: bottom - y };
 }
 
 function snapAxis(
   axis: Axis,
   subject: InventorySlot,
   others: Geometry[],
-  resizing: boolean,
+  mode: SnapMode,
   threshold: number,
 ): InventorySlot {
-  const targets = buildTargets(axis, subject, others, resizing);
+  const targets = buildTargets(axis, subject, others, mode);
   let best: { delta: number; priority: number } | null = null;
 
-  for (const { feature, position } of subjectFeatures(subject, axis, resizing)) {
+  for (const { feature, position } of subjectFeatures(subject, axis, mode)) {
     for (const target of targets) {
       if (!target.features.includes(feature)) continue;
       const delta = target.value - position;
@@ -130,22 +146,31 @@ function snapAxis(
 
   const start = startOf(subject, axis);
   const length = lengthOf(subject, axis);
+  const end = start + length;
   // With nothing nearby, land on a whole percent so values stay tidy instead of ending up as 33.7.
-  const nextStart = resizing ? start : best ? start + best.delta : Math.round(start);
-  const nextLength = resizing ? (best ? length + best.delta : Math.round(start + length) - start) : length;
+  let nextStart = start;
+  let nextLength = length;
+  if (mode === 'move') {
+    nextStart = best ? start + best.delta : Math.round(start);
+  } else if (mode === 'resize') {
+    nextLength = best ? length + best.delta : Math.round(end) - start;
+  } else {
+    nextStart = best ? start + best.delta : Math.round(start);
+    nextLength = end - nextStart;
+  }
   return axis === 'x' ? { ...subject, x: round2(nextStart), w: round2(nextLength) } : { ...subject, y: round2(nextStart), h: round2(nextLength) };
 }
 
-function collectGuides(slot: InventorySlot, others: Geometry[], resizing: boolean): SnapGuide[] {
+function collectGuides(slot: InventorySlot, others: Geometry[], mode: SnapMode): SnapGuide[] {
   const guides = new Map<string, SnapGuide>();
 
   (['x', 'y'] as Axis[]).forEach((axis) => {
     const cross: Axis = axis === 'x' ? 'y' : 'x';
     const crossStart = startOf(slot, cross);
     const crossEnd = crossStart + lengthOf(slot, cross);
-    const targets = buildTargets(axis, slot, others, resizing);
+    const targets = buildTargets(axis, slot, others, mode);
 
-    for (const { feature, position } of subjectFeatures(slot, axis, resizing)) {
+    for (const { feature, position } of subjectFeatures(slot, axis, mode)) {
       for (const target of targets) {
         if (!target.features.includes(feature) || Math.abs(target.value - position) > EPS) continue;
         const [spanStart, spanEnd] = target.span ?? [0, 100];
@@ -176,7 +201,7 @@ function collectGuides(slot: InventorySlot, others: Geometry[], resizing: boolea
 }
 
 export interface SnapRequest {
-  mode: 'move' | 'resize';
+  mode: SnapMode;
   /** Where the slot would be without any snapping. */
   proposed: InventorySlot;
   /** Every other slot in the widget. */
@@ -186,10 +211,9 @@ export interface SnapRequest {
 }
 
 export function snapInventorySlot({ mode, proposed, others, threshold }: SnapRequest): { slot: InventorySlot; guides: SnapGuide[] } {
-  const resizing = mode === 'resize';
-  let slot = constrain(proposed, resizing);
-  slot = constrain(snapAxis('x', slot, others, resizing, threshold.x), resizing);
+  let slot = constrainInventorySlot(proposed, mode);
+  slot = constrainInventorySlot(snapAxis('x', slot, others, mode, threshold.x), mode);
   // Snapping vertically after horizontally lets the spacing check use the final horizontal position.
-  slot = constrain(snapAxis('y', slot, others, resizing, threshold.y), resizing);
-  return { slot, guides: collectGuides(slot, others, resizing) };
+  slot = constrainInventorySlot(snapAxis('y', slot, others, mode, threshold.y), mode);
+  return { slot, guides: collectGuides(slot, others, mode) };
 }

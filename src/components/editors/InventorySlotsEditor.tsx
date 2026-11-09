@@ -9,7 +9,14 @@ import {
   INVENTORY_SLOT_PRESETS,
   InventorySlotPreset,
 } from '../../utils/inventorySlots';
-import { SNAP_DISTANCE_PX, SnapGuide, snapInventorySlot } from '../../utils/inventorySlotSnap';
+import {
+  constrainInventorySlot,
+  SNAP_DISTANCE_PX,
+  SNAP_INSET,
+  SnapGuide,
+  SnapMode,
+  snapInventorySlot,
+} from '../../utils/inventorySlotSnap';
 import { PlusIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 import { InventoryEditor } from './InventoryEditor';
@@ -25,9 +32,12 @@ const formatPercent = (value: number) => `${roundToTenth(value)}%`;
 interface ActiveGesture {
   pointerId: number;
   slotId: string;
-  kind: 'move' | 'resize';
+  kind: SnapMode;
   startX: number;
   startY: number;
+  /** Screen pixels per percent of the widget area, fixed for the whole gesture so a growing canvas does not skew the drag. */
+  pxPerPctX: number;
+  pxPerPctY: number;
   origin: InventorySlot;
 }
 
@@ -47,11 +57,15 @@ export function InventorySlotsEditor(props: EditorProps) {
 
   const slots = draftSlots ?? inventorySlots;
   const selected = slots.find((slot) => slot.id === selectedId) ?? null;
-  const aspectRatio = `${Math.max(1, widget.w ?? 1)} / ${Math.max(1, widget.h ?? 1)}`;
+  // While a slot is dragged below the bottom edge the canvas grows to hold it, and the widget follows on release.
+  const lowestEdge = Math.max(100, ...slots.map((slot) => slot.y + slot.h));
+  const extent = lowestEdge > 100 ? lowestEdge + SNAP_INSET : 100;
+  const scaleY = (value: number) => (value * 100) / extent;
+  const aspectRatio = `${Math.max(1, widget.w ?? 1)} / ${Math.max(1, ((widget.h ?? 1) * extent) / 100)}`;
 
   const commitSlots = (next: InventorySlot[], extra: Record<string, unknown> = {}) => {
     const fitted = updateHeight ? fitInventorySlotsHeight(next, widget.h ?? 0, widget.w ?? 0) : null;
-    updateData({ ...extra, inventorySlots: fitted ? fitted.slots : next });
+    updateData({ ...extra, inventorySlots: fitted ? fitted.slots : next.map((slot) => clampInventorySlot(slot)) });
     if (fitted) updateHeight?.(fitted.height);
   };
 
@@ -84,17 +98,20 @@ export function InventorySlotsEditor(props: EditorProps) {
     setPendingPreset(null);
   };
 
-  const startGesture = (slot: InventorySlot, kind: ActiveGesture['kind'], event: React.PointerEvent<HTMLElement>) => {
+  const startGesture = (slot: InventorySlot, kind: SnapMode, event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
+    const rect = canvasRef.current?.getBoundingClientRect();
     gestureRef.current = {
       pointerId: event.pointerId,
       slotId: slot.id,
       kind,
       startX: event.clientX,
       startY: event.clientY,
+      pxPerPctX: (rect?.width ?? 0) / 100,
+      pxPerPctY: (rect?.height ?? 0) / extent,
       origin: slot,
     };
     setSelectedId(slot.id);
@@ -103,16 +120,16 @@ export function InventorySlotsEditor(props: EditorProps) {
 
   const moveGesture = (event: React.PointerEvent<HTMLElement>) => {
     const gesture = gestureRef.current;
-    const canvas = canvasRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId || !canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const dx = ((event.clientX - gesture.startX) / rect.width) * 100;
-    const dy = ((event.clientY - gesture.startY) / rect.height) * 100;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    if (gesture.pxPerPctX === 0 || gesture.pxPerPctY === 0) return;
+    const dx = (event.clientX - gesture.startX) / gesture.pxPerPctX;
+    const dy = (event.clientY - gesture.startY) / gesture.pxPerPctY;
     const { origin } = gesture;
     const proposed = gesture.kind === 'move'
       ? { ...origin, x: origin.x + dx, y: origin.y + dy }
-      : { ...origin, w: origin.w + dx, h: origin.h + dy };
+      : gesture.kind === 'resize'
+        ? { ...origin, w: origin.w + dx, h: origin.h + dy }
+        : { ...origin, x: origin.x + dx, y: origin.y + dy, w: origin.w - dx, h: origin.h - dy };
 
     // Alt temporarily turns snapping off, for placing a slot exactly where the pointer is.
     const snapping = snapEnabled && !event.altKey;
@@ -124,20 +141,20 @@ export function InventorySlotsEditor(props: EditorProps) {
         proposed,
         others: inventorySlots.filter((slot) => slot.id !== gesture.slotId),
         threshold: {
-          x: (SNAP_DISTANCE_PX / rect.width) * 100,
-          y: (SNAP_DISTANCE_PX / rect.height) * 100,
+          x: SNAP_DISTANCE_PX / gesture.pxPerPctX,
+          y: SNAP_DISTANCE_PX / gesture.pxPerPctY,
         },
       });
       result = snapped.slot;
       nextGuides = snapped.guides;
     } else {
-      result = clampInventorySlot({
+      result = constrainInventorySlot({
         ...proposed,
         x: roundToTenth(proposed.x),
         y: roundToTenth(proposed.y),
         w: roundToTenth(proposed.w),
         h: roundToTenth(proposed.h),
-      });
+      }, gesture.kind);
     }
     setGuides(nextGuides);
     setActiveGesture({ slotId: gesture.slotId, kind: gesture.kind });
@@ -188,7 +205,7 @@ export function InventorySlotsEditor(props: EditorProps) {
           <div>
             <h3 className="widget-editor__section-title">Slots</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
-              Drag a slot to move it, drag its dotted corner to resize it. Arrow keys move, Shift + arrows resize.
+              Drag a slot to move it, drag a dotted corner to resize it. Drag below the bottom edge to add space. Arrow keys move, Shift + arrows resize.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -241,7 +258,7 @@ export function InventorySlotsEditor(props: EditorProps) {
                     ? 'z-10 border-theme-accent bg-theme-accent/20 text-theme-ink'
                     : 'border-theme-border bg-theme-paper text-theme-muted'
                 }`}
-                style={{ left: `${slot.x}%`, top: `${slot.y}%`, width: `${slot.w}%`, height: `${slot.h}%` }}
+                style={{ left: `${slot.x}%`, top: `${scaleY(slot.y)}%`, width: `${slot.w}%`, height: `${scaleY(slot.h)}%` }}
               >
                 <span className="pointer-events-none min-w-0 truncate px-1">{slot.name || 'Slot'}</span>
                 {activeGesture?.slotId === slot.id && (
@@ -251,25 +268,33 @@ export function InventorySlotsEditor(props: EditorProps) {
                       : `${formatPercent(slot.w)} × ${formatPercent(slot.h)}`}
                   </span>
                 )}
-                <span
-                  aria-hidden="true"
-                  onPointerDown={(event) => startGesture(slot, 'resize', event)}
-                  onPointerMove={moveGesture}
-                  onPointerUp={(event) => endGesture(event, true)}
-                  onPointerCancel={(event) => endGesture(event, false)}
-                  className={`absolute bottom-0 right-0 flex h-5 w-5 cursor-nwse-resize touch-none items-end justify-end p-[3px] ${
-                    isSelected ? 'text-theme-accent' : 'text-theme-muted'
-                  }`}
-                >
-                  <svg viewBox="0 0 10 10" className="pointer-events-none h-2.5 w-2.5" fill="currentColor">
-                    <circle cx="8.5" cy="8.5" r="1" />
-                    <circle cx="8.5" cy="4.8" r="1" />
-                    <circle cx="4.8" cy="8.5" r="1" />
-                    <circle cx="8.5" cy="1.1" r="1" />
-                    <circle cx="4.8" cy="4.8" r="1" />
-                    <circle cx="1.1" cy="8.5" r="1" />
-                  </svg>
-                </span>
+                {(['resize-start', 'resize'] as const).map((corner) => (
+                  <span
+                    key={corner}
+                    aria-hidden="true"
+                    data-resize-handle={corner === 'resize' ? 'bottom-right' : 'top-left'}
+                    onPointerDown={(event) => startGesture(slot, corner, event)}
+                    onPointerMove={moveGesture}
+                    onPointerUp={(event) => endGesture(event, true)}
+                    onPointerCancel={(event) => endGesture(event, false)}
+                    className={`absolute flex h-5 w-5 cursor-nwse-resize touch-none p-[3px] ${
+                      corner === 'resize' ? 'bottom-0 right-0 items-end justify-end' : 'left-0 top-0 items-start justify-start'
+                    } ${isSelected ? 'text-theme-accent' : 'text-theme-muted'}`}
+                  >
+                    <svg
+                      viewBox="0 0 10 10"
+                      className={`pointer-events-none h-2.5 w-2.5 ${corner === 'resize' ? '' : 'rotate-180'}`}
+                      fill="currentColor"
+                    >
+                      <circle cx="8.5" cy="8.5" r="1" />
+                      <circle cx="8.5" cy="4.8" r="1" />
+                      <circle cx="4.8" cy="8.5" r="1" />
+                      <circle cx="8.5" cy="1.1" r="1" />
+                      <circle cx="4.8" cy="4.8" r="1" />
+                      <circle cx="1.1" cy="8.5" r="1" />
+                    </svg>
+                  </span>
+                ))}
               </div>
             );
           })}
@@ -277,8 +302,8 @@ export function InventorySlotsEditor(props: EditorProps) {
             const vertical = guide.axis === 'x';
             const span = Math.max(0, guide.to - guide.from);
             const lineStyle: React.CSSProperties = vertical
-              ? { left: `${guide.position}%`, top: `${guide.from}%`, height: `${span}%`, width: 0 }
-              : { top: `${guide.position}%`, left: `${guide.from}%`, width: `${span}%`, height: 0 };
+              ? { left: `${guide.position}%`, top: `${scaleY(guide.from)}%`, height: `${scaleY(span)}%`, width: 0 }
+              : { top: `${scaleY(guide.position)}%`, left: `${guide.from}%`, width: `${span}%`, height: 0 };
             const lineClass = guide.kind === 'size'
               ? 'border-dotted'
               : guide.kind === 'center'
@@ -290,8 +315,8 @@ export function InventorySlotsEditor(props: EditorProps) {
                   <div
                     className="pointer-events-none absolute bg-theme-accent/25"
                     style={vertical
-                      ? { left: `${guide.band[0]}%`, width: `${guide.band[1] - guide.band[0]}%`, top: `${guide.from}%`, height: `${span}%` }
-                      : { top: `${guide.band[0]}%`, height: `${guide.band[1] - guide.band[0]}%`, left: `${guide.from}%`, width: `${span}%` }}
+                      ? { left: `${guide.band[0]}%`, width: `${guide.band[1] - guide.band[0]}%`, top: `${scaleY(guide.from)}%`, height: `${scaleY(span)}%` }
+                      : { top: `${scaleY(guide.band[0])}%`, height: `${scaleY(guide.band[1] - guide.band[0])}%`, left: `${guide.from}%`, width: `${span}%` }}
                   />
                 )}
                 <div

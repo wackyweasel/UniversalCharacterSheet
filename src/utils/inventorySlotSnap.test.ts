@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InventorySlot } from '../types';
+import { MAX_SLOT_EXTENT, MIN_SLOT_SIZE } from './inventorySlots';
 import { SNAP_GAP, snapInventorySlot } from './inventorySlotSnap';
 
 const slot = (id: string, x: number, y: number, w: number, h: number): InventorySlot => ({ id, name: id, x, y, w, h });
@@ -57,10 +58,56 @@ describe('snapInventorySlot', () => {
     expect(guides).toEqual([]);
   });
 
-  it('never pushes a moved slot outside the widget', () => {
-    const { slot: result } = snapInventorySlot({ mode: 'move', proposed: slot('b', -5, 120, 20, 20), others: [], threshold });
+  it('keeps a moved slot inside the widget horizontally and above the top, but lets it go below the bottom', () => {
+    const { slot: result } = snapInventorySlot({ mode: 'move', proposed: slot('b', -5, -4, 20, 20), others: [], threshold });
     expect(result.x).toBe(0);
-    expect(result.y).toBe(80);
+    expect(result.y).toBe(0);
+
+    const below = snapInventorySlot({ mode: 'move', proposed: slot('b', 10, 120, 20, 20), others: [], threshold });
+    expect(below.slot.y).toBe(120);
+
+    const far = snapInventorySlot({ mode: 'move', proposed: slot('b', 10, 900, 20, 20), others: [], threshold });
+    expect(far.slot.y).toBe(MAX_SLOT_EXTENT - 20);
+  });
+
+  it('resizes from the top left corner while the opposite corner stays put', () => {
+    const { slot: result } = snapInventorySlot({
+      mode: 'resize-start',
+      proposed: slot('b', 45.6, 50.4, 24.4, 19.6),
+      others: [],
+      threshold: { x: 0.2, y: 0.2 },
+    });
+    expect(result.x).toBe(46);
+    expect(result.y).toBe(50);
+    expect(result.x + result.w).toBeCloseTo(70, 5);
+    expect(result.y + result.h).toBeCloseTo(70, 5);
+  });
+
+  it('snaps the top left corner to a neighbour and to the widget inset', () => {
+    const gap = snapInventorySlot({
+      mode: 'resize-start',
+      proposed: slot('b', 40 + SNAP_GAP + 0.5, 25, 24.5, 15),
+      others: [slot('a', 20, 20, 20, 20)],
+      threshold,
+    });
+    expect(gap.slot.x).toBe(40 + SNAP_GAP);
+    expect(gap.slot.x + gap.slot.w).toBeCloseTo(67, 5);
+
+    const inset = snapInventorySlot({ mode: 'resize-start', proposed: slot('b', 2.6, 2.3, 30, 30), others: [], threshold });
+    expect(inset.slot.x).toBe(2);
+    expect(inset.slot.y).toBe(2);
+    expect(inset.slot.x + inset.slot.w).toBeCloseTo(32.6, 5);
+  });
+
+  it('never shrinks a top left resize below the minimum size or past the far edge', () => {
+    const { slot: result } = snapInventorySlot({
+      mode: 'resize-start',
+      proposed: slot('b', 70, 70, -10, -10),
+      others: [],
+      threshold,
+    });
+    expect(result.w).toBe(MIN_SLOT_SIZE);
+    expect(result.h).toBe(MIN_SLOT_SIZE);
   });
 
   it('matches the size of another slot when resizing', () => {

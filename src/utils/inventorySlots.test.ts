@@ -131,6 +131,21 @@ describe('fitInventorySlotsHeight', () => {
     });
   });
 
+  it('grows the widget when a slot was dragged past the bottom edge and keeps slot sizes in pixels', () => {
+    const slots = [at('a', 0, 40), at('b', 80, 40)];
+    const result = fitInventorySlotsHeight(slots, 300, 320);
+    expect(result).not.toBeNull();
+    const { height, slots: fitted } = result!;
+    expect(height).toBeGreaterThan(300);
+    expect(height % 10).toBe(0);
+    fitted.forEach((s, i) => {
+      expect((s.h / 100) * height).toBeCloseTo(120, 0);
+      expect((s.y / 100) * height).toBeCloseTo(i * 240, 0);
+      expect(s.y + s.h).toBeLessThanOrEqual(100);
+    });
+    expect(height).toBeGreaterThanOrEqual(360);
+  });
+
   it('does nothing when the slots already fill the widget', () => {
     expect(fitInventorySlotsHeight([at('a', 0, 100)], 300, 320)).toBeNull();
     expect(fitInventorySlotsHeight([at('a', 2, 96)], 300, 320)).toBeNull();

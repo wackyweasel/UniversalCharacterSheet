@@ -161,13 +161,19 @@ export function getDefaultInventorySlotsData(): Pick<
   return { ...getDefaultInventoryData(), inventorySlots: createDefaultInventorySlots() };
 }
 
-/** Keeps a slot's rectangle inside the widget area and above the minimum size. */
-export function clampInventorySlot(slot: InventorySlot): InventorySlot {
+/** How far below the widget a slot may be dragged while editing, in percent of the current height. */
+export const MAX_SLOT_EXTENT = 300;
+
+/**
+ * Keeps a slot's rectangle inside the widget area and above the minimum size. `maxBottom` lets a slot
+ * go past the bottom edge while it is being dragged, before the widget grows to hold it.
+ */
+export function clampInventorySlot(slot: InventorySlot, maxBottom = 100): InventorySlot {
   const finite = (value: number, fallback: number) => (Number.isFinite(value) ? value : fallback);
   const w = Math.min(100, Math.max(MIN_SLOT_SIZE, finite(slot.w, MIN_SLOT_SIZE)));
-  const h = Math.min(100, Math.max(MIN_SLOT_SIZE, finite(slot.h, MIN_SLOT_SIZE)));
+  const h = Math.min(maxBottom, Math.max(MIN_SLOT_SIZE, finite(slot.h, MIN_SLOT_SIZE)));
   const x = Math.min(100 - w, Math.max(0, finite(slot.x, 0)));
-  const y = Math.min(100 - h, Math.max(0, finite(slot.y, 0)));
+  const y = Math.min(maxBottom - h, Math.max(0, finite(slot.y, 0)));
   return { ...slot, x, y, w, h };
 }
 
@@ -176,9 +182,10 @@ const FIT_MIN_HEIGHT_PX = 60;
 const roundSlotValue = (value: number) => Math.round(value * 100) / 100;
 
 /**
- * Shrinks the widget height so no empty space is left under the lowest slot. Slots are stored in
- * percent, so their vertical values are rescaled to keep every slot the same size in pixels.
- * Returns null when the widget is already as short as it can be.
+ * Resizes the widget height to match the lowest slot: it shrinks so no empty space is left under it,
+ * and grows when a slot was dragged past the bottom edge. Slots are stored in percent, so their
+ * vertical values are rescaled to keep every slot the same size in pixels.
+ * Returns null when the height is already right.
  */
 export function fitInventorySlotsHeight(
   slots: InventorySlot[],
@@ -189,7 +196,8 @@ export function fitInventorySlotsHeight(
   const bottomPx = Math.max(...slots.map((slot) => ((slot.y + slot.h) / 100) * widgetHeight));
   const margin = Math.min(FIT_BOTTOM_MARGIN_PX, Math.max(2, widgetWidth * 0.02));
   const target = Math.max(FIT_MIN_HEIGHT_PX, Math.ceil((bottomPx + margin) / WIDGET_GRID_SIZE) * WIDGET_GRID_SIZE);
-  if (target >= widgetHeight) return null;
+  const overflows = bottomPx > widgetHeight + 0.01;
+  if (target === widgetHeight || (target > widgetHeight && !overflows)) return null;
   const scale = widgetHeight / target;
   return {
     height: target,
