@@ -1,5 +1,5 @@
 import type { InventoryFieldValue, InventoryItem, InventoryItemField, Widget, WidgetData } from '../../types';
-import { createInventoryItem, getInventoryItemQuantity, isInventoryWidgetType } from '../../utils/inventory';
+import { createInventoryItem, fromCodexItem, getInventoryItemQuantity, isInventoryWidgetType, toCodexItem } from '../../utils/inventory';
 import { getFirstFreeSlot } from '../../utils/inventorySlots';
 import { getActiveNoteContent, getNoteContentUpdate } from '../../utils/noteTabs';
 import {
@@ -214,17 +214,20 @@ export const inventoryAddEffect: EffectDef = {
     const amount = ctx.amount('quantity');
     const quantity = Math.max(0, Math.floor(amount?.value ?? 1));
     if (quantity === 0) return { text: `Added no ${name}` };
+    const isCodex = ctx.widget.type === 'COMPENDIUM';
     const items = ctx.widget.data.inventoryItems ?? [];
     const index = items.findIndex((item) => sameName(item.name, name));
     const detail = amount?.roll ? ` (${amount.text})` : '';
     if (index >= 0) {
-      const item = items[index];
+      const item = isCodex ? fromCodexItem(items[index]) : items[index];
       const next = [...items];
-      next[index] = { ...item, quantity: quantityOf(item) + quantity };
+      const updated = { ...item, quantity: quantityOf(item) + quantity };
+      next[index] = isCodex ? toCodexItem(updated) : updated;
       return { data: { inventoryItems: next }, text: `Added ${formatNumber(quantity)} × ${item.name} (now ${formatNumber(quantityOf(item) + quantity)})${detail}` };
     }
-    const created = createInventoryItem(name, ctx.widget.data.inventoryDefaultFields ?? []);
+    let created = createInventoryItem(name, ctx.widget.data.inventoryDefaultFields ?? []);
     if (quantity !== 1) created.quantity = quantity;
+    if (isCodex) created = toCodexItem(created);
     if (ctx.widget.type === 'INVENTORY_SLOTS') {
       const slot = getFirstFreeSlot(ctx.widget.data.inventorySlots ?? [], items);
       if (!slot) return { text: `No free slot for ${name}` };
@@ -245,10 +248,11 @@ export const inventoryRemoveEffect: EffectDef = {
   apply: (ctx) => {
     if (!ctx.widget || !isInventoryWidgetType(ctx.widget.type)) return null;
     const name = ctx.text('name').trim();
+    const isCodex = ctx.widget.type === 'COMPENDIUM';
     const items = ctx.widget.data.inventoryItems ?? [];
     const index = items.findIndex((item) => sameName(item.name, name));
     if (index < 0) return { text: `No ${name || 'item'} to remove` };
-    const item = items[index];
+    const item = isCodex ? fromCodexItem(items[index]) : items[index];
     const have = quantityOf(item);
     const wanted = ctx.params.quantity?.trim() ? Math.max(0, Math.floor(ctx.amount('quantity')?.value ?? 1)) : have;
     if (wanted === 0) return { text: `Removed no ${item.name}` };
@@ -257,7 +261,7 @@ export const inventoryRemoveEffect: EffectDef = {
       return { data: { inventoryItems: items.filter((_, itemIndex) => itemIndex !== index) }, text: `Removed ${have > 1 ? `all ${formatNumber(have)} × ` : ''}${item.name}` };
     }
     const next = [...items];
-    next[index] = { ...item, quantity: left };
+    next[index] = isCodex ? toCodexItem({ ...item, quantity: left }) : { ...item, quantity: left };
     return { data: { inventoryItems: next }, text: `Removed ${formatNumber(wanted)} × ${item.name} (${formatNumber(left)} left)` };
   },
   describe: (d) => `Remove ${d.params.quantity?.trim() ? (d.params.quantity === '1' ? '' : `${d.params.quantity} × `) : 'all '}${d.params.name || '?'} from ${d.widget}`,

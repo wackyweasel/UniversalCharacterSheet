@@ -140,7 +140,7 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
     case 'COMPENDIUM':
       data.inventorySlots?.forEach((slot) => add('Inventory slot', slot.name));
       data.inventoryItems?.forEach((item) => {
-        add(widget.type === 'COMPENDIUM' ? 'Compendium entry' : 'Inventory item', item.name);
+        add(widget.type === 'COMPENDIUM' ? 'Codex entry' : 'Inventory item', item.name);
         item.fields.forEach((field) => {
           add(`${item.name || 'Item'} field`, field.name);
           if (typeof field.value === 'string') add(field.name || item.name || 'Item value', field.value);

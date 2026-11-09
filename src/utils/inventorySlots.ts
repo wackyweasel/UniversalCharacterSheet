@@ -108,34 +108,45 @@ export function createDefaultInventorySlots(): InventorySlot[] {
 }
 
 /**
- * Replaces the slot layout with a preset. Items follow the slot with the same name, otherwise they
- * move to the next free slot. Items that no longer fit are dropped and counted.
+ * Replaces the slot layout with a preset. Slots keep the capacity of the slot with the same name.
+ * Items follow the slot with the same name, otherwise they move to the next slot with room.
+ * Items that no longer fit are dropped and counted.
  */
 export function applyInventorySlotPreset(
   preset: InventorySlotPreset,
   currentSlots: InventorySlot[],
   items: InventoryItem[],
 ): { slots: InventorySlot[]; items: InventoryItem[]; removedCount: number } {
-  const slots = preset.layout.map((slot) => ({ ...slot, id: uuidv4() }));
-  const slotByName = new Map(slots.map((slot) => [slot.name.toLowerCase(), slot.id]));
-  const oldName = (slotId?: string) => currentSlots.find((slot) => slot.id === slotId)?.name.trim().toLowerCase();
+  const normalize = (name: string) => name.trim().toLowerCase();
+  const oldSlotByName = new Map(currentSlots.map((slot) => [normalize(slot.name), slot]));
+  const slots = preset.layout.map((layoutSlot): InventorySlot => {
+    const previous = oldSlotByName.get(normalize(layoutSlot.name));
+    const capacity: Partial<InventorySlot> = {};
+    if (previous?.maxItems !== undefined) capacity.maxItems = previous.maxItems;
+    if (previous?.maxItemsLabel) capacity.maxItemsLabel = previous.maxItemsLabel;
+    if (previous?.maxItemsFormula) capacity.maxItemsFormula = previous.maxItemsFormula;
+    return { ...layoutSlot, ...capacity, id: uuidv4() };
+  });
+  const slotByName = new Map(slots.map((slot) => [normalize(slot.name), slot]));
+  const oldName = (slotId?: string) => currentSlots.find((slot) => slot.id === slotId)?.name;
 
-  const taken = new Set<string>();
+  const counts = new Map<string, number>();
   const placed = new Map<string, string>();
-  const assign = (item: InventoryItem, slotId: string) => {
-    taken.add(slotId);
-    placed.set(item.id, slotId);
+  const hasRoom = (slot: InventorySlot) => (counts.get(slot.id) ?? 0) < getSlotMaxItems(slot);
+  const assign = (item: InventoryItem, slot: InventorySlot) => {
+    counts.set(slot.id, (counts.get(slot.id) ?? 0) + 1);
+    placed.set(item.id, slot.id);
   };
 
   const equipped = items.filter((item) => item.slotId);
   equipped.forEach((item) => {
-    const match = slotByName.get(oldName(item.slotId) ?? '');
-    if (match && !taken.has(match)) assign(item, match);
+    const match = slotByName.get(normalize(oldName(item.slotId) ?? ''));
+    if (match && hasRoom(match)) assign(item, match);
   });
   equipped.forEach((item) => {
     if (placed.has(item.id)) return;
-    const free = slots.find((slot) => !taken.has(slot.id));
-    if (free) assign(item, free.id);
+    const free = slots.find((slot) => !counts.get(slot.id)) ?? slots.find(hasRoom);
+    if (free) assign(item, free);
   });
 
   const unslotted = items.filter((item) => !item.slotId);
@@ -194,11 +205,28 @@ export function createInventorySlot(name: string, existingSlots: InventorySlot[]
   return clampInventorySlot({ id: uuidv4(), name, x: 4 + offset, y: 4 + offset, w: 24, h: 20 });
 }
 
-export function getSlotItem(items: InventoryItem[], slotId: string): InventoryItem | undefined {
-  return items.find((item) => item.slotId === slotId);
+export const DEFAULT_SLOT_MAX_ITEMS = 1;
+
+/** How many items a slot holds. Anything unusable falls back to the default. */
+export function getSlotMaxItems(slot: Pick<InventorySlot, 'maxItems'> | undefined): number {
+  const value = slot?.maxItems;
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(1, Math.floor(value)) : DEFAULT_SLOT_MAX_ITEMS;
 }
 
+export function getSlotItems(items: InventoryItem[], slotId: string): InventoryItem[] {
+  return items.filter((item) => item.slotId === slotId);
+}
+
+export function isSlotOverCapacity(slot: InventorySlot, items: InventoryItem[]): boolean {
+  return getSlotItems(items, slot.id).length > getSlotMaxItems(slot);
+}
+
+/** The first slot with room, preferring slots that are still empty. */
 export function getFirstFreeSlot(slots: InventorySlot[], items: InventoryItem[]): InventorySlot | undefined {
-  const taken = new Set(items.map((item) => item.slotId));
-  return slots.find((slot) => !taken.has(slot.id));
+  const counts = new Map<string, number>();
+  items.forEach((item) => {
+    if (item.slotId) counts.set(item.slotId, (counts.get(item.slotId) ?? 0) + 1);
+  });
+  return slots.find((slot) => !counts.get(slot.id))
+    ?? slots.find((slot) => (counts.get(slot.id) ?? 0) < getSlotMaxItems(slot));
 }

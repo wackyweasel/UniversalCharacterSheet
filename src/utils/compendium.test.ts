@@ -119,8 +119,17 @@ describe('instantiateCompendiumItem', () => {
     expect(result.fields[0].templateId).toBeUndefined();
   });
 
-  it('drops the quantity when the target does not track it', () => {
-    expect(instantiateCompendiumItem(createItem({ quantity: 4 }), [], { allowQuantity: false }).quantity).toBeUndefined();
+  it('turns the quantity into a Quantity attribute when the target is a codex', () => {
+    const result = instantiateCompendiumItem(createItem({ quantity: 4 }), [], { allowQuantity: false });
+    expect(result.quantity).toBeUndefined();
+    expect(result.fields.find((field) => field.name === 'Quantity')?.value).toBe(4);
+  });
+
+  it('turns a Quantity attribute back into a real quantity for inventories', () => {
+    const entry = createItem({ fields: [{ id: 'q', name: 'Quantity', type: 'number', value: 6 }] });
+    const result = instantiateCompendiumItem(entry, []);
+    expect(result.quantity).toBe(6);
+    expect(result.fields.some((field) => field.name === 'Quantity')).toBe(false);
   });
 
   it('carries an entry weight into widgets that track encumbrance', () => {
@@ -134,7 +143,7 @@ describe('instantiateCompendiumItem', () => {
     expect(result.fields.filter((field) => field.name === 'Weight')).toHaveLength(1);
   });
 
-  it('leaves the weight out when the widget does not track encumbrance', () => {
+  it('keeps the weight as a plain attribute when the widget does not track encumbrance', () => {
     const rope = createItem({
       name: 'Rope',
       fields: [
@@ -143,7 +152,8 @@ describe('instantiateCompendiumItem', () => {
       ],
     });
     const result = instantiateCompendiumItem(rope, [templates[0]]);
-    expect(result.fields.map((field) => field.name)).toEqual(['Level', 'Length']);
+    expect(result.fields.map((field) => field.name)).toEqual(['Level', 'Weight', 'Length']);
+    expect(result.fields[1]).toMatchObject({ value: 5, reserved: undefined });
   });
 });
 
@@ -179,7 +189,7 @@ describe('compendium export and import', () => {
     expect(parseCompendiumImport('{"sections":[]}').ok).toBe(false);
   });
 
-  it('keeps the weight attribute but strips template links from imported attributes', () => {
+  it('keeps the weight attribute as a plain attribute and strips template links from imported attributes', () => {
     const text = JSON.stringify({
       sections: [{ name: 'Gear', items: [{ name: 'Rope', fields: [
         { name: 'Weight', type: 'number', value: 2, reserved: 'weight', templateId: 'x' },
@@ -190,7 +200,8 @@ describe('compendium export and import', () => {
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     const [weight, length] = parsed.sections[0].items[0].fields;
-    expect(weight).toMatchObject({ reserved: 'weight', value: 2 });
+    expect(weight).toMatchObject({ value: 2 });
+    expect(weight.reserved).toBeUndefined();
     expect(weight.templateId).toBeUndefined();
     expect(length.reserved).toBeUndefined();
   });

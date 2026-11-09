@@ -3,7 +3,10 @@ import type { InventoryItem, InventorySlot } from '../types';
 import {
   applyInventorySlotPreset,
   fitInventorySlotsHeight,
+  getFirstFreeSlot,
+  getSlotMaxItems,
   INVENTORY_SLOT_PRESETS,
+  isSlotOverCapacity,
   MIN_SLOT_SIZE,
 } from './inventorySlots';
 
@@ -73,6 +76,41 @@ describe('applyInventorySlotPreset', () => {
   it('leaves items that are not in a slot untouched', () => {
     const result = applyInventorySlotPreset(basic, current, [item('loose')]);
     expect(result.items).toEqual([expect.objectContaining({ id: 'loose', slotId: undefined })]);
+    expect(result.removedCount).toBe(0);
+  });
+});
+
+describe('inventory slot capacity', () => {
+  it('defaults to one item and ignores unusable values', () => {
+    expect(getSlotMaxItems(undefined)).toBe(1);
+    expect(getSlotMaxItems({})).toBe(1);
+    expect(getSlotMaxItems({ maxItems: 0 })).toBe(1);
+    expect(getSlotMaxItems({ maxItems: 2.9 })).toBe(2);
+    expect(getSlotMaxItems({ maxItems: Number.NaN })).toBe(1);
+  });
+
+  it('flags a slot holding more items than its maximum', () => {
+    const ring = { ...slot('r', 'Ring'), maxItems: 2 };
+    expect(isSlotOverCapacity(ring, [item('a', 'r'), item('b', 'r')])).toBe(false);
+    expect(isSlotOverCapacity({ ...ring, maxItems: 1 }, [item('a', 'r'), item('b', 'r')])).toBe(true);
+  });
+
+  it('finds a slot with room, preferring empty slots', () => {
+    const slots = [{ ...slot('r', 'Ring'), maxItems: 2 }, slot('h', 'Head')];
+    expect(getFirstFreeSlot(slots, [item('a', 'r')])?.id).toBe('h');
+    expect(getFirstFreeSlot(slots, [item('a', 'r'), item('b', 'h')])?.id).toBe('r');
+    expect(getFirstFreeSlot(slots, [item('a', 'r'), item('b', 'r'), item('c', 'h')])).toBeUndefined();
+  });
+
+  it('keeps a slot capacity and its items when a preset has a slot with the same name', () => {
+    const basic = INVENTORY_SLOT_PRESETS.find((preset) => preset.id === 'basic')!;
+    const headName = basic.layout[0].name;
+    const current = [{ ...slot('s1', headName), maxItems: 2, maxItemsLabel: 'head_max', maxItemsFormula: '@lvl' }];
+    const result = applyInventorySlotPreset(basic, current, [item('a', 's1'), item('b', 's1')]);
+    const head = result.slots.find((s) => s.name === headName)!;
+
+    expect(head).toMatchObject({ maxItems: 2, maxItemsLabel: 'head_max', maxItemsFormula: '@lvl' });
+    expect(result.items.map((i) => i.slotId)).toEqual([head.id, head.id]);
     expect(result.removedCount).toBe(0);
   });
 });

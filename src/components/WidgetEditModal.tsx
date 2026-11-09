@@ -126,7 +126,7 @@ function getWidgetTitle(type: WidgetType): string {
     'INITIATIVE_TRACKER': 'Initiative Tracker',
     'INVENTORY': 'Inventory',
     'INVENTORY_SLOTS': 'Equipment',
-    'COMPENDIUM': 'Compendium',
+    'COMPENDIUM': 'Codex',
     'DECK': 'Legacy Deck of Cards',
     'DECK_OF_CARDS': 'Deck of Cards',
     'TIMER': 'Timer',

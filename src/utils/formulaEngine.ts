@@ -8,6 +8,7 @@ import { getExperienceDerivedValue, normalizeXp } from './experienceLevel';
 import { getSkillDerivedValue, normalizeSkillPoints } from './skillTree';
 import { getDicePoolDerivedValue, normalizeDiceCount, normalizePoolTarget } from './dicePool';
 import { getCalendarLabelValues } from './calendar';
+import { getSlotMaxItems } from './inventorySlots';
 import { isCoveredTableCell, validateTableMerges } from './tableCells';
 import {
   extractFormulaLabelReferences,
@@ -60,6 +61,10 @@ export function collectLabels(character: Character): FormulaLabels {
       forEachInventoryLabel(data, (labelName, value) => {
         labels[labelName] = value;
       });
+
+      for (const slot of data.inventorySlots ?? []) {
+        if (slot.maxItemsLabel) labels[slot.maxItemsLabel] = getSlotMaxItems(slot);
+      }
 
       for (const item of data.formItems ?? []) {
         if (item.valueLabel) labels[item.valueLabel] = toTextLabelValue(item.value ?? '');
@@ -1064,6 +1069,7 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
   };
 
   checkArrayChanges(oldWidget.data.numberItems, newWidget.data.numberItems, 'value', 'valueFormula', 'name');
+  checkArrayChanges(oldWidget.data.inventorySlots, newWidget.data.inventorySlots, 'maxItems', 'maxItemsFormula', 'name');
   checkArrayChanges(oldWidget.data.clockItems, newWidget.data.clockItems, 'segments', 'segmentsFormula', 'name');
   checkArrayChanges(oldWidget.data.clockItems, newWidget.data.clockItems, 'value', 'valueFormula', 'name');
   checkArrayChanges(oldWidget.data.trackThresholds, newWidget.data.trackThresholds, 'value', 'valueFormula', 'name');
@@ -1224,6 +1230,26 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
     if (itemsChanged) {
       changed = true;
       updates.rollTableItems = updatedItems;
+    }
+  }
+
+  if (widget.data.inventorySlots?.some((slot) => slot.maxItemsFormula)) {
+    let slotsChanged = false;
+    const updatedSlots = widget.data.inventorySlots.map((slot) => {
+      if (!slot.maxItemsFormula) return slot;
+      const computed = evaluateFormula(slot.maxItemsFormula, labels);
+      if (computed === null) return slot;
+
+      const resolvedMax = Math.max(1, Math.floor(computed));
+      if (resolvedMax === slot.maxItems) return slot;
+
+      slotsChanged = true;
+      return { ...slot, maxItems: resolvedMax };
+    });
+
+    if (slotsChanged) {
+      changed = true;
+      updates.inventorySlots = updatedSlots;
     }
   }
 
@@ -1721,6 +1747,10 @@ export function getAvailableLabels(character: Character): { label: string; value
         result.push({ label: labelName, value, widgetLabel, sheetName: sheet.name });
       });
 
+      for (const slot of data.inventorySlots ?? []) {
+        if (slot.maxItemsLabel) result.push({ label: slot.maxItemsLabel, value: getSlotMaxItems(slot), widgetLabel, sheetName: sheet.name });
+      }
+
       for (const item of data.formItems ?? []) {
         if (item.valueLabel) result.push({ label: item.valueLabel, value: toTextLabelValue(item.value ?? ''), widgetLabel, sheetName: sheet.name });
       }
@@ -1956,6 +1986,12 @@ export function buildDependencyGraph(character: Character): Record<string, strin
           if (item.weightLabel && item.weightFormula) {
             graph[item.weightLabel] = extractFormulaRefs(item.weightFormula, labels);
           }
+        }
+      }
+
+      for (const slot of data.inventorySlots ?? []) {
+        if (slot.maxItemsLabel && slot.maxItemsFormula) {
+          graph[slot.maxItemsLabel] = extractFormulaRefs(slot.maxItemsFormula, labels);
         }
       }
 

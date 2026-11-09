@@ -163,6 +163,7 @@ function mapWidgetLabels(widget: Widget, mapper: SlotMapper): WidgetData {
   }
 
   assign('rollTableItems', mapItems(data.rollTableItems, [['weightLabel', 'weightFormula', 'Weight']], itemName('text', 'Option'), mapper));
+  assign('inventorySlots', mapItems(data.inventorySlots, [['maxItemsLabel', 'maxItemsFormula', 'Max items']], itemName('name', 'Slot'), mapper));
   assign('formItems', mapItems(data.formItems, [['valueLabel', 'valueFormula', '']], itemName('name', 'Field'), mapper));
   const numberSpecs: SlotSpec[] = [
     ['valueLabel', 'valueFormula', ''],

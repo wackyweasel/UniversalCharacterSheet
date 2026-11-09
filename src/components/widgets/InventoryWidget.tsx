@@ -167,7 +167,7 @@ function InventoryWidget({
                 }}
                 onMouseDown={(event) => event.stopPropagation()}
                 disabled={inventoryItems.length === 0}
-                aria-label={`Choose ${noun === 'item' ? 'inventory items' : 'compendium entries'} to remove`}
+                aria-label={`Choose ${noun === 'item' ? 'inventory items' : 'codex entries'} to remove`}
                 className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
               >
                 <MinusIcon className="h-3.5 w-3.5" />
@@ -200,7 +200,6 @@ function InventoryWidget({
       <div
         data-inventory-drop-zone="true"
         data-inventory-widget-id={widget.id}
-        data-inventory-compendium={isCompendium ? 'true' : undefined}
         className="inventory-drop-zone flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-0.5"
         onWheel={(event) => {
           if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation();

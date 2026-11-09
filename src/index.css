@@ -5074,6 +5074,15 @@ button.event-flow__line:hover {
   border-color: var(--color-accent);
 }
 
+.inventory-slot--over {
+  background-color: color-mix(in srgb, rgb(220 38 38) 14%, var(--color-paper));
+  border-color: color-mix(in srgb, rgb(220 38 38) 65%, var(--color-border));
+}
+
+.inventory-slot--over .inventory-slot__count {
+  color: rgb(220 38 38);
+}
+
 .inventory-slot__item {
   container-type: inline-size;
 }

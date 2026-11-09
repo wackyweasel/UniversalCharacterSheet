@@ -7,6 +7,7 @@ import {
   InventoryFieldValue,
   InventoryItem,
   InventoryItemField,
+  Widget,
   WidgetData,
   WidgetType,
 } from '../types';
@@ -303,19 +304,70 @@ export function getCharacterGlobalInventoryLoad(character: Character | undefined
   ), 0);
 }
 
-/** Widgets that hold inventory items: the list inventory, the slot-based one and the compendium. */
+/** Widgets that hold inventory items: the list inventory, the slot-based one and the codex. */
 export function isInventoryWidgetType(type: WidgetType | undefined): type is 'INVENTORY' | 'INVENTORY_SLOTS' | 'COMPENDIUM' {
   return type === 'INVENTORY' || type === 'INVENTORY_SLOTS' || type === 'COMPENDIUM';
 }
 
-/** Compendium entries have no weight, so they only move between compendiums. */
-export function canMoveInventoryItemBetween(sourceType: WidgetType | undefined, targetType: WidgetType | undefined): boolean {
-  return (sourceType === 'COMPENDIUM') === (targetType === 'COMPENDIUM');
+/** Where an item lives. Codex widgets track neither quantity nor weight. */
+export interface InventoryItemEndpoint {
+  type: WidgetType | undefined;
+  tracksWeight: boolean;
+}
+
+export function getInventoryItemEndpoint(widget: Pick<Widget, 'type' | 'data'>): InventoryItemEndpoint {
+  return {
+    type: widget.type,
+    tracksWeight: widget.type !== 'COMPENDIUM' && widget.data.inventoryEncumbrance?.enabled === true,
+  };
+}
+
+function isQuantityField(field: InventoryItemField): boolean {
+  return field.type === 'number'
+    && !field.reserved
+    && field.name.trim().toLowerCase() === 'quantity'
+    && String(field.value).trim() !== '';
+}
+
+/** A codex shows an item's quantity and weight as ordinary attributes. */
+export function toCodexItem(item: InventoryItem): InventoryItem {
+  const quantity = getInventoryItemQuantity(item);
+  if (quantity === undefined && !('quantity' in item) && !item.fields.some((field) => field.reserved)) return item;
+  const { quantity: _quantity, ...rest } = item;
+  const fields = item.fields.map((field) => (field.reserved ? { ...field, reserved: undefined } : field));
+  return {
+    ...rest,
+    fields: quantity === undefined ? fields : [...fields, createInventoryItemField('Quantity', 'number', quantity)],
+  };
+}
+
+/** The reverse of {@link toCodexItem}: a "Quantity" attribute becomes the item's real quantity. */
+export function fromCodexItem(item: InventoryItem): InventoryItem {
+  if (getInventoryItemQuantity(item) !== undefined) return item;
+  const index = item.fields.findIndex(isQuantityField);
+  if (index < 0) return item;
+  const quantity = normalizeInventoryQuantity(item.fields[index].value);
+  if (quantity === undefined) return item;
+  return { ...item, quantity, fields: item.fields.filter((_, fieldIndex) => fieldIndex !== index) };
+}
+
+/** Prepares an item for another widget so its quantity and weight keep working there. */
+export function adaptInventoryItem(
+  item: InventoryItem,
+  source: InventoryItemEndpoint,
+  target: InventoryItemEndpoint,
+): InventoryItem {
+  const sourceIsCodex = source.type === 'COMPENDIUM';
+  const targetIsCodex = target.type === 'COMPENDIUM';
+  let adapted = item;
+  if (targetIsCodex && !sourceIsCodex) adapted = toCodexItem(item);
+  else if (!targetIsCodex && sourceIsCodex) adapted = fromCodexItem(item);
+  return target.tracksWeight ? ensureItemWeight(adapted) : adapted;
 }
 
 export function getInventoryWidgetTerms(type: WidgetType | undefined): { title: string; noun: string } {
   return type === 'COMPENDIUM'
-    ? { title: 'Compendium', noun: 'entry' }
+    ? { title: 'Codex', noun: 'entry' }
     : { title: 'Inventory', noun: 'item' };
 }
 
@@ -336,7 +388,7 @@ export function moveInventoryItemBetweenLists(
   targetItems: InventoryItem[],
   itemId: string,
   targetIndex: number,
-  targetRequiresWeight: boolean,
+  prepareForTarget: (item: InventoryItem) => InventoryItem = (item) => item,
 ): InventoryMoveResult | null {
   const sourceIndex = sourceItems.findIndex((item) => item.id === itemId);
   if (sourceIndex < 0) return null;
@@ -344,7 +396,7 @@ export function moveInventoryItemBetweenLists(
   if (sourceItems === targetItems) {
     const reordered = [...sourceItems];
     const [sourceItem] = reordered.splice(sourceIndex, 1);
-    const movedItem = targetRequiresWeight ? ensureItemWeight(sourceItem) : sourceItem;
+    const movedItem = prepareForTarget(sourceItem);
     const adjustedTargetIndex = targetIndex > sourceIndex ? targetIndex - 1 : targetIndex;
     const insertionIndex = Math.max(0, Math.min(adjustedTargetIndex, reordered.length));
     const itemUnchanged = movedItem === sourceItem;
@@ -354,8 +406,7 @@ export function moveInventoryItemBetweenLists(
   }
 
   if (targetItems.some((item) => item.id === itemId)) return null;
-  const sourceItem = withSlot(sourceItems[sourceIndex], undefined);
-  const movedItem = targetRequiresWeight ? ensureItemWeight(sourceItem) : sourceItem;
+  const movedItem = prepareForTarget(withSlot(sourceItems[sourceIndex], undefined));
   const nextSourceItems = sourceItems.filter((item) => item.id !== itemId);
   const nextTargetItems = [...targetItems];
   const insertionIndex = Math.max(0, Math.min(targetIndex, nextTargetItems.length));
@@ -364,16 +415,17 @@ export function moveInventoryItemBetweenLists(
 }
 
 /**
- * Puts an item into a slot of a slots widget. A slot holds one item, so an item already
- * there is swapped out: it takes the dragged item's old slot, or its old position in a list.
+ * Puts an item into a slot of a slots widget. When the slot is already full, its last item is
+ * swapped out: it takes the dragged item's old slot, or its old position in a list.
  */
 export function moveInventoryItemToSlot(
   sourceItems: InventoryItem[],
   targetItems: InventoryItem[],
   itemId: string,
   slotId: string,
-  sourceRequiresWeight: boolean,
-  targetRequiresWeight: boolean,
+  prepareForSource: (item: InventoryItem) => InventoryItem = (item) => item,
+  prepareForTarget: (item: InventoryItem) => InventoryItem = (item) => item,
+  slotCapacity = 1,
 ): InventoryMoveResult | null {
   const sourceIndex = sourceItems.findIndex((item) => item.id === itemId);
   if (sourceIndex < 0) return null;
@@ -381,8 +433,9 @@ export function moveInventoryItemToSlot(
   const sameList = sourceItems === targetItems;
   if (sameList ? item.slotId === slotId : targetItems.some((entry) => entry.id === itemId)) return null;
 
-  const occupant = targetItems.find((entry) => entry.slotId === slotId && entry.id !== itemId);
-  const placedItem = withSlot(targetRequiresWeight ? ensureItemWeight(item) : item, slotId);
+  const residents = targetItems.filter((entry) => entry.slotId === slotId && entry.id !== itemId);
+  const occupant = residents.length >= slotCapacity ? residents[residents.length - 1] : undefined;
+  const placedItem = withSlot(prepareForTarget(item), slotId);
 
   if (sameList) {
     const items = sourceItems.map((entry) => {
@@ -394,7 +447,7 @@ export function moveInventoryItemToSlot(
 
   const nextSourceItems = sourceItems.filter((entry) => entry.id !== itemId);
   if (occupant) {
-    const returnedItem = withSlot(sourceRequiresWeight ? ensureItemWeight(occupant) : occupant, item.slotId);
+    const returnedItem = withSlot(prepareForSource(occupant), item.slotId);
     nextSourceItems.splice(sourceIndex, 0, returnedItem);
   }
   const nextTargetItems = targetItems.filter((entry) => entry.id !== occupant?.id);

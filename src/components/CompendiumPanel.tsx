@@ -5,7 +5,6 @@ import { useCompendiumPanelStore } from '../store/useCompendiumPanelStore';
 import type { CompendiumSection, InventoryItem } from '../types';
 import {
   compendiumItemMatches,
-  countCompendiumItems,
   describeCompendiumImport,
   describeCompendiumReplace,
   getCompendiumSections,
@@ -242,7 +241,6 @@ export default function CompendiumPanel() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const sections = useMemo(() => getCompendiumSections(character ?? undefined), [character]);
-  const totalItems = countCompendiumItems(sections);
   const normalizedQuery = query.trim();
 
   const visibleSections = useMemo(() => sections.flatMap((section) => {
@@ -600,6 +598,9 @@ export default function CompendiumPanel() {
       <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFileSelected} aria-label="Import compendium file" />
 
       <div className={`flex-shrink-0 space-y-2 border-b border-theme-border px-4 ${isBottom ? 'pb-2' : 'pb-3'}`}>
+        <p className="text-xs leading-relaxed text-theme-muted font-body">
+          Your reusable library of items, spells and anything else you want to define once. Pick these entries from “Add item” in a Codex, Inventory or Equipment widget.
+        </p>
         <span className="relative block">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-muted" aria-hidden="true" />
           <input
@@ -644,11 +645,6 @@ export default function CompendiumPanel() {
         ) : (
           <div className="space-y-3 p-4">
             {visibleSections.map(renderSection)}
-            <p className="px-1 pt-1 text-[11px] leading-relaxed text-theme-muted font-body">
-              {totalItems === 0
-                ? 'Pre-define entries here, then pick them from “Add item” in a Compendium, Inventory or Equipment widget.'
-                : 'Pick these entries from “Add item” in a Compendium, Inventory or Equipment widget.'}
-            </p>
           </div>
         )}
       </div>
@@ -681,6 +677,7 @@ export default function CompendiumPanel() {
           noun="entry"
           defaultFields={ENTRY_DEFAULT_FIELDS}
           allowCompendium={false}
+          allowQuantity={false}
           onClose={() => setDialog(null)}
           onSave={(item) => saveItem(dialogSection.id, item)}
           onDelete={dialog.item ? () => {

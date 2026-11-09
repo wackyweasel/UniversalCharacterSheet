@@ -108,6 +108,7 @@ function writeWidgetLabel(widget: Widget, label: string, value: FormulaValue): W
     ['maxValueLabel', 'maxValue', 'maxValueFormula', 'number'],
   ];
   results.push(['rollTableItems', writeItems(data.rollTableItems, [['weightLabel', 'weight', 'weightFormula', 'number']], label, value)]);
+  results.push(['inventorySlots', writeItems(data.inventorySlots, [['maxItemsLabel', 'maxItems', 'maxItemsFormula', 'number']], label, value)]);
   results.push(['formItems', writeItems(data.formItems, [['valueLabel', 'value', 'valueFormula', 'text']], label, value)]);
   results.push(['numberItems', writeItems(data.numberItems, numberSpecs, label, value)]);
   results.push(['displayNumbers', writeItems(data.displayNumbers, [...numberSpecs, ['secondaryValueLabel', 'secondaryValue', 'secondaryValueFormula', 'number']], label, value)]);

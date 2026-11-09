@@ -9,10 +9,10 @@ import {
   getInventoryItemQuantity,
   getInventoryLoad,
 } from '../../utils/inventory';
-import { getSlotItem } from '../../utils/inventorySlots';
+import { getSlotItems, getSlotMaxItems } from '../../utils/inventorySlots';
 import { useInventoryItemDrag } from '../../hooks/useInventoryItemDrag';
 import { InventoryEditor } from '../editors/InventoryEditor';
-import { GripVerticalIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
+import { ChevronDownIcon, ChevronRightIcon, GripVerticalIcon, PencilIcon, PlusIcon, XIcon } from '../icons';
 import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import InventoryItemDialog from './InventoryItemDialog';
@@ -63,6 +63,15 @@ function InventorySlotsWidget({
   const [weightOptionsOpen, setWeightOptionsOpen] = useState(false);
   const { startDrag } = useInventoryItemDrag({ widget, items: inventoryItems, canInteract });
   const unbounded = height >= UNBOUNDED_HEIGHT;
+  const collapseAttributes = canInteract && Boolean(widget.data.inventorySlotsCollapseAttributes);
+  const [expandedItemIds, setExpandedItemIds] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleExpanded = (itemId: string) => {
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+      if (!next.delete(itemId)) next.add(itemId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!weightOptionsOpen) return;
@@ -100,13 +109,18 @@ function InventorySlotsWidget({
     );
   };
 
-  const renderItem = (item: InventoryItem) => {
+  const renderItem = (item: InventoryItem, shareSpace: boolean) => {
     const hasVisibleFields = item.fields.some((field) => !isInventoryFieldEmpty(field));
+    const collapsible = collapseAttributes && hasVisibleFields;
+    const expanded = expandedItemIds.has(item.id);
+    const showFields = hasVisibleFields && (!collapseAttributes || expanded);
+    const nameText = <InlineFormulaText text={item.name} />;
     return (
       <article
+        key={item.id}
         data-inventory-item-row="true"
         data-inventory-item-id={item.id}
-        className="inventory-item inventory-slot__item group relative flex min-h-0 flex-1 flex-col overflow-hidden px-1 py-1 text-theme-ink"
+        className={`inventory-item inventory-slot__item group relative flex min-h-0 flex-col overflow-hidden px-1 py-1 text-theme-ink ${shareSpace ? 'flex-none' : 'flex-1'}`}
       >
         <div className="inventory-slot__head flex min-w-0 items-start gap-0.5">
           {canInteract && (
@@ -123,7 +137,20 @@ function InventorySlotsWidget({
             </button>
           )}
           <h3 className="inventory-slot__title min-w-0 flex-1 break-words font-heading text-xs font-bold leading-4 [overflow-wrap:anywhere]">
-            <InlineFormulaText text={item.name} />
+            {collapsible ? (
+              <button
+                type="button"
+                onClick={() => toggleExpanded(item.id)}
+                onMouseDown={(event) => event.stopPropagation()}
+                aria-expanded={expanded}
+                aria-label={`${expanded ? 'Hide' : 'Show'} attributes of ${item.name}`}
+                data-touch-camera-ignore="true"
+                className="inline-flex max-w-full items-start gap-0.5 rounded text-left font-heading font-bold hover:text-theme-accent"
+              >
+                {expanded ? <ChevronDownIcon className="mt-0.5 h-3 w-3 flex-shrink-0" /> : <ChevronRightIcon className="mt-0.5 h-3 w-3 flex-shrink-0" />}
+                <span className="min-w-0 break-words [overflow-wrap:anywhere]">{nameText}</span>
+              </button>
+            ) : nameText}
             {' '}
             <InventoryQuantity item={item} canInteract={canInteract} onEdit={setQuantityDialogItem} />
           </h3>
@@ -144,9 +171,9 @@ function InventorySlotsWidget({
             </Tooltip>
           )}
         </div>
-        {hasVisibleFields && (
+        {showFields && (
           <dl
-            className="mt-0.5 flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto font-body"
+            className={`mt-0.5 flex min-h-0 min-w-0 flex-row flex-wrap content-start gap-x-2 gap-y-0.5 font-body ${shareSpace ? '' : 'flex-1 overflow-y-auto'}`}
             onWheel={(event) => {
               if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation();
             }}
@@ -189,33 +216,66 @@ function InventorySlotsWidget({
         style={unbounded ? { aspectRatio: `${Math.max(1, widget.w ?? 1)} / ${Math.max(1, widget.h ?? 1)}` } : undefined}
       >
         {inventorySlots.map((slot) => {
-          const item = getSlotItem(inventoryItems, slot.id);
+          const slotItems = getSlotItems(inventoryItems, slot.id);
+          const maxItems = getSlotMaxItems(slot);
+          const overCapacity = slotItems.length > maxItems;
+          const hasRoom = slotItems.length < maxItems;
+          const addLabel = `Add item to ${slot.name}`;
+          const addButton = (className: string, iconClassName: string) => (
+            <Tooltip content={addLabel}>
+              <button
+                type="button"
+                onClick={() => setDialog({ slotId: slot.id })}
+                onMouseDown={(event) => event.stopPropagation()}
+                aria-label={addLabel}
+                data-touch-camera-ignore="true"
+                className={className}
+              >
+                <PlusIcon className={iconClassName} />
+              </button>
+            </Tooltip>
+          );
           return (
             <div
               key={slot.id}
               data-inventory-slot-drop="true"
               data-inventory-widget-id={widget.id}
               data-inventory-slot-id={slot.id}
-              className={`inventory-slot absolute flex flex-col gap-0.5 overflow-hidden p-0.5 ${item ? '' : 'inventory-slot--empty'}`}
+              className={`inventory-slot absolute flex flex-col gap-0.5 overflow-hidden p-0.5 ${slotItems.length ? '' : 'inventory-slot--empty'} ${overCapacity ? 'inventory-slot--over' : ''}`}
               style={{ left: `${slot.x}%`, top: `${slot.y}%`, width: `${slot.w}%`, height: `${slot.h}%` }}
             >
-              <div className="inventory-slot__name flex-shrink-0 truncate px-0.5" title={slot.name}>{slot.name}</div>
-              {item ? renderItem(item) : (
+              <div className="flex min-h-0 flex-shrink-0 items-center gap-1 px-0.5">
+                <div className="inventory-slot__name min-w-0 flex-1 truncate" title={slot.name}>{slot.name}</div>
+                {(maxItems > 1 || overCapacity) && (
+                  <span
+                    className="inventory-slot__name inventory-slot__count flex-shrink-0 tabular-nums"
+                    title={overCapacity ? `Over capacity: ${slotItems.length} of ${maxItems}` : `${slotItems.length} of ${maxItems} items`}
+                  >
+                    {slotItems.length}/{maxItems}
+                  </span>
+                )}
+                {controlsVisible && slotItems.length > 0 && hasRoom && addButton(
+                  'widget-control widget-control--subtle flex h-4 w-4 flex-shrink-0 items-center justify-center',
+                  'h-3 w-3',
+                )}
+              </div>
+              {slotItems.length === 0 && (
                 <div className="flex min-h-0 flex-1 items-center justify-center">
-                  {controlsVisible && (
-                    <Tooltip content={`Add item to ${slot.name}`}>
-                      <button
-                        type="button"
-                        onClick={() => setDialog({ slotId: slot.id })}
-                        onMouseDown={(event) => event.stopPropagation()}
-                        aria-label={`Add item to ${slot.name}`}
-                        data-touch-camera-ignore="true"
-                        className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center"
-                      >
-                        <PlusIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </Tooltip>
+                  {controlsVisible && addButton(
+                    'widget-control widget-control--subtle flex h-6 w-6 items-center justify-center',
+                    'h-3.5 w-3.5',
                   )}
+                </div>
+              )}
+              {slotItems.length === 1 && renderItem(slotItems[0], false)}
+              {slotItems.length > 1 && (
+                <div
+                  className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto"
+                  onWheel={(event) => {
+                    if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation();
+                  }}
+                >
+                  {slotItems.map((entry) => renderItem(entry, true))}
                 </div>
               )}
             </div>

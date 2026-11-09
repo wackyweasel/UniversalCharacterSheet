@@ -155,6 +155,24 @@ describe('roll table weight formulas', () => {
   });
 });
 
+describe('inventory slot maximum formulas', () => {
+  it('collects the label and resolves the formula into the slot maximum', () => {
+    const character = createCharacter({
+      formItems: [{ name: 'Level', value: '5', valueLabel: 'lvl' }],
+      inventorySlots: [
+        { id: 'ring', name: 'Ring', x: 0, y: 0, w: 20, h: 20, maxItems: 2, maxItemsLabel: 'ring_max' },
+        { id: 'trinket', name: 'Trinket', x: 30, y: 0, w: 20, h: 20, maxItems: 1, maxItemsFormula: '@ring_max + floor(@lvl / 2)' },
+      ],
+    } as WidgetData);
+
+    expect(collectLabels(character)).toMatchObject({ ring_max: 2 });
+    expect(getAvailableLabels(character).find((entry) => entry.label === 'ring_max')?.value).toBe(2);
+
+    const resolved = resolveCharacterFormulas(character);
+    expect(resolved?.sheets[0].widgets[0].data.inventorySlots?.[1].maxItems).toBe(4);
+  });
+});
+
 describe('mixed field menu labels', () => {
   it('collects the selected menu text and exposes it to the label browser', () => {
     const character = createCharacter({

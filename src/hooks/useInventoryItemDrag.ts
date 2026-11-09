@@ -40,7 +40,7 @@ function findInventoryWidget(widgetId: string): Widget | undefined {
 }
 
 function defaultWidgetLabel(widget: Widget | undefined): string {
-  return widget?.data.label || (widget?.type === 'INVENTORY_SLOTS' ? 'Equipment' : widget?.type === 'COMPENDIUM' ? 'Compendium' : 'Inventory');
+  return widget?.data.label || (widget?.type === 'INVENTORY_SLOTS' ? 'Equipment' : widget?.type === 'COMPENDIUM' ? 'Codex' : 'Inventory');
 }
 
 /**
@@ -188,18 +188,15 @@ export function useInventoryItemDrag({
   };
 
   const resolveDropTarget = (clientX: number, clientY: number): DragTarget | null => {
-    const draggingCompendiumEntry = widget.type === 'COMPENDIUM';
     for (const hit of document.elementsFromPoint(clientX, clientY)) {
       const slot = hit.closest<HTMLElement>(SLOT_SELECTOR);
-      if (slot?.dataset.inventoryWidgetId && slot.dataset.inventorySlotId && !draggingCompendiumEntry) {
+      if (slot?.dataset.inventoryWidgetId && slot.dataset.inventorySlotId) {
         setActiveDropZone(slot);
         return { widgetId: slot.dataset.inventoryWidgetId, index: 0, slotId: slot.dataset.inventorySlotId };
       }
 
       const zone = hit.closest<HTMLElement>(ZONE_SELECTOR);
       if (!zone?.dataset.inventoryWidgetId) continue;
-      // Compendium entries only move between compendiums.
-      if ((zone.dataset.inventoryCompendium === 'true') !== draggingCompendiumEntry) continue;
       setActiveDropZone(zone);
 
       const zoneRect = zone.getBoundingClientRect();

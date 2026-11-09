@@ -10,8 +10,10 @@ import type {
 import {
   coerceInventoryFieldValue,
   createInventoryItemField,
+  fromCodexItem,
   linkInventoryFieldsToTemplates,
   normalizeInventoryQuantity,
+  toCodexItem,
 } from './inventory';
 
 type CompendiumSource = Pick<Character, 'compendium'>;
@@ -117,14 +119,17 @@ export function instantiateCompendiumItem(
   templates: InventoryFieldTemplate[],
   options: { allowQuantity?: boolean } = {},
 ): InventoryItem {
-  const { slotId: _slotId, quantity, ...rest } = item;
+  const { slotId: _slotId, ...entry } = item;
+  const source = options.allowQuantity === false ? toCodexItem(entry) : fromCodexItem(entry);
+  const { quantity, ...rest } = source;
   const tracksWeight = templates.some((template) => template.reserved === 'weight');
-  const weightFieldIds = new Set<string>();
-  const fields = item.fields.map((field) => {
-    const id = uuidv4();
-    if (field.reserved === 'weight' && !tracksWeight) weightFieldIds.add(id);
-    return { ...field, id, reserved: tracksWeight ? field.reserved : undefined, templateId: undefined };
-  });
+  // Without encumbrance a weight is just another attribute.
+  const fields = source.fields.map((field) => ({
+    ...field,
+    id: uuidv4(),
+    reserved: tracksWeight ? field.reserved : undefined,
+    templateId: undefined,
+  }));
   const linked = linkInventoryFieldsToTemplates(fields, templates);
   const defaultFields = templates.map((template) => {
     const existing = linked.find((field) => field.templateId === template.id);
@@ -135,13 +140,12 @@ export function instantiateCompendiumItem(
       ? { ...existing, name: template.name, type: template.type, value: coerceInventoryFieldValue(existing.value, template.type), reserved: template.reserved }
       : existing;
   });
-  // An entry's weight only means something to a widget that tracks encumbrance.
-  const additionalFields = linked.filter((field) => !field.templateId && !weightFieldIds.has(field.id));
+  const additionalFields = linked.filter((field) => !field.templateId);
 
   return {
     ...rest,
     id: uuidv4(),
-    ...(options.allowQuantity !== false && quantity !== undefined ? { quantity } : {}),
+    ...(quantity !== undefined ? { quantity } : {}),
     fields: [...defaultFields, ...additionalFields],
   };
 }
@@ -166,13 +170,13 @@ function sanitizeItem(value: unknown): InventoryItem | null {
   const name = typeof raw.name === 'string' ? raw.name.trim() : '';
   if (!name) return null;
   const quantity = normalizeInventoryQuantity(raw.quantity);
-  return {
+  return toCodexItem({
     id: uuidv4(),
     name,
     ...(quantity !== undefined ? { quantity } : {}),
     ...(typeof raw.description === 'string' && raw.description.trim() ? { description: raw.description } : {}),
     fields: (Array.isArray(raw.fields) ? raw.fields : []).flatMap((field) => sanitizeField(field) ?? []),
-  };
+      });
 }
 
 function sanitizeSection(value: unknown): CompendiumSection | null {

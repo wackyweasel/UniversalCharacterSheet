@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { v4 as uuidv4 } from 'uuid';
 import {
+  CompendiumSection,
   InventoryFieldTemplate,
   InventoryFieldType,
   InventoryItem,
@@ -13,10 +15,11 @@ import {
   linkInventoryFieldsToTemplates,
   normalizeInventoryFieldType,
   normalizeInventoryQuantity,
+  toCodexItem,
 } from '../../utils/inventory';
 import { usePointerReorder } from '../../hooks';
 import { useStore } from '../../store/useStore';
-import { compendiumItemMatches, getCompendiumSections, instantiateCompendiumItem } from '../../utils/compendium';
+import { getCompendiumSections, instantiateCompendiumItem } from '../../utils/compendium';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 import { TextFormulaControls } from '../editors/TextFormulaControls';
 import { RichTextField } from '../RichTextField';
@@ -37,7 +40,7 @@ interface InventoryItemDialogProps {
   noun?: string;
   /** Offers quantity tracking. Disabled for compendiums. */
   allowQuantity?: boolean;
-  /** Offers filling a new item from the character's compendium. Disabled in the compendium panel itself. */
+  /** Offers filling a new item from the character's compendium and saving the item to it. Disabled in the compendium panel itself. */
   allowCompendium?: boolean;
 }
 
@@ -64,16 +67,20 @@ export default function InventoryItemDialog({
   const nounLabel = noun.charAt(0).toUpperCase() + noun.slice(1);
   const nounPlural = noun === 'entry' ? 'entries' : `${noun}s`;
   const isEditing = Boolean(item);
-  const [draft, setDraft] = useState<InventoryItem>(() => item
-    ? { ...item, fields: linkInventoryFieldsToTemplates(item.fields, defaultFields) }
-    : createInventoryItem('', defaultFields));
+  const [draft, setDraft] = useState<InventoryItem>(() => {
+    if (!item) return createInventoryItem('', defaultFields);
+    const source = allowQuantity ? item : toCodexItem(item);
+    return { ...source, fields: linkInventoryFieldsToTemplates(source.fields, defaultFields) };
+  });
   const [addMultiple, setAddMultiple] = useState(false);
   const [descriptionEnabled, setDescriptionEnabled] = useState(() => Boolean(item?.description?.trim()));
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [compendiumQuery, setCompendiumQuery] = useState('');
-  const [compendiumOpen, setCompendiumOpen] = useState(false);
   const compendium = useStore((state) => state.characters.find((character) => character.id === state.activeCharacterId)?.compendium);
   const compendiumSections = useMemo(() => getCompendiumSections({ compendium }).filter((section) => section.items.length > 0), [compendium]);
+  const allCompendiumSections = useMemo(() => getCompendiumSections({ compendium }), [compendium]);
+  const saveCompendiumItem = useStore((state) => state.saveCompendiumItem);
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [savedSectionName, setSavedSectionName] = useState<string | null>(null);
   const showCompendiumPicker = allowCompendium && !isEditing && compendiumSections.length > 0;
   const defaultTemplateIds = new Set(defaultFields.map((field) => field.id));
   const defaultAttributeFields = defaultFields.flatMap((template) => {
@@ -220,8 +227,21 @@ export default function InventoryItemDialog({
   const applyCompendiumEntry = (entry: InventoryItem) => {
     setDraft(instantiateCompendiumItem(entry, defaultFields, { allowQuantity }));
     setDescriptionEnabled(Boolean(entry.description?.trim()));
-    setCompendiumOpen(false);
-    setCompendiumQuery('');
+  };
+
+  const saveToCompendium = (section: CompendiumSection) => {
+    const name = draft.name.trim();
+    if (!name) return;
+    const { slotId: _slotId, ...rest } = draft;
+    saveCompendiumItem(section.id, toCodexItem({
+      ...rest,
+      id: uuidv4(),
+      name,
+      description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined,
+      fields: draft.fields.map((field) => ({ ...field, id: uuidv4(), templateId: undefined })),
+    }));
+    setSaveMenuOpen(false);
+    setSavedSectionName(section.name);
   };
 
   const handleClone = () => {
@@ -240,6 +260,8 @@ export default function InventoryItemDialog({
       setDraft(createInventoryItem('', defaultFields));
       setDescriptionEnabled(false);
       setConfirmDelete(false);
+      setSaveMenuOpen(false);
+      setSavedSectionName(null);
       return;
     }
     onClose();
@@ -283,53 +305,26 @@ export default function InventoryItemDialog({
           </label>
 
           {showCompendiumPicker && (
-            <div className="rounded-button border border-theme-border">
-              <button
-                type="button"
-                onClick={() => setCompendiumOpen((open) => !open)}
-                aria-expanded={compendiumOpen}
-                className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-semibold text-theme-ink hover:bg-theme-accent/10"
+            <label className="block">
+              <span className="mb-0.5 block text-xs font-semibold">From compendium</span>
+              <select
+                value=""
+                onChange={(event) => {
+                  const entry = compendiumSections.flatMap((section) => section.items).find((candidate) => candidate.id === event.target.value);
+                  if (entry) applyCompendiumEntry(entry);
+                }}
+                className={inputClass}
               >
-                From compendium
-                <span aria-hidden="true">{compendiumOpen ? '−' : '+'}</span>
-              </button>
-              {compendiumOpen && (
-                <div className="space-y-2 border-t border-theme-border p-2">
-                  <input
-                    type="search"
-                    value={compendiumQuery}
-                    onChange={(event) => setCompendiumQuery(event.target.value)}
-                    placeholder="Search the compendium"
-                    aria-label="Search the compendium"
-                    className={inputClass}
-                  />
-                  <div className="max-h-48 space-y-2 overflow-y-auto overscroll-contain">
-                    {compendiumSections.map((section) => {
-                      const entries = section.items.filter((entry) => compendiumItemMatches(entry, compendiumQuery));
-                      if (entries.length === 0) return null;
-                      return (
-                        <div key={section.id}>
-                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-theme-muted">{section.name}</p>
-                          <ul className="space-y-1">
-                            {entries.map((entry) => (
-                              <li key={entry.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => applyCompendiumEntry(entry)}
-                                  className="w-full truncate rounded-button border border-theme-border px-2 py-1 text-left text-xs text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
-                                >
-                                  {entry.name}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+                <option value="">Choose an entry…</option>
+                {compendiumSections.map((section) => (
+                  <optgroup key={section.id} label={section.name}>
+                    {section.items.map((entry) => (
+                      <option key={entry.id} value={entry.id}>{entry.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
           )}
 
           {allowQuantity && (
@@ -385,7 +380,7 @@ export default function InventoryItemDialog({
           <section>
             <h3 className="font-heading text-xs font-bold">Default attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
-              Fill in the attributes configured for this {noun === 'entry' ? 'compendium' : 'inventory'}.
+              Fill in the attributes configured for this {noun === 'entry' ? 'codex' : 'inventory'}.
             </p>
 
             <div className="mt-1.5 space-y-1.5 border-y border-theme-border py-1.5">
@@ -485,7 +480,26 @@ export default function InventoryItemDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-theme-border px-3 py-2">
+        {saveMenuOpen && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-theme-border px-3 py-2">
+            <span className="text-xs font-semibold text-theme-ink">Add to section:</span>
+            {allCompendiumSections.length === 0 && (
+              <span className="text-xs text-theme-muted">No sections. Create one in the Compendium panel.</span>
+            )}
+            {allCompendiumSections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => saveToCompendium(section)}
+                className="max-w-full truncate rounded-button border border-theme-border px-2 py-1 text-xs text-theme-ink hover:bg-theme-accent hover:text-theme-paper"
+              >
+                {section.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-theme-border px-3 py-2">
           <div>
             {isEditing && onDelete && (
               confirmDelete ? (
@@ -502,7 +516,21 @@ export default function InventoryItemDialog({
               )
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {savedSectionName && (
+              <span role="status" className="text-xs text-theme-muted">Added to {savedSectionName}</span>
+            )}
+            {allowCompendium && (
+              <button
+                type="button"
+                onClick={() => { setSavedSectionName(null); setSaveMenuOpen((open) => !open); }}
+                disabled={!draft.name.trim()}
+                aria-expanded={saveMenuOpen}
+                className="widget-control px-2.5 py-1 text-xs"
+              >
+                Add to compendium
+              </button>
+            )}
             {isEditing && onClone && (
               <button type="button" onClick={handleClone} disabled={!draft.name.trim()} className="widget-control px-2.5 py-1 text-xs">
                 Clone {noun}

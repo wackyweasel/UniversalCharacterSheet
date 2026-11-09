@@ -32,7 +32,7 @@ export const WIDGET_OPTIONS: WidgetOption[] = [
   { type: 'TABLE', label: 'Table', category: 'Organization', keywords: 'grid reference data' },
   { type: 'INVENTORY', label: 'Inventory', category: 'Organization', keywords: 'items equipment backpack hands horse encumbrance weight' },
   { type: 'INVENTORY_SLOTS', label: 'Equipment', category: 'Organization', keywords: 'inventory slots gear equipped slots head torso hands rings amulet boots armor' },
-  { type: 'COMPENDIUM', label: 'Compendium', category: 'Organization', keywords: 'entries cards spells talents skills abilities feats powers enemies monsters stat blocks bestiary reference collection catalog library' },
+  { type: 'COMPENDIUM', label: 'Codex', category: 'Organization', keywords: 'compendium entries cards spells talents skills abilities feats powers enemies monsters stat blocks bestiary reference collection catalog library' },
   { type: 'LIST', label: 'List', category: 'Organization', keywords: 'abilities equipment simple entries' },
   { type: 'TEXT', label: 'Notes', category: 'Organization', keywords: 'text biography description' },
   { type: 'LABEL', label: 'Label', category: 'Organization', keywords: 'header heading title section' },

@@ -5,6 +5,7 @@ import {
   clampInventorySlot,
   createInventorySlot,
   fitInventorySlotsHeight,
+  getSlotMaxItems,
   INVENTORY_SLOT_PRESETS,
   InventorySlotPreset,
 } from '../../utils/inventorySlots';
@@ -12,6 +13,7 @@ import { SNAP_DISTANCE_PX, SnapGuide, snapInventorySlot } from '../../utils/inve
 import { PlusIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 import { InventoryEditor } from './InventoryEditor';
+import { LabeledNumberField } from './LabeledNumberField';
 import { EditorProps } from './types';
 
 const inputClass = 'h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-xs text-theme-ink focus:border-theme-accent focus:outline-none';
@@ -363,6 +365,51 @@ export function InventorySlotsEditor(props: EditorProps) {
         <p className="mt-1.5 text-[11px] leading-4 text-theme-muted">
           Select a slot, then click its name to rename it or use the trash icon to delete it.
         </p>
+
+        {selected && (
+          <div className="mt-2 rounded-theme border border-theme-border p-2">
+            <span className="mb-0.5 block text-[11px] font-medium text-theme-ink">
+              Items held by {selected.name || 'this slot'}
+            </span>
+            <LabeledNumberField
+              value={getSlotMaxItems(selected)}
+              onChange={(value) => updateSlot(selected.id, { maxItems: Math.max(1, Math.floor(value)) })}
+              fieldLabel={selected.maxItemsLabel}
+              onFieldLabelChange={(maxItemsLabel) => updateSlot(selected.id, { maxItemsLabel })}
+              formula={selected.maxItemsFormula}
+              onFormulaChange={(maxItemsFormula) => updateSlot(selected.id, { maxItemsFormula })}
+              readOnlyValue={Boolean(selected.maxItemsFormula)}
+              min={1}
+              step={1}
+              allowEmpty
+              controlHeight="input"
+              hideStepperButtons
+            />
+            <p className="mt-1 text-[11px] leading-4 text-theme-muted">
+              The most items this slot is meant to hold. Slots holding more than this are tinted red.
+            </p>
+          </div>
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection>
+        <div className="widget-editor__section-heading">
+          <h3 className="widget-editor__section-title">Item cards</h3>
+        </div>
+        <label className="flex cursor-pointer items-start gap-2">
+          <input
+            type="checkbox"
+            checked={Boolean(widget.data.inventorySlotsCollapseAttributes)}
+            onChange={(event) => updateData({ inventorySlotsCollapseAttributes: event.target.checked })}
+            className="mt-0.5 h-4 w-4 flex-shrink-0 accent-theme-accent"
+          />
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-theme-ink">Collapse attributes</span>
+            <span className="mt-0.5 block text-[11px] leading-4 text-theme-muted">
+              Show only the item name. Click the name to see its attributes.
+            </span>
+          </span>
+        </label>
       </CollapsibleSection>
 
       <CollapsibleSection>

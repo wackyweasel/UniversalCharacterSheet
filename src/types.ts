@@ -163,6 +163,10 @@ export interface InventorySlot {
   y: number;
   w: number;
   h: number;
+  /** How many items the slot holds. A missing value means 1. */
+  maxItems?: number;
+  maxItemsLabel?: string;
+  maxItemsFormula?: string;
 }
 
 /** A named group of reusable entries in a character's compendium, such as Spells or Gear. */
@@ -674,6 +678,8 @@ export interface WidgetData {
   // Inventory
   inventoryItems?: InventoryItem[];
   inventorySlots?: InventorySlot[];
+  /** Equipment widget: item cards show only the name until clicked. */
+  inventorySlotsCollapseAttributes?: boolean;
   inventoryDefaultFields?: InventoryFieldTemplate[];
   inventoryEncumbrance?: InventoryEncumbranceSettings;
   // Timer

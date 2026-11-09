@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, CharacterEvent, CharacterVariable, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet } from '../types';
+import { Character, CharacterEvent, CharacterVariable, InventoryItem, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
@@ -8,16 +8,17 @@ import { resolveCharacterFormulas, FormulaChange } from '../utils/formulaEngine'
 import { applyRest, type RestOptions } from '../utils/rest';
 import { useTimelineStore } from './useTimelineStore';
 import {
+  adaptInventoryItem,
   ensureItemWeight,
   getDefaultCompendiumData,
   getDefaultInventoryData,
-  canMoveInventoryItemBetween,
+  getInventoryItemEndpoint,
   isInventoryWidgetType,
   moveInventoryItemBetweenLists,
   moveInventoryItemToSlot,
   splitInventoryItem as splitInventoryItemData,
 } from '../utils/inventory';
-import { getDefaultInventorySlotsData, INVENTORY_SLOTS_DEFAULT_SIZE } from '../utils/inventorySlots';
+import { getDefaultInventorySlotsData, getSlotMaxItems, INVENTORY_SLOTS_DEFAULT_SIZE } from '../utils/inventorySlots';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
 import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
@@ -1037,7 +1038,7 @@ export const useStore = create<StoreState>((set, get) => {
             'ROLL_TABLE': 'Random Table',
             'INITIATIVE_TRACKER': 'Initiative Tracker',
             'INVENTORY': 'Inventory',
-            'COMPENDIUM': 'Compendium',
+            'COMPENDIUM': 'Codex',
             'INVENTORY_SLOTS': 'Equipment',
             'DECK': 'Legacy Deck of Cards',
             'DECK_OF_CARDS': 'Deck of Cards',
@@ -2067,30 +2068,21 @@ export const useStore = create<StoreState>((set, get) => {
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
       if (!sourceWidget || !targetWidget || !isInventoryWidgetType(sourceWidget.type) || !isInventoryWidgetType(targetWidget.type)) return;
-      if (!canMoveInventoryItemBetween(sourceWidget.type, targetWidget.type)) return;
       // Slots need a slot to drop on; lists need a position.
       if ((targetWidget.type === 'INVENTORY_SLOTS') !== (targetSlotId !== undefined)) return;
 
+      const sourceEndpoint = getInventoryItemEndpoint(sourceWidget);
+      const targetEndpoint = getInventoryItemEndpoint(targetWidget);
+      const prepareForTarget = (item: InventoryItem) => adaptInventoryItem(item, sourceEndpoint, targetEndpoint);
+      const prepareForSource = (item: InventoryItem) => adaptInventoryItem(item, targetEndpoint, sourceEndpoint);
       const sourceItems = sourceWidget.data.inventoryItems || [];
       const targetItems = sourceWidgetId === targetWidgetId
         ? sourceItems
         : targetWidget.data.inventoryItems || [];
+      const targetSlot = targetWidget.data.inventorySlots?.find((slot) => slot.id === targetSlotId);
       const result = targetSlotId !== undefined
-        ? moveInventoryItemToSlot(
-          sourceItems,
-          targetItems,
-          itemId,
-          targetSlotId,
-          sourceWidget.data.inventoryEncumbrance?.enabled === true,
-          targetWidget.data.inventoryEncumbrance?.enabled === true,
-        )
-        : moveInventoryItemBetweenLists(
-          sourceItems,
-          targetItems,
-          itemId,
-          targetIndex,
-          targetWidget.data.inventoryEncumbrance?.enabled === true,
-        );
+        ? moveInventoryItemToSlot(sourceItems, targetItems, itemId, targetSlotId, prepareForSource, prepareForTarget, getSlotMaxItems(targetSlot))
+        : moveInventoryItemBetweenLists(sourceItems, targetItems, itemId, targetIndex, prepareForTarget);
       if (!result) return;
 
       get()._takeSnapshot(sourceWidgetId === targetWidgetId && targetSlotId === undefined ? 'Reorder inventory item' : 'Move inventory item');
@@ -2129,11 +2121,10 @@ export const useStore = create<StoreState>((set, get) => {
       const sourceWidget = activeSheet?.widgets.find((widget) => widget.id === sourceWidgetId);
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
       if (!sourceWidget || !targetWidget || !isInventoryWidgetType(sourceWidget.type) || !isInventoryWidgetType(targetWidget.type)) return;
-      if (!canMoveInventoryItemBetween(sourceWidget.type, targetWidget.type)) return;
 
       const sourceItems = sourceWidget.data.inventoryItems || [];
       const sourceIndex = sourceItems.findIndex((entry) => entry.id === item.id);
-      const savedItem = targetWidget.data.inventoryEncumbrance?.enabled ? ensureItemWeight(item) : item;
+      const savedItem = adaptInventoryItem(item, getInventoryItemEndpoint(sourceWidget), getInventoryItemEndpoint(targetWidget));
       let nextSourceItems: typeof sourceItems;
       let nextTargetItems: typeof sourceItems;
 
