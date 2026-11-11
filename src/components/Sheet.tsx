@@ -21,6 +21,7 @@ import AttachmentButtons from './AttachmentButtons';
 import AutoStackDialog from './AutoStackDialog';
 import CardDeckLayer from './card-table/CardDeckLayer';
 import WidgetShadows from './WidgetShadows';
+import GroupChrome from './GroupChrome';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
@@ -1965,6 +1966,8 @@ export default function Sheet() {
               scale={scale}
             />
           )}
+
+            <GroupChrome widgets={activeSheetWidgets} scale={scale} />
 
           {/* Widgets */}
           {activeSheetWidgets.map(widget => (

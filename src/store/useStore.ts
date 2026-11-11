@@ -324,7 +324,7 @@ interface StoreState {
   // Event actions (active character)
   addCharacterEvent: (event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => string | null;
   updateCharacterEvent: (id: string, event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => void;
-  removeCharacterEvent: (id: string, telemetrySource?: EventTelemetrySource) => void;
+  removeCharacterEvent: (id: string) => void;
   duplicateCharacterEvent: (id: string) => string | null;
   moveCharacterEvent: (id: string, newIndex: number) => void;
   setCharacterEventEnabled: (id: string, enabled: boolean, telemetrySource?: EventTelemetrySource) => void;
@@ -3131,13 +3131,13 @@ export const useStore = create<StoreState>((set, get) => {
       if (updated) recordCharacterEvent('event_edited', event, telemetrySource);
     },
 
-    removeCharacterEvent: (id, telemetrySource = 'events_panel') => {
+    removeCharacterEvent: (id) => {
       const removed = getActiveCharacter(get())?.events?.find((event) => event.id === id);
       const applied = applyCharacterTransform('Delete event', (character) => {
         if (!character.events?.some((event) => event.id === id)) return character;
         return { ...character, events: character.events.filter((event) => event.id !== id) };
       });
-      if (applied && removed) recordCharacterEvent('event_deleted', removed, telemetrySource);
+      if (applied && removed) recordCharacterEvent('event_deleted', removed, 'events_panel');
     },
 
     duplicateCharacterEvent: (id) => {

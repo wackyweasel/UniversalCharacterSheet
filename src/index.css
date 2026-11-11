@@ -1445,12 +1445,23 @@ button.dice-result__die--selectable:hover {
   }
 
   .widget-surface {
-    border: var(--border-width) var(--border-style) transparent;
+    --widget-edge: var(--border-width);
+    --widget-ring: var(--border-width);
     color: var(--color-ink);
     isolation: isolate;
-    outline: var(--border-width) var(--border-style) var(--color-border);
-    outline-offset: calc(var(--border-width) / -2);
+    /* Padding instead of a border keeps the box edge exact, since borders snap to device pixels. */
+    padding: var(--widget-edge);
     z-index: 10;
+  }
+
+  /* Each ring sits on the left/top inside the box and on the right/bottom outside it. An attached neighbour's ring then lands on the same pixels, whichever widget is raised on hover. */
+  .widget-surface::after {
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 var(--widget-ring) var(--color-border);
+    content: '';
+    inset: 0 calc(var(--widget-ring) * -1) calc(var(--widget-ring) * -1) 0;
+    pointer-events: none;
+    position: absolute;
   }
 
   .widget-surface--card-table {
@@ -1462,8 +1473,51 @@ button.dice-result__die--selectable:hover {
   }
 
   .widget-surface--selected {
-    outline-offset: calc((var(--border-width) + 1px) / -2);
-    outline-width: calc(var(--border-width) + 1px);
+    --widget-ring: calc(var(--border-width) + 1px);
+  }
+
+  /* Attached widgets with hidden edges get their ring, paper and texture from GroupChrome; selection still draws its own ring. */
+  .widget-surface--grouped:not(.widget-surface--selected)::after {
+    display: none;
+  }
+
+  .group-chrome {
+    height: 0;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 0;
+  }
+
+  .group-chrome__outline,
+  .group-chrome__paper,
+  .group-chrome__texture {
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .group-chrome__outline {
+    overflow: visible;
+  }
+
+  .group-chrome__outline > path {
+    stroke: var(--color-border);
+    stroke-linejoin: round;
+    stroke-width: calc(var(--border-width) * 2);
+  }
+
+  .group-chrome__paper {
+    background-blend-mode: multiply;
+    background-color: var(--color-paper);
+    background-image: var(--card-texture);
+  }
+
+  .group-chrome__texture {
+    background-position: center;
+    background-size: 100% 100%;
+    filter: grayscale(100%);
+    mix-blend-mode: overlay;
+    opacity: var(--card-texture-opacity);
   }
 
   /* Replaces the outline with a per-side border so shared edges between attached widgets draw no line. */

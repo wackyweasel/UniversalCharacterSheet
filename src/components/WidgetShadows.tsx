@@ -1,110 +1,13 @@
 import { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { Widget } from '../types';
 import { getWidgetDragState, subscribeWidgetDragState } from './widgetDragRegistry';
+import { calculateCornerRounding, type CornerRounding, type WidgetRect } from '../utils/groupChrome';
 
-const EDGE_TOLERANCE = 10; // pixels tolerance for edge detection
 const isAnyWidgetDragging = () => getWidgetDragState() !== null;
 
 interface Props {
   widgets: Widget[];
   scale: number;
-}
-
-interface WidgetRect {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  attachedTo?: string[];
-}
-
-interface CornerRounding {
-  topLeft: boolean;
-  topRight: boolean;
-  bottomLeft: boolean;
-  bottomRight: boolean;
-}
-
-// Calculate which corners should have rounding removed based on attachments
-function calculateCornerRounding(
-  widget: WidgetRect,
-  allWidgets: WidgetRect[]
-): CornerRounding {
-  const corners: CornerRounding = { topLeft: true, topRight: true, bottomLeft: true, bottomRight: true };
-  
-  if (!widget.attachedTo || widget.attachedTo.length === 0) {
-    return corners;
-  }
-  
-  const currentBounds = {
-    left: widget.x,
-    right: widget.x + widget.width,
-    top: widget.y,
-    bottom: widget.y + widget.height,
-  };
-  
-  for (const attachedId of widget.attachedTo) {
-    const attachedWidget = allWidgets.find(w => w.id === attachedId);
-    if (!attachedWidget) continue;
-    
-    const attachedBounds = {
-      left: attachedWidget.x,
-      right: attachedWidget.x + attachedWidget.width,
-      top: attachedWidget.y,
-      bottom: attachedWidget.y + attachedWidget.height,
-    };
-    
-    // Check if attached widget is on the left side
-    if (Math.abs(attachedBounds.right - currentBounds.left) <= EDGE_TOLERANCE) {
-      if (attachedBounds.top <= currentBounds.top + EDGE_TOLERANCE && 
-          attachedBounds.bottom >= currentBounds.top - EDGE_TOLERANCE) {
-        corners.topLeft = false;
-      }
-      if (attachedBounds.top <= currentBounds.bottom + EDGE_TOLERANCE && 
-          attachedBounds.bottom >= currentBounds.bottom - EDGE_TOLERANCE) {
-        corners.bottomLeft = false;
-      }
-    }
-    
-    // Check if attached widget is on the right side
-    if (Math.abs(attachedBounds.left - currentBounds.right) <= EDGE_TOLERANCE) {
-      if (attachedBounds.top <= currentBounds.top + EDGE_TOLERANCE && 
-          attachedBounds.bottom >= currentBounds.top - EDGE_TOLERANCE) {
-        corners.topRight = false;
-      }
-      if (attachedBounds.top <= currentBounds.bottom + EDGE_TOLERANCE && 
-          attachedBounds.bottom >= currentBounds.bottom - EDGE_TOLERANCE) {
-        corners.bottomRight = false;
-      }
-    }
-    
-    // Check if attached widget is on the top side
-    if (Math.abs(attachedBounds.bottom - currentBounds.top) <= EDGE_TOLERANCE) {
-      if (attachedBounds.left <= currentBounds.left + EDGE_TOLERANCE && 
-          attachedBounds.right >= currentBounds.left - EDGE_TOLERANCE) {
-        corners.topLeft = false;
-      }
-      if (attachedBounds.left <= currentBounds.right + EDGE_TOLERANCE && 
-          attachedBounds.right >= currentBounds.right - EDGE_TOLERANCE) {
-        corners.topRight = false;
-      }
-    }
-    
-    // Check if attached widget is on the bottom side
-    if (Math.abs(attachedBounds.top - currentBounds.bottom) <= EDGE_TOLERANCE) {
-      if (attachedBounds.left <= currentBounds.left + EDGE_TOLERANCE && 
-          attachedBounds.right >= currentBounds.left - EDGE_TOLERANCE) {
-        corners.bottomLeft = false;
-      }
-      if (attachedBounds.left <= currentBounds.right + EDGE_TOLERANCE && 
-          attachedBounds.right >= currentBounds.right - EDGE_TOLERANCE) {
-        corners.bottomRight = false;
-      }
-    }
-  }
-  
-  return corners;
 }
 
 function getBorderRadiusStyle(corners: CornerRounding): React.CSSProperties {
