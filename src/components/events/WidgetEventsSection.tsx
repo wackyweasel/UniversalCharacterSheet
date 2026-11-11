@@ -6,7 +6,7 @@ import { findWidget } from '../../events/helpers';
 import { getEventProblems, getWidgetEventDefs, widgetSupportsEvents } from '../../events/registry';
 import { CollapsibleSection } from '../editors/CollapsibleSection';
 import { Tooltip } from '../Tooltip';
-import { PencilIcon, PlusIcon } from '../icons';
+import { PencilIcon, PlusIcon, TrashIcon } from '../icons';
 import { EventFlow } from './EventFlow';
 
 const iconButtonClass = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper';
@@ -22,6 +22,7 @@ function formatList(labels: string[]): string {
 export function WidgetEventsSection({ widgetId }: { widgetId: string }) {
   const character = useStore((s) => s.characters.find((c) => c.id === s.activeCharacterId));
   const setEventEnabled = useStore((s) => s.setCharacterEventEnabled);
+  const removeEvent = useStore((s) => s.removeCharacterEvent);
   const openEditor = useEventsPanelStore((s) => s.openEditor);
   const widget = character ? findWidget(character, widgetId) : undefined;
   const events = useMemo(
@@ -77,6 +78,16 @@ export function WidgetEventsSection({ widgetId }: { widgetId: string }) {
                     className={iconButtonClass}
                   >
                     <PencilIcon className="h-3.5 w-3.5" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Delete">
+                  <button
+                    type="button"
+                    onClick={() => removeEvent(event.id, 'widget_settings')}
+                    aria-label={`Delete ${name || 'event'}`}
+                    className={`${iconButtonClass} hover:!bg-red-600 hover:!text-white`}
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
                   </button>
                 </Tooltip>
                 <Tooltip content={event.enabled ? 'On: turn off' : 'Off: turn on'}>
