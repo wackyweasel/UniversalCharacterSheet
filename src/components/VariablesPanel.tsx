@@ -32,6 +32,8 @@ import {
   ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
+  ChevronsDownIcon,
+  ChevronsUpIcon,
   CopyIcon,
   GripVerticalIcon,
   LayersIcon,
@@ -1554,16 +1556,24 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
             })}
           </div>
           {filter !== 'missing' && groups.length > 1 && !normalizedQuery && (
-            <Tooltip content={allGroupsCollapsed ? 'Expand all' : 'Collapse all'}>
+            <div className="flex shrink-0 gap-1.5">
               <button
                 type="button"
-                onClick={() => setCollapsedGroups(allGroupsCollapsed ? new Set() : new Set(groups.map((group) => group.key)))}
-                aria-label={allGroupsCollapsed ? 'Expand all widgets' : 'Collapse all widgets'}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
+                onClick={() => setCollapsedGroups(new Set(groups.map((group) => group.key)))}
+                disabled={allGroupsCollapsed}
+                className={buttonClass}
               >
-                <ChevronDownIcon className={`h-4 w-4 transition-transform ${allGroupsCollapsed ? '' : 'rotate-180'}`} />
+                <ChevronsUpIcon className="h-3.5 w-3.5" /> Collapse all
               </button>
-            </Tooltip>
+              <button
+                type="button"
+                onClick={() => setCollapsedGroups(new Set())}
+                disabled={collapsedGroups.size === 0}
+                className={buttonClass}
+              >
+                <ChevronsDownIcon className="h-3.5 w-3.5" /> Expand all
+              </button>
+            </div>
           )}
           </div>
         </div>

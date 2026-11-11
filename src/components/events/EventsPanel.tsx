@@ -14,6 +14,10 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   BoltIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronsDownIcon,
+  ChevronsUpIcon,
   CopyIcon,
   DotsVerticalIcon,
   PencilIcon,
@@ -111,6 +115,7 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [actionsId, setActionsId] = useState<string | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [toast, setToast] = useState<{ message: string; undoable: boolean } | null>(null);
   const [panelSize, setPanelSize] = useState(loadPanelSize);
   const [viewport, setViewport] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
@@ -172,6 +177,7 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
     setQuery('');
     setFilter('all');
     setActionsId(null);
+    setCollapsedIds(new Set());
     setToast(null);
     pendingFocusRef.current = null;
   }, [isOpen]);
@@ -214,6 +220,12 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
     pendingFocusRef.current = focusEventId;
     setQuery('');
     setFilter('all');
+    setCollapsedIds((current) => {
+      if (!current.has(focusEventId)) return current;
+      const next = new Set(current);
+      next.delete(focusEventId);
+      return next;
+    });
     clearFocus();
   }, [clearFocus, focusEventId, isOpen]);
 
@@ -287,6 +299,19 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
     setToast({ message: `Deleted ${quoted(item.name)}`, undoable: true });
   };
 
+  const toggleCollapsed = (eventId: string) => {
+    setCollapsedIds((current) => {
+      const next = new Set(current);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  };
+
+  const setAllCollapsed = (collapsed: boolean) => {
+    setCollapsedIds(collapsed ? new Set(items.map((item) => item.event.id)) : new Set());
+  };
+
   const maxWidth = Math.max(MIN_WIDTH, Math.round(viewport.w * 0.9));
   const maxHeight = Math.max(MIN_HEIGHT, Math.round(viewport.h * 0.95));
   const effectiveWidth = Math.min(Math.max(panelSize.width, MIN_WIDTH), maxWidth);
@@ -333,6 +358,7 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
     const { event, name, problems } = item;
     const manual = getTriggerDef(event.trigger.kind)?.mode === 'manual';
     const showActions = actionsId === event.id;
+    const collapsed = collapsedIds.has(event.id);
     return (
       <article
         key={event.id}
@@ -341,11 +367,25 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
         aria-label={name || 'Unnamed event'}
         className={`event-card p-3 ${event.enabled ? '' : 'event-card--off'} ${problems.length > 0 ? 'event-card--problem' : ''}`}
       >
-        <header className="mb-2.5 flex items-center gap-1.5">
+        <header className={`flex items-center gap-1.5 ${collapsed ? '' : 'mb-2.5'}`}>
+          <Tooltip content={collapsed ? 'Expand' : 'Collapse'}>
+            <button
+              type="button"
+              onClick={() => toggleCollapsed(event.id)}
+              aria-expanded={!collapsed}
+              aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${name || 'event'}`}
+              className={iconButtonClass}
+            >
+              {collapsed ? <ChevronRightIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
+            </button>
+          </Tooltip>
           <h3 className="min-w-0 flex-1 truncate font-heading text-sm font-bold text-theme-ink">
             {name || <span className="font-body font-normal italic text-theme-muted">Unnamed event</span>}
           </h3>
           {!event.enabled && <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-theme-muted font-heading">Off</span>}
+          {collapsed && problems.length > 0 && (
+            <span className="shrink-0 text-xs text-amber-600 font-body" title={problems.join('\n')}>⚠</span>
+          )}
           <Tooltip content={manual ? 'Run' : 'Run now, whatever the trigger'}>
             <button
               type="button"
@@ -386,12 +426,16 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
           </Tooltip>
         </header>
 
-        <EventFlow character={character} event={event} onRevealWidget={revealWidget} onHoverWidget={highlightWidget} />
+        {!collapsed && (
+          <>
+            <EventFlow character={character} event={event} onRevealWidget={revealWidget} onHoverWidget={highlightWidget} />
 
-        {problems.length > 0 && (
-          <ul className="mt-2.5 space-y-0.5 rounded-button border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-600 font-body">
-            {problems.map((problem) => <li key={problem}>⚠ {problem}</li>)}
-          </ul>
+            {problems.length > 0 && (
+              <ul className="mt-2.5 space-y-0.5 rounded-button border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-600 font-body">
+                {problems.map((problem) => <li key={problem}>⚠ {problem}</li>)}
+              </ul>
+            )}
+          </>
         )}
 
         {showActions && (
@@ -485,6 +529,7 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
               </button>
             )}
           </span>
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
           <div role="tablist" aria-label="Filter events" className="flex flex-wrap gap-1.5">
             {filters.map((item) => {
               const active = filter === item.id;
@@ -507,6 +552,25 @@ export default function EventsPanel({ onRevealWidget }: EventsPanelProps) {
                 </button>
               );
             })}
+          </div>
+          <div className="ml-auto flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setAllCollapsed(true)}
+              disabled={collapsedIds.size === items.length}
+              className={buttonClass}
+            >
+              <ChevronsUpIcon className="h-3.5 w-3.5" /> Collapse all
+            </button>
+            <button
+              type="button"
+              onClick={() => setAllCollapsed(false)}
+              disabled={collapsedIds.size === 0}
+              className={buttonClass}
+            >
+              <ChevronsDownIcon className="h-3.5 w-3.5" /> Expand all
+            </button>
+          </div>
           </div>
         </div>
       )}
