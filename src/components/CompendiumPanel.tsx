@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { useCompendiumPanelStore } from '../store/useCompendiumPanelStore';
@@ -13,6 +13,7 @@ import {
   type CompendiumImportMode,
 } from '../utils/compendium';
 import { createInventoryFieldTemplate, duplicateInventoryItem } from '../utils/inventory';
+import { useCompendiumItemDrag } from '../hooks/useCompendiumItemDrag';
 import InventoryItemDialog from './widgets/InventoryItemDialog';
 import { InlineDiceRichText } from './InlineDiceRichText';
 import {
@@ -20,6 +21,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  GripVerticalIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -214,12 +216,15 @@ type DialogState =
 export default function CompendiumPanel() {
   const isOpen = useCompendiumPanelStore((state) => state.isOpen);
   const setOpen = useCompendiumPanelStore((state) => state.setOpen);
+  const lastAddedFeedback = useCompendiumPanelStore((state) => state.lastAddedFeedback);
+  const clearAddedFeedback = useCompendiumPanelStore((state) => state.clearAddedFeedback);
   const character = useStore((state) => state.characters.find((item) => item.id === state.activeCharacterId) ?? null);
   const addSection = useStore((state) => state.addCompendiumSection);
   const renameSection = useStore((state) => state.renameCompendiumSection);
   const deleteSection = useStore((state) => state.deleteCompendiumSection);
   const saveItem = useStore((state) => state.saveCompendiumItem);
   const deleteItem = useStore((state) => state.deleteCompendiumItem);
+  const moveItem = useStore((state) => state.moveCompendiumItem);
   const importSections = useStore((state) => state.importCompendiumSections);
   const undo = useStore((state) => state.undo);
 
@@ -239,6 +244,17 @@ export default function CompendiumPanel() {
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+
+  const { startDrag } = useCompendiumItemDrag({
+    listScrollRef,
+    onExpandSection: (sectionId) => setCollapsed((current) => {
+      if (!current.has(sectionId)) return current;
+      const next = new Set(current);
+      next.delete(sectionId);
+      return next;
+    }),
+  });
 
   const sections = useMemo(() => getCompendiumSections(character ?? undefined), [character]);
   const normalizedQuery = query.trim();
@@ -249,6 +265,19 @@ export default function CompendiumPanel() {
     const nameMatches = section.name.toLowerCase().includes(normalizedQuery.toLowerCase());
     return items.length > 0 || nameMatches ? [{ section, items: nameMatches ? section.items : items }] : [];
   }), [sections, normalizedQuery]);
+
+  useLayoutEffect(() => {
+    if (!lastAddedFeedback) return;
+    const { sectionId, message } = lastAddedFeedback;
+    setCollapsed((current) => {
+      if (!current.has(sectionId)) return current;
+      const next = new Set(current);
+      next.delete(sectionId);
+      return next;
+    });
+    setToast({ message, undoable: true });
+    clearAddedFeedback();
+  }, [clearAddedFeedback, lastAddedFeedback]);
 
   useEffect(() => {
     if (isOpen) return;
@@ -389,7 +418,35 @@ export default function CompendiumPanel() {
     return next;
   });
 
-  const renderEntry = (section: CompendiumSection, item: InventoryItem) => {
+  const handleEntryReorderKey = (
+    section: CompendiumSection,
+    visibleItems: InventoryItem[],
+    index: number,
+    event: React.KeyboardEvent<HTMLButtonElement>,
+  ) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    event.stopPropagation();
+    const item = visibleItems[index];
+    if (!item) return;
+    if (event.key === 'ArrowUp' && index > 0) {
+      moveItem({
+        sourceSectionId: section.id,
+        targetSectionId: section.id,
+        itemId: item.id,
+        beforeItemId: visibleItems[index - 1].id,
+      });
+    } else if (event.key === 'ArrowDown' && index < visibleItems.length - 1) {
+      moveItem({
+        sourceSectionId: section.id,
+        targetSectionId: section.id,
+        itemId: item.id,
+        beforeItemId: visibleItems[index + 2]?.id ?? null,
+      });
+    }
+  };
+
+  const renderEntry = (section: CompendiumSection, visibleItems: InventoryItem[], item: InventoryItem, index: number) => {
     const hasDescription = Boolean(item.description?.trim());
     const descriptionExpanded = hasDescription && expandedDescriptionIds.has(item.id);
     const descriptionId = `compendium-description-${item.id}`;
@@ -397,7 +454,24 @@ export default function CompendiumPanel() {
       field.name.trim() && String(field.value) !== '' && field.value !== false && !(field.reserved === 'weight' && Number(field.value) === 0)
     ));
     return (
-      <li key={item.id} className="flex items-start gap-2 rounded-button border border-theme-border-soft bg-theme-background/40 px-2.5 py-2">
+      <li
+        key={item.id}
+        data-compendium-entry-row="true"
+        data-compendium-entry-id={item.id}
+        className="compendium-entry flex items-start gap-1.5 rounded-button border border-theme-border-soft bg-theme-background/40 px-2 py-2"
+      >
+        <button
+          type="button"
+          data-touch-camera-ignore="true"
+          onPointerDown={(event) => startDrag(section.id, item, event)}
+          onKeyDown={(event) => handleEntryReorderKey(section, visibleItems, index, event)}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`Move ${item.name}`}
+          title="Drag to move or copy to a widget. Arrow keys reorder."
+          className="compendium-entry__drag-handle inventory-item__drag-handle flex h-5 w-5 shrink-0 touch-none select-none items-center justify-center rounded text-theme-muted transition-colors hover:text-theme-ink"
+        >
+          <GripVerticalIcon className="h-3.5 w-3.5" />
+        </button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold font-body text-theme-ink">
             {item.name}
@@ -515,9 +589,15 @@ export default function CompendiumPanel() {
           </div>
         )}
         {!isCollapsed && (
-          <div className="border-t border-theme-border-soft p-2">
+          <div
+            data-compendium-drop-zone="true"
+            data-compendium-section-id={section.id}
+            className="compendium-drop-zone border-t border-theme-border-soft p-2"
+          >
             {items.length > 0 ? (
-              <ul className="space-y-1.5">{items.map((item) => renderEntry(section, item))}</ul>
+              <ul data-compendium-list="true" className="flex flex-col gap-1.5">
+                {items.map((item, index) => renderEntry(section, items, item, index))}
+              </ul>
             ) : (
               <p className="px-1 py-1.5 text-xs text-theme-muted font-body">No entries yet.</p>
             )}
@@ -599,7 +679,7 @@ export default function CompendiumPanel() {
 
       <div className={`flex-shrink-0 space-y-2 border-b border-theme-border px-4 ${isBottom ? 'pb-2' : 'pb-3'}`}>
         <p className="text-xs leading-relaxed text-theme-muted font-body">
-          Your reusable library of items, spells and anything else you want to define once. Pick these entries from “Add item” in a Codex, Inventory or Equipment widget.
+          Your reusable library of items, spells and anything else you want to define once. Drag entries to or from a Codex, Inventory or Equipment widget, or pick them from “Add item”.
         </p>
         <span className="relative block">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-muted" aria-hidden="true" />
@@ -631,7 +711,7 @@ export default function CompendiumPanel() {
         </form>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+      <div ref={listScrollRef} data-compendium-scroll="true" className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         {sections.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-8 py-12 text-center">
             <p className="font-heading text-base font-bold text-theme-ink">No sections yet</p>

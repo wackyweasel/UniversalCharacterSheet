@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { v4 as uuidv4 } from 'uuid';
 import {
   CompendiumSection,
   InventoryFieldTemplate,
@@ -19,7 +18,7 @@ import {
 } from '../../utils/inventory';
 import { usePointerReorder } from '../../hooks';
 import { useStore } from '../../store/useStore';
-import { getCompendiumSections, instantiateCompendiumItem } from '../../utils/compendium';
+import { createCompendiumEntryFromItem, getCompendiumSections, instantiateCompendiumItem } from '../../utils/compendium';
 import { GripVerticalIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
 import { TextFormulaControls } from '../editors/TextFormulaControls';
 import { RichTextField } from '../RichTextField';
@@ -230,16 +229,12 @@ export default function InventoryItemDialog({
   };
 
   const saveToCompendium = (section: CompendiumSection) => {
-    const name = draft.name.trim();
-    if (!name) return;
-    const { slotId: _slotId, ...rest } = draft;
-    saveCompendiumItem(section.id, toCodexItem({
-      ...rest,
-      id: uuidv4(),
-      name,
-      description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined,
-      fields: draft.fields.map((field) => ({ ...field, id: uuidv4(), templateId: undefined })),
-    }));
+    const entry = createCompendiumEntryFromItem({
+      ...draft,
+      description: descriptionEnabled ? draft.description : undefined,
+    });
+    if (!entry) return;
+    saveCompendiumItem(section.id, entry);
     setSaveMenuOpen(false);
     setSavedSectionName(section.name);
   };

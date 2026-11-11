@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { CompendiumSection, InventoryFieldTemplate, InventoryItem } from '../types';
+import type { CompendiumSection, InventoryFieldTemplate, InventoryItem, Widget } from '../types';
 import {
   addCompendiumSection,
   compendiumItemMatches,
   copyCompendiumData,
+  copyCompendiumItemToWidgetData,
+  createCompendiumEntryFromItem,
   deleteCompendiumItem,
   deleteCompendiumSection,
   describeCompendiumImport,
@@ -11,6 +13,7 @@ import {
   getCompendiumSections,
   instantiateCompendiumItem,
   mergeCompendiumSections,
+  moveCompendiumItem,
   replaceCompendiumSections,
   parseCompendiumImport,
   renameCompendiumSection,
@@ -236,5 +239,149 @@ describe('compendium export and import', () => {
     expect(describeCompendiumImport({ addedSections: 2, addedItems: 3, skippedItems: 1 })).toBe(
       'Imported 3 entries and 2 new sections, 1 skipped because an entry with the same name already exists.',
     );
+  });
+});
+
+describe('moveCompendiumItem', () => {
+  const seeded = () => {
+    let character = empty;
+    character = saveCompendiumItem(character, 'default-spells', createItem({ id: 's1', name: 'Fireball' }));
+    character = saveCompendiumItem(character, 'default-spells', createItem({ id: 's2', name: 'Misty Step' }));
+    character = saveCompendiumItem(character, 'default-spells', createItem({ id: 's3', name: 'Shield' }));
+    character = saveCompendiumItem(character, 'default-gear', createItem({ id: 'g1', name: 'Rope' }));
+    return character;
+  };
+
+  it('reorders entries within the same section and ignores no-op drops', () => {
+    const initial = seeded();
+    expect(moveCompendiumItem(initial, { sourceSectionId: 'default-spells', targetSectionId: 'default-spells', itemId: 's2', beforeItemId: 's2' })).toBe(initial);
+    expect(moveCompendiumItem(initial, { sourceSectionId: 'default-spells', targetSectionId: 'default-spells', itemId: 's2', beforeItemId: 's3' })).toBe(initial);
+
+    const movedUp = moveCompendiumItem(initial, { sourceSectionId: 'default-spells', targetSectionId: 'default-spells', itemId: 's3', beforeItemId: 's1' });
+    expect(getCompendiumSections(movedUp)[1].items.map((item) => item.id)).toEqual(['s3', 's1', 's2']);
+
+    const movedToEnd = moveCompendiumItem(initial, { sourceSectionId: 'default-spells', targetSectionId: 'default-spells', itemId: 's1', beforeItemId: null });
+    expect(getCompendiumSections(movedToEnd)[1].items.map((item) => item.id)).toEqual(['s2', 's3', 's1']);
+  });
+
+  it('moves entries across sections at a position or at the end', () => {
+    const initial = seeded();
+    const moved = moveCompendiumItem(initial, {
+      sourceSectionId: 'default-gear',
+      targetSectionId: 'default-spells',
+      itemId: 'g1',
+      beforeItemId: 's2',
+    });
+    expect(getCompendiumSections(moved)[0].items).toEqual([]);
+    expect(getCompendiumSections(moved)[1].items.map((item) => item.id)).toEqual(['s1', 'g1', 's2', 's3']);
+
+    const movedToEmpty = moveCompendiumItem(moved, {
+      sourceSectionId: 'default-spells',
+      targetSectionId: 'default-feats',
+      itemId: 's1',
+      beforeItemId: null,
+    });
+    expect(getCompendiumSections(movedToEmpty)[2].items.map((item) => item.id)).toEqual(['s1']);
+  });
+});
+
+describe('copyCompendiumItemToWidgetData', () => {
+  const entry = createItem({
+    id: 'comp-sword',
+    name: 'Longsword',
+    fields: [
+      { id: 'f-weight', name: 'Weight', type: 'number', value: 3, reserved: 'weight' },
+      { id: 'f-dmg', name: 'Damage', type: 'text', value: '1d8' },
+    ],
+  });
+
+  it('inserts a copy at the requested index in an Inventory widget', () => {
+    const widget: Pick<Widget, 'type' | 'data'> = {
+      type: 'INVENTORY',
+      data: {
+        inventoryItems: [createItem({ id: 'inv-1', name: 'Torch' }), createItem({ id: 'inv-2', name: 'Rations' })],
+        inventoryDefaultFields: [{ id: 'tpl-w', name: 'Weight', type: 'number', defaultValue: 0, reserved: 'weight' }],
+        inventoryEncumbrance: { enabled: true, unit: 'lb', includeInGlobalLoad: true, showGlobalCounter: false },
+      },
+    };
+
+    const result = copyCompendiumItemToWidgetData(entry, widget, { targetIndex: 1 });
+    expect(result).not.toBeNull();
+    expect(result!.items.map((item) => item.name)).toEqual(['Torch', 'Longsword', 'Rations']);
+    expect(result!.createdItem.id).not.toBe(entry.id);
+    expect(result!.createdItem.fields.find((field) => field.reserved === 'weight')?.value).toBe(3);
+  });
+
+  it('creates a codex copy without reserved weight or quantity', () => {
+    const widget: Pick<Widget, 'type' | 'data'> = {
+      type: 'COMPENDIUM',
+      data: {
+        inventoryItems: [],
+        inventoryDefaultFields: [],
+      },
+    };
+
+    const result = copyCompendiumItemToWidgetData({ ...entry, quantity: 2 }, widget, { targetIndex: 0 });
+    expect(result).not.toBeNull();
+    expect(result!.createdItem.quantity).toBeUndefined();
+    expect(result!.createdItem.fields.find((field) => field.name === 'Quantity')?.value).toBe(2);
+    expect(result!.createdItem.fields.every((field) => !field.reserved)).toBe(true);
+  });
+
+  it('equips a copy in an Equipment slot and respects slot capacity', () => {
+    const widget: Pick<Widget, 'type' | 'data'> = {
+      type: 'INVENTORY_SLOTS',
+      data: {
+        inventoryItems: [],
+        inventorySlots: [{ id: 'main-hand', name: 'Main hand', x: 0, y: 0, w: 50, h: 50, maxItems: 1 }],
+        inventoryDefaultFields: [],
+        inventoryEncumbrance: { enabled: false, unit: 'lb', includeInGlobalLoad: false, showGlobalCounter: false },
+      },
+    };
+
+    const first = copyCompendiumItemToWidgetData(entry, widget, { targetSlotId: 'main-hand' });
+    expect(first).not.toBeNull();
+    expect(first!.createdItem.slotId).toBe('main-hand');
+
+    const fullWidget: Pick<Widget, 'type' | 'data'> = {
+      ...widget,
+      data: { ...widget.data, inventoryItems: first!.items },
+    };
+    expect(copyCompendiumItemToWidgetData(entry, fullWidget, { targetSlotId: 'main-hand' })).toBeNull();
+  });
+});
+
+describe('createCompendiumEntryFromItem and positional saveCompendiumItem', () => {
+  it('converts a widget item into a standalone compendium entry without slot, template links, or reserved flags', () => {
+    const item: InventoryItem = {
+      id: 'w-item-1',
+      name: '  Healing Potion  ',
+      quantity: 3,
+      slotId: 'belt-slot',
+      description: '<p>Restores 2d4+2 HP</p>',
+      fields: [
+        { id: 'f1', name: 'Weight', type: 'number', value: 0.5, reserved: 'weight', templateId: 'tpl-w' },
+        { id: 'f2', name: 'Rarity', type: 'text', value: 'Common', templateId: 'tpl-r' },
+      ],
+    };
+
+    const entry = createCompendiumEntryFromItem(item);
+    expect(entry).not.toBeNull();
+    expect(entry!.id).not.toBe(item.id);
+    expect(entry!.name).toBe('Healing Potion');
+    expect(entry!.slotId).toBeUndefined();
+    expect(entry!.quantity).toBeUndefined();
+    expect(entry!.description).toBe('<p>Restores 2d4+2 HP</p>');
+    expect(entry!.fields.map((field) => [field.name, field.value, field.reserved, field.templateId])).toEqual([
+      ['Weight', 0.5, undefined, undefined],
+      ['Rarity', 'Common', undefined, undefined],
+      ['Quantity', 3, undefined, undefined],
+    ]);
+  });
+
+  it('inserts new entries before a target entry when beforeItemId is given', () => {
+    let character = saveCompendiumItem(empty, 'default-gear', createItem({ id: 'g1', name: 'Rope' }));
+    character = saveCompendiumItem(character, 'default-gear', createItem({ id: 'g2', name: 'Torch' }), 'g1');
+    expect(getCompendiumSections(character)[0].items.map((item) => item.name)).toEqual(['Torch', 'Rope']);
   });
 });

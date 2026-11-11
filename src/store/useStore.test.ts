@@ -279,3 +279,145 @@ describe('partial widget detaching', () => {
     expect(getWidget('c').groupId).toBeUndefined();
   });
 });
+
+describe('compendium drag store actions', () => {
+  const swordEntry = {
+    id: 'comp-sword',
+    name: 'Sunblade',
+    fields: [{ id: 'f-atk', name: 'Bonus', type: 'number' as const, value: 4, valueLabel: 'sunblade_bonus' }],
+  };
+
+  beforeEach(() => {
+    useUndoStore.getState().clearAllHistory();
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{
+        id: 'character-1',
+        name: 'Hero',
+        activeSheetId: 'sheet-1',
+        compendium: [
+          { id: 'sec-gear', name: 'Gear', items: [swordEntry] },
+          { id: 'sec-spells', name: 'Spells', items: [] },
+        ],
+        sheets: [{
+          id: 'sheet-1',
+          name: 'Main',
+          widgets: [
+            {
+              id: 'inv-1',
+              type: 'INVENTORY',
+              x: 0,
+              y: 0,
+              data: { inventoryItems: [{ id: 'torch', name: 'Torch', fields: [] }], inventoryDefaultFields: [] },
+            },
+            {
+              id: 'equip-1',
+              type: 'INVENTORY_SLOTS',
+              x: 0,
+              y: 0,
+              data: {
+                inventoryItems: [],
+                inventorySlots: [{ id: 'hand', name: 'Main hand', x: 0, y: 0, w: 50, h: 50, maxItems: 1 }],
+                inventoryDefaultFields: [],
+              },
+            },
+            {
+              id: 'codex-1',
+              type: 'COMPENDIUM',
+              x: 0,
+              y: 0,
+              data: { inventoryItems: [], inventoryDefaultFields: [] },
+            },
+            {
+              id: 'locked-inv',
+              type: 'INVENTORY',
+              x: 0,
+              y: 0,
+              locked: true,
+              data: { inventoryItems: [], inventoryDefaultFields: [] },
+            },
+            {
+              id: 'num-1',
+              type: 'NUMBER',
+              x: 0,
+              y: 0,
+              data: { numberItems: [{ name: 'Attack', value: 0, valueFormula: '@sunblade_bonus + 1' }] },
+            },
+          ],
+        }],
+      }],
+      activeCharacterId: 'character-1',
+      mode: 'play',
+    });
+  });
+
+  it('moves compendium entries between sections with undo support', () => {
+    const moved = useStore.getState().moveCompendiumItem({
+      sourceSectionId: 'sec-gear',
+      targetSectionId: 'sec-spells',
+      itemId: 'comp-sword',
+      beforeItemId: null,
+    });
+    expect(moved).toBe(true);
+    expect(useStore.getState().characters[0].compendium?.[0].items).toEqual([]);
+    expect(useStore.getState().characters[0].compendium?.[1].items.map((item) => item.id)).toEqual(['comp-sword']);
+
+    useStore.getState().undo();
+    expect(useStore.getState().characters[0].compendium?.[0].items.map((item) => item.id)).toEqual(['comp-sword']);
+    expect(useStore.getState().characters[0].compendium?.[1].items).toEqual([]);
+  });
+
+  it('copies compendium entries into Inventory, Equipment and Codex widgets, resolves formulas and skips locked widgets', () => {
+    const invCopy = useStore.getState().copyCompendiumItemToWidget({
+      item: swordEntry,
+      targetWidgetId: 'inv-1',
+      targetIndex: 0,
+    });
+    expect(invCopy).not.toBeNull();
+    expect(invCopy!.id).not.toBe(swordEntry.id);
+    const widgetsAfterInv = useStore.getState().characters[0].sheets[0].widgets;
+    expect(widgetsAfterInv.find((w) => w.id === 'inv-1')?.data.inventoryItems?.map((i) => i.name)).toEqual(['Sunblade', 'Torch']);
+    expect(widgetsAfterInv.find((w) => w.id === 'num-1')?.data.numberItems?.[0].value).toBe(5);
+    // Original compendium entry remains intact
+    expect(useStore.getState().characters[0].compendium?.[0].items.map((i) => i.id)).toEqual(['comp-sword']);
+
+    const equipCopy = useStore.getState().copyCompendiumItemToWidget({
+      item: swordEntry,
+      targetWidgetId: 'equip-1',
+      targetSlotId: 'hand',
+    });
+    expect(equipCopy).not.toBeNull();
+    expect(equipCopy!.slotId).toBe('hand');
+
+    const codexCopy = useStore.getState().copyCompendiumItemToWidget({
+      item: swordEntry,
+      targetWidgetId: 'codex-1',
+      targetIndex: 0,
+    });
+    expect(codexCopy).not.toBeNull();
+    expect(useStore.getState().characters[0].sheets[0].widgets.find((w) => w.id === 'codex-1')?.data.inventoryItems).toHaveLength(1);
+
+    expect(useStore.getState().copyCompendiumItemToWidget({
+      item: swordEntry,
+      targetWidgetId: 'locked-inv',
+      targetIndex: 0,
+    })).toBeNull();
+  });
+
+  it('adds a widget item copy to a compendium section at the requested position while keeping the widget item intact', () => {
+    const torch = useStore.getState().characters[0].sheets[0].widgets.find((w) => w.id === 'inv-1')!.data.inventoryItems![0];
+    const result = useStore.getState().addItemToCompendium({
+      sectionId: 'sec-gear',
+      item: { ...torch, quantity: 5 },
+      beforeItemId: 'comp-sword',
+    });
+    expect(result).not.toBeNull();
+    expect(result!.sectionName).toBe('Gear');
+    expect(result!.entry.id).not.toBe(torch.id);
+    expect(useStore.getState().characters[0].compendium?.[0].items.map((i) => i.name)).toEqual(['Torch', 'Sunblade']);
+    // Source widget item remains untouched
+    expect(useStore.getState().characters[0].sheets[0].widgets.find((w) => w.id === 'inv-1')?.data.inventoryItems?.map((i) => i.id)).toEqual(['torch']);
+
+    useStore.getState().undo();
+    expect(useStore.getState().characters[0].compendium?.[0].items.map((i) => i.name)).toEqual(['Sunblade']);
+  });
+});

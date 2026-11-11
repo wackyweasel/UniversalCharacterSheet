@@ -4422,6 +4422,27 @@ body.variables-dragging * {
   animation-name: variables-panel-in-bottom;
 }
 
+.compendium-entry {
+  transition: border-color 140ms ease, background-color 140ms ease, opacity 140ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.compendium-entry.compendium-entry--copy-source {
+  opacity: 0.55;
+}
+
+.compendium-drop-zone {
+  border: 1px solid transparent;
+  border-bottom-left-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
+  transition: background-color 140ms ease, border-color 140ms ease, padding-bottom 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.compendium-drop-zone.inventory-drop-zone--active,
+.compendium-section--drop-active {
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
 /* ----- Events ----- */
 
 .events-panel {
@@ -4927,6 +4948,10 @@ button.event-flow__line:hover {
   opacity: 0.12;
 }
 
+.inventory-item--dragging.inventory-item--copy-source {
+  opacity: 0.55;
+}
+
 .inventory-item--preview-shift {
   pointer-events: none;
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -4941,6 +4966,7 @@ button.event-flow__line:hover {
   box-shadow: 0 14px 20px rgb(0 0 0 / 0.24);
   box-sizing: border-box;
   color: var(--color-ink);
+  list-style: none;
   opacity: 0.97;
   overflow: hidden;
   pointer-events: none;
@@ -5224,6 +5250,8 @@ button.event-flow__line:hover {
   .initiative-entry--preview-shift,
   .inventory-field-row--defaults,
   .pointer-sort-row--preview-shift,
+  .compendium-entry,
+  .compendium-drop-zone,
   .inventory-item,
   .inventory-item--preview-shift,
   .inventory-drop-zone,

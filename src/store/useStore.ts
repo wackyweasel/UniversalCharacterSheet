@@ -31,10 +31,13 @@ import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableTo
 import {
   addCompendiumSection,
   copyCompendiumData,
+  copyCompendiumItemToWidgetData,
+  createCompendiumEntryFromItem,
   deleteCompendiumItem,
   deleteCompendiumSection,
   getCompendiumSections,
   mergeCompendiumSections,
+  moveCompendiumItem,
   renameCompendiumSection,
   replaceCompendiumSections,
   saveCompendiumItem,
@@ -298,8 +301,25 @@ interface StoreState {
   addCompendiumSection: (name: string) => string | null;
   renameCompendiumSection: (id: string, name: string) => void;
   deleteCompendiumSection: (id: string) => void;
-  saveCompendiumItem: (sectionId: string, item: import('../types').InventoryItem) => void;
+  saveCompendiumItem: (sectionId: string, item: import('../types').InventoryItem, beforeItemId?: string | null) => void;
+  addItemToCompendium: (options: {
+    sectionId: string;
+    item: import('../types').InventoryItem;
+    beforeItemId?: string | null;
+  }) => { entry: import('../types').InventoryItem; sectionName: string } | null;
   deleteCompendiumItem: (sectionId: string, itemId: string) => void;
+  moveCompendiumItem: (options: {
+    sourceSectionId: string;
+    targetSectionId: string;
+    itemId: string;
+    beforeItemId?: string | null;
+  }) => boolean;
+  copyCompendiumItemToWidget: (options: {
+    item: import('../types').InventoryItem;
+    targetWidgetId: string;
+    targetIndex?: number;
+    targetSlotId?: string;
+  }) => import('../types').InventoryItem | null;
   importCompendiumSections: (sections: import('../types').CompendiumSection[], mode?: CompendiumImportMode) => CompendiumMergeResult | null;
   // Event actions (active character)
   addCharacterEvent: (event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => string | null;
@@ -3015,12 +3035,67 @@ export const useStore = create<StoreState>((set, get) => {
       applyCharacterTransform('Delete compendium section', (character) => deleteCompendiumSection(character, id));
     },
 
-    saveCompendiumItem: (sectionId, item) => {
-      applyCharacterTransform('Save compendium entry', (character) => saveCompendiumItem(character, sectionId, item));
+    saveCompendiumItem: (sectionId, item, beforeItemId) => {
+      applyCharacterTransform('Save compendium entry', (character) => saveCompendiumItem(character, sectionId, item, beforeItemId));
+    },
+
+    addItemToCompendium: ({ sectionId, item, beforeItemId }) => {
+      const current = getActiveCharacter(get());
+      if (!current) return null;
+      const section = getCompendiumSections(current).find((candidate) => candidate.id === sectionId);
+      if (!section) return null;
+      const entry = createCompendiumEntryFromItem(item);
+      if (!entry) return null;
+      const saved = applyCharacterTransform('Save compendium entry', (character) =>
+        saveCompendiumItem(character, sectionId, entry, beforeItemId),
+      );
+      return saved ? { entry, sectionName: section.name } : null;
     },
 
     deleteCompendiumItem: (sectionId, itemId) => {
       applyCharacterTransform('Delete compendium entry', (character) => deleteCompendiumItem(character, sectionId, itemId));
+    },
+
+    moveCompendiumItem: ({ sourceSectionId, targetSectionId, itemId, beforeItemId }) => {
+      const actionLabel = sourceSectionId === targetSectionId ? 'Reorder compendium entry' : 'Move compendium entry';
+      return applyCharacterTransform(actionLabel, (character) =>
+        moveCompendiumItem(character, { sourceSectionId, targetSectionId, itemId, beforeItemId }),
+      );
+    },
+
+    copyCompendiumItemToWidget: ({ item, targetWidgetId, targetIndex, targetSlotId }) => {
+      const state = get();
+      if (state.mode === 'print') return null;
+      const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+      const activeSheet = character?.sheets.find((sheet) => sheet.id === character.activeSheetId);
+      const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
+      if (!targetWidget || targetWidget.locked || !isInventoryWidgetType(targetWidget.type)) return null;
+
+      const result = copyCompendiumItemToWidgetData(item, targetWidget, { targetIndex, targetSlotId });
+      if (!result) return null;
+
+      get()._takeSnapshot('Add inventory item');
+      set((currentState) => {
+        recordStoreEvent(currentState, {
+          eventName: 'inventory_item_added',
+          category: 'widget',
+          widgetType: targetWidget.type,
+          source: 'compendium_drag',
+          metadata: { targetWidgetId },
+        });
+
+        const updatedCharacters = currentState.characters.map((entry) => {
+          if (entry.id !== currentState.activeCharacterId) return entry;
+          return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => (
+            widget.id === targetWidgetId
+              ? { ...widget, data: { ...widget.data, inventoryItems: result.items } }
+              : widget
+          )));
+        });
+        return { characters: resolveActiveCharacterFormulas(currentState, updatedCharacters) };
+      });
+
+      return result.createdItem;
     },
 
     importCompendiumSections: (sections, mode = 'add') => {

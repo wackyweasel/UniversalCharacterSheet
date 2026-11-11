@@ -6,15 +6,21 @@ import type {
   InventoryFieldType,
   InventoryItem,
   InventoryItemField,
+  Widget,
 } from '../types';
 import {
+  adaptInventoryItem,
   coerceInventoryFieldValue,
   createInventoryItemField,
+  ensureWeightTemplate,
   fromCodexItem,
+  getInventoryItemEndpoint,
+  isInventoryWidgetType,
   linkInventoryFieldsToTemplates,
   normalizeInventoryQuantity,
   toCodexItem,
 } from './inventory';
+import { getSlotItems, getSlotMaxItems } from './inventorySlots';
 
 type CompendiumSource = Pick<Character, 'compendium'>;
 
@@ -62,17 +68,31 @@ export function deleteCompendiumSection<T extends CompendiumSource>(character: T
   return withSections(character, sections.filter((section) => section.id !== sectionId));
 }
 
-/** Adds an entry to a section, or replaces the entry that has the same id. */
-export function saveCompendiumItem<T extends CompendiumSource>(character: T, sectionId: string, item: InventoryItem): T {
+/** Adds an entry to a section (optionally before `beforeItemId`), or replaces the entry that has the same id. */
+export function saveCompendiumItem<T extends CompendiumSource>(
+  character: T,
+  sectionId: string,
+  item: InventoryItem,
+  beforeItemId?: string | null,
+): T {
   const sections = getCompendiumSections(character);
   if (!sections.some((section) => section.id === sectionId)) return character;
   return withSections(character, sections.map((section) => {
     if (section.id !== sectionId) return section;
     const exists = section.items.some((entry) => entry.id === item.id);
-    return {
-      ...section,
-      items: exists ? section.items.map((entry) => (entry.id === item.id ? item : entry)) : [...section.items, item],
-    };
+    if (exists) {
+      return {
+        ...section,
+        items: section.items.map((entry) => (entry.id === item.id ? item : entry)),
+      };
+    }
+    const beforeIndex = beforeItemId ? section.items.findIndex((entry) => entry.id === beforeItemId) : -1;
+    if (beforeIndex < 0) {
+      return { ...section, items: [...section.items, item] };
+    }
+    const nextItems = [...section.items];
+    nextItems.splice(beforeIndex, 0, item);
+    return { ...section, items: nextItems };
   }));
 }
 
@@ -83,6 +103,61 @@ export function deleteCompendiumItem<T extends CompendiumSource>(character: T, s
   return withSections(character, sections.map((entry) => (
     entry.id === sectionId ? { ...entry, items: entry.items.filter((item) => item.id !== itemId) } : entry
   )));
+}
+
+/** Reorders an entry within a section or moves it into another section. */
+export function moveCompendiumItem<T extends CompendiumSource>(
+  character: T,
+  options: {
+    sourceSectionId: string;
+    targetSectionId: string;
+    itemId: string;
+    /** Entry in the target section to insert before; null/undefined appends to the end. */
+    beforeItemId?: string | null;
+  },
+): T {
+  const { sourceSectionId, targetSectionId, itemId, beforeItemId } = options;
+  const sections = getCompendiumSections(character);
+  const sourceSection = sections.find((section) => section.id === sourceSectionId);
+  const targetSection = sections.find((section) => section.id === targetSectionId);
+  if (!sourceSection || !targetSection) return character;
+
+  const sourceIndex = sourceSection.items.findIndex((entry) => entry.id === itemId);
+  if (sourceIndex < 0) return character;
+  if (sourceSectionId === targetSectionId && beforeItemId === itemId) return character;
+
+  const movedItem = sourceSection.items[sourceIndex];
+
+  if (sourceSectionId === targetSectionId) {
+    const remaining = sourceSection.items.filter((entry) => entry.id !== itemId);
+    const beforeIndex = beforeItemId ? remaining.findIndex((entry) => entry.id === beforeItemId) : -1;
+    const insertIndex = beforeIndex >= 0 ? beforeIndex : remaining.length;
+    if (insertIndex === sourceIndex) return character;
+    const nextItems = [...remaining];
+    nextItems.splice(insertIndex, 0, movedItem);
+    return withSections(
+      character,
+      sections.map((section) => (section.id === sourceSectionId ? { ...section, items: nextItems } : section)),
+    );
+  }
+
+  const nextSourceItems = sourceSection.items.filter((entry) => entry.id !== itemId);
+  const targetBase = targetSection.items.some((entry) => entry.id === movedItem.id)
+    ? { ...movedItem, id: uuidv4() }
+    : movedItem;
+  const beforeIndex = beforeItemId ? targetSection.items.findIndex((entry) => entry.id === beforeItemId) : -1;
+  const insertIndex = beforeIndex >= 0 ? beforeIndex : targetSection.items.length;
+  const nextTargetItems = [...targetSection.items];
+  nextTargetItems.splice(insertIndex, 0, targetBase);
+
+  return withSections(
+    character,
+    sections.map((section) => {
+      if (section.id === sourceSectionId) return { ...section, items: nextSourceItems };
+      if (section.id === targetSectionId) return { ...section, items: nextTargetItems };
+      return section;
+    }),
+  );
 }
 
 /** Copies the compendium, e.g. when creating a character from a preset. */
@@ -108,6 +183,21 @@ export function compendiumItemMatches(item: InventoryItem, query: string): boole
     getCompendiumDescriptionText(item),
   ].join('\n').toLowerCase();
   return haystack.includes(needle);
+}
+
+/** Converts a widget item into a standalone compendium entry with fresh ids. */
+export function createCompendiumEntryFromItem(item: InventoryItem): InventoryItem | null {
+  const name = item.name.trim();
+  if (!name) return null;
+  const { slotId: _slotId, description, ...rest } = item;
+  const trimmedDescription = description?.trim() ? description : undefined;
+  return toCodexItem({
+    ...rest,
+    id: uuidv4(),
+    name,
+    ...(trimmedDescription ? { description: trimmedDescription } : {}),
+    fields: item.fields.map((field) => ({ ...field, id: uuidv4(), templateId: undefined })),
+  });
 }
 
 /**
@@ -148,6 +238,46 @@ export function instantiateCompendiumItem(
     ...(quantity !== undefined ? { quantity } : {}),
     fields: [...defaultFields, ...additionalFields],
   };
+}
+
+/**
+ * Instantiates a copy of a compendium entry and inserts it into an Inventory, Equipment or Codex widget.
+ */
+export function copyCompendiumItemToWidgetData(
+  entry: InventoryItem,
+  widget: Pick<Widget, 'type' | 'data'>,
+  options: { targetIndex?: number; targetSlotId?: string } = {},
+): { items: InventoryItem[]; createdItem: InventoryItem } | null {
+  if (!isInventoryWidgetType(widget.type)) return null;
+  const currentItems = widget.data.inventoryItems ?? [];
+  const endpoint = getInventoryItemEndpoint(widget);
+  const templates = endpoint.tracksWeight
+    ? ensureWeightTemplate(widget.data.inventoryDefaultFields ?? [])
+    : (widget.data.inventoryDefaultFields ?? []);
+
+  if (widget.type === 'INVENTORY_SLOTS') {
+    if (!options.targetSlotId) return null;
+    const slot = widget.data.inventorySlots?.find((candidate) => candidate.id === options.targetSlotId);
+    if (!slot) return null;
+    if (getSlotItems(currentItems, slot.id).length >= getSlotMaxItems(slot)) return null;
+    const instantiated = instantiateCompendiumItem(entry, templates, { allowQuantity: true });
+    const createdItem: InventoryItem = {
+      ...adaptInventoryItem(instantiated, endpoint, endpoint),
+      slotId: slot.id,
+    };
+    return { items: [...currentItems, createdItem], createdItem };
+  }
+
+  if (options.targetSlotId !== undefined) return null;
+  const isCodex = widget.type === 'COMPENDIUM';
+  const instantiated = instantiateCompendiumItem(entry, templates, { allowQuantity: !isCodex });
+  const createdItem = adaptInventoryItem(instantiated, endpoint, endpoint);
+  const nextItems = [...currentItems];
+  const insertionIndex = options.targetIndex === undefined
+    ? nextItems.length
+    : Math.max(0, Math.min(options.targetIndex, nextItems.length));
+  nextItems.splice(insertionIndex, 0, createdItem);
+  return { items: nextItems, createdItem };
 }
 
 function sanitizeField(value: unknown): InventoryItemField | null {

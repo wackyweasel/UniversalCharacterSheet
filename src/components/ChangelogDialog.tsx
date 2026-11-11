@@ -38,6 +38,12 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.15.1',
+    changes: [
+      'Compendium: drag entries to reorder them, move them between sections, or drop a copy onto an Inventory, Equipment or Codex widget — and drag items from those widgets into the compendium to save them.',
+    ],
+  },
+  {
     version: '1.15.0',
     changes: [
       'New Equipment widget: show what your character wears and carries. Place named slots (head, torso, hands, rings, amulet, boots and more) wherever you like and size them freely.',
