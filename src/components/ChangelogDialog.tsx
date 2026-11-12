@@ -40,7 +40,8 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.16.0',
     changes: [
-      'Most widgets should now better adapt to their size. This should significantly reduce the amount of micro-adjustments need to avoid blanck space and scrollbars.',
+      'Most widget content should now better adapt to the size of the widget. This should significantly reduce the amount of micro-adjustments need to avoid blank spaces and scrollbars.',
+      'This might affect your character sheets slightly. Please provide feedback if this affects you negatively.',
       'Some widgets have a new option to disable this new behavior, called dynamic layout.',
       'In print mode, dragging the print area handles no longer pans the camera.',
       '3D dice now work with events: when an event rolls dice and the 3D dice option is on, each roll is shown on the table, one after the other.',
