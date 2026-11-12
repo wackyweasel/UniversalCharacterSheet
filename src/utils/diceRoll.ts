@@ -1,8 +1,11 @@
 import {
+  DieValueNeeded,
   type DiceExpressionRollResult,
   type DiceExpressionTerm,
   formatDiceExpression,
   resolveDiceRolls,
+  rollRandomDie,
+  withDieRoller,
 } from './diceExpression';
 import { flattenExpressionDice } from './diceResult';
 import {
@@ -11,21 +14,23 @@ import {
   type PhysicalDieRequest,
 } from '../components/DicePhysicsOverlay';
 import { trackGoatCounterEvent } from './goatCounter';
+import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
+
+/** The physical dice that show one die of `faces`; a d100 takes two (units and tens). */
+const physicalRequestsForDie = (faces: number): PhysicalDieRequest[] | null => {
+  if (faces === 100) return [{ faces: 10 }, { faces: 100, notation: 'd100' as const }];
+  return isPhysicalDieSupported(faces) ? [{ faces }] : null;
+};
+
+/** The die value that the physical dice from `physicalRequestsForDie` landed on. */
+const valueFromPhysicalDice = (faces: number, values: number[]): number => (
+  faces === 100 ? ((values[1] % 100) + (values[0] % 10)) || 100 : values[0]
+);
 
 const getPhysicalDiceRequests = (terms: DiceExpressionTerm[]): PhysicalDieRequest[] => (
   terms.flatMap((term) => {
     if (term.type !== 'dice') return [];
-
-    if (term.faces === 100) {
-      return Array.from({ length: term.count }, () => [
-        { faces: 10 },
-        { faces: 100, notation: 'd100' as const },
-      ]).flat();
-    }
-
-    return isPhysicalDieSupported(term.faces)
-      ? Array.from({ length: term.count }, () => ({ faces: term.faces }))
-      : [];
+    return Array.from({ length: term.count }, () => physicalRequestsForDie(term.faces) ?? []).flat();
   })
 );
 
@@ -111,4 +116,30 @@ export const rerollExpressionDice = async (
   });
 
   return { ...result, total: terms.reduce((sum, rollTerm) => sum + rollTerm.signedTotal, 0), terms };
+};
+
+/**
+ * Runs an event's synchronous dice rolls one at a time on the 3D table. Each run stops at the first
+ * die without a value yet; that die is rolled, then the run starts again using all values so far.
+ * Runs are deterministic, so each die only appears once the dice before it have landed.
+ * Dice the table can't show fall back to random results.
+ */
+export const rollEventDice = async <T>(run: () => T): Promise<T> => {
+  if (!useDiceSettingsStore.getState().threeDDiceEnabled) return run();
+
+  const values: number[] = [];
+  for (;;) {
+    let next = 0;
+    try {
+      return withDieRoller((faces) => {
+        if (next < values.length) return values[next++];
+        throw new DieValueNeeded(faces);
+      }, run);
+    } catch (error) {
+      if (!(error instanceof DieValueNeeded)) throw error;
+      const dice = physicalRequestsForDie(error.faces);
+      const physicalValues = dice ? await rollPhysicalDice(dice) : null;
+      values.push(physicalValues ? valueFromPhysicalDice(error.faces, physicalValues) : rollRandomDie(error.faces));
+    }
+  }
 };

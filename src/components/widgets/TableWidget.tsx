@@ -1714,7 +1714,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
       {/* Table */}
       <div data-table-scroll="true"
         className={`overflow-auto flex-1 ${hasTableCornerRadius ? 'rounded-theme' : ''}`}
-        style={{ maxHeight: `${tableHeight}px` }}
+        style={{ maxHeight: `${tableHeight}px`, scrollbarGutter: 'stable' }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) {

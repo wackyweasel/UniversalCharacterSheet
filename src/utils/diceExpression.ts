@@ -199,6 +199,33 @@ export const parseDiceStep = (step: DiceStep): DiceExpressionTerm[] | null => {
   return parseDiceExpression(formatDiceStep(step));
 };
 
+export const rollRandomDie = (faces: number): number => Math.floor(Math.random() * faces) + 1;
+
+type DieRoller = (faces: number) => number;
+
+/** Thrown by a die roller that has no value yet, to stop the run before it uses one. */
+export class DieValueNeeded extends Error {
+  readonly faces: number;
+
+  constructor(faces: number) {
+    super(`A d${faces} value is needed`);
+    this.faces = faces;
+  }
+}
+
+let activeDieRoller: DieRoller = rollRandomDie;
+
+/** Runs `run` with every die rolled by `rollDiceExpression` coming from `roller` instead of the random generator. */
+export const withDieRoller = <T>(roller: DieRoller, run: () => T): T => {
+  const previous = activeDieRoller;
+  activeDieRoller = roller;
+  try {
+    return run();
+  } finally {
+    activeDieRoller = previous;
+  }
+};
+
 export const rollDiceExpression = (expression: string): DiceExpressionRollResult | null => {
   const terms = parseDiceExpression(expression);
   if (!terms) return null;
@@ -211,7 +238,7 @@ export const rollDiceExpression = (expression: string): DiceExpressionRollResult
       return { term, signedTotal };
     }
 
-    const rolls = Array.from({ length: term.count }, () => Math.floor(Math.random() * term.faces) + 1);
+    const rolls = Array.from({ length: term.count }, () => activeDieRoller(term.faces));
     const rollTerm = resolveDiceRolls(term, rolls);
     total += rollTerm.signedTotal;
     return rollTerm;

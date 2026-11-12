@@ -1,5 +1,6 @@
 import type { Character, CharacterEvent, CharacterEventEffect } from '../types';
 import { getWidgetTitle } from '../utils/characterVariables';
+import { DieValueNeeded } from '../utils/diceExpression';
 import { collectLabels, evaluateFormulaValue, resolveCharacterFormulas, type FormulaChange } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
 import { evaluateAmount, evaluateCondition, findWidget, formatNumber, patchWidgetData } from './helpers';
@@ -183,6 +184,7 @@ function runEffect(
     const outcome = def.apply(ctx);
     return outcome ? { outcome, icon, prefix } : { outcome: null, icon, prefix, error: `${def.label}: nothing to do` };
   } catch (error) {
+    if (error instanceof DieValueNeeded) throw error;
     console.error('Event effect failed', effect, error);
     return { outcome: null, icon, prefix, error: `${def.label}: failed` };
   }

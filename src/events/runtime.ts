@@ -4,6 +4,7 @@ import { useTimelineStore } from '../store/useTimelineStore';
 import { getCoveringSnapshotId, useUndoStore } from '../store/useUndoStore';
 import { enqueueDiceResult, getRecentPointerPoint } from '../store/useDiceResultStore';
 import { expressionRollToView } from '../utils/diceResult';
+import { rollEventDice } from '../utils/diceRoll';
 import { MAX_CHAIN_DEPTH, runEvents, type EventFiring, type EventRolls, type EventRunResult } from './engine';
 import { areEventsSuppressed } from './suppress';
 import type { WidgetAction } from './types';
@@ -25,9 +26,11 @@ let lastCharacterId: string | null = null;
 let lastCharacter: Character | undefined;
 let pending: PendingBatch | null = null;
 let flushScheduled = false;
+let rolling = false;
 let applying = false;
 let rollSerial = 0;
 const firingListeners = new Set<(firings: EventFiring[]) => void>();
+
 
 const getActiveCharacter = (state: StoreSnapshot) => (
   state.characters.find((character) => character.id === state.activeCharacterId)
@@ -86,8 +89,10 @@ function observe(state: StoreSnapshot, prevState: StoreSnapshot) {
   scheduleFlush();
 }
 
-function flush() {
+async function flush() {
   flushScheduled = false;
+  // A flush that is waiting on 3D dice picks up any changes made meanwhile when it ends.
+  if (rolling) return;
   const batch = pending;
   pending = null;
   if (!batch) return;
@@ -97,9 +102,29 @@ function flush() {
   const after = getActiveCharacter(state);
   if (!after || !hasEvents(after)) return;
 
-  const result = runEvents({ before: batch.before, after, actions: batch.actions });
+  rolling = true;
+  let result: EventRunResult;
+  try {
+    result = await rollEventDice(() => runEvents({ before: batch.before, after, actions: batch.actions }));
+  } finally {
+    rolling = false;
+  }
+
+  const queued = pending as PendingBatch | null;
+  if (queued || getActiveCharacter(useStore.getState()) !== after) {
+    // The character changed while the dice rolled: run this batch again together with those changes.
+    pending = {
+      ...batch,
+      actions: [...batch.actions, ...(queued?.actions ?? [])],
+      undoId: batch.undoId ?? queued?.undoId,
+    };
+
+    scheduleFlush();
+    return;
+  }
   applyResult(batch.characterId, after, result, batch.undoId);
 }
+
 
 export function describeFiring(firing: EventFiring): string {
   const text = (effect: EventFiring['effects'][number]) => (effect.skipped ? `${effect.text} (no change)` : effect.text);
