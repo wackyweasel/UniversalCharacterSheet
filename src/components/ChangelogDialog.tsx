@@ -41,6 +41,7 @@ const CHANGELOG_ENTRIES = [
     version: '1.15.1',
     changes: [
       'Compendium: drag entries to reorder them, move them between sections, or drop a copy onto an Inventory, Equipment or Codex widget — and drag items from those widgets into the compendium to save them.',
+            'Events: you can now delete an event from the Events section of a widget\'s settings, not only from the Events panel.',
     ],
   },
   {
