@@ -149,6 +149,7 @@ const CAMERA_PAN_DRAG_TARGET_SELECTOR = [
   '[data-camera-pan-ignore="true"]',
   '[data-card-deck-grab-all-widget-id]',
   '.card-deck-hit-target',
+  '.print-area-overlay',
   '[class*="drag-handle"]',
 ].join(', ');
 

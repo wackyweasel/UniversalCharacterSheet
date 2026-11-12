@@ -42,6 +42,7 @@ const CHANGELOG_ENTRIES = [
     changes: [
       'Most widgets should now better adapt to their size. This should significantly reduce the amount of micro-adjustments need to avoid blanck space and scrollbars.',
       'Some widgets have a new option to disable this new behavior, called dynamic layout.',
+      'In print mode, dragging the print area handles no longer pans the camera.',
     ],
   },
   {
