@@ -887,7 +887,6 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
   }, []);
 
   // Fixed small sizing
-  const cellClass = 'text-[10px] p-0.5';
   const gapClass = 'gap-1';
   const showHeader = !!label || (!isPrintMode && showTableEditButton);
   const showTableHeader = !hideTableHeader || showTableControls;
@@ -898,6 +897,31 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
   const gapSize = showHeader ? 4 : 0;
   const padding = 0;
   const tableHeight = Math.max(40, height - labelHeight - gapSize - padding * 2);
+
+  // Cell font starts from a row-height estimate, then is measured and adjusted in the layout effect below so wrapped text is accounted for.
+  const MIN_CELL_FONT_SIZE = 7;
+  const MAX_CELL_FONT_SIZE = 14;
+  const visibleRowSlots = Math.max(1, rows.length + (showTableHeader ? 1 : 0));
+  const perRowBudget = tableHeight / visibleRowSlots;
+  const cellFontSize = Math.min(MAX_CELL_FONT_SIZE, Math.max(MIN_CELL_FONT_SIZE, Math.floor(((perRowBudget - 6) / 1.6) * 2) / 2));
+  const cellTableRef = useRef<HTMLTableElement>(null);
+  useLayoutEffect(() => {
+    const table = cellTableRef.current;
+    const container = table?.parentElement;
+    if (!table || !container) return;
+    const overflows = (size: number) => {
+      table.style.fontSize = `${size}px`;
+      return container.scrollHeight > container.clientHeight;
+    };
+    let size = cellFontSize;
+    if (overflows(size)) {
+      while (size > MIN_CELL_FONT_SIZE && overflows(size)) size -= 0.5;
+    } else {
+      while (size < MAX_CELL_FONT_SIZE && !overflows(size + 0.5)) size += 0.5;
+    }
+    table.style.fontSize = `${size}px`;
+  });
+  const cellClass = 'p-0.5';
 
   const handleCellChange = (rowIdx: number, colIdx: number, value: string) => {
     const newRows = [...rows];
@@ -1700,12 +1724,14 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
         onDragOver={(e) => e.preventDefault()}
       >
         <table
+          ref={cellTableRef}
           className={`bg-theme-paper ${hasTableCornerRadius ? 'rounded-theme' : ''} ${hasDynamicColumn ? 'w-full' : ''} ${cellClass}`}
           style={{
             borderCollapse: 'separate',
             borderSpacing: 0,
             tableLayout: 'auto',
             width: hasDynamicColumn ? undefined : 'max-content',
+            fontSize: `${cellFontSize}px`,
           }}
         >
           <colgroup>
@@ -2003,8 +2029,8 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
                                 setEditingCell(null);
                               }
                             }}
-                            className={`absolute inset-0 block w-full min-w-0 h-full bg-transparent border-0 p-0 resize-none overflow-hidden focus:outline-none text-[10px] leading-[1.5] whitespace-pre-wrap break-words ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
-                            style={{ textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
+                            className={`absolute inset-0 block w-full min-w-0 h-full bg-transparent border-0 p-0 resize-none overflow-hidden                             focus:outline-none leading-[1.5] whitespace-pre-wrap break-words ${needsDarkText ? '' : 'text-theme-ink'} font-body ${getCellTextClass(cellFormat)}`}
+                                                        style={{ fontSize: 'inherit', textAlign: cellFormat.hAlign || 'left', ...textColorStyle }}
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}

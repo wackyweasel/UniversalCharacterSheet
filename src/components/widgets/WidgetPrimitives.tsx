@@ -146,9 +146,11 @@ interface WidgetItemColumnsProps {
   rowGap?: number;
   // Balance columns by rendered item height instead of item count (for items whose height varies, e.g. wrapped names).
   balanceByHeight?: boolean;
+  // Stretch columns to the available height and spread their items across it (extra space goes between rows).
+  fillHeight?: boolean;
 }
 
-function HeightBalancedColumns({ items, columns, rowGap }: { items: ReactNode[]; columns: number; rowGap: number }) {
+function HeightBalancedColumns({ items, columns, rowGap, fillHeight }: { items: ReactNode[]; columns: number; rowGap: number; fillHeight: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [heights, setHeights] = useState<number[]>([]);
 
@@ -175,9 +177,9 @@ function HeightBalancedColumns({ items, columns, rowGap }: { items: ReactNode[];
   let itemIndex = 0;
 
   return (
-    <div ref={rootRef} className="flex w-full min-w-0 items-start gap-3">
+    <div ref={rootRef} className={`flex w-full min-w-0 gap-3 ${fillHeight ? 'flex-1 items-stretch' : 'items-start'}`}>
       {columnItems.map((group, index) => (
-        <div key={index} className="flex min-w-0 flex-1 flex-col" style={{ rowGap }}>
+        <div key={index} className="flex min-w-0 flex-1 flex-col" style={{ rowGap, justifyContent: fillHeight ? 'space-between' : undefined }}>
           {group.map((item) => {
             const currentIndex = itemIndex++;
             return <div key={currentIndex} data-column-item={currentIndex} className="min-w-0">{item}</div>;
@@ -189,18 +191,19 @@ function HeightBalancedColumns({ items, columns, rowGap }: { items: ReactNode[];
 }
 
 // Renders items unchanged for one column; otherwise spreads them evenly across side-by-side columns.
-export function WidgetItemColumns({ items, columns, rowGap = 4, balanceByHeight = false }: WidgetItemColumnsProps) {
+export function WidgetItemColumns({ items, columns, rowGap = 4, balanceByHeight = false, fillHeight = false }: WidgetItemColumnsProps) {
   const columnCount = normalizeItemColumns(columns);
   if (columnCount === 1 || items.length === 0) return <>{items}</>;
-  if (balanceByHeight) return <HeightBalancedColumns items={items} columns={columnCount} rowGap={rowGap} />;
+  if (balanceByHeight) return <HeightBalancedColumns items={items} columns={columnCount} rowGap={rowGap} fillHeight={fillHeight} />;
 
   return (
-    <div className="flex w-full min-w-0 items-start gap-3">
+    <div className={`flex w-full min-w-0 gap-3 ${fillHeight ? 'flex-1 items-stretch' : 'items-start'}`}>
       {distributeIntoColumns(items, columnCount).map((columnItems, index) => (
-        <div key={index} className="flex min-w-0 flex-1 flex-col" style={{ rowGap }}>
+        <div key={index} className="flex min-w-0 flex-1 flex-col" style={{ rowGap, justifyContent: fillHeight ? 'space-between' : undefined }}>
           {columnItems}
         </div>
       ))}
     </div>
   );
 }
+

@@ -128,6 +128,15 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
         <div className="mt-3">
           <ItemColumnsControl id={`checkbox-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
         </div>
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-theme-ink">
+          <input
+            type="checkbox"
+            checked={widget.data.dynamicLayout ?? true}
+            onChange={(e) => updateData({ dynamicLayout: e.target.checked })}
+            className="h-4 w-4 accent-theme-accent"
+          />
+          Dynamic layout
+        </label>
       </CollapsibleSection>
       
       <CollapsibleSection>

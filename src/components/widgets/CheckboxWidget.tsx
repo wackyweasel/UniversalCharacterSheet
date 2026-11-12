@@ -141,7 +141,7 @@ function RemoveChecklistItemsModal({ items, onConfirm, onCancel }: { items: Chec
 
 export default function CheckboxWidget({ widget, height, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, checkboxItems = [], checklistSettings, itemColumns } = widget.data;
+  const { label, checkboxItems = [], checklistSettings, itemColumns, dynamicLayout = true } = widget.data;
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
@@ -225,7 +225,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
       {/* Checkbox Items */}
       <div 
         className={`flex flex-col gap-0.5 overflow-y-auto flex-1`}
-        style={{ maxHeight: `${itemsHeight}px` }}
+        style={{ maxHeight: `${itemsHeight}px`, justifyContent: dynamicLayout ? 'space-between' : undefined }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight) {
@@ -233,7 +233,7 @@ export default function CheckboxWidget({ widget, height, mode, showFieldControls
           }
         }}
       >
-        <WidgetItemColumns columns={itemColumns} rowGap={2} items={(checkboxItems as CheckboxItem[]).map((item, idx) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={2} fillHeight={dynamicLayout} items={(checkboxItems as CheckboxItem[]).map((item, idx) => (
           <button
             type="button"
             key={idx} 

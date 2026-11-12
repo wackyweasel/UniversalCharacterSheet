@@ -1870,6 +1870,11 @@ button.dice-result__die--selectable:hover {
     padding-left: 20px;
   }
 
+  .widget-content.widget-content--editable-header .image-widget__title[data-position='below'] {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .image-widget__title[data-alignment='right'] .widget-header-title {
     text-align: right;
   }
@@ -2283,8 +2288,13 @@ button.dice-result__die--selectable:hover {
     color: var(--color-ink);
   }
 
-  .threshold-track__main,
+  .threshold-track__main {
+    position: relative;
+    z-index: 70;
+  }
+
   .xp-level__main {
+    container-type: size;
     position: relative;
     z-index: 70;
   }
@@ -2442,7 +2452,10 @@ button.dice-result__die--selectable:hover {
     opacity: 0.8;
   }
 
+  /* Badge metrics are multiples of --xp-unit (1px at natural size). The unit shrinks
+     only when the widget's main row is too short (45px badge) or too narrow (130px). */
   .xp-level__badge {
+    --xp-unit: min(1px, calc(100cqh / 45), calc(100cqw / 130));
     align-items: center;
     background: color-mix(in srgb, var(--color-accent) 14%, var(--color-paper));
     border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
@@ -2452,25 +2465,25 @@ button.dice-result__die--selectable:hover {
     flex: 0 0 auto;
     flex-direction: column;
     justify-content: center;
-    min-width: 46px;
-    padding: 3px 8px;
+    min-width: calc(46 * var(--xp-unit));
+    padding: calc(3 * var(--xp-unit)) calc(8 * var(--xp-unit));
   }
 
   .xp-level__badge-caption {
     color: var(--color-muted);
-    font-size: 9px;
+    font-size: calc(9 * var(--xp-unit));
     font-weight: 700;
     letter-spacing: 0.08em;
-    line-height: 11px;
+    line-height: calc(11 * var(--xp-unit));
     text-transform: uppercase;
   }
 
   .xp-level__badge-number {
     font-family: var(--font-heading);
-    font-size: 22px;
+    font-size: calc(22 * var(--xp-unit));
     font-variant-numeric: tabular-nums;
     font-weight: 700;
-    line-height: 26px;
+    line-height: calc(26 * var(--xp-unit));
   }
 
   .xp-level__badge--level-up {

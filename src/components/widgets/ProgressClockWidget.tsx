@@ -10,6 +10,7 @@ import { MinusIcon, PlusIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { ProgressClockStructureDialog } from './ProgressClockStructureDialog';
 import { advanceClock, getClockDragValue, getClockSegments, getClockValue, getClockSeparatorPath } from '../../utils/progressClock';
+import { getProgressClockGrid } from '../../utils/progressClockLayout';
 import './ProgressClockWidget.css';
 
 interface Props {
@@ -213,7 +214,7 @@ function ProgressClock({ clock, index, enabled, showValues, labelPosition, count
   );
 }
 
-export default function ProgressClockWidget({ widget, mode, interactive = true, showFieldControls = true }: Props) {
+export default function ProgressClockWidget({ widget, mode, width, height, interactive = true, showFieldControls = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -221,9 +222,11 @@ export default function ProgressClockWidget({ widget, mode, interactive = true, 
   const labels = character ? collectLabels(character) : {};
   const [structureAction, setStructureAction] = useState<'add' | 'remove' | null>(null);
   const {
-    label, clockItems = [], clockLayout = 'horizontal', clockSize = 100,
+    label, clockItems = [], clockLayout = 'auto', clockSize = 100,
     clockShowValues = false, clockLabelPosition = 'below', clockCounterClockwise = false, clockStartAngle = 0,
+    clockDynamicSize = true,
   } = widget.data;
+  const dynamicGrid = clockDynamicSize ? getProgressClockGrid(widget.data, width, height) : null;
   const enabled = interactive && mode === 'play' && !widget.locked;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !widget.data.hideWidgetHeader && mode !== 'print' && !widget.locked;
   const resolvedClocks = clockItems.map((clock) => resolveProgressClockFormulas(clock, labels));
@@ -241,7 +244,7 @@ export default function ProgressClockWidget({ widget, mode, interactive = true, 
           </Tooltip>
         </div>}
       </div>}
-      <div className={`progress-clock-widget__clocks progress-clock-widget__clocks--${clockLayout} progress-clock-widget__clocks--labels-${clockLabelPosition}`}>
+      <div className={`progress-clock-widget__clocks progress-clock-widget__clocks--${clockLayout} progress-clock-widget__clocks--labels-${clockLabelPosition}`} style={dynamicGrid?.style}>
         {resolvedClocks.map((clock, index) => (
           <ProgressClock
             key={clock.id}

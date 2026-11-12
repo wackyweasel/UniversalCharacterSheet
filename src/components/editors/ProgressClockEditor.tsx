@@ -18,8 +18,9 @@ export function ProgressClockEditor({ widget, updateData }: EditorProps) {
   const character = characters.find((item) => item.id === activeCharacterId);
   const labels = character ? collectLabels(character) : {};
   const {
-    clockItems = [], clockLayout = 'horizontal', clockSize = 100,
+    clockItems = [], clockLayout = 'auto', clockSize = 100,
     clockShowValues = false, clockLabelPosition = 'below', clockCounterClockwise = false, clockStartAngle = 0,
+    clockDynamicSize = true,
   } = widget.data;
   const { setRowRef, startDrag, handleReorderKey } = usePointerReorder({
     items: clockItems,
@@ -115,13 +116,14 @@ export function ProgressClockEditor({ widget, updateData }: EditorProps) {
         <div>
           <span className="mb-1 block text-sm font-medium text-theme-ink">Arrangement</span>
           <div role="group" aria-label="Clock arrangement" className="flex gap-1">
-            {(['horizontal', 'vertical'] as const).map((layout) => <button key={layout} type="button" aria-pressed={clockLayout === layout} className={`widget-control flex-1 px-3 py-2 text-sm ${clockLayout === layout ? 'widget-control--primary' : ''}`} onClick={() => updateData({ clockLayout: layout })}>{layout === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>)}
+            {(['auto', 'horizontal', 'vertical'] as const).map((layout) => <button key={layout} type="button" aria-pressed={clockLayout === layout} className={`widget-control flex-1 px-3 py-2 text-sm ${clockLayout === layout ? 'widget-control--primary' : ''}`} onClick={() => updateData({ clockLayout: layout })}>{layout === 'auto' ? 'Auto' : layout === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>)}
           </div>
         </div>
-        <div className="grid gap-1">
+        <label className="flex items-center gap-2 text-sm text-theme-ink"><input type="checkbox" className="h-4 w-4 accent-theme-accent" checked={clockDynamicSize} onChange={(event) => updateData({ clockDynamicSize: event.target.checked })} />Dynamic clock size</label>
+        {!clockDynamicSize && <div className="grid gap-1">
           <label htmlFor={`clock-size-${widget.id}`} className="block text-sm text-theme-ink">Clock size: {clockSize}px</label>
           <input id={`clock-size-${widget.id}`} type="range" min={40} max={240} step={5} value={clockSize} onChange={(event) => updateData({ clockSize: Number(event.target.value) })} className="m-0 block h-4 w-full" style={{ accentColor: 'var(--color-accent)' }} />
-        </div>
+        </div>}
         <div>
           <span className="mb-1 block text-sm font-medium text-theme-ink">Label position</span>
           <div role="group" aria-label="Label position" className="grid grid-cols-2 gap-1">

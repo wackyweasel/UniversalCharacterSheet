@@ -15,6 +15,7 @@ describe('number display layout compatibility', () => {
       const result = getNumberDisplayLayout({
         displayLayout,
         displayNumbers: Array.from({ length: count }, () => ({ label: 'Score', value: 12 })),
+        numberBoxDynamic: false,
         numberBoxScale: percent,
       }, width, height);
       expect(result.containerClassName).toBe(`${horizontal ? 'flex-row' : 'flex-col'} items-stretch justify-center overflow-hidden`);
@@ -42,7 +43,7 @@ describe('number display layout compatibility', () => {
   });
 
   it.each(['horizontal', 'vertical', 'auto'] as const)('supports fixed square boxes with %s arrangement', (displayLayout) => {
-    const data = { displayLayout, numberBoxFixedAspectRatio: true, numberBoxScale: 71 };
+    const data = { displayLayout, numberBoxFixedAspectRatio: true, numberBoxDynamic: false, numberBoxScale: 71 };
     const result = getNumberDisplayLayout(data, 300, 200);
     expect(result.boxStyle).toMatchObject({ flex: '0 0 auto', aspectRatio: '1', width: `min(100%, ${70 * 0.71}px)` });
     expect(result.secondaryBoxStyle).toEqual({
@@ -71,14 +72,31 @@ describe('number display layout compatibility', () => {
   });
 
   it('widens boxes only when the step buttons are shown', () => {
-    const base = getNumberDisplayLayout({ displayLayout: 'horizontal' }, 300, 100);
-    const withButtons = getNumberDisplayLayout({ displayLayout: 'horizontal', showDisplayNumberButtons: true }, 300, 100);
+    const base = getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxDynamic: false }, 300, 100);
+    const withButtons = getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxDynamic: false, showDisplayNumberButtons: true }, 300, 100);
     expect(base.boxStyle.maxWidth).toBe('70px');
     expect(withButtons.boxStyle.maxWidth).toBe('100px');
   });
 
+  it('sizes dynamic square boxes to fit the widget in each arrangement', () => {
+    const three = Array.from({ length: 3 }, () => ({ label: 'Score', value: 12 }));
+    expect(getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxFixedAspectRatio: true, displayNumbers: three }, 300, 100).boxStyle)
+      .toMatchObject({ flex: '0 0 auto', width: 'min(calc((100cqw - 8px) / 3), calc((100cqh - 0px) / 1))', aspectRatio: '1' });
+    expect(getNumberDisplayLayout({ displayLayout: 'vertical', numberBoxFixedAspectRatio: true, displayNumbers: three }, 100, 300).boxStyle)
+      .toMatchObject({ width: 'min(calc((100cqw - 0px) / 1), calc((100cqh - 8px) / 3))' });
+    expect(getNumberDisplayLayout({ displayLayout: 'auto', numberBoxFixedAspectRatio: true, displayNumbers: three }, 300, 100).boxStyle.width)
+      .toBe('min(calc((100cqw - 8px) / 3), calc((100cqh - 0px) / 1))');
+  });
+
+  it('ignores the box size slider while dynamic box size is on', () => {
+    const dynamic = getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxScale: 60 }, 220, 112);
+    expect(dynamic).toEqual(getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxDynamic: true, numberBoxScale: 100 }, 220, 112));
+    expect(dynamic.boxStyle.maxWidth).toBeUndefined();
+    expect(dynamic.boxStyle.minWidth).toBe('30px');
+  });
+
   it('keeps the size control effective for adaptive boxes', () => {
-    const result = getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxFixedAspectRatio: false, numberBoxScale: 60 }, 220, 112);
+    const result = getNumberDisplayLayout({ displayLayout: 'horizontal', numberBoxFixedAspectRatio: false, numberBoxDynamic: false, numberBoxScale: 60 }, 220, 112);
     expect(result.secondaryBoxStyle).toEqual({
       minHeight: '14.399999999999999px',
       minWidth: '16.8px',

@@ -117,6 +117,17 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const [mediaSize, setMediaSize] = useState({ width: 0, height: 0 });
   const [containerWidth, setContainerWidth] = useState(0);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const [titleElement, setTitleElement] = useState<HTMLElement | null>(null);
+  const [titleHeight, setTitleHeight] = useState(16);
+
+  useEffect(() => {
+    if (!titleElement) return;
+    const measureTitle = () => setTitleHeight(titleElement.offsetHeight);
+    measureTitle();
+    const observer = new ResizeObserver(measureTitle);
+    observer.observe(titleElement);
+    return () => observer.disconnect();
+  }, [titleElement]);
 
   useEffect(() => {
     if (!nameDialogOpen) return;
@@ -138,12 +149,11 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
   const gapClass = 'gap-1';
 
   const isVerticalMode = height > 1000;
-  const labelHeight = 16;
   const gapSize = 4;
   const padding = 0;
 
   const hasVisibleTitle = !!label && !hideImageTitle;
-  const titleSpace = hasVisibleTitle ? labelHeight + gapSize : 0;
+  const titleSpace = hasVisibleTitle ? titleHeight + gapSize : 0;
   const canvasWidgetWidth = widget.w && widget.w > 0 ? widget.w : 200;
   const canvasWidgetHeight = widget.h && widget.h > 0 ? widget.h : 120;
   const canvasSurfaceBorder = 2;
@@ -362,14 +372,16 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
 
   const title = hasVisibleTitle ? (
     mode === 'print' ? (
-      <div className="widget-header image-widget__title flex-shrink-0" data-alignment={imageTitleAlignment}>
-        <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
+      <div ref={setTitleElement} className="widget-header image-widget__title flex-shrink-0" data-alignment={imageTitleAlignment} data-position={imageTitlePosition}>
+        <div className="widget-header-title min-w-0 flex-1 break-words"><InlineFormulaText text={label} /></div>
       </div>
     ) : (
       <button
+        ref={setTitleElement}
         type="button"
         className="widget-header image-widget__title w-full flex-shrink-0 border-0 bg-transparent p-0 text-inherit"
         data-alignment={imageTitleAlignment}
+        data-position={imageTitlePosition}
         aria-label={`Edit image name: ${label}`}
         onClick={(event) => {
           event.stopPropagation();
@@ -378,7 +390,7 @@ export default function ImageWidget({ widget, mode, width, height, showUploadCon
         onMouseDown={(event) => event.stopPropagation()}
         onTouchStart={(event) => event.stopPropagation()}
       >
-        <span className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></span>
+        <span className="widget-header-title min-w-0 flex-1 break-words"><InlineFormulaText text={label} /></span>
       </button>
     )
   ) : null;

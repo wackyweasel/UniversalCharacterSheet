@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, PoolResource } from '../../types';
@@ -172,7 +172,7 @@ function RemoveResourcesModal({ resources, onConfirm, onCancel }: { resources: P
   );
 }
 
-export default function PoolWidget({ widget, height, mode, showFieldControls = true, interactive = true }: Props) {
+export default function PoolWidget({ widget, width, height, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -188,6 +188,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
     poolSymbolGap = 6,
     fieldLabels = {},
     itemColumns,
+    dynamicLayout = true,
   } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && interactive && mode !== 'print';
   const resourceInteractive = interactive && mode !== 'print';
@@ -196,7 +197,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
   const [renamingResourceIndex, setRenamingResourceIndex] = useState<number | null>(null);
 
   // Fixed small sizing
-  const symbolSize = 'h-6 flex-shrink-0 text-base leading-none';
+  const symbolSize = 'flex-shrink-0 leading-none';
   const counterClass = 'text-[11px]';
   const gapClass = 'gap-1';
 
@@ -280,6 +281,69 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
   // Calculate available height for scrollable area
   const headerHeight = controlsVisible ? 18 : label ? 16 : 0;
   const availableHeight = height - headerHeight - 8;
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const [labelColumnWidth, setLabelColumnWidth] = useState<number | undefined>(undefined);
+  // Measured pip row width and glyph width (in em) so pip size can fill the row without guessing glyph advances.
+  const [pipMetrics, setPipMetrics] = useState<{ area: number; em: number } | undefined>(undefined);
+
+  // Symbols scale with the widget: limited by the height each resource row gets and by the width left after the names.
+  const rowCount = Math.max(1, resources.length);
+  const rowBudget = (availableHeight - 8 * (rowCount - 1)) / rowCount;
+  const widestRow = Math.max(1, ...resources.map((resource: PoolResource) => resource.max));
+  const labelReserve = dynamicLayout ? Math.min(labelColumnWidth ?? 0, width * 0.4) : width * 0.4;
+  const pipAreaWidth = width - 32 - labelReserve - (showPoolCount ? 48 : 0);
+  const dynamicSymbolGap = 2;
+  const dynamicLabelGap = 12;
+  const estimatedPipWidth = (pipAreaWidth - (dynamicLayout ? dynamicLabelGap + dynamicSymbolGap : 0) - (dynamicLayout ? dynamicSymbolGap : Math.max(0, poolSymbolGap)) * (widestRow - 1)) / (widestRow * 1.4);
+  const pipByWidth = dynamicLayout && pipMetrics
+    ? (pipMetrics.area - 2 - dynamicLabelGap - dynamicSymbolGap * (widestRow - 1)) / (widestRow * pipMetrics.em)
+    : estimatedPipWidth;
+  // Symbols keep a readable minimum size and wrap onto extra lines in narrow widgets instead of shrinking further.
+  const MIN_PIP_SIZE = 10;
+  const pipSize = Math.floor(Math.max(MIN_PIP_SIZE, Math.min(32, rowBudget / 1.5, pipByWidth)));
+  const pipStyle = { height: Math.floor(pipSize * 1.5), fontSize: pipSize };
+
+  // In dynamic layout every resource name shares the width of the widest one (capped at 40%).
+  useLayoutEffect(() => {
+    const root = itemsRef.current;
+    if (!dynamicLayout || !root) return;
+    const measure = () => {
+      let widest = 0;
+      root.querySelectorAll<HTMLElement>('[data-pool-label]').forEach((element) => {
+        const previousWidth = element.style.width;
+        element.style.width = 'max-content';
+        widest = Math.max(widest, element.offsetWidth);
+        element.style.width = previousWidth;
+      });
+      setLabelColumnWidth(widest);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [dynamicLayout, resources, itemColumns, mode]);
+
+  useLayoutEffect(() => {
+    const root = itemsRef.current;
+    if (!dynamicLayout || !root) return;
+    const measure = () => {
+      const pipRows = root.querySelectorAll<HTMLElement>('[data-pool-pips]');
+      if (pipRows.length === 0) return;
+      let em = 0;
+      pipRows.forEach((row) => {
+        const pip = row.firstElementChild as HTMLElement | null;
+        if (!pip || pip.offsetWidth === 0) return;
+        em = Math.max(em, pip.offsetWidth / parseFloat(getComputedStyle(pip).fontSize));
+      });
+      if (em === 0) return;
+      const area = pipRows[0].offsetWidth;
+      setPipMetrics((current) => (current && current.area === area && current.em === em ? current : { area, em }));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [dynamicLayout, resources, itemColumns, mode, pipSize]);
 
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
@@ -317,6 +381,7 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
       )}
 
       <div
+        ref={itemsRef}
         className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1"
         style={{ maxHeight: `${availableHeight}px` }}
         onWheel={(e) => {
@@ -325,23 +390,25 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
         }}
       >
           <WidgetItemColumns columns={itemColumns} rowGap={8} items={resources.map((resource: PoolResource, idx: number) => (
-            <div key={idx} className="flex items-start gap-2">
+            <div key={idx} className={`flex gap-2 ${dynamicLayout ? 'flex-1 items-center' : 'items-start'}`}>
               {resource.name && (
                 <button
                   type="button"
+                  data-pool-label
                   disabled={!resourceInteractive}
                   aria-label={`Edit resource ${resource.name}`}
                   onClick={() => openRenameResource(idx)}
                   onMouseDown={(event) => event.stopPropagation()}
                   onTouchStart={(event) => event.stopPropagation()}
-                  className={`flex h-6 min-w-0 max-w-[40%] flex-shrink-0 items-center border-0 bg-transparent p-0 text-left font-bold ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+                  className={`flex h-6 min-w-0 flex-shrink-0 items-center border-0 bg-transparent p-0 text-left font-bold ${counterClass} text-theme-ink font-body enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
+                  style={dynamicLayout ? { width: labelColumnWidth, maxWidth: '40%' } : { maxWidth: '40%' }}
                 >
                   {mode === 'play' && resource.tooltip ? (
                     <Tooltip content={resource.tooltip}><span><InlineFormulaText text={resource.name} /></span></Tooltip>
                   ) : <InlineFormulaText text={resource.name} />}
                 </button>
               )}
-              <div className={`flex min-w-0 flex-1 flex-wrap content-start items-center ${poolSymbolAlignment === 'left' ? 'justify-start' : poolSymbolAlignment === 'center' ? 'justify-center' : 'justify-end'}`} style={{ columnGap: Math.max(0, poolSymbolGap) }}>
+              <div data-pool-pips className={`flex min-w-0 flex-1 flex-wrap content-start items-center ${dynamicLayout ? '' : poolSymbolAlignment === 'left' ? 'justify-start' : poolSymbolAlignment === 'center' ? 'justify-center' : 'justify-end'}`} style={dynamicLayout ? { columnGap: dynamicSymbolGap, paddingLeft: dynamicLabelGap } : { columnGap: Math.max(0, poolSymbolGap) }}>
                 {Array.from({ length: resource.max }).map((_, pointIdx) => (
                   <Tooltip key={pointIdx} content={resource.currentFormula ? 'Value set by formula' : (pointIdx < resource.current ? 'Click to use' : 'Click to restore')}>
                     <button
@@ -350,7 +417,8 @@ export default function PoolWidget({ widget, height, mode, showFieldControls = t
                       disabled={!resourceInteractive || !!resource.currentFormula}
                       aria-label={`${resource.name || 'Resource'} ${pointIdx + 1}: ${pointIdx < resource.current ? 'filled' : 'empty'}`}
                       aria-pressed={pointIdx < resource.current}
-                      style={poolSymbolGap < 0 ? { marginInline: poolSymbolGap / 2 } : undefined}                      className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                      className={`${getClassNameForStyle(pointIdx < resource.current, resource.style, symbolSize)} ${resource.currentFormula ? '!cursor-default hover:!scale-100' : ''}`}
+                      style={pipStyle}
                     >
                       <span className="grid place-items-center">
                         <span className="invisible [grid-area:1/1]" aria-hidden="true">{getSymbolForStyle(true, resource.style)}</span>

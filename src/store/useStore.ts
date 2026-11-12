@@ -1098,7 +1098,7 @@ export const useStore = create<StoreState>((set, get) => {
             ...(type === 'PROGRESS_BAR' ? { showPercentage: false, showIncrementButtons: false } : {}),
             ...(type === 'PROGRESS_CLOCK' ? {
               clockItems: [{ id: uuidv4(), name: '', segments: 6, value: 0 }],
-              clockLayout: 'horizontal' as const,
+              clockLayout: 'auto' as const,
               clockSize: 100,
             } : {}),
             ...(type === 'POOL' ? {

@@ -229,7 +229,7 @@ export function PoolEditor({ widget, updateData, resourceEditorOnly = false, can
             </div>
           </div>
 
-          <div>
+          {!(widget.data.dynamicLayout ?? true) && <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor={`pool-symbol-gap-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">Space between symbols</label>
 
@@ -237,15 +237,19 @@ export function PoolEditor({ widget, updateData, resourceEditorOnly = false, can
             <input
               id={`pool-symbol-gap-${widget.id}`}
               type="range"
-              min="-8"
+              min="0"
               max="24"
               value={symbolGap}
               onChange={(event) => updateData({ poolSymbolGap: Number(event.target.value) })}
               className="w-full accent-theme-accent"
             />
-          </div>
+          </div>}
 
           <ItemColumnsControl id={`pool-item-columns-${widget.id}`} value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={widget.data.dynamicLayout ?? true} onChange={(event) => updateData({ dynamicLayout: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+            <span className="text-sm text-theme-ink">Dynamic layout</span>
+          </label>
         </div>
       </CollapsibleSection>}
     </div>

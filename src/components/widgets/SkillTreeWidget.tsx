@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { Tooltip } from '../Tooltip';
@@ -42,6 +42,10 @@ const NODE_STATUS_CLASS: Record<SkillNodeStatus, string> = {
 
 const stopPropagation = (event: { stopPropagation: () => void }) => event.stopPropagation();
 
+// Below MIN_BOARD_SCALE the tree stops shrinking and scrolls instead; above MAX_BOARD_SCALE it stops growing.
+const MIN_BOARD_SCALE = 0.6;
+const MAX_BOARD_SCALE = 1.5;
+
 function pluralPoints(count: number): string {
   return `${count} ${count === 1 ? 'point' : 'points'}`;
 }
@@ -71,6 +75,23 @@ export default function SkillTreeWidget({ widget, mode, interactive = true }: Pr
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pointerTypeRef = useRef('mouse');
   const selectedNode = canEdit && selectedId ? byId.get(selectedId) : undefined;
+
+  // The board is scaled to fit the scroll viewport, so it adapts to the widget size and only scrolls when it can't shrink further.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    if (!scrollEl) return;
+    const measure = () => setViewport({ width: scrollEl.clientWidth, height: scrollEl.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(scrollEl);
+    return () => observer.disconnect();
+  }, [scrollEl]);
+  const fitScale = viewport.width > 0 && viewport.height > 0 && layout.width > 0 && layout.height > 0
+    ? Math.min(viewport.width / layout.width, viewport.height / layout.height)
+    : 1;
+  const boardScale = Math.min(MAX_BOARD_SCALE, Math.max(MIN_BOARD_SCALE, fitScale));
+
 
   const getHint = (node: SkillTreeNode, status: SkillNodeStatus, withAction = true): string => {
     const cost = normalizeSkillCost(node.cost);
@@ -179,12 +200,17 @@ export default function SkillTreeWidget({ widget, mode, interactive = true }: Pr
     <div className="skill-tree-widget flex h-full w-full flex-col gap-1.5 font-body">
       {header}
 
-      <div className="skill-tree__scroll min-h-0 flex-1">
+      <div ref={setScrollEl} className="skill-tree__scroll min-h-0 flex-1">
         <div
           className="skill-tree__canvas"
-          style={{ width: layout.width, height: layout.height, ...(fillColor ? { '--skill-color': fillColor } : {}) } as CSSProperties}
+          style={{ width: layout.width * boardScale, height: layout.height * boardScale }}
         >
+          <div
+            className="relative"
+            style={{ width: layout.width, height: layout.height, transform: `scale(${boardScale})`, transformOrigin: '0 0', ...(fillColor ? { '--skill-color': fillColor } : {}) } as CSSProperties}
+          >
           <svg className="skill-tree__links" width={layout.width} height={layout.height} aria-hidden="true">
+
             {nodes.flatMap((node) => {
               const to = layout.positions.get(node.id);
               return getAllRequiredIds(node).map((requiredId) => {
@@ -255,6 +281,7 @@ export default function SkillTreeWidget({ widget, mode, interactive = true }: Pr
               </Tooltip>
             );
           })}
+          </div>
         </div>
       </div>
 

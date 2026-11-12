@@ -29,6 +29,10 @@
   justify-content: flex-start;
 }
 
+.progress-clock-widget__clocks--horizontal {
+  flex-wrap: nowrap;
+}
+
 .progress-clock-widget__clocks--horizontal.progress-clock-widget__clocks--labels-above {
   align-items: flex-end;
 }

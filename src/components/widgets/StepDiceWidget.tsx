@@ -33,7 +33,7 @@ export const DEFAULT_DICE_CHAIN: DiceStep[] = ['1d4', '1d6', '1d8', '1d10', '1d1
 
 export default function StepDiceWidget({ widget, mode, showFieldControls = true, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
-  const { label, stepDiceItems = [], stepDiceChain, itemColumns, wrapItemNames = false } = widget.data;
+  const { label, stepDiceItems = [], stepDiceChain, itemColumns, wrapItemNames = false, dynamicLayout = true } = widget.data;
   const diceChain = stepDiceChain && stepDiceChain.length > 0 ? stepDiceChain : DEFAULT_DICE_CHAIN;
   const [rollingIndex, setRollingIndex] = useState<number | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -194,8 +194,8 @@ export default function StepDiceWidget({ widget, mode, showFieldControls = true,
       {stepDiceItems.length === 0 ? (
         <WidgetEmptyState title="No step dice configured" hint={controlsVisible ? 'Use + to add a die track.' : undefined} />
       ) : (
-        <div className="flex flex-col gap-1">
-          <WidgetItemColumns columns={itemColumns} rowGap={4} balanceByHeight items={stepDiceItems.map((item: StepDiceItem, i: number) => {
+        <div className={`flex flex-col gap-1 ${dynamicLayout ? 'flex-1' : ''}`} style={{ justifyContent: dynamicLayout ? 'space-between' : undefined }}>
+          <WidgetItemColumns columns={itemColumns} rowGap={4} balanceByHeight fillHeight={dynamicLayout} items={stepDiceItems.map((item: StepDiceItem, i: number) => {
         const expression = formatDiceStep(diceChain[item.currentStep]);
         const isValidExpression = !!parseDiceStep(diceChain[item.currentStep]);
         const isAtMin = item.currentStep === 0;

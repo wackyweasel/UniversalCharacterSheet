@@ -239,6 +239,17 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             </div>
           </div>
 
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={widget.data.dynamicLayout ?? true}
+              onChange={(e) => updateData({ dynamicLayout: e.target.checked })}
+              className="h-4 w-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Dynamic layout</span>
+          </label>
+
+          {!(widget.data.dynamicLayout ?? true) && (
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor={`spell-slot-size-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">
@@ -257,6 +268,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
               className="w-full accent-theme-accent"
             />
           </div>
+          )}
 
           <div>
             <div className="mb-1 flex items-center justify-between">
@@ -277,6 +289,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
             />
           </div>
 
+          {!(widget.data.dynamicLayout ?? true) && (
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor={`spell-slot-vertical-spacing-${widget.id}`} className="text-xs font-bold uppercase text-theme-muted">
@@ -295,6 +308,7 @@ export function SpellSlotEditor({ widget, updateData }: EditorProps) {
               className="w-full accent-theme-accent"
             />
           </div>
+          )}
         </div>
       </CollapsibleSection>
 

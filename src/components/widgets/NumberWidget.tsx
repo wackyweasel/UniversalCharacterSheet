@@ -37,7 +37,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
   const isPrintMode = mode === 'print';
-  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true, itemColumns, wrapItemNames = false } = widget.data;
+  const { label, numberItems = [], printSettings, showNumberItemMax = false, showIncrementButtons = true, itemColumns, wrapItemNames = false, dynamicLayout = true } = widget.data;
   const hideValues = isPrintMode && (printSettings?.hideValues ?? false);
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [numberDialog, setNumberDialog] = useState<NumberEditDialog | null>(null);
@@ -304,7 +304,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
       {/* Number Items */}
       <div 
         className={`flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden flex-1 ${showIncrementButtons ? 'pr-4' : ''}`}
-        style={{ maxHeight: `${itemsHeight}px` }}
+        style={{ maxHeight: `${itemsHeight}px`, justifyContent: dynamicLayout ? 'space-between' : undefined }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight) {
@@ -312,7 +312,7 @@ export default function NumberWidget({ widget, mode, height, showFieldControls =
           }
         }}
       >
-        <WidgetItemColumns columns={itemColumns} rowGap={2} balanceByHeight items={(numberItems as NumberItem[]).map((item, idx) => {
+        <WidgetItemColumns columns={itemColumns} rowGap={2} balanceByHeight fillHeight={dynamicLayout} items={(numberItems as NumberItem[]).map((item, idx) => {
           const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
           const atMaximum = item.maxValue !== undefined && item.value >= item.maxValue;
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);

@@ -646,14 +646,13 @@ function MixedProgressControl({
 export default function MixedFieldsWidget({
   widget,
   mode,
-  height,
   showFieldControls = true,
   interactive = true,
 }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
-  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right', wrapItemNames = false } = widget.data;
+  const { label, mixedFields = [], labelWidth = 33, itemSpacing = 4, itemColumns, mixedFieldsAlignment = 'right', wrapItemNames = false, dynamicLayout = true } = widget.data;
   const justifyClass = CONTROL_JUSTIFY[mixedFieldsAlignment];
   const textAlignClass = CONTROL_TEXT_ALIGN[mixedFieldsAlignment];
   const isPrintMode = mode === 'print';
@@ -669,6 +668,28 @@ export default function MixedFieldsWidget({
   const [editingTextIndex, setEditingTextIndex] = useState<number | null>(null);
   const [renamingFieldIndex, setRenamingFieldIndex] = useState<number | null>(null);
   const previousTextValues = useRef<Record<number, string>>({});
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const [labelColumnWidth, setLabelColumnWidth] = useState<number | undefined>(undefined);
+
+  // In dynamic layout every label shares the width of the widest one (capped at labelWidth%).
+  useLayoutEffect(() => {
+    const root = itemsRef.current;
+    if (!dynamicLayout || !root) return;
+    const measure = () => {
+      let widest = 0;
+      root.querySelectorAll<HTMLElement>('[data-mixed-label]').forEach((element) => {
+        const previousWidth = element.style.width;
+        element.style.width = 'max-content';
+        widest = Math.max(widest, element.offsetWidth);
+        element.style.width = previousWidth;
+      });
+      setLabelColumnWidth(widest);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [dynamicLayout, mixedFields, labelWidth, itemColumns, wrapItemNames, mode]);
   const labels = useMemo(() => {
     const character = characters.find((item) => item.id === activeCharacterId);
     return character ? collectLabels(character) : {};
@@ -764,8 +785,6 @@ export default function MixedFieldsWidget({
     setAddMultiple(false);
     setSelectedFields(new Set());
   };
-
-  const availableHeight = Math.max(30, height - ((label || controlsVisible) ? 28 : 0));
 
   const renderFieldControl = (field: MixedField, index: number) => {
     switch (field.type) {
@@ -911,18 +930,19 @@ export default function MixedFieldsWidget({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: `${availableHeight}px`, rowGap: `${itemSpacing}px` }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
-        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} balanceByHeight items={mixedFields.map((field, index) => (
+      <div ref={itemsRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-1" style={{ rowGap: `${itemSpacing}px`, justifyContent: dynamicLayout ? 'space-between' : undefined }} onWheel={(event) => { if (event.currentTarget.scrollHeight > event.currentTarget.clientHeight) event.stopPropagation(); }}>
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} balanceByHeight fillHeight={dynamicLayout} items={mixedFields.map((field, index) => (
           <div key={index} className="flex min-h-7 items-center gap-2">
             <button
               type="button"
+              data-mixed-label
               disabled={!canInteract}
               aria-label={`Rename field ${field.name || `Field ${index + 1}`}`}
               onClick={() => openRenameField(index)}
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
               className={`min-w-0 flex-shrink-0 ${wrapItemNames ? 'break-words' : 'truncate'} border-0 bg-transparent p-0 text-left text-xs font-body text-theme-ink enabled:cursor-pointer enabled:hover:underline disabled:cursor-default`}
-              style={{ width: `${labelWidth}%` }}
+              style={dynamicLayout ? { width: labelColumnWidth, maxWidth: `${labelWidth}%` } : { width: `${labelWidth}%` }}
             >
               {mode === 'play' && field.tooltip ? <Tooltip content={field.tooltip}><span><InlineFormulaText text={field.name} /></span></Tooltip> : <InlineFormulaText text={field.name} />}
             </button>

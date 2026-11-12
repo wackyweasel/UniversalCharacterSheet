@@ -5,9 +5,10 @@ import { SpellLevel, Widget } from '../../types';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { Tooltip } from '../Tooltip';
-import { MinusIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
+import { MinusIcon, PlusIcon, ResetIcon, TrashIcon, XIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
 import { spellLevelName, spellLevelShortName } from '../../utils/spellLevel';
+import { getSpellSlotLayout } from '../../utils/spellSlotLayout';
 
 interface Props {
   widget: Widget;
@@ -155,11 +156,11 @@ function SpellSlotManagerModal({
   );
 }
 
-export default function SpellSlotWidget({ widget, mode, height }: Props) {
+export default function SpellSlotWidget({ widget, mode, width, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const isPrintMode = mode === 'print';
   const [showManager, setShowManager] = useState(false);
-  const { label, spellLevels = [{ level: 1, max: 4, used: 0 }], fillColor, spellSlotShape = 'circle', spellSlotSize = 20, spellSlotHorizontalSpacing = 4, spellSlotVerticalSpacing = 4, showResetButton = true } = widget.data;
+  const { label, spellLevels = [{ level: 1, max: 4, used: 0 }], fillColor, spellSlotShape = 'circle', spellSlotSize = 20, spellSlotHorizontalSpacing = 4, spellSlotVerticalSpacing = 4, showResetButton = true, dynamicLayout = true } = widget.data;
   const showFieldControls = widget.data.showFieldControls !== false && !isPrintMode;
   const normalizedSpellSlotSize = Math.max(12, Math.min(40, spellSlotSize));
   const normalizedHorizontalSpacing = Math.max(0, Math.min(16, spellSlotHorizontalSpacing));
@@ -167,19 +168,23 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
 
   // Fixed small sizing
   const levelLabelClass = 'w-6 text-[10px]';
-  const buttonClass = 'text-[10px] px-1 py-0.5';
-  const gapClass = 'gap-1';
+  const showResetControl = showResetButton && !isPrintMode;
+  const showHeaderControls = showFieldControls || showResetControl;
+  const allSlotsAvailable = (spellLevels as SpellLevel[]).every((level) => level.used === 0);  const gapClass = 'gap-1';
   const slotShapeClass = spellSlotShape === 'square'
     ? 'rounded-button'
     : 'rounded-full';
   
   // Calculate spell levels area height
-  const hasHeader = Boolean(label || showFieldControls);
+  const hasHeader = Boolean(label || showFieldControls || showResetControl);
   const labelHeight = hasHeader ? 16 : 0;
-  const controlsHeight = 28;
   const gapSize = 4;
   const padding = 0;
-  const levelsHeight = Math.max(30, height - labelHeight - controlsHeight - gapSize * 3 - padding * 2);
+  const levelsHeight = Math.max(30, height - labelHeight - (hasHeader ? gapSize : 0) - padding * 2);
+  const dynamicSlots = dynamicLayout
+    ? getSpellSlotLayout((spellLevels as SpellLevel[]).map((level) => level.max), width, levelsHeight, normalizedHorizontalSpacing, normalizedVerticalSpacing)
+    : null;
+  const slotSizePx = dynamicSlots?.slotSize ?? normalizedSpellSlotSize;
 
   const toggleSlot = (levelIdx: number, slotIdx: number) => {
     const updated = [...spellLevels] as SpellLevel[];
@@ -203,21 +208,37 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
   return (
     <div className={`flex flex-col ${gapClass} w-full h-full`}>
       {hasHeader && (
-        <div className={`widget-header flex-shrink-0 ${showFieldControls ? 'pr-4' : ''}`}>
+        <div className={`widget-header flex-shrink-0 ${showHeaderControls ? 'pr-4' : ''}`}>
           <div className="widget-header-title min-w-0 flex-1 truncate"><InlineFormulaText text={label} /></div>
-          {showFieldControls && (
+          {showHeaderControls && (
             <div className="spell-slot-widget__controls widget-structure-controls ml-auto flex flex-shrink-0 items-center gap-1">
-              <Tooltip content="Manage spell slot levels and slots">
-                <button
-                  type="button"
-                  onClick={() => setShowManager(true)}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  aria-label="Manage spell slot levels and slots"
-                  className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center text-sm font-bold"
-                >
-                  <PlusIcon className="h-3 w-3" />
-                </button>
-              </Tooltip>
+              {showFieldControls && (
+                <Tooltip content="Manage spell slot levels and slots">
+                  <button
+                    type="button"
+                    onClick={() => setShowManager(true)}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    aria-label="Manage spell slot levels and slots"
+                    className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center text-sm font-bold"
+                  >
+                    <PlusIcon className="h-3 w-3" />
+                  </button>
+                </Tooltip>
+              )}
+              {showResetControl && (
+                <Tooltip content="Reset all spell slots to unused">
+                  <button
+                    type="button"
+                    onClick={resetAll}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    disabled={allSlotsAvailable}
+                    aria-label="Reset all spell slots to unused"
+                    className="widget-control widget-control--subtle flex h-6 w-6 items-center justify-center disabled:opacity-35"
+                  >
+                    <ResetIcon className="h-3 w-3" />
+                  </button>
+                </Tooltip>
+              )}
             </div>
           )}
         </div>
@@ -226,7 +247,7 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
       {/* Spell Levels */}
       <div 
         className="flex flex-1 flex-col overflow-y-auto"
-        style={{ maxHeight: `${levelsHeight}px`, rowGap: `${normalizedVerticalSpacing}px` }}
+        style={{ maxHeight: `${levelsHeight}px`, rowGap: `${normalizedVerticalSpacing}px`, justifyContent: dynamicLayout ? 'space-between' : undefined }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight) {
@@ -240,7 +261,12 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
             <span className={`${levelLabelClass} font-bold text-center text-theme-ink font-body`}>{spellLevelShortName(levelData.level)}</span>
 
             {/* Slots */}
-            <div className="flex flex-1 flex-wrap" style={{ gap: `${normalizedHorizontalSpacing}px` }}>
+            <div
+              className={dynamicSlots ? 'grid flex-1' : 'flex flex-1 flex-wrap'}
+              style={dynamicSlots
+                ? { gap: `${normalizedHorizontalSpacing}px`, gridTemplateColumns: `repeat(${dynamicSlots.columns[levelIdx] ?? 1}, ${slotSizePx}px)` }
+                : { gap: `${normalizedHorizontalSpacing}px` }}
+            >
               {Array.from({ length: levelData.max }).map((_, slotIdx) => (
                 <Tooltip key={slotIdx} content={slotIdx < levelData.used ? 'Click to restore' : 'Click to use'}>
                   {spellSlotShape === 'diamond' ? (
@@ -250,13 +276,13 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
                       aria-label={`${spellLevelName(levelData.level)} slot ${slotIdx + 1}: ${slotIdx < levelData.used ? 'used' : 'available'}`}
                       aria-pressed={slotIdx < levelData.used}
                       className="flex items-center justify-center border-0 bg-transparent p-0 transition-all hover:opacity-80 focus-visible:scale-110"
-                      style={{ width: `${normalizedSpellSlotSize}px`, height: `${normalizedSpellSlotSize}px` }}
+                      style={{ width: `${slotSizePx}px`, height: `${slotSizePx}px` }}
                     >
                       <span
                         className={`rotate-45 rounded-sm border border-theme-border ${slotIdx < levelData.used ? 'bg-theme-accent' : 'bg-theme-paper'}`}
                         style={{
-                          width: `${Math.max(8, Math.round(normalizedSpellSlotSize * 0.7))}px`,
-                          height: `${Math.max(8, Math.round(normalizedSpellSlotSize * 0.7))}px`,
+                          width: `${Math.max(8, Math.round(slotSizePx * 0.7))}px`,
+                          height: `${Math.max(8, Math.round(slotSizePx * 0.7))}px`,
                           ...(slotIdx < levelData.used && fillColor ? { backgroundColor: fillColor } : {}),
                         }}
                         aria-hidden="true"
@@ -274,8 +300,8 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
                           : 'bg-theme-paper hover:opacity-80'
                       }`}
                       style={{
-                        width: `${normalizedSpellSlotSize}px`,
-                        height: `${normalizedSpellSlotSize}px`,
+                        width: `${slotSizePx}px`,
+                        height: `${slotSizePx}px`,
                         ...(slotIdx < levelData.used && fillColor ? { backgroundColor: fillColor } : {}),
                       }}
                     />
@@ -289,22 +315,6 @@ export default function SpellSlotWidget({ widget, mode, height }: Props) {
           <WidgetEmptyState title="No spell levels configured" hint="Add slot levels in the widget editor." compact />
         )}
       </div>
-
-      {/* Controls */}
-      {showResetButton && (
-        <div className={`flex items-center justify-end ${gapClass} pt-1 flex-shrink-0 ${isPrintMode ? 'opacity-0' : ''}`}>
-          <Tooltip content="Reset all spell slots to unused">
-            <button
-              onClick={resetAll}
-              onMouseDown={(e) => e.stopPropagation()}
-              disabled={(spellLevels as SpellLevel[]).every((level) => level.used === 0)}
-              className={`${buttonClass} widget-control widget-control--subtle disabled:opacity-35`}
-            >
-              Reset All
-            </button>
-          </Tooltip>
-        </div>
-      )}
 
       {showManager && createPortal(
         <SpellSlotManagerModal

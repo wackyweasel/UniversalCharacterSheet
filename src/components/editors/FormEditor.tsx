@@ -70,6 +70,7 @@ export function FormEditor({ widget, updateData }: EditorProps) {
 
   const labelWidth = widget.data.labelWidth ?? 33;
   const itemSpacing = widget.data.itemSpacing ?? 2;
+  const dynamicLayout = widget.data.dynamicLayout ?? true;
 
   return (
     <div className="widget-editor widget-editor--form space-y-4">
@@ -84,6 +85,11 @@ export function FormEditor({ widget, updateData }: EditorProps) {
             <input type="checkbox" checked={widget.data.wrapItemNames ?? false} onChange={(event) => updateData({ wrapItemNames: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
             <span className="text-sm text-theme-ink">Wrap item names</span>
           </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={dynamicLayout} onChange={(event) => updateData({ dynamicLayout: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+            <span className="text-sm text-theme-ink">Dynamic layout</span>
+          </label>
+          {!dynamicLayout && (<>
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="form-label-width" className="text-xs font-bold uppercase text-theme-muted">
@@ -118,6 +124,7 @@ export function FormEditor({ widget, updateData }: EditorProps) {
               className="w-full accent-theme-accent"
             />
           </div>
+          </>)}
         </div>
       </CollapsibleSection>
       

@@ -99,6 +99,10 @@ export function StepDiceEditor({ widget, updateData }: EditorProps) {
             <input type="checkbox" checked={widget.data.wrapItemNames ?? false} onChange={(event) => updateData({ wrapItemNames: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
             <span className="text-sm text-theme-ink">Wrap item names</span>
           </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={widget.data.dynamicLayout ?? true} onChange={(event) => updateData({ dynamicLayout: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+            <span className="text-sm text-theme-ink">Dynamic layout</span>
+          </label>
         </div>
       </CollapsibleSection>
 

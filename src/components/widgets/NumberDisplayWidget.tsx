@@ -310,7 +310,7 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
         </div>
       )}
 
-      <div className={`flex min-h-0 min-w-0 flex-1 gap-1 p-1 ${containerClassName}`}>
+      <div className={`flex min-h-0 min-w-0 flex-1 gap-1 p-1 ${containerClassName}`} style={{ containerType: 'size' }}>
         {(displayNumbers as DisplayNumber[]).map((item, idx) => {
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
           const displayedValue = showDisplayNumberMax && item.maxValue !== undefined ? `${formattedValue}/${item.maxValue}` : formattedValue;

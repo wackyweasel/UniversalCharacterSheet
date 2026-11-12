@@ -79,7 +79,7 @@ function StepDiceSettings({ field, onChange }: { field: Extract<MixedField, { ty
 }
 
 export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false }: EditorProps & { fieldEditorOnly?: boolean }) {
-  const { mixedFields = [], labelWidth = 33, itemSpacing = 4, mixedFieldsAlignment: alignment = 'right' } = widget.data;
+  const { mixedFields = [], labelWidth = 33, itemSpacing = 4, mixedFieldsAlignment: alignment = 'right', dynamicLayout = true } = widget.data;
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<MixedFieldType>('text');
   const [revealedBounds, setRevealedBounds] = useState<Record<number, RevealedBounds>>({});
@@ -408,6 +408,11 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
             <input type="checkbox" checked={widget.data.wrapItemNames ?? false} onChange={(event) => updateData({ wrapItemNames: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
             <span className="text-sm text-theme-ink">Wrap item names</span>
           </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" checked={dynamicLayout} onChange={(event) => updateData({ dynamicLayout: event.target.checked })} className="h-4 w-4 accent-theme-accent" />
+            <span className="text-sm text-theme-ink">Dynamic layout</span>
+          </label>
+          {!dynamicLayout && (<>
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="mixed-fields-label-width" className="text-xs font-bold uppercase text-theme-muted">Label width</label>
@@ -422,6 +427,7 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
             </div>
             <input id="mixed-fields-item-spacing" type="range" min="0" max="16" value={itemSpacing} onChange={(event) => updateData({ itemSpacing: Number(event.target.value) })} className="w-full accent-theme-accent" />
           </div>
+          </>)}
           <div className="image-editor__control-group">
             <span className="image-editor__control-label">Alignment</span>
             <div className="flex overflow-hidden rounded-button border border-theme-border">

@@ -512,8 +512,9 @@ export interface WidgetData {
   inlineLabel?: boolean;
   allowOutOfRange?: boolean;
   clockItems?: ProgressClockItem[];
-  clockLayout?: 'horizontal' | 'vertical';
+  clockLayout?: 'auto' | 'horizontal' | 'vertical';
   clockSize?: number;
+  clockDynamicSize?: boolean;
   clockShowValues?: boolean;
   clockLabelPosition?: 'above' | 'below';
   clockCounterClockwise?: boolean;
@@ -544,6 +545,8 @@ export interface WidgetData {
   displayLayout?: 'horizontal' | 'vertical' | 'auto';
   numberBoxFixedAspectRatio?: boolean;
   numberBoxScale?: number;
+  // Number display: boxes size to the widget and ignore numberBoxScale (undefined = true)
+  numberBoxDynamic?: boolean;
   showDisplayNumberMax?: boolean;
   showDisplayNumberLabels?: boolean;
   showDisplayNumberButtons?: boolean;
@@ -559,6 +562,8 @@ export interface WidgetData {
   // Form & Mixed Fields
   labelWidth?: number;
   itemSpacing?: number;
+  // Form: labels fit their content and rows fill the widget height (undefined = true)
+  dynamicLayout?: boolean;
   // Mixed Fields
   mixedFields?: MixedField[];
   mixedFieldsAlignment?: 'left' | 'center' | 'right';

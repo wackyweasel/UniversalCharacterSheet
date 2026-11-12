@@ -115,35 +115,46 @@ export function NumberEditor({ widget, updateData, itemEditorOnly = false }: Edi
         <div className="widget-editor__section-heading">
           <h3 id="number-display-options-title" className="widget-editor__section-title">Display options</h3>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={widget.data.showNumberItemMax ?? false}
-            onChange={(event) => updateData({ showNumberItemMax: event.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show maximums in tracker (e.g. 5/10)</span>
-        </label>
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.showNumberItemMax ?? false}
+              onChange={(event) => updateData({ showNumberItemMax: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show maximums in tracker (e.g. 5/10)</span>
+          </label>
 
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={widget.data.showIncrementButtons ?? true}
-            onChange={(event) => updateData({ showIncrementButtons: event.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Show +/− buttons</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={widget.data.wrapItemNames ?? false}
-            onChange={(event) => updateData({ wrapItemNames: event.target.checked })}
-            className="w-4 h-4 accent-theme-accent"
-          />
-          <span className="text-sm text-theme-ink">Wrap item names</span>
-        </label>
-        <ItemColumnsControl id="number-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.showIncrementButtons ?? true}
+              onChange={(event) => updateData({ showIncrementButtons: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Show +/− buttons</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.wrapItemNames ?? false}
+              onChange={(event) => updateData({ wrapItemNames: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Wrap item names</span>
+          </label>
+          <ItemColumnsControl id="number-item-columns" value={widget.data.itemColumns} onChange={(itemColumns) => updateData({ itemColumns })} />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={widget.data.dynamicLayout ?? true}
+              onChange={(event) => updateData({ dynamicLayout: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Dynamic layout</span>
+          </label>
+        </div>
       </CollapsibleSection>}
       
       <CollapsibleSection title={itemEditorOnly ? 'Tracker settings' : undefined}>

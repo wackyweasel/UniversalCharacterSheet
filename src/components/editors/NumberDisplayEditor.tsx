@@ -36,6 +36,7 @@ function ModifierRangeInput({ value, onCommit, ...props }: { value: number; onCo
 export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
   const { displayNumbers = [], displayLayout = 'horizontal', numberBoxFixedAspectRatio = false } = widget.data;
   const numberBoxScale = Math.min(100, Math.max(50, widget.data.numberBoxScale ?? 100));
+  const numberBoxDynamic = widget.data.numberBoxDynamic ?? true;
   const showSecondaryNumbers = widget.data.showSecondaryDisplayNumbers ?? false;
   const automaticModifiers = widget.data.secondaryDisplayAutoCompute ?? false;
   const modifierRanges = widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES;
@@ -327,6 +328,16 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
             />
             <span className="text-sm text-theme-ink">Fixed aspect ratio (square boxes)</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={numberBoxDynamic}
+              onChange={(event) => updateData({ numberBoxDynamic: event.target.checked })}
+              className="w-4 h-4 accent-theme-accent"
+            />
+            <span className="text-sm text-theme-ink">Dynamic box size</span>
+          </label>
+          {!numberBoxDynamic && (
           <div className="grid gap-1">
             <div className="flex items-center justify-between">
               <label htmlFor={`number-box-size-${widget.id}`} className="text-sm text-theme-ink">Box size</label>
@@ -344,6 +355,7 @@ export function NumberDisplayEditor({ widget, updateData }: EditorProps) {
               style={{ accentColor: 'var(--color-accent)' }}
             />
           </div>
+          )}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"

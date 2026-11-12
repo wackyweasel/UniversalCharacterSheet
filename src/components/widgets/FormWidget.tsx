@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
 import { Widget, FormItem } from '../../types';
@@ -22,7 +22,7 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
-  const { label, formItems = [], labelWidth = 33, itemSpacing = 2, itemColumns, wrapItemNames = false } = widget.data;
+  const { label, formItems = [], labelWidth = 33, itemSpacing = 2, itemColumns, wrapItemNames = false, dynamicLayout = true } = widget.data;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !isPrintMode;
   const [fieldDialog, setFieldDialog] = useState<'add' | 'remove' | null>(null);
   const [fieldNameDraft, setFieldNameDraft] = useState('');
@@ -31,6 +31,28 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
   const [addMultiple, setAddMultiple] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<number>>(new Set());
   const [editingValueIndex, setEditingValueIndex] = useState<number | null>(null);
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const [labelColumnWidth, setLabelColumnWidth] = useState<number | undefined>(undefined);
+
+  // In dynamic layout every label shares the width of the widest one (capped at labelWidth%).
+  useLayoutEffect(() => {
+    const root = itemsRef.current;
+    if (!dynamicLayout || !root) return;
+    const measure = () => {
+      let widest = 0;
+      root.querySelectorAll<HTMLElement>('[data-form-label]').forEach((element) => {
+        const previousWidth = element.style.width;
+        element.style.width = 'max-content';
+        widest = Math.max(widest, element.offsetWidth);
+        element.style.width = previousWidth;
+      });
+      setLabelColumnWidth(widest);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [dynamicLayout, formItems, labelWidth, itemColumns, wrapItemNames, mode]);
 
   // Fixed small sizing
   const itemClass = 'text-xs';
@@ -192,8 +214,9 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
 
       {/* Form Items */}
       <div 
+        ref={itemsRef}
         className="flex flex-col overflow-y-auto overflow-x-hidden flex-1 pr-1"
-        style={{ maxHeight: `${itemsHeight}px`, rowGap: `${itemSpacing}px` }}
+        style={{ maxHeight: `${itemsHeight}px`, rowGap: `${itemSpacing}px`, justifyContent: dynamicLayout ? 'space-between' : undefined }}
         onWheel={(e) => {
           const el = e.currentTarget;
           if (el.scrollHeight > el.clientHeight) {
@@ -201,13 +224,14 @@ export default function FormWidget({ widget, height, showFieldControls = true }:
           }
         }}
       >
-        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} balanceByHeight items={(formItems as FormItem[]).map((item, idx) => (
+        <WidgetItemColumns columns={itemColumns} rowGap={itemSpacing} balanceByHeight fillHeight={dynamicLayout} items={(formItems as FormItem[]).map((item, idx) => (
           <div key={idx} className={`flex items-center ${gapClass}`}>
             {/* Item Name */}
             <button
               type="button"
+              data-form-label
               className={`${itemClass} min-w-0 ${wrapItemNames ? 'break-words' : 'truncate'} flex-shrink-0 border-0 bg-transparent p-0 text-left text-theme-ink font-body ${isPrintMode ? 'cursor-default' : 'cursor-pointer hover:underline'}`}
-              style={{ width: `${labelWidth}%` }}
+              style={dynamicLayout ? { width: labelColumnWidth, maxWidth: `${labelWidth}%` } : { width: `${labelWidth}%` }}
               onClick={() => openRenameFieldDialog(idx)}
               onMouseDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
