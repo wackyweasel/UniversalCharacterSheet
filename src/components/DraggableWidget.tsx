@@ -240,7 +240,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
     data: {
       ...contentWidget.data,
       label: isWidgetHeaderHidden ? undefined : contentWidget.data.label,
-      showFieldControls: isWidgetHeaderHidden ? false : contentWidget.data.showFieldControls,
+      showFieldControls: isWidgetHeaderHidden && widget.type !== 'INVENTORY_SLOTS' ? false : contentWidget.data.showFieldControls,
       showTableEditButton: isWidgetHeaderHidden ? false : contentWidget.data.showTableEditButton,
     },
   }), [isWidgetHeaderHidden, contentWidget]);

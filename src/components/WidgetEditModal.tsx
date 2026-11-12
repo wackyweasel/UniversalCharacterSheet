@@ -200,7 +200,7 @@ export default function WidgetEditModal({ widget, onClose }: Props) {
     data: {
       ...previewWidget.data,
       label: isWidgetHeaderHidden ? undefined : previewWidget.data.label,
-      showFieldControls: isWidgetHeaderHidden ? false : previewWidget.data.showFieldControls,
+      showFieldControls: isWidgetHeaderHidden && widget.type !== 'INVENTORY_SLOTS' ? false : previewWidget.data.showFieldControls,
       showTableEditButton: isWidgetHeaderHidden ? false : previewWidget.data.showTableEditButton,
     },
   };

@@ -102,7 +102,7 @@ export default function VerticalWidget({
     data: {
       ...widget.data,
       label: isWidgetHeaderHidden ? undefined : widget.data.label,
-      showFieldControls: isWidgetHeaderHidden ? false : widget.data.showFieldControls,
+      showFieldControls: isWidgetHeaderHidden && widget.type !== 'INVENTORY_SLOTS' ? false : widget.data.showFieldControls,
       showTableEditButton: isWidgetHeaderHidden ? false : widget.data.showTableEditButton,
     },
   };
