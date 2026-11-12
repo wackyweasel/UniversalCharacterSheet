@@ -38,6 +38,13 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.16.0',
+    changes: [
+      'Most widgets should now better adapt to their size. This should significantly reduce the amount of micro-adjustments need to avoid blanck space and scrollbars.',
+      'Some widgets have a new option to disable this new behavior, called dynamic layout.',
+    ],
+  },
+  {
     version: '1.15.1',
     changes: [
       'Compendium: drag entries to reorder them, move them between sections, or drop a copy onto an Inventory, Equipment or Codex widget — and drag items from those widgets into the compendium to save them.',
