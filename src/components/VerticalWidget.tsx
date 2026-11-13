@@ -112,7 +112,7 @@ export default function VerticalWidget({
     && widget.data.showFieldControls !== false;
   const hasInternalHeaderLabel = !isWidgetHeaderHidden && widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
-  const [showEditModal, setShowEditModal] = useState(false);
+  const showEditModal = useStore((state) => state.editingWidgetId === widget.id);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   
@@ -166,12 +166,10 @@ export default function VerticalWidget({
   };
 
   const openEditModal = () => {
-    setShowEditModal(true);
     setEditingWidgetId(widget.id);
   };
 
   const closeEditModal = () => {
-    setShowEditModal(false);
     setEditingWidgetId(null);
   };
   

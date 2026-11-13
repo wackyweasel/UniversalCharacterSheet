@@ -245,6 +245,14 @@ export function BoltIcon(props: IconProps) {
   );
 }
 
+export function FunctionIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 21c3 0 3.5-2 4-4l2-10c.5-2 1-4 4-4M7 10h10" />
+    </Base>
+  );
+}
+
 export function GripVerticalIcon(props: IconProps) {
   return (
     <Base {...props} fill="currentColor" stroke="none">

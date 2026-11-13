@@ -25,8 +25,7 @@ import GroupChrome from './GroupChrome';
 import PrintAreaOverlay from './PrintAreaOverlay';
 import TutorialBubble, { useTutorialForPage } from './TutorialBubble';
 import TimelineSidebar from './TimelineSidebar';
-import VariablesPanel from './VariablesPanel';
-import EventsPanel from './events/EventsPanel';
+import AutomationsPanel from './AutomationsPanel';
 import CompendiumPanel from './CompendiumPanel';
 import { EventEditorHost } from './events/EventEditorDialog';
 import { subscribeEventFirings } from '../events/runtime';
@@ -44,7 +43,7 @@ import { MenuIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon, CheckI
 const MIN_CANVAS_SCALE = 0.1;
 const MAX_CANVAS_SCALE = 5;
 import { useTimelineStore } from '../store/useTimelineStore';
-import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
+import { useAutomationsPanelStore } from '../store/useAutomationsPanelStore';
 import { useEventsPanelStore } from '../store/useEventsPanelStore';
 import { useCompendiumPanelStore } from '../store/useCompendiumPanelStore';
 import { WidgetType, Widget } from '../types';
@@ -254,28 +253,25 @@ export default function Sheet() {
     }
   }, [mode, setTimelineOpen, timelineIsOpen]);
 
-  const variablesIsOpen = useVariablesPanelStore((state) => state.isOpen);
-  const toggleVariables = useVariablesPanelStore((state) => state.toggleOpen);
-  const setVariablesOpen = useVariablesPanelStore((state) => state.setOpen);
+  const automationsIsOpen = useAutomationsPanelStore((state) => state.isOpen);
+  const toggleAutomations = useAutomationsPanelStore((state) => state.toggleOpen);
+  const setAutomationsOpen = useAutomationsPanelStore((state) => state.setOpen);
+  const openAutomationsTab = useAutomationsPanelStore((state) => state.openTab);
 
   useEffect(() => {
-    if (mode === 'print' && variablesIsOpen) {
-      setVariablesOpen(false);
+    if (mode === 'print' && automationsIsOpen) {
+      setAutomationsOpen(false);
     }
-  }, [mode, setVariablesOpen, variablesIsOpen]);
+  }, [mode, setAutomationsOpen, automationsIsOpen]);
 
-  const eventsIsOpen = useEventsPanelStore((state) => state.isOpen);
-  const toggleEvents = useEventsPanelStore((state) => state.toggleOpen);
-  const setEventsOpen = useEventsPanelStore((state) => state.setOpen);
   const eventEditorOpen = useEventsPanelStore((state) => state.editor !== null);
   const eventEditorIsNew = useEventsPanelStore((state) => state.editor !== null && !state.editor.eventId);
   const closeEventEditor = useEventsPanelStore((state) => state.closeEditor);
 
   useEffect(() => {
     if (mode !== 'print') return;
-    if (eventsIsOpen) setEventsOpen(false);
     if (eventEditorOpen) closeEventEditor();
-  }, [closeEventEditor, eventEditorOpen, eventsIsOpen, mode, setEventsOpen]);
+  }, [closeEventEditor, eventEditorOpen, mode]);
 
   const compendiumIsOpen = useCompendiumPanelStore((state) => state.isOpen);
   const toggleCompendium = useCompendiumPanelStore((state) => state.toggleOpen);
@@ -294,21 +290,15 @@ export default function Sheet() {
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   const tutorialStepId = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : undefined;
 
-  const handleToggleVariables = () => {
+  const handleToggleAutomations = () => {
     if (isCurrentTutorialStep('advanced-open-labels')) {
-      setVariablesOpen(true);
+      openAutomationsTab('labels');
+      advanceTutorial();
+    } else if (isCurrentTutorialStep('events-open-panel')) {
+      openAutomationsTab('events');
       advanceTutorial();
     } else {
-      toggleVariables();
-    }
-  };
-
-  const handleToggleEvents = () => {
-    if (isCurrentTutorialStep('events-open-panel')) {
-      setEventsOpen(true);
-      advanceTutorial();
-    } else {
-      toggleEvents();
+      toggleAutomations();
     }
   };
 
@@ -316,17 +306,16 @@ export default function Sheet() {
     const step = tutorialStepId;
     if (step === 'advanced-open-labels') {
       setMode('play');
-      setVariablesOpen(false);
+      setAutomationsOpen(false);
       setTimelineOpen(false);
     } else if (step === 'advanced-labels-overview' || step === 'advanced-labels-standalone') {
-      setVariablesOpen(true);
+      openAutomationsTab('labels');
     } else if (step === 'advanced-complete') {
-      setVariablesOpen(false);
+      setAutomationsOpen(false);
     } else if (step === 'events-open-panel') {
       setMode('play');
-      setVariablesOpen(false);
+      setAutomationsOpen(false);
       setTimelineOpen(false);
-      setEventsOpen(false);
     } else if (
       step === 'events-panel-overview'
       || step === 'events-card'
@@ -335,7 +324,7 @@ export default function Sheet() {
       || step === 'events-new'
     ) {
       setMode('play');
-      setEventsOpen(true);
+      openAutomationsTab('events');
     } else if (step === 'events-timeline' || step === 'events-chain' || step === 'events-try-new-result') {
       setMode('play');
       setTimelineOpen(true);
@@ -344,10 +333,10 @@ export default function Sheet() {
       || step === 'events-inline-result'
       || step === 'events-complete'
     ) {
-      setEventsOpen(false);
+      setAutomationsOpen(false);
       setTimelineOpen(false);
     }
-  }, [tutorialStepId, setEventsOpen, setMode, setTimelineOpen, setVariablesOpen]);
+  }, [tutorialStepId, openAutomationsTab, setAutomationsOpen, setMode, setTimelineOpen]);
 
   // Events tutorial: move on once the reader has set off the event the step asks for.
   useEffect(() => subscribeEventFirings((firings) => {
@@ -1149,7 +1138,7 @@ export default function Sheet() {
     setMode('play');
     setSidebarCollapsed(true);
     setThemeSidebarCollapsed(true);
-    setEventsOpen(false);
+    setAutomationsOpen(false);
     setTimelineOpen(false);
     const timer = setTimeout(frame, 200);
     return () => clearTimeout(timer);
@@ -1636,10 +1625,8 @@ export default function Sheet() {
           onToggleSheetSwitcher={() => setSheetDropdownOpen((open) => !open)}
           timelineOpen={timelineIsOpen}
           onToggleTimeline={toggleTimeline}
-          variablesOpen={variablesIsOpen}
-          onToggleVariables={handleToggleVariables}
-          eventsOpen={eventsIsOpen}
-          onToggleEvents={handleToggleEvents}
+          automationsOpen={automationsIsOpen}
+          onToggleAutomations={handleToggleAutomations}
           compendiumOpen={compendiumIsOpen}
           onToggleCompendium={toggleCompendium}
           canUndo={canUndo}
@@ -1885,8 +1872,7 @@ export default function Sheet() {
 
         {/* Timeline Sidebar */}
         {workspace === 'play' && <TimelineSidebar />}
-        {variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
-        {eventsIsOpen && <EventsPanel onRevealWidget={revealWidget} />}
+        {automationsIsOpen && <AutomationsPanel onRevealWidget={revealWidget} />}
         {compendiumIsOpen && <CompendiumPanel />}
         <EventEditorHost />
         {workspace === 'play' && <TimelineToasts />}
@@ -2320,10 +2306,8 @@ export default function Sheet() {
         changeThemeLabel={themeSidebarCollapsed ? 'Change Theme' : 'Hide Themes'}
         onAutoStack={() => setShowAutoStackDialog(true)}
         onSearch={() => setSheetSearchOpen(true)}
-        variablesOpen={variablesIsOpen}
-        onToggleVariables={handleToggleVariables}
-        eventsOpen={eventsIsOpen}
-        onToggleEvents={handleToggleEvents}
+        automationsOpen={automationsIsOpen}
+        onToggleAutomations={handleToggleAutomations}
         compendiumOpen={compendiumIsOpen}
         onToggleCompendium={toggleCompendium}
         attachmentControlsVisible={attachmentControlsVisible}
@@ -2740,8 +2724,7 @@ export default function Sheet() {
 
       {/* Timeline Sidebar */}
       {mode === 'play' && <TimelineSidebar />}
-      {mode !== 'print' && variablesIsOpen && <VariablesPanel onRevealWidget={revealWidget} />}
-      {mode !== 'print' && eventsIsOpen && <EventsPanel onRevealWidget={revealWidget} />}
+      {mode !== 'print' && automationsIsOpen && <AutomationsPanel onRevealWidget={revealWidget} />}
       {mode !== 'print' && compendiumIsOpen && <CompendiumPanel />}
       {mode !== 'print' && <EventEditorHost />}
       {mode === 'play' && <TimelineToasts />}

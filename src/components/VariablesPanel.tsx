@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
-import { useVariablesPanelStore } from '../store/useVariablesPanelStore';
+import { useAutomationsPanelStore } from '../store/useAutomationsPanelStore';
 import { useEventsPanelStore } from '../store/useEventsPanelStore';
 import type { Character, CharacterVariable } from '../types';
 import {
@@ -28,19 +28,17 @@ import {
 import { extractFormulaLabelReferences, type FormulaLabels, type FormulaValue } from '../utils/formulaSyntax';
 import { FormulaEditorDialog } from './FormulaEditorDialog';
 import { Tooltip } from './Tooltip';
+import AutomationsPanelHeader from './AutomationsPanelHeader';
 import {
   ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
-  ChevronsDownIcon,
-  ChevronsUpIcon,
   CopyIcon,
   GripVerticalIcon,
   LayersIcon,
   MinusIcon,
   PencilIcon,
   PlusIcon,
-  SearchIcon,
   TagIcon,
   TrashIcon,
   XIcon,
@@ -74,13 +72,9 @@ interface DropTarget {
 
 interface VariablesPanelProps {
   onRevealWidget: (sheetId: string, widgetId: string) => void;
+  isBottom: boolean;
 }
 
-const SIZE_STORAGE_KEY = 'ucs-variables-panel-size';
-const DEFAULT_WIDTH = 400;
-const MIN_WIDTH = 320;
-const MIN_HEIGHT = 220;
-const BOTTOM_LAYOUT_QUERY = '(max-width: 639px)';
 const HOVER_CLASS = 'variables-hover-target';
 
 const NAME_ERRORS: Record<LabelNameError, string> = {
@@ -92,29 +86,6 @@ const NAME_ERRORS: Record<LabelNameError, string> = {
 const buttonClass = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-button border border-theme-border px-2.5 text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-not-allowed disabled:opacity-40';
 const primaryButtonClass = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-button border border-theme-accent bg-theme-accent px-3 text-xs font-bold font-body text-theme-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40';
 const inputClass = 'h-9 w-full rounded-button border border-theme-border bg-theme-background px-2.5 text-sm font-body text-theme-ink placeholder:text-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent/40';
-
-function loadPanelSize(): { width: number; height: number | null } {
-  try {
-    const data = JSON.parse(localStorage.getItem(SIZE_STORAGE_KEY) || '{}');
-    return {
-      width: typeof data.width === 'number' ? data.width : DEFAULT_WIDTH,
-      height: typeof data.height === 'number' ? data.height : null,
-    };
-  } catch {
-    return { width: DEFAULT_WIDTH, height: null };
-  }
-}
-
-function useIsBottomLayout(): boolean {
-  const [matches, setMatches] = useState(() => window.matchMedia(BOTTOM_LAYOUT_QUERY).matches);
-  useEffect(() => {
-    const query = window.matchMedia(BOTTOM_LAYOUT_QUERY);
-    const update = () => setMatches(query.matches);
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return matches;
-}
 
 function highlightWidget(widgetId: string | null) {
   document.querySelectorAll(`.${HOVER_CLASS}`).forEach((element) => element.classList.remove(HOVER_CLASS));
@@ -628,9 +599,9 @@ function Chip({ children, onClick, onHover, tone = 'default', title }: {
   );
 }
 
-export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) {
-  const isOpen = useVariablesPanelStore((state) => state.isOpen);
-  const setOpen = useVariablesPanelStore((state) => state.setOpen);
+export default function VariablesPanel({ onRevealWidget, isBottom }: VariablesPanelProps) {
+  const isOpen = useAutomationsPanelStore((state) => state.isOpen && state.tab === 'labels');
+  const setOpen = useAutomationsPanelStore((state) => state.setOpen);
   const character = useStore((state) => state.characters.find((item) => item.id === state.activeCharacterId) ?? null);
   const addVariable = useStore((state) => state.addVariable);
   const updateVariable = useStore((state) => state.updateVariable);
@@ -662,13 +633,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
   const suppressClickRef = useRef(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; undoable: boolean } | null>(null);
-  const [panelSize, setPanelSize] = useState(loadPanelSize);
-  const [viewport, setViewport] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
-  const isBottom = useIsBottomLayout();
-  const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const pendingScrollKeyRef = useRef<string | null>(null);
   const pendingLabelRef = useRef<string | null>(null);
 
@@ -770,23 +735,9 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     [missingLabels, normalizedQuery],
   );
   const visibleCount = filter === 'missing' ? visibleMissing.length : groups.reduce((sum, group) => sum + group.entries.length, 0);
-  const allGroupsCollapsed = groups.length > 0 && groups.every((group) => collapsedGroups.has(group.key));
-  const showFilters = counts.all > 0 || counts.missing > 0;
+  const collapseKeys = filter === 'missing' ? (visibleMissing.length ? ['missing'] : []) : groups.map((group) => group.key);
 
-  useEffect(() => {
-    if (filter === 'missing' && missingLabels.length === 0) setFilter('all');
-  }, [filter, missingLabels.length]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const frame = window.requestAnimationFrame(() => searchRef.current?.focus());
-    return () => {
-      window.cancelAnimationFrame(frame);
-      highlightWidget(null);
-      if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus();
-    };
-  }, [isOpen]);
+  useEffect(() => () => highlightWidget(null), []);
 
   useEffect(() => {
     if (isOpen) return;
@@ -808,6 +759,7 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (document.querySelector('[role="dialog"]')) return;
+      event.preventDefault();
       if (confirmDeleteKey) setConfirmDeleteKey(null);
       else if (confirmDeleteGroupId) setConfirmDeleteGroupId(null);
       else if (renamingKey) setRenamingKey(null);
@@ -846,12 +798,6 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
     });
     return () => window.cancelAnimationFrame(frame);
   });
-
-  useEffect(() => {
-    const handleResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const focusEntry = useCallback((entry: PanelEntry) => {
     setQuery('');
@@ -1100,46 +1046,14 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
 
   useEffect(() => () => dragCleanupRef.current?.(), []);
 
-  const maxWidth = Math.max(MIN_WIDTH, Math.round(viewport.w * 0.9));
-  const maxHeight = Math.max(MIN_HEIGHT, Math.round(viewport.h * 0.95));
-  const effectiveWidth = Math.min(Math.max(panelSize.width, MIN_WIDTH), maxWidth);
-  const effectiveHeight = Math.min(Math.max(panelSize.height ?? Math.round(viewport.h * 0.72), MIN_HEIGHT), maxHeight);
-
-  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    resizeStartRef.current = { x: event.clientX, y: event.clientY, width: effectiveWidth, height: effectiveHeight };
-  };
-  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const start = resizeStartRef.current;
-    if (!start) return;
-    if (isBottom) {
-      const height = Math.min(Math.max(start.height + (start.y - event.clientY), MIN_HEIGHT), maxHeight);
-      setPanelSize((size) => ({ ...size, height }));
-    } else {
-      const width = Math.min(Math.max(start.width + (start.x - event.clientX), MIN_WIDTH), maxWidth);
-      setPanelSize((size) => ({ ...size, width }));
-    }
-  };
-  const handleResizeEnd = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeStartRef.current) return;
-    resizeStartRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    try {
-      localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(panelSize));
-    } catch {
-      // Size persistence is best-effort.
-    }
-  };
-
   if (!isOpen || !character) return null;
 
   const variables = character.variables ?? [];
-  const filters: { id: Filter; label: string; count: number }[] = [
+  const filters: { id: Filter; label: string; count: number; warning?: boolean }[] = [
     { id: 'all', label: 'All', count: counts.all },
     { id: 'custom', label: 'Standalone', count: counts.custom },
     { id: 'unused', label: 'Unused', count: counts.unused },
-    ...(counts.missing > 0 ? [{ id: 'missing' as const, label: 'Missing', count: counts.missing }] : []),
+    { id: 'missing', label: 'Missing', count: counts.missing, warning: counts.missing > 0 },
   ];
 
   const showNewSection = !normalizedQuery && (filter === 'all' || filter === 'custom');
@@ -1461,123 +1375,29 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
   };
 
   return (
-    <aside
+    <section
       id="variables-panel"
       data-tutorial="labels-panel"
       data-touch-camera-panel="true"
-      aria-labelledby="variables-title"
-      className={`variables-panel fixed z-40 flex flex-col overflow-hidden bg-theme-paper text-theme-ink border-theme-border shadow-2xl touch-pan-y ${
-        isBottom
-          ? 'variables-panel--bottom inset-x-0 bottom-0 border-t-[length:var(--border-width)]'
-          : 'right-0 top-0 bottom-0 border-l-[length:var(--border-width)]'
-      }`}
-      style={{
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        ...(isBottom ? { height: effectiveHeight } : { width: effectiveWidth }),
-      }}
+      aria-label="Labels"
+      className="flex min-h-0 flex-1 flex-col"
     >
-      <div
-        role="separator"
-        aria-orientation={isBottom ? 'horizontal' : 'vertical'}
-        aria-label="Resize labels panel"
-        onPointerDown={handleResizeStart}
-        onPointerMove={handleResizeMove}
-        onPointerUp={handleResizeEnd}
-        onPointerCancel={handleResizeEnd}
-        className={`absolute z-20 touch-none transition-colors hover:bg-theme-accent/40 active:bg-theme-accent/60 ${
-          isBottom ? 'inset-x-0 top-0 h-2 cursor-row-resize' : 'inset-y-0 left-0 w-2 cursor-col-resize'
-        }`}
+      <AutomationsPanelHeader
+        description="Name values so formulas and events can reference them. Create standalone labels or use values from widgets."
+        searchLabel="Search labels"
+        searchPlaceholder="Search labels, widgets or values"
+        query={query}
+        onQueryChange={(value) => { setQuery(value); setCollapsedGroups(new Set()); }}
+        filter={filter}
+        filterLabel="Filter labels"
+        filters={filters}
+        onFilterChange={setFilter}
+        addAction={<button type="button" onClick={() => { setQuery(''); startCreate(); }} className={primaryButtonClass} aria-label="Create new label"><PlusIcon className="h-3.5 w-3.5" /> Add label</button>}
+        onCollapseAll={() => setCollapsedGroups(new Set([...collapsedGroups, ...collapseKeys]))}
+        onExpandAll={() => setCollapsedGroups(new Set())}
+        collapseDisabled={collapseKeys.length === 0 || collapseKeys.every((key) => collapsedGroups.has(key))}
+        expandDisabled={!collapseKeys.some((key) => collapsedGroups.has(key))}
       />
-
-      <div className={`flex flex-shrink-0 justify-between gap-4 px-4 ${showFilters ? '' : 'border-b-[length:var(--border-width)] border-theme-border'} ${isBottom ? 'items-center py-2' : 'items-start py-3'}`}>
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-button bg-theme-accent/15 text-theme-accent sm:flex" aria-hidden="true">
-            <TagIcon className="h-5 w-5" />
-          </span>
-          <h2 id="variables-title" className="min-w-0 truncate font-heading text-lg font-bold leading-tight text-theme-ink">Labels</h2>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <button type="button" onClick={() => startCreate()} className={`${primaryButtonClass} h-9`} aria-label="Create new label">
-            <PlusIcon className="h-4 w-4" /> <span>Create new label</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-button border border-theme-border text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper"
-            aria-label="Close labels"
-            title="Close labels"
-          >
-            <XIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {showFilters && (
-        <div className={`flex-shrink-0 space-y-2.5 border-b border-theme-border px-4 ${isBottom ? 'pb-2' : 'pb-3 pt-1'}`}>
-          <span className="relative block">
-            <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-muted" aria-hidden="true" />
-            <input
-              ref={searchRef}
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search labels, widgets, values"
-              aria-label="Search labels"
-              className={`${inputClass} pl-8 pr-9 [&::-webkit-search-cancel-button]:appearance-none`}
-            />
-            {query && (
-              <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center text-theme-muted hover:text-theme-ink">
-                <XIcon className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </span>
-          <div className="flex items-center gap-2">
-          <div role="tablist" aria-label="Filter labels" className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-            {filters.map((item) => {
-              const active = filter === item.id;
-              const warning = item.id === 'missing';
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setFilter(item.id)}
-                  className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-body transition-colors ${
-                    active
-                      ? warning ? 'border-amber-500 bg-amber-500 text-white' : 'border-theme-accent bg-theme-accent text-theme-paper'
-                      : warning ? 'border-amber-500/60 text-amber-500 hover:bg-amber-500/10' : 'border-theme-border text-theme-muted hover:text-theme-ink'
-                  }`}
-                >
-                  {item.label}
-                  <span className={`tabular-nums ${active ? 'opacity-80' : 'opacity-60'}`}>{item.count}</span>
-                </button>
-              );
-            })}
-          </div>
-          {filter !== 'missing' && groups.length > 1 && !normalizedQuery && (
-            <div className="flex shrink-0 gap-1.5">
-              <button
-                type="button"
-                onClick={() => setCollapsedGroups(new Set(groups.map((group) => group.key)))}
-                disabled={allGroupsCollapsed}
-                className={buttonClass}
-              >
-                <ChevronsUpIcon className="h-3.5 w-3.5" /> Collapse all
-              </button>
-              <button
-                type="button"
-                onClick={() => setCollapsedGroups(new Set())}
-                disabled={collapsedGroups.size === 0}
-                className={buttonClass}
-              >
-                <ChevronsDownIcon className="h-3.5 w-3.5" /> Expand all
-              </button>
-            </div>
-          )}
-          </div>
-        </div>
-      )}
 
       <div
         ref={listRef}
@@ -1621,10 +1441,11 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
           </div>
         ) : filter === 'missing' ? (
           <section aria-labelledby="variables-missing-title">
-            <div className="sticky top-0 z-10 border-b border-theme-border bg-theme-paper px-4 py-2">
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-theme-border bg-theme-paper px-4 py-2">
               <h3 id="variables-missing-title" className="text-[11px] font-bold uppercase tracking-widest text-theme-muted font-heading">Used but not defined</h3>
+              <button type="button" aria-label={`${collapsedGroups.has('missing') ? 'Expand' : 'Collapse'} missing labels`} aria-expanded={!collapsedGroups.has('missing')} onClick={() => toggleGroup('missing')} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-button text-theme-muted hover:text-theme-ink"><ChevronDownIcon className={`h-3.5 w-3.5 ${collapsedGroups.has('missing') ? '-rotate-90' : ''}`} /></button>
             </div>
-            <div role="list">
+            {!collapsedGroups.has('missing') && <div role="list">
               {visibleMissing.map((label) => {
                 const references = referenceIndex ? getLabelReferences(referenceIndex, label, 'field') : [];
                 return (
@@ -1651,12 +1472,12 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </section>
         ) : (
           <>
             {groups.map((group) => {
-              const collapsed = !normalizedQuery && collapsedGroups.has(group.key);
+              const collapsed = collapsedGroups.has(group.key);
               const selectedEntry = group.entries.find((entry) => entry.key === expandedKey);
               const sectionId = group.variableGroupId;
               const isDropSection = Boolean(draggingId && sectionId && dropTarget?.groupId === sectionId);
@@ -1859,6 +1680,6 @@ export default function VariablesPanel({ onRevealWidget }: VariablesPanelProps) 
           </button>
         </div>
       )}
-    </aside>
+    </section>
   );
 }

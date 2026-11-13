@@ -21,6 +21,7 @@ import {
   describeInventoryItemChange,
   formatFieldValue,
   InventoryQuantity,
+  ItemActivation,
   isInventoryFieldEmpty,
   LoadMeter,
 } from './inventoryItemDisplay';
@@ -122,7 +123,7 @@ function InventorySlotsWidget({
         data-inventory-item-id={item.id}
         className={`inventory-item inventory-slot__item group relative flex min-h-0 flex-col overflow-hidden px-1 py-1 text-theme-ink ${shareSpace ? 'flex-none' : 'flex-1'}`}
       >
-        <div className="inventory-slot__head flex min-w-0 items-start gap-0.5">
+        <div className="inventory-slot__head flex min-w-0 items-center gap-0.5">
           {canInteract && (
             <button
               type="button"
@@ -136,6 +137,7 @@ function InventorySlotsWidget({
               <GripVerticalIcon className="h-3 w-3" />
             </button>
           )}
+          <ItemActivation item={item} widget={widget} canInteract={canInteract} />
           <h3 className="inventory-slot__title min-w-0 flex-1 break-words font-heading text-xs font-bold leading-4 [overflow-wrap:anywhere]">
             {collapsible ? (
               <button

@@ -1,6 +1,6 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField, RollTableItem } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
-import type { CharacterVariable, DicePoolComponent, ExperienceLevel, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
+import type { CharacterVariable, DicePoolComponent, ExperienceLevel, NumericTargetCollection, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
 import { DEFAULT_VARIABLE_GROUP_NAME, getVariableGroupNames } from './variableGroups';
 import { clampTrackValue, getTrackBounds, getTrackDerivedValue } from './thresholdTrack';
@@ -38,6 +38,9 @@ export function collectLabels(character: Character): FormulaLabels {
   for (const sheet of character.sheets) {
     for (const widget of sheet.widgets) {
       const data = widget.data;
+      const effective = (field: string, collection: NumericTargetCollection, entryId: string) => Object.values(character.itemEffectValues ?? {}).find(({ target }) => (
+        target.kind === 'widget' && target.widgetId === widget.id && target.collection === collection && target.entryId === entryId && target.field === field
+      ))?.effective;
 
       // Collect from fieldLabels (for simple scalar fields)
       if (data.fieldLabels) {
@@ -105,8 +108,8 @@ export function collectLabels(character: Character): FormulaLabels {
 
       // Collect from PoolResource arrays
       for (const clock of data.clockItems ?? []) {
-        if (clock.segmentsLabel) labels[clock.segmentsLabel] = getClockSegments(clock.segments);
-        if (clock.valueLabel) labels[clock.valueLabel] = getClockValue(clock.value, clock.segments);
+        if (clock.segmentsLabel) labels[clock.segmentsLabel] = effective('segments', 'clockItems', clock.id) ?? getClockSegments(clock.segments);
+        if (clock.valueLabel) labels[clock.valueLabel] = effective('value', 'clockItems', clock.id) ?? getClockValue(clock.value, clock.segments);
       }
 
       for (const threshold of data.trackThresholds ?? []) {
@@ -122,7 +125,7 @@ export function collectLabels(character: Character): FormulaLabels {
       }
 
       for (const component of data.dicePoolComponents ?? []) {
-        if (component.diceLabel) labels[component.diceLabel] = normalizeDiceCount(component.dice);
+        if (component.diceLabel) labels[component.diceLabel] = effective('dice', 'dicePoolComponents', component.id) ?? normalizeDiceCount(component.dice);
       }
 
       if (data.poolResources) {
@@ -958,7 +961,7 @@ export function isFormulaBroken(formula: string, labels: FormulaLabels, resultTy
  * Runs up to 2 passes to handle chains of formula dependencies.
  * Also returns a list of changes for timeline logging.
  */
-export function resolveCharacterFormulas(character: Character): Character | null {
+export function resolveCharacterFormulas(character: Character, afterPass?: (character: Character) => Character): (Character & { _formulaChanges: FormulaChange[] }) | null {
   let current = character;
   let anyChanges = false;
   const allChanges: FormulaChange[] = [];
@@ -970,7 +973,7 @@ export function resolveCharacterFormulas(character: Character): Character | null
 
     const updatedSheets = current.sheets.map(sheet => {
       const updatedWidgets = sheet.widgets.map(widget => {
-        const result = resolveWidgetFormulas(widget, labels);
+        const result = resolveWidgetFormulas(widget, labels, current.itemEffectValues);
         if (result) {
           passChanged = true;
           // Track changes for timeline
@@ -1006,17 +1009,16 @@ export function resolveCharacterFormulas(character: Character): Character | null
         sheets: passChanged ? updatedSheets : current.sheets,
         ...(variablesChanged ? { variables: updatedVariables } : {}),
       };
-    } else {
-      break; // No changes, no need for another pass
     }
+    const reconciled = afterPass?.(current) ?? current;
+    if (reconciled !== current) {
+      anyChanges = passChanged = true;
+      current = reconciled;
+    }
+    if (!passChanged && !variablesChanged) break;
   }
 
-  if (anyChanges) {
-    // Store changes for timeline event generation
-    (current as any)._formulaChanges = allChanges;
-  }
-
-  return anyChanges ? current : null;
+  return anyChanges ? { ...current, _formulaChanges: allChanges } : null;
 }
 
 export interface FormulaChange {
@@ -1152,9 +1154,13 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
 /**
  * Resolves formulas in a single widget. Returns the updated widget or null if unchanged.
  */
-function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | null {
+function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValues?: Character['itemEffectValues']): Widget | null {
   let changed = false;
   const updates: Partial<WidgetData> = {};
+  const controlled = (field: string, collection?: string, entryId?: string) => Object.values(effectValues ?? {}).some(({ target }) => (
+    target.kind === 'widget' && target.widgetId === widget.id && target.field === field
+    && target.collection === collection && target.entryId === entryId
+  ));
 
   // Resolve field-level formulas
   if (widget.data.fieldFormulas) {
@@ -1263,7 +1269,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
     const originalCurrentValue = widget.data.currentValue ?? minValue;
     const currentValue = updates.currentValue ?? originalCurrentValue;
     const clampedValue = Math.max(minValue, Math.min(maxValue, currentValue));
-    if (originalCurrentValue !== clampedValue) {
+    if (!controlled('currentValue') && originalCurrentValue !== clampedValue) {
       changed = true;
       updates.currentValue = clampedValue;
     }
@@ -1278,7 +1284,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
     const nextValue = updates.currentValue ?? originalValue;
     if (nextValue !== undefined) {
       const clampedValue = clampTrackValue(nextValue, min, max);
-      if (clampedValue !== originalValue) {
+      if (!controlled('currentValue') && clampedValue !== originalValue) {
         changed = true;
         updates.currentValue = clampedValue;
       }
@@ -1333,7 +1339,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
         }
       }
       const { minValue, maxValue } = updatedItem;
-      if (minValue === undefined || maxValue === undefined || minValue <= maxValue) {
+      if (!controlled('value', 'numberItems', item.id) && (minValue === undefined || maxValue === undefined || minValue <= maxValue)) {
         const clampedValue = Math.max(minValue ?? -Infinity, Math.min(maxValue ?? Infinity, updatedItem.value));
         if (clampedValue !== updatedItem.value) {
           updatedItem = { ...updatedItem, value: clampedValue };
@@ -1387,7 +1393,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
         }
       }
       const { minValue, maxValue } = updatedItem;
-      if (minValue === undefined || maxValue === undefined || minValue <= maxValue) {
+      if (!controlled('value', 'displayNumbers', item.id) && (minValue === undefined || maxValue === undefined || minValue <= maxValue)) {
         const clampedValue = Math.max(minValue ?? -Infinity, Math.min(maxValue ?? Infinity, updatedItem.value));
         if (clampedValue !== updatedItem.value) {
           updatedItem = { ...updatedItem, value: clampedValue };
@@ -1406,7 +1412,9 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
   }
 
   if (widget.data.clockItems) {
-    const clockItems = widget.data.clockItems.map((clock) => resolveProgressClockFormulas(clock, labels));
+    const clockItems = widget.data.clockItems.map((clock) => resolveProgressClockFormulas(clock, labels, {
+      value: controlled('value', 'clockItems', clock.id), segments: controlled('segments', 'clockItems', clock.id),
+    }));
     if (clockItems.some((clock, index) => clock !== widget.data.clockItems![index])) {
       changed = true;
       updates.clockItems = clockItems;
@@ -1481,7 +1489,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
           const computed = evaluateFormula(field.valueFormula, labels);
           if (computed !== null && computed !== field.value) updatedField = { ...updatedField, value: computed };
         }
-        if (updatedField.minValue === undefined || updatedField.maxValue === undefined || updatedField.minValue <= updatedField.maxValue) {
+        if (!controlled('value', 'mixedFields', field.id) && (updatedField.minValue === undefined || updatedField.maxValue === undefined || updatedField.minValue <= updatedField.maxValue)) {
           const value = Math.max(updatedField.minValue ?? -Infinity, Math.min(updatedField.maxValue ?? Infinity, updatedField.value));
           if (value !== updatedField.value) updatedField = { ...updatedField, value };
         }
@@ -1509,7 +1517,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
         const min = Math.min(updatedField.max, updatedField.min ?? 0);
         if (updatedField.min !== min) updatedField = { ...updatedField, min };
         const current = Math.max(min, Math.min(updatedField.max, updatedField.current));
-        if (current !== updatedField.current) updatedField = { ...updatedField, current };
+        if (!controlled('current', 'mixedFields', field.id) && current !== updatedField.current) updatedField = { ...updatedField, current };
         if (updatedField !== field) fieldsChanged = true;
         return updatedField;
       }
@@ -1528,7 +1536,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
           if (computed !== null && computed !== updatedField.current) updatedField = { ...updatedField, current: computed };
         }
         const current = Math.max(0, Math.min(updatedField.max, updatedField.current));
-        if (current !== updatedField.current) updatedField = { ...updatedField, current };
+        if (!controlled('current', 'mixedFields', field.id) && current !== updatedField.current) updatedField = { ...updatedField, current };
         if (updatedField !== field) fieldsChanged = true;
         return updatedField;
       }
@@ -1688,9 +1696,11 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels): Widget | 
 /**
  * Gets a list of all available labels for display in the formula editor.
  */
-export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: FormulaLabels): ProgressClockItem {
-  const segments = getClockSegments((clock.segmentsFormula && !isFormulaBroken(clock.segmentsFormula, labels) ? evaluateFormula(clock.segmentsFormula, labels) : null) ?? clock.segments);
-  const value = getClockValue((clock.valueFormula && !isFormulaBroken(clock.valueFormula, labels) ? evaluateFormula(clock.valueFormula, labels) : null) ?? clock.value, segments);
+export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: FormulaLabels, controlled: { value?: boolean; segments?: boolean } = {}): ProgressClockItem {
+  const rawSegments = (clock.segmentsFormula && !isFormulaBroken(clock.segmentsFormula, labels) ? evaluateFormula(clock.segmentsFormula, labels) : null) ?? clock.segments;
+  const segments = controlled.segments && !clock.segmentsFormula ? Math.floor(rawSegments) : getClockSegments(rawSegments);
+  const rawValue = (clock.valueFormula && !isFormulaBroken(clock.valueFormula, labels) ? evaluateFormula(clock.valueFormula, labels) : null) ?? clock.value;
+  const value = controlled.value && !clock.valueFormula ? Math.floor(rawValue) : getClockValue(rawValue, segments);
   return segments === clock.segments && value === clock.value ? clock : { ...clock, segments, value };
 }
 

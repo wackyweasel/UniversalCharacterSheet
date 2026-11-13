@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Character, Widget } from '../types';
 import { buildReferenceIndex, getLabelReferences } from './characterVariables';
+import { findNumericTarget } from './numericTargets';
+import { reconcileItemEffects } from './itemEffects';
+import { getWidgetEffectSources } from './widgetEffects';
 import {
   canConvertWidget,
   convertWidgetData,
@@ -11,6 +14,163 @@ import {
 } from './widgetConversion';
 
 const widget = (type: Widget['type'], data: Widget['data']): Pick<Widget, 'type' | 'data'> => ({ type, data });
+
+function effectCharacter(type: Widget['type'], data: Widget['data'], effects: NonNullable<import('../types').InventoryItem['effects']>): Character {
+  return reconcileItemEffects(undefined, {
+    id: 'effects', name: 'Effects', activeSheetId: 'sheet', sheets: [{ id: 'sheet', name: 'Main', widgets: [
+      { id: 'converted', type, x: 0, y: 0, data },
+      { id: 'gear', type: 'INVENTORY', x: 0, y: 0, data: { inventoryItems: [{ id: 'ring', name: 'Ring', fields: [], active: true, effects }] } },
+    ] }],
+  });
+}
+
+describe('Effect conversion carryover', () => {
+  it('preserves active source effects through switch, mixed, checklist and condition conversions', () => {
+    let current: Character = reconcileItemEffects(undefined, {
+      id: 'source-effects', name: 'Hero', activeSheetId: 'sheet', variables: [{ id: 'strength', label: 'str', value: 10 }],
+      sheets: [{ id: 'sheet', name: 'Main', widgets: [{ id: 'source', type: 'TOGGLE', x: 0, y: 0, data: {
+        label: 'Blessed', toggleState: true, effects: [{ id: 'bonus', target: { kind: 'variable', variableId: 'strength' }, amount: 1 }],
+      } }] }],
+    });
+    expect(current.variables![0].value).toBe(11);
+    for (const type of ['MIXED_FIELDS', 'CHECKBOX', 'TOGGLE_GROUP', 'MIXED_FIELDS', 'TOGGLE'] as const) {
+      const serialized = JSON.stringify(current);
+      const report = convertWidgetData(current.sheets[0].widgets[0], type, { character: current })!;
+      expect(JSON.stringify(current)).toBe(serialized);
+      expect(report.carried.join(' ')).toContain('Effect on "Blessed"');
+      expect(report.warnings.join(' ')).not.toContain('Effect on');
+      current = report.character!;
+      expect(current.variables![0].value).toBe(11);
+      expect(getWidgetEffectSources(current.sheets[0].widgets[0])[0]).toMatchObject({ active: true, effects: [{ amount: 1 }] });
+    }
+    const removed = { ...current, sheets: [{ ...current.sheets[0], widgets: [{ ...current.sheets[0].widgets[0], data: { ...current.sheets[0].widgets[0].data, toggleState: false } }] }] };
+    expect(reconcileItemEffects(current, removed).variables![0].value).toBe(10);
+  });
+
+  it('reports the selected mixed switch effects in green and removed sources in red', () => {
+    const target = { kind: 'variable' as const, variableId: 'strength' };
+    const before: Character = reconcileItemEffects(undefined, {
+      id: 'source-effects', name: 'Hero', activeSheetId: 'sheet', variables: [{ id: 'strength', label: 'str', value: 10 }],
+      sheets: [{ id: 'sheet', name: 'Main', widgets: [{ id: 'source', type: 'MIXED_FIELDS', x: 0, y: 0, data: { mixedFields: [
+        { id: 'first', name: 'First switch', type: 'switch', value: true, effects: [{ id: 'shared', target, amount: 1 }] },
+        { id: 'second', name: 'Second switch', type: 'switch', value: true, effects: [{ id: 'shared', target, amount: 2 }] },
+      ] } }] }],
+    });
+    expect(before.variables![0].value).toBe(13);
+    const report = convertWidgetData(before.sheets[0].widgets[0], 'TOGGLE', { character: before, choice: 1 })!;
+    expect(report.carried.join(' ')).toContain('Second switch');
+    expect(report.warnings.join(' ')).toContain('First switch');
+    expect(report.character!.variables![0].value).toBe(12);
+    expect(report.data.effects![0].amount).toBe(2);
+  });
+
+  it('retargets effects owned by every new source when a numeric widget is converted', () => {
+    const target = { kind: 'widget' as const, widgetId: 'converted', collection: 'displayNumbers' as const, entryId: 'strength', field: 'value' };
+    const effects = [{ id: 'bonus', target, amount: 1 }];
+    const before: Character = reconcileItemEffects(undefined, {
+      id: 'source-effects', name: 'Hero', activeSheetId: 'sheet',
+      sheets: [{ id: 'sheet', name: 'Main', widgets: [
+        { id: 'converted', type: 'NUMBER_DISPLAY', x: 0, y: 0, data: { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10 }] } },
+        { id: 'switch', type: 'TOGGLE', x: 0, y: 0, data: { toggleState: true, effects } },
+        { id: 'mixed', type: 'MIXED_FIELDS', x: 0, y: 0, data: { mixedFields: [{ id: 'mixed-switch', name: 'Mixed', type: 'switch', value: true, effects }] } },
+        { id: 'conditions', type: 'TOGGLE_GROUP', x: 0, y: 0, data: { toggleItems: [{ id: 'condition', name: 'Condition', active: true, effects }] } },
+        { id: 'checklist', type: 'CHECKBOX', x: 0, y: 0, data: { checkboxItems: [{ id: 'check', name: 'Checked', checked: true, effects }] } },
+        { id: 'skills', type: 'SKILL_TREE', x: 0, y: 0, data: { skillNodes: [{ id: 'skill', name: 'Skill', cost: 0, requires: [], unlocked: true, effects }] } },
+        { id: 'timed', type: 'TIME_TRACKER', x: 0, y: 0, data: { timedEffects: [{ id: 'timed-entry', name: 'Timed', remainingSeconds: 1, effects }] } },
+        { id: 'zones', type: 'THRESHOLD_TRACK', x: 0, y: 0, data: { currentValue: 3, trackThresholds: [{ id: 'zone', name: 'Zone', value: 3, effects }] } },
+      ] }],
+    });
+    expect(findNumericTarget(before, target)!.value).toBe(17);
+    const report = convertWidgetData(before.sheets[0].widgets[0], 'NUMBER', { character: before })!;
+    const after = report.character!;
+    expect(after.sheets[0].widgets[0].data.numberItems![0].value).toBe(17);
+    for (const widget of after.sheets[0].widgets.slice(1)) {
+      expect(getWidgetEffectSources(widget)[0].effects[0].target).toMatchObject({ collection: 'numberItems', entryId: 'strength' });
+    }
+    expect(report.carried.filter((entry) => entry.startsWith('Effect on'))).toHaveLength(7);
+    const discarded = convertWidgetData(after.sheets[0].widgets[7], 'PROGRESS_BAR', { character: after })!;
+    expect(discarded.warnings.join(' ')).toContain('Effect on "Zone"');
+    expect(discarded.character!.sheets[0].widgets[0].data.numberItems![0].value).toBe(16);
+  });
+
+  it('carries quantity bonuses through Codex attributes and back without baking them in', () => {
+    const before = effectCharacter('INVENTORY', { inventoryItems: [{ id: 'arrows', name: 'Arrows', fields: [], quantity: 3 }] }, [
+      { id: 'quantity', amount: 1, target: { kind: 'widget', widgetId: 'converted', collection: 'inventoryItems', entryId: 'arrows', field: 'quantity' } },
+    ]);
+    const codex = convertWidgetData(before.sheets[0].widgets[0], 'COMPENDIUM', { character: before })!;
+    expect(codex.carried.join(' ')).toContain('Effect on "Ring"');
+    const ref = codex.character!.sheets[0].widgets[1].data.inventoryItems![0].effects![0].target!;
+    expect(ref).toMatchObject({ collection: 'inventoryFields', field: 'value' });
+    expect(findNumericTarget(codex.character!, ref)!.value).toBe(4);
+    const back = convertWidgetData(codex.character!.sheets[0].widgets[0], 'INVENTORY', { character: codex.character })!.character!;
+    expect(back.sheets[0].widgets[0].data.inventoryItems![0].quantity).toBe(4);
+    const inactive = { ...back, sheets: [{ ...back.sheets[0], widgets: back.sheets[0].widgets.map((widget) => widget.id === 'gear' ? { ...widget, data: { inventoryItems: [] } } : widget) }] };
+    expect(reconcileItemEffects(back, inactive).sheets[0].widgets[0].data.inventoryItems![0].quantity).toBe(3);
+  });
+
+  it('carries numeric weight cells through roll tables and back', () => {
+    const before = effectCharacter('TABLE', { columns: ['Result', 'Weight'], rows: [{ cells: ['Torch', { id: 'weight', value: '2' }] }] }, [
+      { id: 'weight-bonus', amount: 1, target: { kind: 'widget', widgetId: 'converted', collection: 'tableCells', entryId: 'weight', field: 'value' } },
+    ]);
+    const serialized = JSON.stringify(before);
+    const roll = convertWidgetData(before.sheets[0].widgets[0], 'ROLL_TABLE', { character: before })!;
+    expect(JSON.stringify(before)).toBe(serialized);
+    expect(roll.carried.join(' ')).toContain('Effect on "Ring"');
+    expect(roll.data.rollTableItems![0].weight).toBe(3);
+    const back = convertWidgetData(roll.character!.sheets[0].widgets[0], 'TABLE', { character: roll.character })!;
+    const ref = back.character!.sheets[0].widgets[1].data.inventoryItems![0].effects![0].target!;
+    expect(findNumericTarget(back.character!, ref)!.value).toBe(3);
+  });
+
+  it('carries only the chosen tracker and invalidates discarded bindings for explicit rebinding', () => {
+    const before = effectCharacter('NUMBER', { numberItems: [{ id: 'first', name: 'First', value: 3 }, { id: 'second', name: 'Second', value: 7 }] }, [
+      { id: 'one', targetName: 'First', amount: 2, target: { kind: 'widget', widgetId: 'converted', collection: 'numberItems', entryId: 'first', field: 'value' } },
+      { id: 'two', targetName: 'Second', amount: 1, target: { kind: 'widget', widgetId: 'converted', collection: 'numberItems', entryId: 'second', field: 'value' } },
+    ]);
+    const report = convertWidgetData(before.sheets[0].widgets[0], 'PROGRESS_BAR', { character: before, choice: 1 })!;
+    expect(report.data.currentValue).toBe(8);
+    expect(report.carried.join(' ')).toContain('Second');
+    expect(report.warnings.join(' ')).toContain('First');
+    expect(report.character!.sheets[0].widgets[1].data.inventoryItems![0].effects![0].target).toBeUndefined();
+  });
+
+  it('reports fractional effects that cannot become discrete wallet amounts', () => {
+    const before = effectCharacter('NUMBER', { numberItems: [{ id: 'coins', name: 'Coins', value: 2 }] }, [
+      { id: 'whole', amount: 1, target: { kind: 'widget', widgetId: 'converted', collection: 'numberItems', entryId: 'coins', field: 'value' } },
+      { id: 'fraction', amount: 0.5, target: { kind: 'widget', widgetId: 'converted', collection: 'numberItems', entryId: 'coins', field: 'value' } },
+    ]);
+    const report = convertWidgetData(before.sheets[0].widgets[0], 'WALLET', { character: before })!;
+    expect(report.data.walletCurrencies![0].amount).toBe(3);
+    expect(report.warnings.join(' ')).toContain('(+0.5)');
+    expect(report.carried.join(' ')).toContain('(+1)');
+    expect(report.character!.sheets[0].widgets[1].data.inventoryItems![0].effects![1].target).toBeUndefined();
+  });
+
+  it('keeps widget and library impacts independent even if imported effect IDs coincide', () => {
+    const before = effectCharacter('NUMBER', { numberItems: [{ id: 'first', name: 'First', value: 3 }, { id: 'second', name: 'Second', value: 7 }] }, [
+      { id: 'shared', amount: 2, target: { kind: 'widget', widgetId: 'converted', collection: 'numberItems', entryId: 'second', field: 'value' } },
+    ]);
+    before.compendium = [{ id: 'section', name: 'Library', items: [{ id: 'library', name: 'Library ring', fields: [], effects: [
+      { id: 'shared', amount: 1, target: { kind: 'widget', widgetId: 'converted', collection: 'numberItems', entryId: 'first', field: 'value' } },
+    ] }] }];
+    const report = convertWidgetData(before.sheets[0].widgets[0], 'PROGRESS_BAR', { character: before, choice: 1 })!;
+    expect(report.data.currentValue).toBe(9);
+    expect(report.character!.sheets[0].widgets[1].data.inventoryItems![0].effects![0].target).toMatchObject({ field: 'currentValue' });
+    expect(report.character!.compendium![0].items[0].effects![0].target).toBeUndefined();
+    expect(report.warnings.join(' ')).toContain('Compendium - Library');
+  });
+
+  it('carries fractional effects when both types retain the same discrete normalization', () => {
+    const before = effectCharacter('STEP_DICE', { stepDiceItems: [{ id: 'step', name: 'Trait', currentStep: 2 }], stepDiceChain: ['1d4', '1d6', '1d8', '1d10'] }, [
+      { id: 'fraction', amount: 0.5, target: { kind: 'widget', widgetId: 'converted', collection: 'stepDiceItems', entryId: 'step', field: 'currentStep' } },
+    ]);
+    const report = convertWidgetData(before.sheets[0].widgets[0], 'MIXED_FIELDS', { character: before })!;
+    expect(report.carried.join(' ')).toContain('(+0.5)');
+    expect(report.warnings.join(' ')).not.toContain('Effect on "Ring"');
+    const ref = report.character!.sheets[0].widgets[1].data.inventoryItems![0].effects![0].target!;
+    expect(findNumericTarget(report.character!, ref)!.value).toBe(3);
+  });
+});
 
 describe('widget conversion', () => {
   it('turns a list into a one-column table and back', () => {

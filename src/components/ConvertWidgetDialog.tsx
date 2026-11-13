@@ -114,7 +114,7 @@ function ResultBox({ title, items, className, alert }: ResultBoxProps) {
     <div className={`rounded-theme border px-3 py-2 text-sm text-theme-ink ${className}`} role={alert ? 'alert' : undefined}>
       <p className="mb-1 font-semibold">{title}</p>
       <ul className="list-disc space-y-0.5 pl-5 break-words">
-        {items.map((item) => <li key={item}>{item}</li>)}
+        {items.map((item, index) => <li key={`${index}:${item}`}>{item}</li>)}
       </ul>
     </div>
   );
@@ -143,8 +143,8 @@ export default function ConvertWidgetDialog({ widget, onClose }: Props) {
 
   const choiceSpec = useMemo(() => (target ? getConversionChoice(widget, target) : null), [widget, target]);
   const conversion = useMemo(() => (
-    target ? convertWidgetData(widget, target, { choice, labelUsers: referenceIndex ? labelUsers : undefined }) : null
-  ), [widget, target, choice, labelUsers, referenceIndex]);
+    target ? convertWidgetData(widget, target, { choice, character, labelUsers: referenceIndex ? labelUsers : undefined }) : null
+  ), [widget, target, choice, labelUsers, referenceIndex, character]);
   const lost = useMemo(() => (
     conversion && target
       ? [

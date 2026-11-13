@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Character, CharacterEvent, CharacterVariable, InventoryItem, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet } from '../types';
+import { Character, CharacterEvent, CharacterVariable, InventoryItem, ItemEffect, TimedEffect, Widget, WidgetAutoStackOptions, WidgetData, WidgetType, Sheet } from '../types';
 import { CharacterPreset } from '../presets';
 import { getCoveringSnapshotId, useUndoStore } from './useUndoStore';
 import { useTelemetryStore } from './useTelemetryStore';
@@ -20,7 +20,7 @@ import {
 } from '../utils/inventory';
 import { getDefaultInventorySlotsData, getSlotMaxItems, INVENTORY_SLOTS_DEFAULT_SIZE } from '../utils/inventorySlots';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from '../utils/cardTable';
-import { cloneWidgetData, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
+import { cloneWidgetData, collectWidgetDataIds, migrateCharacter, remapCharacterIds } from '../utils/characterClone';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension, WIDGET_GRID_SIZE } from '../utils/widgetGeometry';
 import { attachWidgetPairs } from '../utils/widgetAttach';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
@@ -48,6 +48,11 @@ import {
 import { withEventsSuppressed } from '../events/suppress';
 import { normalizeEvent } from '../events/steps';
 import { getEventTelemetryDetails, type EventTelemetrySource } from '../events/telemetry';
+import { areEventsSuppressed } from '../events/suppress';
+import { bindEffectTargets, bindItemEffectTargets } from '../utils/numericTargets';
+import { getItemEffectBaseValues, getItemEffectProblems, prepareItemArrivals, reconcileItemEffects, stripItemEffectContributions } from '../utils/itemEffects';
+import { getWidgetEffectSources, setWidgetSourceActive, setWidgetSourceEffects } from '../utils/widgetEffects';
+import { updateCharacterFormula, type CharacterFormula } from '../utils/characterFormulas';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -261,6 +266,10 @@ interface StoreState {
     targetWidgetId: string;
     item: import('../types').InventoryItem;
   }) => void;
+  setInventoryItemActive: (widgetId: string, itemId: string, active: boolean) => void;
+  saveWidgetEffects: (widgetId: string, sourceKey: string, effects: ItemEffect[]) => WidgetData;
+  setWidgetEffectSourceActive: (widgetId: string, sourceKey: string, active: boolean) => void;
+  addTimedEffect: (widgetId: string, effect: TimedEffect) => void;
   splitInventoryItem: (options: {
     widgetId: string;
     itemId: string;
@@ -292,6 +301,7 @@ interface StoreState {
   // Variable and label actions (active character)
   addVariable: (variable: Omit<CharacterVariable, 'id'>) => string | null;
   updateVariable: (id: string, patch: Partial<Omit<CharacterVariable, 'id'>>, options?: { updateReferences?: boolean }) => void;
+  saveCharacterFormula: (source: CharacterFormula, formula: string | undefined) => void;
   renameLabel: (from: string, to: string, updateReferences: boolean) => void;
   addVariableGroup: (name: string) => string | null;
   renameVariableGroup: (id: string, name: string) => void;
@@ -303,7 +313,7 @@ interface StoreState {
   addCompendiumSection: (name: string) => string | null;
   renameCompendiumSection: (id: string, name: string) => void;
   deleteCompendiumSection: (id: string) => void;
-  saveCompendiumItem: (sectionId: string, item: import('../types').InventoryItem, beforeItemId?: string | null) => void;
+  saveCompendiumItem: (sectionId: string, item: import('../types').InventoryItem, beforeItemId?: string | null) => InventoryItem | null;
   addItemToCompendium: (options: {
     sectionId: string;
     item: import('../types').InventoryItem;
@@ -358,16 +368,18 @@ function withEffectIds(event: CharacterEvent): CharacterEvent {
 }
 
 function resolveActiveCharacterFormulas(
-  state: Pick<StoreState, 'activeCharacterId'>,
+  state: Pick<StoreState, 'activeCharacterId' | 'characters'>,
   characters: Character[],
 ): Character[] {
   return characters.map((character) => {
     if (character.id !== state.activeCharacterId) return character;
 
-    const resolved = resolveCharacterFormulas(character);
-    if (!resolved) return character;
+    const previous = state.characters.find((entry) => entry.id === character.id);
+    const prepared = reconcileItemEffects(previous, prepareItemArrivals(previous, character));
+    const resolved = resolveCharacterFormulas(prepared, (next) => reconcileItemEffects(undefined, next));
+    if (!resolved) return prepared;
 
-    const changes = (resolved as any)._formulaChanges as FormulaChange[] | undefined;
+    const changes = resolved._formulaChanges;
     if (changes && changes.length > 0 && state.activeCharacterId) {
       const characterId = state.activeCharacterId;
       const undoId = getCoveringSnapshotId(characterId);
@@ -384,12 +396,28 @@ function resolveActiveCharacterFormulas(
       }, 0);
     }
 
-    const { _formulaChanges, ...cleanResolved } = resolved as any;
+    const { _formulaChanges, ...cleanResolved } = resolved;
     return cleanResolved;
   });
 }
 
-export const useStore = create<StoreState>((set, get) => {
+export const useStore = create<StoreState>((rawSet, get) => {
+  const set: typeof rawSet = (update, replace) => rawSet((state) => {
+    const patch = typeof update === 'function' ? update(state) : update;
+    if (!patch.characters || useUndoStore.getState().isUndoRedoing) return patch;
+    const loading = areEventsSuppressed();
+    const characters = patch.characters.map((character) => {
+      const previous = loading ? undefined : state.characters.find((entry) => entry.id === character.id);
+      if (character === previous) return character;
+      const prepared = reconcileItemEffects(previous, loading ? character : prepareItemArrivals(previous, character));
+      if (prepared === character) return character;
+      const resolved = resolveCharacterFormulas(prepared, (next) => reconcileItemEffects(undefined, next));
+      if (!resolved) return prepared;
+      const { _formulaChanges: _changes, ...clean } = resolved as Character & { _formulaChanges?: FormulaChange[] };
+      return reconcileItemEffects(prepared, clean);
+    });
+    return { ...patch, characters };
+  }, replace);
   // Applies an undoable change to the active character, then re-resolves its formulas.
   const applyCharacterTransform = (description: string, transform: (character: Character) => Character): boolean => {
     const state = get();
@@ -452,7 +480,7 @@ export const useStore = create<StoreState>((set, get) => {
     }),
 
     createCharacterFromPreset: (preset, name, telemetrySource = 'unknown') => set((state) => {
-      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(preset);
+      const { sheets: newSheets, activeSheetId, events, itemEffectValues, compendium } = remapCharacterIds(preset);
 
       const newChar: Character = {
         id: uuidv4(),
@@ -461,6 +489,8 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         ...copyVariableData(preset),
         ...copyCompendiumData(preset),
+        ...(itemEffectValues ? { itemEffectValues } : {}),
+        ...(compendium ? { compendium } : {}),
         ...(events ? { events } : {}),
         activeSheetId
       };
@@ -492,7 +522,7 @@ export const useStore = create<StoreState>((set, get) => {
         return false;
       }
 
-      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(preset);
+      const { sheets: newSheets, activeSheetId, events, itemEffectValues, compendium } = remapCharacterIds(preset);
       const replacement: Character = {
         id: existingCharacter.id,
         name: name || preset.name,
@@ -500,6 +530,8 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         ...copyVariableData(preset),
         ...copyCompendiumData(preset),
+        ...(itemEffectValues ? { itemEffectValues } : {}),
+        ...(compendium ? { compendium } : {}),
         ...(events ? { events } : {}),
         activeSheetId,
       };
@@ -559,7 +591,7 @@ export const useStore = create<StoreState>((set, get) => {
       state.transientCharacterIds.forEach((id) => {
         useTimelineStore.getState().clearEvents(id);
       });
-      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(preset);
+      const { sheets: newSheets, activeSheetId, events, itemEffectValues, compendium } = remapCharacterIds(preset);
 
       const newChar: Character = {
         id: uuidv4(),
@@ -568,6 +600,8 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         ...copyVariableData(preset),
         ...copyCompendiumData(preset),
+        ...(itemEffectValues ? { itemEffectValues } : {}),
+        ...(compendium ? { compendium } : {}),
         ...(events ? { events } : {}),
         activeSheetId
       };
@@ -599,7 +633,7 @@ export const useStore = create<StoreState>((set, get) => {
     }),
 
     importCharacter: (character, telemetrySource = 'unknown') => set((state) => {
-      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(character);
+      const { sheets: newSheets, activeSheetId, events, itemEffectValues, compendium } = remapCharacterIds(character);
 
       const newChar: Character = {
         ...character,
@@ -608,6 +642,8 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         activeSheetId,
         events,
+        itemEffectValues,
+        ...(compendium ? { compendium } : {}),
       };
 
       recordStoreEvent(state, {
@@ -631,7 +667,7 @@ export const useStore = create<StoreState>((set, get) => {
       const character = state.characters.find(c => c.id === id);
       if (!character) return state;
 
-      const { sheets: newSheets, activeSheetId, events } = remapCharacterIds(character);
+      const { sheets: newSheets, activeSheetId, events, itemEffectValues, compendium } = remapCharacterIds(character);
 
       const newChar: Character = {
         ...character,
@@ -640,6 +676,8 @@ export const useStore = create<StoreState>((set, get) => {
         sheets: newSheets,
         activeSheetId,
         events,
+        itemEffectValues,
+        ...(compendium ? { compendium } : {}),
       };
 
       recordStoreEvent(state, {
@@ -697,7 +735,7 @@ export const useStore = create<StoreState>((set, get) => {
 
       return {
         // Recalculate on open so values stored by older formula logic refresh.
-        characters: resolveActiveCharacterFormulas({ activeCharacterId: id }, remainingCharacters),
+        characters: resolveActiveCharacterFormulas({ activeCharacterId: id, characters: state.characters }, remainingCharacters),
         transientCharacterIds: shouldCleanupTransients ? [] : state.transientCharacterIds,
         activeCharacterId: id,
         mode: state.mode === 'vertical' ? 'vertical' as const : 'play' as const,
@@ -1221,7 +1259,7 @@ export const useStore = create<StoreState>((set, get) => {
     convertWidget: (widgetId, targetType, options = {}) => {
       const character = get().characters.find((c) => c.id === get().activeCharacterId);
       const widget = character ? getActiveSheetWidgets(character).find((candidate) => candidate.id === widgetId) : undefined;
-      const conversion = widget ? convertWidgetData(widget, targetType, { choice: options.choice }) : null;
+      const conversion = widget ? convertWidgetData(widget, targetType, { choice: options.choice, character }) : null;
       if (!widget || !conversion) return;
 
       get()._takeSnapshot('Convert widget');
@@ -1229,7 +1267,7 @@ export const useStore = create<StoreState>((set, get) => {
       set((state) => {
         let characters = state.characters.map((c) => (
           c.id === state.activeCharacterId
-            ? updateActiveSheetWidgets(c, (widgets) => widgets.map((w) => (
+            ? updateActiveSheetWidgets(conversion.character ?? c, (widgets) => widgets.map((w) => (
                 w.id === widgetId
                   ? {
                       ...w,
@@ -1272,7 +1310,8 @@ export const useStore = create<StoreState>((set, get) => {
         const OFFSET = 30; // Offset the clone slightly from original
         
         const newWidgetId = uuidv4();
-        const normalizedSourceWidget = normalizeWidgetGeometry(sourceWidget);
+        const baseSourceWidget = stripItemEffectContributions(activeChar).sheets.flatMap((sheet) => sheet.widgets).find((widget) => widget.id === widgetId)!;
+        const normalizedSourceWidget = normalizeWidgetGeometry(baseSourceWidget);
         const newWidget: Widget = {
           id: newWidgetId,
           type: normalizedSourceWidget.type,
@@ -1281,7 +1320,7 @@ export const useStore = create<StoreState>((set, get) => {
           w: normalizedSourceWidget.w,
           h: normalizedSourceWidget.h,
           zIndex: getNextWidgetZIndex(currentWidgets),
-          data: cloneWidgetData(normalizedSourceWidget.type, normalizedSourceWidget.data, newWidgetId),
+          data: cloneWidgetData(normalizedSourceWidget.type, normalizedSourceWidget.data, newWidgetId, normalizedSourceWidget.id),
         };
 
         recordStoreEvent(state, {
@@ -2181,9 +2220,10 @@ export const useStore = create<StoreState>((set, get) => {
       const targetWidget = activeSheet?.widgets.find((widget) => widget.id === targetWidgetId);
       if (!sourceWidget || !targetWidget || !isInventoryWidgetType(sourceWidget.type) || !isInventoryWidgetType(targetWidget.type)) return;
 
+      const bound = bindItemEffectTargets(character!, item);
       const sourceItems = sourceWidget.data.inventoryItems || [];
       const sourceIndex = sourceItems.findIndex((entry) => entry.id === item.id);
-      const savedItem = adaptInventoryItem(item, getInventoryItemEndpoint(sourceWidget), getInventoryItemEndpoint(targetWidget));
+      const savedItem = adaptInventoryItem(bound.item, getInventoryItemEndpoint(sourceWidget), getInventoryItemEndpoint(targetWidget));
       let nextSourceItems: typeof sourceItems;
       let nextTargetItems: typeof sourceItems;
 
@@ -2222,7 +2262,7 @@ export const useStore = create<StoreState>((set, get) => {
 
         const updatedCharacters = currentState.characters.map((entry) => {
             if (entry.id !== currentState.activeCharacterId) return entry;
-            return updateActiveSheetWidgets(entry, (widgets) => widgets.map((widget) => {
+            return updateActiveSheetWidgets(bound.character, (widgets) => widgets.map((widget) => {
               if (sourceWidgetId === targetWidgetId && widget.id === sourceWidgetId) {
                 return { ...widget, data: { ...widget.data, inventoryItems: nextSourceItems } };
               }
@@ -2236,6 +2276,91 @@ export const useStore = create<StoreState>((set, get) => {
             }));
           });
         return { characters: resolveActiveCharacterFormulas(currentState, updatedCharacters) };
+      });
+    },
+
+    addTimedEffect: (widgetId, effect) => {
+      const current = getActiveCharacter(get());
+      const widget = current?.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widgetId);
+      if (!current || !widget || widget.type !== 'TIME_TRACKER' || widget.locked || get().mode === 'print') throw new Error('This timed-effects widget is no longer editable.');
+      if (!effect.name.trim() || !Number.isFinite(effect.remainingSeconds) || effect.remainingSeconds <= 0) throw new Error('Enter a name and a positive duration.');
+      if (effect.effects?.some((entry) => !Number.isFinite(entry.amount))) throw new Error('Effect amounts must be finite numbers.');
+      const bound = bindEffectTargets(current, effect.effects ?? []);
+      const saved = { ...effect, id: uuidv4(), effects: bound.effects };
+      applyCharacterTransform('Add timed effect', () => ({
+        ...bound.character,
+        sheets: bound.character.sheets.map((sheet) => ({
+          ...sheet, widgets: sheet.widgets.map((entry) => entry.id === widgetId
+            ? { ...entry, data: { ...entry.data, timedEffects: [...(entry.data.timedEffects ?? []), saved] } } : entry),
+        })),
+      }));
+    },
+
+    saveWidgetEffects: (widgetId, sourceKey, effects) => {
+      const current = getActiveCharacter(get());
+      const widget = current?.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widgetId);
+      if (!current || !widget || get().mode === 'print') throw new Error('This widget is no longer editable.');
+      if (!getWidgetEffectSources(widget).some((source) => source.key === sourceKey)) throw new Error('The effect source changed. Open the dialog again.');
+      if (effects.some((effect) => !Number.isFinite(effect.amount))) throw new Error('Effect amounts must be finite numbers.');
+      const bound = bindEffectTargets(current, effects);
+      const boundWidget = bound.character.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widgetId)!;
+      const updated = setWidgetSourceEffects(boundWidget, sourceKey, bound.effects);
+      applyCharacterTransform('Edit effects', () => ({
+        ...bound.character,
+        sheets: bound.character.sheets.map((sheet) => ({
+          ...sheet, widgets: sheet.widgets.map((entry) => entry.id === widgetId ? updated : entry),
+        })),
+      }));
+      return getActiveCharacter(get())!.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widgetId)!.data;
+    },
+
+    setWidgetEffectSourceActive: (widgetId, sourceKey, active) => {
+      const state = get();
+      const current = getActiveCharacter(state);
+      const widget = current?.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widgetId);
+      if (!current || !widget || state.mode === 'print' || state.editingWidgetId) throw new Error('Finish editing the widget before changing activation.');
+      const source = getWidgetEffectSources(widget, current.itemEffectValues).find((entry) => entry.key === sourceKey);
+      if (!source?.effects.length) throw new Error('This effect source is no longer available.');
+      const problems = active ? getItemEffectProblems(current, source) : [];
+      if (problems.length) throw new Error(problems.join(' '));
+      const updated = setWidgetSourceActive(widget, sourceKey, active);
+      if (updated === widget) return;
+      const changed = applyCharacterTransform(active ? 'Activate effect source' : 'Deactivate effect source', (character) => ({
+        ...character,
+        sheets: character.sheets.map((sheet) => ({
+          ...sheet, widgets: sheet.widgets.map((entry) => entry.id === widgetId ? updated : entry),
+        })),
+      }));
+      if (changed) useTimelineStore.getState().addEvent(current.id, {
+        widgetLabel: widget.data.label || widget.type, widgetType: widget.type,
+        description: `${active ? 'Activated' : 'Deactivated'}: ${source.name}`, icon: '✨',
+      });
+    },
+
+    setInventoryItemActive: (widgetId, itemId, active) => {
+      const current = getActiveCharacter(get());
+      const widget = current?.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widgetId);
+      const item = widget?.data.inventoryItems?.find((entry) => entry.id === itemId);
+      if (!current || !widget || widget.locked || get().mode === 'print' || !item?.effects?.length || item.active === active) return;
+      const problems = active ? getItemEffectProblems(current, item) : [];
+      if (problems.length) {
+        useTimelineStore.getState().addEvent(current.id, {
+          widgetLabel: widget.data.label || 'Inventory', widgetType: widget.type,
+          description: `Cannot activate ${item.name}: ${problems.join(' ')}`, icon: '⚠️',
+        });
+        return;
+      }
+      applyCharacterTransform(active ? 'Activate item' : 'Deactivate item', (character) => ({
+        ...character,
+        sheets: character.sheets.map((sheet) => ({
+          ...sheet, widgets: sheet.widgets.map((entry) => entry.id === widgetId
+            ? { ...entry, data: { ...entry.data, inventoryItems: entry.data.inventoryItems?.map((candidate) => candidate.id === itemId ? { ...candidate, active } : candidate) } } : entry),
+        })),
+      }));
+      useTimelineStore.getState().addEvent(current.id, {
+        widgetLabel: widget.data.label || 'Inventory', widgetType: widget.type,
+        description: `${active ? 'Activated' : 'Deactivated'}: ${item.name}`, icon: '✨',
+        undoId: getCoveringSnapshotId(current.id),
       });
     },
 
@@ -2253,7 +2378,7 @@ export const useStore = create<StoreState>((set, get) => {
       const item = widget.data.inventoryEncumbrance?.enabled
         ? ensureItemWeight(items[itemIndex])
         : items[itemIndex];
-      const splitItems = splitInventoryItemData(item, keptQuantity, splitQuantity);
+      const splitItems = splitInventoryItemData(item, keptQuantity, splitQuantity, getItemEffectBaseValues(character, item));
       if (!splitItems) return;
 
       const nextItems = [...items];
@@ -2751,7 +2876,7 @@ export const useStore = create<StoreState>((set, get) => {
         if (!character) return state;
         
         const widgets = getActiveSheetWidgets(character);
-        const groupWidgets = widgets.filter(w => w.groupId === groupId);
+        const groupWidgets = getActiveSheetWidgets(stripItemEffectContributions(character)).filter(w => w.groupId === groupId);
         
         if (groupWidgets.length === 0) return state;
         
@@ -2761,8 +2886,10 @@ export const useStore = create<StoreState>((set, get) => {
         
         // Create a mapping from old IDs to new IDs
         const idMapping = new Map<string, string>();
+        const entryIds = new Map<string, string>();
         groupWidgets.forEach(w => {
           idMapping.set(w.id, uuidv4());
+          collectWidgetDataIds(w.data, entryIds);
         });
         
         // Clone all widgets with new IDs and updated attachedTo references
@@ -2775,7 +2902,7 @@ export const useStore = create<StoreState>((set, get) => {
           groupId: newGroupId,
           attachedTo: w.attachedTo?.map(id => idMapping.get(id)).filter((id): id is string => id !== undefined),
           locked: w.locked,
-          data: cloneWidgetData(w.type, w.data, idMapping.get(w.id)!),
+          data: cloneWidgetData(w.type, w.data, idMapping.get(w.id)!, w.id, entryIds, idMapping),
         }));
 
         recordStoreEvent(state, {
@@ -3006,6 +3133,11 @@ export const useStore = create<StoreState>((set, get) => {
       return id;
     },
 
+    saveCharacterFormula: (source, formula) => {
+      if (!getActiveCharacter(get()) || get().mode === 'print') throw new Error('This formula is no longer editable.');
+      applyCharacterTransform('Edit formula', (character) => updateCharacterFormula(character, source, formula));
+    },
+
     updateVariable: (id, patch, options) => {
       applyCharacterTransform('Update label', (character) => {
         const existing = character.variables?.find((variable) => variable.id === id);
@@ -3075,7 +3207,14 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     saveCompendiumItem: (sectionId, item, beforeItemId) => {
-      applyCharacterTransform('Save compendium entry', (character) => saveCompendiumItem(character, sectionId, item, beforeItemId));
+      let saved: InventoryItem | null = null;
+      const changed = applyCharacterTransform('Save compendium entry', (character) => {
+        if (!getCompendiumSections(character).some((section) => section.id === sectionId)) return character;
+        const bound = bindItemEffectTargets(character, item);
+        saved = { ...bound.item, active: undefined };
+        return saveCompendiumItem(bound.character, sectionId, saved, beforeItemId);
+      });
+      return changed ? saved : null;
     },
 
     addItemToCompendium: ({ sectionId, item, beforeItemId }) => {
@@ -3083,7 +3222,7 @@ export const useStore = create<StoreState>((set, get) => {
       if (!current) return null;
       const section = getCompendiumSections(current).find((candidate) => candidate.id === sectionId);
       if (!section) return null;
-      const entry = createCompendiumEntryFromItem(item);
+      const entry = createCompendiumEntryFromItem(getItemEffectBaseValues(current, item));
       if (!entry) return null;
       const saved = applyCharacterTransform('Save compendium entry', (character) =>
         saveCompendiumItem(character, sectionId, entry, beforeItemId),

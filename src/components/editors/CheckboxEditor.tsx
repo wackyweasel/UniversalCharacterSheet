@@ -7,6 +7,7 @@ import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
 import { ItemColumnsControl } from './ItemColumnsControl';
+import { EffectsEditButton } from './EffectsEditButton';
 
 export function CheckboxEditor({ widget, updateData }: EditorProps) {
   const { checkboxItems = [], checklistSettings } = widget.data;
@@ -164,6 +165,7 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
                   <GripVerticalIcon className="h-4 w-4" />
                 </button>
               </Tooltip>
+              <div className="min-w-0 flex-1 space-y-1">
               {editingIndex === idx ? (
                 <input
                   ref={editInputRef}
@@ -172,18 +174,20 @@ export function CheckboxEditor({ widget, updateData }: EditorProps) {
                   onChange={(e) => setEditingValue(e.target.value)}
                   onBlur={saveEdit}
                   onKeyDown={handleEditKeyDown}
-                  className="flex-1 px-2 py-0.5 border border-theme-accent rounded bg-theme-paper text-theme-ink text-sm"
+                  className="w-full min-w-0 px-2 py-0.5 border border-theme-accent rounded bg-theme-paper text-theme-ink text-sm"
                 />
               ) : (
                 <Tooltip content="Click to edit">
                   <span 
-                    className="flex-1 text-theme-ink cursor-pointer hover:text-theme-accent"
+                    className="block break-words text-theme-ink cursor-pointer hover:text-theme-accent [overflow-wrap:anywhere]"
                     onClick={() => startEditing(idx)}
                   >
                     {item.name}
                   </span>
                 </Tooltip>
               )}
+              <EffectsEditButton widget={widget} collection="checkboxItems" index={idx} onSave={updateData} compact />
+              </div>
               <TooltipEditButton
                 tooltip={item.tooltip}
                 itemName={item.name}

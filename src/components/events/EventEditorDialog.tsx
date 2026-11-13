@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { useEventsPanelStore, type EventEditorRequest } from '../../store/useEventsPanelStore';
+import { useAutomationsPanelStore } from '../../store/useAutomationsPanelStore';
 import { getTutorialStepIndex, TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventParams, CharacterEventStep, CharacterEventTrigger, Widget } from '../../types';
 import { eventLabel, findEventLabelRefs, resultLabel } from '../../events/constants';
@@ -837,7 +838,9 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
       useTutorialStore.getState().setTutorialStep(getTutorialStepIndex('events-inline-editor-save') + 1);
     }
     closeEditor();
-    if (eventId && useEventsPanelStore.getState().isOpen) useEventsPanelStore.setState({ focusEventId: eventId });
+    if (eventId && useAutomationsPanelStore.getState().isOpen && useAutomationsPanelStore.getState().tab === 'events') {
+      useEventsPanelStore.setState({ focusEventId: eventId });
+    }
   };
 
   return createPortal(

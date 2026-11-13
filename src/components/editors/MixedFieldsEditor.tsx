@@ -16,6 +16,7 @@ import { ItemColumnsControl } from './ItemColumnsControl';
 import { LabeledNumberField } from './LabeledNumberField';
 import { VariableLabelControl } from '../VariableLabelControl';
 import { TextFormulaControls } from './TextFormulaControls';
+import { EffectsEditButton } from './EffectsEditButton';
 import type { EditorProps } from './types';
 
 const ALIGNMENT_OPTIONS = [
@@ -156,6 +157,7 @@ export function MixedFieldsEditor({ widget, updateData, fieldEditorOnly = false 
       case 'switch':
         return (
           <div className="space-y-2">
+            <EffectsEditButton widget={widget} collection="mixedFields" index={index} onSave={updateData} />
             <div className="flex items-center gap-2">
               <span className="w-16 flex-shrink-0 text-xs text-theme-muted">Formula</span>
               <TextFormulaControls valueLabel={field.valueLabel} formula={field.valueFormula} onValueLabelChange={(valueLabel) => updateField(index, { ...field, valueLabel })} onFormulaChange={(valueFormula) => updateField(index, { ...field, valueFormula })} resultType="number" />

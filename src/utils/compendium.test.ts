@@ -63,6 +63,18 @@ describe('compendium sections', () => {
 });
 
 describe('compendium entries', () => {
+  it('round-trips passive effects and reports invalid effect payloads', () => {
+    const item = createItem({ active: true, effects: [{ id: 'bonus', amount: 1, allowExceedLimits: true, target: { kind: 'variable', variableId: 'strength' } }] });
+    const exported = serializeCompendium([{ id: 'gear', name: 'Gear', items: [item] }]);
+    expect(exported).not.toContain('"active"');
+    const imported = parseCompendiumImport(exported);
+    expect(imported.ok).toBe(true);
+    if (!imported.ok) throw new Error(imported.error);
+    expect(imported.sections[0].items[0].effects![0]).toMatchObject({ amount: 1, allowExceedLimits: true, target: { kind: 'variable', variableId: 'strength' } });
+    expect(imported.sections[0].items[0].effects![0].id).not.toBe('bonus');
+    expect(instantiateCompendiumItem(item, []).active).toBeUndefined();
+    expect(parseCompendiumImport(JSON.stringify([{ name: 'Gear', items: [{ name: 'Bad ring', effects: [{ amount: 'bad' }] }] }]))).toEqual({ ok: false, error: 'An item effect has an invalid amount.' });
+  });
   it('saves new entries and replaces existing ones by id', () => {
     const added = saveCompendiumItem(empty, 'default-spells', createItem());
     expect(getCompendiumSections(added)[1].items).toHaveLength(1);

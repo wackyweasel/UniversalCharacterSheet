@@ -63,12 +63,15 @@ export interface GridMapWall {
 }
 
 export interface ToggleItem {
+  id?: string;
   name: string;
   active: boolean;
   tooltip?: string;
+  effects?: ItemEffect[];
 }
 
 export interface RollTableItem {
+  id?: string;
   text: string;
   weight: number;
   description?: string;
@@ -151,8 +154,35 @@ export interface InventoryItem {
   /** Rich text (HTML), shown collapsed on the item card. */
   description?: string;
   fields: InventoryItemField[];
+  effects?: ItemEffect[];
+  active?: boolean;
   /** Only set on items held by an inventory slots widget: the slot the item sits in. */
   slotId?: string;
+}
+
+export type NumericTargetCollection =
+  | 'numberItems' | 'displayNumbers' | 'mixedFields' | 'poolResources'
+  | 'clockItems' | 'trackThresholds' | 'xpLevels' | 'dicePoolComponents'
+  | 'diceGroups' | 'initiativePool' | 'rollTableItems' | 'inventorySlots'
+  | 'inventoryItems' | 'inventoryFields' | 'tableCells' | 'spellLevels'
+  | 'stepDiceItems' | 'walletCurrencies' | 'skillNodes';
+
+export type NumericTargetReference =
+  | { kind: 'variable'; variableId: string }
+  | { kind: 'widget'; widgetId: string; field: string; collection?: NumericTargetCollection; entryId?: string };
+
+export interface ItemEffect {
+  id: string;
+  target?: NumericTargetReference;
+  targetName?: string;
+  amount: number;
+  allowExceedLimits?: boolean;
+}
+
+export interface ItemEffectValueState {
+  target: NumericTargetReference;
+  base: number;
+  effective: number;
 }
 
 /** A named spot on an inventory slots widget. Position and size are percentages of the widget area. */
@@ -198,6 +228,7 @@ export interface CellFormat {
 }
 
 export interface TableCell {
+  id?: string;
   value: string;
   format?: CellFormat;
   label?: string;
@@ -229,9 +260,11 @@ export interface TableRowSettings {
 }
 
 export interface CheckboxItem {
+  id?: string;
   name: string;
   checked: boolean;
   tooltip?: string;
+  effects?: ItemEffect[];
 }
 
 export interface ChecklistSettings {
@@ -240,12 +273,14 @@ export interface ChecklistSettings {
 }
 
 export interface SpellLevel {
+  id?: string;
   level: number;
   max: number;
   used: number;
 }
 
 export interface NumberItem {
+  id?: string;
   name: string;
   value: number;
   showPositiveSign?: boolean;
@@ -267,6 +302,7 @@ export interface ModifierRange {
 }
 
 export interface DisplayNumber {
+  id?: string;
   label: string;
   value: number;
   showPositiveSign?: boolean;
@@ -295,6 +331,7 @@ export interface FormItem {
 export type MixedFieldType = 'text' | 'number' | 'progress' | 'resource' | 'step-dice' | 'menu' | 'switch';
 
 interface MixedFieldBase {
+  id?: string;
   name: string;
   tooltip?: string;
 }
@@ -306,10 +343,11 @@ export type MixedField = MixedFieldBase & (
   | { type: 'resource'; current: number; currentLabel?: string; currentFormula?: string; max: number; maxLabel?: string; maxFormula?: string; style: string; showCount?: boolean }
   | { type: 'step-dice'; currentStep: number; diceChain?: DiceStep[] }
   | { type: 'menu'; value: string; options: string[]; valueLabel?: string }
-  | { type: 'switch'; value: boolean; valueLabel?: string; valueFormula?: string; toggleColor?: string }
+  | { type: 'switch'; value: boolean; valueLabel?: string; valueFormula?: string; toggleColor?: string; effects?: ItemEffect[] }
 );
 
 export interface DiceGroup {
+  id?: string;
   count: number;
   faces: number;
   customFaces?: string[]; // Custom faces for the dice (numbers, emojis, strings, etc.)
@@ -327,6 +365,7 @@ export interface CustomDie {
 }
 
 export interface PoolResource {
+  id?: string;
   name: string;
   max: number;
   current: number;
@@ -348,6 +387,7 @@ export interface PoolRestoreTarget {
 }
 
 export interface InitiativeParticipant {
+  id?: string;
   name: string;
   diceFaces: number;   // Number of faces on the initiative die (e.g., 20 for d20)
   diceExpression?: string; // Dice expression (e.g. 2d20kh); takes precedence over diceFaces
@@ -386,6 +426,7 @@ export interface TrackThreshold {
   /** Number exposed while this zone is active (e.g. -1 for a wound penalty). */
   modifier?: number;
   color?: string;
+  effects?: ItemEffect[];
 }
 
 export interface ExperienceLevel {
@@ -411,6 +452,7 @@ export interface SkillTreeNode {
   unlocked: boolean;
   /** Variable label that is 1 while the skill is unlocked and 0 otherwise. */
   unlockedLabel?: string;
+  effects?: ItemEffect[];
 }
 
 export interface DicePoolComponent {
@@ -598,6 +640,7 @@ export interface WidgetData {
   // Toggle
   toggleState?: boolean;
   toggleColor?: string;
+  effects?: ItemEffect[];
   // Toggle Group
   toggleItems?: ToggleItem[];
   // Table
@@ -682,6 +725,7 @@ export interface WidgetData {
   initiativeAdvanceTimeUnit?: string;               // Unit of time (seconds, minutes, hours, etc.)
   // Inventory
   inventoryItems?: InventoryItem[];
+  autoActivateItems?: boolean;
   inventorySlots?: InventorySlot[];
   /** Equipment widget: item cards show only the name until clicked. */
   inventorySlotsCollapseAttributes?: boolean;
@@ -760,18 +804,22 @@ export interface WidgetData {
 }
 
 export interface TimedEffect {
+  id?: string;
   name: string;
   remainingSeconds: number;
   initialSeconds?: number;
+  effects?: ItemEffect[];
 }
 
 export interface StepDiceItem {
+  id?: string;
   name: string;
   currentStep: number;  // Index into the dice chain
   tooltip?: string;
 }
 
 export interface WalletCurrency {
+  id?: string;
   name: string;
   amount: number;
   rate: number; // How many of the previous (smaller) currency make one of this; ignored for the first
@@ -908,6 +956,7 @@ export interface Character {
   variables?: CharacterVariable[];
   variableGroups?: CharacterVariableGroup[];
   events?: CharacterEvent[];
+  itemEffectValues?: Record<string, ItemEffectValueState>;
   /** Reusable entries managed in the Compendium panel; absent until the character edits them, which shows the default sections. */
   compendium?: CompendiumSection[];
   // Legacy: widgets array for migration (will be moved to sheets)

@@ -13,6 +13,7 @@ import { Tooltip } from '../Tooltip';
 import { LabeledNumberField } from './LabeledNumberField';
 import { EditorProps } from './types';
 import { CollapsibleSection } from './CollapsibleSection';
+import { getAutoActivateItems } from '../../utils/itemEffects';
 
 const FIELD_TYPES: { value: InventoryFieldType; label: string }[] = [
   { value: 'text', label: 'Text' },
@@ -125,6 +126,15 @@ export function InventoryEditor({
 
   return (
     <div className="widget-editor widget-editor--inventory space-y-4">
+
+      {!weightOptionsOnly && <CollapsibleSection title="Item Effects">
+        <label className="flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={getAutoActivateItems(widget)}
+            onChange={(event) => updateData({ autoActivateItems: event.target.checked })} className="accent-theme-accent" />
+          Automatically activate added items
+        </label>
+        <p className="mt-1 text-[11px] text-theme-muted">Applies to new items and items moved here, not items already present.</p>
+      </CollapsibleSection>}
 
       {!weightOptionsOnly && <CollapsibleSection>
         <div className="widget-editor__section-heading">

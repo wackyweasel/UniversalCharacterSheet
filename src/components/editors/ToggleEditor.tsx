@@ -1,6 +1,7 @@
 import { EditorProps } from './types';
 import { CollapsibleSection } from './CollapsibleSection';
 import { TextFormulaControls } from './TextFormulaControls';
+import { EffectsEditButton } from './EffectsEditButton';
 
 export function ToggleEditor({ widget, updateData }: EditorProps) {
   const {
@@ -26,6 +27,7 @@ export function ToggleEditor({ widget, updateData }: EditorProps) {
 
   return (
     <div className="widget-editor widget-editor--toggle space-y-4">
+      <EffectsEditButton widget={widget} onSave={updateData} />
 
       <CollapsibleSection>
         <div className="widget-editor__section-heading">

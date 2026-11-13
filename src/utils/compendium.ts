@@ -6,10 +6,14 @@ import type {
   InventoryFieldType,
   InventoryItem,
   InventoryItemField,
+  ItemEffect,
+  NumericTargetCollection,
+  NumericTargetReference,
   Widget,
 } from '../types';
 import {
   adaptInventoryItem,
+  cloneItemEffects,
   coerceInventoryFieldValue,
   createInventoryItemField,
   ensureWeightTemplate,
@@ -189,7 +193,7 @@ export function compendiumItemMatches(item: InventoryItem, query: string): boole
 export function createCompendiumEntryFromItem(item: InventoryItem): InventoryItem | null {
   const name = item.name.trim();
   if (!name) return null;
-  const { slotId: _slotId, description, ...rest } = item;
+  const { slotId: _slotId, active: _active, description, ...rest } = item;
   const trimmedDescription = description?.trim() ? description : undefined;
   return toCodexItem({
     ...rest,
@@ -197,6 +201,7 @@ export function createCompendiumEntryFromItem(item: InventoryItem): InventoryIte
     name,
     ...(trimmedDescription ? { description: trimmedDescription } : {}),
     fields: item.fields.map((field) => ({ ...field, id: uuidv4(), templateId: undefined })),
+    ...(item.effects ? { effects: cloneItemEffects(item.effects) } : {}),
   });
 }
 
@@ -209,7 +214,7 @@ export function instantiateCompendiumItem(
   templates: InventoryFieldTemplate[],
   options: { allowQuantity?: boolean } = {},
 ): InventoryItem {
-  const { slotId: _slotId, ...entry } = item;
+  const { slotId: _slotId, active: _active, ...entry } = item;
   const source = options.allowQuantity === false ? toCodexItem(entry) : fromCodexItem(entry);
   const { quantity, ...rest } = source;
   const tracksWeight = templates.some((template) => template.reserved === 'weight');
@@ -237,7 +242,45 @@ export function instantiateCompendiumItem(
     id: uuidv4(),
     ...(quantity !== undefined ? { quantity } : {}),
     fields: [...defaultFields, ...additionalFields],
+    ...(item.effects ? { effects: cloneItemEffects(item.effects) } : {}),
   };
+}
+
+class InvalidEffectImport extends Error {}
+
+const TARGET_COLLECTIONS: NumericTargetCollection[] = [
+  'numberItems', 'displayNumbers', 'mixedFields', 'poolResources', 'clockItems',
+  'trackThresholds', 'xpLevels', 'dicePoolComponents', 'diceGroups', 'initiativePool',
+  'rollTableItems', 'inventorySlots', 'inventoryItems', 'inventoryFields', 'tableCells',
+  'spellLevels', 'stepDiceItems', 'walletCurrencies', 'skillNodes',
+];
+
+function sanitizeEffects(value: unknown): ItemEffect[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new InvalidEffectImport('Item effects must be a list.');
+  return value.map((effect: unknown) => {
+    if (!effect || typeof effect !== 'object') throw new InvalidEffectImport('An item effect is invalid.');
+    const raw = effect as Record<string, unknown>;
+    if (typeof raw.amount !== 'number' || !Number.isFinite(raw.amount)) throw new InvalidEffectImport('An item effect has an invalid amount.');
+    let target: NumericTargetReference | undefined;
+    if (raw.target !== undefined) {
+      if (!raw.target || typeof raw.target !== 'object') throw new InvalidEffectImport('An item effect has an invalid target.');
+      const ref = raw.target as Record<string, unknown>;
+      if (ref.kind === 'variable' && typeof ref.variableId === 'string' && ref.variableId) target = { kind: 'variable', variableId: ref.variableId };
+      else if (ref.kind === 'widget' && typeof ref.widgetId === 'string' && ref.widgetId && typeof ref.field === 'string' && ref.field) {
+        if (ref.collection !== undefined && (!TARGET_COLLECTIONS.includes(ref.collection as NumericTargetCollection) || typeof ref.entryId !== 'string' || !ref.entryId)) throw new InvalidEffectImport('An item effect has an invalid nested target.');
+        target = {
+          kind: 'widget', widgetId: ref.widgetId, field: ref.field,
+          ...(ref.collection !== undefined ? { collection: ref.collection as NumericTargetCollection, entryId: String(ref.entryId) } : {}),
+        };
+      } else throw new InvalidEffectImport('An item effect has an invalid target.');
+    }
+    return {
+      id: uuidv4(), amount: raw.amount, target,
+      ...(typeof raw.targetName === 'string' ? { targetName: raw.targetName } : {}),
+      ...(raw.allowExceedLimits === true ? { allowExceedLimits: true } : {}),
+    };
+  });
 }
 
 /**
@@ -306,6 +349,7 @@ function sanitizeItem(value: unknown): InventoryItem | null {
     ...(quantity !== undefined ? { quantity } : {}),
     ...(typeof raw.description === 'string' && raw.description.trim() ? { description: raw.description } : {}),
     fields: (Array.isArray(raw.fields) ? raw.fields : []).flatMap((field) => sanitizeField(field) ?? []),
+    ...(raw.effects !== undefined ? { effects: sanitizeEffects(raw.effects) } : {}),
       });
 }
 
@@ -327,7 +371,7 @@ export function serializeCompendium(sections: CompendiumSection[]): string {
     version: COMPENDIUM_EXPORT_VERSION,
     sections: sections.map((section) => ({
       name: section.name,
-      items: section.items.map(({ slotId: _slotId, ...item }) => item),
+      items: section.items.map(({ slotId: _slotId, active: _active, ...item }) => item),
     })),
   }, null, 2);
 }
@@ -350,7 +394,13 @@ export function parseCompendiumImport(text: string): CompendiumImportParse {
       ? (data as { sections: unknown[] }).sections
       : null;
   if (!rawSections) return { ok: false, error: 'This JSON does not contain a compendium.' };
-  const sections = rawSections.flatMap((section) => sanitizeSection(section) ?? []);
+  let sections: CompendiumSection[];
+  try {
+    sections = rawSections.flatMap((section) => sanitizeSection(section) ?? []);
+  } catch (error) {
+    if (error instanceof InvalidEffectImport) return { ok: false, error: error.message };
+    throw error;
+  }
   if (sections.length === 0) return { ok: false, error: 'This JSON does not contain any compendium sections.' };
   return { ok: true, sections };
 }

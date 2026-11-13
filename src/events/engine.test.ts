@@ -15,6 +15,7 @@ import {
   getWidgetEventDefs,
 } from './registry';
 import { normalizeEvent, type StoredCharacterEvent } from './steps';
+import { reconcileItemEffects } from '../utils/itemEffects';
 
 // Most fixtures use the one-step shorthand (a condition and effects), which `normalizeEvent` turns into a step.
 type CharacterEvent = Omit<StoredCharacterEvent, 'steps' | 'effects'> & { effects: CharacterEventEffect[] };
@@ -96,6 +97,21 @@ const bloodiedEvent: CharacterEvent = {
 };
 
 describe('event engine', () => {
+  it('applies and removes state-owned bonuses when events turn a switch on and off', () => {
+    const event: CharacterEvent = {
+      id: 'state-event', enabled: true, trigger: { kind: 'manual' },
+      effects: [{ id: 'on', kind: 'switch.set', widgetId: 'w-bloodied', params: { state: 'on' } }],
+    };
+    const before = character([
+      { ...stats, data: { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10 }] } },
+      { ...bloodied, data: { ...bloodied.data, effects: [{ id: 'bonus', target: { kind: 'widget', widgetId: 'w-stats', collection: 'displayNumbers', entryId: 'strength', field: 'value' }, amount: 1 }] } },
+    ], [event]);
+    const activated = runEvents({ before, after: before, manualEventId: event.id }).character;
+    expect(widgetData(activated, 'w-stats').displayNumbers![0].value).toBe(11);
+    const off = { ...activated, events: [normalizeEvent({ ...event, effects: [{ id: 'off', kind: 'switch.set', widgetId: 'w-bloodied', params: { state: 'off' } }] })] };
+    expect(widgetData(runEvents({ before: off, after: off, manualEventId: event.id }).character, 'w-stats').displayNumbers![0].value).toBe(10);
+  });
+
   it('fires when health drops below half and turns on a switch', () => {
     const before = character([health, bloodied], [bloodiedEvent]);
     const after = patchWidgetData(before, 'w-hp', { currentValue: 8 });
@@ -125,6 +141,25 @@ describe('event engine', () => {
     const deeper = runEvents({ before, after: patchWidgetData(before, 'w-hp', { currentValue: 3 }) });
     expect(deeper.firings[0].conditionFailed).toBeUndefined();
     expect(widgetData(deeper.character, 'w-bloodied').toggleState).toBe(true);
+  });
+
+  it('preserves ordinary event writes when an item bonus is later removed', () => {
+    const event: CharacterEvent = {
+      id: 'signal-event', enabled: true,
+      trigger: { kind: 'label.changed', target: 'signal' },
+      effects: [{ id: 'add-strength', kind: 'label.add', target: 'str', params: { amount: '3' } }],
+    };
+    const before = reconcileItemEffects(undefined, character([
+      { ...stats, data: { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10, valueLabel: 'str' }] } },
+      { ...bag, data: { inventoryItems: [{ id: 'ring', name: 'Ring', fields: [], active: true, effects: [
+        { id: 'bonus', amount: 1, target: { kind: 'widget', widgetId: 'w-stats', collection: 'displayNumbers', entryId: 'strength', field: 'value' } },
+      ] }] } },
+    ], [event], [{ id: 'signal', label: 'signal', value: 0 }]));
+    expect(widgetData(before, 'w-stats').displayNumbers![0].value).toBe(11);
+    const result = runEvents({ before, after: writeLabelValue(before, 'signal', 1)! });
+    expect(widgetData(result.character, 'w-stats').displayNumbers![0].value).toBe(14);
+    const inactive = reconcileItemEffects(result.character, patchWidgetData(result.character, 'w-bag', { inventoryItems: [] }));
+    expect(widgetData(inactive, 'w-stats').displayNumbers![0].value).toBe(13);
   });
 
   it('reacts to label changes, writes labels and re-resolves formulas', () => {

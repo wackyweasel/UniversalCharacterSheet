@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { createPortal } from 'react-dom';
-import { Widget, TimedEffect } from '../../types';
+import { Widget, TimedEffect, ItemEffect } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { useStore } from '../../store/useStore';
 import { addTimelineEvent } from '../../store/useTimelineStore';
 import { TrashIcon } from '../icons';
 import { WidgetEmptyState } from './WidgetPrimitives';
+import { ItemEffectsEditor } from './ItemEffectsEditor';
+import { EffectsEditButton } from '../editors/EffectsEditButton';
 
 interface Props {
   widget: Widget;
@@ -33,7 +35,7 @@ function Modal({ title, onClose, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
+        className="max-h-[90vh] overflow-y-auto bg-theme-paper border border-theme-border rounded-button shadow-xl p-4 min-w-[280px] max-w-[400px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
@@ -96,8 +98,10 @@ function formatRounds(rounds: number): string {
 
 export default function TimeTrackerWidget({ widget, height }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const addTimedEffect = useStore((state) => state.addTimedEffect);
   const mode = useStore((state) => state.mode);
   const isPrintMode = mode === 'print';
+  const canInteract = !isPrintMode && !widget.locked;
   const { label, timedEffects = [], roundMode = false, effectSuggestions = [] } = widget.data;
   
   // UI state for expandable sections
@@ -105,8 +109,11 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
   const [showPassTime, setShowPassTime] = useState(false);
   
   const [newEffectName, setNewEffectName] = useState('');
-  const [newEffectTime, setNewEffectTime] = useState(1);
+  const [newEffectTime, setNewEffectTime] = useState('1');
   const [newEffectUnit, setNewEffectUnit] = useState('minutes');
+  const [newEffects, setNewEffects] = useState<ItemEffect[]>([]);
+  const [effectsValid, setEffectsValid] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   const [passedTime, setPassedTime] = useState(1);
   const [passedUnit, setPassedUnit] = useState('minutes');
@@ -117,32 +124,42 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
   const gapClass = 'gap-1';
 
   const confirmAddEffect = () => {
-    if (newEffectName.trim()) {
+    if (canInteract && newEffectName.trim() && effectsValid && Number(newEffectTime) > 0 && Number.isFinite(Number(newEffectTime))) {
       // In round mode, store the number of rounds directly (using remainingSeconds field)
       // In normal mode, convert time to seconds
-      const duration = roundMode ? newEffectTime : parseTimeToSeconds(newEffectTime, newEffectUnit);
+      const duration = roundMode ? Number(newEffectTime) : parseTimeToSeconds(Number(newEffectTime), newEffectUnit);
       const newEffect: TimedEffect = {
         name: newEffectName.trim(),
         remainingSeconds: duration,
-        initialSeconds: duration
+        initialSeconds: duration,
+        effects: newEffects,
       };
-      updateWidgetData(widget.id, { 
-        timedEffects: [...timedEffects, newEffect] 
-      });
+      try {
+        addTimedEffect(widget.id, newEffect);
+      } catch (error) {
+        console.error('Could not add timed effect', error);
+        setSaveError(error instanceof Error ? error.message : 'Could not add timed effect.');
+        return;
+      }
       addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Added: ${newEffect.name} (${roundMode ? formatRounds(duration) : formatTime(duration)})`, '⏳');
       setNewEffectName('');
-      setNewEffectTime(1);
+      setNewEffectTime('1');
+      setNewEffects([]);
+      setSaveError(null);
       setShowAddForm(false);
     }
   };
 
   const cancelAddEffect = () => {
     setNewEffectName('');
-    setNewEffectTime(1);
+    setNewEffectTime('1');
+    setNewEffects([]);
+    setSaveError(null);
     setShowAddForm(false);
   };
 
   const removeEffect = (index: number) => {
+    if (!canInteract) return;
     const removed = timedEffects[index];
     const updated = [...timedEffects];
     updated.splice(index, 1);
@@ -153,6 +170,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
   };
 
   const confirmPassTime = () => {
+    if (!canInteract) return;
     // In round mode, pass exactly 1 round
     // In normal mode, use the selected time
     const amountToPass = roundMode ? 1 : parseTimeToSeconds(passedTime, passedUnit);
@@ -175,6 +193,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
 
   // In round mode, pass a round directly without modal
   const passRound = () => {
+    if (!canInteract) return;
     const expiredEffects: string[] = [];
     const updated = (timedEffects as TimedEffect[]).map(effect => {
       const newRemaining = Math.max(0, effect.remainingSeconds - 1);
@@ -235,14 +254,18 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
               {roundMode ? formatRounds(effect.remainingSeconds) : formatTime(effect.remainingSeconds)}
             </span>
             <div className="flex flex-shrink-0 items-center gap-0.5">
+              {canInteract && <EffectsEditButton widget={widget} collection="timedEffects" index={idx} compact />}
               <Tooltip content="Reset to initial duration">
                 <button 
                   onClick={() => {
+                    if (!canInteract) return;
                     const updated = [...timedEffects];
                     updated[idx] = { ...effect, remainingSeconds: effect.initialSeconds ?? effect.remainingSeconds };
                     updateWidgetData(widget.id, { timedEffects: updated });
                     addTimelineEvent(label || 'Effects', 'TIME_TRACKER', `Reset: ${effect.name}`, '\ud83d\udd04');
                   }}
+                  disabled={!canInteract}
+                  aria-label={`Reset ${effect.name} duration`}
                   className={`flex h-6 w-6 flex-shrink-0 items-center justify-center p-0 text-xs border border-theme-border rounded-button bg-theme-paper text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
@@ -252,6 +275,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
               <Tooltip content="Remove effect">
                 <button 
                   onClick={() => removeEffect(idx)}
+                  disabled={!canInteract}
                   aria-label="Remove effect"
                   className={`flex h-6 w-6 flex-shrink-0 items-center justify-center p-0 text-xs border border-red-500/50 rounded-button bg-theme-paper text-red-500 hover:bg-red-500 hover:text-white transition-colors font-body ${isPrintMode ? 'opacity-0' : ''}`}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -276,6 +300,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
         <Tooltip content="Track a new timed effect">
           <button
             onClick={() => setShowAddForm(true)}
+            disabled={!canInteract}
             className={`${buttonClass} widget-control flex-1 font-bold`}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -287,6 +312,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <Tooltip content="Advance all active effects by one round">
               <button
                 onClick={passRound}
+                disabled={!canInteract}
                 className={`${buttonClass} widget-control flex-1 font-bold`}
                 onMouseDown={(e) => e.stopPropagation()}
               >
@@ -297,6 +323,7 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
             <Tooltip content="Advance all active effects by a chosen time amount">
               <button
                 onClick={() => setShowPassTime(true)}
+                disabled={!canInteract}
                 className={`${buttonClass} widget-control flex-1 font-bold`}
                 onMouseDown={(e) => e.stopPropagation()}
               >
@@ -344,10 +371,10 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                   min="1"
                   className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button text-center"
                   value={newEffectTime}
-                  onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
-                  onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => setNewEffectTime(e.target.value)}
+                  onBlur={(e) => setNewEffectTime(String(Math.max(1, Math.floor(Number(e.target.value)) || 1)))}
                 />
-                <span className="text-theme-ink">{newEffectTime === 1 ? 'round' : 'rounds'}</span>
+                <span className="text-theme-ink">{Number(newEffectTime) === 1 ? 'round' : 'rounds'}</span>
               </div>
             ) : (
               <div className="flex gap-2">
@@ -356,8 +383,8 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                   min="1"
                   className="w-20 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button text-center"
                   value={newEffectTime}
-                  onChange={(e) => setNewEffectTime(e.target.value === '' ? '' as unknown as number : parseInt(e.target.value) || 1)}
-                  onBlur={(e) => setNewEffectTime(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => setNewEffectTime(e.target.value)}
+                  onBlur={(e) => setNewEffectTime(String(Math.max(1, Math.floor(Number(e.target.value)) || 1)))}
                 />
                 <select
                   className="flex-1 border border-theme-border focus:border-theme-accent focus:outline-none py-2 px-3 bg-theme-paper text-theme-ink font-body rounded-button"
@@ -373,9 +400,12 @@ export default function TimeTrackerWidget({ widget, height }: Props) {
                 </select>
               </div>
             )}
+            <ItemEffectsEditor item={{ effects: newEffects }} onChange={setNewEffects} onValidityChange={setEffectsValid} hint="Bonuses and penalties until this timed entry expires." />
+            {saveError && <p role="alert" className="text-xs text-red-500">{saveError}</p>}
             <div className="flex gap-2 pt-2">
               <button
                 onClick={confirmAddEffect}
+                disabled={!effectsValid || !newEffectName.trim() || !Number.isFinite(Number(newEffectTime)) || Number(newEffectTime) <= 0}
                 className="flex-1 py-2 px-4 bg-theme-accent text-theme-paper rounded-button hover:opacity-90 transition-colors font-bold font-body"
               >
                 Add Effect

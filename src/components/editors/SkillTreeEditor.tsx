@@ -5,6 +5,7 @@ import { PlusIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { CollapsibleSection } from './CollapsibleSection';
 import { IntegerInput } from './IntegerInput';
+import { EffectsEditButton } from './EffectsEditButton';
 import { LabeledNumberField } from './LabeledNumberField';
 import {
   getSelectablePrerequisites,
@@ -135,6 +136,7 @@ export function SkillTreeEditor({ widget, updateData }: EditorProps) {
                   </Tooltip>
                 </div>
                 <input aria-label={`${name} description`} className={inputClass} value={node.description ?? ''} placeholder="Description (optional)" onChange={(event) => updateNode(node.id, { description: event.target.value || undefined })} />
+                <EffectsEditButton widget={widget} collection="skillNodes" index={index} onSave={updateData} />
                 {selectable.length > 0 && (
                   <div className="space-y-2">
                     {([

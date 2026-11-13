@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { useEventsPanelStore } from './useEventsPanelStore';
+import { useAutomationsPanelStore } from './useAutomationsPanelStore';
 import { useTimelineStore } from './useTimelineStore';
-import { useVariablesPanelStore } from './useVariablesPanelStore';
 
 export interface CompendiumAddedFeedback {
   key: number;
@@ -18,15 +17,14 @@ interface CompendiumPanelState {
   clearAddedFeedback: () => void;
 }
 
-// The compendium panel shares the side of the screen with the timeline, labels and events panels, so only one is open at a time.
+// These panels share the same side of the screen, so only one is open at a time.
 export const useCompendiumPanelStore = create<CompendiumPanelState>((set, get) => ({
   isOpen: false,
   lastAddedFeedback: null,
   setOpen: (open) => {
     if (open) {
       useTimelineStore.getState().setOpen(false);
-      useVariablesPanelStore.getState().setOpen(false);
-      useEventsPanelStore.getState().setOpen(false);
+      useAutomationsPanelStore.getState().setOpen(false);
     }
     set({ isOpen: open, ...(open ? {} : { lastAddedFeedback: null }) });
   },
@@ -41,7 +39,7 @@ export const useCompendiumPanelStore = create<CompendiumPanelState>((set, get) =
   clearAddedFeedback: () => set({ lastAddedFeedback: null }),
 }));
 
-for (const store of [useTimelineStore, useVariablesPanelStore, useEventsPanelStore]) {
+for (const store of [useTimelineStore, useAutomationsPanelStore]) {
   store.subscribe((state, previous) => {
     if (state.isOpen && !previous.isOpen && useCompendiumPanelStore.getState().isOpen) {
       useCompendiumPanelStore.setState({ isOpen: false, lastAddedFeedback: null });

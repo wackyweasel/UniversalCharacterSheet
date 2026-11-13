@@ -11,6 +11,7 @@ import { Tooltip } from '../Tooltip';
 import { ProgressClockStructureDialog } from './ProgressClockStructureDialog';
 import { advanceClock, getClockDragValue, getClockSegments, getClockValue, getClockSeparatorPath } from '../../utils/progressClock';
 import { getProgressClockGrid } from '../../utils/progressClockLayout';
+import { numericTargetKey } from '../../utils/numericTargets';
 import './ProgressClockWidget.css';
 
 interface Props {
@@ -32,6 +33,7 @@ interface ClockProps {
   startAngle: number;
   onChange: (value: number) => void;
   formulaError?: string;
+  effectControlled?: { value: boolean; segments: boolean };
 }
 
 interface ClockGesture {
@@ -46,9 +48,9 @@ interface ClockGesture {
   moved: boolean;
 }
 
-function ProgressClock({ clock, index, enabled, showValues, labelPosition, counterClockwise, startAngle, onChange, formulaError }: ClockProps) {
+function ProgressClock({ clock, index, enabled, showValues, labelPosition, counterClockwise, startAngle, onChange, formulaError, effectControlled }: ClockProps) {
   const segments = getClockSegments(clock.segments);
-  const value = getClockValue(clock.value, segments);
+  const value = effectControlled?.value ? clock.value : getClockValue(clock.value, segments);
   const [previewValue, setPreviewValue] = useState<number | null>(null);
   const gestureRef = useRef<ClockGesture | null>(null);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -208,7 +210,7 @@ function ProgressClock({ clock, index, enabled, showValues, labelPosition, count
           </svg>}
         </span>
       </button>
-      {showValues && <span className="progress-clock__value" aria-hidden="true">{displayedValue} / {segments}</span>}
+      {showValues && <span className="progress-clock__value" aria-hidden="true">{displayedValue} / {effectControlled?.segments ? clock.segments : segments}</span>}
       {labelPosition === 'below' && label}
     </div>
   );
@@ -229,7 +231,11 @@ export default function ProgressClockWidget({ widget, mode, width, height, inter
   const dynamicGrid = clockDynamicSize ? getProgressClockGrid(widget.data, width, height) : null;
   const enabled = interactive && mode === 'play' && !widget.locked;
   const controlsVisible = showFieldControls && widget.data.showFieldControls !== false && !widget.data.hideWidgetHeader && mode !== 'print' && !widget.locked;
-  const resolvedClocks = clockItems.map((clock) => resolveProgressClockFormulas(clock, labels));
+  const controls = (clock: ProgressClockItem) => {
+    const controlled = (field: string) => !!character?.itemEffectValues?.[numericTargetKey({ kind: 'widget', widgetId: widget.id, collection: 'clockItems', entryId: clock.id, field })];
+    return { value: controlled('value'), segments: controlled('segments') };
+  };
+  const resolvedClocks = clockItems.map((clock) => resolveProgressClockFormulas(clock, labels, controls(clock)));
 
   return (
     <div className="progress-clock-widget" style={{ '--clock-size': `${Math.max(40, Math.min(240, clockSize))}px` } as CSSProperties}>
@@ -249,6 +255,7 @@ export default function ProgressClockWidget({ widget, mode, width, height, inter
           <ProgressClock
             key={clock.id}
             clock={clock}
+            effectControlled={controls(clock)}
             index={index}
             enabled={enabled && !clock.valueFormula?.trim()}
             formulaError={clock.segmentsFormula && isFormulaBroken(clock.segmentsFormula, labels) ? `Broken segments formula: ${clock.segmentsFormula}` : clock.valueFormula && isFormulaBroken(clock.valueFormula, labels) ? `Broken filled formula: ${clock.valueFormula}` : undefined}

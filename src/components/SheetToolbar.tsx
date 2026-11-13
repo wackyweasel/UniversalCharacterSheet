@@ -22,7 +22,6 @@ import {
   PlusIcon,
   RowsIcon,
   SearchIcon,
-  TagIcon,
   UndoIcon,
 } from './icons';
 
@@ -56,10 +55,8 @@ interface SheetToolbarProps {
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
   onSearch: () => void;
-  variablesOpen?: boolean;
-  onToggleVariables?: () => void;
-  eventsOpen?: boolean;
-  onToggleEvents?: () => void;
+  automationsOpen?: boolean;
+  onToggleAutomations?: () => void;
   compendiumOpen?: boolean;
   onToggleCompendium?: () => void;
   attachmentControlsVisible: boolean;
@@ -70,7 +67,6 @@ interface SheetToolbarProps {
 
 // Below this toolbar width the canvas/list selector moves into the menu to avoid overlapping the status icons.
 const compactLayoutMinWidth = 340;
-const compactEventsMinWidth = 400;
 
 const utilityButtonClass = 'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper px-2 text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-not-allowed disabled:opacity-40';
 
@@ -387,10 +383,8 @@ export default function SheetToolbar({
   onExpandAll,
   onCollapseAll,
   onSearch,
-  variablesOpen = false,
-  onToggleVariables,
-  eventsOpen = false,
-  onToggleEvents,
+  automationsOpen = false,
+  onToggleAutomations,
   compendiumOpen = false,
   onToggleCompendium,
   attachmentControlsVisible,
@@ -423,12 +417,11 @@ export default function SheetToolbar({
     if (playLayout === 'canvas' && onAutoStack) candidates.push({ id: 'auto-stack', labeledWidth: 110, iconWidth: 42 });
     candidates.push({ id: 'undo-redo', labeledWidth: 80, iconWidth: 80 });
     if (workspace === 'play') candidates.push({ id: 'timeline', labeledWidth: 116, iconWidth: 42, pinned: true });
-    if (onToggleVariables) candidates.push({ id: 'variables', labeledWidth: 118, iconWidth: 42, pinned: true });
-    if (onToggleEvents) candidates.push({ id: 'events', labeledWidth: 110, iconWidth: 42, pinned: true });
+    if (onToggleAutomations) candidates.push({ id: 'automations', labeledWidth: 146, iconWidth: 42, pinned: true });
     if (onToggleCompendium) candidates.push({ id: 'compendium', labeledWidth: 140, iconWidth: 42, pinned: true });
     candidates.push({ id: 'layout', labeledWidth: 176, iconWidth: 80 });
     return candidates;
-  }, [onAutoStack, onToggleCompendium, onToggleEvents, onToggleVariables, playLayout, workspace]);
+  }, [onAutoStack, onToggleCompendium, onToggleAutomations, playLayout, workspace]);
   const { containerRef, containerWidth, inlineActionIds: overflowInlineIds, labeledActionIds } = useToolbarOverflow({
     actions,
     coreWidth: 464,
@@ -440,12 +433,10 @@ export default function SheetToolbar({
     () => {
       if (!compact) return overflowInlineIds;
       const compactIds = workspace === 'play' ? ['undo-redo', 'timeline'] : ['undo-redo'];
-      if (onToggleVariables) compactIds.push('variables');
-      // On the narrowest toolbars Events moves into the menu.
-      if (onToggleEvents && containerWidth >= compactEventsMinWidth) compactIds.push('events');
+      if (onToggleAutomations) compactIds.push('automations');
       return new Set(layoutFitsInline ? ['layout', ...compactIds] : compactIds);
     },
-    [compact, containerWidth, layoutFitsInline, onToggleEvents, onToggleVariables, overflowInlineIds, workspace],
+    [compact, layoutFitsInline, onToggleAutomations, overflowInlineIds, workspace],
   );
   const compactUtilityClass = compact ? `${utilityButtonClass} !px-1.5` : utilityButtonClass;
   const showLabel = (id: string) => labeledActionIds.has(id);
@@ -483,8 +474,8 @@ export default function SheetToolbar({
           onCollapseAll={onCollapseAll}
           attachmentControlsVisible={attachmentControlsVisible}
           onToggleAttachmentControls={onToggleAttachmentControls}
-          eventsOpen={eventsOpen}
-          onToggleEvents={onToggleEvents}
+          automationsOpen={automationsOpen}
+          onToggleAutomations={onToggleAutomations}
           compendiumOpen={compendiumOpen}
           onToggleCompendium={onToggleCompendium}
           inlineActionIds={inlineActionIds}
@@ -587,31 +578,18 @@ export default function SheetToolbar({
           </button>
         </Tooltip>
       )}
-      {onToggleVariables && inlineActionIds.has('variables') && (
-        <Tooltip content={variablesOpen ? 'Close labels' : 'Labels'} placement="below">
+      {onToggleAutomations && inlineActionIds.has('automations') && (
+        <Tooltip content={automationsOpen ? 'Close automations' : 'Automations: labels, formulas, events and effects'} placement="below">
           <button
             type="button"
-            data-tutorial="labels-button"
-            onClick={onToggleVariables}
-            aria-pressed={variablesOpen}
-            aria-label="Labels"
-            className={`${compactUtilityClass} ${variablesOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
+            data-tutorial="automations-button"
+            onClick={onToggleAutomations}
+            aria-pressed={automationsOpen}
+            aria-controls="automations-panel"
+            aria-label="Automations"
+            className={`${compactUtilityClass} ${automationsOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
           >
-            <TagIcon className="h-4 w-4" /> {showLabel('variables') && <span>Labels</span>}
-          </button>
-        </Tooltip>
-      )}
-      {onToggleEvents && inlineActionIds.has('events') && (
-        <Tooltip content={eventsOpen ? 'Close events' : 'Events'} placement="below">
-          <button
-            type="button"
-            data-tutorial="events-button"
-            onClick={onToggleEvents}
-            aria-pressed={eventsOpen}
-            aria-label="Events"
-            className={`${compactUtilityClass} ${eventsOpen ? '!bg-theme-accent !text-theme-paper' : ''}`}
-          >
-            <BoltIcon className="h-4 w-4" /> {showLabel('events') && <span>Events</span>}
+            <BoltIcon className="h-4 w-4" /> {showLabel('automations') && <span>Automations</span>}
           </button>
         </Tooltip>
       )}

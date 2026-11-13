@@ -177,7 +177,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   useLockedWidgetWheel(nodeRef, mode !== 'print' && widget.locked === true);
   const printSettingsRef = useRef<HTMLDivElement>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const showEditModal = useStore((state) => state.editingWidgetId === widget.id);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   // The key remounts the menu so every open starts from its first tab.
   const [menu, setMenu] = useState<{ key: number; point: { x: number; y: number } | null } | null>(null);
@@ -331,7 +331,6 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   };
 
   const openEditModal = () => {
-    setShowEditModal(true);
     setEditingWidgetId(widget.id);
   };
 
@@ -344,7 +343,6 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   };
 
   const closeEditModal = () => {
-    setShowEditModal(false);
     setEditingWidgetId(null);
   };
 

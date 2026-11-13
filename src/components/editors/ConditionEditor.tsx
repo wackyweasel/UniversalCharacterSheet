@@ -6,6 +6,7 @@ import { TooltipEditButton } from './TooltipEditButton';
 import { Tooltip } from '../Tooltip';
 import { GripVerticalIcon, TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { EffectsEditButton } from './EffectsEditButton';
 
 export function ConditionEditor({ widget, updateData }: EditorProps) {
   const { toggleItems = [] } = widget.data;
@@ -83,7 +84,10 @@ export function ConditionEditor({ widget, updateData }: EditorProps) {
                     <GripVerticalIcon className="h-4 w-4" />
                   </button>
                 </Tooltip>
-                <span className="text-theme-ink flex-1">{item.name}</span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <span className="block break-words text-theme-ink [overflow-wrap:anywhere]">{item.name}</span>
+                  <EffectsEditButton widget={widget} collection="toggleItems" index={idx} onSave={updateData} compact />
+                </div>
                 <TooltipEditButton
                   tooltip={item.tooltip}
                   itemName={item.name}

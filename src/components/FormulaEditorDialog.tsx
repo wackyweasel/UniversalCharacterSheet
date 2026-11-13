@@ -42,6 +42,7 @@ interface FormulaEditorDialogProps {
   resultType?: 'number' | 'text';
   tutorialTargetPrefix?: string;
   highlightApply?: boolean;
+  saveError?: string | null;
   onApply: (formula: string) => void;
   onClear?: () => void;
   onCancel: () => void;
@@ -64,6 +65,7 @@ export function FormulaEditorDialog({
   resultType = 'number',
   tutorialTargetPrefix,
   highlightApply = false,
+  saveError,
   onApply,
   onClear,
   onCancel,
@@ -537,6 +539,7 @@ export function FormulaEditorDialog({
           </div>
         </div>
 
+        {saveError && <p role="alert" className="shrink-0 px-4 pb-3 text-sm text-red-500 font-body">{saveError}</p>}
         <footer className="widget-edit-modal__footer flex flex-none items-center justify-between gap-2 border-t border-theme-border">
           <div>
             {formula && onClear && (

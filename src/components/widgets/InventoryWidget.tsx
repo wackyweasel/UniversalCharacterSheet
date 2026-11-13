@@ -25,6 +25,7 @@ import {
   describeInventoryItemChange,
   formatFieldValue,
   InventoryQuantity,
+  ItemActivation,
   isInventoryFieldEmpty,
   LoadMeter,
 } from './inventoryItemDisplay';
@@ -213,7 +214,6 @@ function InventoryWidget({
           />
         ) : inventoryItems.map((item, index) => {
           const hasVisibleFields = item.fields.some((field) => !isInventoryFieldEmpty(field));
-          const handleCellClass = hasVisibleFields ? 'col-start-1 row-start-1 row-span-2' : 'col-start-1 row-start-1';
           const hasDescription = Boolean(item.description?.trim());
           const descriptionExpanded = hasDescription && (isPrintMode || expandedDescriptionIds.has(item.id));
           const descriptionId = `inventory-description-${item.id}`;
@@ -234,24 +234,27 @@ function InventoryWidget({
                   onClick={(event) => event.stopPropagation()}
                   aria-label={`Move ${item.name}`}
                   title="Drag to move. Arrow keys reorder."
-                  className={`inventory-item__drag-handle flex h-5 w-5 touch-none items-center self-center justify-center rounded text-theme-muted hover:text-theme-ink ${handleCellClass}`}
+                  className="inventory-item__drag-handle col-start-1 row-start-1 flex h-5 w-5 touch-none items-center self-center justify-center rounded text-theme-muted hover:text-theme-ink"
                 >
                   <GripVerticalIcon className="h-3 w-3" />
                 </button>
               )}
-              {!canInteract && <span className={handleCellClass} />}
-              <h3 className="col-start-2 row-start-1 -translate-y-px min-w-0 self-center break-words font-heading text-xs font-bold leading-3 [overflow-wrap:anywhere]">
-                <InlineFormulaText text={item.name} />
-                {!isCompendium && (
-                  <>
-                    {' '}
-                    <InventoryQuantity
-                      item={item}
-                      canInteract={canInteract}
-                      onEdit={setQuantityDialogItem}
-                    />
-                  </>
-                )}
+              {!canInteract && <span className="col-start-1 row-start-1" />}
+              <h3 className="col-start-2 row-start-1 flex min-w-0 items-center gap-1 self-center font-heading text-xs font-bold leading-3">
+                <ItemActivation item={item} widget={widget} canInteract={canInteract} />
+                <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                  <InlineFormulaText text={item.name} />
+                  {!isCompendium && (
+                    <>
+                      {' '}
+                      <InventoryQuantity
+                        item={item}
+                        canInteract={canInteract}
+                        onEdit={setQuantityDialogItem}
+                      />
+                    </>
+                  )}
+                </span>
               </h3>
               <dl className={`col-span-2 col-start-2 row-start-2 flex min-w-0 flex-wrap items-start gap-x-2 gap-y-0.5 font-body ${hasVisibleFields ? '' : 'hidden'}`}>
                 {item.fields.map((field, fieldIndex) => (

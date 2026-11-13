@@ -7,6 +7,7 @@ import { evaluateAmount, evaluateCondition, findWidget, formatNumber, patchWidge
 import { fillParams, getEffectDef, getEventIcon, getEventTitle, getResultLabels, getTriggerDef, getTriggerLabels, isGlobalEffectKind, isGlobalTriggerKind } from './registry';
 import { normalizeEvent } from './steps';
 import type { EffectContext, EffectOutcome, EventDiceDisplay, TriggerMatch, WidgetAction } from './types';
+import { reconcileItemEffects } from '../utils/itemEffects';
 
 /** Longest chain of events firing one another before the engine stops. */
 export const MAX_CHAIN_DEPTH = 15;
@@ -78,7 +79,7 @@ function withEventLabels(labels: FormulaLabels, event: CharacterEvent, match: Tr
 }
 
 function cleanResolved(character: Character, changes: FormulaChange[]): Character {
-  const resolved = resolveCharacterFormulas(character);
+  const resolved = resolveCharacterFormulas(character, (next) => reconcileItemEffects(undefined, next));
   if (!resolved) return character;
   const { _formulaChanges, ...clean } = resolved as Character & { _formulaChanges?: FormulaChange[] };
   if (_formulaChanges) changes.push(..._formulaChanges);
@@ -242,7 +243,7 @@ export function runEvents(input: EventRunInput): EventRunResult {
 
         let next = outcome.character ?? current;
         if (outcome.data && effect.widgetId) next = patchWidgetData(next, effect.widgetId, outcome.data);
-        if (next !== current) next = cleanResolved(next, formulaChanges);
+        if (next !== current) next = cleanResolved(reconcileItemEffects(current, next), formulaChanges);
         const changed = next !== current;
         current = next;
 

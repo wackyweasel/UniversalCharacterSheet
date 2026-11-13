@@ -37,6 +37,15 @@ export function useChangelogOnLoad(ready: boolean): [{ lastSeenVersion: string |
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.18.0',
+    changes: [
+      'New Automations panel: Labels, Formulas, Events and Effects in one place, with search, filter pills and collapse/expand controls.',
+      'New Effects: automatically increase or decrease numeric values while something is active. For example, a Ring of Strength can give +1 Strength while switched on; turning it off removes the bonus.',
+      'Configure effects in item dialogs or widget settings: pick the value to change and enter a bonus or penalty. Compact Effects cards let you edit bonuses and switch their sources on or off.',
+      'Effects can also apply while temporary effects are running, skills are unlocked, conditions are enabled, checklist items are checked, switches are on (including Mixed Fields), or a Threshold Track zone is current.',
+    ],
+  },
+  {
     version: '1.17.1',
     changes: [
       'Notes: fixed a crash that could occur when trying to type in a note widget.',

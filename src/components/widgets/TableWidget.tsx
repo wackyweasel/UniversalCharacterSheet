@@ -56,8 +56,8 @@ function getCellFormula(cell: string | TableCell): string | undefined {
   return typeof cell === 'string' ? undefined : cell?.formula;
 }
 
-function createCell(value: string, format?: CellFormat, label?: string, formula?: string): TableCell {
-  return { value, format, label, formula };
+function createCell(value: string, format?: CellFormat, label?: string, formula?: string, previous?: string | TableCell): TableCell {
+  return { ...(typeof previous === 'object' && previous.id ? { id: previous.id } : {}), value, format, label, formula };
 }
 
 function cleanFormat(format: CellFormat): CellFormat | undefined {
@@ -820,7 +820,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
     const currentFormula = getCellFormula(currentCell);
     
     newRows[rowIdx] = { ...newRows[rowIdx], cells: [...newRows[rowIdx].cells] };
-    newRows[rowIdx].cells[colIdx] = createCell(currentValue, currentFormat, label, currentFormula);
+    newRows[rowIdx].cells[colIdx] = createCell(currentValue, currentFormat, label, currentFormula, currentCell);
     updateWidgetData(widget.id, { rows: newRows });
   };
 
@@ -873,7 +873,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
     const currentLabel = getCellLabel(currentCell);
     
     newRows[rowIdx] = { ...newRows[rowIdx], cells: [...newRows[rowIdx].cells] };
-    newRows[rowIdx].cells[colIdx] = createCell(currentValue, currentFormat, currentLabel, formula);
+    newRows[rowIdx].cells[colIdx] = createCell(currentValue, currentFormat, currentLabel, formula, currentCell);
     updateWidgetData(widget.id, { rows: newRows });
   };
 
@@ -937,7 +937,7 @@ export default function TableWidget({ widget, height, sheetScale = 1, mode }: Pr
       ...newRows[rowIdx], 
       cells: [...newRows[rowIdx].cells]
     };
-    newRows[rowIdx].cells[colIdx] = createCell(value, currentFormat, currentLabel, currentFormula);
+    newRows[rowIdx].cells[colIdx] = createCell(value, currentFormat, currentLabel, currentFormula, currentCell);
     updateWidgetData(widget.id, { rows: newRows });
   };
 

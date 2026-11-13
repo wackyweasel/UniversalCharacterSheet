@@ -7,6 +7,8 @@ import {
   InventoryFieldValue,
   InventoryItem,
   InventoryItemField,
+  ItemEffect,
+  NumericTargetReference,
   Widget,
   WidgetData,
   WidgetType,
@@ -129,6 +131,7 @@ export function splitInventoryItem(
   item: InventoryItem,
   keptQuantity: number,
   splitQuantity: number,
+  cloneSource = item,
 ): [InventoryItem, InventoryItem] | null {
   const quantity = getInventoryItemQuantity(item);
   const normalizedKeptQuantity = normalizeInventoryQuantity(keptQuantity);
@@ -145,20 +148,29 @@ export function splitInventoryItem(
   return [
     { ...item, quantity: normalizedKeptQuantity },
     {
-      ...item,
-      id: uuidv4(),
+      ...duplicateInventoryItem(cloneSource),
       quantity: normalizedSplitQuantity,
-      fields: item.fields.map((field) => ({ ...field, id: uuidv4() })),
     },
   ];
 }
 
 export function duplicateInventoryItem(item: InventoryItem): InventoryItem {
+  const id = uuidv4();
+  const fields = item.fields.map((field) => ({ ...field, id: uuidv4() }));
+  const ids = new Map([[item.id, id], ...item.fields.map((field, index) => [field.id, fields[index].id] as [string, string])]);
   return {
     ...item,
-    id: uuidv4(),
-    fields: item.fields.map((field) => ({ ...field, id: uuidv4() })),
+    id,
+    fields,
+    ...(item.effects ? { effects: cloneItemEffects(item.effects, ids), active: undefined } : {}),
   };
+}
+
+export function cloneItemEffects(effects: ItemEffect[] | undefined, ids = new Map<string, string>()): ItemEffect[] | undefined {
+  return effects?.map((effect) => ({
+    ...effect, id: uuidv4(), ...(effect.target ? { target: effect.target.kind === 'widget' && effect.target.entryId
+      ? { ...effect.target, entryId: ids.get(effect.target.entryId) ?? effect.target.entryId } : { ...effect.target } } : {}),
+  }));
 }
 
 export function cloneInventoryData(data: WidgetData): WidgetData {
@@ -327,6 +339,25 @@ function isQuantityField(field: InventoryItemField): boolean {
     && !field.reserved
     && field.name.trim().toLowerCase() === 'quantity'
     && String(field.value).trim() !== '';
+}
+
+/** Follows an item's own numeric values when its quantity/attribute representation changes. */
+export function remapInventoryItemTarget(ref: NumericTargetReference, source: InventoryItem, destination: InventoryItem, widgetId: string): NumericTargetReference | undefined {
+  if (ref.kind !== 'widget') return undefined;
+  if (ref.collection === 'inventoryItems' && ref.entryId === source.id && ref.field === 'quantity') {
+    if (destination.quantity !== undefined) return { ...ref, widgetId, entryId: destination.id };
+    if (source.quantity !== undefined) {
+      const quantity = destination.fields[destination.fields.length - 1];
+      if (quantity && isQuantityField(quantity)) return { ...ref, widgetId, collection: 'inventoryFields', entryId: quantity.id, field: 'value' };
+    }
+  }
+  if (ref.collection === 'inventoryFields' && source.fields.some((field) => field.id === ref.entryId)) {
+    if (destination.fields.some((field) => field.id === ref.entryId)) return { ...ref, widgetId };
+    if (source.quantity === undefined && destination.quantity !== undefined && source.fields.find(isQuantityField)?.id === ref.entryId) {
+      return { ...ref, widgetId, collection: 'inventoryItems', entryId: destination.id, field: 'quantity' };
+    }
+  }
+  return undefined;
 }
 
 /** A codex shows an item's quantity and weight as ordinary attributes. */

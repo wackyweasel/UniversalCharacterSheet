@@ -8,6 +8,7 @@ import { addTimelineEvent } from '../../store/useTimelineStore';
 import { useFormulaLabels } from '../../hooks/useFormulaLabels';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 import { isFormulaBroken } from '../../utils/formulaEngine';
+import { numericTargetKey } from '../../utils/numericTargets';
 import {
   clampTrackValue,
   formatTrackModifier,
@@ -40,6 +41,9 @@ function getZoneName(zone: TrackZone): string {
 
 export default function ThresholdTrackWidget({ widget, mode, interactive = true }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
+  const effectValue = useStore((state) => state.characters.find((character) => character.id === state.activeCharacterId)?.itemEffectValues?.[
+    numericTargetKey({ kind: 'widget', widgetId: widget.id, field: 'currentValue' })
+  ]?.effective);
   const {
     label,
     increment,
@@ -53,7 +57,7 @@ export default function ThresholdTrackWidget({ widget, mode, interactive = true 
   const fieldFormulas = widget.data.fieldFormulas as Record<string, string> | undefined;
   const { min, max } = getTrackBounds(widget.data);
   const range = max - min;
-  const value = getTrackValue(widget.data);
+  const value = effectValue ?? getTrackValue(widget.data);
   const style = getTrackStyle(widget.data);
   const step = typeof increment === 'number' && Number.isFinite(increment) ? Math.max(1, Math.round(increment)) : 1;
 

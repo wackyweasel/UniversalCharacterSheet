@@ -25,6 +25,8 @@ import { RichTextField } from '../RichTextField';
 import { Tooltip } from '../Tooltip';
 import { VariableLabelControl } from '../VariableLabelControl';
 import { AddMultipleToggle } from './StructureDialogControls';
+import { ItemEffectsEditor } from './ItemEffectsEditor';
+import { getItemEffectBaseValues } from '../../utils/itemEffects';
 
 interface InventoryItemDialogProps {
   item?: InventoryItem;
@@ -74,7 +76,10 @@ export default function InventoryItemDialog({
   const [addMultiple, setAddMultiple] = useState(false);
   const [descriptionEnabled, setDescriptionEnabled] = useState(() => Boolean(item?.description?.trim()));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [effectsValid, setEffectsValid] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const compendium = useStore((state) => state.characters.find((character) => character.id === state.activeCharacterId)?.compendium);
+  const character = useStore((state) => state.characters.find((entry) => entry.id === state.activeCharacterId));
   const compendiumSections = useMemo(() => getCompendiumSections({ compendium }).filter((section) => section.items.length > 0), [compendium]);
   const allCompendiumSections = useMemo(() => getCompendiumSections({ compendium }), [compendium]);
   const saveCompendiumItem = useStore((state) => state.saveCompendiumItem);
@@ -229,28 +234,54 @@ export default function InventoryItemDialog({
   };
 
   const saveToCompendium = (section: CompendiumSection) => {
-    const entry = createCompendiumEntryFromItem({
+    const entry = createCompendiumEntryFromItem(getItemEffectBaseValues(character, {
       ...draft,
       description: descriptionEnabled ? draft.description : undefined,
-    });
+    }));
     if (!entry) return;
-    saveCompendiumItem(section.id, entry);
+    if (!effectsValid) return;
+    try {
+      const saved = saveCompendiumItem(section.id, entry);
+      if (!saved) {
+        setSaveError('The Compendium section no longer exists.');
+        return;
+      }
+      setDraft((current) => ({ ...current, effects: current.effects?.map((effect, index) => ({
+        ...effect, target: saved.effects?.[index]?.target,
+      })) }));
+    } catch (error) {
+      console.error('Could not save Compendium entry', error);
+      setSaveError(error instanceof Error ? error.message : 'Could not save this entry.');
+      return;
+    }
     setSaveMenuOpen(false);
     setSavedSectionName(section.name);
   };
 
   const handleClone = () => {
     const name = draft.name.trim();
-    if (!name) return;
-    onClone?.({ ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined });
+    if (!name || !effectsValid) return;
+    try {
+      onClone?.(getItemEffectBaseValues(character, { ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined }));
+    } catch (error) {
+      console.error('Could not clone item', error);
+      setSaveError(error instanceof Error ? error.message : 'Could not clone this item.');
+      return;
+    }
     onClose();
   };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const name = draft.name.trim();
-    if (!name) return;
-    onSave({ ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined });
+    if (!name || !effectsValid) return;
+    try {
+      onSave({ ...draft, name, description: descriptionEnabled && draft.description?.trim() ? draft.description : undefined });
+    } catch (error) {
+      console.error('Could not save item', error);
+      setSaveError(error instanceof Error ? error.message : 'Could not save this item.');
+      return;
+    }
     if (!isEditing && addMultiple) {
       setDraft(createInventoryItem('', defaultFields));
       setDescriptionEnabled(false);
@@ -371,6 +402,17 @@ export default function InventoryItemDialog({
               </div>
             )}
           </section>
+
+          <ItemEffectsEditor
+            key={draft.id}
+            item={draft}
+            onChange={(effects) => {
+              setDraft((current) => ({ ...current, effects }));
+              setSaveError(null);
+            }}
+            onValidityChange={setEffectsValid}
+          />
+          {saveError && <p role="alert" className="text-xs text-red-500">{saveError}</p>}
 
           <section>
             <h3 className="font-heading text-xs font-bold">Default attributes</h3>
@@ -519,7 +561,7 @@ export default function InventoryItemDialog({
               <button
                 type="button"
                 onClick={() => { setSavedSectionName(null); setSaveMenuOpen((open) => !open); }}
-                disabled={!draft.name.trim()}
+                disabled={!draft.name.trim() || !effectsValid}
                 aria-expanded={saveMenuOpen}
                 className="widget-control px-2.5 py-1 text-xs"
               >
@@ -527,12 +569,12 @@ export default function InventoryItemDialog({
               </button>
             )}
             {isEditing && onClone && (
-              <button type="button" onClick={handleClone} disabled={!draft.name.trim()} className="widget-control px-2.5 py-1 text-xs">
+              <button type="button" onClick={handleClone} disabled={!draft.name.trim() || !effectsValid} className="widget-control px-2.5 py-1 text-xs">
                 Clone {noun}
               </button>
             )}
             <button type="button" onClick={onClose} className="widget-control px-2.5 py-1 text-xs">Cancel</button>
-            <button type="submit" disabled={!draft.name.trim()} className="widget-control widget-control--primary px-3 py-1 text-xs">
+            <button type="submit" disabled={!draft.name.trim() || !effectsValid} className="widget-control widget-control--primary px-3 py-1 text-xs">
               {isEditing ? `Save ${noun}` : `Add ${noun}`}
             </button>
           </div>

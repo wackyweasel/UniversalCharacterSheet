@@ -56,8 +56,8 @@ interface ShareExportMenuProps {
   onCollapseAll?: () => void;
   attachmentControlsVisible: boolean;
   onToggleAttachmentControls: () => void;
-  eventsOpen?: boolean;
-  onToggleEvents?: () => void;
+  automationsOpen?: boolean;
+  onToggleAutomations?: () => void;
   compendiumOpen?: boolean;
   onToggleCompendium?: () => void;
   inlineActionIds?: ReadonlySet<string>;
@@ -100,8 +100,8 @@ export default function ShareExportMenu({
   onCollapseAll,
   attachmentControlsVisible,
   onToggleAttachmentControls,
-  eventsOpen = false,
-  onToggleEvents,
+  automationsOpen = false,
+  onToggleAutomations,
   compendiumOpen = false,
   onToggleCompendium,
   inlineActionIds = new Set(),
@@ -171,7 +171,7 @@ export default function ShareExportMenu({
     Boolean(onAddWidget && !inlineActionIds.has('add-widget')) ||
     Boolean(onChangeTheme && !inlineActionIds.has('theme')) ||
     Boolean(onAutoStack && !inlineActionIds.has('auto-stack')) ||
-    Boolean(onToggleEvents && !inlineActionIds.has('events')) ||
+    Boolean(onToggleAutomations && !inlineActionIds.has('automations')) ||
     Boolean(onToggleCompendium && !inlineActionIds.has('compendium')) ||
     Boolean((onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand'));
 
@@ -318,7 +318,7 @@ export default function ShareExportMenu({
                 {onAddWidget && !inlineActionIds.has('add-widget') && <Tooltip content="Open the widget toolbox" placement="below"><button type="button" data-tutorial="add-widget-button-mobile" onClick={() => { onAddWidget(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PlusIcon className="h-4 w-4" />Add Widget</button></Tooltip>}
                 {onChangeTheme && !inlineActionIds.has('theme') && <Tooltip content={changeThemeLabel === 'Change Theme' ? 'Open theme customization' : 'Close theme customization'} placement="below"><button type="button" data-tutorial="theme-button-mobile" onClick={() => { onChangeTheme(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><PaletteIcon className="h-4 w-4" />{changeThemeLabel}</button></Tooltip>}
                 {onAutoStack && !inlineActionIds.has('auto-stack') && <Tooltip content="Arrange canvas widgets into columns automatically" placement="below"><button type="button" onClick={() => { onAutoStack(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><RowsIcon className="h-4 w-4" />Auto Stack</button></Tooltip>}
-                {onToggleEvents && !inlineActionIds.has('events') && <Tooltip content={eventsOpen ? 'Close the events panel' : 'Things that happen automatically on this sheet'} placement="below"><button type="button" data-tutorial="events-button-mobile" onClick={() => { onToggleEvents(); onOpenChange(false); }} aria-expanded={eventsOpen} aria-controls="events-panel" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><BoltIcon className="h-4 w-4" />Events</button></Tooltip>}
+                {onToggleAutomations && !inlineActionIds.has('automations') && <Tooltip content={automationsOpen ? 'Close automations' : 'Labels, formulas, events and effects'} placement="below"><button type="button" data-tutorial="automations-button-mobile" onClick={() => { onToggleAutomations(); onOpenChange(false); }} aria-expanded={automationsOpen} aria-controls="automations-panel" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><BoltIcon className="h-4 w-4" />Automations</button></Tooltip>}
                 {onToggleCompendium && !inlineActionIds.has('compendium') && <Tooltip content={compendiumOpen ? 'Close the compendium panel' : 'Reusable items, spells and more'} placement="below"><button type="button" onClick={() => { onToggleCompendium(); onOpenChange(false); }} aria-expanded={compendiumOpen} aria-controls="compendium-panel" className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><BookIcon className="h-4 w-4" />Compendium</button></Tooltip>}
                 {(onExpandAll || onCollapseAll) && !inlineActionIds.has('collapse-expand') && <>
                   {onExpandAll && <Tooltip content="Expand every widget in the list" placement="below"><button type="button" onClick={() => { onExpandAll(); onOpenChange(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"><ChevronDownIcon className="h-4 w-4" />Expand All</button></Tooltip>}

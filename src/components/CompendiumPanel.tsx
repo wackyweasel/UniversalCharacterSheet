@@ -458,7 +458,7 @@ export default function CompendiumPanel() {
         key={item.id}
         data-compendium-entry-row="true"
         data-compendium-entry-id={item.id}
-        className="compendium-entry flex items-start gap-1.5 rounded-button border border-theme-border-soft bg-theme-background/40 px-2 py-2"
+        className="compendium-entry flex items-start gap-1.5 rounded-theme border border-theme-border-soft bg-theme-background/40 px-2 py-2"
       >
         <button
           type="button"

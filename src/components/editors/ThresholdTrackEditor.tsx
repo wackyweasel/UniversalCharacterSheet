@@ -5,6 +5,7 @@ import { PlusIcon, ResetIcon, TrashIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
 import { CollapsibleSection } from './CollapsibleSection';
 import { LabeledNumberField } from './LabeledNumberField';
+import { EffectsEditButton } from './EffectsEditButton';
 import {
   clampTrackValue,
   getTrackBounds,
@@ -216,6 +217,7 @@ export function ThresholdTrackEditor({ widget, updateData }: EditorProps) {
                       allowEmpty
                     />
                   </div>
+                  <EffectsEditButton widget={widget} collection="trackThresholds" index={index} onSave={updateData} />
                   <div className="min-w-0">
                     <span className="mb-1 block text-xs text-theme-muted">Modifier</span>
                     <OptionalIntegerInput

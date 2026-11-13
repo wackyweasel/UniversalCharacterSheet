@@ -7,6 +7,10 @@ import type {
   DisplayNumber,
   FormItem,
   MixedField,
+  InventoryItem,
+  ItemEffect,
+  NumericTargetCollection,
+  NumericTargetReference,
   NumberItem,
   PoolResource,
   ProgressClockItem,
@@ -23,10 +27,14 @@ import { getEventEffects } from '../events/steps';
 import { getEventProblems, getEventTitle } from '../events/registry';
 import { getCardTableBackDesign, getCardTableCards, getCardTableDiscardedCards, normalizeCardTableOrigins } from './cardTable';
 import { getHealDiceExpression, parseDiceExpression } from './diceExpression';
-import { adaptInventoryItem, DEFAULT_INVENTORY_ENCUMBRANCE, ensureWeightTemplate } from './inventory';
+import { adaptInventoryItem, DEFAULT_INVENTORY_ENCUMBRANCE, ensureWeightTemplate, remapInventoryItemTarget } from './inventory';
 import { createDefaultInventorySlots } from './inventorySlots';
 import { getActiveNoteContent, getNoteTabs } from './noteTabs';
 import { DEFAULT_WALLET_RATE, normalizeWalletAmount } from './wallet';
+import { bindItemEffectTargets, collectNumericTargets, numericTargetKey, type NumericTarget } from './numericTargets';
+import { getWidgetEffectSources, mapWidgetEffects } from './widgetEffects';
+import { reconcileItemEffects, stripItemEffectContributions } from './itemEffects';
+import { getWidgetTitle } from './characterVariables';
 
 export interface WidgetConversion {
   /** The full data of the converted widget. */
@@ -39,6 +47,8 @@ export interface WidgetConversion {
   carried: string[];
   /** How much content the converted widget holds, such as "14 items". */
   summary?: string;
+  /** Effect-aware character conversion, shared by preview and execution. */
+  character?: Character;
 }
 
 /** Some conversions keep one thing out of several; the user picks which. */
@@ -52,6 +62,7 @@ export interface ConversionOptions {
   choice?: number;
   /** Titles of the places that use a variable label, used to tell a harmless loss from a harmful one. */
   labelUsers?: (label: string) => string[];
+  character?: Character;
 }
 
 interface ConverterOutput {
@@ -138,6 +149,7 @@ function ok(data: WidgetData, warnings: string[] = [], notes: string[] = []): Co
 
 const checklistToConditions: Converter = (data) => ok({
   toggleItems: (data.checkboxItems ?? []).map((item): ToggleItem => ({
+    ...pick(item, ['id', 'effects']),
     name: item.name,
     active: item.checked,
     ...(item.tooltip ? { tooltip: item.tooltip } : {}),
@@ -146,24 +158,25 @@ const checklistToConditions: Converter = (data) => ok({
 
 const conditionsToChecklist: Converter = (data) => ok({
   checkboxItems: (data.toggleItems ?? []).map((item): CheckboxItem => ({
+    ...pick(item, ['id', 'effects']),
     name: item.name,
     checked: item.active,
     ...(item.tooltip ? { tooltip: item.tooltip } : {}),
   })),
 });
 
-const switchToChecklist: Converter = (data) => ok({
-  checkboxItems: [{ name: data.label || 'Item', checked: data.toggleState === true }],
+const switchToChecklist: Converter = (data, widgetId) => ok({
+  checkboxItems: [{ name: data.label || 'Item', checked: data.toggleState === true, ...(data.effects ? { id: widgetId, effects: data.effects } : {}) }],
 });
 
-const switchToConditions: Converter = (data) => ok({
-  toggleItems: [{ name: data.label || 'Item', active: data.toggleState === true }],
+const switchToConditions: Converter = (data, widgetId) => ok({
+  toggleItems: [{ name: data.label || 'Item', active: data.toggleState === true, ...(data.effects ? { id: widgetId, effects: data.effects } : {}) }],
 });
 
 // ----- Number tracker and number display -----
 
 const NUMBER_SHARED_KEYS = [
-  'value', 'showPositiveSign', 'valueLabel', 'valueFormula',
+  'id', 'value', 'showPositiveSign', 'valueLabel', 'valueFormula',
   'minValue', 'minValueLabel', 'minValueFormula',
   'maxValue', 'maxValueLabel', 'maxValueFormula', 'tooltip',
 ] as const;
@@ -287,7 +300,7 @@ const rollTableToList: Converter = (data) => {
 const rollTableToTable: Converter = (data) => ok({
   columns: ['Result', 'Weight', 'Description'],
   rows: (data.rollTableItems ?? []).map((item) => ({
-    cells: [item.text, String(item.weight), item.description ?? ''],
+    cells: [item.text, item.id ? { id: item.id, value: String(item.weight) } : String(item.weight), item.description ?? ''],
   })),
 });
 
@@ -397,7 +410,7 @@ const checklistToMixed: Converter = (data) => ok({
     type: 'switch',
     name: item.name,
     value: item.checked,
-    ...pick(item, ['tooltip']),
+    ...pick(item, ['id', 'tooltip', 'effects']),
   })),
 });
 
@@ -406,7 +419,7 @@ const conditionsToMixed: Converter = (data) => ok({
     type: 'switch',
     name: item.name,
     value: item.active,
-    ...pick(item, ['tooltip']),
+    ...pick(item, ['id', 'tooltip', 'effects']),
   })),
 });
 
@@ -459,7 +472,7 @@ const mixedToChecklist = mixedConverter(
   (field) => field.type === 'switch',
   (fields) => ({
     checkboxItems: fields.flatMap((field): CheckboxItem[] => (
-      field.type === 'switch' ? [{ name: field.name, checked: field.value, ...pick(field, ['tooltip']) }] : []
+      field.type === 'switch' ? [{ name: field.name, checked: field.value, ...pick(field, ['id', 'tooltip', 'effects']) }] : []
     )),
   }),
 );
@@ -468,7 +481,7 @@ const mixedToConditions = mixedConverter(
   (field) => field.type === 'switch',
   (fields) => ({
     toggleItems: fields.flatMap((field): ToggleItem[] => (
-      field.type === 'switch' ? [{ name: field.name, active: field.value, ...pick(field, ['tooltip']) }] : []
+      field.type === 'switch' ? [{ name: field.name, active: field.value, ...pick(field, ['id', 'tooltip', 'effects']) }] : []
     )),
   }),
 );
@@ -515,7 +528,7 @@ function getPoolResources(data: WidgetData): PoolResource[] {
 
 const poolToClocks: Converter = (data) => ok({
   clockItems: getPoolResources(data).map((resource): ProgressClockItem => ({
-    id: uuidv4(),
+    id: resource.id ?? uuidv4(),
     name: resource.name,
     segments: resource.max,
     value: resource.current,
@@ -530,6 +543,7 @@ const poolToClocks: Converter = (data) => ok({
 
 const clocksToPool: Converter = (data) => ok({
   poolResources: (data.clockItems ?? []).map((item): PoolResource => ({
+    ...(item.id ? { id: item.id } : {}),
     name: item.name,
     max: item.segments,
     current: item.value,
@@ -549,6 +563,7 @@ const spellSlotsToPool: Converter = (data) => {
   const shape = data.spellSlotShape ?? 'circle';
   return ok({
     poolResources: (data.spellLevels ?? DEFAULT_SPELL_LEVELS).map((level): PoolResource => ({
+      ...(level.id ? { id: level.id } : {}),
       name: `Level ${level.level}`,
       max: level.max,
       current: Math.max(0, level.max - level.used),
@@ -564,6 +579,7 @@ const poolToSpellSlots: Converter = (data) => {
   const renamed = resources.some((resource, index) => resource.name !== `Level ${index + 1}`);
   return ok({
     spellLevels: resources.map((resource, index): SpellLevel => ({
+      ...(resource.id ? { id: resource.id } : {}),
       level: index + 1,
       max: resource.max,
       used: Math.min(resource.max, Math.max(0, resource.max - resource.current)),
@@ -578,7 +594,7 @@ const poolToSpellSlots: Converter = (data) => {
 const walletToNumber: Converter = (data) => {
   const currencies = data.walletCurrencies ?? [];
   return ok({
-    numberItems: currencies.map((currency): NumberItem => ({ name: currency.name, value: currency.amount })),
+    numberItems: currencies.map((currency): NumberItem => ({ ...(currency.id ? { id: currency.id } : {}), name: currency.name, value: currency.amount })),
     showIncrementButtons: true,
   }, currencies.length > 1 ? ['Exchange rates and the total are removed.'] : []);
 };
@@ -597,6 +613,7 @@ const numberToWallet: Converter = (data) => {
   }
   return ok({
     walletCurrencies: items.map((item, index): WalletCurrency => ({
+      ...(item.id ? { id: item.id } : {}),
       name: item.name,
       amount: normalizeWalletAmount(item.value),
       rate: index === 0 ? 1 : DEFAULT_WALLET_RATE,
@@ -670,11 +687,12 @@ function mixedSingle<T extends MixedField>(
   };
 }
 
-const switchToMixed: Converter = (data) => ok({
+const switchToMixed: Converter = (data, widgetId) => ok({
   mixedFields: [{
     type: 'switch',
     name: data.label || 'Switch',
     value: data.toggleState === true,
+    ...(data.effects ? { id: widgetId, effects: data.effects } : {}),
     ...(data.fieldLabels?.state ? { valueLabel: data.fieldLabels.state } : {}),
     ...(data.fieldFormulas?.state ? { valueFormula: data.fieldFormulas.state } : {}),
     ...(data.toggleColor ? { toggleColor: data.toggleColor } : {}),
@@ -687,6 +705,7 @@ const mixedToSwitch = mixedSingle(
     label: field.name,
     toggleState: field.value,
     toggleColor: field.toggleColor,
+    effects: field.effects,
     fieldLabels: compactRecord({ state: field.valueLabel }),
     fieldFormulas: compactRecord({ state: field.valueFormula }),
   }),
@@ -858,6 +877,7 @@ const mixedToDisplay = mixedConverter(
 
 const poolToMixed: Converter = (data) => ok({
   mixedFields: getPoolResources(data).map((resource): MixedField => ({
+    ...(resource.id ? { id: resource.id } : {}),
     type: 'resource',
     name: resource.name,
     current: resource.current,
@@ -874,6 +894,7 @@ const mixedToPool = mixedConverter(
     poolResources: fields.flatMap((field): PoolResource[] => (
       field.type === 'resource'
         ? [{
+            ...(field.id ? { id: field.id } : {}),
             name: field.name,
             current: field.current,
             max: field.max,
@@ -889,6 +910,7 @@ const mixedToPool = mixedConverter(
 const stepDiceToMixed: Converter = (data) => ok({
   ...pick(data, ['itemColumns', 'wrapItemNames']),
   mixedFields: (data.stepDiceItems ?? []).map((item): MixedField => ({
+    ...(item.id ? { id: item.id } : {}),
     type: 'step-dice',
     name: item.name,
     currentStep: item.currentStep,
@@ -912,6 +934,7 @@ const mixedToStepDice: Converter = (data) => {
   return ok({
     ...pick(data, ['itemColumns', 'wrapItemNames']),
     stepDiceItems: fields.map((field) => ({
+      ...(field.id ? { id: field.id } : {}),
       name: field.name,
       currentStep: field.currentStep,
       ...(field.tooltip ? { tooltip: field.tooltip } : {}),
@@ -937,6 +960,7 @@ const numberToPool: Converter = (data) => {
     poolResources: items.map((item): PoolResource => {
       const max = item.maxValue ?? Math.max(5, item.value);
       return {
+        ...(item.id ? { id: item.id } : {}),
         name: item.name,
         max,
         current: Math.min(max, Math.max(0, item.value)),
@@ -954,6 +978,7 @@ const numberToPool: Converter = (data) => {
 
 const poolToNumber: Converter = (data) => ok({
   numberItems: getPoolResources(data).map((resource): NumberItem => ({
+    ...(resource.id ? { id: resource.id } : {}),
     name: resource.name,
     value: resource.current,
     minValue: 0,
@@ -992,7 +1017,8 @@ const tableToRollTable: Converter = (data) => {
     const weight = Number(second);
     const hasWeight = second !== '' && Number.isFinite(weight) && weight > 0;
     const description = (hasWeight ? cellValue(row.cells[2]) : second).trim();
-    return [{ text, weight: hasWeight ? weight : 1, ...(description ? { description } : {}) }];
+    const cell = row.cells[1];
+    return [{ ...(hasWeight && typeof cell === 'object' && cell.id ? { id: cell.id } : {}), text, weight: hasWeight ? weight : 1, ...(description ? { description } : {}) }];
   });
   return ok({ rollTableItems: items }, (data.columns?.length ?? 0) > 3 ? ['Only the first three columns are used.'] : []);
 };
@@ -1242,7 +1268,176 @@ export function convertWidgetData(
   if (carriedFormulas.length > 0) carried.push(`Formulas: ${carriedFormulas.join(', ')}`);
   if (lostFormulas.length > 0) warnings.push(`Formulas removed: ${lostFormulas.join(', ')}`);
 
-  return { data, warnings, notes, carried, summary: summarizeContent(target, data) };
+  const result: WidgetConversion = { data, warnings, notes, carried, summary: summarizeContent(target, data) };
+  return options.character && widget.id
+    ? carryConversionEffects(widget as Widget, target, result, options.character, options.choice)
+    : result;
+}
+
+const NUMERIC_COLLECTIONS: Partial<Record<WidgetType, NumericTargetCollection>> = {
+  NUMBER: 'numberItems', NUMBER_DISPLAY: 'displayNumbers', MIXED_FIELDS: 'mixedFields',
+  POOL: 'poolResources', PROGRESS_CLOCK: 'clockItems', WALLET: 'walletCurrencies',
+  SPELL_SLOT: 'spellLevels', STEP_DICE: 'stepDiceItems',
+};
+
+const VALUE_FIELDS: Partial<Record<WidgetType, string>> = {
+  NUMBER: 'value', NUMBER_DISPLAY: 'value', PROGRESS_BAR: 'currentValue',
+  HEALTH_BAR: 'currentValue', THRESHOLD_TRACK: 'currentValue', POOL: 'current',
+  PROGRESS_CLOCK: 'value', WALLET: 'amount', SPELL_SLOT: 'used', STEP_DICE: 'currentStep',
+};
+const MAX_FIELDS: Partial<Record<WidgetType, string>> = {
+  NUMBER: 'maxValue', NUMBER_DISPLAY: 'maxValue', PROGRESS_BAR: 'maxValue',
+  HEALTH_BAR: 'maxValue', THRESHOLD_TRACK: 'maxValue', POOL: 'max',
+  PROGRESS_CLOCK: 'segments', SPELL_SLOT: 'max',
+};
+
+function conversionTarget(source: NumericTarget, widget: Widget, type: WidgetType, data: WidgetData, candidates: NumericTarget[], choice: number): { target: NumericTarget; scale: number } | undefined {
+  const ref = source.ref;
+  if (ref.kind !== 'widget') return undefined;
+  const exact = candidates.find((candidate) => numericTargetKey(candidate.ref) === numericTargetKey(ref));
+  if (exact) return { target: exact, scale: 1 };
+  if ((widget.type === 'TABLE' && type === 'ROLL_TABLE') || (widget.type === 'ROLL_TABLE' && type === 'TABLE')) {
+    const mapped = candidates.find((candidate) => candidate.ref.kind === 'widget'
+      && candidate.ref.entryId === ref.entryId
+      && candidate.ref.collection === (type === 'TABLE' ? 'tableCells' : 'rollTableItems')
+      && candidate.ref.field === (type === 'TABLE' ? 'value' : 'weight'));
+    return mapped ? { target: mapped, scale: 1 } : undefined;
+  }
+  if (ref.collection === 'inventoryItems' || ref.collection === 'inventoryFields') {
+    const item = widget.data.inventoryItems?.find((entry) => entry.id === ref.entryId || entry.fields.some((field) => field.id === ref.entryId));
+    const converted = data.inventoryItems?.find((entry) => entry.id === item?.id);
+    const nextRef = item && converted && remapInventoryItemTarget(ref, item, converted, widget.id);
+    const mapped = nextRef && candidates.find((candidate) => numericTargetKey(candidate.ref) === numericTargetKey(nextRef));
+    return mapped ? { target: mapped, scale: 1 } : undefined;
+  }
+  const targetCollection = NUMERIC_COLLECTIONS[type];
+  const sourceCollection = NUMERIC_COLLECTIONS[widget.type];
+  let field = ref.field;
+  let scale = 1;
+  if (widget.type === 'MIXED_FIELDS') {
+    const entry = widget.data.mixedFields?.find((item) => item.id === ref.entryId);
+    if (!entry) return undefined;
+    const valueField = entry.type === 'number' ? 'value' : entry.type === 'progress' || entry.type === 'resource' ? 'current' : 'currentStep';
+    const maxField = entry.type === 'number' ? 'maxValue' : 'max';
+    if (field === valueField) field = VALUE_FIELDS[type] ?? field;
+    else if (field === maxField) field = MAX_FIELDS[type] ?? field;
+    else if (field === 'min' || field === 'minValue') field = 'minValue';
+  } else if (type === 'MIXED_FIELDS') {
+    if (field === VALUE_FIELDS[widget.type]) field = widget.type === 'POOL' ? 'current' : 'value';
+    else if (field === MAX_FIELDS[widget.type]) field = widget.type === 'POOL' ? 'max' : 'maxValue';
+    if (widget.type === 'PROGRESS_BAR') field = ref.field === 'currentValue' ? 'current' : ref.field === 'minValue' ? 'min' : 'max';
+    if (widget.type === 'STEP_DICE') field = 'currentStep';
+  } else {
+    if (field === VALUE_FIELDS[widget.type]) field = VALUE_FIELDS[type] ?? field;
+    else if (field === MAX_FIELDS[widget.type]) field = MAX_FIELDS[type] ?? field;
+  }
+  if (widget.type === 'POOL' && !ref.collection) field = ref.field === 'currentPool' ? VALUE_FIELDS[type] ?? 'current' : MAX_FIELDS[type] ?? 'max';
+  if (widget.type === 'SPELL_SLOT' || type === 'SPELL_SLOT') {
+    // A maximum changes both max and remaining/used in the converted representation.
+    if (ref.field === 'max' || ref.field === 'maxPool') return undefined;
+    scale = -1;
+  }
+  if (widget.type === 'PROGRESS_BAR' && type === 'PROGRESS_CLOCK' && ref.field === 'minValue') return undefined;
+  if (ref.collection && ref.collection !== sourceCollection) return undefined;
+  let matching = candidates.filter((candidate) => candidate.ref.kind === 'widget' && candidate.ref.collection === targetCollection && candidate.ref.field === field);
+  if (ref.entryId && targetCollection) matching = matching.filter((candidate) => candidate.ref.kind === 'widget' && candidate.ref.entryId === ref.entryId);
+  if (ref.entryId && !targetCollection) {
+    const entries = widget.type === 'NUMBER' ? widget.data.numberItems
+      : widget.type === 'PROGRESS_CLOCK' ? widget.data.clockItems
+        : widget.type === 'MIXED_FIELDS' ? widget.data.mixedFields?.filter((entry) => entry.type === 'progress') : undefined;
+    if (entries?.[clampChoice(choice, entries.length)]?.id !== ref.entryId) return undefined;
+  }
+  return matching.length === 1 ? { target: matching[0], scale } : undefined;
+}
+
+function carryConversionEffects(widget: Widget, type: WidgetType, result: WidgetConversion, character: Character, choice = 0): WidgetConversion {
+  const allItems = [
+    ...character.sheets.flatMap((sheet) => sheet.widgets.flatMap((entry) => getWidgetEffectSources(entry).map((item) => ({ item, owner: entry.id, source: `${sheet.name} - ${getWidgetTitle(entry)}` })))),
+    ...(character.compendium ?? []).flatMap((section) => section.items.map((item) => ({ item, owner: `library:${section.id}`, source: `Compendium - ${section.name}` }))),
+  ];
+  const relevant = allItems.flatMap(({ item, owner, source }) => (item.effects ?? []).filter((effect) => (
+    owner === widget.id || (effect.target?.kind === 'widget' && effect.target.widgetId === widget.id)
+  )).map((effect) => ({ item, owner, source, effect })));
+  if (!relevant.length) return result;
+  const stripped = stripItemEffectContributions(character);
+  const baseWidget = stripped.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widget.id)!;
+  const baseOutput = CONVERTERS[widget.type]?.[type]?.(baseWidget.data, widget.id, choice);
+  if (!baseOutput) throw new Error('This widget cannot be converted after removing its item bonuses.');
+  let converted: Character = {
+    ...stripped,
+    sheets: stripped.sheets.map((sheet) => ({
+      ...sheet, widgets: sheet.widgets.map((entry) => entry.id === widget.id
+        ? { ...entry, type, data: compact({ ...pick(widget.data, KEPT_KEYS), ...baseOutput.data, ...(widget.data.autoActivateItems !== undefined && baseOutput.data.inventoryItems ? { autoActivateItems: widget.data.autoActivateItems } : {}) }) } : entry),
+    })),
+  };
+  const sourceTargets = collectNumericTargets(character);
+  const mappings = new Map<string, { target: NumericTargetReference; scale: number }>();
+  const effectMappings = new Map<string, { target: NumericTargetReference; scale: number }>();
+  const invalidated = new Set<string>();
+  const effectKey = (owner: string, item: Pick<InventoryItem, 'id'>, effect: ItemEffect) => JSON.stringify([owner, item.id, effect.id]);
+  const convertedWidget = () => converted.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widget.id)!;
+  const survivingSources = new Map<string, string>();
+  const carried: string[] = [];
+  const lost: string[] = [];
+  for (const { item, owner, source: ownerSource, effect } of relevant) {
+    const description = `Effect on "${item.name}" (${ownerSource}): ${effect.targetName || 'value'} (${effect.amount >= 0 ? '+' : ''}${effect.amount})`;
+    if (owner === widget.id) {
+      const survivors = getWidgetEffectSources(convertedWidget()).filter((entry) => entry.id === item.id || entry.effects === item.effects);
+      if (survivors.length !== 1) {
+        lost.push(`${description} - its source is removed.`);
+        continue;
+      }
+      survivingSources.set(survivors[0].key, item.id);
+    }
+    if (effect.target?.kind !== 'widget' || effect.target.widgetId !== widget.id) {
+      const target = effect.target && collectNumericTargets(converted).find((candidate) => numericTargetKey(candidate.ref) === numericTargetKey(effect.target!));
+      if (target && !target.problem) carried.push(description);
+      else lost.push(`${description} - target unavailable; rebind this effect.`);
+      continue;
+    }
+    const key = numericTargetKey(effect.target);
+    let mapped = mappings.get(key);
+    if (!mapped) {
+      const source = sourceTargets.find((entry) => numericTargetKey(entry.ref) === key);
+      const candidates = collectNumericTargets(converted).filter((entry) => entry.ref.kind === 'widget' && entry.ref.widgetId === widget.id);
+      const found = source && conversionTarget(source, baseWidget, type, convertedWidget().data, candidates, choice);
+      if (found && !found.target.problem) {
+        const bound = bindItemEffectTargets(converted, { id: 'conversion', name: '', fields: [], effects: [{ id: 'conversion', target: found.target.ref, amount: 0 }] });
+        converted = bound.character;
+        mapped = { target: bound.item.effects![0].target!, scale: found.scale };
+        mappings.set(key, mapped);
+      }
+    }
+    const destination = mapped && collectNumericTargets(converted).find((target) => numericTargetKey(target.ref) === numericTargetKey(mapped!.target));
+    const source = sourceTargets.find((target) => numericTargetKey(target.ref) === key);
+    if (mapped && !(destination?.integer !== source?.integer && !Number.isInteger(effect.amount))) {
+      effectMappings.set(effectKey(owner, item, effect), mapped);
+      carried.push(`${description}${mapped.scale < 0 ? ' - sign reversed for the converted value.' : ''}`);
+    } else {
+      invalidated.add(effectKey(owner, item, effect));
+      lost.push(`${description} - its value is removed or has no compatible numeric representation; rebind this effect.`);
+    }
+  }
+  const updateItem = <T extends Pick<InventoryItem, 'id' | 'effects'>>(item: T, owner: string): T => item.effects ? {
+    ...item, effects: item.effects.map((effect): ItemEffect => {
+      const mapping = effectMappings.get(effectKey(owner, item, effect));
+      return mapping ? { ...effect, target: mapping.target, amount: effect.amount * mapping.scale }
+        : invalidated.has(effectKey(owner, item, effect)) ? { ...effect, target: undefined } : effect;
+    }),
+  } : item;
+  converted = {
+    ...converted,
+    sheets: converted.sheets.map((sheet) => ({
+      ...sheet, widgets: sheet.widgets.map((entry) => mapWidgetEffects(entry, (source) => updateItem({
+        ...source,
+        id: entry.id === widget.id ? survivingSources.get(source.key) ?? source.id : source.id,
+      }, entry.id).effects)),
+    })),
+    ...(converted.compendium ? { compendium: converted.compendium.map((section) => ({ ...section, items: section.items.map((item) => updateItem(item, `library:${section.id}`)) })) } : {}),
+  };
+  converted = reconcileItemEffects(undefined, converted);
+  const data = converted.sheets.flatMap((sheet) => sheet.widgets).find((entry) => entry.id === widget.id)!.data;
+  return { ...result, data, character: converted, carried: [...result.carried, ...carried], warnings: [...result.warnings, ...lost] };
 }
 
 function mixedChoice(type: MixedField['type'], label: string) {

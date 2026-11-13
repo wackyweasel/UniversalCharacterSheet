@@ -3,6 +3,7 @@ import { EditorProps } from './types';
 import { Tooltip } from '../Tooltip';
 import { TrashIcon } from '../icons';
 import { CollapsibleSection } from './CollapsibleSection';
+import { EffectsEditButton } from './EffectsEditButton';
 
 export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
   const { roundMode = false, effectSuggestions = [] } = widget.data;
@@ -34,6 +35,18 @@ export function TimeTrackerEditor({ widget, updateData }: EditorProps) {
           </ul>
         </div>
       </CollapsibleSection>
+      {(widget.data.timedEffects?.length ?? 0) > 0 && (
+        <CollapsibleSection title="Tracked entries">
+          <div className="space-y-2">
+            {widget.data.timedEffects!.map((entry, index) => (
+              <div key={entry.id ?? index} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-sm text-theme-ink">{entry.name}</span>
+                <EffectsEditButton widget={widget} collection="timedEffects" index={index} onSave={updateData} />
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
 
       <CollapsibleSection className="widget-editor__option-group">
         <h3 id={`time-mode-heading-${widget.id}`} className="widget-editor__section-title">Time mode</h3>
