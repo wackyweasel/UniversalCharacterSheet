@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getNumberDisplayLayout } from './numberDisplayLayout';
+import { getNumberDisplayLayout, getNumberDisplayListLayout } from './numberDisplayLayout';
 
 describe('number display layout compatibility', () => {
   it('defaults saved widgets without settings to the original horizontal sizing', () => {
@@ -103,5 +103,19 @@ describe('number display layout compatibility', () => {
       paddingLeft: '3.5999999999999996px',
       paddingRight: '3.5999999999999996px',
     });
+  });
+});
+
+describe('number display list layout', () => {
+  it('lets boxes wrap at a set size instead of filling a fixed height', () => {
+    const square = getNumberDisplayListLayout({ displayLayout: 'auto', numberBoxFixedAspectRatio: true });
+    expect(square.boxStyle).toMatchObject({ width: 'min(100%, 70px)', aspectRatio: '1' });
+    expect(square.containerClassName).toContain('flex-wrap');
+  });
+
+  it('stacks full-width boxes with room for the secondary badge in vertical layout', () => {
+    const { boxStyle, containerClassName } = getNumberDisplayListLayout({ displayLayout: 'vertical', showSecondaryDisplayNumbers: true });
+    expect(boxStyle).toMatchObject({ width: '100%', minHeight: '64px' });
+    expect(containerClassName).toContain('flex-col');
   });
 });

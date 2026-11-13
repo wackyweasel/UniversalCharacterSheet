@@ -4066,6 +4066,18 @@ button.dice-result__die--selectable:hover {
     height: auto;
   }
 
+  .vertical-widget-body .xp-level-widget {
+    height: auto;
+  }
+
+  .vertical-widget-body .xp-level__main {
+    container-type: normal;
+  }
+
+  .vertical-widget-body .xp-level__badge {
+    --xp-unit: 1px;
+  }
+
   .vertical-widget-body .progress-bar-widget--inline-label .progress-bar__inline-label {
     display: none;
   }

@@ -1,6 +1,39 @@
 import type { CSSProperties } from 'react';
 import type { WidgetData } from '../types';
 
+// List view has no fixed widget height, so boxes keep a set size and wrap instead of filling a container.
+export function getNumberDisplayListLayout(data: WidgetData) {
+  const hasStepButtons = data.showDisplayNumberButtons ?? false;
+  const layout = data.displayLayout ?? 'horizontal';
+  const fixedAspectRatio = data.numberBoxFixedAspectRatio ?? false;
+  const dynamicSize = data.numberBoxDynamic ?? true;
+  const scale = dynamicSize ? 1 : Math.min(100, Math.max(50, data.numberBoxScale ?? 100)) / 100;
+  const hasSecondary = data.showSecondaryDisplayNumbers ?? false;
+  const boxSize = (hasStepButtons ? 100 : 70) * scale;
+  const minHeight = Math.round((hasSecondary ? 64 : 48) * scale);
+  const stacked = layout === 'vertical';
+
+  const boxStyle: CSSProperties = fixedAspectRatio
+    ? { flex: '0 0 auto', width: `min(100%, ${boxSize}px)`, aspectRatio: '1', minWidth: 0 }
+    : stacked
+      ? { flex: '0 0 auto', width: '100%', minHeight: `${minHeight}px` }
+      : { flex: `1 1 ${boxSize}px`, minWidth: `min(100%, ${30 * scale}px)`, maxWidth: dynamicSize ? undefined : `${boxSize}px`, minHeight: `${minHeight}px` };
+
+  return {
+    containerClassName: `${stacked ? 'flex-col items-center' : 'flex-row flex-wrap items-stretch justify-center'} content-start`,
+    boxStyle: { ...boxStyle, padding: `${0.25 * scale}rem` },
+    secondaryBoxStyle: {
+      minHeight: `${24 * scale}px`,
+      minWidth: `${28 * scale}px`,
+      paddingLeft: `${6 * scale}px`,
+      paddingRight: `${6 * scale}px`,
+    },
+    numberFontSize: Math.max(10, Math.min(20, boxSize * 0.25)),
+    labelFontSize: Math.max(9, Math.min(10, boxSize * 0.12)),
+    secondaryFontSize: Math.max(9, Math.min(15, boxSize * 0.18)),
+  };
+}
+
 export function getNumberDisplayLayout(data: WidgetData, width: number, height: number) {
   const hasStepButtons = data.showDisplayNumberButtons ?? false;
   // Missing settings retain the original appearance of saved widgets and templates.

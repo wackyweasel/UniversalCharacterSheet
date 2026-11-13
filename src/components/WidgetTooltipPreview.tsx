@@ -825,7 +825,7 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
   },
 };
 
-function renderWidget(widget: Widget) {
+export function renderWidget(widget: Widget) {
   const props = {
     widget,
     mode: 'play' as const,

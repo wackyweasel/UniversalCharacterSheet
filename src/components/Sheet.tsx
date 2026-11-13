@@ -1518,7 +1518,10 @@ export default function Sheet() {
     const offset = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
     if (currentIndex < 0 || offset === 0) return;
 
-    const nextIndex = Math.max(0, Math.min(activeSheetWidgets.length - 1, currentIndex + offset));
+    // Label widgets are hidden in list view, so step over them.
+    let nextIndex = currentIndex + offset;
+    while (nextIndex > 0 && nextIndex < activeSheetWidgets.length - 1 && activeSheetWidgets[nextIndex].type === 'LABEL') nextIndex += offset;
+    nextIndex = Math.max(0, Math.min(activeSheetWidgets.length - 1, nextIndex));
     if (nextIndex === currentIndex) return;
     event.preventDefault();
     event.stopPropagation();

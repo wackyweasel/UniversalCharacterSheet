@@ -7,6 +7,7 @@ import { ChevronDownIcon, DotsVerticalIcon, GripVerticalIcon, PencilIcon } from 
 import { Tooltip } from './Tooltip';
 import { getWidgetTypeLabel } from '../utils/widgetMetadata';
 import WidgetEditModal from './WidgetEditModal';
+import ConvertWidgetDialog from './ConvertWidgetDialog';
 import WidgetOptionsMenu from './WidgetOptionsMenu';
 import { useLockedWidgetWheel } from '../hooks/useLockedWidgetWheel';
 import NumberWidget from './widgets/NumberWidget';
@@ -112,6 +113,7 @@ export default function VerticalWidget({
   const hasInternalHeaderLabel = !isWidgetHeaderHidden && widget.data.label && !((widget.type === 'PROGRESS_BAR' || widget.type === 'TOGGLE') && widget.data.inlineLabel);
 
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   
   // Collapsed state - load from localStorage
@@ -179,7 +181,7 @@ export default function VerticalWidget({
     const props = { widget: renderedWidget, mode: 'play' as const, width: 320, height: 10000 };
     switch (widget.type) {
       case 'NUMBER': return <NumberWidget {...props} />;
-      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} />;
+      case 'NUMBER_DISPLAY': return <NumberDisplayWidget {...props} fitContent />;
       case 'LABEL': return <LabelWidget widget={renderedWidget} />;
       case 'LIST': return <ListWidget {...props} />;
       case 'TEXT': return <TextWidget {...props} />;
@@ -219,6 +221,23 @@ export default function VerticalWidget({
       default: return null;
     }
   };
+
+  if (widget.type === 'LABEL') {
+    // Label widgets are layout headings for the grid; keep a zero-height slot so list reordering still works.
+    return (
+      <div
+        ref={(element) => {
+          rootRef.current = element;
+          registerElement(widget.id, element);
+        }}
+        data-vertical-index={index}
+        data-widget-id={widget.id}
+        className="vertical-widget-sort-item"
+        style={{ height: 0, overflow: 'hidden' }}
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <div
@@ -351,7 +370,15 @@ export default function VerticalWidget({
             setMenuOpen(false);
             openEditModal();
           }}
+          onConvert={() => {
+            setMenuOpen(false);
+            setShowConvertDialog(true);
+          }}
         />
+      )}
+
+      {showConvertDialog && (
+        <ConvertWidgetDialog widget={widget} onClose={() => setShowConvertDialog(false)} />
       )}
     </div>
   );

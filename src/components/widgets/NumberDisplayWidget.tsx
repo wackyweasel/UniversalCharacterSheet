@@ -11,7 +11,7 @@ import { WidgetEmptyState, ValueAdjustRow, applyDeltaToDraft } from './WidgetPri
 import { AddMultipleToggle, SelectionActions } from './StructureDialogControls';
 import { DEFAULT_MODIFIER_RANGES, formatSignedNumber, getModifierForValue } from '../../utils/modifierRanges';
 import { formatNumberWithSign, hasExplicitPositiveSign } from '../../utils/numberFormatting';
-import { getNumberDisplayLayout } from '../../utils/numberDisplayLayout';
+import { getNumberDisplayLayout, getNumberDisplayListLayout } from '../../utils/numberDisplayLayout';
 
 interface Props {
   widget: Widget;
@@ -19,6 +19,7 @@ interface Props {
   width: number;
   height: number;
   showFieldControls?: boolean;
+  fitContent?: boolean;
 }
 
 interface NumberEditDialog {
@@ -36,7 +37,7 @@ const parseOptionalNumber = (value: string) => {
   return Number.isFinite(parsed) ? parsed : NaN;
 };
 
-export default function NumberDisplayWidget({ widget, mode, width, height, showFieldControls = true }: Props) {
+export default function NumberDisplayWidget({ widget, mode, width, height, showFieldControls = true, fitContent = false }: Props) {
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const characters = useStore((state) => state.characters);
   const activeCharacterId = useStore((state) => state.activeCharacterId);
@@ -259,11 +260,11 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
   }, [numberDialog]);
 
   const { containerClassName, boxStyle, secondaryBoxStyle, numberFontSize, labelFontSize, secondaryFontSize } =
-    getNumberDisplayLayout(widget.data, width, height);
+    fitContent ? getNumberDisplayListLayout(widget.data) : getNumberDisplayLayout(widget.data, width, height);
   const stepButtonSize = Math.round(Math.min(22, Math.max(14, numberFontSize * 1.1)));
 
   return (
-    <div className="flex h-full w-full flex-col gap-1 overflow-hidden">
+    <div className={`flex w-full flex-col gap-1 ${fitContent ? '' : 'h-full overflow-hidden'}`}>
       {(label || controlsVisible) && (
         <div className="widget-structure-header flex min-h-6 flex-shrink-0 items-center gap-2 pr-4">
           {label && (
@@ -310,7 +311,10 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
         </div>
       )}
 
-      <div className={`flex min-h-0 min-w-0 flex-1 gap-1 p-1 ${containerClassName}`} style={{ containerType: 'size' }}>
+      <div
+        className={`flex min-w-0 gap-1 p-1 ${fitContent ? '' : 'min-h-0 flex-1'} ${containerClassName}`}
+        style={fitContent ? undefined : { containerType: 'size' }}
+      >
         {(displayNumbers as DisplayNumber[]).map((item, idx) => {
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
           const displayedValue = showDisplayNumberMax && item.maxValue !== undefined ? `${formattedValue}/${item.maxValue}` : formattedValue;

@@ -38,6 +38,15 @@ export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.17.0',
+    changes: [
+      'New: convert a widget to another type. Open a widget\'s menu (⋮ or right-click) and choose "Convert to other widget type" to see the widget before and after, then pick the new type.',
+      'Many pairs are supported, such as List ↔ Table, Checklist ↔ Conditions, Pool ↔ Progress clocks ↔ Spell slots and Inventory ↔ Codex ↔ Equipment.',
+      'The dialog shows what carries over, including labels and formulas, and what does not. You can also pick which item to keep and make the widget taller to fit.',
+            'List view: fixed Number display and XP & level widgets that were cut off, and Label widgets are now hidden.',
+    ],
+  },
+  {
     version: '1.16.0',
     changes: [
       'Most widget content should now better adapt to the size of the widget. This should significantly reduce the amount of micro-adjustments need to avoid blank spaces and scrollbars.',

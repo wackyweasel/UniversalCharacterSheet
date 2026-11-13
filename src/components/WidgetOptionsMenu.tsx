@@ -6,6 +6,7 @@ import { useStore } from '../store/useStore';
 import { useTemplateStore } from '../store/useTemplateStore';
 import { isTutorialStep, useTutorialStore } from '../store/useTutorialStore';
 import { Tooltip } from './Tooltip';
+import { canConvertWidget } from '../utils/widgetConversion';
 
 export const WIDGET_OPTIONS_OPEN_EVENT = 'widget-options-open';
 
@@ -30,6 +31,8 @@ interface Props {
   point: { x: number; y: number } | null;
   onClose: () => void;
   onEdit: () => void;
+  /** Opens the dialog that converts the widget to another type. */
+  onConvert: () => void;
   /** Hides the Group tab and Detach from Group; List view has no groups. */
   hideGroupActions?: boolean;
 }
@@ -71,7 +74,7 @@ const samePosition = (a: MenuPosition | null, b: MenuPosition | null) => (
   a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.alignLeft === b.alignLeft && a.above === b.above)
 );
 
-export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, onEdit, hideGroupActions = false }: Props) {
+export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, onEdit, onConvert, hideGroupActions = false }: Props) {
   const removeWidget = useStore((state) => state.removeWidget);
   const cloneWidget = useStore((state) => state.cloneWidget);
   const detachWidgets = useStore((state) => state.detachWidgets);
@@ -290,6 +293,20 @@ export default function WidgetOptionsMenu({ widget, anchorRef, point, onClose, o
               Clone
             </button>
           </Tooltip>
+          {canConvertWidget(widget) && (
+            <Tooltip content="Turn this widget into another widget type, keeping its content" placement="left">
+              <button
+                className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onConvert();
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 3l4 4-4 4" /><path d="M3 7h18" /><path d="M7 21l-4-4 4-4" /><path d="M21 17H3" /></svg>
+                Convert to other widget type
+              </button>
+            </Tooltip>
+          )}
           <Tooltip content={widget.locked ? 'Unlock this widget so it can be moved or edited' : 'Lock this widget to prevent changes'} placement="left">
             <button
               className="w-full px-3 py-2 text-left text-sm text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors flex items-center gap-2"

@@ -62,6 +62,7 @@ import SkillTreeWidget from './widgets/SkillTreeWidget';
 import DicePoolWidget from './widgets/DicePoolWidget';
 import CalendarWidget from './widgets/CalendarWidget';
 import WidgetEditModal from './WidgetEditModal';
+import ConvertWidgetDialog from './ConvertWidgetDialog';
 import { Tooltip } from './Tooltip';
 import { useTouchCameraPinchCancellation } from '../hooks/useTouchCamera';
 import { useLockedWidgetWheel } from '../hooks/useLockedWidgetWheel';
@@ -177,6 +178,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   useLockedWidgetWheel(nodeRef, mode !== 'print' && widget.locked === true);
   const printSettingsRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
   // The key remounts the menu so every open starts from its first tab.
   const [menu, setMenu] = useState<{ key: number; point: { x: number; y: number } | null } | null>(null);
   const menuKeyRef = useRef(0);
@@ -943,7 +945,15 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
           point={menu.point}
           onClose={closeMenu}
           onEdit={handleEditWidget}
+          onConvert={() => {
+            closeMenu();
+            setShowConvertDialog(true);
+          }}
         />
+      )}
+
+      {showConvertDialog && (
+        <ConvertWidgetDialog widget={widget} onClose={() => setShowConvertDialog(false)} />
       )}
       
       {/* Edit Modal */}

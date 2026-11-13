@@ -26,6 +26,7 @@ import { attachWidgetPairs } from '../utils/widgetAttach';
 import { createDefaultWalletCurrencies } from '../utils/wallet';
 import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
 import { createDefaultCalendarData } from '../utils/calendar';
+import { convertWidgetData } from '../utils/widgetConversion';
 import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
 import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableToGroup, renameVariableGroup } from '../utils/variableGroups';
 import {
@@ -219,6 +220,7 @@ interface StoreState {
   // Widget Actions (for active character's active sheet)
   addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }, placement?: 'smart' | 'exact') => void;
   cloneWidget: (widgetId: string) => void;
+  convertWidget: (widgetId: string, targetType: WidgetType, options?: { choice?: number; height?: number }) => void;
   addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   addGroupFromTemplate: (template: { widgets: { type: WidgetType; relativeX: number; relativeY: number; w?: number; h?: number; data: any }[]; attachments: [number, number][] }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
@@ -1213,6 +1215,43 @@ export const useStore = create<StoreState>((set, get) => {
             return c;
           })
         };
+      });
+    },
+
+    convertWidget: (widgetId, targetType, options = {}) => {
+      const character = get().characters.find((c) => c.id === get().activeCharacterId);
+      const widget = character ? getActiveSheetWidgets(character).find((candidate) => candidate.id === widgetId) : undefined;
+      const conversion = widget ? convertWidgetData(widget, targetType, { choice: options.choice }) : null;
+      if (!widget || !conversion) return;
+
+      get()._takeSnapshot('Convert widget');
+
+      set((state) => {
+        let characters = state.characters.map((c) => (
+          c.id === state.activeCharacterId
+            ? updateActiveSheetWidgets(c, (widgets) => widgets.map((w) => (
+                w.id === widgetId
+                  ? {
+                      ...w,
+                      type: targetType,
+                      data: conversion.data,
+                      ...(options.height ? { h: snapWidgetDimension(options.height) } : {}),
+                    }
+                  : w
+              )))
+            : c
+        ));
+        characters = resolveActiveCharacterFormulas(state, characters);
+
+        recordStoreEvent(state, {
+          eventName: 'widget_converted',
+          category: 'widget',
+          widgetType: targetType,
+          source: 'widget_menu',
+          metadata: { widgetId, from: widget.type },
+        });
+
+        return { characters };
       });
     },
 
