@@ -75,7 +75,7 @@ function App() {
   const endDriveStartup = useStorageWorkspaceStore((state) => state.endDriveStartup);
   const resetBrowserWorkspace = useStorageWorkspaceStore((state) => state.resetBrowserWorkspace);
   const darkMode = isDarkModeEnabled();
-  const [showChangelog, closeChangelog] = useChangelogOnLoad(isWorkspaceHydrated && !isSwitchingWorkspace);
+  const [changelog, closeChangelog] = useChangelogOnLoad(isWorkspaceHydrated && !isSwitchingWorkspace);
 
   useEffect(() => {
     void initializeWorkspaces();
@@ -170,7 +170,7 @@ function App() {
           <Sheet />
         </SheetErrorBoundary>
       ) : <CharacterList />}
-      {showChangelog && <ChangelogDialog darkMode={darkMode} onClose={closeChangelog} />}
+      {changelog && <ChangelogDialog darkMode={darkMode} onClose={closeChangelog} lastSeenVersion={changelog.lastSeenVersion} />}
       {!isSwitchingWorkspace && <DicePhysicsOverlay />}
       <DiceResultHost />
     </div>

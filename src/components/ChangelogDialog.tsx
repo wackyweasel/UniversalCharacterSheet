@@ -2,41 +2,46 @@ import { useEffect, useRef, useState } from 'react';
 import packageInfo from '../../package.json';
 import { useStore } from '../store/useStore';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { getInitiallyExpandedVersions } from '../utils/changelog';
 import { ChevronDownIcon, ChevronUpIcon, MessageIcon, XIcon } from './icons';
 
 const LAST_SEEN_VERSION_STORAGE_KEY = 'ucs:lastSeenVersion';
 
 // Brand-new users (nothing stored) are not shown a changelog, except existing users upgrading to 1.10.0.
-function shouldShowChangelogOnLoad(hasCharacters: boolean): boolean {
-  try {
-    const lastSeen = localStorage.getItem(LAST_SEEN_VERSION_STORAGE_KEY);
-    if (lastSeen === null) return packageInfo.version === '1.10.0' && hasCharacters;
-    return lastSeen !== packageInfo.version;
-  } catch {
-    return false;
-  }
+function shouldShowChangelogOnLoad(hasCharacters: boolean, lastSeen: string | null): boolean {
+  if (lastSeen === null) return packageInfo.version === '1.10.0' && hasCharacters;
+  return lastSeen !== packageInfo.version;
 }
 
 // Decides once, after the workspace is ready, whether to auto-open the changelog for a new version.
-export function useChangelogOnLoad(ready: boolean): [boolean, () => void] {
-  const [show, setShow] = useState(false);
+export function useChangelogOnLoad(ready: boolean): [{ lastSeenVersion: string | null } | null, () => void] {
+  const [changelog, setChangelog] = useState<{ lastSeenVersion: string | null } | null>(null);
   const checkedRef = useRef(false);
 
   useEffect(() => {
     if (!ready || checkedRef.current) return;
     checkedRef.current = true;
-    setShow(shouldShowChangelogOnLoad(useStore.getState().characters.length > 0));
     try {
+      const lastSeenVersion = localStorage.getItem(LAST_SEEN_VERSION_STORAGE_KEY);
+      if (shouldShowChangelogOnLoad(useStore.getState().characters.length > 0, lastSeenVersion)) {
+        setChangelog({ lastSeenVersion });
+      }
       localStorage.setItem(LAST_SEEN_VERSION_STORAGE_KEY, packageInfo.version);
     } catch {
       // Storage unavailable; the version is simply not remembered.
     }
   }, [ready]);
 
-  return [show, () => setShow(false)];
+  return [changelog, () => setChangelog(null)];
 }
 
 const CHANGELOG_ENTRIES = [
+  {
+    version: '1.17.1',
+    changes: [
+      'Notes: fixed a crash that could occur when trying to type in a note widget.',
+    ],
+  },
   {
     version: '1.17.0',
     changes: [
@@ -433,11 +438,15 @@ const EXTERNAL_LINKS = [
   },
 ] as const;
 
-export default function ChangelogDialog({ darkMode, onClose }: { darkMode: boolean; onClose: () => void }) {
+export default function ChangelogDialog({ darkMode, onClose, lastSeenVersion }: {
+  darkMode: boolean;
+  onClose: () => void;
+  lastSeenVersion?: string | null;
+}) {
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
-  const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>(() => ({
-    [CHANGELOG_ENTRIES[0].version]: true,
-  }));
+  const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>(() => (
+    Object.fromEntries(getInitiallyExpandedVersions(CHANGELOG_ENTRIES.map((entry) => entry.version), lastSeenVersion).map((version) => [version, true]))
+  ));
 
   return (
     <>

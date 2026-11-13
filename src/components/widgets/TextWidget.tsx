@@ -354,7 +354,7 @@ export default function TextWidget({ widget, height, sheetScale = 1, showFieldCo
     const list = tabListRef.current;
     setCanScrollTabs(Boolean(list && list.scrollWidth > list.clientWidth + 1));
   }, []);
-  useLayoutEffect(measureTabOverflow);
+  useLayoutEffect(measureTabOverflow, [measureTabOverflow, showTabBar, widget.data.noteTabs, renamingTab]);
   useEffect(() => {
     const list = tabListRef.current;
     if (!showTabBar || !list || typeof ResizeObserver === 'undefined') return;
