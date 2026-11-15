@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rollDiceExpression } from './diceExpression';
 import { rollEventDice } from './diceRoll';
 import { rollPhysicalDice } from '../components/DicePhysicsOverlay';
@@ -14,8 +14,35 @@ describe('rollEventDice', () => {
     vi.mocked(rollPhysicalDice).mockReset();
     useDiceSettingsStore.setState({ threeDDiceEnabled: true });
   });
+  afterEach(() => vi.restoreAllMocks());
 
-  it('rolls each die on the 3D table before the run uses the next one', async () => {
+  it('rolls every die in one expression together on the 3D table', async () => {
+    vi.mocked(rollPhysicalDice).mockResolvedValue([6, 1, 5, 2, 4, 3, 6, 1]);
+
+    const roll = await rollEventDice(() => rollDiceExpression('8d6'));
+
+    expect(vi.mocked(rollPhysicalDice).mock.calls).toEqual([
+      [Array.from({ length: 8 }, () => ({ faces: 6 }))],
+    ]);
+    expect(roll?.total).toBe(28);
+    expect(roll?.terms[0].rolls).toEqual([6, 1, 5, 2, 4, 3, 6, 1]);
+  });
+
+  it('batches mixed terms while preserving keep/drop, percentile and unsupported dice values', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    vi.mocked(rollPhysicalDice).mockResolvedValue([2, 5, 10, 0, 7]);
+
+    const roll = await rollEventDice(() => rollDiceExpression('2d6kh + 1d3 + 1d100 + 1d8'));
+
+    expect(vi.mocked(rollPhysicalDice).mock.calls).toEqual([
+      [[{ faces: 6 }, { faces: 6 }, { faces: 10 }, { faces: 100, notation: 'd100' }, { faces: 8 }]],
+    ]);
+    expect(roll?.terms.map((term) => term.rolls)).toEqual([[2, 5], [2], [100], [7]]);
+    expect(roll?.terms[0].droppedIndexes).toEqual([0]);
+    expect(roll?.total).toBe(114);
+  });
+
+  it('waits for one expression before evaluating the next dependent roll', async () => {
     vi.mocked(rollPhysicalDice).mockResolvedValueOnce([6]).mockResolvedValueOnce([15]);
 
     const total = await rollEventDice(() => {

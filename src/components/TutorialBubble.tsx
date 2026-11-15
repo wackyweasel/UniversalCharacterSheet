@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ADVANCED_AUTOMATION_TUTORIAL_START_ID,
   AUTOMATION_TUTORIAL_START_ID,
+  COMPENDIUM_TUTORIAL_START_ID,
   EVENTS_TUTORIAL_START_ID,
   TEMPLATE_TUTORIAL_START_ID,
   THEME_TUTORIAL_START_ID,
@@ -27,10 +28,11 @@ const TUTORIAL_SECTIONS = [
   { name: 'Basic', startId: TUTORIAL_STEPS[0].id },
   { name: 'Themes', startId: THEME_TUTORIAL_START_ID },
   { name: 'Templates', startId: TEMPLATE_TUTORIAL_START_ID },
-  { name: 'Automation', startId: AUTOMATION_TUTORIAL_START_ID },
-  { name: 'Advanced Automations', startId: ADVANCED_AUTOMATION_TUTORIAL_START_ID },
+  { name: 'Automations', startId: AUTOMATION_TUTORIAL_START_ID },
+  { name: 'Formulas', startId: ADVANCED_AUTOMATION_TUTORIAL_START_ID },
   { name: 'Events', startId: EVENTS_TUTORIAL_START_ID },
   { name: 'Various', startId: VARIOUS_TUTORIAL_START_ID },
+  { name: 'Compendium', startId: COMPENDIUM_TUTORIAL_START_ID },
 ];
 
 const FINAL_STEP_IDS = new Set([
@@ -41,17 +43,14 @@ const FINAL_STEP_IDS = new Set([
   'advanced-complete',
   'events-complete',
   'various-complete',
+  'compendium-complete',
 ]);
 
 // Steps that show at the top on narrow screens, such as when the Done button is at the bottom.
 const TOP_ON_NARROW_STEP_IDS = new Set([
   'click-create',
   'form-click-done',
-  'automation-close-number-display',
-  'automation-close-dice-roller',
   'advanced-close-dice-roller',
-  'advanced-labels-overview',
-  'advanced-labels-standalone',
   'events-panel-overview',
   'events-card',
   'events-timeline',
@@ -198,7 +197,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
   const isFinalStep = !!step && FINAL_STEP_IDS.has(step.id);
-  const followsFormulaTarget = step?.id === 'automation-type-dice-formula' || step?.id === 'advanced-apply-formula';
+  const followsFormulaTarget = step?.id === 'advanced-apply-formula';
 
   useEffect(() => {
     if (!isNarrow || !followsFormulaTarget || !step?.targetSelector) return;

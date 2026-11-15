@@ -6,6 +6,7 @@ import { useCompendiumPanelStore } from '../store/useCompendiumPanelStore';
 import { collectCharacterFormulas, previewCharacterFormula, type CharacterFormula, type FormulaCategory } from '../utils/characterFormulas';
 import { collectLabels } from '../utils/formulaEngine';
 import { FormulaEditorDialog } from './FormulaEditorDialog';
+import { getTutorialStepIndex, isTutorialStep, useTutorialStore } from '../store/useTutorialStore';
 import AutomationsPanelHeader from './AutomationsPanelHeader';
 import { ArrowRightIcon, BookIcon, BoltIcon, ChevronDownIcon, ChevronRightIcon, PencilIcon } from './icons';
 
@@ -32,6 +33,9 @@ export default function FormulasPanel({ onRevealWidget, isBottom }: Props) {
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const updateWidgetData = useStore((state) => state.updateWidgetData);
   const setOpen = useAutomationsPanelStore((state) => state.setOpen);
+  const tutorialStep = useTutorialStore((state) => state.tutorialStep);
+  const guidedFormula = ['automation-formula-editor', 'advanced-table-sum', 'advanced-table-sum-expression', 'advanced-table-lookup', 'advanced-table-apply']
+    .some((id) => isTutorialStep(tutorialStep, id));
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
@@ -78,6 +82,8 @@ export default function FormulasPanel({ onRevealWidget, isBottom }: Props) {
       saveFormula(editing, formula);
       setEditing(null);
       setError(null);
+      const tutorial = useTutorialStore.getState();
+      if (isTutorialStep(tutorial.tutorialStep, 'automation-formula-editor') || isTutorialStep(tutorial.tutorialStep, 'advanced-table-apply')) tutorial.advanceTutorial();
     } catch (cause) {
       console.error('Could not save formula', cause);
       setError(cause instanceof Error ? cause.message : 'Could not save formula.');
@@ -163,7 +169,15 @@ export default function FormulasPanel({ onRevealWidget, isBottom }: Props) {
                         <div className="flex items-center gap-2">
                           <h4 className="min-w-0 flex-1 break-words text-xs font-bold text-theme-ink font-body">{entry.title}</h4>
                           <div className="flex shrink-0 gap-0.5">
-                            {entry.editable && <button type="button" aria-label={`Edit formula for ${entry.title}`} title="Edit formula" onClick={() => { setError(null); setEditing(entry); }} className={cardButtonClass}><PencilIcon className="h-3.5 w-3.5" /></button>}
+                            {entry.editable && <button type="button"
+                              data-tutorial={entry.groupTitle === 'Defense' ? 'automation-edit-formula' : entry.groupTitle === 'Total Load' ? 'advanced-table-edit-formula' : undefined}
+                              aria-label={`Edit formula for ${entry.title}`} title="Edit formula" onClick={() => {
+                                setError(null);
+                                setEditing(entry);
+                                const tutorial = useTutorialStore.getState();
+                                if (entry.groupTitle === 'Defense' && isTutorialStep(tutorial.tutorialStep, 'automation-formulas-overview')
+                                  || entry.groupTitle === 'Total Load' && isTutorialStep(tutorial.tutorialStep, 'advanced-table-edit-total')) tutorial.advanceTutorial();
+                              }} className={cardButtonClass}><PencilIcon className="h-3.5 w-3.5" /></button>}
                             {(entry.widgetId || entry.eventId || entry.category === 'library') && <button type="button" aria-label={entry.eventId ? 'Edit event' : entry.category === 'library' ? 'Library' : entry.editable ? 'Show widget' : 'Edit in widget'} title={entry.eventId ? 'Edit event' : entry.category === 'library' ? 'Library' : entry.editable ? 'Show widget' : 'Edit in widget'} onClick={() => reveal(entry, !entry.editable)} className={cardButtonClass}>
                               {entry.eventId ? <BoltIcon className="h-3 w-3" /> : entry.category === 'library' ? <BookIcon className="h-3 w-3" /> : <ArrowRightIcon className="h-3 w-3" />}
                             </button>}
@@ -193,8 +207,14 @@ export default function FormulasPanel({ onRevealWidget, isBottom }: Props) {
         resultType={editing.resultType}
         saveError={error}
         onApply={apply}
-        onClear={() => apply(undefined)}
-        onCancel={() => { setEditing(null); setError(null); }}
+        onClear={guidedFormula ? undefined : () => apply(undefined)}
+        onCancel={() => {
+          setEditing(null);
+          setError(null);
+          const tutorial = useTutorialStore.getState();
+          if (isTutorialStep(tutorial.tutorialStep, 'automation-formula-editor')) tutorial.setTutorialStep(getTutorialStepIndex('automation-formulas-overview'));
+          else if (['advanced-table-sum', 'advanced-table-sum-expression', 'advanced-table-lookup', 'advanced-table-apply'].some((id) => isTutorialStep(tutorial.tutorialStep, id))) tutorial.setTutorialStep(getTutorialStepIndex('advanced-table-edit-total'));
+        }}
       />}
     </section>
   );

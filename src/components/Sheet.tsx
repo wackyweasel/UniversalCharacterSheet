@@ -286,13 +286,44 @@ export default function Sheet() {
   const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const setTutorialStep = useTutorialStore((state) => state.setTutorialStep);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('sheet');
   const isCurrentTutorialStep = (id: string) => tutorialStep !== null && TUTORIAL_STEPS[tutorialStep]?.id === id;
   const tutorialStepId = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep]?.id : undefined;
 
+  useEffect(() => {
+    if (tutorialStepId !== 'automation-activate-effect') return;
+    const ring = activeCharacter?.sheets.flatMap((sheet) => sheet.widgets.flatMap((widget) => widget.data.inventoryItems ?? []))
+      .find((item) => item.name === 'Ring of Strength');
+    if (ring?.active) advanceTutorial();
+  }, [tutorialStepId, activeCharacter, advanceTutorial]);
+
+  useEffect(() => {
+    if (tutorialStepId !== 'compendium-activate-effect' && tutorialStepId !== 'compendium-deactivate-effect') return;
+    const ring = activeCharacter?.sheets.flatMap((sheet) => sheet.widgets
+      .filter((widget) => widget.type === 'INVENTORY_SLOTS')
+      .flatMap((widget) => widget.data.inventoryItems ?? []))
+      .find((item) => item.effects?.length);
+    if (ring && Boolean(ring.active) === (tutorialStepId === 'compendium-activate-effect')) advanceTutorial();
+  }, [tutorialStepId, activeCharacter, advanceTutorial]);
+
+  const handleToggleCompendium = () => {
+    if (isCurrentTutorialStep('compendium-open-panel') || isCurrentTutorialStep('compendium-return-panel')) {
+      setCompendiumOpen(true);
+      setGridMenuOpen(false);
+      advanceTutorial();
+    } else {
+      toggleCompendium();
+    }
+  };
+
   const handleToggleAutomations = () => {
-    if (isCurrentTutorialStep('advanced-open-labels')) {
-      openAutomationsTab('labels');
+    if (isCurrentTutorialStep('automation-open-panel') || isCurrentTutorialStep('compendium-open-effects')) {
+      openAutomationsTab('effects');
+      advanceTutorial();
+    } else if (isCurrentTutorialStep('advanced-table-open-formulas')) {
+      openAutomationsTab('formulas');
       advanceTutorial();
     } else if (isCurrentTutorialStep('events-open-panel')) {
       openAutomationsTab('events');
@@ -304,13 +335,21 @@ export default function Sheet() {
 
   useEffect(() => {
     const step = tutorialStepId;
-    if (step === 'advanced-open-labels') {
+    if (step === 'automation-open-panel' || step === 'advanced-table-open-formulas') {
       setMode('play');
+      setSidebarCollapsed(true);
+      setThemeSidebarCollapsed(true);
       setAutomationsOpen(false);
       setTimelineOpen(false);
-    } else if (step === 'advanced-labels-overview' || step === 'advanced-labels-standalone') {
+    } else if (step === 'automation-panel-overview' || step?.startsWith('automation-effects-') || step === 'automation-activate-effect') {
+      openAutomationsTab('effects');
+    } else if (step?.startsWith('automation-labels-')) {
       openAutomationsTab('labels');
-    } else if (step === 'advanced-complete') {
+    } else if (step?.startsWith('automation-formula') || step === 'advanced-table-edit-total' || step === 'advanced-table-sum' || step === 'advanced-table-sum-expression' || step === 'advanced-table-lookup' || step === 'advanced-table-apply') {
+      openAutomationsTab('formulas');
+    } else if (step === 'automation-events-brief') {
+      openAutomationsTab('events');
+    } else if (step === 'automation-complete' || step === 'advanced-complete') {
       setAutomationsOpen(false);
     } else if (step === 'events-open-panel') {
       setMode('play');
@@ -321,6 +360,8 @@ export default function Sheet() {
       || step === 'events-card'
       || step === 'events-run-manual'
       || step === 'events-card-controls'
+      || step === 'events-actions-overview'
+      || step === 'events-more-targets'
       || step === 'events-new'
     ) {
       setMode('play');
@@ -336,7 +377,7 @@ export default function Sheet() {
       setAutomationsOpen(false);
       setTimelineOpen(false);
     }
-  }, [tutorialStepId, openAutomationsTab, setAutomationsOpen, setMode, setTimelineOpen]);
+  }, [tutorialStepId, openAutomationsTab, setAutomationsOpen, setMode, setTimelineOpen, setSidebarCollapsed, setThemeSidebarCollapsed]);
 
   // Events tutorial: move on once the reader has set off the event the step asks for.
   useEffect(() => subscribeEventFirings((firings) => {
@@ -443,8 +484,6 @@ export default function Sheet() {
   }, [activeCharacter?.activeSheetId, activeCharacterId, mode, recordTelemetryEvent, transientCharacterIds]);
   
   // Default sidebar collapsed (toolbox hidden until user clicks "Add Widget")
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [themeSidebarCollapsed, setThemeSidebarCollapsed] = useState(true);
   const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
   const [editedSheetName, setEditedSheetName] = useState('');
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
@@ -730,14 +769,17 @@ export default function Sheet() {
     const newScale = viewportWidth < 640 ? 0.85 : 1;
     const targetX = targetWidget.x + (targetWidget.w || 200);
     const targetY = targetWidget.y;
+    const tutorialBottom = viewportWidth < 600 && (widgetType === 'TABLE' || tutorialStepId?.startsWith('compendium-'))
+      ? document.querySelector('[data-tutorial-bubble="true"]')?.getBoundingClientRect().bottom ?? 0
+      : 0;
 
     setScale(newScale);
     setPan({
       // Keep the left edge on screen when a wide widget doesn't fit left of the usual spot (phones).
       x: Math.max(viewportWidth * 0.68 - targetX * newScale, 16 - targetWidget.x * newScale),
-      y: viewportHeight * 0.38 - targetY * newScale,
+      y: Math.max(viewportHeight * 0.38, tutorialBottom + 16) - targetY * newScale,
     });
-  }, [activeSheetWidgets, handleFitAllWidgets, setPan, setScale]);
+  }, [activeSheetWidgets, handleFitAllWidgets, setPan, setScale, tutorialStepId]);
 
   const handleToggleThemeSidebar = (closeGridMenu = false) => {
     const wasCollapsed = themeSidebarCollapsed;
@@ -1063,65 +1105,57 @@ export default function Sheet() {
   }, [tutorialStep, frameWidgetForTutorial, handleFitAllWidgets]);
 
   useEffect(() => {
-    if (isCurrentTutorialStep('automation-open-number-display-menu')) {
-      setMode('play');
-      setSidebarCollapsed(true);
-      setThemeSidebarCollapsed(true);
-      setTimeout(() => {
-        frameWidgetForTutorial('NUMBER_DISPLAY');
-      }, 200);
-    }
-  }, [tutorialStep, frameWidgetForTutorial]);
-
-  useEffect(() => {
-    if (isCurrentTutorialStep('automation-open-dice-menu')) {
-      setMode('play');
-      setSidebarCollapsed(true);
-      setThemeSidebarCollapsed(true);
-      setTimeout(() => {
-        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
-      }, 200);
-    }
-  }, [tutorialStep, frameWidgetForTutorial]);
-
-  useEffect(() => {
-    if (isCurrentTutorialStep('automation-roll-dice')) {
-      setMode('play');
-      setSidebarCollapsed(true);
-      setThemeSidebarCollapsed(true);
-      setTimeout(() => {
-        frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
-      }, 200);
-    }
-  }, [tutorialStep, frameWidgetForTutorial]);
-
-  useEffect(() => {
-    if (isCurrentTutorialStep('automation-change-strength')) {
-      setMode('play');
-      setSidebarCollapsed(true);
-      setThemeSidebarCollapsed(true);
-      setTimeout(() => {
-        frameWidgetForTutorial('NUMBER_DISPLAY');
-      }, 200);
-    }
-  }, [tutorialStep, frameWidgetForTutorial]);
-
-  useEffect(() => {
-    const frameAttackRoller = isCurrentTutorialStep('advanced-open-dice-menu') || isCurrentTutorialStep('advanced-roll-dice');
+    const frameAttackRoller = isCurrentTutorialStep('advanced-open-dice-menu');
     const frameNotes = isCurrentTutorialStep('advanced-inline-notes') || isCurrentTutorialStep('advanced-inline-dice-roll');
-    if (!frameAttackRoller && !frameNotes) return;
+    const frameTable = isCurrentTutorialStep('advanced-table-overview') || isCurrentTutorialStep('advanced-table-change');
+    const frameTotal = isCurrentTutorialStep('advanced-table-result');
+    if (!frameAttackRoller && !frameNotes && !frameTable && !frameTotal) return;
 
     setMode('play');
     setSidebarCollapsed(true);
     setThemeSidebarCollapsed(true);
+    setAutomationsOpen(false);
+    setTimelineOpen(false);
     setTimeout(() => {
       if (frameAttackRoller) {
         frameWidgetForTutorial('DICE_ROLLER', (widget) => String(widget.data?.label || '').toLowerCase() === 'attack');
+      } else if (frameTable) {
+        frameWidgetForTutorial('TABLE', (widget) => widget.data.label === 'Cargo');
+      } else if (frameTotal) {
+        frameWidgetForTutorial('NUMBER', (widget) => widget.data.label === 'Total Load');
       } else {
         frameWidgetForTutorial('TEXT');
       }
     }, 200);
   }, [tutorialStep, frameWidgetForTutorial]);
+
+  useEffect(() => {
+    if (!tutorialStepId?.startsWith('compendium-')) return;
+    setMode('play');
+    setSidebarCollapsed(true);
+    setThemeSidebarCollapsed(true);
+    setTimelineOpen(false);
+    setGridMenuOpen(false);
+
+    if (tutorialStepId === 'compendium-open-panel' || tutorialStepId === 'compendium-return-panel') {
+      setCompendiumOpen(false);
+      setAutomationsOpen(false);
+      setGridMenuOpen(window.innerWidth < 640);
+    } else if (tutorialStepId === 'compendium-effects-overview') {
+      openAutomationsTab('effects');
+    } else if (tutorialStepId === 'compendium-open-effects' || tutorialStepId === 'compendium-pick-entry' || tutorialStepId === 'compendium-save-equipment' || tutorialStepId === 'compendium-complete') {
+      setCompendiumOpen(false);
+      setAutomationsOpen(false);
+    } else if (['compendium-add-equipment', 'compendium-activate-effect', 'compendium-deactivate-effect', 'compendium-effect-result', 'compendium-effect-restored'].includes(tutorialStepId)) {
+      setCompendiumOpen(false);
+      setAutomationsOpen(false);
+      const showStrength = tutorialStepId === 'compendium-effect-result' || tutorialStepId === 'compendium-effect-restored';
+      const timer = window.setTimeout(() => frameWidgetForTutorial(showStrength ? 'NUMBER_DISPLAY' : 'INVENTORY_SLOTS'), 200);
+      return () => window.clearTimeout(timer);
+    } else {
+      setCompendiumOpen(true);
+    }
+  }, [tutorialStepId, frameWidgetForTutorial, openAutomationsTab, setCompendiumOpen, setAutomationsOpen, setMode, setTimelineOpen]);
 
   useEffect(() => {
     const frames: Record<string, () => void> = {
@@ -1619,7 +1653,7 @@ export default function Sheet() {
           automationsOpen={automationsIsOpen}
           onToggleAutomations={handleToggleAutomations}
           compendiumOpen={compendiumIsOpen}
-          onToggleCompendium={toggleCompendium}
+          onToggleCompendium={handleToggleCompendium}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={undo}
@@ -2300,7 +2334,7 @@ export default function Sheet() {
         automationsOpen={automationsIsOpen}
         onToggleAutomations={handleToggleAutomations}
         compendiumOpen={compendiumIsOpen}
-        onToggleCompendium={toggleCompendium}
+        onToggleCompendium={handleToggleCompendium}
         attachmentControlsVisible={attachmentControlsVisible}
         onToggleAttachmentControls={() => setAttachmentControlsVisible((visible) => !visible)}
         listHighlighted={isCurrentTutorialStep('various-vertical-view')}

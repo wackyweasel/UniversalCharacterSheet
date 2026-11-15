@@ -20,15 +20,19 @@ import { SearchIcon, XIcon } from './icons';
 
 // Automation tutorials: what the editor shows on each step.
 const TUTORIAL_LESSONS: Record<string, { formula?: string; reference?: string; panel?: 'labels' | 'reference'; scrollToLabel?: string }> = {
-  'automation-formula-operations': { reference: 'labels', panel: 'reference' },
+  'automation-formula-editor': { panel: 'labels', scrollToLabel: 'str' },
   'advanced-formula-labels': { panel: 'labels', scrollToLabel: 'str' },
   'advanced-formula-reference': { reference: 'labels', panel: 'reference' },
   'advanced-formula-arithmetic': { formula: '(@str + 4) * 2', reference: 'arithmetic', panel: 'reference' },
   'advanced-formula-conditions': { formula: 'IF(@str >= 10, 2, 0)', reference: 'if', panel: 'reference' },
   'advanced-formula-switch': { formula: 'SWITCH(@str, 1..9, 0, 10..14, 1, 2)', reference: 'switch', panel: 'reference' },
   'advanced-formula-math': { formula: 'max(0, min(@str, 8))', reference: 'min-max', panel: 'reference' },
+  'advanced-formula-rounding': { formula: 'round((@str + 3) / 2)', reference: 'rounding', panel: 'reference' },
   'advanced-formula-text': { reference: 'text-join', panel: 'reference' },
-  'advanced-formula-tables': { reference: 'sum-rows', panel: 'reference' },
+  'advanced-table-sum': { formula: 'SUM(@qty)', reference: 'sum-column', panel: 'reference' },
+  'advanced-table-sum-expression': { formula: 'SUM(@qty * @weight)', reference: 'sum-rows', panel: 'reference' },
+  'advanced-table-lookup': { formula: 'VALUE(@weight, 2)', reference: 'value', panel: 'reference' },
+  'advanced-table-apply': { formula: 'SUM(@qty * @weight)' },
   'advanced-formula-errors': { formula: '@str +' },
   'advanced-apply-formula': { formula: 'floor((@str - 10) / 2)' },
 };
@@ -558,6 +562,7 @@ export function FormulaEditorDialog({
           <div className="flex items-center gap-2">
             <button type="button" onClick={onCancel} className="widget-control px-4 py-2 text-xs font-bold">Cancel</button>
             <button
+              data-tutorial-formula-apply="true"
               data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${isValid ? 'formula-target' : 'formula-confirm'}` : undefined}
               type="button"
               onClick={apply}

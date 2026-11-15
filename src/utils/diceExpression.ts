@@ -201,15 +201,17 @@ export const parseDiceStep = (step: DiceStep): DiceExpressionTerm[] | null => {
 
 export const rollRandomDie = (faces: number): number => Math.floor(Math.random() * faces) + 1;
 
-type DieRoller = (faces: number) => number;
+type DieRoller = (faces: number, diceFaces: readonly number[]) => number;
 
 /** Thrown by a die roller that has no value yet, to stop the run before it uses one. */
 export class DieValueNeeded extends Error {
   readonly faces: number;
+  readonly diceFaces: readonly number[];
 
-  constructor(faces: number) {
+  constructor(faces: number, diceFaces: readonly number[] = [faces]) {
     super(`A d${faces} value is needed`);
     this.faces = faces;
+    this.diceFaces = diceFaces;
   }
 }
 
@@ -230,6 +232,9 @@ export const rollDiceExpression = (expression: string): DiceExpressionRollResult
   const terms = parseDiceExpression(expression);
   if (!terms) return null;
 
+  const diceFaces = terms.flatMap((term) => term.type === 'dice'
+    ? Array.from({ length: term.count }, () => term.faces)
+    : []);
   let total = 0;
   const rollTerms = terms.map((term): DiceExpressionRollTerm => {
     if (term.type === 'modifier') {
@@ -238,7 +243,7 @@ export const rollDiceExpression = (expression: string): DiceExpressionRollResult
       return { term, signedTotal };
     }
 
-    const rolls = Array.from({ length: term.count }, () => activeDieRoller(term.faces));
+    const rolls = Array.from({ length: term.count }, () => activeDieRoller(term.faces, diceFaces));
     const rollTerm = resolveDiceRolls(term, rolls);
     total += rollTerm.signedTotal;
     return rollTerm;

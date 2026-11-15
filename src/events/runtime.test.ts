@@ -7,7 +7,17 @@ import { useDiceResultStore } from '../store/useDiceResultStore';
 import { EVENT_TIMELINE_TYPE, emitWidgetAction, initEventRuntime, runEventNow } from './runtime';
 import { getEventProblems } from './registry';
 import { findInlineButtonNames } from './defs/textButton';
-import { ADVANCED_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET } from '../presets';
+import { ADVANCED_TUTORIAL_PRESET, AUTOMATION_TUTORIAL_PRESET, COMPENDIUM_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET } from '../presets';
+import { collectLabels, evaluateFormula } from '../utils/formulaEngine';
+import { rollPhysicalDice } from '../components/DicePhysicsOverlay';
+import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
+import { instantiateCompendiumItem } from '../utils/compendium';
+import { collectNumericTargets } from '../utils/numericTargets';
+
+vi.mock('../components/DicePhysicsOverlay', () => ({
+  isPhysicalDieSupported: (faces: number) => [2, 4, 6, 8, 10, 12, 20].includes(faces),
+  rollPhysicalDice: vi.fn(),
+}));
 
 vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
@@ -73,6 +83,8 @@ describe('event runtime', () => {
   afterAll(() => stop());
 
   beforeEach(() => {
+    vi.mocked(rollPhysicalDice).mockReset().mockResolvedValue(null);
+    useDiceSettingsStore.setState({ threeDDiceEnabled: true });
     useUndoStore.getState().clearAllHistory();
     useTimelineStore.getState().replaceWorkspaceEvents({});
     useDiceResultStore.getState().close();
@@ -163,6 +175,36 @@ describe('event runtime', () => {
     expect(entry?.view.title).toBeTruthy();
   });
 
+  it('rolls a full batch before starting dice in separate event steps', async () => {
+    let finishFirst!: (values: number[] | null) => void;
+    vi.mocked(rollPhysicalDice)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve; }))
+      .mockResolvedValue([8, 1]);
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...hero, events: [{
+        ...critEvent,
+        steps: [
+          { id: 'damage-step', effects: [{ id: 'damage', kind: 'dice.roll', params: { dice: '8d6' } }] },
+          { id: 'healing-step', effects: [{ id: 'heal', kind: 'dice.roll', params: { dice: '2d8' } }] },
+        ],
+      }] }],
+      activeCharacterId: hero.id, mode: 'play',
+    });
+
+    emitWidgetAction({ widgetId: 'w-roller', kind: 'roll', total: 20, dice: [20], text: '1d20' });
+    await settle();
+    const waitingCalls = [...vi.mocked(rollPhysicalDice).mock.calls];
+    finishFirst([6, 1, 5, 2, 4, 3, 6, 1]);
+    await settle();
+
+    expect(waitingCalls).toEqual([[Array.from({ length: 8 }, () => ({ faces: 6 }))]]);
+    expect(vi.mocked(rollPhysicalDice).mock.calls).toEqual([
+      [Array.from({ length: 8 }, () => ({ faces: 6 }))],
+      [[{ faces: 8 }, { faces: 8 }]],
+    ]);
+    expect(eventEntries()).toHaveLength(1);
+  });
+
   it('manages events through store actions', () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockClear();
@@ -203,6 +245,70 @@ describe('event runtime', () => {
     const raw = JSON.stringify(sent);
     expect(raw).not.toContain('Critical hit');
     expect(raw).not.toContain('Natural 20');
+  });
+
+  it('gives the overview a reversible Effect, final-value formula and valid sample event after cloning', async () => {
+    useStore.getState().createTransientCharacterFromPreset(AUTOMATION_TUTORIAL_PRESET, 'Tutorial Character');
+    const current = () => useStore.getState().characters.find((item) => item.id === useStore.getState().activeCharacterId)!;
+    const bag = current().sheets[0].widgets.find((widget) => widget.type === 'INVENTORY')!;
+    const ring = bag.data.inventoryItems![0];
+    expect(collectLabels(current())).toMatchObject({ str: 10, defense: 11, proficiency: 2 });
+    expect(getEventProblems(current(), current().events![0])).toEqual([]);
+    useStore.getState().setInventoryItemActive(bag.id, ring.id, true);
+    expect(collectLabels(current())).toMatchObject({ str: 12, defense: 13 });
+    useStore.getState().setInventoryItemActive(bag.id, ring.id, false);
+    expect(collectLabels(current())).toMatchObject({ str: 10, defense: 11 });
+    await settle();
+  });
+
+  it('lets the compendium tutorial create an independent equipped copy with a reversible bonus and clean up', async () => {
+    const baseline = useStore.getState().characters;
+    useStore.getState().createTransientCharacterFromPreset(COMPENDIUM_TUTORIAL_PRESET, 'Tutorial Character');
+    const current = () => useStore.getState().characters.find((item) => item.id === useStore.getState().activeCharacterId)!;
+    const stats = current().sheets[0].widgets.find((widget) => widget.type === 'NUMBER_DISPLAY')!;
+    const equipment = current().sheets[0].widgets.find((widget) => widget.type === 'INVENTORY_SLOTS')!;
+    const strength = () => current().sheets[0].widgets.find((widget) => widget.id === stats.id)!.data.displayNumbers![0].value;
+    const target = collectNumericTargets(current()).find((entry) => entry.ref.kind === 'widget' && entry.ref.widgetId === stats.id)!;
+    const sectionId = useStore.getState().addCompendiumSection('Magic Gear')!;
+    const entry = useStore.getState().saveCompendiumItem(sectionId, {
+      id: 'catalog-ring', name: 'Ring of Strength',
+      fields: [{ id: 'catalog-weight', name: 'Weight', type: 'number', value: 0.1 }],
+      effects: [{ id: 'catalog-effect', amount: 2, target: target.ref }],
+    })!;
+    expect(strength()).toBe(10);
+    const copy = instantiateCompendiumItem(entry, equipment.data.inventoryDefaultFields ?? []);
+    expect(copy.id).not.toBe(entry.id);
+    expect(copy.effects![0].id).not.toBe(entry.effects![0].id);
+    expect(copy.fields[0].id).not.toBe(entry.fields[0].id);
+    useStore.getState().saveInventoryItem({
+      sourceWidgetId: equipment.id, targetWidgetId: equipment.id,
+      item: { ...copy, slotId: equipment.data.inventorySlots![0].id },
+    });
+    expect(strength()).toBe(10);
+    useStore.getState().setInventoryItemActive(equipment.id, copy.id, true);
+    expect(strength()).toBe(12);
+    useStore.getState().saveCompendiumItem(sectionId, { ...entry, effects: [{ ...entry.effects![0], amount: 5 }] });
+    useStore.getState().deleteCompendiumItem(sectionId, entry.id);
+    expect(strength()).toBe(12);
+    useStore.getState().setInventoryItemActive(equipment.id, copy.id, false);
+    expect(strength()).toBe(10);
+    useStore.getState().cleanupTransientCharacters();
+    expect(useStore.getState().characters).toEqual(baseline);
+    await settle();
+  });
+
+  it('gives the formulas tutorial a live weighted table, generated labels and matching inline examples', async () => {
+    useStore.getState().createTransientCharacterFromPreset(ADVANCED_TUTORIAL_PRESET, 'Tutorial Character');
+    const current = () => useStore.getState().characters.find((item) => item.id === useStore.getState().activeCharacterId)!;
+    const cargo = current().sheets[0].widgets.find((widget) => widget.type === 'TABLE')!;
+    expect(collectLabels(current())).toMatchObject({ qty1: 2, weight2: 4, load1: 6, total_load: 11.5, str: 10, level: 3 });
+    expect(evaluateFormula('SUM(@qty * @weight)', collectLabels(current()))).toBe(11.5);
+    useStore.getState().updateWidgetData(cargo.id, { rows: cargo.data.rows!.map((row, index) => index === 0
+      ? { ...row, cells: row.cells.map((cell, column) => column === 0 ? '3' : cell) } : row) });
+    expect(collectLabels(current())).toMatchObject({ load1: 9, total_load: 14.5 });
+    expect(evaluateFormula('SUM(@qty * @weight)', collectLabels(current()))).toBe(14.5);
+    expect(current().sheets[0].widgets.find((widget) => widget.type === 'TEXT')!.data.text).toContain('{SUM(@qty * @weight)}');
+    await settle();
   });
 
   it('gives the events tutorial character working events that chain', async () => {

@@ -27,6 +27,7 @@ import { VariableLabelControl } from '../VariableLabelControl';
 import { AddMultipleToggle } from './StructureDialogControls';
 import { ItemEffectsEditor } from './ItemEffectsEditor';
 import { getItemEffectBaseValues } from '../../utils/itemEffects';
+import { isTutorialStep, useTutorialStore } from '../../store/useTutorialStore';
 
 interface InventoryItemDialogProps {
   item?: InventoryItem;
@@ -231,6 +232,8 @@ export default function InventoryItemDialog({
   const applyCompendiumEntry = (entry: InventoryItem) => {
     setDraft(instantiateCompendiumItem(entry, defaultFields, { allowQuantity }));
     setDescriptionEnabled(Boolean(entry.description?.trim()));
+    const tutorial = useTutorialStore.getState();
+    if (isTutorialStep(tutorial.tutorialStep, 'compendium-pick-entry')) tutorial.advanceTutorial();
   };
 
   const saveToCompendium = (section: CompendiumSection) => {
@@ -322,6 +325,7 @@ export default function InventoryItemDialog({
           <label className="block">
             <span className="mb-0.5 block text-xs font-semibold">{nounLabel} name</span>
             <input
+              data-tutorial="inventory-item-name"
               autoFocus
               value={draft.name}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
@@ -334,6 +338,7 @@ export default function InventoryItemDialog({
             <label className="block">
               <span className="mb-0.5 block text-xs font-semibold">From compendium</span>
               <select
+                data-tutorial="inventory-item-compendium"
                 value=""
                 onChange={(event) => {
                   const entry = compendiumSections.flatMap((section) => section.items).find((candidate) => candidate.id === event.target.value);
@@ -415,7 +420,7 @@ export default function InventoryItemDialog({
           {saveError && <p role="alert" className="text-xs text-red-500">{saveError}</p>}
 
           <section>
-            <h3 className="font-heading text-xs font-bold">Default attributes</h3>
+            <h3 data-tutorial="inventory-item-attributes" className="font-heading text-xs font-bold">Default attributes</h3>
             <p className="mt-0.5 text-[11px] leading-4 text-theme-muted">
               Fill in the attributes configured for this {noun === 'entry' ? 'codex' : 'inventory'}.
             </p>
@@ -574,7 +579,7 @@ export default function InventoryItemDialog({
               </button>
             )}
             <button type="button" onClick={onClose} className="widget-control px-2.5 py-1 text-xs">Cancel</button>
-            <button type="submit" disabled={!draft.name.trim() || !effectsValid} className="widget-control widget-control--primary px-3 py-1 text-xs">
+            <button data-tutorial="inventory-item-save" type="submit" disabled={!draft.name.trim() || !effectsValid} className="widget-control widget-control--primary px-3 py-1 text-xs">
               {isEditing ? `Save ${noun}` : `Add ${noun}`}
             </button>
           </div>

@@ -14,8 +14,8 @@ import ChangelogDialog from './ChangelogDialog';
 import CharacterCreator from './CharacterCreator';
 import { Character } from '../types';
 import { Tooltip } from './Tooltip';
-import { BoltIcon, ChevronDownIcon, GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
-import { ADVANCED_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET, getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
+import { BookIcon, BoltIcon, ChevronDownIcon, GripVerticalIcon, DotsVerticalIcon, LayersIcon, LayoutGridIcon, ArrowRightIcon, DownloadIcon, XIcon } from './icons';
+import { ADVANCED_TUTORIAL_PRESET, AUTOMATION_TUTORIAL_PRESET, COMPENDIUM_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET, getPreset, TUTORIAL_PRESET, type PresetDefinition } from '../presets';
 import { getStorageStatus, formatBytes } from '../utils/storageMonitor';
 import { stripImages } from '../utils/stripImages';
 import { getCharacterTransferData, getCustomThemeToImport, getEmbeddedCustomTheme, removeEmbeddedCustomTheme } from '../utils/characterTransfer';
@@ -34,10 +34,11 @@ const TUTORIAL_DESCRIPTIONS = {
   basic: 'Create a character, add widgets, move and resize them, edit a widget, and learn camera controls.',
   themes: 'Try built-in themes, create a custom theme, and share it with the community.',
   templates: 'Save widgets and groups as templates, load them later, and share them.',
-  automation: 'Link values with tags and formulas, learn how to roll a d20 using Strength as the modifier.',
-  advancedAutomation: 'Tour the formula editor and its commands, then use formulas and dice expressions in dice rollers and in text.',
+  automation: 'A short tour of the Automations panel: Effects, Labels, Formulas and a first look at Events.',
+  advancedAutomation: 'Explore expressions and math, use table columns with SUM and VALUE, then calculate inside text.',
   events: 'Set off ready-made events, run one by hand, follow chains in the timeline, and build your own with trigger data and a condition.',
-  various: 'Tour Discover, sharing, backup, feedback, Print Preview, the Play List layout, timeline, and sheets.',
+  various: 'Tour the Community Gallery, My Library, workspace backups, feedback, Print Preview, List layout, timeline and sheets.',
+  compendium: 'Create a reusable item with Effects, equip a copy, watch its bonus, and explore organization and transfers.',
 };
 
 // Get initial dark mode preference from localStorage or OS
@@ -167,6 +168,7 @@ export default function CharacterList() {
   const startAdvancedAutomationTutorial = useTutorialStore((state) => state.startAdvancedAutomationTutorial);
   const startEventsTutorial = useTutorialStore((state) => state.startEventsTutorial);
   const startVariousTutorial = useTutorialStore((state) => state.startVariousTutorial);
+  const startCompendiumTutorial = useTutorialStore((state) => state.startCompendiumTutorial);
   const exitTutorial = useTutorialStore((state) => state.exitTutorial);
   const advanceTutorial = useTutorialStore((state) => state.advanceTutorial);
   const { isActive: tutorialActiveOnPage } = useTutorialForPage('character-list');
@@ -216,6 +218,7 @@ export default function CharacterList() {
   const advancedLoadHandledRef = useRef(false);
   const eventsLoadHandledRef = useRef(false);
   const variousLoadHandledRef = useRef(false);
+  const compendiumLoadHandledRef = useRef(false);
   const initialTutorialStepRef = useRef(tutorialStep);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupFileInputRef = useRef<HTMLInputElement>(null);
@@ -623,6 +626,15 @@ export default function CharacterList() {
     setShowHeaderMenu(false);
   };
 
+  const handleStartCompendiumTutorial = () => {
+    cleanupTransientCharacters();
+    compendiumLoadHandledRef.current = false;
+    startCompendiumTutorial();
+    setShowTutorialDropdown(false);
+    setShowMobileTutorialOptions(false);
+    setShowHeaderMenu(false);
+  };
+
   const resetCharacterCreator = () => {
     setNewCharName('');
     setSelectedPreset('');
@@ -686,8 +698,8 @@ export default function CharacterList() {
 
     automationLoadHandledRef.current = true;
 
-  setPlayLayout('canvas');
-    createTransientCharacterFromPreset(TUTORIAL_PRESET, 'Tutorial Character');
+    setPlayLayout('canvas');
+    createTransientCharacterFromPreset(AUTOMATION_TUTORIAL_PRESET, 'Tutorial Character');
     const newCharacterId = useStore.getState().activeCharacterId;
 
     if (newCharacterId && darkMode) {
@@ -761,6 +773,17 @@ export default function CharacterList() {
       setShowHeaderMenu(true);
     }
   }, [tutorialStep, installAvailability]);
+
+  useEffect(() => {
+    if (!isCurrentTutorialStep('compendium-load-character') || compendiumLoadHandledRef.current) return;
+    compendiumLoadHandledRef.current = true;
+    setPlayLayout('canvas');
+    createTransientCharacterFromPreset(COMPENDIUM_TUTORIAL_PRESET, 'Tutorial Character');
+    const id = useStore.getState().activeCharacterId;
+    if (id && darkMode) updateCharacterTheme(id, 'classic-dark');
+    setMode('play');
+    advanceTutorial();
+  }, [tutorialStep, createTransientCharacterFromPreset, updateCharacterTheme, darkMode, setMode, setPlayLayout, advanceTutorial]);
 
   useEffect(() => {
     if (!isCurrentTutorialStep('various-print-mode')) return;
@@ -1285,7 +1308,7 @@ export default function CharacterList() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
-                      <span>Automation</span>
+                      <span>Automations</span>
                     </button>
                   </Tooltip>
                   <Tooltip content={TUTORIAL_DESCRIPTIONS.advancedAutomation} placement="left">
@@ -1293,7 +1316,7 @@ export default function CharacterList() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                       </svg>
-                      <span>Advanced Automations</span>
+                      <span>Formulas</span>
                     </button>
                   </Tooltip>
                   <Tooltip content={TUTORIAL_DESCRIPTIONS.events} placement="left">
@@ -1308,6 +1331,12 @@ export default function CharacterList() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                       </svg>
                       <span>Various</span>
+                    </button>
+                  </Tooltip>
+                  <Tooltip content={TUTORIAL_DESCRIPTIONS.compendium} placement="left">
+                    <button onClick={handleStartCompendiumTutorial} className={tutorialOptionClass()}>
+                      <BookIcon className="h-5 w-5" />
+                      <span>Compendium</span>
                     </button>
                   </Tooltip>
                 </div>
@@ -1557,7 +1586,7 @@ export default function CharacterList() {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
-                        <span>Automation</span>
+                        <span>Automations</span>
                       </button>
                     </Tooltip>
                     <Tooltip content={TUTORIAL_DESCRIPTIONS.advancedAutomation} placement="left">
@@ -1565,7 +1594,7 @@ export default function CharacterList() {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
-                        <span>Advanced Automations</span>
+                        <span>Formulas</span>
                       </button>
                     </Tooltip>
                     <Tooltip content={TUTORIAL_DESCRIPTIONS.events} placement="left">
@@ -1580,6 +1609,12 @@ export default function CharacterList() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                         <span>Various</span>
+                      </button>
+                    </Tooltip>
+                    <Tooltip content={TUTORIAL_DESCRIPTIONS.compendium} placement="left">
+                      <button onClick={handleStartCompendiumTutorial} className={tutorialOptionClass(true)}>
+                        <BookIcon className="h-5 w-5" />
+                        <span>Compendium</span>
                       </button>
                     </Tooltip>
                   </>

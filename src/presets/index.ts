@@ -103,23 +103,83 @@ export function getPresetDefinition(id: string): PresetDefinition | undefined {
 // Tutorial preset (used internally by tutorial system, not shown in preset list)
 export const TUTORIAL_PRESET = TutorialPreset as CharacterPreset;
 
-// Starter sheet for the Advanced Automations tutorial: Strength is already tagged @str and the Notes use inline formulas and dice.
-export const ADVANCED_TUTORIAL_PRESET: CharacterPreset = (() => {
-  const preset = JSON.parse(JSON.stringify(TutorialPreset)) as CharacterPreset;
-  for (const sheet of preset.sheets ?? []) {
-    for (const widget of sheet.widgets ?? []) {
-      if (widget.type === 'NUMBER_DISPLAY') {
-        widget.data.displayNumbers = widget.data.displayNumbers?.map((item) => (
-          item.label === 'Strength' ? { ...item, valueLabel: 'str' } : item
-        ));
-      }
-      if (widget.type === 'TEXT' && widget.data.label === 'Notes') {
-        widget.data.text = 'The King wants us to save his son.\n\nStrength plus ten: {@str+10}\nSword attack: {1d20+@str}\nSword damage: {2d6+@str}';
-      }
-    }
-  }
-  return preset;
-})();
+export const AUTOMATION_TUTORIAL_PRESET: CharacterPreset = {
+  name: 'Automations Tutorial',
+  theme: 'default',
+  activeSheetId: 'automation-sheet',
+  sheets: [{
+    id: 'automation-sheet', name: 'Main', widgets: [
+      { id: 'automation-stats', type: 'NUMBER_DISPLAY', x: 40, y: 40, w: 240, h: 180, data: {
+        label: 'Stats', displayNumbers: [{ id: 'automation-strength', label: 'Strength', value: 10, valueLabel: 'str' }],
+      } },
+      { id: 'automation-gear', type: 'INVENTORY', x: 320, y: 40, w: 340, h: 220, data: {
+        label: 'Gear', inventoryItems: [{
+          id: 'automation-ring', name: 'Ring of Strength', fields: [], active: false,
+          effects: [{ id: 'automation-bonus', amount: 2, target: {
+            kind: 'widget', widgetId: 'automation-stats', collection: 'displayNumbers', entryId: 'automation-strength', field: 'value',
+          } }],
+        }],
+      } },
+      { id: 'automation-defense', type: 'NUMBER', x: 40, y: 280, w: 240, h: 180, data: {
+        label: 'Defense', numberItems: [{ id: 'automation-defense-value', name: 'Defense', value: 11, valueLabel: 'defense', valueFormula: '@str + 1' }],
+      } },
+    ],
+  }],
+  variables: [{ id: 'automation-proficiency', label: 'proficiency', value: 2 }],
+  events: [{
+    id: 'automation-message', name: 'Practice message', enabled: true, trigger: { kind: 'manual' },
+    steps: [{ id: 'automation-message-step', effects: [{ id: 'automation-log', kind: 'log.message', params: { message: 'Current Strength: {@str}.' } }] }],
+  }],
+};
+
+// Formulas tutorial: a labeled source, a live weighted table, and inline formulas.
+export const COMPENDIUM_TUTORIAL_PRESET: CharacterPreset = {
+  name: 'Tutorial Character',
+  theme: 'classic',
+  activeSheetId: 'compendium-sheet',
+  compendium: [],
+  sheets: [{
+    id: 'compendium-sheet', name: 'Main', widgets: [
+      { id: 'compendium-stats', type: 'NUMBER_DISPLAY', x: 40, y: 40, w: 240, h: 180, data: {
+        label: 'Stats', displayNumbers: [{ id: 'compendium-strength', label: 'Strength', value: 10 }],
+      } },
+      { id: 'compendium-equipment', type: 'INVENTORY_SLOTS', x: 320, y: 40, w: 280, h: 220, data: {
+        label: 'Equipment', inventoryItems: [], autoActivateItems: false,
+        inventorySlots: [{ id: 'compendium-ring-slot', name: 'Ring', x: 0, y: 0, w: 100, h: 100 }],
+      } },
+    ],
+  }],
+};
+
+export const ADVANCED_TUTORIAL_PRESET: CharacterPreset = {
+    name: 'Formulas Tutorial', theme: 'default', activeSheetId: 'formulas-sheet',
+    variables: [{ id: 'formulas-level', label: 'level', value: 3 }],
+    sheets: [{
+      id: 'formulas-sheet', name: 'Main', widgets: [
+        { id: 'formulas-stats', type: 'NUMBER_DISPLAY', x: 40, y: 40, w: 240, h: 180, data: {
+          label: 'Stats', displayNumbers: [{ id: 'formulas-strength', label: 'Strength', value: 10, valueLabel: 'str' }],
+        } },
+        { id: 'formulas-attack', type: 'DICE_ROLLER', x: 320, y: 40, w: 340, h: 220, data: {
+          label: 'Attack', diceGroups: [{ count: 1, faces: 20 }], modifier: 0,
+        } },
+        { id: 'formulas-cargo', type: 'TABLE', x: 40, y: 300, w: 360, h: 260, data: {
+          label: 'Cargo', columns: ['Qty', 'Weight', 'Load'],
+          tableColumnSettings: [{ label: 'qty' }, { label: 'weight' }, { label: 'load' }],
+          rows: [
+            { cells: ['2', '3', { value: '6', formula: '@qty1 * @weight1' }] },
+            { cells: ['1', '4', { value: '4', formula: '@qty2 * @weight2' }] },
+            { cells: ['3', '0.5', { value: '1.5', formula: '@qty3 * @weight3' }] },
+          ],
+        } },
+        { id: 'formulas-total', type: 'NUMBER', x: 440, y: 300, w: 240, h: 180, data: {
+          label: 'Total Load', numberItems: [{ id: 'formulas-total-value', name: 'Total load', value: 11.5, valueLabel: 'total_load', valueFormula: 'SUM(@load)' }],
+        } },
+        { id: 'formulas-notes', type: 'TEXT', x: 40, y: 600, w: 640, h: 220, data: {
+          label: 'Notes', text: 'Strength plus ten: {@str + 10}\nCargo load: {SUM(@qty * @weight)}\nStatus: {"Level " + @level}\nSword attack: {1d20 + floor((@str - 10) / 2)}\nLiteral braces: {{not a formula}}',
+        } },
+      ],
+    }],
+};
 
 // Starter sheet for the Events tutorial: Bloodied and Steady again react to Health, Second Wind runs by hand,
 // a Rage event button spends a Rage flame, and the Fireball spell is a {[Fireball]} button waiting for its event.

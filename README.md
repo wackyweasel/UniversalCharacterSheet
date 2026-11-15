@@ -9,6 +9,8 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
 - **Infinite Canvas**: Pan and zoom to organize your sheet however you like.
 - **Widget System**: Add Number Trackers, Lists, and Text Areas.
 - **Automations**: Effects add bonuses or penalties to numeric values, including formula results. Formulas stay unchanged, and downstream formulas and Events use the final adjusted values. Value limits still apply unless an Effect allows exceeding them; removing the Effect restores the latest formula result. Circular Effect activation dependencies are rejected.
+- **Guided Tutorials**: Start with the Automations overview, continue with Formulas (expressions, tables and inline text) or Events (triggers, conditions and actions), and explore storage, sharing and layouts in Various. Compendium walks through creating an item with Effects, equipping a copy and transferring your catalog.
+- **Event Dice Rolls**: All dice in an expression (such as `8d6` or `2d6 + 1d8`) roll together. Rolls in later event steps wait for earlier results.
 - **Drag & Drop**: Arrange widgets freely with grid snapping.
 - **Installable App**: Install from a supported browser and keep working with cached sheets while offline.
 

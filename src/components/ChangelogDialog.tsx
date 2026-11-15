@@ -43,6 +43,8 @@ const CHANGELOG_ENTRIES = [
       'Effects can be added to these widgets : Inventory, Equipment, Codex, Temporary effects, Skill tree, conditions, checklist, switch (and switches from a mixed field widget) and threshold track.',
       'Combined all types of automation (effects, labels + formulas and events) in the new Automations panel.',
       'Events can now use items from the compendium, events can be duplicated, and dice rolls in an event can target all writable numeric values from a widget with shared or separate dice rolls.',
+      'Reworked the Automations, Formulas, Events and Various tutorials, including table and inline formulas.',
+      'New Compendium tutorial: create an item with Effects, equip it, and watch its bonuses apply and reverse.',
     ],
   },
   {

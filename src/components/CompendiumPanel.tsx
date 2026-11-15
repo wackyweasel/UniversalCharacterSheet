@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { useCompendiumPanelStore } from '../store/useCompendiumPanelStore';
+import { getTutorialStepIndex, isTutorialStep, TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import type { CompendiumSection, InventoryItem } from '../types';
 import {
   compendiumItemMatches,
@@ -227,6 +228,7 @@ export default function CompendiumPanel() {
   const moveItem = useStore((state) => state.moveCompendiumItem);
   const importSections = useStore((state) => state.importCompendiumSections);
   const undo = useStore((state) => state.undo);
+  const tutorialStepId = useTutorialStore((state) => state.tutorialStep === null ? undefined : TUTORIAL_STEPS[state.tutorialStep]?.id);
 
   const [query, setQuery] = useState('');
   const [newSectionName, setNewSectionName] = useState('');
@@ -318,6 +320,10 @@ export default function CompendiumPanel() {
   }, [toast]);
 
   useEffect(() => {
+    if (tutorialStepId === 'compendium-import-overview') setDialog(null);
+  }, [tutorialStepId]);
+
+  useEffect(() => {
     const handleResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -389,6 +395,15 @@ export default function CompendiumPanel() {
       next.delete(id);
       return next;
     });
+    const tutorial = useTutorialStore.getState();
+    if (isTutorialStep(tutorial.tutorialStep, 'compendium-add-section')) tutorial.advanceTutorial();
+  };
+
+  const closeItemDialog = () => {
+    setDialog(null);
+    const tutorial = useTutorialStore.getState();
+    if (['compendium-entry-details', 'compendium-entry-attributes', 'compendium-add-effect', 'compendium-effect-target', 'compendium-effect-amount', 'compendium-save-entry']
+      .some((id) => isTutorialStep(tutorial.tutorialStep, id))) tutorial.setTutorialStep(getTutorialStepIndex('compendium-add-entry'));
   };
 
   const startRename = (section: CompendiumSection) => {
@@ -560,7 +575,11 @@ export default function CompendiumPanel() {
                 {section.name}
                 <span className="ml-1.5 text-xs font-normal text-theme-muted tabular-nums">{section.items.length}</span>
               </h3>
-              <button type="button" onClick={() => setDialog({ kind: 'item', sectionId: section.id })} className={iconButtonClass} aria-label={`Add entry to ${section.name}`} title="Add entry">
+              <button type="button" data-tutorial="compendium-add-entry" onClick={() => {
+                setDialog({ kind: 'item', sectionId: section.id });
+                const tutorial = useTutorialStore.getState();
+                if (isTutorialStep(tutorial.tutorialStep, 'compendium-add-entry')) tutorial.advanceTutorial();
+              }} className={iconButtonClass} aria-label={`Add entry to ${section.name}`} title="Add entry">
                 <PlusIcon className="h-3.5 w-3.5" />
               </button>
               <button type="button" onClick={() => startRename(section)} className={iconButtonClass} aria-label={`Rename ${section.name}`} title="Rename section">
@@ -647,7 +666,7 @@ export default function CompendiumPanel() {
         <div className="flex flex-shrink-0 items-center gap-2">
           <div ref={menuRef} className="relative flex items-center gap-2">
             <button type="button" onClick={() => setMenu(menu === 'import' ? null : 'import')} aria-haspopup="menu" aria-expanded={menu === 'import'} className={buttonClass}>Import</button>
-            <button type="button" onClick={() => setMenu(menu === 'export' ? null : 'export')} aria-haspopup="menu" aria-expanded={menu === 'export'} className={buttonClass}>Export</button>
+            <button type="button" data-tutorial="compendium-export" onClick={() => setMenu(menu === 'export' ? null : 'export')} aria-haspopup="menu" aria-expanded={menu === 'export'} className={buttonClass}>Export</button>
             {menu && (
               <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-theme border border-theme-border bg-theme-paper shadow-theme">
                 {menu === 'import' ? (
@@ -658,7 +677,12 @@ export default function CompendiumPanel() {
                 ) : (
                   <>
                     <button type="button" role="menuitem" className={menuItemClass} onClick={() => { setMenu(null); downloadText('compendium.json', serializeCompendium(sections)); }}>Download File</button>
-                    <button type="button" role="menuitem" className={menuItemClass} onClick={() => { setMenu(null); setDialog({ kind: 'export' }); }}>As Raw Data</button>
+                    <button type="button" role="menuitem" className={menuItemClass} onClick={() => {
+                      setMenu(null);
+                      setDialog({ kind: 'export' });
+                      const tutorial = useTutorialStore.getState();
+                      if (isTutorialStep(tutorial.tutorialStep, 'compendium-export')) tutorial.advanceTutorial();
+                    }}>As Raw Data</button>
                   </>
                 )}
               </div>
@@ -697,7 +721,7 @@ export default function CompendiumPanel() {
             </button>
           )}
         </span>
-        <form onSubmit={handleAddSection} className="flex gap-2">
+        <form data-tutorial="compendium-add-section" onSubmit={handleAddSection} className="flex gap-2">
           <input
             value={newSectionName}
             onChange={(event) => setNewSectionName(event.target.value)}
@@ -758,8 +782,16 @@ export default function CompendiumPanel() {
           defaultFields={ENTRY_DEFAULT_FIELDS}
           allowCompendium={false}
           allowQuantity={false}
-          onClose={() => setDialog(null)}
-          onSave={(item) => saveItem(dialogSection.id, item)}
+          onClose={closeItemDialog}
+          onSave={(item) => {
+            const saved = saveItem(dialogSection.id, item);
+            const tutorial = useTutorialStore.getState();
+            if (isTutorialStep(tutorial.tutorialStep, 'compendium-save-entry')) {
+              if (!saved) throw new Error('The Compendium section no longer exists.');
+              tutorial.advanceTutorial();
+              setDialog(null);
+            }
+          }}
           onDelete={dialog.item ? () => {
             deleteItem(dialogSection.id, dialog.item!.id);
             setToast({ message: `Deleted “${dialog.item!.name}”`, undoable: true });
@@ -767,7 +799,11 @@ export default function CompendiumPanel() {
           onClone={dialog.item ? (item) => saveItem(dialogSection.id, duplicateInventoryItem(item)) : undefined}
         />
       )}
-      {dialog?.kind === 'export' && <ExportDialog sections={sections} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'export' && <ExportDialog sections={sections} onClose={() => {
+        setDialog(null);
+        const tutorial = useTutorialStore.getState();
+        if (isTutorialStep(tutorial.tutorialStep, 'compendium-export-overview')) tutorial.advanceTutorial();
+      }} />}
       {dialog?.kind === 'import' && <ImportDialog initialText={dialog.text} onImport={runImport} onClose={() => setDialog(null)} />}
     </aside>
   );

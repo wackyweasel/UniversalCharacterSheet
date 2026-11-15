@@ -217,6 +217,7 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
               <button
                 type="button"
                 role="switch"
+                data-tutorial={name === 'Ring of Strength' ? 'automation-effect-toggle' : undefined}
                 aria-label={`Activate ${name}`}
                 aria-checked={entry.source.active}
                 disabled={!!activationProblem}

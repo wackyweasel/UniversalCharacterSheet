@@ -4,6 +4,7 @@ import type { InventoryItem, ItemEffect } from '../../types';
 import { useStore } from '../../store/useStore';
 import { collectNumericTargets, numericTargetKey } from '../../utils/numericTargets';
 import { PlusIcon, TrashIcon } from '../icons';
+import { isTutorialStep, useTutorialStore } from '../../store/useTutorialStore';
 
 const inputClass = 'h-8 w-full rounded-button border border-theme-border bg-theme-paper px-2 text-xs text-theme-ink';
 
@@ -35,7 +36,11 @@ export function ItemEffectsEditor({ item, onChange, onValidityChange, hint = 'Bo
     <section className="space-y-2 border-t border-theme-border pt-3">
       <div className="flex items-center justify-between">
         <h3 className="font-heading text-xs font-bold">Effects</h3>
-        <button type="button" onClick={() => onChange([...effects, { id: uuidv4(), amount: 1 }])} className="widget-control flex h-8 items-center gap-1 px-2 text-xs">
+        <button data-tutorial="item-add-effect" type="button" onClick={() => {
+          onChange([...effects, { id: uuidv4(), amount: 1 }]);
+          const tutorial = useTutorialStore.getState();
+          if (isTutorialStep(tutorial.tutorialStep, 'compendium-add-effect')) tutorial.advanceTutorial();
+        }} className="widget-control flex h-8 items-center gap-1 px-2 text-xs">
           <PlusIcon className="h-3 w-3" /> Add effect
         </button>
       </div>
@@ -46,7 +51,7 @@ export function ItemEffectsEditor({ item, onChange, onValidityChange, hint = 'Bo
         const choices = targets.filter((entry) => (entry.ref.kind === 'variable' ? 'variables' : entry.ref.widgetId) === sourceKey(effect));
         const raw = amounts[effect.id] ?? String(effect.amount);
         return (
-          <div key={effect.id} className="space-y-2 rounded-button border border-theme-border p-2">
+          <div key={effect.id} data-tutorial="item-effect-target" className="space-y-2 rounded-button border border-theme-border p-2">
             <div className="flex items-end gap-2">
               <label className="min-w-0 flex-1 text-xs">
                 Widget
@@ -67,7 +72,11 @@ export function ItemEffectsEditor({ item, onChange, onValidityChange, hint = 'Bo
               Value
               <select aria-label="Effect value" value={key} onChange={(event) => {
                 const selected = targets.find((entry) => numericTargetKey(entry.ref) === event.target.value);
-                if (selected) update(effect.id, { target: selected.ref, targetName: `${selected.source} - ${selected.title}` });
+                if (selected) {
+                  update(effect.id, { target: selected.ref, targetName: `${selected.source} - ${selected.title}` });
+                  const tutorial = useTutorialStore.getState();
+                  if (isTutorialStep(tutorial.tutorialStep, 'compendium-effect-target')) tutorial.advanceTutorial();
+                }
               }} className={inputClass}>
                 <option value="">Choose a value</option>
                 {key && !target && <option value={key}>{effect.targetName || 'Missing value'} - select a replacement</option>}

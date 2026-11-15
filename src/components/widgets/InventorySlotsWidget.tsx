@@ -17,6 +17,7 @@ import { InlineDiceText } from '../InlineDiceText';
 import { Tooltip } from '../Tooltip';
 import InventoryItemDialog from './InventoryItemDialog';
 import InventoryQuantityDialog from './InventoryQuantityDialog';
+import { getTutorialStepIndex, isTutorialStep, useTutorialStore } from '../../store/useTutorialStore';
 import {
   describeInventoryItemChange,
   formatFieldValue,
@@ -227,7 +228,11 @@ function InventorySlotsWidget({
             <Tooltip content={addLabel}>
               <button
                 type="button"
-                onClick={() => setDialog({ slotId: slot.id })}
+                onClick={() => {
+                  setDialog({ slotId: slot.id });
+                  const tutorial = useTutorialStore.getState();
+                  if (isTutorialStep(tutorial.tutorialStep, 'compendium-add-equipment')) tutorial.advanceTutorial();
+                }}
                 onMouseDown={(event) => event.stopPropagation()}
                 aria-label={addLabel}
                 data-touch-camera-ignore="true"
@@ -296,7 +301,12 @@ function InventorySlotsWidget({
           item={dialog.item}
           defaultFields={inventoryDefaultFields}
           allowAddMultiple={false}
-          onClose={() => setDialog(null)}
+          onClose={() => {
+            setDialog(null);
+            const tutorial = useTutorialStore.getState();
+            if (isTutorialStep(tutorial.tutorialStep, 'compendium-pick-entry') || isTutorialStep(tutorial.tutorialStep, 'compendium-save-equipment'))
+              tutorial.setTutorialStep(getTutorialStepIndex('compendium-add-equipment'));
+          }}
           onSave={(item) => {
             const previousItem = inventoryItems.find((entry) => entry.id === item.id);
             saveInventoryItem({
@@ -304,6 +314,8 @@ function InventorySlotsWidget({
               targetWidgetId: widget.id,
               item: { ...item, slotId: previousItem?.slotId ?? dialog.slotId },
             });
+            const tutorial = useTutorialStore.getState();
+            if (isTutorialStep(tutorial.tutorialStep, 'compendium-save-equipment')) tutorial.advanceTutorial();
             if (!previousItem) {
               const quantity = getInventoryItemQuantity(item);
               addTimelineEvent(title, 'INVENTORY_SLOTS', `Equipped: ${item.name}${quantity !== undefined ? ` (x${quantity})` : ''} in ${slotName(dialog.slotId) || 'a slot'}`, '🛡️');

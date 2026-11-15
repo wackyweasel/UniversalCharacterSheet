@@ -119,9 +119,8 @@ export const rerollExpressionDice = async (
 };
 
 /**
- * Runs an event's synchronous dice rolls one at a time on the 3D table. Each run stops at the first
- * die without a value yet; that die is rolled, then the run starts again using all values so far.
- * Runs are deterministic, so each die only appears once the dice before it have landed.
+ * Rolls each expression's dice together on the 3D table, then replays the synchronous event run
+ * with those values. Later expressions wait for earlier results, preserving dependent steps.
  * Dice the table can't show fall back to random results.
  */
 export const rollEventDice = async <T>(run: () => T): Promise<T> => {
@@ -131,15 +130,23 @@ export const rollEventDice = async <T>(run: () => T): Promise<T> => {
   for (;;) {
     let next = 0;
     try {
-      return withDieRoller((faces) => {
+      return withDieRoller((faces, diceFaces) => {
         if (next < values.length) return values[next++];
-        throw new DieValueNeeded(faces);
+        throw new DieValueNeeded(faces, diceFaces);
       }, run);
     } catch (error) {
       if (!(error instanceof DieValueNeeded)) throw error;
-      const dice = physicalRequestsForDie(error.faces);
-      const physicalValues = dice ? await rollPhysicalDice(dice) : null;
-      values.push(physicalValues ? valueFromPhysicalDice(error.faces, physicalValues) : rollRandomDie(error.faces));
+      const dice = error.diceFaces.flatMap((faces) => physicalRequestsForDie(faces) ?? []);
+      const physicalValues = dice.length > 0 ? await rollPhysicalDice(dice) : null;
+      let physicalIndex = 0;
+      for (const faces of error.diceFaces) {
+        const count = physicalRequestsForDie(faces)?.length ?? 0;
+        const rolled = physicalValues?.slice(physicalIndex, physicalIndex + count);
+        physicalIndex += count;
+        values.push(count > 0 && rolled && rolled.length === count
+          ? valueFromPhysicalDice(faces, rolled)
+          : rollRandomDie(faces));
+      }
     }
   }
 };
