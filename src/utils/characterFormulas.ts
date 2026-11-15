@@ -4,7 +4,7 @@ import type { EventParamSpec } from '../events/types';
 import { getWidgetTitle } from './characterVariables';
 import { collectLabels, detectCircularReference, evaluateFormulaValue, hasUnresolvedRefs } from './formulaEngine';
 import { extractFormulaLabelReferences, maskFormulaStringLiterals, type FormulaLabels, type FormulaValue } from './formulaSyntax';
-import { tokenizeInlineDiceText } from './inlineDice';
+import { removeInlineFormulas, tokenizeInlineDiceText } from './inlineDice';
 import { entryIdentity } from './numericTargets';
 import { getVariableGroupNames } from './variableGroups';
 
@@ -25,6 +25,8 @@ export interface CharacterFormula {
   editable: boolean;
   path: Path;
   storedValue: string;
+  inline?: boolean;
+  html?: boolean;
   widgetId?: string;
   sheetId?: string;
   noteTabId?: string;
@@ -65,19 +67,23 @@ const isEventFormula = (text: string) => {
 };
 
 // Rich text is tokenized per text node, just like InlineDiceRichText, without reading HTML attributes.
-function inlineTextParts(text: string): string[] {
+function decodeInlineText(text: string): string {
   const entities: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-  return text.split(/<[^>]*>/g).map((part) => part.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (whole, entity: string) => {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (whole, entity: string) => {
     if (!entity.startsWith('#')) return entities[entity.toLowerCase()] ?? whole;
     const code = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1));
     return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
-  }));
+  });
+}
+
+function inlineTextParts(text: string): string[] {
+  return text.split(/<[^>]*>/g).map(decodeInlineText);
 }
 
 export function collectCharacterFormulas(character: Character): CharacterFormula[] {
   const entries: CharacterFormula[] = [];
   type Owner = Omit<CharacterFormula, 'key' | 'characterId' | 'title' | 'formula' | 'resultType' | 'sourceLabels' | 'editable' | 'path' | 'storedValue'>;
-  const add = (owner: Owner, path: Path, identity: Path, title: string, text: string, options: Partial<Pick<CharacterFormula, 'resultType' | 'sourceLabels' | 'editable'>> = {}, token?: number) => {
+  const add = (owner: Owner, path: Path, identity: Path, title: string, text: string, options: Partial<Pick<CharacterFormula, 'resultType' | 'sourceLabels' | 'editable' | 'inline' | 'html'>> = {}, token?: number) => {
     if (!text.trim() || containsDiceRoll(text)) return;
     entries.push({
       ...owner, key: JSON.stringify([owner.groupKey, ...identity, token ?? null]), characterId: character.id,
@@ -92,7 +98,7 @@ export function collectCharacterFormulas(character: Character): CharacterFormula
       for (const segment of tokenizeInlineDiceText(part)) {
         if (segment.type !== 'formula') continue;
         add({ ...owner, category: owner.category === 'fields' ? 'inline' : owner.category }, path, identity, `${title} · Inline formula`, segment.expression,
-          { resultType: 'text', editable: false }, token++);
+          { resultType: 'text', editable: false, inline: true, html }, token++);
       }
     }
   };
@@ -220,4 +226,60 @@ export function updateCharacterFormula(character: Character, request: CharacterF
     if (preview.kind === 'problem') throw new Error(preview.message);
   }
   return replacePath(character, current.path, next);
+}
+
+function readPath(root: unknown, path: Path): unknown {
+  let current = root;
+  for (const key of path) {
+    if (Array.isArray(current) && typeof key === 'number') current = current[key];
+    else if (isRecord(current) && typeof key === 'string') current = current[key];
+    else return undefined;
+  }
+  return current;
+}
+
+function clearInlineText(text: string, html = false): string {
+  if (!html) return removeInlineFormulas(text);
+  return text.split(/(<[^>]*>)/g).map((part, index) => {
+    if (index % 2) return part;
+    const decoded = decodeInlineText(part);
+    const cleared = removeInlineFormulas(decoded);
+    return cleared === decoded ? part : cleared.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }).join('');
+}
+
+export function removeAllCharacterFormulas(character: Character, editableOnly = false): Character {
+  const entries = new Map(collectCharacterFormulas(character)
+    .filter((entry) => !editableOnly || entry.editable)
+    .map((entry) => [JSON.stringify(entry.path), entry]));
+  let next = character;
+  const write = (path: Path, value: string | undefined) => {
+    if (readPath(next, path) !== value) next = replacePath(next, path, value);
+  };
+  const clearMirror = (path: Path, html = false) => {
+    const text = readPath(next, path);
+    if (typeof text === 'string') write(path, clearInlineText(text, html));
+  };
+  for (const entry of entries.values()) {
+    const text = readPath(next, entry.path);
+    if (typeof text !== 'string') throw new Error('The formula source is no longer available.');
+    let value = entry.inline ? clearInlineText(text, entry.html) : undefined;
+    if (entry.eventId && entry.path[entry.path.length - 2] === 'params') {
+      const part = readPath(character, entry.path.slice(0, -2));
+      if (!isRecord(part) || typeof part.kind !== 'string') throw new Error('The event formula source is no longer available.');
+      const definition = entry.path[2] === 'trigger' ? getTriggerDef(part.kind) : getEffectDef(part.kind);
+      const spec = definition?.params?.find((param) => param.key === entry.path[entry.path.length - 1]);
+      if (spec && (spec.type === 'formula' || spec.type === 'amount')) value = spec.default;
+    }
+    write(entry.path, value);
+    if (!entry.inline) continue;
+    if (entry.path[entry.path.length - 1] === 'richText') clearMirror([...entry.path.slice(0, -1), 'text']);
+    const noteTabsIndex = entry.path.indexOf('noteTabs');
+    if (noteTabsIndex !== -1) {
+      const dataPath = entry.path.slice(0, noteTabsIndex);
+      clearMirror([...dataPath, 'text']);
+      clearMirror([...dataPath, 'richText'], true);
+    }
+  }
+  return next;
 }

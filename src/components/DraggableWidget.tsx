@@ -291,16 +291,14 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       return;
     }
     
-    if (nodeRef.current) {
-      const resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          // Measure the actual rendered height of the widget
-          const naturalHeight = entry.target.scrollHeight;
-          const snapped = Math.ceil(naturalHeight / GRID_SIZE) * GRID_SIZE;
-          setSnappedHeight(snapped);
-        }
+    const node = nodeRef.current;
+    if (node) {
+      const resizeObserver = new ResizeObserver(() => {
+        // Resize handles extend outside the widget and inflate scrollHeight.
+        const snapped = Math.ceil(node.offsetHeight / GRID_SIZE) * GRID_SIZE;
+        setSnappedHeight(snapped);
       });
-      resizeObserver.observe(nodeRef.current);
+      resizeObserver.observe(node);
       return () => resizeObserver.disconnect();
     }
   }, [widget.data, widget.h]);

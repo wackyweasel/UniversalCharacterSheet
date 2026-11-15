@@ -558,6 +558,12 @@ export function removeLabelFromCharacter(character: Character, label: string): C
   return next;
 }
 
+export function removeAllLabelsFromCharacter(character: Character): Character {
+  const next = mapCharacterWidgetLabels(character, (slot) => slot.kind === 'name' ? slot.label : undefined);
+  const variables = next.variables?.filter((variable) => !variable.label);
+  return variables && variables.length !== next.variables?.length ? { ...next, variables } : next;
+}
+
 /** Suggests an unused label like `var1`, `var2`, ... */
 export function suggestVariableLabel(taken: Iterable<string>, base = 'var') {
   const used = new Set(taken);

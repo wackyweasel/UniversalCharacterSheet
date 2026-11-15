@@ -1,6 +1,7 @@
 import type { InventoryFieldValue, InventoryItem, InventoryItemField, Widget, WidgetData } from '../../types';
 import { createInventoryItem, fromCodexItem, getInventoryItemQuantity, isInventoryWidgetType, toCodexItem } from '../../utils/inventory';
 import { getFirstFreeSlot } from '../../utils/inventorySlots';
+import { copyCompendiumItemToWidgetData, getCompendiumSections } from '../../utils/compendium';
 import { getActiveNoteContent, getNoteContentUpdate } from '../../utils/noteTabs';
 import {
   addToWallet,
@@ -200,24 +201,56 @@ export const inventorySetFieldEffect: EffectDef = {
   describe: (d) => `Set ${d.target || '?'} of ${d.params.name?.trim() || 'every item'} in ${d.widget} to ${d.params.value?.trim() || '""'}`,
 };
 
+const CUSTOM_ITEM = 'custom';
+const CUSTOM_ITEM_LABEL = 'Custom item (by name)';
+const isCustomItem = (target: string | undefined) => !target || target === CUSTOM_ITEM;
+
 export const inventoryAddEffect: EffectDef = {
   kind: 'inventory.add',
   label: 'Add an item',
+  target: {
+    label: 'Item',
+    options: ({ character }) => [
+      { value: CUSTOM_ITEM, label: CUSTOM_ITEM_LABEL },
+      ...getCompendiumSections(character).flatMap((section) => section.items.map((item) => ({
+        value: item.id,
+        label: `${section.name} · ${item.name}`,
+      }))),
+    ],
+    missing: 'Deleted compendium entry',
+  },
   params: [
-    { key: 'name', label: 'Item name', type: 'text', default: '', placeholder: 'Healing potion', help: 'Use {formulas} to insert values.' },
+    { key: 'name', label: 'Item name', type: 'text', default: '', placeholder: 'Healing potion', help: 'Use {formulas} to insert values.', visible: (_params, ctx) => isCustomItem(ctx.target) },
     { key: 'quantity', label: 'Quantity', type: 'amount', default: '1', placeholder: '1 or 1d4' },
   ],
   apply: (ctx) => {
     if (!ctx.widget || !isInventoryWidgetType(ctx.widget.type)) return null;
-    const name = ctx.text('name').trim();
+    const fromCompendium = !isCustomItem(ctx.effect.target);
+    const entry = fromCompendium
+      ? getCompendiumSections(ctx.character).flatMap((section) => section.items).find((item) => item.id === ctx.effect.target)
+      : undefined;
+    if (fromCompendium && !entry) return { text: 'The compendium entry no longer exists' };
+    const name = entry ? entry.name.trim() : ctx.text('name').trim();
     if (!name) return { text: 'No item name' };
     const amount = ctx.amount('quantity');
     const quantity = Math.max(0, Math.floor(amount?.value ?? 1));
     if (quantity === 0) return { text: `Added no ${name}` };
     const isCodex = ctx.widget.type === 'COMPENDIUM';
     const items = ctx.widget.data.inventoryItems ?? [];
-    const index = items.findIndex((item) => sameName(item.name, name));
     const detail = amount?.roll ? ` (${amount.text})` : '';
+    if (entry) {
+      const source = fromCodexItem(entry);
+      const copy = copyCompendiumItemToWidgetData(
+        quantity !== 1 || source.quantity !== undefined ? { ...source, quantity } : source,
+        ctx.widget,
+        ctx.widget.type === 'INVENTORY_SLOTS'
+          ? { targetSlotId: getFirstFreeSlot(ctx.widget.data.inventorySlots ?? [], items)?.id }
+          : {},
+      );
+      if (!copy) return { text: `No free slot for ${name}` };
+      return { data: { inventoryItems: copy.items }, text: `Added ${quantity !== 1 ? `${formatNumber(quantity)} × ` : ''}${name} from compendium${detail}` };
+    }
+    const index = items.findIndex((item) => sameName(item.name, name));
     if (index >= 0) {
       const item = isCodex ? fromCodexItem(items[index]) : items[index];
       const next = [...items];
@@ -235,7 +268,7 @@ export const inventoryAddEffect: EffectDef = {
     }
     return { data: { inventoryItems: [...items, created] }, text: `Added ${quantity !== 1 ? `${formatNumber(quantity)} × ` : ''}${name}${detail}` };
   },
-  describe: (d) => `Add ${d.params.quantity && d.params.quantity !== '1' ? `${d.params.quantity} × ` : ''}${d.params.name || '?'} to ${d.widget}`,
+  describe: (d) => `Add ${d.params.quantity && d.params.quantity !== '1' ? `${d.params.quantity} × ` : ''}${d.target === CUSTOM_ITEM_LABEL ? d.params.name || '?' : `${d.target} from compendium`} to ${d.widget}`,
 };
 
 export const inventoryRemoveEffect: EffectDef = {

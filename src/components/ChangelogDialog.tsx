@@ -39,10 +39,10 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.18.0',
     changes: [
-      'New Automations panel: Labels, Formulas, Events and Effects in one place, with search, filter pills and collapse/expand controls.',
-      'New Effects: automatically increase or decrease numeric values while something is active. For example, a Ring of Strength can give +1 Strength while switched on; turning it off removes the bonus.',
-      'Configure effects in item dialogs or widget settings: pick the value to change and enter a bonus or penalty. Compact Effects cards let you edit bonuses and switch their sources on or off.',
-      'Effects can also apply while temporary effects are running, skills are unlocked, conditions are enabled, checklist items are checked, switches are on (including Mixed Fields), or a Threshold Track zone is current.',
+      'New type of automation : Effects. These are a simple way to add bonuses and penalties to stats or any value in your character sheet. Ex: a ring that gives +1 strength. An armor that gives +2 AC. Effects are not as powerful as formulas, but they are simpler to setup. ',
+      'Effects can be added to these widgets : Inventory, Equipement, Codex, Temporary effects, Skill tree, conditions, checklist, switch (and switches from a mixed field widget) and threshold track.',
+      'Combined all types of automations (Effects, labels + formulas and events) in the new Automations panel.',
+      'Events can now copy Compendium items, duplicate from More actions, and target all writable numeric values with shared or separate dice rolls.',
     ],
   },
   {

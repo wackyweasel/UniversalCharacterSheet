@@ -18,8 +18,9 @@ import { findFormulaIssues } from '../utils/formulaDiagnostics';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import { SearchIcon, XIcon } from './icons';
 
-// Advanced Automations tutorial: what the editor shows on each step.
+// Automation tutorials: what the editor shows on each step.
 const TUTORIAL_LESSONS: Record<string, { formula?: string; reference?: string; panel?: 'labels' | 'reference'; scrollToLabel?: string }> = {
+  'automation-formula-operations': { reference: 'labels', panel: 'reference' },
   'advanced-formula-labels': { panel: 'labels', scrollToLabel: 'str' },
   'advanced-formula-reference': { reference: 'labels', panel: 'reference' },
   'advanced-formula-arithmetic': { formula: '(@str + 4) * 2', reference: 'arithmetic', panel: 'reference' },

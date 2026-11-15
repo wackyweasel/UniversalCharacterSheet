@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { useAutomationsPanelStore } from '../store/useAutomationsPanelStore';
 import { getWidgetTitle } from '../utils/characterVariables';
-import { collectNumericTargets, numericTargetKey } from '../utils/numericTargets';
+import { collectNumericTargets, numericTargetKey, type NumericTarget } from '../utils/numericTargets';
 import { getEffectSourceActivationProblem, getWidgetEffectSources } from '../utils/widgetEffects';
 import { EffectsEditButton } from './editors/EffectsEditButton';
 import AutomationsPanelHeader from './AutomationsPanelHeader';
@@ -13,6 +13,42 @@ const buttonClass = 'inline-flex h-8 items-center justify-center gap-1.5 rounded
 const inputClass = 'h-9 w-full rounded-button border border-theme-border bg-theme-background px-2.5 text-sm font-body text-theme-ink focus:outline-none focus:ring-2 focus:ring-theme-accent/40';
 const cardButtonClass = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-button text-theme-muted transition-colors hover:bg-theme-accent/15 hover:text-theme-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent';
 
+interface EffectEndpointProps {
+  kind: 'Source' | 'Target';
+  name: string;
+  context?: string;
+  amount?: number;
+  allowExceedLimits?: boolean;
+  onHighlight?: () => void;
+}
+
+function EffectEndpoint({ kind, name, context, amount, allowExceedLimits, onHighlight }: EffectEndpointProps) {
+  return (
+    <button
+      type="button"
+      aria-label={`Highlight ${kind.toLowerCase()}: ${name}${amount !== undefined ? `, adjustment ${amount >= 0 ? '+' : ''}${amount}` : ''}`}
+      title={onHighlight ? `Highlight ${kind.toLowerCase()}` : 'Target no longer exists. Select a replacement.'}
+      disabled={!onHighlight}
+      onClick={onHighlight}
+      className="flex w-full min-w-0 flex-1 items-start gap-2 rounded-theme border border-theme-border-soft bg-theme-background p-2 text-left font-body transition-colors enabled:hover:border-theme-accent enabled:hover:bg-theme-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent disabled:cursor-not-allowed"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block break-words text-xs font-semibold text-theme-ink">{name}</span>
+        {context && <span className="mt-0.5 block break-words text-[11px] leading-snug text-theme-muted">{context}</span>}
+      </span>
+      {amount !== undefined && (
+        <span
+          aria-label={`Adjustment ${amount >= 0 ? '+' : ''}${amount}`}
+          className={`inline-flex min-h-7 min-w-7 max-w-[40%] shrink-0 self-end items-center justify-center break-all rounded-button border px-2 py-0.5 font-mono text-sm font-bold leading-tight ${amount > 0 ? 'border-green-500/40 bg-green-500/10 text-green-600' : amount < 0 ? 'border-red-500/40 bg-red-500/10 text-red-600' : 'border-theme-border bg-theme-paper text-theme-muted'}`}
+          title={allowExceedLimits ? 'Can exceed value limits' : 'Respects value limits'}
+        >
+          {amount >= 0 ? '+' : ''}{amount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 interface Props {
   onRevealWidget: (sheetId: string, widgetId: string) => void;
   isBottom: boolean;
@@ -21,6 +57,7 @@ interface Props {
 export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
   const character = useStore((state) => state.characters.find((item) => item.id === state.activeCharacterId));
   const setOpen = useAutomationsPanelStore((state) => state.setOpen);
+  const showVariable = useAutomationsPanelStore((state) => state.showVariable);
   const setSourceActive = useStore((state) => state.setWidgetEffectSourceActive);
   const editingWidgetId = useStore((state) => state.editingWidgetId);
   const mode = useStore((state) => state.mode);
@@ -41,8 +78,10 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
         const target = effect.target ? targets.get(numericTargetKey(effect.target)) : undefined;
         return {
           effect,
+          target,
           targetName: target ? `${target.source} - ${target.title}` : effect.targetName || 'Unassigned value',
-          targetTitle: target?.title ?? effect.targetName ?? 'Unassigned value',
+          targetTitle: target ? target.ref.kind === 'variable' ? `@${target.title}` : target.title : effect.targetName ?? 'Unassigned value',
+          targetSource: target?.source,
           problem: target?.problem ?? (!target ? 'Target missing. Select a replacement.' : undefined),
         };
       }),
@@ -66,6 +105,18 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
   ];
 
   if (!character) return null;
+
+  const revealWidget = (sheetId: string, widgetId: string) => {
+    onRevealWidget(sheetId, widgetId);
+    if (isBottom) setOpen(false);
+  };
+  const targetHighlight = (target: NumericTarget | undefined): (() => void) | undefined => {
+    if (!target) return undefined;
+    const ref = target.ref;
+    if (ref.kind === 'variable') return () => showVariable(ref.variableId);
+    const sheet = character.sheets.find((item) => item.widgets.some((widget) => widget.id === ref.widgetId));
+    return sheet ? () => revealWidget(sheet.id, ref.widgetId) : undefined;
+  };
 
   return (
     <section
@@ -91,6 +142,7 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
         filterLabel="Filter effects"
         filters={filters}
         onFilterChange={setFilter}
+        deletion={{ tab: 'effects', count: configured.reduce((sum, entry) => sum + entry.effects.length, 0) }}
         addAction={<button type="button" onClick={() => { setAdding(true); setSelectedKey(''); listRef.current?.scrollTo({ top: 0 }); }} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-button border border-theme-accent bg-theme-accent px-3 text-xs font-bold font-body text-theme-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40" disabled={sources.length === 0}><PlusIcon className="h-3.5 w-3.5" /> Add effects</button>}
         onCollapseAll={() => setCollapsed(new Set([...collapsed, ...visible.map((entry) => entry.key)]))}
         onExpandAll={() => setCollapsed(new Set())}
@@ -178,28 +230,25 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
                 <span aria-hidden="true" className={`absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-black/25 bg-theme-paper shadow-sm transition-transform ${entry.source.active ? 'translate-x-[22px]' : 'translate-x-1'}`} />
               </button>
               <div className="min-w-0 flex-1">
-                <h3 className="break-words font-heading text-sm font-bold">{name}</h3>
-                <p className="truncate text-xs text-theme-muted font-body" title={entry.context}>{entry.context}</p>
+                <h3 className="break-words font-heading text-sm font-bold">{collapsed.has(entry.key) ? name : entry.source.active ? 'Active' : 'Inactive'}</h3>
               </div>
+              {entry.effects.length > 1 && <span className="shrink-0 text-xs text-theme-muted font-body">{entry.effects.length} effects</span>}
               <EffectsEditButton widget={entry.widget} collection={entry.source.collection} index={entry.source.index} iconOnly />
-              <button type="button" aria-label={`Show widget for ${name}`} title="Show widget" onClick={() => {
-                onRevealWidget(entry.sheetId, entry.widget.id);
-                if (isBottom) setOpen(false);
-              }} className={cardButtonClass}><ArrowRightIcon className="h-3.5 w-3.5" /></button>
             </div>
             {!collapsed.has(entry.key) && <>
             {activationProblem && <p className="mt-1 break-words text-[11px] text-theme-muted font-body">{activationProblem}</p>}
-            <ul className="mt-1.5 space-y-1">
-              {entry.effects.map(({ effect, targetName, targetTitle, problem }) => (
-                <li key={effect.id} className="text-xs font-body">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="min-w-0 break-words" title={targetName}>{targetTitle}</span>
-                    <span className="shrink-0 rounded bg-theme-accent/10 px-1.5 font-mono font-bold text-theme-accent" title={effect.allowExceedLimits ? 'Can exceed value limits' : 'Respects value limits'}>{effect.amount >= 0 ? '+' : ''}{effect.amount}</span>
-                  </div>
-                  {problem && <p className="mt-1 text-red-500">{problem}</p>}
-                </li>
-              ))}
-            </ul>
+            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-1.5">
+              <EffectEndpoint kind="Source" name={name} context={entry.context} onHighlight={() => revealWidget(entry.sheetId, entry.widget.id)} />
+              <ArrowRightIcon className="h-3.5 w-3.5 self-center text-theme-muted" />
+              <ul className="flex min-w-0 flex-col gap-1.5">
+                {entry.effects.map(({ effect, target, targetTitle, targetSource, problem }) => (
+                  <li key={effect.id} className="flex flex-1 flex-col">
+                    <EffectEndpoint kind="Target" name={targetTitle} context={targetSource} amount={effect.amount} allowExceedLimits={effect.allowExceedLimits} onHighlight={targetHighlight(target)} />
+                    {problem && <p className="mt-1 break-words text-xs text-red-500 font-body">{problem}</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
             </>}
             {activationError?.key === entry.key && <p role="alert" className="mt-1 break-words text-xs text-red-500 font-body">{activationError.message}</p>}
           </article>

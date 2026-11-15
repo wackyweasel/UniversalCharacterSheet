@@ -36,6 +36,7 @@ export interface UndoState {
   actionDescription: string;
   // Timestamp for debouncing
   timestamp: number;
+  isolated?: boolean;
   // Timeline events removed by the undo that created this redo state
   removedTimelineEvents?: TimelineEvent[];
 }
@@ -54,7 +55,7 @@ interface UndoStoreState {
    * Take a snapshot before making a change.
    * Call this BEFORE modifying the store state.
    */
-  takeSnapshot: (characterId: string, character: Character, actionDescription: string) => void;
+  takeSnapshot: (characterId: string, character: Character, actionDescription: string, isolated?: boolean) => void;
   
   /**
    * Undo the last action for the given character.
@@ -109,7 +110,7 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
   future: [],
   isUndoRedoing: false,
   
-  takeSnapshot: (characterId, character, actionDescription) => {
+  takeSnapshot: (characterId, character, actionDescription, isolated = false) => {
     const state = get();
     
     // Don't take snapshots during undo/redo operations
@@ -120,7 +121,7 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
     
     // Check for debounce - if same character and within debounce window, don't create new snapshot
     // But we still want to keep the original snapshot so the user can undo to before the batch
-    if (lastState && (now - lastState.timestamp) < DEBOUNCE_MS) {
+    if (!isolated && lastState && !lastState.isolated && (now - lastState.timestamp) < DEBOUNCE_MS) {
       // Same action within debounce window - don't create a new snapshot
       // This allows rapid changes (like slider dragging) to be treated as one action
       markCoveringSnapshot(characterId, lastState.id);
@@ -134,6 +135,7 @@ export const useUndoStore = create<UndoStoreState>((set, get) => ({
       character: JSON.parse(JSON.stringify(character)),
       actionDescription,
       timestamp: now,
+      ...(isolated ? { isolated: true } : {}),
     };
     markCoveringSnapshot(characterId, snapshot.id);
     

@@ -423,20 +423,21 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     page: 'sheet',
   },
   {
+    id: 'automation-formula-operations',
+    title: 'Formula Reference',
+    message: 'The formula editor includes available labels and a reference for operators, conditions, math functions, and tables. Select a reference item to see its syntax and examples, then choose Next.',
+    targetSelector: '[data-tutorial="formula-reference"]',
+    position: 'left',
+    page: 'sheet',
+    requiresManualAdvance: true,
+  },
+  {
     id: 'automation-type-dice-formula',
     title: 'Use the Strength Tag',
-    message: 'Type @str in the formula field. That tells the dice roller to use the current Strength value as its modifier.',
+    message: 'Type @str in the Expression box, then click Apply formula. The dice roller will use the current Strength value as its modifier.',
     targetSelector: '[data-tutorial="automation-dice-modifier-formula-target"]',
     position: 'left',
     page: 'sheet',
-  },
-  {
-    id: 'automation-formula-operations',
-    title: 'Formula Reference',
-    message: 'The formula editor includes every available label and an organized reference for operators, conditions, math functions, and table commands. Select any reference item to see how it works and review practical examples. If a formula is broken, the editor highlights what is wrong.',
-    position: 'center',
-    page: 'sheet',
-    requiresManualAdvance: true,
   },
   {
     id: 'automation-close-dice-roller',
@@ -653,10 +654,11 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'advanced-roll-dice',
     title: 'Roll the Expression',
-    message: 'Roll the Attack dice. The result opens with every die shown. Click dice to select them and reroll only those.',
+    message: 'Roll the Attack dice. The result appears below the roll button with every die shown. Select dice and use the reroll button to roll only those again. Choose Next when you are ready.',
     targetSelector: '[data-tutorial="automation-roll-dice"]',
     position: 'bottom',
     page: 'sheet',
+    requiresManualAdvance: true,
   },
   {
     id: 'advanced-inline-notes',
@@ -704,7 +706,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'advanced-labels-standalone',
     title: 'Standalone Labels',
-    message: 'Standalone labels are not tied to any widget, such as a proficiency bonus. Create them with Create new label, group them into sections, drag them between sections, and use them in any formula like any other @label.',
+    message: 'Standalone labels are not tied to any widget, such as a proficiency bonus. Create them with Add label, group them with New section, drag them between sections, and use them in any formula like any other @label.',
     targetSelector: '[data-tutorial="labels-standalone"]',
     position: 'left',
     page: 'sheet',

@@ -245,7 +245,12 @@ export function getTriggerLabels(kind: string | undefined, data?: TriggerData): 
 /** `event_…` labels that won't resolve: ones the trigger doesn't provide, or any used in the trigger's own settings
  *  (those are read before the trigger has data). Labels the sheet itself defines are fine. */
 export function getUnknownEventLabels(character: Character, event: Pick<CharacterEvent, 'trigger' | 'steps'>): string[] {
-  const unknown = new Set(Object.values(event.trigger.params ?? {}).flatMap(findEventLabelRefs));
+  const paramValues = (part: CharacterEventTrigger, def: TriggerDef | EffectDef | undefined) => {
+    const params = fillParams(def?.params, part.params);
+    return getVisibleParams(def?.params, params, { character, widget: findWidget(character, part.widgetId), target: part.target })
+      .map((spec) => params[spec.key] ?? '');
+  };
+  const unknown = new Set(paramValues(event.trigger, getTriggerDef(event.trigger.kind)).flatMap(findEventLabelRefs));
   const check = (source: string | undefined, provided: FormulaLabels) => {
     for (const ref of findEventLabelRefs(source)) {
       if (!(ref in provided)) unknown.add(ref);
@@ -255,11 +260,11 @@ export function getUnknownEventLabels(character: Character, event: Pick<Characte
     check(step.condition, getEventLabelsAt(event, stepIndex, 'condition'));
     step.effects.forEach((effect, index) => {
       const provided = getEventLabelsAt(event, stepIndex, 'effects', index);
-      Object.values(effect.params ?? {}).forEach((value) => check(value, provided));
+      paramValues(effect, getEffectDef(effect.kind)).forEach((value) => check(value, provided));
     });
     (step.otherwise ?? []).forEach((effect, index) => {
       const provided = getEventLabelsAt(event, stepIndex, 'otherwise', index);
-      Object.values(effect.params ?? {}).forEach((value) => check(value, provided));
+      paramValues(effect, getEffectDef(effect.kind)).forEach((value) => check(value, provided));
     });
   });
   if (unknown.size === 0) return [];
@@ -329,8 +334,8 @@ export function fillParams(specs: EventParamSpec[] | undefined, params: Characte
   return filled;
 }
 
-export function getVisibleParams(specs: EventParamSpec[] | undefined, params: CharacterEventParams): EventParamSpec[] {
-  return (specs ?? []).filter((spec) => !spec.visible || spec.visible(params));
+export function getVisibleParams(specs: EventParamSpec[] | undefined, params: CharacterEventParams, ctx: SpecContext): EventParamSpec[] {
+  return (specs ?? []).filter((spec) => !spec.visible || spec.visible(params, ctx));
 }
 
 // ----- Targets -----

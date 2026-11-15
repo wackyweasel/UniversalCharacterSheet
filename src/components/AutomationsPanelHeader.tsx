@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ChevronsDownIcon, ChevronsUpIcon, SearchIcon, XIcon } from './icons';
+import AutomationsDeleteAllButton, { type AutomationDeletion } from './AutomationsDeleteAllButton';
 
 interface Props<T extends string> {
   description: string;
@@ -12,6 +13,7 @@ interface Props<T extends string> {
   onFilterChange: (filter: T) => void;
   filterLabel: string;
   addAction?: ReactNode;
+  deletion: AutomationDeletion;
   onCollapseAll: () => void;
   onExpandAll: () => void;
   collapseDisabled: boolean;
@@ -22,7 +24,7 @@ const actionClass = 'inline-flex h-8 items-center justify-center gap-1 rounded-b
 
 export default function AutomationsPanelHeader<T extends string>({
   description, searchLabel, searchPlaceholder, query, onQueryChange, filter, filters, onFilterChange,
-  filterLabel, addAction, onCollapseAll, onExpandAll, collapseDisabled, expandDisabled,
+  filterLabel, addAction, deletion, onCollapseAll, onExpandAll, collapseDisabled, expandDisabled,
 }: Props<T>) {
   return (
     <div className="shrink-0 space-y-2.5 border-b border-theme-border p-3">
@@ -58,6 +60,7 @@ export default function AutomationsPanelHeader<T extends string>({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {addAction}
+        <AutomationsDeleteAllButton key={deletion.tab} {...deletion} />
         <div className="ml-auto flex gap-1.5">
           <button type="button" onClick={onCollapseAll} disabled={collapseDisabled} className={actionClass}><ChevronsUpIcon className="h-3.5 w-3.5" /> Collapse all</button>
           <button type="button" onClick={onExpandAll} disabled={expandDisabled} className={actionClass}><ChevronsDownIcon className="h-3.5 w-3.5" /> Expand all</button>

@@ -6,6 +6,7 @@ import {
   collectLabelEntries,
   getLabelReferences,
   getMissingLabels,
+  removeAllLabelsFromCharacter,
   removeLabelFromCharacter,
   renameLabelInCharacter,
   sanitizeLabelInput,
@@ -84,6 +85,26 @@ describe('custom variables in the formula engine', () => {
 });
 
 describe('label entries', () => {
+  it('removes all explicit bindings and standalone labels but keeps values, references and name-derived labels', () => {
+    const hero = character([stats, table, notes, {
+      id: 'conditions', type: 'TOGGLE_GROUP', x: 0, y: 0,
+      data: { toggleItems: [{ name: 'Bloodied', active: true }] },
+    }], [{ id: 'v1', label: 'prof', value: 2 }]);
+    hero.variableGroups = [{ id: 'section', name: 'Bonuses' }];
+    const next = removeAllLabelsFromCharacter(hero);
+    expect(collectLabelEntries(next).map((entry) => entry.label)).toEqual(['Bloodied']);
+    expect(next.variables).toEqual([]);
+    expect(next.variableGroups).toBe(hero.variableGroups);
+    expect(next.sheets[0].widgets[0].data.displayNumbers).toEqual([
+      { label: 'Strength', value: 16 },
+      { label: 'Bonus', value: 0, valueFormula: 'floor((@str - 10) / 2) + @prof' },
+    ]);
+    expect(next.sheets[0].widgets[1].data.rows).toBe(table.data.rows);
+    expect(next.sheets[0].widgets[2]).toBe(notes);
+    expect(next.sheets[0].widgets[3]).toBe(hero.sheets[0].widgets[3]);
+    expect(removeAllLabelsFromCharacter(next)).toBe(next);
+  });
+
   it('lists custom variables first, then widget labels with context', () => {
     const hero = character([stats, table], [{ id: 'v1', label: 'prof', value: 2 }]);
     const entries = collectLabelEntries(hero);

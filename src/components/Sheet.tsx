@@ -1219,15 +1219,6 @@ export default function Sheet() {
     }
   }, [tutorialStep]);
 
-  // On narrow toolbars the Events button lives in the menu.
-  useEffect(() => {
-    if (!isCurrentTutorialStep('events-open-panel')) return;
-    const frame = window.requestAnimationFrame(() => {
-      if (!document.querySelector('[data-tutorial="events-button"]')) setGridMenuOpen(true);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [tutorialStep]);
-
   const autoFitCharacterIdsRef = useRef(new Set<string>());
   useEffect(() => {
     if (!activeCharacterId || autoFitCharacterIdsRef.current.has(activeCharacterId)) return;

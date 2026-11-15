@@ -281,63 +281,66 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
         aria-label={name || 'Unnamed event'}
         className={`event-card p-3 ${event.enabled ? '' : 'event-card--off'} ${problems.length > 0 ? 'event-card--problem' : ''}`}
       >
-        <header className={`flex items-center gap-1.5 ${collapsed ? '' : 'mb-2.5'}`}>
-          <Tooltip content={collapsed ? 'Expand' : 'Collapse'}>
-            <button
-              type="button"
-              onClick={() => toggleCollapsed(event.id)}
-              aria-expanded={!collapsed}
-              aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${name || 'event'}`}
-              className={iconButtonClass}
-            >
-              {collapsed ? <ChevronRightIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
-            </button>
-          </Tooltip>
-          <h3 className="min-w-0 flex-1 truncate font-heading text-sm font-bold text-theme-ink">
-            {name || <span className="font-body font-normal italic text-theme-muted">Unnamed event</span>}
-          </h3>
-          {!event.enabled && <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-theme-muted font-heading">Off</span>}
-          {collapsed && problems.length > 0 && (
-            <span className="shrink-0 text-xs text-amber-600 font-body" title={problems.join('\n')}>⚠</span>
-          )}
-          <Tooltip content={manual ? 'Run' : 'Run now, whatever the trigger'}>
-            <button
-              type="button"
-              onClick={() => handleRun(item)}
-              aria-label={`Run ${name || 'event'}`}
-              data-tutorial={manual ? 'event-run-manual' : undefined}
-              className={`${manual ? `${primaryButtonClass} h-7 px-2` : iconButtonClass} ${manual && tutorialStepId === 'events-run-manual' ? tutorialTargetClass : ''}`}
-            >
-              <PlayIcon className="h-3.5 w-3.5" />
-              {manual && <span>Run</span>}
-            </button>
-          </Tooltip>
-          <Tooltip content="Edit">
-            <button type="button" onClick={() => openEditor({ eventId: event.id })} aria-label={`Edit ${name || 'event'}`} className={iconButtonClass}>
-              <PencilIcon className="h-3.5 w-3.5" />
-            </button>
-          </Tooltip>
-          <Tooltip content={event.enabled ? 'On: turn off' : 'Off: turn on'}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={event.enabled}
-              aria-label={`${name || 'Event'} is on`}
-              onClick={() => setEventEnabled(event.id, !event.enabled)}
-              className="event-switch mx-1"
-            />
-          </Tooltip>
-          <Tooltip content="More actions">
-            <button
-              type="button"
-              onClick={() => setActionsId((current) => (current === event.id ? null : event.id))}
-              aria-expanded={showActions}
-              aria-label="More actions"
-              className={`${iconButtonClass} ${showActions ? '!bg-theme-accent !text-theme-paper' : ''}`}
-            >
-              <DotsVerticalIcon className="h-3.5 w-3.5" />
-            </button>
-          </Tooltip>
+        <header className={`flex flex-wrap items-center gap-x-1.5 gap-y-2 ${collapsed ? '' : 'mb-2.5'}`}>
+          <div className="flex min-w-0 flex-1 basis-40 items-center gap-1.5">
+            <Tooltip content={collapsed ? 'Expand' : 'Collapse'}>
+              <button
+                type="button"
+                onClick={() => toggleCollapsed(event.id)}
+                aria-expanded={!collapsed}
+                aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${name || 'event'}`}
+                className={iconButtonClass}
+              >
+                {collapsed ? <ChevronRightIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
+              </button>
+            </Tooltip>
+            <h3 className="min-w-0 flex-1 truncate font-heading text-sm font-bold text-theme-ink">
+              {name || <span className="font-body font-normal italic text-theme-muted">Unnamed event</span>}
+            </h3>
+            {collapsed && problems.length > 0 && (
+              <span className="shrink-0 text-xs text-amber-600 font-body" title={problems.join('\n')}>⚠</span>
+            )}
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <Tooltip content={manual ? 'Run' : 'Run now, whatever the trigger'}>
+              <button
+                type="button"
+                onClick={() => handleRun(item)}
+                aria-label={`Run ${name || 'event'}`}
+                data-tutorial={manual ? 'event-run-manual' : undefined}
+                className={`${manual ? `${primaryButtonClass} h-7 px-2` : iconButtonClass} ${manual && tutorialStepId === 'events-run-manual' ? tutorialTargetClass : ''}`}
+              >
+                <PlayIcon className="h-3.5 w-3.5" />
+                {manual && <span>Run</span>}
+              </button>
+            </Tooltip>
+            <Tooltip content="Edit">
+              <button type="button" onClick={() => openEditor({ eventId: event.id })} aria-label={`Edit ${name || 'event'}`} className={iconButtonClass}>
+                <PencilIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip content={event.enabled ? 'On: turn off' : 'Off: turn on'}>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={event.enabled}
+                aria-label={`${name || 'Event'} is on`}
+                onClick={() => setEventEnabled(event.id, !event.enabled)}
+                className="event-switch mx-1"
+              />
+            </Tooltip>
+            <Tooltip content="More actions">
+              <button
+                type="button"
+                onClick={() => setActionsId((current) => (current === event.id ? null : event.id))}
+                aria-expanded={showActions}
+                aria-label="More actions"
+                className={`${iconButtonClass} ${showActions ? '!bg-theme-accent !text-theme-paper' : ''}`}
+              >
+                <DotsVerticalIcon className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          </div>
         </header>
 
         {!collapsed && (
@@ -354,7 +357,7 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
 
         {showActions && (
           <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-theme-border pt-2.5 animate-dropdown-in">
-            <button type="button" onClick={() => handleDuplicate(item)} className={buttonClass}>
+            <button type="button" onClick={() => handleDuplicate(item)} aria-label={`Duplicate ${name || 'event'}`} className={buttonClass}>
               <CopyIcon className="h-3.5 w-3.5" /> Duplicate
             </button>
             <button type="button" onClick={() => handleMove(item, -1)} disabled={item.index === 0} className={buttonClass}>
@@ -390,6 +393,7 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
         filterLabel="Filter events"
         filters={filters}
         onFilterChange={setFilter}
+        deletion={{ tab: 'events', count: items.length }}
         addAction={<button type="button" aria-label="New event" data-tutorial="events-new" onClick={() => openEditor()} className={`${primaryButtonClass} ${tutorialStepId === 'events-new' ? tutorialTargetClass : ''}`}><PlusIcon className="h-3.5 w-3.5" /> Add event</button>}
         onCollapseAll={() => setAllCollapsed(true)}
         onExpandAll={() => setAllCollapsed(false)}

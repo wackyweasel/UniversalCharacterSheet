@@ -13,10 +13,10 @@ const MIN_WIDTH = 320;
 const MIN_HEIGHT = 220;
 const BOTTOM_LAYOUT_QUERY = '(max-width: 639px)';
 const tabs: { id: AutomationsTab; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }[] = [
+  { id: 'effects', label: 'Effects', icon: SquarePlus },
   { id: 'labels', label: 'Labels', icon: TagIcon },
   { id: 'formulas', label: 'Formulas', icon: FunctionIcon },
   { id: 'events', label: 'Events', icon: BoltIcon },
-  { id: 'effects', label: 'Effects', icon: SquarePlus },
 ];
 
 function loadPanelSize(): { width: number; height: number | null } {

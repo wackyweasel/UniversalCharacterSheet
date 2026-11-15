@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Character, Widget } from '../types';
-import { collectCharacterFormulas, previewCharacterFormula, updateCharacterFormula } from './characterFormulas';
+import { collectCharacterFormulas, previewCharacterFormula, removeAllCharacterFormulas, updateCharacterFormula } from './characterFormulas';
 
 function hero(widgets: Widget[] = []): Character {
   return {
@@ -18,6 +18,70 @@ const stats: Widget = {
 };
 
 describe('character formula catalog', () => {
+  it('clears all sources while preserving values, markup, escaped tokens, buttons and dice', () => {
+    const character = hero([stats, {
+      id: 'notes', type: 'TEXT', x: 0, y: 0, data: {
+        text: 'Bonus {@strength}',
+        richText: '<p title="{99}">Bonus {IF(@strength &gt; 10, 1, 0)}. {{@strength}} {[Rage]} {@strength} &#123;@strength&#125; &amp; {1d6}</p>',
+        noteTabs: [{ id: 'tab', name: 'Notes', text: 'Bonus {@strength}', richText: '<p>Bonus {@strength}</p>' }],
+        activeNoteTabId: 'tab',
+      },
+    }, {
+      id: 'table', type: 'TABLE', x: 0, y: 0, data: {
+        columns: ['Bonus'], rows: [{ cells: [{ value: '8', formula: '@strength / 2' }] }],
+        tableColumnSettings: [{ formula: '@strength' }], tableRowSettings: [{ formula: '3' }],
+      },
+    }]);
+    character.compendium = [{ id: 'gear', name: 'Gear', items: [{
+      id: 'ring', name: 'Ring', fields: [{ id: 'bonus', name: 'Bonus', type: 'number', value: 8, valueFormula: '@strength / 2' }],
+    }] }];
+    character.events = [{
+      id: 'event', enabled: true, trigger: { kind: 'manual' }, steps: [{
+        id: 'step', condition: '@strength > 10', effects: [
+          { id: 'add', kind: 'label.add', params: { amount: '@strength / 2' } },
+          { id: 'set', kind: 'label.set', params: { value: 'Bonus {@strength}' } },
+          { id: 'dice', kind: 'label.add', params: { amount: '1d6 + @strength' } },
+          { id: 'log', kind: 'log.message', params: { message: 'Bonus {@strength}, roll {1d6}, {{@strength}} {[Rage]}' } },
+        ], otherwise: [{ id: 'miss', kind: 'label.add', params: { amount: '@missing' } }],
+      }],
+    }];
+    const next = removeAllCharacterFormulas(character);
+    expect(collectCharacterFormulas(next)).toEqual([]);
+    expect(next.variables![1]).toMatchObject({ label: 'proficiency', value: 2, formula: undefined });
+    expect(next.sheets[0].widgets[0].data.displayNumbers![0]).toMatchObject({ value: 3, valueLabel: 'bonus', valueFormula: undefined });
+    const notes = next.sheets[0].widgets[1].data;
+    expect(notes.text).toBe('Bonus ');
+    expect(notes.richText).toBe('<p title="{99}">Bonus . {{@strength}} {[Rage]}   &amp; {1d6}</p>');
+    expect(notes.noteTabs![0]).toMatchObject({ id: 'tab', text: 'Bonus ', richText: '<p>Bonus </p>' });
+    expect(next.sheets[0].widgets[2].data.rows![0].cells[0]).toMatchObject({ value: '8', formula: undefined });
+    expect(next.compendium![0].items[0].fields[0]).toMatchObject({ value: 8, valueFormula: undefined });
+    const step = next.events![0].steps[0];
+    expect(step.condition).toBeUndefined();
+    expect(step.effects.map((effect) => effect.params)).toEqual([
+      { amount: '1' }, { value: '0' }, { amount: '1d6 + @strength' }, { message: 'Bonus , roll {1d6}, {{@strength}} {[Rage]}' },
+    ]);
+    expect(step.otherwise![0].params).toEqual({ amount: '1' });
+    expect(character.events[0].steps[0].condition).toBe('@strength > 10');
+    expect(removeAllCharacterFormulas(next)).toBe(next);
+  });
+
+  it('can clear only individually editable formulas without altering embedded sources', () => {
+    const character = hero([stats, {
+      id: 'notes', type: 'TEXT', x: 0, y: 0, data: { text: 'Bonus {@strength}' },
+    }, {
+      id: 'table', type: 'TABLE', x: 0, y: 0, data: { tableColumnSettings: [{ formula: '@strength' }] },
+    }]);
+    character.events = [{
+      id: 'event', enabled: true, trigger: { kind: 'manual' },
+      steps: [{ id: 'step', condition: '@strength > 10', effects: [] }],
+    }];
+    const next = removeAllCharacterFormulas(character, true);
+    expect(collectCharacterFormulas(next).map((entry) => entry.formula)).toEqual(['@strength', '@strength', '@strength > 10']);
+    expect(next.sheets[0].widgets[1]).toBe(character.sheets[0].widgets[1]);
+    expect(next.events).toBe(character.events);
+    expect(removeAllCharacterFormulas(next, true)).toBe(next);
+  });
+
   it.each(['1', '-2', '+1', '0.5', ' 10 '])('does not list an event that only adds a fixed amount (%s) as a formula source', (amount) => {
     const character = hero();
     character.events = [{

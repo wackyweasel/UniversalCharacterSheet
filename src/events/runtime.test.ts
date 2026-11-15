@@ -98,6 +98,35 @@ describe('event runtime', () => {
     expect(eventEntries()).toHaveLength(1);
   });
 
+  it('undoes bulk effect removal and its triggered events together', async () => {
+    const boosted: Character = {
+      ...hero, sheets: [{
+        ...hero.sheets[0], widgets: [
+          { ...hero.sheets[0].widgets[0], data: { ...hero.sheets[0].widgets[0].data, currentValue: 9 } },
+          ...hero.sheets[0].widgets.slice(1),
+          { id: 'boost', type: 'TOGGLE', x: 0, y: 0, data: {
+            toggleState: true,
+            effects: [{ id: 'bonus', amount: 2, target: { kind: 'widget', widgetId: 'w-hp', field: 'currentValue' } }],
+          } },
+        ],
+      }],
+    };
+    useStore.getState()._replaceWorkspaceState({ characters: [boosted], activeCharacterId: hero.id, mode: 'play' });
+    await settle();
+    expect(widgetData('w-hp').currentValue).toBe(11);
+    useStore.getState().deleteAllAutomations('effects');
+    await settle();
+    expect(widgetData('w-hp').currentValue).toBe(9);
+    expect(widgetData('w-bloodied').toggleState).toBe(true);
+    expect(useUndoStore.getState().past).toHaveLength(1);
+    useStore.getState().undo();
+    await settle();
+    expect(widgetData('w-hp').currentValue).toBe(11);
+    expect(widgetData('w-bloodied').toggleState).toBe(false);
+    expect(widgetData('boost').effects).toHaveLength(1);
+    expect(eventEntries()).toHaveLength(0);
+  });
+
   it('ignores changes made while a widget is being edited and loads', async () => {
     useStore.getState().setEditingWidgetId('w-hp');
     useStore.getState().updateWidgetData('w-hp', { currentValue: 8 });

@@ -50,6 +50,16 @@ const TOP_ON_NARROW_STEP_IDS = new Set([
   'automation-close-number-display',
   'automation-close-dice-roller',
   'advanced-close-dice-roller',
+  'advanced-labels-overview',
+  'advanced-labels-standalone',
+  'events-panel-overview',
+  'events-card',
+  'events-timeline',
+  'events-run-manual',
+  'events-chain',
+  'events-card-controls',
+  'events-new',
+  'events-try-new-result',
   'events-close-widget',
   'events-editor-save',
   'events-inline-editor-save',
@@ -184,9 +194,24 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
   const cleanupTransientCharacters = useStore((state) => state.cleanupTransientCharacters);
   const selectCharacter = useStore((state) => state.selectCharacter);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < NARROW_BREAKPOINT);
+  const [formulaTargetIsButton, setFormulaTargetIsButton] = useState(false);
 
   const step = tutorialStep !== null ? TUTORIAL_STEPS[tutorialStep] : null;
   const isFinalStep = !!step && FINAL_STEP_IDS.has(step.id);
+  const followsFormulaTarget = step?.id === 'automation-type-dice-formula' || step?.id === 'advanced-apply-formula';
+
+  useEffect(() => {
+    if (!isNarrow || !followsFormulaTarget || !step?.targetSelector) return;
+
+    // Validation moves the tutorial target from Expression to the footer's Apply button.
+    let frameId: number;
+    const trackTarget = () => {
+      setFormulaTargetIsButton(document.querySelector(step.targetSelector!) instanceof HTMLButtonElement);
+      frameId = requestAnimationFrame(trackTarget);
+    };
+    trackTarget();
+    return () => cancelAnimationFrame(frameId);
+  }, [followsFormulaTarget, isNarrow, step]);
 
   const handleAdvanceTutorial = () => {
     if (step?.id === 'various-feedback') {
@@ -250,7 +275,7 @@ export default function TutorialBubble({ darkMode = false }: TutorialBubbleProps
 
   if (!step) return null;
 
-  const showAtTopOnNarrow = showsAtTopOnNarrow(step);
+  const showAtTopOnNarrow = showsAtTopOnNarrow(step) || (followsFormulaTarget && formulaTargetIsButton);
 
   // For narrow windows, show at bottom or top depending on step
   if (isNarrow) {

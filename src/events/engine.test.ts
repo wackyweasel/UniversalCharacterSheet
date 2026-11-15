@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { CardTableCard, Character, CharacterEvent as StepEvent, CharacterEventEffect, Widget } from '../types';
+import type { CardTableCard, Character, CharacterEvent as StepEvent, CharacterEventEffect, InventoryItem, Widget } from '../types';
 import { MAX_CHAIN_DEPTH, interpolateText, runEvents } from './engine';
-import { createEventDraft, createTextButtonDraft, getEventSourceWidgets } from './drafts';
+import { createEffect, createEventDraft, createTextButtonDraft, getEventSourceWidgets } from './drafts';
 import { findInlineButtonNames, TEXT_BUTTON_KIND } from './defs/textButton';
 import { patchWidgetData } from './helpers';
 import { writeLabelValue } from './labelWriter';
@@ -10,12 +10,16 @@ import {
   describeTrigger,
   getAllEffectDefs,
   getAllTriggerDefs,
+  getEffectDef,
+  getEffectProblem,
   getEventProblems,
   getEventLabelsAt,
+  getVisibleParams,
   getWidgetEventDefs,
 } from './registry';
 import { normalizeEvent, type StoredCharacterEvent } from './steps';
 import { reconcileItemEffects } from '../utils/itemEffects';
+import { withDieRoller } from '../utils/diceExpression';
 
 // Most fixtures use the one-step shorthand (a condition and effects), which `normalizeEvent` turns into a step.
 type CharacterEvent = Omit<StoredCharacterEvent, 'steps' | 'effects'> & { effects: CharacterEventEffect[] };
@@ -212,6 +216,280 @@ describe('event engine', () => {
     const result = runEvents({ before, after: writeLabelValue(before, 'n0', 1)! });
     expect(result.firings).toHaveLength(MAX_CHAIN_DEPTH);
     expect(result.truncated).toBe(true);
+  });
+
+  describe('adding Compendium items', () => {
+    const entry: InventoryItem = {
+      id: 'library-ring',
+      name: 'Ring of Strength',
+      description: '<p>A silver ring.</p>',
+      fields: [
+        { id: 'library-power', name: 'Power', type: 'number', value: 2 },
+        { id: 'library-weight', name: 'Weight', type: 'number', value: 0.5 },
+        { id: 'library-quantity', name: 'Quantity', type: 'number', value: 5 },
+      ],
+      effects: [{ id: 'library-bonus', amount: 2, target: { kind: 'variable', variableId: 'strength' } }],
+    };
+    const event: CharacterEvent = {
+      id: 'e-library', enabled: true, trigger: { kind: 'manual' },
+      effects: [{ id: 'add', kind: 'inventory.add', widgetId: bag.id, target: entry.id, params: { quantity: '2.9', name: 'Ignored custom name' } }],
+    };
+    const withLibrary = (widget: Widget): Character => ({
+      ...character([widget], [event], [{ id: 'strength', label: 'strength', value: 10 }]),
+      compendium: [{ id: 'gear', name: 'Gear', items: [entry] }],
+    });
+    const run = (hero: Character) => runEvents({ before: hero, after: hero, manualEventId: event.id });
+
+    it.each(['INVENTORY', 'INVENTORY_SLOTS', 'COMPENDIUM'] as const)(
+      'copies complete independent entries into %s and follows its activation setting',
+      (type) => {
+        const before = withLibrary({
+          ...bag, type,
+          data: {
+            ...bag.data,
+            inventoryEncumbrance: { enabled: true, unit: 'lb', includeInGlobalLoad: false, showGlobalCounter: false },
+            inventoryDefaultFields: [{ id: 'power-template', name: 'Power', type: 'number', defaultValue: 0 }],
+            inventorySlots: [{ id: 'ring-slot', name: 'Ring', x: 0, y: 0, w: 50, h: 50, maxItems: 2 }],
+            inventoryItems: [{ id: 'existing', name: entry.name, fields: [{ id: 'different', name: 'Power', type: 'number', value: 99 }] }],
+          },
+        });
+        const first = run(before).character;
+        const twice = run(first).character;
+        const items = widgetData(twice, bag.id).inventoryItems!;
+        expect(items).toHaveLength(3);
+        expect(items[0]).toEqual(before.sheets[0].widgets[0].data.inventoryItems![0]);
+        expect(new Set(items.map((item) => item.id)).size).toBe(3);
+        expect(items[1].id).not.toBe(entry.id);
+        for (const item of items.slice(1)) {
+          expect(item.name).toBe(entry.name);
+          expect(item.description).toBe(entry.description);
+          expect(item.fields.find((field) => field.name === 'Power')).toMatchObject({ value: 2, templateId: 'power-template' });
+          expect(item.fields.every((field) => !entry.fields.some((original) => original.id === field.id))).toBe(true);
+          expect(item.effects![0]).toMatchObject({ amount: 2, target: entry.effects![0].target });
+          expect(item.active).toBe(type === 'INVENTORY_SLOTS');
+          if (type === 'COMPENDIUM') {
+            expect(item.quantity).toBeUndefined();
+            expect(item.fields.find((field) => field.name === 'Quantity')?.value).toBe(2);
+            expect(item.fields.find((field) => field.name === 'Weight')?.reserved).toBeUndefined();
+          } else {
+            expect(item.quantity).toBe(2);
+            expect(item.fields.find((field) => field.name === 'Weight')).toMatchObject({ value: 0.5, reserved: 'weight' });
+          }
+          expect(item.slotId).toBe(type === 'INVENTORY_SLOTS' ? 'ring-slot' : undefined);
+        }
+        expect(items[1].effects![0].id).not.toBe(items[2].effects![0].id);
+        expect(items[1].effects![0].id).not.toBe(entry.effects![0].id);
+        expect(twice.variables![0].value).toBe(type === 'INVENTORY_SLOTS' ? 14 : 10);
+        const inactive = reconcileItemEffects(twice, patchWidgetData(twice, bag.id, {
+          inventoryItems: items.map((item) => ({ ...item, active: false })),
+        }));
+        expect(inactive.variables![0].value).toBe(10);
+        expect(twice.compendium).toEqual(before.compendium);
+      },
+    );
+
+    it('uses the current entry after a rename and preserves the reference through serialization', () => {
+      const before = withLibrary({ ...bag, data: { ...bag.data, autoActivateItems: true } });
+      const updated = JSON.parse(JSON.stringify({
+        ...before,
+        compendium: [{ id: 'new-section', name: 'Magic', items: [{ ...entry, name: 'Greater ring', description: '<p>Updated</p>' }] }],
+      })) as Character;
+      expect(describeEffect(updated, updated.events![0].steps[0].effects[0])).toContain('Magic · Greater ring from compendium');
+      const result = run(updated).character;
+      expect(widgetData(result, bag.id).inventoryItems![0]).toMatchObject({ name: 'Greater ring', description: '<p>Updated</p>', active: true });
+      expect(result.variables![0].value).toBe(12);
+    });
+
+    it('reports deleted entries and does not substitute an identically named entry', () => {
+      const before = withLibrary(bag);
+      const missing = { ...before, compendium: [{ id: 'gear', name: 'Gear', items: [{ ...entry, id: 'replacement' }] }] };
+      expect(getEffectProblem(missing, missing.events![0].steps[0].effects[0])).toBe('Item no longer exists');
+      const result = run(missing);
+      expect(widgetData(result.character, bag.id).inventoryItems).toEqual([]);
+      expect(result.firings[0].effects[0].text).toContain('The compendium entry no longer exists');
+    });
+
+    it('does not add a copy or apply its Effects when equipment slots are full or quantity is zero', () => {
+      const full = withLibrary({
+        ...bag, type: 'INVENTORY_SLOTS',
+        data: { inventorySlots: [{ id: 'ring-slot', name: 'Ring', x: 0, y: 0, w: 50, h: 50 }], inventoryItems: [{ id: 'occupant', name: 'Other ring', fields: [], slotId: 'ring-slot' }] },
+      });
+      const blocked = run(full);
+      expect(widgetData(blocked.character, bag.id).inventoryItems).toHaveLength(1);
+      expect(blocked.firings[0].effects[0].text).toContain('No free slot for Ring of Strength');
+      expect(blocked.character.variables![0].value).toBe(10);
+      const zero = withLibrary(bag);
+      zero.events![0].steps[0].effects[0].params = { quantity: '0' };
+      expect(widgetData(run(zero).character, bag.id).inventoryItems).toEqual([]);
+    });
+
+    it('offers section-qualified entries and hides the custom name only for a Compendium choice', () => {
+      const hero = withLibrary(bag);
+      const def = getEffectDef('inventory.add')!;
+      expect(def.target!.options({ character: hero, widget: bag })).toContainEqual({ value: entry.id, label: 'Gear · Ring of Strength' });
+      expect(getVisibleParams(def.params, {}, { character: hero, target: entry.id }).map((spec) => spec.key)).toEqual(['quantity']);
+      expect(getVisibleParams(def.params, {}, { character: hero }).map((spec) => spec.key)).toEqual(['name', 'quantity']);
+      expect(getVisibleParams(def.params, {}, { character: hero, target: 'custom' }).map((spec) => spec.key)).toEqual(['name', 'quantity']);
+    });
+
+    it('ignores unused custom-name references when a Compendium entry is selected', () => {
+      const hero = withLibrary(bag);
+      const stored = normalizeEvent({
+        ...event,
+        effects: [{ ...event.effects[0], params: { quantity: '1', name: '@event_unavailable' } }],
+      });
+      expect(getEventProblems(hero, stored)).toEqual([]);
+      stored.steps[0].effects[0].target = 'custom';
+      expect(getEventProblems(hero, stored)).toContain("Uses @event_unavailable, which isn't available where it's used");
+    });
+
+    it('preserves name-based additions and stacking for legacy custom-item events', () => {
+      const custom = character([bag], [{
+        ...event,
+        effects: [{ id: 'add', kind: 'inventory.add', widgetId: bag.id, params: { name: 'Potion', quantity: '2' } }],
+      }]);
+      const first = run(custom).character;
+      const twice = run(first).character;
+      expect(widgetData(twice, bag.id).inventoryItems).toHaveLength(1);
+      expect(widgetData(twice, bag.id).inventoryItems![0]).toMatchObject({ name: 'Potion', quantity: 4 });
+      expect(describeEffect(custom, custom.events![0].steps[0].effects[0])).toBe('Add 2 × Potion to Bag');
+    });
+  });
+
+  describe('all numeric targets', () => {
+    const numbers: Widget = {
+      ...stats,
+      data: {
+        label: 'Stats',
+        displayNumbers: [
+          { id: 'first', label: 'Repeated name', value: 1, minValue: -2, maxValue: 8 },
+          { id: 'second', label: 'Repeated name', value: 4, minValue: 0, maxValue: 6 },
+          { id: 'computed', label: 'Computed', value: 10, valueFormula: '10' },
+        ],
+      },
+    };
+    const eventFor = (kind: string, params: CharacterEventEffect['params'] = {}, target = '*'): CharacterEvent => ({
+      id: 'all-event', enabled: true, trigger: { kind: 'manual' },
+      effects: [{ id: 'all-effect', kind, widgetId: numbers.id, target, params }],
+    });
+    const run = (widget: Widget, event: CharacterEvent) => {
+      const before = character([widget], [event]);
+      return runEvents({ before, after: before, manualEventId: event.id });
+    };
+    const values = (hero: Character) => widgetData(hero, numbers.id).displayNumbers!.map((item) => item.value);
+
+    it.each([
+      ['value.add', [4, 6, 10]],
+      ['value.subtract', [-2, 1, 10]],
+      ['value.set', [3, 3, 10]],
+      ['value.fill', [8, 6, 10]],
+      ['value.empty', [-2, 0, 10]],
+    ] as const)('applies %s to every writable value, including duplicate names, with individual limits', (kind, expected) => {
+      const event = eventFor(kind, { amount: '3' });
+      const result = run(numbers, event);
+      expect(values(result.character)).toEqual(expected);
+      expect(values(character([numbers], []))).toEqual([1, 4, 10]);
+      expect(getEventProblems(result.character, normalizeEvent(event))).toEqual([]);
+    });
+
+    it('applies fractional amounts without changing computed values', () => {
+      expect(values(run(numbers, eventFor('value.add', { amount: '0.5' })).character)).toEqual([1.5, 4.5, 10]);
+    });
+
+    it.each([
+      ['default', [2, 2, 10], 1],
+      ['once', [2, 2, 10], 1],
+      ['each', [2, 5, 10], 2],
+    ] as const)('uses the %s dice policy without rolling for computed values', (rollMode, expected, count) => {
+      let rolls = 0;
+      const widget = { ...numbers, data: { ...numbers.data, displayNumbers: numbers.data.displayNumbers!.map((item) => (
+        item.valueFormula ? item : { ...item, value: 0 }
+      )) } };
+      const result = withDieRoller((faces) => {
+        expect(faces).toBe(6);
+        return [2, 5][rolls++];
+      }, () => run(widget, eventFor('value.add', { amount: '1d6', ...(rollMode === 'default' ? {} : { rollMode }) })));
+      expect(values(result.character)).toEqual(expected);
+      expect(rolls).toBe(count);
+    });
+
+    it('keeps single-value selection and legacy unspecified targets unchanged', () => {
+      const def = getEffectDef('value.add')!;
+      const hero = character([numbers], []);
+      expect(def.target!.options({ character: hero, widget: numbers })).toContainEqual({ value: '*', label: 'All' });
+      expect(createEffect(hero, def, numbers).target).toBe('Repeated name');
+      const single = eventFor('value.add', { amount: '2', rollMode: 'each' }, 'Repeated name');
+      expect(values(run(numbers, single).character)).toEqual([3, 4, 10]);
+      const legacy = { ...single, effects: [{ ...single.effects[0], target: undefined }] };
+      expect(values(run(numbers, legacy).character)).toEqual([3, 4, 10]);
+      expect(getVisibleParams(def.params, {}, { character: hero, target: '*' }).map((spec) => spec.key)).toContain('rollMode');
+      expect(getVisibleParams(def.params, {}, { character: hero, target: 'Repeated name' }).map((spec) => spec.key)).not.toContain('rollMode');
+    });
+
+    it.each([
+      {
+        type: 'NUMBER',
+        data: { numberItems: [{ name: 'One', value: 1 }, { name: 'Two', value: 2 }] },
+        read: (data: Widget['data']) => data.numberItems!.map((item) => item.value), expected: [3, 4],
+      },
+      {
+        type: 'POOL',
+        data: { poolResources: [{ name: 'One', current: 1, max: 8, style: 'circle' }, { name: 'Two', current: 2, max: 8, style: 'circle' }] },
+        read: (data: Widget['data']) => data.poolResources!.map((item) => item.current), expected: [3, 4],
+      },
+      {
+        type: 'MIXED_FIELDS',
+        data: { mixedFields: [{ name: 'Number', type: 'number', value: 1 }, { name: 'Progress', type: 'progress', current: 2, max: 8 }, { name: 'Resource', type: 'resource', current: 3, max: 8, style: 'circle' }] },
+        read: (data: Widget['data']) => data.mixedFields!.flatMap((item) => (
+          item.type === 'number' ? [Number(item.value)] : item.type === 'progress' || item.type === 'resource' ? [item.current] : []
+        )), expected: [3, 4, 5],
+      },
+      {
+        type: 'PROGRESS_CLOCK',
+        data: { clockItems: [{ id: 'clock-one', name: 'One', value: 1, segments: 6 }, { id: 'clock-two', name: 'Two', value: 2, segments: 6 }] },
+        read: (data: Widget['data']) => data.clockItems!.map((item) => item.value), expected: [3, 4],
+      },
+      {
+        type: 'SPELL_SLOT',
+        data: { spellLevels: [{ level: 1, max: 4, used: 3 }, { level: 2, max: 4, used: 2 }] },
+        read: (data: Widget['data']) => data.spellLevels!.map((item) => item.used), expected: [1, 0],
+      },
+      {
+        type: 'WALLET',
+        data: { walletCurrencies: [{ name: 'Gold', amount: 1, rate: 1 }, { name: 'Silver', amount: 2, rate: 1 }] },
+        read: (data: Widget['data']) => data.walletCurrencies!.map((item) => item.amount), expected: [3, 4],
+      },
+      {
+        type: 'INVENTORY',
+        data: { inventoryItems: [{ id: 'one', name: 'One', quantity: 1, fields: [] }, { id: 'two', name: 'Two', quantity: 2, fields: [] }] },
+        read: (data: Widget['data']) => data.inventoryItems!.map((item) => item.quantity!), expected: [3, 4],
+      },
+    ] satisfies { type: Widget['type']; data: Widget['data']; read: (data: Widget['data']) => number[]; expected: number[] }[])('preserves every update in $type collections instead of overwriting earlier changes', ({ type, data, read, expected }) => {
+      const widget: Widget = { ...numbers, type, data };
+      const result = run(widget, eventFor('value.add', { amount: '2' }));
+      expect(read(widgetData(result.character, numbers.id))).toEqual(expected);
+    });
+
+    it('reports invalid amounts and empty writable sets without changing data', () => {
+      const invalid = run(numbers, eventFor('value.add', { amount: '@missing' }));
+      expect(values(invalid.character)).toEqual([1, 4, 10]);
+      expect(invalid.firings[0].effects[0]).toMatchObject({ skipped: true });
+      expect(invalid.firings[0].effects[0].text).toContain("the amount isn't valid");
+      const computedOnly = { ...numbers, data: { displayNumbers: [numbers.data.displayNumbers![2]] } };
+      const empty = run(computedOnly, eventFor('value.add', { amount: '1d6' }));
+      expect(values(empty.character)).toEqual([10]);
+      expect(empty.firings[0].effects[0].text).toContain('No writable values');
+    });
+
+    it('fills bounded values while explaining values without a maximum', () => {
+      const widget = { ...numbers, data: { displayNumbers: [
+        { id: 'bounded', label: 'Bounded', value: 1, maxValue: 8 },
+        { id: 'unbounded', label: 'Unbounded', value: 2 },
+      ] } };
+      const result = run(widget, eventFor('value.fill'));
+      expect(values(result.character)).toEqual([8, 2]);
+      expect(result.firings[0].effects[0].text).toContain('Unbounded has no maximum');
+    });
   });
 
   it('adds money when an item is added to the inventory', () => {

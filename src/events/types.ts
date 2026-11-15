@@ -34,7 +34,7 @@ export interface EventParamSpec {
   placeholder?: string;
   help?: string;
   /** Hides the field unless it applies to the current choices. */
-  visible?: (params: CharacterEventParams) => boolean;
+  visible?: (params: CharacterEventParams, ctx: SpecContext) => boolean;
 }
 
 export interface TargetSpec {

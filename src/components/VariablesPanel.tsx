@@ -602,6 +602,8 @@ function Chip({ children, onClick, onHover, tone = 'default', title }: {
 export default function VariablesPanel({ onRevealWidget, isBottom }: VariablesPanelProps) {
   const isOpen = useAutomationsPanelStore((state) => state.isOpen && state.tab === 'labels');
   const setOpen = useAutomationsPanelStore((state) => state.setOpen);
+  const focusVariableId = useAutomationsPanelStore((state) => state.focusVariableId);
+  const clearVariableFocus = useAutomationsPanelStore((state) => state.clearVariableFocus);
   const character = useStore((state) => state.characters.find((item) => item.id === state.activeCharacterId) ?? null);
   const addVariable = useStore((state) => state.addVariable);
   const updateVariable = useStore((state) => state.updateVariable);
@@ -812,6 +814,14 @@ export default function VariablesPanel({ onRevealWidget, isBottom }: VariablesPa
     });
     pendingScrollKeyRef.current = entry.key;
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || !focusVariableId) return;
+    const entry = entries.find((item) => item.variableId === focusVariableId);
+    clearVariableFocus();
+    if (entry) focusEntry(entry);
+    else setToast({ message: 'This label is no longer available.', undoable: false });
+  }, [clearVariableFocus, entries, focusEntry, focusVariableId, isOpen]);
 
   const toggleGroup = useCallback((key: string) => {
     setCollapsedGroups((current) => {
@@ -1392,6 +1402,7 @@ export default function VariablesPanel({ onRevealWidget, isBottom }: VariablesPa
         filterLabel="Filter labels"
         filters={filters}
         onFilterChange={setFilter}
+        deletion={{ tab: 'labels', count: entries.filter((entry) => entry.editable).length }}
         addAction={<button type="button" onClick={() => { setQuery(''); startCreate(); }} className={primaryButtonClass} aria-label="Create new label"><PlusIcon className="h-3.5 w-3.5" /> Add label</button>}
         onCollapseAll={() => setCollapsedGroups(new Set([...collapsedGroups, ...collapseKeys]))}
         onExpandAll={() => setCollapsedGroups(new Set())}

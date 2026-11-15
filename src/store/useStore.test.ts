@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Character, WidgetData } from '../types';
 import { useStore } from './useStore';
 import { useUndoStore } from './useUndoStore';
+import { collectLabelEntries } from '../utils/characterVariables';
+import { collectCharacterFormulas } from '../utils/characterFormulas';
+import { getWidgetEffectSources } from '../utils/widgetEffects';
 
 vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
@@ -58,6 +61,79 @@ const character: Character = {
     ],
   }],
 };
+
+describe('bulk automation deletion', () => {
+  const getCharacter = () => useStore.getState().characters[0];
+  beforeEach(() => {
+    useUndoStore.getState().clearAllHistory();
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{
+        ...character,
+        variables: [{ id: 'strength', label: 'strength', value: 10 }, { id: 'bonus', label: 'bonus', value: 5, formula: '5' }],
+        events: [{ id: 'event', enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 'step', effects: [] }] }],
+        sheets: [...character.sheets, { id: 'sources', name: 'Sources', widgets: [{
+          id: 'switch', type: 'TOGGLE', x: 0, y: 0, data: {
+            toggleState: true, effects: [{ id: 'effect', amount: 2, target: { kind: 'variable', variableId: 'strength' } }],
+          },
+        }, {
+          id: 'conditions', type: 'TOGGLE_GROUP', x: 0, y: 0,
+          data: { toggleItems: [{ id: 'condition', name: 'Bloodied', active: true }] },
+        }] }],
+      }, { ...character, id: 'other' }],
+      activeCharacterId: character.id, mode: 'play',
+    });
+  });
+
+  it.each(['effects', 'labels', 'formulas', 'events'] as const)('deletes all %s across sheets with a single undo/redo step', (tab) => {
+    const before = structuredClone(getCharacter());
+    const other = useStore.getState().characters[1];
+    expect(useStore.getState().deleteAllAutomations(tab)).toBe(true);
+    const after = structuredClone(getCharacter());
+    expect(useUndoStore.getState().past).toHaveLength(1);
+    expect(useStore.getState().characters[1]).toBe(other);
+    if (tab === 'effects') {
+      expect(after.sheets.flatMap((sheet) => sheet.widgets.flatMap((widget) => getWidgetEffectSources(widget).flatMap((source) => source.effects)))).toEqual([]);
+      expect(after.variables![0].value).toBe(10);
+      expect(after.sheets[1].widgets[0].data.toggleState).toBe(true);
+      expect(after.events).toEqual(before.events);
+    } else if (tab === 'labels') {
+      expect(collectLabelEntries(after).map((entry) => entry.label)).toEqual(['Bloodied']);
+      expect(after.variables).toEqual([]);
+      expect(after.sheets[0].widgets[0].data.inventoryItems![0].fields[0].value).toBe(1);
+      expect(after.sheets[0].widgets[1].data.numberItems![0].valueFormula).toBe('@armor + 2');
+      expect(after.events).toEqual(before.events);
+    } else if (tab === 'formulas') {
+      expect(collectCharacterFormulas(after)).toEqual([]);
+      expect(after.variables![1].value).toBe(5);
+      expect(after.sheets[0].widgets[1].data.numberItems![0].value).toBe(before.sheets[0].widgets[1].data.numberItems![0].value);
+      expect(after.events).toEqual(before.events);
+    } else {
+      expect(after.events).toEqual([]);
+      expect(after.sheets).toEqual(before.sheets);
+      expect(after.variables).toEqual(before.variables);
+    }
+    useStore.getState().undo();
+    expect(getCharacter()).toEqual(before);
+    useStore.getState().redo();
+    expect(getCharacter()).toEqual(after);
+    expect(useStore.getState().deleteAllAutomations(tab)).toBe(false);
+    expect(useUndoStore.getState().past).toHaveLength(1);
+  });
+
+  it('keeps deletion separate from immediately preceding and following edits', () => {
+    useStore.getState().updateWidgetData('number-1', { label: 'Renamed' });
+    const before = structuredClone(getCharacter());
+    useStore.getState().deleteAllAutomations('events');
+    expect(useUndoStore.getState().past).toHaveLength(2);
+    const deleted = structuredClone(getCharacter());
+    useStore.getState().updateWidgetData('number-1', { label: 'Renamed again' });
+    expect(useUndoStore.getState().past).toHaveLength(3);
+    useStore.getState().undo();
+    expect(getCharacter()).toEqual(deleted);
+    useStore.getState().undo();
+    expect(getCharacter()).toEqual(before);
+  });
+});
 
 describe('number display creation defaults', () => {
   beforeEach(() => {

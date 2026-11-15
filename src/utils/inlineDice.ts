@@ -131,6 +131,23 @@ export const tokenizeInlineDiceText = (text: string): InlineDiceSegment[] => {
   return segments;
 };
 
+export function removeInlineFormulas(text: string): string {
+  let result = '';
+  let keptFrom = 0;
+  let index = 0;
+  while ((index = text.indexOf('{', index)) !== -1) {
+    const end = findClosingBrace(text, index);
+    if (end === -1) break;
+    const source = text.slice(index, end + 1);
+    if (tokenizeInlineDiceText(source).some((segment) => segment.type === 'formula')) {
+      result += text.slice(keptFrom, index);
+      keptFrom = end + 1;
+    }
+    index = end + 1;
+  }
+  return result + text.slice(keptFrom);
+}
+
 const splitTopLevelTerms = (expression: string): ExpressionSegment[] | null => {
   const segments: ExpressionSegment[] = [];
   let depth = 0;

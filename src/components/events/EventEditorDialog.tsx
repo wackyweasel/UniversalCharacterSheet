@@ -204,11 +204,11 @@ function eventRefProblem(role: Role | 'condition', field: string, text: string, 
     : `${field} uses ${list}, which isn't available at this point`;
 }
 
-function paramProblems(role: Role, part: Part, labels: FormulaLabels): string[] {
+function paramProblems(role: Role, character: Character, part: Part, labels: FormulaLabels): string[] {
   const def = getDef(role, part.kind);
   if (!def) return [];
   const params = fillParams(def.params, part.params);
-  return getVisibleParams(def.params, params)
+  return getVisibleParams(def.params, params, { character, widget: findWidget(character, part.widgetId), target: part.target })
     .filter((spec) => spec.type !== 'select')
     .flatMap((spec) => {
       const value = params[spec.key] ?? '';
@@ -221,7 +221,7 @@ function paramProblems(role: Role, part: Part, labels: FormulaLabels): string[] 
 /** Trigger settings are read before the trigger has data, so only conditions and effects see `event_…` labels, and only those available before them. */
 function getDraftProblems(character: Character, draft: Draft, baseLabels: FormulaLabels): DraftProblems {
   const trigger = draft.trigger.kind
-    ? [getTriggerProblem(character, draft.trigger), ...paramProblems('trigger', draft.trigger, baseLabels)].filter((problem): problem is string => !!problem)
+    ? [getTriggerProblem(character, draft.trigger), ...paramProblems('trigger', character, draft.trigger, baseLabels)].filter((problem): problem is string => !!problem)
     : ['Choose what triggers this event'];
 
   const conditions: Record<string, string[]> = {};
@@ -232,7 +232,7 @@ function getDraftProblems(character: Character, draft: Draft, baseLabels: Formul
     list.forEach((effect, index) => {
       const labels = { ...baseLabels, ...getEventLabelsAt(draft, stepIndex, section, index) };
       const problems = effect.kind
-        ? [getEffectProblem(character, effect), ...paramProblems('effect', effect, labels), ...getResultNameProblems(draft, effect)].filter((problem): problem is string => !!problem)
+        ? [getEffectProblem(character, effect), ...paramProblems('effect', character, effect, labels), ...getResultNameProblems(draft, effect)].filter((problem): problem is string => !!problem)
         : ['Choose what this effect does'];
       if (problems.length) effects[effect.id] = problems;
     });
@@ -495,7 +495,7 @@ function PartFields({ character, role, part, onChange, onDataTarget }: PartField
           <TargetSelect spec={def.target} ctx={ctx} value={part.target} onChange={(target) => onChange({ ...part, target })} />
         </Field>
       )}
-      {def && getVisibleParams(def.params, params).map((spec) => (
+      {def && getVisibleParams(def.params, params, { ...ctx, target: part.target }).map((spec) => (
         <ParamField
           key={spec.key}
           spec={spec}

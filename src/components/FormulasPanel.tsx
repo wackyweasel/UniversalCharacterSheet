@@ -111,6 +111,7 @@ export default function FormulasPanel({ onRevealWidget, isBottom }: Props) {
           { id: 'problems', label: 'Needs attention', count: problemCount, warning: problemCount > 0 },
         ]}
         onFilterChange={setFilter}
+        deletion={{ tab: 'formulas', count: entries.length, editableFormulaCount: entries.filter((item) => item.entry.editable).length }}
         onCollapseAll={() => setCollapsed(new Set([...collapsed, ...groups.keys()]))}
         onExpandAll={() => setCollapsed(new Set())}
         collapseDisabled={groups.size === 0 || [...groups.keys()].every((key) => collapsed.has(key))}

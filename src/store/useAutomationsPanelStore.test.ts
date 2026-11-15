@@ -17,7 +17,7 @@ vi.mock('./useTimelineStore', async () => {
 describe('Automations panel navigation', () => {
   beforeEach(() => {
     useTimelineStore.getState().setOpen(false);
-    useAutomationsPanelStore.setState({ isOpen: false, tab: 'labels' });
+    useAutomationsPanelStore.setState({ isOpen: false, tab: 'labels', focusVariableId: null });
     useCompendiumPanelStore.getState().setOpen(false);
     useEventsPanelStore.setState({ focusEventId: null, editor: null, editorKey: 0 });
   });
@@ -54,6 +54,21 @@ describe('Automations panel navigation', () => {
     useEventsPanelStore.getState().showEvent('another-event');
     useAutomationsPanelStore.getState().setOpen(false);
     expect(useEventsPanelStore.getState().focusEventId).toBeNull();
+  });
+
+  it('reveals standalone effect targets in Labels without leaving stale focus', () => {
+    const panel = useAutomationsPanelStore.getState();
+    panel.openTab('effects');
+    panel.showVariable('strength');
+    expect(useAutomationsPanelStore.getState()).toMatchObject({ isOpen: true, tab: 'labels', focusVariableId: 'strength' });
+    panel.clearVariableFocus();
+    expect(useAutomationsPanelStore.getState().focusVariableId).toBeNull();
+    panel.showVariable('strength');
+    panel.openTab('effects');
+    expect(useAutomationsPanelStore.getState().focusVariableId).toBeNull();
+    panel.showVariable('strength');
+    panel.setOpen(false);
+    expect(useAutomationsPanelStore.getState().focusVariableId).toBeNull();
   });
 
   it('keeps widget event editing independent of panel navigation', () => {

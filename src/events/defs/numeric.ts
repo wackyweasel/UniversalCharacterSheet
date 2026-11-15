@@ -24,7 +24,7 @@ import {
   VALUE_CHANGE_OUTPUTS,
   valueChangeData,
 } from '../helpers';
-import type { DescribeContext, EffectContext, EffectDef, EffectOutcome, EventParamSpec, StateTriggerContext, TriggerDef } from '../types';
+import { ANY_TARGET, type DescribeContext, type EffectContext, type EffectDef, type EffectOutcome, type EventAmount, type EventParamSpec, type StateTriggerContext, type TriggerDef } from '../types';
 
 /** A number inside a widget that triggers can watch and effects can change. */
 export interface NumericSlot {
@@ -236,9 +236,12 @@ function subject(d: DescribeContext): string {
 
 const slotTarget = (settableOnly: boolean) => ({
   label: 'Value',
-  options: ({ widget }: { widget?: Widget }) => getNumericSlots(widget)
-    .filter((slot) => !settableOnly || slot.set)
-    .map((slot) => ({ value: slot.key, label: slot.label })),
+  options: ({ widget }: { widget?: Widget }) => {
+    const options = getNumericSlots(widget)
+      .filter((slot) => !settableOnly || slot.set)
+      .map((slot) => ({ value: slot.key, label: slot.label }));
+    return settableOnly && options.length > 0 ? [...options, { value: ANY_TARGET, label: 'All' }] : options;
+  },
 });
 
 function readSlots(ctx: StateTriggerContext) {
@@ -305,18 +308,48 @@ const CLAMP_PARAM: EventParamSpec = {
   default: 'yes',
 };
 
-function changeSlot(ctx: EffectContext, compute: (slot: NumericSlot) => { value: number; detail?: string } | string): EffectOutcome | null {
-  const slot = findNumericSlot(ctx.widget, ctx.effect.target);
-  if (!slot) return null;
-  if (!slot.set) return { text: `${slot.label} is computed and can't be changed directly` };
-  const computed = compute(slot);
-  if (typeof computed === 'string') return { text: computed };
-  const next = ctx.params.clamp === 'no' ? computed.value : clampNumber(computed.value, slot.min, slot.max);
-  if (next === slot.value) return { text: `${slot.label} stays at ${formatNumber(next)}${computed.detail ? ` (${computed.detail})` : ''}` };
-  return {
-    data: slot.set(next),
-    text: `${slot.label} ${formatNumber(slot.value)} → ${formatNumber(next)}${computed.detail ? ` (${computed.detail})` : ''}`,
+function changeSlot(ctx: EffectContext, compute: (slot: NumericSlot, readAmount: () => EventAmount | null) => { value: number; detail?: string } | string): EffectOutcome | null {
+  const all = ctx.effect.target === ANY_TARGET;
+  let sharedAmount: EventAmount | null | undefined;
+  const readAmount = () => {
+    if (!all || ctx.params.rollMode === 'each') return ctx.amount('amount');
+    if (sharedAmount === undefined) sharedAmount = ctx.amount('amount');
+    return sharedAmount;
   };
+  const change = (slot: NumericSlot): EffectOutcome => {
+    if (!slot.set) return { text: `${slot.label} is computed and can't be changed directly` };
+    const computed = compute(slot, readAmount);
+    if (typeof computed === 'string') return { text: computed };
+    const next = ctx.params.clamp === 'no' ? computed.value : clampNumber(computed.value, slot.min, slot.max);
+    if (next === slot.value) return { text: `${slot.label} stays at ${formatNumber(next)}${computed.detail ? ` (${computed.detail})` : ''}` };
+    return {
+      data: slot.set(next),
+      text: `${slot.label} ${formatNumber(slot.value)} → ${formatNumber(next)}${computed.detail ? ` (${computed.detail})` : ''}`,
+    };
+  };
+  if (!all) {
+    const slot = findNumericSlot(ctx.widget, ctx.effect.target);
+    return slot ? change(slot) : null;
+  }
+  if (!ctx.widget) return null;
+  const slots = getNumericSlots(ctx.widget);
+  let widget = ctx.widget;
+  let changed = false;
+  const messages: string[] = [];
+  slots.forEach((original, index) => {
+    if (!original.set) return;
+    // Rebuild setters so collection replacements retain earlier writes.
+    const outcome = change(getNumericSlots(widget)[index]);
+    if (outcome.data) {
+      widget = { ...widget, data: { ...widget.data, ...outcome.data } };
+      changed = true;
+    }
+    messages.push(outcome.text);
+  });
+  if (messages.length === 0) return { text: 'No writable values to change' };
+  const skipped = slots.filter((slot) => !slot.set).length;
+  if (skipped) messages.push(`Skipped ${skipped} computed or read-only ${skipped === 1 ? 'value' : 'values'}`);
+  return { ...(changed ? { data: widget.data } : {}), text: messages.join('; ') };
 }
 
 const AMOUNT_PARAM: EventParamSpec = {
@@ -328,13 +361,26 @@ const AMOUNT_PARAM: EventParamSpec = {
   help: 'A number, a formula or dice to roll.',
 };
 
+const ROLL_MODE_PARAM: EventParamSpec = {
+  key: 'rollMode',
+  label: 'Dice rolls',
+  type: 'select',
+  options: [
+    { value: 'once', label: 'Roll once for all values' },
+    { value: 'each', label: 'Roll separately for each value' },
+  ],
+  default: 'once',
+  help: 'Applies when the amount contains dice.',
+  visible: (_params, ctx) => ctx.target === ANY_TARGET,
+};
+
 export const valueAddEffect: EffectDef = {
   kind: 'value.add',
   label: 'Increase a value',
   target: slotTarget(true),
-  params: [AMOUNT_PARAM, CLAMP_PARAM],
-  apply: (ctx) => changeSlot(ctx, (slot) => {
-    const amount = ctx.amount('amount');
+  params: [AMOUNT_PARAM, ROLL_MODE_PARAM, CLAMP_PARAM],
+  apply: (ctx) => changeSlot(ctx, (slot, readAmount) => {
+    const amount = readAmount();
     if (!amount) return `${slot.label}: the amount isn't valid`;
     return { value: slot.value + amount.value, detail: `+${amount.text}` };
   }),
@@ -345,9 +391,9 @@ export const valueSubtractEffect: EffectDef = {
   kind: 'value.subtract',
   label: 'Decrease a value',
   target: slotTarget(true),
-  params: [AMOUNT_PARAM, CLAMP_PARAM],
-  apply: (ctx) => changeSlot(ctx, (slot) => {
-    const amount = ctx.amount('amount');
+  params: [AMOUNT_PARAM, ROLL_MODE_PARAM, CLAMP_PARAM],
+  apply: (ctx) => changeSlot(ctx, (slot, readAmount) => {
+    const amount = readAmount();
     if (!amount) return `${slot.label}: the amount isn't valid`;
     return { value: slot.value - amount.value, detail: `−${amount.text}` };
   }),
@@ -358,9 +404,9 @@ export const valueSetEffect: EffectDef = {
   kind: 'value.set',
   label: 'Set a value',
   target: slotTarget(true),
-  params: [{ ...AMOUNT_PARAM, label: 'New value', default: '0' }, CLAMP_PARAM],
-  apply: (ctx) => changeSlot(ctx, (slot) => {
-    const amount = ctx.amount('amount');
+  params: [{ ...AMOUNT_PARAM, label: 'New value', default: '0' }, ROLL_MODE_PARAM, CLAMP_PARAM],
+  apply: (ctx) => changeSlot(ctx, (slot, readAmount) => {
+    const amount = readAmount();
     if (!amount) return `${slot.label}: the new value isn't valid`;
     return { value: amount.value, detail: amount.roll ? amount.text : undefined };
   }),

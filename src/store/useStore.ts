@@ -27,7 +27,7 @@ import { createDefaultWalletCurrencies } from '../utils/wallet';
 import { EXPERIENCE_PRESETS, createExperienceLevels } from '../utils/experienceLevel';
 import { createDefaultCalendarData } from '../utils/calendar';
 import { convertWidgetData } from '../utils/widgetConversion';
-import { removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
+import { removeAllLabelsFromCharacter, removeLabelFromCharacter, renameLabelInCharacter } from '../utils/characterVariables';
 import { addVariableGroup, copyVariableData, deleteVariableGroup, moveVariableToGroup, renameVariableGroup } from '../utils/variableGroups';
 import {
   addCompendiumSection,
@@ -51,8 +51,9 @@ import { getEventTelemetryDetails, type EventTelemetrySource } from '../events/t
 import { areEventsSuppressed } from '../events/suppress';
 import { bindEffectTargets, bindItemEffectTargets } from '../utils/numericTargets';
 import { getItemEffectBaseValues, getItemEffectProblems, prepareItemArrivals, reconcileItemEffects, stripItemEffectContributions } from '../utils/itemEffects';
-import { getWidgetEffectSources, setWidgetSourceActive, setWidgetSourceEffects } from '../utils/widgetEffects';
-import { updateCharacterFormula, type CharacterFormula } from '../utils/characterFormulas';
+import { getWidgetEffectSources, mapWidgetEffects, setWidgetSourceActive, setWidgetSourceEffects } from '../utils/widgetEffects';
+import { removeAllCharacterFormulas, updateCharacterFormula, type CharacterFormula } from '../utils/characterFormulas';
+import type { AutomationsTab } from './useAutomationsPanelStore';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -340,6 +341,7 @@ interface StoreState {
   duplicateCharacterEvent: (id: string) => string | null;
   moveCharacterEvent: (id: string, newIndex: number) => void;
   setCharacterEventEnabled: (id: string, enabled: boolean, telemetrySource?: EventTelemetrySource) => void;
+  deleteAllAutomations: (tab: AutomationsTab, editableFormulasOnly?: boolean) => boolean;
   
   // Undo/Redo Actions
   undo: () => void;
@@ -348,7 +350,7 @@ interface StoreState {
   canRedo: () => boolean;
   
   // Helper to take snapshot before undoable action
-  _takeSnapshot: (actionDescription: string) => void;
+  _takeSnapshot: (actionDescription: string, isolated?: boolean) => void;
   
   // Replace character state (used by undo/redo)
   _replaceCharacter: (characterId: string, character: Character) => void;
@@ -419,13 +421,13 @@ export const useStore = create<StoreState>((rawSet, get) => {
     return { ...patch, characters };
   }, replace);
   // Applies an undoable change to the active character, then re-resolves its formulas.
-  const applyCharacterTransform = (description: string, transform: (character: Character) => Character): boolean => {
+  const applyCharacterTransform = (description: string, transform: (character: Character) => Character, isolated = false): boolean => {
     const state = get();
     const current = state.characters.find((character) => character.id === state.activeCharacterId);
     if (!current) return false;
     const updated = transform(current);
     if (updated === current) return false;
-    get()._takeSnapshot(description);
+    get()._takeSnapshot(description, isolated);
     set((latest) => ({
       characters: resolveActiveCharacterFormulas(
         latest,
@@ -3368,15 +3370,36 @@ export const useStore = create<StoreState>((rawSet, get) => {
       if (toggled && current) recordCharacterEvent('event_toggled', { ...current, enabled }, telemetrySource);
     },
 
+    deleteAllAutomations: (tab, editableFormulasOnly = false) => {
+      if (!getActiveCharacter(get()) || get().mode === 'print') throw new Error('Automations are no longer editable.');
+      return applyCharacterTransform(`Delete all ${tab}`, (character) => {
+        switch (tab) {
+          case 'labels': return removeAllLabelsFromCharacter(character);
+          case 'formulas': return removeAllCharacterFormulas(character, editableFormulasOnly);
+          case 'events': return character.events?.length ? { ...character, events: [] } : character;
+          case 'effects': {
+            let changed = false;
+            const sheets = character.sheets.map((sheet) => {
+              const widgets = sheet.widgets.map((widget) => mapWidgetEffects(widget, (source) => source.effects.length ? [] : source.effects));
+              if (widgets.every((widget, index) => widget === sheet.widgets[index])) return sheet;
+              changed = true;
+              return { ...sheet, widgets };
+            });
+            return changed ? { ...character, sheets } : character;
+          }
+        }
+      }, true);
+    },
+
     // Undo/Redo implementations
-    _takeSnapshot: (actionDescription) => {
+    _takeSnapshot: (actionDescription, isolated) => {
       const state = get();
       if (!state.activeCharacterId) return;
       
       const character = state.characters.find(c => c.id === state.activeCharacterId);
       if (!character) return;
       
-      useUndoStore.getState().takeSnapshot(state.activeCharacterId, character, actionDescription);
+      useUndoStore.getState().takeSnapshot(state.activeCharacterId, character, actionDescription, isolated);
     },
     
     _replaceCharacter: (characterId, character) => set((state) => ({
