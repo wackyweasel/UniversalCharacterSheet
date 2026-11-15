@@ -1,6 +1,6 @@
 import { Character, Widget, WidgetData, NumberItem, DisplayNumber, PoolResource, InitiativeParticipant, DiceGroup, TableRow, TableColumnSettings, TableRowSettings, ToggleItem, TimedEffect, CheckboxItem, MixedField, InventoryItemField, RollTableItem } from '../types';
 import { DEFAULT_MODIFIER_RANGES, getModifierForValue } from './modifierRanges';
-import type { CharacterVariable, DicePoolComponent, ExperienceLevel, NumericTargetCollection, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
+import type { CharacterVariable, DicePoolComponent, ExperienceLevel, NumericTargetCollection, NumericTargetReference, ProgressClockItem, TableMerge, TrackThreshold } from '../types';
 import { getClockSegments, getClockValue } from './progressClock';
 import { DEFAULT_VARIABLE_GROUP_NAME, getVariableGroupNames } from './variableGroups';
 import { clampTrackValue, getTrackBounds, getTrackDerivedValue } from './thresholdTrack';
@@ -10,6 +10,9 @@ import { getDicePoolDerivedValue, normalizeDiceCount, normalizePoolTarget } from
 import { getCalendarLabelValues } from './calendar';
 import { getSlotMaxItems } from './inventorySlots';
 import { isCoveredTableCell, validateTableMerges } from './tableCells';
+import { collectNumericTargets, findNumericTarget, numericTargetKey, writeNumericTarget } from './numericTargets';
+import { reconcileItemEffects } from './itemEffects';
+import { getWidgetEffectSources } from './widgetEffects';
 import {
   extractFormulaLabelReferences,
   hasFormulaStringLiteral,
@@ -955,20 +958,94 @@ export function isFormulaBroken(formula: string, labels: FormulaLabels, resultTy
   return (resultType === 'text' ? evaluateFormulaValue(formula, labels) : evaluateFormula(formula, labels)) === null;
 }
 
+function assertEffectDependencies(character: Character): void {
+  const graph = buildDependencyGraph(character);
+  const labels = collectLabels(character);
+  const targets = collectNumericTargets(character);
+  const node = (ref: NumericTargetReference) => `effect-target:${numericTargetKey(ref)}`;
+  const link = (from: string, to: string[]) => { graph[from] = [...(graph[from] ?? []), ...to]; };
+  for (const target of targets) {
+    const key = node(target.ref);
+    if (target.formula) link(key, extractFormulaRefs(target.formula, labels));
+    if (target.label) link(target.label, [key]);
+    if (target.ref.kind === 'widget' && target.ref.collection === 'tableCells') {
+      const { widgetId } = target.ref;
+      const widget = character.sheets.flatMap((sheet) => sheet.widgets).find((widget) => widget.id === widgetId);
+      const row = Number(target.path[1]), column = Number(target.path[3]);
+      const rowLabel = widget?.data.tableRowSettings?.[row]?.label;
+      const columnLabel = widget?.data.tableColumnSettings?.[column]?.label;
+      if (rowLabel) link(`${rowLabel}${column + 1}`, [key]);
+      if (columnLabel) link(`${columnLabel}${row + 1}`, [key]);
+    }
+  }
+  const automaticSources: string[] = [];
+  for (const sheet of character.sheets) for (const widget of sheet.widgets) {
+    if (widget.data.secondaryDisplayAutoCompute) for (const item of widget.data.displayNumbers ?? []) {
+      if (item.secondaryValueLabel) link(item.secondaryValueLabel, [node({ kind: 'widget', widgetId: widget.id, collection: 'displayNumbers', entryId: item.id, field: 'value' })]);
+    }
+    const trackTargets = targets.filter((target) => target.ref.kind === 'widget' && target.ref.widgetId === widget.id && (
+      !target.ref.collection && ['currentValue', 'minValue', 'maxValue'].includes(target.ref.field)
+      || target.ref.collection === 'trackThresholds' && target.ref.field === 'value'
+    )).map((target) => node(target.ref));
+    if (widget.type === 'THRESHOLD_TRACK') for (const field of ['trackZone', 'trackModifier']) {
+      const label = widget.data.fieldLabels?.[field];
+      if (label) link(label, trackTargets);
+    }
+    for (const source of getWidgetEffectSources(widget)) {
+      if (!source.effects.length) continue;
+      const key = `effect-source:${widget.id}:${source.key}`;
+      const mixedField = source.collection === 'mixedFields' ? widget.data.mixedFields?.[source.index!] : undefined;
+      const formula = mixedField?.type === 'switch'
+        ? mixedField.valueFormula
+        : !source.collection ? widget.data.fieldFormulas?.state : undefined;
+      const dependencies = source.collection === 'trackThresholds' ? trackTargets : formula ? extractFormulaRefs(formula, labels) : [];
+      if (!dependencies.length) continue;
+      link(key, dependencies);
+      automaticSources.push(key);
+      for (const effect of source.effects) if (effect.target && effect.amount !== 0) link(node(effect.target), [key]);
+    }
+  }
+  for (const source of automaticSources) {
+    const pending = [...(graph[source] ?? [])], visited = new Set<string>();
+    while (pending.length) {
+      const key = pending.pop()!;
+      if (key === source) throw new Error('Effects and formulas cannot settle: an Effect changes a value used to determine its own activation.');
+      if (visited.has(key)) continue;
+      visited.add(key);
+      pending.push(...(graph[key] ?? []));
+    }
+  }
+}
+
 /**
- * Resolves all formulas in a character and returns updated character data.
- * Returns null if no changes were needed.
- * Runs up to 2 passes to handle chains of formula dependencies.
- * Also returns a list of changes for timeline logging.
+ * Resolves formulas and Effects together, exposing final values to dependent formulas.
+ * Returns null when unchanged, otherwise includes changes for timeline logging.
+ * Effects settle within 100 passes or throw for a dependency loop; ordinary formulas retain two passes.
  */
-export function resolveCharacterFormulas(character: Character, afterPass?: (character: Character) => Character): (Character & { _formulaChanges: FormulaChange[] }) | null {
+export function resolveCharacterFormulas(character: Character): (Character & { _formulaChanges: FormulaChange[] }) | null {
   let current = character;
   let anyChanges = false;
   const allChanges: FormulaChange[] = [];
+  const hasEffects = character.sheets.some((sheet) => sheet.widgets.some((widget) => (
+    getWidgetEffectSources(widget).some((source) => source.effects.length > 0)
+  ))) || Object.keys(character.itemEffectValues ?? {}).length > 0;
+  const seen = new Set<string>();
+  const maxPasses = hasEffects ? 100 : 2;
+  if (hasEffects) assertEffectDependencies(character);
 
-  // Up to 2 passes for chained dependencies
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < maxPasses; pass++) {
+    const before = current;
+    const fingerprint = hasEffects ? JSON.stringify(current) : '';
+    if (hasEffects && seen.has(fingerprint)) throw new Error('Effects and formulas cannot settle: a circular dependency changes an Effect source or target.');
+    if (hasEffects) seen.add(fingerprint);
     const labels = collectLabels(current);
+    const formulaTargets = hasEffects ? collectNumericTargets(current).filter((target) => (
+      target.formula && !target.problem && current.itemEffectValues?.[numericTargetKey(target.ref)]
+    )) : [];
+    // Formulas read final labels but write their raw results, not yesterday's adjusted values.
+    for (const target of formulaTargets) {
+      current = writeNumericTarget(current, target.ref, current.itemEffectValues![numericTargetKey(target.ref)].base);
+    }
     let passChanged = false;
 
     const updatedSheets = current.sheets.map(sheet => {
@@ -976,8 +1053,6 @@ export function resolveCharacterFormulas(character: Character, afterPass?: (char
         const result = resolveWidgetFormulas(widget, labels, current.itemEffectValues);
         if (result) {
           passChanged = true;
-          // Track changes for timeline
-          allChanges.push(...detectFormulaChanges(widget, result, sheet.name));
           return result;
         }
         return widget;
@@ -991,31 +1066,45 @@ export function resolveCharacterFormulas(character: Character, afterPass?: (char
       const computed = evaluateFormulaValue(variable.formula, labels);
       if (computed === null || computed === variable.value) return variable;
       variablesChanged = true;
-      allChanges.push({
-        widgetLabel: 'Standalone labels',
-        fieldName: `@${variable.label}`,
-        oldValue: variable.value,
-        newValue: computed,
-        formula: variable.formula,
-        sheetName: '',
-      });
       return { ...variable, value: computed };
     });
 
     if (passChanged || variablesChanged) {
-      anyChanges = true;
       current = {
         ...current,
         sheets: passChanged ? updatedSheets : current.sheets,
         ...(variablesChanged ? { variables: updatedVariables } : {}),
       };
     }
-    const reconciled = afterPass?.(current) ?? current;
-    if (reconciled !== current) {
-      anyChanges = passChanged = true;
-      current = reconciled;
+    if (formulaTargets.length) {
+      const states = { ...current.itemEffectValues };
+      for (const target of formulaTargets) {
+        const key = numericTargetKey(target.ref);
+        const resolved = findNumericTarget(current, target.ref);
+        if (resolved) states[key] = { target: target.ref, base: resolved.value, effective: resolved.value };
+      }
+      current = { ...current, itemEffectValues: states };
     }
-    if (!passChanged && !variablesChanged) break;
+    if (hasEffects) current = reconcileItemEffects(undefined, current);
+    const stable = hasEffects ? JSON.stringify(current) === fingerprint : !passChanged && !variablesChanged;
+    if (stable) {
+      current = before;
+      break;
+    }
+    anyChanges = true;
+    for (const [sheetIndex, sheet] of current.sheets.entries()) {
+      for (const [widgetIndex, widget] of sheet.widgets.entries()) {
+        allChanges.push(...detectFormulaChanges(before.sheets[sheetIndex].widgets[widgetIndex], widget, sheet.name));
+      }
+    }
+    for (const [index, variable] of (current.variables ?? []).entries()) {
+      const old = before.variables?.[index];
+      if (old && variable.formula && old.value !== variable.value) allChanges.push({
+        widgetLabel: 'Standalone labels', fieldName: `@${variable.label}`,
+        oldValue: old.value, newValue: variable.value, formula: variable.formula, sheetName: '',
+      });
+    }
+    if (hasEffects && pass === maxPasses - 1) throw new Error('Effects and formulas cannot settle: too many dependent changes.');
   }
 
   return anyChanges ? { ...current, _formulaChanges: allChanges } : null;
@@ -1157,10 +1246,12 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
 function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValues?: Character['itemEffectValues']): Widget | null {
   let changed = false;
   const updates: Partial<WidgetData> = {};
-  const controlled = (field: string, collection?: string, entryId?: string) => Object.values(effectValues ?? {}).some(({ target }) => (
+  const effectState = (field: string, collection?: string, entryId?: string) => Object.values(effectValues ?? {}).find(({ target }) => (
     target.kind === 'widget' && target.widgetId === widget.id && target.field === field
     && target.collection === collection && target.entryId === entryId
   ));
+  const controlled = (field: string, collection?: string, entryId?: string) => !!effectState(field, collection, entryId);
+  const effective = (field: string, value: number | undefined, collection?: string, entryId?: string) => effectState(field, collection, entryId)?.effective ?? value;
 
   // Resolve field-level formulas
   if (widget.data.fieldFormulas) {
@@ -1176,11 +1267,13 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
           );
           if (clampsCurrentValue) {
             updates.currentValue = computed;
+            if (controlled(field) && computed !== getFieldValue(widget.data, field)) changed = true;
             continue;
           }
 
           const currentVal = getFieldValue(widget.data, field);
-          const resolvedValue = field === 'localCapacity' || field === 'globalCapacity' || field === 'temporaryValue'
+          const resolvedValue = controlled(field) || controlled(`inventoryEncumbrance.${field}`) ? computed
+            : field === 'localCapacity' || field === 'globalCapacity' || field === 'temporaryValue'
             ? Math.max(0, computed)
             : field === 'dicePoolTarget'
               ? normalizePoolTarget(computed)
@@ -1226,7 +1319,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
       const computed = evaluateFormula(item.weightFormula, labels);
       if (computed === null) return item;
 
-      const resolvedWeight = Math.max(0, computed);
+      const resolvedWeight = controlled('weight', 'rollTableItems', item.id) ? computed : Math.max(0, computed);
       if (resolvedWeight === item.weight) return item;
 
       itemsChanged = true;
@@ -1246,7 +1339,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
       const computed = evaluateFormula(slot.maxItemsFormula, labels);
       if (computed === null) return slot;
 
-      const resolvedMax = Math.max(1, Math.floor(computed));
+      const resolvedMax = controlled('maxItems', 'inventorySlots', slot.id) ? computed : Math.max(1, Math.floor(computed));
       if (resolvedMax === slot.maxItems) return slot;
 
       slotsChanged = true;
@@ -1260,9 +1353,9 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
   }
 
   if (widget.type === 'PROGRESS_BAR' && !widget.data.allowOutOfRange) {
-    const maxValue = updates.maxValue ?? widget.data.maxValue ?? 100;
-    const minValue = Math.min(maxValue, updates.minValue ?? widget.data.minValue ?? 0);
-    if (widget.data.minValue !== minValue) {
+    const maxValue = effective('maxValue', updates.maxValue ?? widget.data.maxValue) ?? 100;
+    const minValue = Math.min(maxValue, effective('minValue', updates.minValue ?? widget.data.minValue) ?? 0);
+    if (!controlled('minValue') && widget.data.minValue !== minValue) {
       changed = true;
       updates.minValue = minValue;
     }
@@ -1277,8 +1370,8 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
 
   if (widget.type === 'THRESHOLD_TRACK') {
     const { min, max } = getTrackBounds({
-      minValue: updates.minValue ?? widget.data.minValue,
-      maxValue: updates.maxValue ?? widget.data.maxValue,
+      minValue: effective('minValue', updates.minValue ?? widget.data.minValue),
+      maxValue: effective('maxValue', updates.maxValue ?? widget.data.maxValue),
     });
     const originalValue = widget.data.currentValue;
     const nextValue = updates.currentValue ?? originalValue;
@@ -1296,7 +1389,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
     const nextValue = updates.currentValue ?? originalValue;
     if (nextValue !== undefined) {
       const normalizedValue = normalizeXp(nextValue);
-      if (normalizedValue !== originalValue) {
+      if (!controlled('currentValue') && normalizedValue !== originalValue) {
         changed = true;
         updates.currentValue = normalizedValue;
       }
@@ -1308,7 +1401,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
     const nextValue = updates.currentValue ?? originalValue;
     if (nextValue !== undefined) {
       const normalizedValue = normalizeSkillPoints(nextValue);
-      if (normalizedValue !== originalValue) {
+      if (!controlled('currentValue') && normalizedValue !== originalValue) {
         changed = true;
         updates.currentValue = normalizedValue;
       }
@@ -1338,7 +1431,8 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
           updatedItem = { ...updatedItem, value: computed };
         }
       }
-      const { minValue, maxValue } = updatedItem;
+      const minValue = effective('minValue', updatedItem.minValue, 'numberItems', item.id);
+      const maxValue = effective('maxValue', updatedItem.maxValue, 'numberItems', item.id);
       if (!controlled('value', 'numberItems', item.id) && (minValue === undefined || maxValue === undefined || minValue <= maxValue)) {
         const clampedValue = Math.max(minValue ?? -Infinity, Math.min(maxValue ?? Infinity, updatedItem.value));
         if (clampedValue !== updatedItem.value) {
@@ -1387,12 +1481,14 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
         }
       }
       if (widget.data.secondaryDisplayAutoCompute) {
-        const modifier = getModifierForValue(updatedItem.value, widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES) ?? 0;
+        const primary = item.valueFormula ? effectState('value', 'displayNumbers', item.id)?.effective ?? updatedItem.value : updatedItem.value;
+        const modifier = getModifierForValue(primary, widget.data.secondaryDisplayModifierRanges ?? DEFAULT_MODIFIER_RANGES) ?? 0;
         if (modifier !== item.secondaryValue) {
           updatedItem = { ...updatedItem, secondaryValue: modifier };
         }
       }
-      const { minValue, maxValue } = updatedItem;
+      const minValue = effective('minValue', updatedItem.minValue, 'displayNumbers', item.id);
+      const maxValue = effective('maxValue', updatedItem.maxValue, 'displayNumbers', item.id);
       if (!controlled('value', 'displayNumbers', item.id) && (minValue === undefined || maxValue === undefined || minValue <= maxValue)) {
         const clampedValue = Math.max(minValue ?? -Infinity, Math.min(maxValue ?? Infinity, updatedItem.value));
         if (clampedValue !== updatedItem.value) {
@@ -1414,6 +1510,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
   if (widget.data.clockItems) {
     const clockItems = widget.data.clockItems.map((clock) => resolveProgressClockFormulas(clock, labels, {
       value: controlled('value', 'clockItems', clock.id), segments: controlled('segments', 'clockItems', clock.id),
+      segmentLimit: effectState('segments', 'clockItems', clock.id)?.effective,
     }));
     if (clockItems.some((clock, index) => clock !== widget.data.clockItems![index])) {
       changed = true;
@@ -1422,7 +1519,13 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
   }
 
   if (widget.data.trackThresholds) {
-    const trackThresholds = widget.data.trackThresholds.map((threshold) => resolveTrackThresholdFormulas(threshold, labels));
+    const trackThresholds = widget.data.trackThresholds.map((threshold) => {
+      if (threshold.valueFormula && controlled('value', 'trackThresholds', threshold.id)) {
+        const value = evaluateFormula(threshold.valueFormula, labels);
+        return value === null || value === threshold.value ? threshold : { ...threshold, value };
+      }
+      return resolveTrackThresholdFormulas(threshold, labels);
+    });
     if (trackThresholds.some((threshold, index) => threshold !== widget.data.trackThresholds![index])) {
       changed = true;
       updates.trackThresholds = trackThresholds;
@@ -1430,7 +1533,13 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
   }
 
   if (widget.data.xpLevels) {
-    const xpLevels = widget.data.xpLevels.map((level) => resolveExperienceLevelFormulas(level, labels));
+    const xpLevels = widget.data.xpLevels.map((level) => {
+      if (level.xpFormula && controlled('xp', 'xpLevels', level.id)) {
+        const xp = evaluateFormula(level.xpFormula, labels);
+        return xp === null || xp === level.xp ? level : { ...level, xp };
+      }
+      return resolveExperienceLevelFormulas(level, labels);
+    });
     if (xpLevels.some((level, index) => level !== widget.data.xpLevels![index])) {
       changed = true;
       updates.xpLevels = xpLevels;
@@ -1438,7 +1547,13 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
   }
 
   if (widget.data.dicePoolComponents) {
-    const dicePoolComponents = widget.data.dicePoolComponents.map((component) => resolveDicePoolComponentFormulas(component, labels));
+    const dicePoolComponents = widget.data.dicePoolComponents.map((component) => {
+      if (component.diceFormula && controlled('dice', 'dicePoolComponents', component.id)) {
+        const dice = evaluateFormula(component.diceFormula, labels);
+        return dice === null || dice === component.dice ? component : { ...component, dice };
+      }
+      return resolveDicePoolComponentFormulas(component, labels);
+    });
     if (dicePoolComponents.some((component, index) => component !== widget.data.dicePoolComponents![index])) {
       changed = true;
       updates.dicePoolComponents = dicePoolComponents;
@@ -1489,8 +1604,10 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
           const computed = evaluateFormula(field.valueFormula, labels);
           if (computed !== null && computed !== field.value) updatedField = { ...updatedField, value: computed };
         }
-        if (!controlled('value', 'mixedFields', field.id) && (updatedField.minValue === undefined || updatedField.maxValue === undefined || updatedField.minValue <= updatedField.maxValue)) {
-          const value = Math.max(updatedField.minValue ?? -Infinity, Math.min(updatedField.maxValue ?? Infinity, updatedField.value));
+        const min = effective('minValue', updatedField.minValue, 'mixedFields', field.id);
+        const max = effective('maxValue', updatedField.maxValue, 'mixedFields', field.id);
+        if (!controlled('value', 'mixedFields', field.id) && (min === undefined || max === undefined || min <= max)) {
+          const value = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, updatedField.value));
           if (value !== updatedField.value) updatedField = { ...updatedField, value };
         }
         if (updatedField !== field) fieldsChanged = true;
@@ -1506,7 +1623,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
         if (field.maxFormula) {
           const computed = evaluateFormula(field.maxFormula, labels);
           if (computed !== null) {
-            const max = Math.max(updatedField.min ?? 0, computed);
+            const max = controlled('max', 'mixedFields', field.id) ? computed : Math.max(effective('min', updatedField.min, 'mixedFields', field.id) ?? 0, computed);
             if (max !== field.max) updatedField = { ...updatedField, max };
           }
         }
@@ -1514,9 +1631,10 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
           const computed = evaluateFormula(field.currentFormula, labels);
           if (computed !== null && computed !== updatedField.current) updatedField = { ...updatedField, current: computed };
         }
-        const min = Math.min(updatedField.max, updatedField.min ?? 0);
-        if (updatedField.min !== min) updatedField = { ...updatedField, min };
-        const current = Math.max(min, Math.min(updatedField.max, updatedField.current));
+        const max = effective('max', updatedField.max, 'mixedFields', field.id)!;
+        const min = Math.min(max, effective('min', updatedField.min, 'mixedFields', field.id) ?? 0);
+        if (!controlled('min', 'mixedFields', field.id) && updatedField.min !== min) updatedField = { ...updatedField, min };
+        const current = Math.max(min, Math.min(max, updatedField.current));
         if (!controlled('current', 'mixedFields', field.id) && current !== updatedField.current) updatedField = { ...updatedField, current };
         if (updatedField !== field) fieldsChanged = true;
         return updatedField;
@@ -1527,7 +1645,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
         if (field.maxFormula) {
           const computed = evaluateFormula(field.maxFormula, labels);
           if (computed !== null) {
-            const max = Math.max(1, computed);
+            const max = controlled('max', 'mixedFields', field.id) ? computed : Math.max(1, computed);
             if (max !== field.max) updatedField = { ...updatedField, max };
           }
         }
@@ -1535,7 +1653,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
           const computed = evaluateFormula(field.currentFormula, labels);
           if (computed !== null && computed !== updatedField.current) updatedField = { ...updatedField, current: computed };
         }
-        const current = Math.max(0, Math.min(updatedField.max, updatedField.current));
+        const current = Math.max(0, Math.min(effective('max', updatedField.max, 'mixedFields', field.id)!, updatedField.current));
         if (!controlled('current', 'mixedFields', field.id) && current !== updatedField.current) updatedField = { ...updatedField, current };
         if (updatedField !== field) fieldsChanged = true;
         return updatedField;
@@ -1585,11 +1703,11 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
     const updatedItems = widget.data.inventoryItems.map((item) => {
       let fieldsChanged = false;
       const fields = item.fields.map((field) => {
-        if (!field.valueFormula || (field.type !== 'text' && field.type !== 'textarea')) return field;
-        const computed = evaluateFormulaValue(field.valueFormula, labels);
-        if (computed === null || String(computed) === field.value) return field;
+        if (!field.valueFormula || (field.type !== 'number' && field.type !== 'text' && field.type !== 'textarea')) return field;
+        const computed = field.type === 'number' ? evaluateFormula(field.valueFormula, labels) : evaluateFormulaValue(field.valueFormula, labels);
+        if (computed === null || (field.type === 'number' ? computed === field.value : String(computed) === field.value)) return field;
         fieldsChanged = true;
-        return { ...field, value: String(computed) };
+        return { ...field, value: field.type === 'number' ? computed : String(computed) };
       });
       if (!fieldsChanged) return item;
       itemsChanged = true;
@@ -1636,7 +1754,7 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
       const computed = evaluateFormula(g.countFormula, labels);
       if (computed !== null && computed !== g.count) {
         itemsChanged = true;
-        return { ...g, count: Math.max(1, Math.round(computed)) };
+        return { ...g, count: controlled('count', 'diceGroups', g.id) ? computed : Math.max(1, Math.round(computed)) };
       }
       return g;
     });
@@ -1696,11 +1814,11 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
 /**
  * Gets a list of all available labels for display in the formula editor.
  */
-export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: FormulaLabels, controlled: { value?: boolean; segments?: boolean } = {}): ProgressClockItem {
+export function resolveProgressClockFormulas(clock: ProgressClockItem, labels: FormulaLabels, controlled: { value?: boolean; segments?: boolean; segmentLimit?: number } = {}): ProgressClockItem {
   const rawSegments = (clock.segmentsFormula && !isFormulaBroken(clock.segmentsFormula, labels) ? evaluateFormula(clock.segmentsFormula, labels) : null) ?? clock.segments;
-  const segments = controlled.segments && !clock.segmentsFormula ? Math.floor(rawSegments) : getClockSegments(rawSegments);
+  const segments = controlled.segments ? rawSegments : getClockSegments(rawSegments);
   const rawValue = (clock.valueFormula && !isFormulaBroken(clock.valueFormula, labels) ? evaluateFormula(clock.valueFormula, labels) : null) ?? clock.value;
-  const value = controlled.value && !clock.valueFormula ? Math.floor(rawValue) : getClockValue(rawValue, segments);
+  const value = controlled.value ? rawValue : getClockValue(rawValue, controlled.segmentLimit ?? segments);
   return segments === clock.segments && value === clock.value ? clock : { ...clock, segments, value };
 }
 

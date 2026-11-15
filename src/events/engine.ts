@@ -79,7 +79,7 @@ function withEventLabels(labels: FormulaLabels, event: CharacterEvent, match: Tr
 }
 
 function cleanResolved(character: Character, changes: FormulaChange[]): Character {
-  const resolved = resolveCharacterFormulas(character, (next) => reconcileItemEffects(undefined, next));
+  const resolved = resolveCharacterFormulas(character);
   if (!resolved) return character;
   const { _formulaChanges, ...clean } = resolved as Character & { _formulaChanges?: FormulaChange[] };
   if (_formulaChanges) changes.push(..._formulaChanges);

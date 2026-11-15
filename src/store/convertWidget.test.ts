@@ -151,14 +151,47 @@ vi.hoisted(() => {
       expect(strengthValue()).toBe(10);
     });
 
-    it('releases formula-driven targets and never retargets a replacement entry', () => {
+    it('keeps adjustments on formula-driven targets and never retargets a replacement entry', () => {
       useStore.getState().saveInventoryItem({ sourceWidgetId: 'equipment', targetWidgetId: 'equipment', item: effectRing });
       useStore.getState().updateWidgetData('stats', { displayNumbers: [{ ...currentHero().sheets[0].widgets[0].data.displayNumbers![0], valueFormula: '5' }] });
-      expect(strengthValue()).toBe(5);
-      expect(Object.keys(currentHero().itemEffectValues ?? {})).toHaveLength(0);
+      expect(strengthValue()).toBe(6);
+      expect(Object.keys(currentHero().itemEffectValues ?? {})).toHaveLength(1);
       useStore.getState().updateWidgetData('stats', { displayNumbers: [{ id: 'replacement', label: 'Strength', value: 4 }] });
       expect(currentHero().sheets[0].widgets[0].data.displayNumbers![0].value).toBe(4);
       expect(findNumericTarget(currentHero(), strength)).toBeUndefined();
+    });
+
+    it('preserves the latest computed base across activation, undo, reload and formula removal', () => {
+      useStore.getState().updateWidgetData('stats', { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10, valueFormula: '5' }] });
+      useStore.getState().saveInventoryItem({ sourceWidgetId: 'equipment', targetWidgetId: 'equipment', item: effectRing });
+      const active = structuredClone(currentHero());
+      expect(strengthValue()).toBe(6);
+      useStore.getState().setInventoryItemActive('equipment', 'ring', false);
+      expect(strengthValue()).toBe(5);
+      useStore.getState().undo();
+      expect(currentHero()).toEqual(active);
+      useStore.getState().redo();
+      expect(strengthValue()).toBe(5);
+      useStore.getState().setInventoryItemActive('equipment', 'ring', true);
+      useStore.getState().updateWidgetData('stats', { displayNumbers: [{ ...currentHero().sheets[0].widgets[0].data.displayNumbers![0], valueFormula: '6' }] });
+      expect(strengthValue()).toBe(7);
+      const imported = JSON.parse(JSON.stringify(currentHero()));
+      useStore.getState()._replaceWorkspaceState({ characters: [imported], activeCharacterId: 'effects', mode: 'play' });
+      expect(strengthValue()).toBe(7);
+      expect(currentHero().sheets[0].widgets[0].data.displayNumbers![0].valueFormula).toBe('6');
+      useStore.getState().deleteAllAutomations('formulas');
+      expect(strengthValue()).toBe(7);
+      useStore.getState().setInventoryItemActive('equipment', 'ring', false);
+      expect(strengthValue()).toBe(6);
+    });
+
+    it('carries the computed base and Effect through widget conversion', () => {
+      useStore.getState().updateWidgetData('stats', { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10, valueFormula: '5' }] });
+      useStore.getState().saveInventoryItem({ sourceWidgetId: 'equipment', targetWidgetId: 'equipment', item: effectRing });
+      useStore.getState().convertWidget('stats', 'NUMBER');
+      expect(currentHero().sheets[0].widgets[0].data.numberItems![0]).toMatchObject({ value: 6, valueFormula: '5' });
+      useStore.getState().setInventoryItemActive('equipment', 'ring', false);
+      expect(currentHero().sheets[0].widgets[0].data.numberItems![0].value).toBe(5);
     });
 
     it('clones widget/group bases and remaps cross-widget targets to group copies', () => {

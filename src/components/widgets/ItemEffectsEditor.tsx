@@ -39,7 +39,7 @@ export function ItemEffectsEditor({ item, onChange, onValidityChange, hint = 'Bo
           <PlusIcon className="h-3 w-3" /> Add effect
         </button>
       </div>
-      <p className="text-[11px] text-theme-muted">{hint} Choose a value directly; no label is needed.</p>
+      <p className="text-[11px] text-theme-muted">{hint} Choose a value directly; no label is needed. For computed values, Effects adjust the formula result without changing the formula.</p>
       {effects.map((effect) => {
         const key = effect.target ? numericTargetKey(effect.target) : '';
         const target = targets.find((entry) => numericTargetKey(entry.ref) === key);
@@ -72,10 +72,13 @@ export function ItemEffectsEditor({ item, onChange, onValidityChange, hint = 'Bo
                 <option value="">Choose a value</option>
                 {key && !target && <option value={key}>{effect.targetName || 'Missing value'} - select a replacement</option>}
                 {choices.map((entry) => <option key={numericTargetKey(entry.ref)} value={numericTargetKey(entry.ref)} disabled={!!entry.problem}>
-                  {entry.title}{entry.label ? ` (@${entry.label})` : ''} - {entry.problem || entry.value}
+                  {entry.title}{entry.label ? ` (@${entry.label})` : ''} - {entry.problem || `${entry.value}${entry.formula ? ' (formula)' : ''}`}
                 </option>)}
               </select>
             </label>
+            {target?.formula && <p className="text-[11px] text-theme-muted">
+              Effects apply after the formula, before value limits (unless allowed to exceed them).
+            </p>}
             <div className="flex flex-wrap items-end gap-3">
               <label className="block w-28 text-xs">
                 Bonus / penalty

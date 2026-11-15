@@ -17,12 +17,13 @@ interface EffectEndpointProps {
   kind: 'Source' | 'Target';
   name: string;
   context?: string;
+  breakdown?: string;
   amount?: number;
   allowExceedLimits?: boolean;
   onHighlight?: () => void;
 }
 
-function EffectEndpoint({ kind, name, context, amount, allowExceedLimits, onHighlight }: EffectEndpointProps) {
+function EffectEndpoint({ kind, name, context, breakdown, amount, allowExceedLimits, onHighlight }: EffectEndpointProps) {
   return (
     <button
       type="button"
@@ -35,6 +36,7 @@ function EffectEndpoint({ kind, name, context, amount, allowExceedLimits, onHigh
       <span className="min-w-0 flex-1">
         <span className="block break-words text-xs font-semibold text-theme-ink">{name}</span>
         {context && <span className="mt-0.5 block break-words text-[11px] leading-snug text-theme-muted">{context}</span>}
+        {breakdown && <span title="Net adjustment includes all active Effects and value limits." className="mt-1 block break-words text-[11px] leading-snug text-theme-muted">{breakdown}</span>}
       </span>
       {amount !== undefined && (
         <span
@@ -76,12 +78,15 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
       widget, source, sheetId: sheet.id, context: `${sheet.name} - ${getWidgetTitle(widget)}`,
       effects: source.effects.map((effect) => {
         const target = effect.target ? targets.get(numericTargetKey(effect.target)) : undefined;
+        const value = effect.target ? character.itemEffectValues?.[numericTargetKey(effect.target)] : undefined;
+        const adjustment = value ? value.effective - value.base : 0;
         return {
           effect,
           target,
           targetName: target ? `${target.source} - ${target.title}` : effect.targetName || 'Unassigned value',
           targetTitle: target ? target.ref.kind === 'variable' ? `@${target.title}` : target.title : effect.targetName ?? 'Unassigned value',
           targetSource: target?.source,
+          breakdown: target?.formula && value ? `${value.base} formula ${adjustment >= 0 ? '+' : '-'} ${Math.abs(adjustment)} net = ${value.effective} final` : undefined,
           problem: target?.problem ?? (!target ? 'Target missing. Select a replacement.' : undefined),
         };
       }),
@@ -241,9 +246,9 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
               <EffectEndpoint kind="Source" name={name} context={entry.context} onHighlight={() => revealWidget(entry.sheetId, entry.widget.id)} />
               <ArrowRightIcon className="h-3.5 w-3.5 self-center text-theme-muted" />
               <ul className="flex min-w-0 flex-col gap-1.5">
-                {entry.effects.map(({ effect, target, targetTitle, targetSource, problem }) => (
+                {entry.effects.map(({ effect, target, targetTitle, targetSource, breakdown, problem }) => (
                   <li key={effect.id} className="flex flex-1 flex-col">
-                    <EffectEndpoint kind="Target" name={targetTitle} context={targetSource} amount={effect.amount} allowExceedLimits={effect.allowExceedLimits} onHighlight={targetHighlight(target)} />
+                    <EffectEndpoint kind="Target" name={targetTitle} context={targetSource} breakdown={breakdown} amount={effect.amount} allowExceedLimits={effect.allowExceedLimits} onHighlight={targetHighlight(target)} />
                     {problem && <p className="mt-1 break-words text-xs text-red-500 font-body">{problem}</p>}
                   </li>
                 ))}

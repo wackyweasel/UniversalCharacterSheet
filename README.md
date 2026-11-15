@@ -8,6 +8,7 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
 - **Storage Workspaces**: Isolate characters in browser storage, a local directory, or Google Drive on supported browsers.
 - **Infinite Canvas**: Pan and zoom to organize your sheet however you like.
 - **Widget System**: Add Number Trackers, Lists, and Text Areas.
+- **Automations**: Effects add bonuses or penalties to numeric values, including formula results. Formulas stay unchanged, and downstream formulas and Events use the final adjusted values. Value limits still apply unless an Effect allows exceeding them; removing the Effect restores the latest formula result. Circular Effect activation dependencies are rejected.
 - **Drag & Drop**: Arrange widgets freely with grid snapping.
 - **Installable App**: Install from a supported browser and keep working with cached sheets while offline.
 

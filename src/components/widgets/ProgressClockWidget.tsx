@@ -235,7 +235,11 @@ export default function ProgressClockWidget({ widget, mode, width, height, inter
     const controlled = (field: string) => !!character?.itemEffectValues?.[numericTargetKey({ kind: 'widget', widgetId: widget.id, collection: 'clockItems', entryId: clock.id, field })];
     return { value: controlled('value'), segments: controlled('segments') };
   };
-  const resolvedClocks = clockItems.map((clock) => resolveProgressClockFormulas(clock, labels, controls(clock)));
+  const resolvedClocks = clockItems.map((clock) => {
+    const controlled = controls(clock);
+    const resolved = resolveProgressClockFormulas(clock, labels, controlled);
+    return { ...resolved, value: controlled.value ? clock.value : resolved.value, segments: controlled.segments ? clock.segments : resolved.segments };
+  });
 
   return (
     <div className="progress-clock-widget" style={{ '--clock-size': `${Math.max(40, Math.min(240, clockSize))}px` } as CSSProperties}>

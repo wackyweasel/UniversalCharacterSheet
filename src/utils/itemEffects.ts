@@ -74,7 +74,7 @@ function reconcileEffectPass(previous: Character | undefined, character: Charact
     }
     const { bounded, unbounded } = contribution;
     if (!Number.isFinite(bounded + unbounded)) throw new Error('Effects exceed the supported numeric range.');
-    const base = old
+    const base = target.formula && old ? old.base : old
       ? target.value === old.effective ? old.base : target.value - bounded - unbounded
       : target.value;
     let effective = base + bounded;

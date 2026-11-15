@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Character, InventoryItem, NumericTargetReference } from '../types';
+import type { Character, InventoryItem, NumericTargetReference, Widget } from '../types';
 import { bindItemEffectTargets, collectNumericTargets, findNumericTarget, writeNumericTarget } from './numericTargets';
-import { getItemEffectBaseValues, prepareItemArrivals, reconcileItemEffects } from './itemEffects';
+import { getItemEffectBaseValues, getItemEffectProblems, prepareItemArrivals, reconcileItemEffects, stripItemEffectContributions } from './itemEffects';
 import { duplicateInventoryItem, toCodexItem } from './inventory';
+import { collectLabels, resolveCharacterFormulas } from './formulaEngine';
 
 const target: NumericTargetReference = { kind: 'widget', widgetId: 'stats', collection: 'displayNumbers', entryId: 'strength', field: 'value' };
 const ring = (id: string, amount = 1, allowExceedLimits = false): InventoryItem => ({
@@ -22,6 +23,152 @@ const items = (character: Character, entries: InventoryItem[]): Character => ({
 });
 
 describe('item Effects', () => {
+  const resolve = (character: Character, previous?: Character) => {
+    const prepared = reconcileItemEffects(previous, character);
+    const resolved = resolveCharacterFormulas(prepared);
+    if (!resolved) return prepared;
+    const { _formulaChanges: _, ...clean } = resolved;
+    return clean;
+  };
+
+  it('adjusts formula results once, updates downstream labels, and restores the latest base', () => {
+    const before = hero([ring('bonus', 2)]);
+    before.variables = [{ id: 'source', label: 'source', value: 16 }];
+    before.sheets[0].widgets[0].data.displayNumbers = [
+      { id: 'strength', label: 'Strength', value: 10, valueLabel: 'strength', valueFormula: '@source' },
+      { id: 'derived', label: 'Derived', value: 0, valueLabel: 'derived', valueFormula: '@strength * 2' },
+      { id: 'last', label: 'Last', value: 0, valueFormula: '@derived + 1' },
+    ];
+    expect(getItemEffectProblems(before, ring('bonus', 2))).toEqual([]);
+    const active = resolve(before);
+    expect(value(active)).toBe(18);
+    expect(collectLabels(active)).toMatchObject({ strength: 18, derived: 36 });
+    expect(active.sheets[0].widgets[0].data.displayNumbers![2].value).toBe(37);
+    expect(resolve(active)).toEqual(active);
+    expect(resolveCharacterFormulas(active)).toBeNull();
+    const edited = resolve({ ...active, variables: [{ id: 'source', label: 'source', value: 18 }] }, active);
+    expect(value(edited)).toBe(20);
+    const imported = resolve(JSON.parse(JSON.stringify(edited)));
+    expect(value(imported)).toBe(20);
+    expect(value(stripItemEffectContributions(imported))).toBe(18);
+    const inactive = resolve(items(imported, []), imported);
+    expect(value(inactive)).toBe(18);
+    expect(inactive.sheets[0].widgets[0].data.displayNumbers![2].value).toBe(37);
+    expect(inactive.sheets[0].widgets[0].data.displayNumbers![0].valueFormula).toBe('@source');
+  });
+
+  it('derives automatic secondary modifiers from the final primary value', () => {
+    const before = hero([ring('bonus', 2)]);
+    Object.assign(before.sheets[0].widgets[0].data, { secondaryDisplayAutoCompute: true });
+    Object.assign(before.sheets[0].widgets[0].data.displayNumbers![0], { valueFormula: '18', secondaryValue: 0 });
+    const active = resolve(before);
+    expect(value(active)).toBe(20);
+    expect(active.sheets[0].widgets[0].data.displayNumbers![0].secondaryValue).toBe(5);
+    expect(resolveCharacterFormulas(active)).toBeNull();
+  });
+
+  it('uses adjusted formula-driven limits when clamping other computed values', () => {
+    const before = hero([]);
+    before.sheets[0].widgets[0].data.displayNumbers![0].valueFormula = '10';
+    before.sheets[0].widgets[0].data.displayNumbers![0].maxValue = 5;
+    before.sheets[0].widgets[0].data.displayNumbers![0].maxValueFormula = '5';
+    const limit = { ...target, field: 'maxValue' };
+    const source = { ...ring('limit'), effects: [{ id: 'increase-limit', target: limit, amount: 10 }] };
+    const active = resolve(items(before, [source]));
+    expect(findNumericTarget(active, limit)?.value).toBe(15);
+    expect(value(active)).toBe(10);
+  });
+
+  it('uses final formula-driven segment counts for computed clock values', () => {
+    const before = hero([]);
+    before.sheets[0].widgets.push({ id: 'clock', type: 'PROGRESS_CLOCK', x: 0, y: 0, data: {
+      clockItems: [{ id: 'clock', name: 'Clock', value: 0, valueFormula: '8', segments: 2, segmentsFormula: '2' }],
+    } });
+    const segments: NumericTargetReference = { kind: 'widget', widgetId: 'clock', collection: 'clockItems', entryId: 'clock', field: 'segments' };
+    const active = resolve(items(before, [{ ...ring('limit'), effects: [{ id: 'increase-limit', target: segments, amount: 10 }] }]));
+    expect(findNumericTarget(active, segments)?.value).toBe(12);
+    expect(active.sheets[0].widgets[2].data.clockItems![0].value).toBe(8);
+    expect(resolveCharacterFormulas(active)).toBeNull();
+  });
+
+  it.each([
+    ['progress', { id: 'computed', type: 'PROGRESS_BAR', x: 0, y: 0, data: { currentValue: 0, minValue: 0, maxValue: 10, fieldFormulas: { currentValue: '20' } } }, { kind: 'widget', widgetId: 'computed', field: 'currentValue' }, 5],
+    ['clock', { id: 'computed', type: 'PROGRESS_CLOCK', x: 0, y: 0, data: { clockItems: [{ id: 'clock', name: 'Clock', value: 0, segments: 10, valueFormula: '20' }] } }, { kind: 'widget', widgetId: 'computed', collection: 'clockItems', entryId: 'clock', field: 'value' }, 5],
+    ['XP', { id: 'computed', type: 'XP_LEVEL', x: 0, y: 0, data: { currentValue: 0, fieldFormulas: { currentValue: '20' } } }, { kind: 'widget', widgetId: 'computed', field: 'currentValue' }, 5],
+    ['dice count', { id: 'computed', type: 'DICE_POOL', x: 0, y: 0, data: { dicePoolComponents: [{ id: 'dice', name: 'Dice', active: true, dice: 0, diceFormula: '20' }] } }, { kind: 'widget', widgetId: 'computed', collection: 'dicePoolComponents', entryId: 'dice', field: 'dice' }, 5],
+  ] satisfies [string, Widget, NumericTargetReference, number][])('adjusts %s formulas before limits and integer normalization', (_name, widget, ref, expected) => {
+    const before = hero([]);
+    before.sheets[0].widgets.push(widget);
+    const source = { ...ring('penalty'), effects: [{ id: 'penalty', target: ref, amount: -15 }] };
+    const active = resolve(items(before, [source]));
+    expect(findNumericTarget(active, ref)?.value).toBe(expected);
+    expect(resolveCharacterFormulas(active)).toBeNull();
+  });
+
+  it('adds bonuses to raw roll-weight and dice-count formulas before their minimums', () => {
+    const before = hero([]);
+    before.sheets[0].widgets.push(
+      { id: 'roll-table', type: 'ROLL_TABLE', x: 0, y: 0, data: { rollTableItems: [{ id: 'option', text: 'Option', weight: 0, weightFormula: '-1' }] } },
+      { id: 'dice', type: 'DICE_ROLLER', x: 0, y: 0, data: { diceGroups: [{ id: 'group', count: 1, faces: 6, countFormula: '0' }] } },
+    );
+    const refs: NumericTargetReference[] = [
+      { kind: 'widget', widgetId: 'roll-table', collection: 'rollTableItems', entryId: 'option', field: 'weight' },
+      { kind: 'widget', widgetId: 'dice', collection: 'diceGroups', entryId: 'group', field: 'count' },
+    ];
+    const active = resolve(items(before, [{ ...ring('bonus'), effects: refs.map((ref, index) => ({ id: `bonus-${index}`, target: ref, amount: 2 })) }]));
+    expect(refs.map((ref) => findNumericTarget(active, ref)?.value)).toEqual([1, 2]);
+    expect(resolveCharacterFormulas(active)).toBeNull();
+  });
+
+  it('applies limits after the formula and preserves bounded and unbounded adjustments', () => {
+    const before = hero([ring('penalty', -15), ring('override', 2, true)], 10);
+    before.sheets[0].widgets[0].data.displayNumbers![0].valueFormula = '20';
+    const active = resolve(before);
+    expect(value(active)).toBe(7);
+    expect(value(resolve(items(active, [ring('override', 2, true)]), active))).toBe(12);
+    expect(value(resolve(items(active, []), active))).toBe(10);
+  });
+
+  it('supports scalar, standalone, table-template and nested attribute formulas', () => {
+    const before = hero([]);
+    before.variables = [{ id: 'base', label: 'base', value: 10 }, { id: 'calculated', label: 'calculated', value: 0, formula: '@base + 1' }];
+    before.sheets[0].widgets.push(
+      { id: 'roller', type: 'DICE_ROLLER', x: 0, y: 0, data: { modifier: 0, fieldLabels: { modifier: 'attack' }, fieldFormulas: { modifier: '@calculated' } } },
+      { id: 'table', type: 'TABLE', x: 0, y: 0, data: { columns: ['Value'], rows: [{ cells: [{ id: 'cell', value: '0', label: 'table' }] }], tableColumnSettings: [{ formula: '@attack' }] } },
+    );
+    const refs: NumericTargetReference[] = [
+      { kind: 'variable', variableId: 'calculated' },
+      { kind: 'widget', widgetId: 'roller', field: 'modifier' },
+      { kind: 'widget', widgetId: 'table', collection: 'tableCells', entryId: 'cell', field: 'value' },
+      { kind: 'widget', widgetId: 'gear', collection: 'inventoryFields', entryId: 'attribute', field: 'value' },
+    ];
+    const source = { ...ring('all'), fields: [{ id: 'attribute', name: 'Attribute', type: 'number' as const, value: 0, valueLabel: 'attribute', valueFormula: '@table' }],
+      effects: refs.map((ref, index) => ({ id: `bonus-${index}`, target: ref, amount: 2 })) };
+    const active = resolve(items(before, [source]));
+    expect(collectLabels(active)).toMatchObject({ calculated: 13, attack: 15, table: 17, attribute: 19 });
+    expect(refs.map((ref) => findNumericTarget(active, ref)?.value)).toEqual([13, 15, 17, 19]);
+    expect(resolve(active)).toEqual(active);
+  });
+
+  it('rejects a formula-controlled switch whose Effect changes its activation condition', () => {
+    const before = hero([]);
+    before.sheets[0].widgets[0].data.displayNumbers![0].valueLabel = 'strength';
+    before.sheets[0].widgets.push({ id: 'switch', type: 'TOGGLE', x: 0, y: 0, data: {
+      toggleState: false, fieldFormulas: { state: 'IF(@strength < 11, 1, 0)' }, effects: [{ id: 'loop', target, amount: 2 }],
+    } });
+    expect(() => resolve(before)).toThrow(/cannot settle/i);
+  });
+
+  it('rejects stable activation feedback through a derived secondary label', () => {
+    const before = hero([]);
+    Object.assign(before.sheets[0].widgets[0].data, { secondaryDisplayAutoCompute: true });
+    Object.assign(before.sheets[0].widgets[0].data.displayNumbers![0], { valueFormula: '10', secondaryValueLabel: 'modifier', secondaryValue: 0 });
+    before.sheets[0].widgets.push({ id: 'switch', type: 'TOGGLE', x: 0, y: 0, data: {
+      toggleState: true, fieldFormulas: { state: 'IF(@modifier >= 0, 1, 0)' }, effects: [{ id: 'loop', target, amount: 2 }],
+    } });
+    expect(() => resolve(before)).toThrow(/own activation/i);
+  });
+
   it('uses displayed track bounds for zone activation but respects explicit effect overrides', () => {
     const track: NumericTargetReference = { kind: 'widget', widgetId: 'track', field: 'currentValue' };
     const before = hero([]);
@@ -136,11 +283,11 @@ describe('item Effects', () => {
     expect(findNumericTarget(reconcileItemEffects(updated, items(updated, [])), ref)!.value).toBe(3);
   });
 
-  it('identifies legacy numeric cells without labels and refuses inherited formulas', () => {
+  it('identifies legacy numeric cells without labels, including inherited formulas', () => {
     const before = hero([]);
     before.sheets[0].widgets.push({ id: 'table', type: 'TABLE', x: 0, y: 0, data: { columns: ['Value'], rows: [{ cells: ['2'] }, { cells: ['4'] }], tableRowSettings: [{}, { formula: '1' }] } });
     const cells = collectNumericTargets(before).filter((entry) => entry.ref.kind === 'widget' && entry.ref.widgetId === 'table');
-    expect(cells[1].problem).toBe('Computed by a formula');
+    expect(cells[1].problem).toBeUndefined();
     const bound = bindItemEffectTargets(before, { ...ring('one'), effects: [{ id: 'cell', target: cells[0].ref, amount: 1 }] });
     const ref = bound.item.effects![0].target!;
     const updated = writeNumericTarget(bound.character, ref, 3);

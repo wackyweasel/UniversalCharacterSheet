@@ -40,9 +40,9 @@ const CHANGELOG_ENTRIES = [
     version: '1.18.0',
     changes: [
       'New type of automation : Effects. These are a simple way to add bonuses and penalties to stats or any value in your character sheet. Ex: a ring that gives +1 strength. An armor that gives +2 AC. Effects are not as powerful as formulas, but they are simpler to setup. ',
-      'Effects can be added to these widgets : Inventory, Equipement, Codex, Temporary effects, Skill tree, conditions, checklist, switch (and switches from a mixed field widget) and threshold track.',
-      'Combined all types of automations (Effects, labels + formulas and events) in the new Automations panel.',
-      'Events can now copy Compendium items, duplicate from More actions, and target all writable numeric values with shared or separate dice rolls.',
+      'Effects can be added to these widgets : Inventory, Equipment, Codex, Temporary effects, Skill tree, conditions, checklist, switch (and switches from a mixed field widget) and threshold track.',
+      'Combined all types of automation (effects, labels + formulas and events) in the new Automations panel.',
+      'Events can now use items from the compendium, events can be duplicated, and dice rolls in an event can target all writable numeric values from a widget with shared or separate dice rolls.',
     ],
   },
   {

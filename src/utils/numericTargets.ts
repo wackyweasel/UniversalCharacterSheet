@@ -16,6 +16,7 @@ export interface NumericTarget {
   max?: number;
   integer?: 'round' | 'floor';
   label?: string;
+  formula?: string;
   problem?: string;
   path: Path;
   identityPath?: Path;
@@ -113,6 +114,7 @@ function bounds(data: WidgetData, item: RecordValue, field: string, collection: 
   }
   if (collection === 'dicePoolComponents') return { min: 0, max: MAX_POOL_DICE, integer: 'round' };
   if (collection === 'diceGroups') return { min: 1, integer: 'round' };
+  if (collection === 'rollTableItems') return { min: 0 };
   if (['inventoryItems', 'walletCurrencies', 'xpLevels', 'skillNodes'].includes(collection ?? '')) return { min: 0, integer: 'floor' };
   return {};
 }
@@ -124,7 +126,7 @@ export function collectNumericTargets(character: Character): NumericTarget[] {
     targets.push({
       ref: { kind: 'variable', variableId: variable.id },
       title: variable.label, source: 'Standalone labels', value: variable.value,
-      label: variable.label, problem: formula(variable.formula) ? 'Computed by a formula' : undefined, path: [],
+      label: variable.label, formula: formula(variable.formula) ? variable.formula : undefined, path: [],
     });
   }
   for (const sheet of character.sheets) for (const widget of sheet.widgets) {
@@ -142,8 +144,9 @@ export function collectNumericTargets(character: Character): NumericTarget[] {
         targets.push({
           ref, title: name ? `${name} - ${humanize(field)}` : humanize(field), source, value,
           label: typeof label === 'string' ? label : undefined,
+          formula: formula(computed) ? String(computed) : undefined,
           problem: collection === 'displayNumbers' && field === 'secondaryValue' && data.secondaryDisplayAutoCompute
-            ? 'Derived from the primary value' : formula(computed) ? 'Computed by a formula' : undefined,
+            ? 'Derived from the primary value' : undefined,
           ...bounds(data, item, field, collection, widget.type),
           path: [...path, field], identityPath,
         });
@@ -167,7 +170,7 @@ export function collectNumericTargets(character: Character): NumericTarget[] {
           ref: { kind: 'widget', widgetId: widget.id, field: `inventoryEncumbrance.${field}` },
           title: humanize(field), source, value, min: 0,
           label: data.fieldLabels?.[field],
-          problem: formula(data.fieldFormulas?.[field]) ? 'Computed by a formula' : undefined,
+          formula: formula(data.fieldFormulas?.[field]) ? data.fieldFormulas?.[field] : undefined,
           path: ['inventoryEncumbrance', field],
         });
       }
@@ -201,8 +204,8 @@ export function collectNumericTargets(character: Character): NumericTarget[] {
         ref: { kind: 'widget', widgetId: widget.id, collection: 'tableCells', entryId: entryIdentity(cell, rowIndex * (data.columns?.length ?? row.cells.length) + colIndex), field: 'value' },
         title: `Row ${rowIndex + 1} - ${data.columns?.[colIndex] || `Column ${colIndex + 1}`}`,
         source, value, label: 'label' in details ? details.label : undefined,
-        problem: isCoveredTableCell(data.tableMergedCells, rowIndex, colIndex) ? 'Covered by a merged cell'
-          : formula(inherited) || ('formula' in details && formula(details.formula)) ? 'Computed by a formula' : undefined,
+        formula: ('formula' in details && formula(details.formula) ? details.formula : inherited) || undefined,
+        problem: isCoveredTableCell(data.tableMergedCells, rowIndex, colIndex) ? 'Covered by a merged cell' : undefined,
         path: typeof cell === 'string' ? ['rows', rowIndex, 'cells', colIndex] : ['rows', rowIndex, 'cells', colIndex, 'value'],
         identityPath: ['rows', rowIndex, 'cells', colIndex], legacyCell: typeof cell === 'string',
       });

@@ -72,6 +72,7 @@ export function FormulaEditorDialog({
   onCancel,
 }: FormulaEditorDialogProps) {
   const [draft, setDraft] = useState(formula || '');
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [labelSearch, setLabelSearch] = useState('');
   const [referenceSearch, setReferenceSearch] = useState('');
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
@@ -250,7 +251,12 @@ export function FormulaEditorDialog({
 
   const apply = () => {
     if (!isValid) return;
-    onApply(draft.trim());
+    setApplyError(null);
+    try {
+      onApply(draft.trim());
+    } catch (error) {
+      setApplyError(error instanceof Error ? error.message : 'Unable to apply this formula.');
+    }
   };
 
   const selectReference = (referenceId: string) => {
@@ -460,7 +466,7 @@ export function FormulaEditorDialog({
                   ref={textareaRef}
                   data-tutorial={tutorialTargetPrefix ? `${tutorialTargetPrefix}-${isValid ? 'formula-input' : 'formula-target'}` : undefined}
                   value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => { setDraft(event.target.value); setApplyError(null); }}
                   onScroll={(event) => {
                     if (highlightRef.current) highlightRef.current.scrollTop = event.currentTarget.scrollTop;
                   }}
@@ -540,7 +546,7 @@ export function FormulaEditorDialog({
           </div>
         </div>
 
-        {saveError && <p role="alert" className="shrink-0 px-4 pb-3 text-sm text-red-500 font-body">{saveError}</p>}
+        {(saveError || applyError) && <p role="alert" className="shrink-0 px-4 pb-3 text-sm text-red-500 font-body">{saveError || applyError}</p>}
         <footer className="widget-edit-modal__footer flex flex-none items-center justify-between gap-2 border-t border-theme-border">
           <div>
             {formula && onClear && (

@@ -181,6 +181,24 @@ describe('event engine', () => {
     expect(result.firings[0].effects[0].text).toBe('@xp 0 → 20 (+20)');
   });
 
+  it('reads final adjusted formula values in Event amounts without allowing direct writes to them', () => {
+    const event: CharacterEvent = {
+      id: 'formula-effect', enabled: true, trigger: { kind: 'manual' }, effects: [
+        { id: 'activate', kind: 'switch.set', widgetId: 'w-bloodied', params: { state: 'on' } },
+        { id: 'read', kind: 'label.add', target: 'xp', params: { amount: '@str' } },
+        { id: 'write', kind: 'label.add', target: 'str', params: { amount: '10' } },
+      ],
+    };
+    const before = character([
+      { ...stats, data: { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10, valueLabel: 'str', valueFormula: '10' }] } },
+      { ...bloodied, data: { ...bloodied.data, effects: [{ id: 'bonus', target: { kind: 'widget', widgetId: 'w-stats', collection: 'displayNumbers', entryId: 'strength', field: 'value' }, amount: 2 }] } },
+    ], [event], [{ id: 'xp', label: 'xp', value: 0 }]);
+    const result = runEvents({ before, after: before, manualEventId: event.id });
+    expect(result.character.variables![0].value).toBe(12);
+    expect(widgetData(result.character, 'w-stats').displayNumbers![0]).toMatchObject({ value: 12, valueFormula: '10' });
+    expect(result.firings[0].effects[2].skipped).toBe(true);
+  });
+
   it('chains events and fires each event once to stop loops', () => {
     const ping: CharacterEvent = {
       id: 'e-ping',

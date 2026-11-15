@@ -378,7 +378,7 @@ function resolveActiveCharacterFormulas(
 
     const previous = state.characters.find((entry) => entry.id === character.id);
     const prepared = reconcileItemEffects(previous, prepareItemArrivals(previous, character));
-    const resolved = resolveCharacterFormulas(prepared, (next) => reconcileItemEffects(undefined, next));
+    const resolved = resolveCharacterFormulas(prepared);
     if (!resolved) return prepared;
 
     const changes = resolved._formulaChanges;
@@ -413,7 +413,7 @@ export const useStore = create<StoreState>((rawSet, get) => {
       if (character === previous) return character;
       const prepared = reconcileItemEffects(previous, loading ? character : prepareItemArrivals(previous, character));
       if (prepared === character) return character;
-      const resolved = resolveCharacterFormulas(prepared, (next) => reconcileItemEffects(undefined, next));
+      const resolved = resolveCharacterFormulas(prepared);
       if (!resolved) return prepared;
       const { _formulaChanges: _changes, ...clean } = resolved as Character & { _formulaChanges?: FormulaChange[] };
       return reconcileItemEffects(prepared, clean);
