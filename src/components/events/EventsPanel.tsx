@@ -394,7 +394,7 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
         filters={filters}
         onFilterChange={setFilter}
         deletion={{ tab: 'events', count: items.length }}
-        addAction={<button type="button" aria-label="New event" data-tutorial="events-new" onClick={() => openEditor()} className={`${primaryButtonClass} ${tutorialStepId === 'events-new' ? tutorialTargetClass : ''}`}><PlusIcon className="h-3.5 w-3.5" /> Add event</button>}
+        addAction={<button type="button" aria-label="New event" title="Add event" data-tutorial="events-new" onClick={() => openEditor()} className={`${primaryButtonClass} ${tutorialStepId === 'events-new' ? tutorialTargetClass : ''}`}><PlusIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Add event</span></button>}
         onCollapseAll={() => setAllCollapsed(true)}
         onExpandAll={() => setAllCollapsed(false)}
         collapseDisabled={visibleItems.length === 0 || visibleItems.every((item) => collapsedIds.has(item.event.id))}

@@ -139,7 +139,6 @@ export default function FormulasPanel({ onRevealWidget, isBottom }: Props) {
           </div>
         ) : (
           <div className="space-y-3 p-3">
-            <p className="text-[11px] text-theme-muted font-body">{visible.length} {visible.length === 1 ? 'formula' : 'formulas'} in {groups.size} {groups.size === 1 ? 'source' : 'sources'}</p>
             {[...groups].map(([key, items]) => {
               const first = items[0].entry;
               const isCollapsed = collapsed.has(key);

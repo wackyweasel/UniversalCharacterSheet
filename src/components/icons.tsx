@@ -44,6 +44,14 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
+export function FilterIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 5h16l-6 7v6l-4 2v-8z" />
+    </Base>
+  );
+}
+
 export function CopyIcon(props: IconProps) {
   return (
     <Base {...props}>

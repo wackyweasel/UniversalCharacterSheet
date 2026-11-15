@@ -148,7 +148,7 @@ export default function EffectsPanel({ onRevealWidget, isBottom }: Props) {
         filters={filters}
         onFilterChange={setFilter}
         deletion={{ tab: 'effects', count: configured.reduce((sum, entry) => sum + entry.effects.length, 0) }}
-        addAction={<button type="button" onClick={() => { setAdding(true); setSelectedKey(''); listRef.current?.scrollTo({ top: 0 }); }} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-button border border-theme-accent bg-theme-accent px-3 text-xs font-bold font-body text-theme-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40" disabled={sources.length === 0}><PlusIcon className="h-3.5 w-3.5" /> Add effects</button>}
+        addAction={<button type="button" title="Add effects" onClick={() => { setAdding(true); setSelectedKey(''); listRef.current?.scrollTo({ top: 0 }); }} className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-button border border-theme-accent bg-theme-accent px-3 text-xs font-bold font-body text-theme-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40" disabled={sources.length === 0}><PlusIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Add effects</span></button>}
         onCollapseAll={() => setCollapsed(new Set([...collapsed, ...visible.map((entry) => entry.key)]))}
         onExpandAll={() => setCollapsed(new Set())}
         collapseDisabled={visible.length === 0 || visible.every((entry) => collapsed.has(entry.key))}

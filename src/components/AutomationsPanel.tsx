@@ -122,11 +122,11 @@ export default function AutomationsPanel({ onRevealWidget }: Props) {
           isBottom ? 'inset-x-0 top-0 h-2 cursor-row-resize' : 'inset-y-0 left-0 w-2 cursor-col-resize'
         }`}
       />
-      <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
-        <h2 id="automations-title" className="flex min-w-0 items-center gap-2 font-heading text-lg font-bold">
-          <BoltIcon className="h-5 w-5 shrink-0 text-theme-accent" /> Automations
+      <header className="flex shrink-0 items-center justify-between gap-3 px-3 py-1.5 sm:px-4 sm:py-3">
+        <h2 id="automations-title" className="flex min-w-0 items-center gap-2 font-heading text-base font-bold sm:text-lg">
+          <BoltIcon className="h-4 w-4 shrink-0 text-theme-accent sm:h-5 sm:w-5" /> Automations
         </h2>
-        <button type="button" onClick={() => setOpen(false)} aria-label="Close automations" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-button border border-theme-border text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper">
+        <button type="button" onClick={() => setOpen(false)} aria-label="Close automations" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-button border border-theme-border text-theme-muted transition-colors hover:bg-theme-accent hover:text-theme-paper sm:h-9 sm:w-9">
           <XIcon className="h-4 w-4" />
         </button>
       </header>
@@ -152,11 +152,11 @@ export default function AutomationsPanel({ onRevealWidget }: Props) {
               openTab(tabs[next].id);
               tabListRef.current?.querySelector<HTMLElement>(`#automations-tab-${tabs[next].id}`)?.focus();
             }}
-            className={`flex min-w-0 flex-1 items-center justify-center border-b-2 px-1 py-2 font-body font-semibold transition-colors ${compactTabs ? 'flex-col gap-0.5 text-xs' : 'gap-1.5 text-sm'} ${
+            className={`flex min-w-0 flex-1 items-center justify-center border-b-2 px-1 py-2 font-body font-semibold transition-colors ${compactTabs ? isBottom ? 'gap-1 text-xs' : 'flex-col gap-0.5 text-xs' : 'gap-1.5 text-sm'} ${
               tab === item.id ? 'border-theme-accent text-theme-accent' : 'border-transparent text-theme-muted hover:text-theme-ink'
             }`}
           >
-            <item.icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+            <item.icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${compactTabs && isBottom ? 'hidden' : ''}`} />
             {item.label}
           </button>
         ))}

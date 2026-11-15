@@ -1403,7 +1403,7 @@ export default function VariablesPanel({ onRevealWidget, isBottom }: VariablesPa
         filters={filters}
         onFilterChange={setFilter}
         deletion={{ tab: 'labels', count: entries.filter((entry) => entry.editable).length }}
-        addAction={<button type="button" onClick={() => { setQuery(''); startCreate(); }} className={primaryButtonClass} aria-label="Create new label"><PlusIcon className="h-3.5 w-3.5" /> Add label</button>}
+        addAction={<button type="button" title="Add label" onClick={() => { setQuery(''); startCreate(); }} className={primaryButtonClass} aria-label="Create new label"><PlusIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Add label</span></button>}
         onCollapseAll={() => setCollapsedGroups(new Set([...collapsedGroups, ...collapseKeys]))}
         onExpandAll={() => setCollapsedGroups(new Set())}
         collapseDisabled={collapseKeys.length === 0 || collapseKeys.every((key) => collapsedGroups.has(key))}

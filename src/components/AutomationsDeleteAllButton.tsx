@@ -89,10 +89,11 @@ export default function AutomationsDeleteAllButton({ tab, count, editableFormula
     <button
       type="button"
       aria-label={`Delete all ${tab}`}
+      title={`Delete all ${tab}`}
       disabled={!characterId || count === 0 || mode === 'print'}
       onClick={() => { setEditableOnly(false); setError(null); setConfirmedCharacterId(characterId); }}
-      className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-button border border-red-500/40 px-2 text-xs font-body text-red-600 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
-    ><TrashIcon className="h-3.5 w-3.5" /> Delete all</button>
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center gap-1 rounded-button border border-red-500/40 text-xs font-body text-red-600 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-2"
+    ><TrashIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Delete all</span></button>
     {confirmedCharacterId && createPortal(
       <div
         data-touch-camera-ignore="true"
