@@ -54,6 +54,7 @@ import { getItemEffectBaseValues, getItemEffectProblems, prepareItemArrivals, re
 import { getWidgetEffectSources, mapWidgetEffects, setWidgetSourceActive, setWidgetSourceEffects } from '../utils/widgetEffects';
 import { removeAllCharacterFormulas, updateCharacterFormula, type CharacterFormula } from '../utils/characterFormulas';
 import type { AutomationsTab } from './useAutomationsPanelStore';
+import type { GroupTemplate, WidgetTemplate } from './useTemplateStore';
 
 type Mode = 'play' | 'vertical' | 'print';
 export type WidgetSelectionSource = 'pointer' | 'touch';
@@ -227,8 +228,8 @@ interface StoreState {
   addWidget: (type: WidgetType, x: number, y: number, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }, placement?: 'smart' | 'exact') => void;
   cloneWidget: (widgetId: string) => void;
   convertWidget: (widgetId: string, targetType: WidgetType, options?: { choice?: number; height?: number }) => void;
-  addWidgetFromTemplate: (template: { type: WidgetType; w?: number; h?: number; data: any }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
-  addGroupFromTemplate: (template: { widgets: { type: WidgetType; relativeX: number; relativeY: number; w?: number; h?: number; data: any }[]; attachments: [number, number][] }, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
+  addWidgetFromTemplate: (template: Pick<WidgetTemplate, 'type' | 'w' | 'h' | 'data' | 'sourceWidgetId'>, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
+  addGroupFromTemplate: (template: Pick<GroupTemplate, 'widgets' | 'attachments'>, viewport?: { pan: { x: number; y: number }; scale: number; width: number; height: number }) => void;
   updateWidgetPosition: (id: string, x: number, y: number) => void;
   // Moves (and optionally resizes) many widgets as one undo step.
   applyWidgetLayouts: (
@@ -1440,7 +1441,7 @@ export const useStore = create<StoreState>((rawSet, get) => {
           w: DEFAULT_WIDTH,
           h: DEFAULT_HEIGHT,
           zIndex: getNextWidgetZIndex(currentWidgets),
-          data: cloneWidgetData(template.type, template.data, newWidgetId),
+          data: cloneWidgetData(template.type, template.data, newWidgetId, template.sourceWidgetId),
         };
 
         recordStoreEvent(state, {
@@ -1567,6 +1568,12 @@ export const useStore = create<StoreState>((rawSet, get) => {
         // Generate new IDs for each widget
         const newGroupId = uuidv4();
         const widgetIds = templateWidgets.map(() => uuidv4());
+        const entryIds = new Map<string, string>();
+        const sourceWidgetIds = new Map<string, string>();
+        templateWidgets.forEach((widget, index) => {
+          if (widget.sourceWidgetId) sourceWidgetIds.set(widget.sourceWidgetId, widgetIds[index]);
+          collectWidgetDataIds(widget.data, entryIds);
+        });
         const groupZIndex = getNextWidgetZIndex(currentWidgets);
         
         // Create the new widgets
@@ -1579,7 +1586,7 @@ export const useStore = create<StoreState>((rawSet, get) => {
           h: wt.h,
           zIndex: groupZIndex,
           groupId: newGroupId,
-          data: cloneWidgetData(wt.type, wt.data, widgetIds[idx]),
+          data: cloneWidgetData(wt.type, wt.data, widgetIds[idx], wt.sourceWidgetId, entryIds, sourceWidgetIds),
         }));
         
         // Set up attachedTo based on the attachments array

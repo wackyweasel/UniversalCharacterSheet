@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Character, WidgetData } from '../types';
+import type { Character, Widget, WidgetData } from '../types';
 import { useStore } from './useStore';
 import { useUndoStore } from './useUndoStore';
 import { collectLabelEntries } from '../utils/characterVariables';
 import { collectCharacterFormulas } from '../utils/characterFormulas';
 import { getWidgetEffectSources } from '../utils/widgetEffects';
+import { isGroupTemplate, useTemplateStore } from './useTemplateStore';
 
 vi.hoisted(() => {
   vi.stubGlobal('localStorage', {
@@ -185,6 +186,98 @@ describe('number display creation defaults', () => {
       numberBoxFixedAspectRatio: true,
       numberBoxScale: 100,
     });
+  });
+});
+
+describe('Effect-bearing templates', () => {
+  const getCharacter = () => useStore.getState().characters[0];
+  beforeEach(() => {
+    useUndoStore.getState().clearAllHistory();
+    useTemplateStore.getState().replaceTemplates([]);
+  });
+
+  it.each([undefined, '10'])('copies group Effects onto their new targets, preserving base values with formula %s', (valueFormula) => {
+    const source: Widget = {
+      id: 'source', type: 'TOGGLE', x: 0, y: 0, groupId: 'group', attachedTo: ['strength-widget'],
+      data: {
+        toggleState: true,
+        effects: [
+          { id: 'bonus', amount: 2, target: { kind: 'widget', widgetId: 'strength-widget', collection: 'displayNumbers', entryId: 'strength', field: 'value' } },
+          { id: 'external-bonus', amount: 1, target: { kind: 'variable', variableId: 'external' } },
+        ],
+      },
+    };
+    const strength: Widget = {
+      id: 'strength-widget', type: 'NUMBER_DISPLAY', x: 240, y: 0, groupId: 'group', attachedTo: [source.id],
+      data: { displayNumbers: [{ id: 'strength', label: 'Strength', value: 10, valueFormula }] },
+    };
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, variables: [{ id: 'external', label: 'external', value: 5 }], sheets: [{ id: 'sheet-1', name: 'Main', widgets: [source, strength] }] }],
+      activeCharacterId: character.id, mode: 'play',
+    });
+    expect(getCharacter().sheets[0].widgets[1].data.displayNumbers![0].value).toBe(12);
+    useTemplateStore.getState().addGroupTemplate(getCharacter().sheets[0].widgets, 'Strength group');
+    useTemplateStore.getState().replaceTemplates(JSON.parse(JSON.stringify(useTemplateStore.getState().templates)));
+    const template = useTemplateStore.getState().templates.find(isGroupTemplate)!;
+    useStore.getState().addGroupFromTemplate(template);
+    const [originalSource, originalStrength, copiedSource, copiedStrength] = getCharacter().sheets[0].widgets;
+    expect(originalStrength.data.displayNumbers![0].value).toBe(12);
+    expect(copiedStrength.data.displayNumbers![0].value).toBe(12);
+    expect(copiedSource.data.effects![0].target).toEqual({
+      kind: 'widget', widgetId: copiedStrength.id, collection: 'displayNumbers',
+      entryId: copiedStrength.data.displayNumbers![0].id, field: 'value',
+    });
+    expect(copiedSource.data.effects![1].target).toEqual({ kind: 'variable', variableId: 'external' });
+    expect(getCharacter().variables![0].value).toBe(7);
+    expect(copiedSource.attachedTo).toEqual([copiedStrength.id]);
+    expect(copiedStrength.attachedTo).toEqual([copiedSource.id]);
+    expect(template.widgets[1].data.displayNumbers![0].value).toBe(10);
+    useStore.getState().updateWidgetData(copiedSource.id, { toggleState: false });
+    expect(getCharacter().sheets[0].widgets[1].data.displayNumbers![0].value).toBe(12);
+    expect(getCharacter().sheets[0].widgets[3].data.displayNumbers![0].value).toBe(10);
+    expect(getCharacter().sheets[0].widgets[0]).toEqual(originalSource);
+    expect(getCharacter().variables![0].value).toBe(6);
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, id: 'other-character', variables: [{ id: 'external', label: 'external', value: 5 }], sheets: [{ id: 'sheet-1', name: 'Main', widgets: [] }] }],
+      activeCharacterId: 'other-character', mode: 'play',
+    });
+    useStore.getState().addGroupFromTemplate(template);
+    const [importedSource, importedStrength] = getCharacter().sheets[0].widgets;
+    expect(importedStrength.data.displayNumbers![0].value).toBe(12);
+    expect(importedSource.data.effects![0].target).toMatchObject({ widgetId: importedStrength.id });
+  });
+
+  it('copies self-targeting widget Effects without baking them into the saved values', () => {
+    const mixed: Widget = {
+      id: 'mixed', type: 'MIXED_FIELDS', x: 0, y: 0,
+      data: { mixedFields: [
+        { id: 'strength', name: 'Strength', type: 'number', value: 10 },
+        {
+          id: 'switch', name: 'Ring', type: 'switch', value: true,
+          effects: [{ id: 'bonus', amount: 2, target: { kind: 'widget', widgetId: 'mixed', collection: 'mixedFields', entryId: 'strength', field: 'value' } }],
+        },
+      ] },
+    };
+    useStore.getState()._replaceWorkspaceState({
+      characters: [{ ...character, sheets: [{ id: 'sheet-1', name: 'Main', widgets: [mixed] }] }],
+      activeCharacterId: character.id, mode: 'play',
+    });
+    useTemplateStore.getState().addTemplate(getCharacter().sheets[0].widgets[0], 'Strength and ring');
+    const template = useTemplateStore.getState().templates[0];
+    if (isGroupTemplate(template)) throw new Error('Expected a widget template');
+    useStore.getState().addWidgetFromTemplate(template);
+    const [original, copy] = getCharacter().sheets[0].widgets;
+    const copiedFields = copy.data.mixedFields!;
+    expect(original.data.mixedFields![0]).toMatchObject({ type: 'number', value: 12 });
+    expect(copiedFields[0]).toMatchObject({ type: 'number', value: 12 });
+    expect(getWidgetEffectSources(copy)[0].effects[0].target).toEqual({
+      kind: 'widget', widgetId: copy.id, collection: 'mixedFields', entryId: copiedFields[0].id, field: 'value',
+    });
+    expect(template.data.mixedFields![0]).toMatchObject({ type: 'number', value: 10 });
+    useStore.getState().undo();
+    expect(getCharacter().sheets[0].widgets).toEqual([original]);
+    useStore.getState().redo();
+    expect(getCharacter().sheets[0].widgets[1]).toEqual(copy);
   });
 });
 

@@ -374,6 +374,66 @@ describe('event engine', () => {
     });
   });
 
+  describe('Effect-adjusted clocks', () => {
+    it.each([2, -2])('detects formula clock threshold crossings from an unrestricted %s Effect', (amount) => {
+      const base = amount > 0 ? 6 : 0;
+      const clock: Widget = {
+        id: 'clock-widget', type: 'PROGRESS_CLOCK', x: 0, y: 0,
+        data: { clockItems: [{ id: 'clock', name: 'Progress', value: base, valueFormula: String(base), segments: 6 }] },
+      };
+      const source: Widget = {
+        ...bloodied,
+        data: {
+          toggleState: false,
+          effects: [{
+            id: 'bonus', amount, allowExceedLimits: true,
+            target: { kind: 'widget', widgetId: clock.id, collection: 'clockItems', entryId: 'clock', field: 'value' },
+          }],
+        },
+      };
+      const event: CharacterEvent = {
+        id: 'crossing', enabled: true,
+        trigger: { kind: 'value.crosses', widgetId: clock.id, params: { compare: amount > 0 ? 'above' : 'below', threshold: String(base) } },
+        effects: [{ id: 'log', kind: 'log.message', params: { message: 'Crossed the threshold' } }],
+      };
+      const before = character([clock, source], [event]);
+      const after = reconcileItemEffects(before, patchWidgetData(before, source.id, { toggleState: true }));
+      expect(widgetData(after, clock.id).clockItems![0].value).toBe(base + amount);
+      const result = runEvents({ before, after });
+      expect(result.firings).toHaveLength(1);
+      expect(widgetData(result.character, clock.id).clockItems![0].value).toBe(base + amount);
+    });
+
+    it.each([undefined, '*'])('decreases the final unrestricted clock value with target %s', (target) => {
+      const clock: Widget = {
+        id: 'clock-widget', type: 'PROGRESS_CLOCK', x: 0, y: 0,
+        data: { clockItems: [
+          { id: 'boosted', name: 'Boosted', value: 6, segments: 6 },
+          { id: 'plain', name: 'Plain', value: 1, segments: 6 },
+        ] },
+      };
+      const source: Widget = {
+        ...bloodied,
+        data: {
+          toggleState: true,
+          effects: [{
+            id: 'bonus', amount: 2, allowExceedLimits: true,
+            target: { kind: 'widget', widgetId: clock.id, collection: 'clockItems', entryId: 'boosted', field: 'value' },
+          }],
+        },
+      };
+      const event: CharacterEvent = {
+        id: 'decrease', enabled: true, trigger: { kind: 'manual' },
+        effects: [{ id: 'subtract', kind: 'value.subtract', widgetId: clock.id, target, params: { amount: '1', clamp: 'no' } }],
+      };
+      const before = reconcileItemEffects(undefined, character([clock, source], [event]));
+      const result = runEvents({ before, after: before, manualEventId: event.id });
+      expect(widgetData(result.character, clock.id).clockItems!.map((item) => item.value)).toEqual([7, target === '*' ? 0 : 1]);
+      const inactive = reconcileItemEffects(result.character, patchWidgetData(result.character, source.id, { toggleState: false }));
+      expect(widgetData(inactive, clock.id).clockItems![0].value).toBe(5);
+    });
+  });
+
   describe('all numeric targets', () => {
     const numbers: Widget = {
       ...stats,

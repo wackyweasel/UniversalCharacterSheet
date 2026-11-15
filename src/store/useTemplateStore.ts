@@ -4,14 +4,16 @@ import { Widget, WidgetType } from '../types';
 import { useStore } from './useStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { normalizeWidgetGeometry, snapWidgetCoordinate, snapWidgetDimension } from '../utils/widgetGeometry';
+import { stripItemEffectContributions } from '../utils/itemEffects';
 
 export interface WidgetTemplate {
   id: string;
   name: string;
   type: WidgetType;
+  sourceWidgetId?: string;
   w?: number;
   h?: number;
-  data: any;
+  data: Widget['data'];
   createdAt: number;
 }
 
@@ -19,11 +21,12 @@ export interface WidgetTemplate {
 export interface GroupWidgetTemplate {
   // Widget data without position - will be placed relatively when added
   type: WidgetType;
+  sourceWidgetId?: string;
   relativeX: number; // Position relative to the group origin (top-left of bounding box)
   relativeY: number;
   w?: number;
   h?: number;
-  data: any;
+  data: Widget['data'];
 }
 
 export interface GroupTemplate {
@@ -64,6 +67,16 @@ function normalizeTemplateGeometry(template: AnyTemplate): AnyTemplate {
     ...(template.w === undefined ? {} : { w: snapWidgetDimension(template.w) }),
     ...(template.h === undefined ? {} : { h: snapWidgetDimension(template.h) }),
   };
+}
+
+function getTemplateSourceWidgets(widgets: Widget[]): Widget[] {
+  const state = useStore.getState();
+  const character = state.characters.find((entry) => entry.id === state.activeCharacterId);
+  if (!character) return widgets;
+  const baseWidgets = new Map(stripItemEffectContributions(character).sheets.flatMap((sheet) => (
+    sheet.widgets.map((widget) => [widget.id, widget] as const)
+  )));
+  return widgets.map((widget) => ({ ...widget, data: baseWidgets.get(widget.id)?.data ?? widget.data }));
 }
 
 function recordTemplateEvent(
@@ -131,13 +144,15 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
     templates: initialTemplates,
 
     addTemplate: (widget, name) => {
+      const [sourceWidget] = getTemplateSourceWidgets([widget]);
       const template: WidgetTemplate = {
         id: uuidv4(),
         name: name || widget.data.label || `${widget.type} Template`,
         type: widget.type,
+        sourceWidgetId: widget.id,
         w: snapWidgetDimension(widget.w),
         h: snapWidgetDimension(widget.h),
-        data: { ...widget.data },
+        data: JSON.parse(JSON.stringify(sourceWidget.data)),
         createdAt: Date.now(),
       };
 
@@ -156,7 +171,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
     addGroupTemplate: (widgets, name) => {
       if (widgets.length === 0) return;
       
-      const normalizedWidgets = widgets.map(normalizeWidgetGeometry);
+      const normalizedWidgets = getTemplateSourceWidgets(widgets).map(normalizeWidgetGeometry);
 
       // Calculate the bounding box origin (top-left corner)
       const minX = Math.min(...normalizedWidgets.map(w => w.x));
@@ -191,6 +206,7 @@ export const useTemplateStore = create<TemplateStoreState>((set) => {
       // Create widget templates with relative positions
       const widgetTemplates: GroupWidgetTemplate[] = normalizedWidgets.map(w => ({
         type: w.type,
+        sourceWidgetId: w.id,
         relativeX: snapWidgetCoordinate(w.x - minX),
         relativeY: snapWidgetCoordinate(w.y - minY),
         w: snapWidgetDimension(w.w),

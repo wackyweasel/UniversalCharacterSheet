@@ -1,4 +1,5 @@
-import type { Widget, WidgetData, WidgetType } from '../../types';
+import type { Character, Widget, WidgetData, WidgetType } from '../../types';
+import { numericTargetKey } from '../../utils/numericTargets';
 import { getPoolSize, MAX_POOL_BONUS, MAX_POOL_DICE, normalizePoolBonus } from '../../utils/dicePool';
 import { getInventoryItemQuantity, getInventoryLoad, normalizeInventoryQuantity } from '../../utils/inventory';
 import { DEFAULT_MIXED_FIELD_DICE_CHAIN } from '../../utils/mixedFields';
@@ -66,7 +67,7 @@ function replaceAt<T>(items: T[], index: number, item: T): T[] {
   return next;
 }
 
-const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData) => NumericSlot[]>> = {
+const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData, widgetId: string, effectValues?: Character['itemEffectValues']) => NumericSlot[]>> = {
   HEALTH_BAR: (data) => {
     const max = Math.max(0, finite(data.maxValue, 10));
     const slots = [fieldSlot(data, 'current', 'Current HP', 'currentValue', finite(data.currentValue, 10), { min: 0, max })];
@@ -119,10 +120,11 @@ const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData) => NumericSl
     max: optional(item.maxValue),
     set: hasFormula(item.valueFormula) ? undefined : (next) => ({ displayNumbers: replaceAt(data.displayNumbers ?? [], index, { ...item, value: next }) }),
   })),
-  PROGRESS_CLOCK: (data) => (data.clockItems ?? []).map((clock, index) => ({
+  PROGRESS_CLOCK: (data, widgetId, effectValues) => (data.clockItems ?? []).map((clock, index) => ({
     key: itemKey(clock.name, index, clock.id),
     label: itemTitle(clock.name, index, 'Clock'),
-    value: getClockValue(clock.value, clock.segments),
+    value: effectValues?.[numericTargetKey({ kind: 'widget', widgetId, collection: 'clockItems', entryId: clock.id, field: 'value' })]
+      ? finite(clock.value, 0) : getClockValue(clock.value, clock.segments),
     min: 0,
     max: getClockSegments(clock.segments),
     set: hasFormula(clock.valueFormula) ? undefined : (next) => ({ clockItems: replaceAt(data.clockItems ?? [], index, { ...clock, value: Math.round(next) }) }),
@@ -218,13 +220,13 @@ SLOT_PROVIDERS.COMPENDIUM = SLOT_PROVIDERS.INVENTORY;
 
 export const NUMERIC_WIDGET_TYPES = Object.keys(SLOT_PROVIDERS) as WidgetType[];
 
-export function getNumericSlots(widget: Widget | undefined): NumericSlot[] {
+export function getNumericSlots(widget: Widget | undefined, effectValues?: Character['itemEffectValues']): NumericSlot[] {
   if (!widget) return [];
-  return SLOT_PROVIDERS[widget.type]?.(widget.data) ?? [];
+  return SLOT_PROVIDERS[widget.type]?.(widget.data, widget.id, effectValues) ?? [];
 }
 
-export function findNumericSlot(widget: Widget | undefined, key: string | undefined): NumericSlot | undefined {
-  const slots = getNumericSlots(widget);
+export function findNumericSlot(widget: Widget | undefined, key: string | undefined, effectValues?: Character['itemEffectValues']): NumericSlot | undefined {
+  const slots = getNumericSlots(widget, effectValues);
   if (!key) return slots[0];
   const lower = key.toLowerCase();
   return slots.find((slot) => slot.key === key) ?? slots.find((slot) => slot.key.toLowerCase() === lower);
@@ -245,8 +247,8 @@ const slotTarget = (settableOnly: boolean) => ({
 });
 
 function readSlots(ctx: StateTriggerContext) {
-  const prev = findNumericSlot(ctx.prev, ctx.trigger.target);
-  const next = findNumericSlot(ctx.next, ctx.trigger.target);
+  const prev = findNumericSlot(ctx.prev, ctx.trigger.target, ctx.prevCharacter.itemEffectValues);
+  const next = findNumericSlot(ctx.next, ctx.trigger.target, ctx.nextCharacter.itemEffectValues);
   return prev && next ? { prev, next } : null;
 }
 
@@ -328,18 +330,18 @@ function changeSlot(ctx: EffectContext, compute: (slot: NumericSlot, readAmount:
     };
   };
   if (!all) {
-    const slot = findNumericSlot(ctx.widget, ctx.effect.target);
+    const slot = findNumericSlot(ctx.widget, ctx.effect.target, ctx.character.itemEffectValues);
     return slot ? change(slot) : null;
   }
   if (!ctx.widget) return null;
-  const slots = getNumericSlots(ctx.widget);
+  const slots = getNumericSlots(ctx.widget, ctx.character.itemEffectValues);
   let widget = ctx.widget;
   let changed = false;
   const messages: string[] = [];
   slots.forEach((original, index) => {
     if (!original.set) return;
     // Rebuild setters so collection replacements retain earlier writes.
-    const outcome = change(getNumericSlots(widget)[index]);
+    const outcome = change(getNumericSlots(widget, ctx.character.itemEffectValues)[index]);
     if (outcome.data) {
       widget = { ...widget, data: { ...widget.data, ...outcome.data } };
       changed = true;
