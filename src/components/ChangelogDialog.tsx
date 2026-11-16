@@ -39,7 +39,7 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.18.1',
     changes: [
-      'New event editor: an event is now built as a graph. The trigger comes first, then conditions and effects joined by links, with Yes and No branches for each condition. Select a node to edit it, use the + on a link to add an effect or a condition there, and drag an effect onto a + to move it. Your existing events open and run as before.',
+      'New event editor: events are now built as a graph of linked nodes, with a + on each link to add effects and conditions.',
     ],
   },
   {
