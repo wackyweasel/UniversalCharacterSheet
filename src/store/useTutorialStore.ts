@@ -10,6 +10,9 @@ export const EVENTS_TUTORIAL_START_ID = 'events-intro';
 export const VARIOUS_TUTORIAL_START_ID = 'various-open-gallery';
 export const COMPENDIUM_TUTORIAL_START_ID = 'compendium-intro';
 
+/** Window width below which the tutorial bubble docks at the top or bottom of the screen instead of next to its target. */
+export const TUTORIAL_NARROW_BREAKPOINT = 600;
+
 // Tutorial step definitions
 export interface TutorialStep {
   id: string;
@@ -791,7 +794,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'events-editor-trigger',
     title: 'When: the Trigger',
-    message: 'Every event starts with a trigger: pick a widget, then what to watch for. Each widget offers its own triggers. We named this event Hit and picked the Attack roller: when its dice are rolled.',
+    message: 'Every event starts with a trigger, the first node of the graph. Select a node to see its settings here: pick a widget, then what to watch for. Each widget offers its own triggers. We named this event Hit and picked the Attack roller: when its dice are rolled.',
     targetSelector: '[data-tutorial="event-editor-trigger"]',
     scrollTargetIntoView: true,
     position: 'right',
@@ -801,7 +804,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'events-editor-data',
     title: 'Data from the Trigger',
-    message: 'A trigger passes along what happened. This one passes the roll as @event_total, @event_highest and @event_lowest. Use them in a condition or action like any other label. Click a chip to insert it where you were typing. These event labels only exist while this event runs.',
+    message: 'A trigger passes along what happened. This one passes the roll as @event_total, @event_highest and @event_lowest. Use them in a condition or action like any other label: the panel of a condition or an effect lists the data it can use, and a click on a chip adds it. These event labels only exist while this event runs.',
     targetSelector: '[data-tutorial="event-editor-data"]',
     scrollTargetIntoView: true,
     position: 'right',
@@ -811,7 +814,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'events-editor-condition',
     title: 'Only If: the Condition',
-    message: 'A condition is optional. When it is set, the event only fires if the formula is true. We added @event_total >= 12, so only a total of 12 or more is a hit.',
+    message: 'A condition is optional: the + on a link adds one. What follows its Yes link only runs when the formula is true, and effects on its No link run when it is false. We added @event_total >= 12, so only a total of 12 or more is a hit.',
     targetSelector: '[data-tutorial="event-editor-condition"]',
     scrollTargetIntoView: true,
     position: 'right',
@@ -821,7 +824,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'events-editor-effects',
     title: 'Then: Ordered Actions',
-    message: 'Actions run in order. We added two: roll the Damage dice, then write "Hit with a {@event_total}!" in the timeline. Braces show formula values in text. The editor calls an action an effect: use Add effect for another action, or add a step with its own condition.',
+    message: 'Actions run in order, following the links. We added two: roll the Damage dice, then write "Hit with a {@event_total}!" in the timeline. Braces show formula values in text. The editor calls an action an effect: the + on a link adds another one, or another condition.',
     targetSelector: '[data-tutorial="event-editor-effects"]',
     scrollTargetIntoView: true,
     position: 'right',

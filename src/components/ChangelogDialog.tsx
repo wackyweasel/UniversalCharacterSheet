@@ -37,6 +37,12 @@ export function useChangelogOnLoad(ready: boolean): [{ lastSeenVersion: string |
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.18.1',
+    changes: [
+      'New event editor: an event is now built as a graph. The trigger comes first, then conditions and effects joined by links, with Yes and No branches for each condition. Select a node to edit it, use the + on a link to add an effect or a condition there, and drag an effect onto a + to move it. Your existing events open and run as before.',
+    ],
+  },
+  {
     version: '1.18.0',
     changes: [
       'New type of automation : Effects. These are a simple way to add bonuses and penalties to stats or any value in your character sheet. Ex: a ring that gives +1 strength. An armor that gives +2 AC. Effects are not as powerful as formulas, but they are simpler to setup. ',

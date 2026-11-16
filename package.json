@@ -1,7 +1,7 @@
 {
   "name": "universal-character-sheet",
   "private": true,
-  "version": "1.18.0",
+  "version": "1.18.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,6 +19,7 @@
     "@tiptap/extension-text-style": "^3.27.4",
     "@tiptap/react": "^3.27.4",
     "@tiptap/starter-kit": "^3.27.4",
+    "@xyflow/react": "^12.12.1",
     "clsx": "^2.1.0",
     "gifsicle-wasm-browser": "^1.5.19",
     "gifuct-js": "^2.1.2",

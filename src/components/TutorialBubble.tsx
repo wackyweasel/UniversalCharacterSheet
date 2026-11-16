@@ -6,6 +6,7 @@ import {
   EVENTS_TUTORIAL_START_ID,
   TEMPLATE_TUTORIAL_START_ID,
   THEME_TUTORIAL_START_ID,
+  TUTORIAL_NARROW_BREAKPOINT as NARROW_BREAKPOINT,
   TUTORIAL_STEPS,
   useTutorialStore,
   VARIOUS_TUTORIAL_START_ID,
@@ -15,7 +16,6 @@ import { ArrowRightIcon, CheckIcon, XIcon } from './icons';
 
 const BUBBLE_WIDTH = 320;
 const BUBBLE_PADDING = 16; // padding from screen edge
-const NARROW_BREAKPOINT = 600; // Width below which we use bottom-fixed layout
 
 interface TutorialBubbleProps {
   darkMode?: boolean;

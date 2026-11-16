@@ -71,10 +71,14 @@ export function useTouchCamera({
       onCameraCommit(getPan(), getScale());
     };
 
+    // A surface that zooms itself with two fingers, such as the event graph, keeps its touches: the camera doesn't count or stop them.
+    const ownsPinch = (target: EventTarget | null) => target instanceof Element && !!target.closest('[data-touch-camera-own-pinch="true"]');
+
     const syncActiveTouches = (touches: TouchList) => {
       activeTouches.current.clear();
       for (let i = 0; i < touches.length; i++) {
         const touch = touches[i];
+        if (ownsPinch(touch.target)) continue;
         activeTouches.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
       }
     };
@@ -170,7 +174,7 @@ export function useTouchCamera({
     };
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch' || !event.isTrusted) return;
+      if (event.pointerType !== 'touch' || !event.isTrusted || ownsPinch(event.target)) return;
       activeTouchPointers.current.set(event.pointerId, {
         target: event.target as Element | null,
         x: event.clientX,
@@ -186,7 +190,7 @@ export function useTouchCamera({
     };
 
     const handlePointerMove = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch' || !event.isTrusted) return;
+      if (event.pointerType !== 'touch' || !event.isTrusted || ownsPinch(event.target)) return;
       const pointer = activeTouchPointers.current.get(event.pointerId);
       if (pointer) {
         pointer.x = event.clientX;
@@ -220,7 +224,7 @@ export function useTouchCamera({
     };
 
     const handlePointerEnd = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch' || !event.isTrusted) return;
+      if (event.pointerType !== 'touch' || !event.isTrusted || ownsPinch(event.target)) return;
       activeTouchPointers.current.delete(event.pointerId);
       if (pinchSessionActive.current) stopWidgetPointerHandling(event, false);
     };
@@ -330,6 +334,7 @@ export function useTouchCamera({
     };
 
     const handleTouchStart = (e: TouchEvent) => {
+      if (ownsPinch(e.target)) return;
       const eventTarget = e.target as Element | null;
 
       for (let i = 0; i < e.changedTouches.length; i++) {
@@ -401,6 +406,7 @@ export function useTouchCamera({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (ownsPinch(e.target)) return;
       syncActiveTouches(e.touches);
       
       const touchCount = activeTouches.current.size;
@@ -471,6 +477,7 @@ export function useTouchCamera({
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
+      if (ownsPinch(e.target)) return;
       syncActiveTouches(e.touches);
       
       if (activeTouches.current.size === 0) {

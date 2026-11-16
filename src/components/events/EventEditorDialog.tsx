@@ -3,92 +3,33 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { useEventsPanelStore, type EventEditorRequest } from '../../store/useEventsPanelStore';
 import { useAutomationsPanelStore } from '../../store/useAutomationsPanelStore';
-import { getTutorialStepIndex, TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
-import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventParams, CharacterEventStep, CharacterEventTrigger, Widget } from '../../types';
-import { eventLabel, findEventLabelRefs, resultLabel } from '../../events/constants';
-import { createBlankEffect, createEffect, createEventDraft, createTrigger, getEffectDefsFor, getEventSourceWidgets, getTriggerDefsFor } from '../../events/drafts';
-import { findWidget } from '../../events/helpers';
+import { getTutorialStepIndex, TUTORIAL_NARROW_BREAKPOINT, TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
+import type { Character, CharacterEventStep } from '../../types';
+import { createBlankEffect, createEffect, createTrigger } from '../../events/drafts';
+import { getDraftProblems, getNodeProblems, initDraft, toEventPayload, type EventDraft } from '../../events/editorDraft';
 import {
-  describeEffect,
-  describeTrigger,
-  fillParams,
-  findTargetOption,
-  getEffectDef,
-  getEffectOutputs,
-  getEffectProblem,
-  getEventIcon,
-  getEventLabelsAt,
-  getResultNameProblems,
-  getTriggerDef,
-  getTriggerOutputs,
-  getTriggerProblem,
-  getVisibleParams,
-  isGlobalEffectKind,
-  isGlobalTriggerKind,
-  resolveOptions,
-} from '../../events/registry';
-import { createStep, getEventEffects, normalizeEvent } from '../../events/steps';
-import {
-  ANY_TARGET,
-  type EffectDef,
-  type EventOption,
-  type EventParamSpec,
-  type SpecContext,
-  type TargetSpec,
-  type TriggerDef,
-} from '../../events/types';
-import { getWidgetTitle, sanitizeLabelInput } from '../../utils/characterVariables';
-import { collectLabels, evaluateFormulaValue, hasUnresolvedRefs } from '../../utils/formulaEngine';
-import type { FormulaLabels } from '../../utils/formulaSyntax';
-import { ArrowDownIcon, ArrowUpIcon, BoltIcon, ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon, XIcon } from '../icons';
+  conditionNodeId,
+  effectNodeId,
+  hasCondition,
+  insertCondition,
+  insertEffect,
+  layoutEventGraph,
+  moveEffect,
+  removeEffect,
+  TRIGGER_NODE_ID,
+  type GraphSlot,
+} from '../../events/graph';
+import { getEffectDef, getTriggerDef } from '../../events/registry';
+import { createStep } from '../../events/steps';
+import { collectLabels } from '../../utils/formulaEngine';
+import { BoltIcon, XIcon } from '../icons';
+import { EventGraphCanvas } from './EventGraphCanvas';
+import { EventNodeInspector } from './EventNodeInspector';
+import { fieldClass } from './EventPartFields';
 
-type Role = 'trigger' | 'effect';
-type Part = CharacterEventTrigger & { id?: string };
-
-interface Draft {
-  name: string;
-  enabled: boolean;
-  trigger: CharacterEventTrigger;
-  /** In a step, an absent `condition` means no "only if" and an absent `otherwise` means no "otherwise" branch. */
-  steps: CharacterEventStep[];
-}
-
-interface DraftProblems {
-  trigger: string[];
-  /** By step id: problems of its condition or of its "otherwise" branch needing one. */
-  conditions: Record<string, string[]>;
-  /** By effect id. */
-  effects: Record<string, string[]>;
-  /** By step id: problems of the step as a whole, such as having no effects. */
-  steps: Record<string, string[]>;
-  count: number;
-}
-
-type DataStatus = { text: string; id: number; owner: string };
-
-/** What the data chips of a part need: where to report, and what to do when one is picked. */
-interface DataChipsContext {
-  status: DataStatus;
-  onPick: (ref: string, owner: string) => void;
-}
-
-/** A field that trigger data chips can add an `@event_…` reference to. */
-interface DataTarget {
-  element: HTMLInputElement;
-  /** Text fields need `{…}` around a reference; formula fields take it as is. */
-  mode: 'text' | 'formula';
-  label: string;
-  setValue: (value: string) => void;
-}
-
-type RegisterDataTarget = (target: DataTarget) => void;
-
-const GENERAL_SOURCE = 'general';
-/** Source choice for an event that nothing sets off by itself; it stores the manual trigger. */
-const NO_TRIGGER_SOURCE = 'none';
-const MANUAL_TRIGGER_KIND = 'manual';
-const fieldClass = 'h-9 w-full min-w-0 rounded-button border bg-theme-paper px-2.5 text-sm font-body text-theme-ink placeholder:text-theme-muted disabled:opacity-60';
-const smallIconButtonClass = 'widget-control h-8 w-8 flex-none text-theme-muted';
+/** Body width under which the settings panel sits below the graph instead of beside it. */
+const STACKED_BELOW = 680;
+const NO_INSET = { top: 0, bottom: 0 };
 const tutorialTargetClass = 'outline outline-4 outline-blue-500 outline-offset-2';
 
 const findDiceRoller = (character: Character, label: string) => character.sheets
@@ -96,7 +37,7 @@ const findDiceRoller = (character: Character, label: string) => character.sheets
   .find((widget) => widget.type === 'DICE_ROLLER' && String(widget.data?.label || '').toLowerCase() === label);
 
 /** Events tutorial: fills in the part of the event that the step explains, unless the reader already chose one. */
-function applyTutorialLesson(character: Character, stepId: string, draft: Draft): Draft {
+function applyTutorialLesson(character: Character, stepId: string, draft: EventDraft): EventDraft {
   if (stepId === 'events-editor-trigger') {
     const attack = findDiceRoller(character, 'attack');
     const def = getTriggerDef('dice.rolled');
@@ -137,560 +78,60 @@ function applyTutorialLesson(character: Character, stepId: string, draft: Draft)
   return draft;
 }
 
-function withFirstStep(draft: Draft, patch: Partial<CharacterEventStep>): Draft {
+function withFirstStep(draft: EventDraft, patch: Partial<CharacterEventStep>): EventDraft {
   const [first, ...rest] = draft.steps;
   return { ...draft, steps: [{ ...(first ?? createStep()), ...patch }, ...rest] };
 }
 
-function isGlobalKind(role: Role, kind: string): boolean {
-  return role === 'trigger' ? isGlobalTriggerKind(kind) : isGlobalEffectKind(kind);
-}
-
-function getDef(role: Role, kind: string): TriggerDef | EffectDef | undefined {
-  return role === 'trigger' ? getTriggerDef(kind) : getEffectDef(kind);
-}
-
-/** Choices for a part's source: its widget, else "general" for label and other widget-free kinds. */
-function getSourceValue(role: Role, part: Part): string {
-  if (part.widgetId) return part.widgetId;
-  if (role === 'trigger' && part.kind === MANUAL_TRIGGER_KIND) return NO_TRIGGER_SOURCE;
-  return part.kind && isGlobalKind(role, part.kind) ? GENERAL_SOURCE : '';
-}
-
-function getDefsFor(role: Role, part: Part, widget: Widget | undefined): (TriggerDef | EffectDef)[] {
-  if (part.widgetId && !widget) return [];
-  return role === 'trigger' ? getTriggerDefsFor(widget) : getEffectDefsFor(widget);
-}
-
-function buildPart(role: Role, character: Character, def: TriggerDef | EffectDef, widget: Widget | undefined, id?: string): Part {
-  return role === 'trigger'
-    ? createTrigger(character, def as TriggerDef, widget)
-    : createEffect(character, def as EffectDef, widget, id);
-}
-
-function getTargetChoices(spec: TargetSpec, ctx: SpecContext): EventOption[] {
-  return [...(spec.any ? [{ value: ANY_TARGET, label: spec.any }] : []), ...spec.options(ctx)];
-}
-
-function initDraft(character: Character, request: EventEditorRequest): Draft | null {
-  if (request.eventId) {
-    const stored = character.events?.find((item) => item.id === request.eventId);
-    if (!stored) return null;
-    const event = normalizeEvent(stored);
-    return {
-      name: event.name ?? '',
-      enabled: event.enabled,
-      trigger: event.trigger,
-      steps: event.steps.map((step) => ({ ...step, condition: step.condition?.trim() ? step.condition : undefined })),
-    };
+/** Events tutorial: the node whose settings the step explains; null shows the whole graph, undefined leaves the selection alone. */
+function getLessonNode(stepId: string, draft: EventDraft): string | null | undefined {
+  const first = draft.steps[0];
+  if (stepId === 'events-editor-trigger' || stepId === 'events-editor-data') return TRIGGER_NODE_ID;
+  if (stepId === 'events-editor-condition') return first && hasCondition(first) ? conditionNodeId(first.id) : undefined;
+  if (stepId === 'events-editor-effects') return first?.effects[0] ? effectNodeId(first.effects[0].id) : undefined;
+  if (stepId === 'events-inline-editor-effects') {
+    // The second effect is the dice roll the lesson talks about.
+    const effect = first?.effects[1] ?? first?.effects[0];
+    return effect ? effectNodeId(effect.id) : undefined;
   }
-  const base = createEventDraft(character);
-  const start = request.draft ? normalizeEvent({ id: '', enabled: true, trigger: { kind: '' }, ...request.draft }) : null;
-  return {
-    name: start?.name ?? '',
-    enabled: start?.enabled ?? true,
-    trigger: request.draft?.trigger ?? base.trigger,
-    steps: start?.steps.some((step) => step.effects.length > 0) ? start.steps : base.steps,
-  };
+  if (stepId === 'events-editor-save' || stepId === 'events-inline-editor-save') return null;
+  return undefined;
 }
 
-/** Explains `@event_…` references that won't resolve where they're used. */
-function eventRefProblem(role: Role | 'condition', field: string, text: string, labels: FormulaLabels): string | null {
-  const refs = findEventLabelRefs(text).filter((ref) => !(ref in labels));
-  if (!refs.length) return null;
-  const list = refs.map((ref) => `@${ref}`).join(', ');
-  return role === 'trigger'
-    ? `${field} can't use ${list}; trigger data is only for the condition and effects`
-    : `${field} uses ${list}, which isn't available at this point`;
+/** A new event opens on what it needs first: its trigger, else an effect that isn't chosen yet. */
+function getStartNode(draft: EventDraft | null): string | null {
+  if (!draft) return null;
+  if (!draft.trigger.kind) return TRIGGER_NODE_ID;
+  const blank = draft.steps.flatMap((step) => [...step.effects, ...(step.otherwise ?? [])]).find((effect) => !effect.kind);
+  return blank ? effectNodeId(blank.id) : null;
 }
 
-function paramProblems(role: Role, character: Character, part: Part, labels: FormulaLabels): string[] {
-  const def = getDef(role, part.kind);
-  if (!def) return [];
-  const params = fillParams(def.params, part.params);
-  return getVisibleParams(def.params, params, { character, widget: findWidget(character, part.widgetId), target: part.target })
-    .filter((spec) => spec.type !== 'select')
-    .flatMap((spec) => {
-      const value = params[spec.key] ?? '';
-      const problem = eventRefProblem(role, spec.label, value, labels);
-      if (problem) return [problem];
-      return hasUnresolvedRefs(value, labels) ? [`${spec.label} uses a label that doesn't exist`] : [];
-    });
-}
-
-/** Trigger settings are read before the trigger has data, so only conditions and effects see `event_…` labels, and only those available before them. */
-function getDraftProblems(character: Character, draft: Draft, baseLabels: FormulaLabels): DraftProblems {
-  const trigger = draft.trigger.kind
-    ? [getTriggerProblem(character, draft.trigger), ...paramProblems('trigger', character, draft.trigger, baseLabels)].filter((problem): problem is string => !!problem)
-    : ['Choose what triggers this event'];
-
-  const conditions: Record<string, string[]> = {};
-  const effects: Record<string, string[]> = {};
-  const steps: Record<string, string[]> = {};
-
-  const checkEffects = (list: CharacterEventEffect[], stepIndex: number, section: 'effects' | 'otherwise') => {
-    list.forEach((effect, index) => {
-      const labels = { ...baseLabels, ...getEventLabelsAt(draft, stepIndex, section, index) };
-      const problems = effect.kind
-        ? [getEffectProblem(character, effect), ...paramProblems('effect', character, effect, labels), ...getResultNameProblems(draft, effect)].filter((problem): problem is string => !!problem)
-        : ['Choose what this effect does'];
-      if (problems.length) effects[effect.id] = problems;
-    });
-  };
-
-  draft.steps.forEach((step, stepIndex) => {
-    const conditionProblems: string[] = [];
-    const formula = step.condition?.trim();
-    if (formula) {
-      const labels = { ...baseLabels, ...getEventLabelsAt(draft, stepIndex, 'condition') };
-      const eventProblem = eventRefProblem('condition', 'The condition', formula, labels);
-      if (eventProblem) conditionProblems.push(eventProblem);
-      else if (hasUnresolvedRefs(formula, labels)) conditionProblems.push("The condition uses a label that doesn't exist");
-      else if (evaluateFormulaValue(`(${formula}) ? 1 : 0`, labels) === null) conditionProblems.push("The condition can't be worked out; check the formula");
-    } else if (step.otherwise?.length) {
-      conditionProblems.push('Otherwise effects need a condition to be false');
-    }
-    if (conditionProblems.length) conditions[step.id] = conditionProblems;
-
-    checkEffects(step.effects, stepIndex, 'effects');
-    checkEffects(step.otherwise ?? [], stepIndex, 'otherwise');
-    if (step.effects.length === 0) steps[step.id] = [draft.steps.length > 1 ? 'Add at least one effect to this step' : 'Add at least one effect'];
-  });
-
-  const count = [trigger, ...Object.values(conditions), ...Object.values(effects), ...Object.values(steps)].reduce((sum, list) => sum + list.length, 0);
-  return { trigger, conditions, effects, steps, count };
-}
-
-/** Fills in values a saved event needs, such as a target left on its first choice. */
-function normalizePart<T extends Part>(role: Role, character: Character, part: T): T {
-  const def = getDef(role, part.kind);
-  if (!def) return part;
-  const next = { ...part };
-  if (def.target && next.target === undefined) {
-    const first = getTargetChoices(def.target, { character, widget: findWidget(character, part.widgetId) })[0];
-    if (first) next.target = first.value;
-  }
-  if (def.params?.length) next.params = fillParams(def.params, part.params);
-  else delete next.params;
-  return next;
-}
-
-function toPayload(character: Character, draft: Draft): Omit<CharacterEvent, 'id'> {
-  const name = draft.name.trim();
-  const normalizeEffects = (effects: CharacterEventEffect[]) => effects.map((effect) => {
-    const { resultName, ...rest } = normalizePart('effect', character, effect);
-    const name = resultName?.trim();
-    return name && getEffectDef(effect.kind)?.outputs?.length ? { ...rest, resultName: name } : rest;
-  });
-  return {
-    ...(name ? { name } : {}),
-    enabled: draft.enabled,
-    trigger: normalizePart('trigger', character, draft.trigger),
-    steps: draft.steps.map((step) => {
-      const condition = step.condition?.trim();
-      return {
-        id: step.id,
-        ...(condition ? { condition } : {}),
-        effects: normalizeEffects(step.effects),
-        ...(condition && step.otherwise?.length ? { otherwise: normalizeEffects(step.otherwise) } : {}),
-        ...(condition && step.stopIfFalse ? { stopIfFalse: true } : {}),
-      };
-    }),
-  };
-}
-
-function Field({ label, help, wide, children }: { label: string; help?: string; wide?: boolean; children: React.ReactNode }) {
-  return (
-    <label className={`block min-w-0 ${wide ? 'sm:col-span-2' : ''}`}>
-      <span className="mb-1 block text-xs font-bold text-theme-ink">{label}</span>
-      {children}
-      {help && <span className="mt-1 block text-[11px] leading-snug text-theme-muted">{help}</span>}
-    </label>
-  );
-}
-
-function ProblemList({ problems }: { problems: string[] | undefined }) {
-  if (!problems?.length) return null;
-  return (
-    <ul className="event-editor__problem mt-3 space-y-0.5 rounded-button border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-600">
-      {problems.map((problem) => <li key={problem}>⚠ {problem}</li>)}
-    </ul>
-  );
-}
-
-function SourceSelect({ character, role, value, onChange }: { character: Character; role: Role; value: string; onChange: (value: string) => void }) {
-  const groups = useMemo(() => getEventSourceWidgets(character, role, value), [character, role, value]);
-  const titleCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    groups.forEach((group) => group.widgets.forEach((widget) => {
-      const title = getWidgetTitle(widget);
-      counts.set(title, (counts.get(title) ?? 0) + 1);
-    }));
-    return counts;
-  }, [groups]);
-  const missing = value !== '' && value !== GENERAL_SOURCE && value !== NO_TRIGGER_SOURCE && !findWidget(character, value);
-  const seen = new Map<string, number>();
-
-  return (
-    <select value={value} onChange={(event) => onChange(event.target.value)} className={fieldClass}>
-      {value === '' && <option value="" disabled>Choose…</option>}
-      {missing && <option value={value}>⚠ Deleted widget</option>}
-      <optgroup label="General">
-        {role === 'trigger' && <option value={NO_TRIGGER_SOURCE}>No trigger (run by hand or by another event)</option>}
-        <option value={GENERAL_SOURCE}>{role === 'trigger' ? '⚡ Labels' : '⚡ Labels, dice, the timeline or other events'}</option>
-      </optgroup>
-      {groups.map((group) => (
-        <optgroup key={group.sheetId} label={character.sheets.length > 1 ? group.sheetName : 'Widgets'}>
-          {group.widgets.map((widget) => {
-            const title = getWidgetTitle(widget);
-            const index = (seen.get(title) ?? 0) + 1;
-            seen.set(title, index);
-            const suffix = (titleCounts.get(title) ?? 0) > 1 ? ` (${index})` : '';
-            return <option key={widget.id} value={widget.id}>{`${getEventIcon('', widget)} ${title}${suffix}`}</option>;
-          })}
-        </optgroup>
-      ))}
-    </select>
-  );
-}
-
-function TargetSelect({ spec, ctx, value, onChange }: { spec: TargetSpec; ctx: SpecContext; value: string | undefined; onChange: (value: string) => void }) {
-  const choices = getTargetChoices(spec, ctx);
-  if (choices.length === 0) {
-    return (
-      <select disabled className={fieldClass}>
-        <option>{spec.empty ?? 'Nothing to choose yet'}</option>
-      </select>
-    );
-  }
-  const selected = value === undefined
-    ? choices[0].value
-    : spec.any && value === ANY_TARGET ? ANY_TARGET : findTargetOption(spec, ctx, value)?.value;
-  return (
-    <select value={selected ?? value} onChange={(event) => onChange(event.target.value)} className={fieldClass}>
-      {selected === undefined && value !== undefined && <option value={value}>⚠ {spec.missing ?? `${value} (missing)`}</option>}
-      {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
-    </select>
-  );
-}
-
-function ParamField({ spec, ctx, value, onChange, onDataTarget }: {
-  spec: EventParamSpec;
-  ctx: SpecContext;
-  value: string;
-  onChange: (value: string) => void;
-  onDataTarget?: RegisterDataTarget;
-}) {
-  const onChangeRef = useRef(onChange);
+/** Room the tutorial bubble takes when it docks at the top or bottom of a narrow screen, so the editor can stay clear of it. */
+function useDockedTutorialInset(active: boolean): { top: number; bottom: number } {
+  const [inset, setInset] = useState(NO_INSET);
   useEffect(() => {
-    onChangeRef.current = onChange;
-  });
-
-  if (spec.type === 'select') {
-    const options = resolveOptions(spec.options, ctx);
-    const known = options.some((option) => option.value === value);
-    return (
-      <Field label={spec.label} help={spec.help}>
-        <select value={value} onChange={(event) => onChange(event.target.value)} className={fieldClass}>
-          {!known && <option value={value}>{value ? `⚠ ${value}` : 'Choose…'}</option>}
-          {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
-      </Field>
-    );
-  }
-  const mono = spec.type !== 'text';
-  return (
-    <Field label={spec.label} help={spec.help} wide={spec.type === 'text'}>
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={onDataTarget && ((event) => onDataTarget({
-          element: event.currentTarget,
-          mode: spec.type === 'text' ? 'text' : 'formula',
-          label: spec.label,
-          setValue: (next) => onChangeRef.current(next),
-        }))}
-        data-event-data-target={onDataTarget ? 'true' : undefined}
-        placeholder={spec.placeholder}
-        autoComplete="off"
-        spellCheck={!mono}
-        className={`${fieldClass} ${mono ? 'font-mono' : ''}`}
-      />
-    </Field>
-  );
-}
-
-interface PartFieldsProps {
-  character: Character;
-  role: Role;
-  part: Part;
-  onChange: (part: Part) => void;
-  /** Lets trigger data chips add to this part's fields; trigger settings never get it. */
-  onDataTarget?: RegisterDataTarget;
-}
-
-/** Widget, kind, target and params of a trigger or effect. */
-function PartFields({ character, role, part, onChange, onDataTarget }: PartFieldsProps) {
-  const widget = findWidget(character, part.widgetId);
-  const ctx: SpecContext = { character, widget };
-  const source = getSourceValue(role, part);
-  const defs = getDefsFor(role, part, widget);
-  const def = getDef(role, part.kind);
-  const params = fillParams(def?.params, part.params);
-  const kindChoices: EventOption[] = defs
-    .filter((item) => role !== 'trigger' || item.kind !== MANUAL_TRIGGER_KIND)
-    .map((item) => ({ value: item.kind, label: item.label }));
-  if (part.kind && source !== NO_TRIGGER_SOURCE && !kindChoices.some((choice) => choice.value === part.kind)) {
-    kindChoices.unshift({ value: part.kind, label: `⚠ ${def?.label ?? part.kind}` });
-  }
-
-  const changeSource = (value: string) => {
-    if (value === NO_TRIGGER_SOURCE) {
-      const manual = getTriggerDef(MANUAL_TRIGGER_KIND);
-      if (manual) onChange(buildPart(role, character, manual, undefined, part.id));
-      return;
-    }
-    const nextWidget = value === GENERAL_SOURCE ? undefined : findWidget(character, value);
-    if (value !== GENERAL_SOURCE && !nextWidget) return;
-    const first = (role === 'trigger' ? getTriggerDefsFor(nextWidget).filter((item) => item.kind !== MANUAL_TRIGGER_KIND) : getEffectDefsFor(nextWidget))[0];
-    if (first) onChange(buildPart(role, character, first, nextWidget, part.id));
-  };
-
-  const changeKind = (kind: string) => {
-    const nextDef = defs.find((item) => item.kind === kind);
-    if (!nextDef) return;
-    const next = buildPart(role, character, nextDef, widget, part.id);
-    // Keep settings that both kinds share, such as a threshold.
-    const shared = Object.fromEntries((nextDef.params ?? []).filter((spec) => part.params?.[spec.key] !== undefined).map((spec) => [spec.key, part.params![spec.key]]));
-    const keepTarget = nextDef.target && part.target !== undefined && getTargetChoices(nextDef.target, ctx).some((choice) => choice.value === part.target);
-    onChange({
-      ...next,
-      ...(keepTarget ? { target: part.target } : {}),
-      ...(next.params ? { params: { ...next.params, ...shared } } : {}),
-    });
-  };
-
-  const changeParam = (key: string, value: string) => onChange({ ...part, params: { ...params, [key]: value } as CharacterEventParams });
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Widget">
-        <SourceSelect character={character} role={role} value={source} onChange={changeSource} />
-      </Field>
-      {source !== '' && source !== NO_TRIGGER_SOURCE && (
-        <Field label={role === 'trigger' ? 'What happens' : 'What to do'}>
-          <select value={part.kind} onChange={(event) => changeKind(event.target.value)} className={fieldClass} disabled={kindChoices.length === 0}>
-            {kindChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
-          </select>
-        </Field>
-      )}
-      {source === NO_TRIGGER_SOURCE && (
-        <p className="text-[11px] leading-snug text-theme-muted sm:col-span-2">
-          Nothing sets this event off by itself. Run it with the Run button, or add a "Run another event" effect to another event.
-        </p>
-      )}
-      {def?.target && (
-        <Field label={def.target.label}>
-          <TargetSelect spec={def.target} ctx={ctx} value={part.target} onChange={(target) => onChange({ ...part, target })} />
-        </Field>
-      )}
-      {def && getVisibleParams(def.params, params, { ...ctx, target: part.target }).map((spec) => (
-        <ParamField
-          key={spec.key}
-          spec={spec}
-          ctx={{ ...ctx, target: part.target }}
-          value={params[spec.key] ?? ''}
-          onChange={(value) => changeParam(spec.key, value)}
-          onDataTarget={onDataTarget}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** Adds `ref` at the field's caret; text fields get `{…}` around it unless the caret is already inside braces. */
-function insertDataRef(target: DataTarget, ref: string): number {
-  const { element, mode } = target;
-  const value = element.value;
-  const start = element.selectionStart ?? value.length;
-  const before = value.slice(0, start);
-  const after = value.slice(element.selectionEnd ?? start);
-  let text = mode === 'text' && before.lastIndexOf('{') <= before.lastIndexOf('}') ? `{${ref}}` : ref;
-  if (/[\w)}]$/.test(before)) text = ` ${text}`;
-  target.setValue(before + text + after);
-  return before.length + text.length;
-}
-
-interface DataChipsProps {
-  owner: string;
-  title: string;
-  /** `@event_…` reference and description of each value the part passes along. */
-  items: { ref: string; label: string }[];
-  hint: string;
-  chips: DataChipsContext;
-  tutorial?: boolean;
-}
-
-function DataChips({ owner, title, items, hint, chips, tutorial }: DataChipsProps) {
-  if (!items.length) return null;
-  const titleId = `event-editor-data-${owner}`;
-  return (
-    <div className="mt-3 border-t border-dashed border-theme-border pt-2.5" role="group" aria-labelledby={titleId} data-tutorial={tutorial ? 'event-editor-data' : undefined}>
-      <p id={titleId} className="text-xs font-bold text-theme-ink">{title}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {items.map((item) => (
-          <button
-            key={item.ref}
-            type="button"
-            data-event-data-chip="true"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => chips.onPick(item.ref, owner)}
-            title={`Add ${item.ref} to the condition or effect field you're editing`}
-            className="event-editor__chip"
-          >
-            <code>{item.ref}</code>
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </div>
-      <p className="mt-1.5 text-[11px] leading-snug text-theme-muted" aria-live="polite">
-        {(chips.status.owner === owner && chips.status.text) || hint}
-      </p>
-    </div>
-  );
-}
-
-function Sentence({ icon, text }: { icon: string; text: string }) {
-  return (
-    <p className="mt-3 flex items-start gap-2 border-t border-dashed border-theme-border pt-2.5 text-sm text-theme-ink">
-      <span className="event-flow__icon" aria-hidden="true">{icon}</span>
-      <span className="min-w-0 flex-1 break-words">{text}</span>
-    </p>
-  );
-}
-
-function StepHeader({ pill, pillLabel, title, children }: { pill: 'when' | 'if' | 'then' | 'else'; pillLabel: string; title: string; children?: React.ReactNode }) {
-  return (
-    <div className="mb-3 flex items-center gap-2.5">
-      <span className={`event-flow__pill event-flow__pill--${pill} w-14 flex-none`}>{pillLabel}</span>
-      <h3 className="min-w-0 flex-1 text-sm font-bold text-theme-ink">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-/** Keeps an effect's result name in step with its kind: only kinds with outputs have one, and a new one gets a free default. */
-function withResultName(previous: CharacterEventEffect, next: CharacterEventEffect, all: CharacterEventEffect[]): CharacterEventEffect {
-  if (getEffectOutputs(next.kind).length === 0) {
-    const { resultName: _unused, ...rest } = next;
-    return rest;
-  }
-  if (next.resultName !== undefined || previous.kind === next.kind) return next;
-  if (previous.resultName?.trim()) return { ...next, resultName: previous.resultName };
-  const taken = new Set(all.filter((effect) => effect.id !== next.id).map((effect) => effect.resultName?.trim()));
-  let name = 'roll';
-  for (let index = 2; taken.has(name); index += 1) name = `roll_${index}`;
-  return { ...next, resultName: name };
-}
-
-interface EffectListProps {
-  character: Character;
-  effects: CharacterEventEffect[];
-  /** Every effect of the event, so result names stay unique. */
-  allEffects: CharacterEventEffect[];
-  onChange: (effects: CharacterEventEffect[]) => void;
-  problems: DraftProblems['effects'];
-  showProblems: boolean;
-  registerDataTarget: RegisterDataTarget;
-  chips: DataChipsContext;
-}
-
-/** The effects of a step or of its "otherwise" branch, run in order. */
-function EffectList({ character, effects, allEffects, onChange, problems, showProblems, registerDataTarget, chips }: EffectListProps) {
-  const updateEffect = (index: number, effect: CharacterEventEffect) => onChange(effects.map((item, i) => (i === index ? withResultName(item, { ...effect, id: item.id }, allEffects) : item)));
-  const moveEffect = (index: number, offset: number) => {
-    const next = [...effects];
-    const [moved] = next.splice(index, 1);
-    next.splice(index + offset, 0, moved);
-    onChange(next);
-  };
-
-  return (
-    <div className="space-y-3">
-      {effects.map((effect, index) => {
-        const outputs = getEffectOutputs(effect.kind);
-        const resultName = effect.resultName?.trim() ?? '';
-        return (
-          <div key={effect.id} className="rounded-button border border-theme-border bg-theme-paper p-3">
-            <div className="mb-2.5 flex items-center gap-2">
-              <span className="event-flow__pill event-flow__pill--then h-6 w-6 flex-none text-[11px]" aria-hidden="true">{index + 1}</span>
-              <span className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-theme-muted">Effect {index + 1}</span>
-              <button type="button" onClick={() => moveEffect(index, -1)} disabled={index === 0} aria-label={`Move effect ${index + 1} up`} title="Move up" className={smallIconButtonClass}>
-                <ArrowUpIcon className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => moveEffect(index, 1)}
-                disabled={index === effects.length - 1}
-                aria-label={`Move effect ${index + 1} down`}
-                title="Move down"
-                className={smallIconButtonClass}
-              >
-                <ArrowDownIcon className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onChange(effects.filter((item) => item.id !== effect.id))}
-                aria-label={`Remove effect ${index + 1}`}
-                title="Remove"
-                className={`${smallIconButtonClass} hover:!border-red-500 hover:!bg-red-500`}
-              >
-                <TrashIcon className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <PartFields character={character} role="effect" part={effect} onChange={(part) => updateEffect(index, { ...part, id: effect.id })} onDataTarget={registerDataTarget} />
-            {outputs.length > 0 && (
-              <div className="mt-3">
-                <Field
-                  label="Result name"
-                  help={`Later conditions and effects read this result as @${resultLabel(resultName || 'name', outputs[0].key)}. Leave it empty to not pass it along.`}
-                >
-                  <input
-                    type="text"
-                    value={effect.resultName ?? ''}
-                    onChange={(event) => updateEffect(index, { ...effect, resultName: sanitizeLabelInput(event.target.value) })}
-                    placeholder="attack"
-                    autoComplete="off"
-                    spellCheck={false}
-                    className={`${fieldClass} font-mono`}
-                  />
-                </Field>
-              </div>
-            )}
-            {resultName && (
-              <DataChips
-                owner={effect.id}
-                title="Passes along"
-                items={outputs.map((output) => ({ ref: `@${resultLabel(resultName, output.key)}`, label: output.label }))}
-                hint="Use these in a later condition or effect. Click one to add it where you were typing."
-                chips={chips}
-              />
-            )}
-            {effect.kind && <Sentence icon={getEventIcon(effect.kind, findWidget(character, effect.widgetId))} text={describeEffect(character, effect)} />}
-            {showProblems && <ProblemList problems={problems[effect.id]} />}
-          </div>
-        );
-      })}
-      <button
-        type="button"
-        onClick={() => onChange([...effects, createBlankEffect()])}
-        className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
-      >
-        <PlusIcon className="h-3.5 w-3.5" /> Add effect
-      </button>
-    </div>
-  );
+    if (!active) return;
+    let frame = 0;
+    // The bubble moves and resizes with each step, so it is followed the way the bubble follows its own target.
+    const measure = () => {
+      const rect = window.innerWidth < TUTORIAL_NARROW_BREAKPOINT
+        ? document.querySelector('[data-tutorial-bubble="true"]')?.getBoundingClientRect()
+        : undefined;
+      const next = !rect || rect.height === 0
+        ? NO_INSET
+        : rect.top < window.innerHeight / 2
+          ? { top: Math.ceil(rect.bottom) + 8, bottom: 0 }
+          : { top: 0, bottom: Math.ceil(window.innerHeight - rect.top) + 8 };
+      setInset((current) => (current.top === next.top && current.bottom === next.bottom ? current : next));
+      frame = window.requestAnimationFrame(measure);
+    };
+    measure();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      setInset(NO_INSET);
+    };
+  }, [active]);
+  return inset;
 }
 
 interface EventEditorDialogProps {
@@ -702,12 +143,17 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
   const closeEditor = useEventsPanelStore((state) => state.closeEditor);
   const addEvent = useStore((state) => state.addCharacterEvent);
   const updateEvent = useStore((state) => state.updateCharacterEvent);
-  const [draft, setDraft] = useState<Draft | null>(() => initDraft(character, request));
+  const isEditing = !!request.eventId;
+  const [draft, setDraft] = useState<EventDraft | null>(() => initDraft(character, request));
   const [attempted, setAttempted] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(() => (isEditing ? null : getStartNode(draft)));
+  const [reveal, setReveal] = useState<{ id: string; tick: number; roomBelow?: boolean } | null>(null);
+  const [stacked, setStacked] = useState(false);
+  // A finger pans the graph from anywhere, so effects are moved with the panel's buttons instead of by dragging.
+  const [canDrag] = useState(() => !window.matchMedia('(pointer: coarse)').matches);
   const initialCharacterId = useRef(character.id);
   const nameRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const isEditing = !!request.eventId;
   const eventExists = !request.eventId || !!character.events?.some((event) => event.id === request.eventId);
   const tutorialStepId = useTutorialStore((state) => (state.tutorialStep !== null ? TUTORIAL_STEPS[state.tutorialStep]?.id : undefined));
   const inTutorialLesson = !isEditing && (
@@ -716,11 +162,21 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
     || !!tutorialStepId?.startsWith('events-editor-')
     || !!tutorialStepId?.startsWith('events-inline-editor-')
   );
+  const tutorialInset = useDockedTutorialInset(inTutorialLesson);
+
+  const showNode = (nodeId: string, roomBelow = false) => setReveal((current) => ({ id: nodeId, tick: (current?.tick ?? 0) + 1, roomBelow }));
+  const select = (nodeId: string | null, isNew = false) => {
+    setSelectedId(nodeId);
+    if (nodeId) showNode(nodeId, isNew);
+  };
 
   // A layout effect, so the lesson's fields exist before the tutorial bubble scrolls to them.
   useLayoutEffect(() => {
-    if (isEditing || !tutorialStepId) return;
-    setDraft((current) => (current ? applyTutorialLesson(character, tutorialStepId, current) : current));
+    if (isEditing || !tutorialStepId || !draft) return;
+    const next = applyTutorialLesson(character, tutorialStepId, draft);
+    setDraft(next);
+    const lessonNode = getLessonNode(tutorialStepId, next);
+    if (lessonNode !== undefined) select(lessonNode);
     // Only when the step changes, so the reader's own edits stay.
   }, [tutorialStepId]);
 
@@ -748,83 +204,68 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
     };
   }, [closeEditor]);
 
+  // Follows the dialog rather than the window: the tutorial makes the dialog narrower to leave room for its bubble.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const measure = () => setStacked(body.clientWidth < STACKED_BELOW);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, []);
+
   const baseLabels = useMemo(() => collectLabels(character), [character]);
   const problems = useMemo(() => (draft ? getDraftProblems(character, draft, baseLabels) : null), [baseLabels, character, draft]);
-  const dataTarget = useRef<DataTarget | null>(null);
-  const [dataStatus, setDataStatus] = useState<DataStatus>({ text: '', id: 0, owner: '' });
-  const [collapsedSteps, setCollapsedSteps] = useState<ReadonlySet<string>>(() => new Set());
-
-  useEffect(() => {
-    if (!dataStatus.text) return;
-    const timer = window.setTimeout(() => setDataStatus((current) => (current.id === dataStatus.id ? { ...current, text: '' } : current)), 3000);
-    return () => window.clearTimeout(timer);
-  }, [dataStatus]);
+  const steps = draft?.steps;
+  const graph = useMemo(() => layoutEventGraph(steps ?? []), [steps]);
+  const showProblems = attempted || isEditing;
+  const nodeProblems = useMemo(() => {
+    if (!draft || !problems) return new Map<string, string[]>();
+    const all = getNodeProblems(draft, problems);
+    if (showProblems) return all;
+    // Before a first try at saving, only a condition that was written and doesn't work is pointed out.
+    const written = new Set(draft.steps.filter((step) => step.condition?.trim()).map((step) => conditionNodeId(step.id)));
+    return new Map([...all].filter(([nodeId]) => written.has(nodeId)));
+  }, [draft, problems, showProblems]);
 
   if (!draft || !problems) return null;
 
-  const showProblems = attempted || isEditing;
-  const update = (patch: Partial<Draft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
-  // By step id and through the latest draft, so fields that registered themselves earlier never write stale steps.
-  const changeStep = (stepId: string, change: (step: CharacterEventStep) => CharacterEventStep) => setDraft((current) => (
-    current ? { ...current, steps: current.steps.map((step) => (step.id === stepId ? change(step) : step)) } : current
+  const selectedNode = graph.nodes.find((node) => node.id === selectedId && node.kind !== 'add') ?? null;
+  const update = (patch: Partial<EventDraft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
+  // Through the latest draft, so a field that was registered earlier never writes stale steps.
+  const changeSteps = (change: (steps: CharacterEventStep[]) => CharacterEventStep[]) => setDraft((current) => (
+    current ? { ...current, steps: change(current.steps) } : current
   ));
-  const triggerWidget = findWidget(character, draft.trigger.widgetId);
-  const triggerOutputs = getTriggerOutputs(draft.trigger.kind);
-  const allEffects = getEventEffects(draft);
-  const showStatus = (owner: string, text: string) => setDataStatus((current) => ({ text, owner, id: current.id + 1 }));
-  const registerDataTarget: RegisterDataTarget = (target) => {
-    dataTarget.current = target;
+
+  const addEffect = (slot: GraphSlot) => {
+    const effect = createBlankEffect();
+    changeSteps((current) => insertEffect(current, slot, effect));
+    select(effectNodeId(effect.id), true);
+  };
+  const addCondition = (slot: GraphSlot) => {
+    const added = insertCondition(draft.steps, slot);
+    if (!added) return;
+    update({ steps: added.steps });
+    select(conditionNodeId(added.stepId), true);
   };
 
-  const pickData = (ref: string, owner: string) => {
-    const target = dataTarget.current;
-    if (!target?.element.isConnected) {
-      dataTarget.current = null;
-      if (!navigator.clipboard) {
-        showStatus(owner, `Type ${ref} in a condition or an effect field.`);
-        return;
-      }
-      navigator.clipboard.writeText(ref).then(
-        () => showStatus(owner, `Copied ${ref}. Paste it into a condition or an effect field.`),
-        () => showStatus(owner, `Type ${ref} in a condition or an effect field.`),
-      );
-      return;
-    }
-    const caret = insertDataRef(target, ref);
-    showStatus(owner, `Added ${ref} to ${target.label}.`);
-    window.requestAnimationFrame(() => {
-      target.element.focus({ preventScroll: true });
-      target.element.setSelectionRange(caret, caret);
-      target.element.scrollIntoView({ block: 'nearest' });
-    });
-  };
-  const chips: DataChipsContext = { status: dataStatus, onPick: pickData };
-  const toggleStep = (stepId: string) => setCollapsedSteps((current) => {
-    const next = new Set(current);
-    if (!next.delete(stepId)) next.add(stepId);
-    return next;
-  });
-  const stepHasProblems = (step: CharacterEventStep) => (
-    !!problems.conditions[step.id]?.length
-    || !!problems.steps[step.id]?.length
-    || [...step.effects, ...(step.otherwise ?? [])].some((effect) => problems.effects[effect.id]?.length)
-  );
-
-  // Focusing anything other than a data target or a chip means chips no longer add to the last field.
-  const handleBodyFocus = (event: React.FocusEvent<HTMLDivElement>) => {
-    if (!(event.target instanceof Element) || !event.target.closest('[data-event-data-target], [data-event-data-chip]')) dataTarget.current = null;
+  // The move can send an effect to a branch that is out of view, so it is followed there.
+  const moveEffectTo = (effectId: string, slot: GraphSlot) => {
+    changeSteps((current) => moveEffect(current, effectId, slot));
+    showNode(effectNodeId(effectId));
   };
 
-  // A draft keeps unfinished work, turned off so half-built events never run.
   const save = (asDraft = false) => {
     setAttempted(true);
     if (!asDraft && problems.count > 0) {
-      // Collapsed steps hide their problems, so open the ones that have some before scrolling to the first.
-      setCollapsedSteps((current) => new Set([...current].filter((id) => !draft.steps.some((step) => step.id === id && stepHasProblems(step)))));
-      window.requestAnimationFrame(() => window.requestAnimationFrame(() => bodyRef.current?.querySelector('.event-editor__problem')?.scrollIntoView({ block: 'center', behavior: 'smooth' })));
+      const [first] = getNodeProblems(draft, problems).keys();
+      // An "add" node has no settings to open, so it is only brought into view.
+      if (first && graph.nodes.some((node) => node.id === first && node.kind !== 'add')) select(first);
+      else if (first) showNode(first);
       return;
     }
-    const payload = asDraft ? { ...toPayload(character, draft), enabled: false } : toPayload(character, draft);
+    const payload = asDraft ? { ...toEventPayload(character, draft), enabled: false } : toEventPayload(character, draft);
     const telemetrySource = inTutorialLesson ? 'tutorial' : request.source ?? 'events_panel';
     let eventId: string | null = request.eventId ?? null;
     if (request.eventId) updateEvent(request.eventId, payload, telemetrySource);
@@ -848,6 +289,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
       data-event-editor-dialog="true"
       data-touch-camera-ignore="true"
       className={`fixed inset-0 z-[11000] flex items-center justify-center bg-black/55 p-2 sm:p-4 animate-fade-in ${inTutorialLesson ? 'sm:justify-start sm:pl-6' : ''}`}
+      style={{ paddingTop: tutorialInset.top || undefined, paddingBottom: tutorialInset.bottom || undefined }}
       onMouseDown={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
@@ -859,212 +301,72 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
         aria-modal="true"
         aria-labelledby="event-editor-title"
         data-tutorial="event-editor"
-        className={`widget-edit-modal__aux-dialog flex max-h-[min(92vh,56rem)] w-full ${inTutorialLesson ? 'max-w-xl' : 'max-w-3xl'} flex-col overflow-hidden animate-modal-in`}
+        className={`widget-edit-modal__aux-dialog flex h-[min(92vh,56rem)] max-h-full w-full ${inTutorialLesson ? 'sm:max-w-[min(52rem,calc(100vw-24rem))]' : 'max-w-6xl'} flex-col overflow-hidden animate-modal-in`}
       >
         <header className="widget-edit-modal__header flex flex-none items-center justify-between gap-3 border-b border-theme-border">
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <BoltIcon className="h-5 w-5 flex-none text-theme-accent" aria-hidden="true" />
-            <h2 id="event-editor-title" className="widget-edit-modal__title font-heading text-lg font-bold text-theme-ink">
-              {isEditing ? 'Edit event' : 'New event'}
-            </h2>
+            <div className="min-w-0 flex-1">
+              <h2 id="event-editor-title" className="font-heading text-[11px] font-bold uppercase tracking-wide text-theme-muted">
+                {isEditing ? 'Edit event' : 'New event'}
+              </h2>
+              <input
+                ref={nameRef}
+                type="text"
+                value={draft.name}
+                onChange={(event) => update({ name: event.target.value })}
+                aria-label="Event name"
+                placeholder="Name (optional), such as Bloodied"
+                autoComplete="off"
+                className={`${fieldClass} mt-0.5 max-w-md`}
+              />
+            </div>
           </div>
           <button type="button" onClick={closeEditor} aria-label="Close event editor" className="widget-control h-8 w-8 flex-none">
             <XIcon className="h-4 w-4" />
           </button>
         </header>
 
-        <div ref={bodyRef} onFocus={handleBodyFocus} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
-          <Field label="Name">
-            <input
-              ref={nameRef}
-              type="text"
-              value={draft.name}
-              onChange={(event) => update({ name: event.target.value })}
-              placeholder="Optional, such as Bloodied"
-              autoComplete="off"
-              className={fieldClass}
+        <div ref={bodyRef} className={`flex min-h-0 flex-1 ${stacked ? 'flex-col' : ''}`}>
+          <div className="relative min-h-[9rem] min-w-0 flex-1">
+            <EventGraphCanvas
+              character={character}
+              draft={draft}
+              graph={graph}
+              selectedId={selectedNode?.id ?? null}
+              problems={nodeProblems}
+              reveal={reveal}
+              canDrag={canDrag}
+              onSelect={(nodeId) => select(nodeId)}
+              onAddEffect={addEffect}
+              onAddCondition={addCondition}
+              onMoveEffect={moveEffectTo}
+              onRemoveEffect={(effectId) => changeSteps((current) => removeEffect(current, effectId))}
             />
-          </Field>
-
-          <section className="event-editor__step p-3 sm:p-4" aria-label="Trigger" data-tutorial="event-editor-trigger">
-            <StepHeader pill="when" pillLabel="When" title="Something happens on the sheet" />
-            <PartFields character={character} role="trigger" part={draft.trigger} onChange={(trigger) => update({ trigger })} />
-            {draft.trigger.kind && <Sentence icon={getEventIcon(draft.trigger.kind, triggerWidget)} text={describeTrigger(character, draft.trigger)} />}
-            <DataChips
-              owner="trigger"
-              title="Passes along"
-              items={triggerOutputs.map((output) => ({ ref: `@${eventLabel(output.key)}`, label: output.label }))}
-              hint="Use these in a condition or an effect. Click one to add it where you were typing."
-              chips={chips}
-              tutorial
-            />
-            {showProblems && <ProblemList problems={problems.trigger} />}
-          </section>
-
-          {draft.steps.map((step, stepIndex) => {
-            const first = stepIndex === 0;
-            const showNumber = draft.steps.length > 1;
-            const isCollapsed = showNumber && collapsedSteps.has(step.id);
-            const summary = [step.condition?.trim() ? `If ${step.condition.trim()}` : '', ...step.effects.map((effect) => describeEffect(character, effect))].filter(Boolean).join(' → ');
-            return (
-              <div key={step.id} className={showNumber ? 'event-editor__group p-3' : 'space-y-3'}>
-                {showNumber && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleStep(step.id)}
-                      aria-expanded={!isCollapsed}
-                      aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} step ${stepIndex + 1}`}
-                      className="flex h-8 min-w-0 flex-1 items-center gap-2 text-left"
-                    >
-                      {isCollapsed ? <ChevronDownIcon className="h-3.5 w-3.5 flex-none text-theme-muted" /> : <ChevronUpIcon className="h-3.5 w-3.5 flex-none text-theme-muted" />}
-                      <span className="flex-none text-xs font-bold uppercase tracking-wide text-theme-muted">Step {stepIndex + 1}</span>
-                      {isCollapsed && <span className="min-w-0 flex-1 truncate text-xs text-theme-ink" title={summary}>{summary}</span>}
-                      {isCollapsed && stepHasProblems(step) && <span className="flex-none text-xs text-amber-600" title="This step needs attention">⚠</span>}
-                    </button>
-                    {!first && (
-                      <button
-                        type="button"
-                        onClick={() => update({ steps: draft.steps.filter((item) => item.id !== step.id) })}
-                        aria-label={`Remove step ${stepIndex + 1}`}
-                        title="Remove this step"
-                        className={`${smallIconButtonClass} hover:!border-red-500 hover:!bg-red-500`}
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Hidden rather than unmounted, so a collapsed step keeps its fields and data chips. */}
-                <div className={isCollapsed ? 'hidden' : showNumber ? 'mt-3 space-y-3' : 'space-y-3'}>
-                {step.condition === undefined ? (
-                  <button
-                    type="button"
-                    onClick={() => changeStep(step.id, (current) => ({ ...current, condition: '' }))}
-                    data-tutorial={first ? 'event-editor-condition' : undefined}
-                    className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
-                  >
-                    <PlusIcon className="h-3.5 w-3.5" /> Add a condition (only if…)
-                  </button>
-                ) : (
-                  <section className="event-editor__step p-3 sm:p-4" aria-label={showNumber ? `Condition of step ${stepIndex + 1}` : 'Condition'} data-tutorial={first ? 'event-editor-condition' : undefined}>
-                    <StepHeader pill="if" pillLabel="Only if" title={first ? 'This is true when it happens' : 'This is true at this point'}>
-                      <button
-                        type="button"
-                        onClick={() => changeStep(step.id, ({ condition: _unused, otherwise: _otherwise, stopIfFalse: _stop, ...rest }) => rest)}
-                        aria-label="Remove the condition"
-                        title="Remove the condition"
-                        className={smallIconButtonClass}
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </StepHeader>
-                    <Field
-                      label="Condition"
-                      help={first
-                        ? (triggerOutputs.length
-                          ? `A formula, such as @hp < @max_hp / 2. The trigger's data works here too, such as @${eventLabel(triggerOutputs[0].key)}.`
-                          : 'A formula, such as @hp < @max_hp / 2 or @level >= 5.')
-                        : 'A formula, such as @event_attack_total >= 12. Results of earlier effects work here, as does the sheet as the earlier effects changed it.'}
-                    >
-                      <input
-                        type="text"
-                        value={step.condition}
-                        onChange={(event) => changeStep(step.id, (current) => ({ ...current, condition: event.target.value }))}
-                        onFocus={(event) => registerDataTarget({
-                          element: event.currentTarget,
-                          mode: 'formula',
-                          label: 'the condition',
-                          setValue: (condition) => changeStep(step.id, (current) => ({ ...current, condition })),
-                        })}
-                        data-event-data-target="true"
-                        placeholder={first ? '@hp < @max_hp / 2' : '@event_attack_total >= 12'}
-                        autoComplete="off"
-                        spellCheck={false}
-                        autoFocus={step.condition === '' && stepIndex === draft.steps.length - 1}
-                        className={`${fieldClass} font-mono`}
-                      />
-                    </Field>
-                    {stepIndex < draft.steps.length - 1 && (
-                      <div className="mt-3">
-                        <Field label="If it's false">
-                          <select
-                            value={step.stopIfFalse ? 'stop' : 'continue'}
-                            onChange={(event) => changeStep(step.id, (current) => ({ ...current, stopIfFalse: event.target.value === 'stop' }))}
-                            className={fieldClass}
-                          >
-                            <option value="continue">Skip this step and carry on with the next one</option>
-                            <option value="stop">Stop the event here</option>
-                          </select>
-                        </Field>
-                      </div>
-                    )}
-                    {(showProblems || step.condition.trim() !== '') && <ProblemList problems={problems.conditions[step.id]} />}
-                  </section>
-                )}
-
-                <section className="event-editor__step p-3 sm:p-4" aria-label={showNumber ? `Effects of step ${stepIndex + 1}` : 'Effects'} data-tutorial={first ? 'event-editor-effects' : undefined}>
-                  <StepHeader pill="then" pillLabel="Then" title={step.effects.length > 1 ? 'Do these, in order' : 'Do this'} />
-                  <EffectList
-                    character={character}
-                    effects={step.effects}
-                    allEffects={allEffects}
-                    onChange={(effects) => changeStep(step.id, (current) => ({ ...current, effects }))}
-                    problems={problems.effects}
-                    showProblems={showProblems}
-                    registerDataTarget={registerDataTarget}
-                    chips={chips}
-                  />
-                  {showProblems && <ProblemList problems={problems.steps[step.id]} />}
-                </section>
-
-                {step.otherwise !== undefined ? (
-                  <section className="event-editor__step p-3 sm:p-4" aria-label={showNumber ? `Otherwise of step ${stepIndex + 1}` : 'Otherwise'}>
-                    <StepHeader pill="else" pillLabel="Else" title="Otherwise, do this">
-                      <button
-                        type="button"
-                        onClick={() => changeStep(step.id, ({ otherwise: _unused, ...rest }) => rest)}
-                        aria-label="Remove the otherwise effects"
-                        title="Remove the otherwise effects"
-                        className={smallIconButtonClass}
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </StepHeader>
-                    <EffectList
-                      character={character}
-                      effects={step.otherwise}
-                      allEffects={allEffects}
-                      onChange={(otherwise) => changeStep(step.id, (current) => ({ ...current, otherwise }))}
-                      problems={problems.effects}
-                      showProblems={showProblems}
-                      registerDataTarget={registerDataTarget}
-                      chips={chips}
-                    />
-                  </section>
-                ) : step.condition !== undefined && (
-                  <button
-                    type="button"
-                    onClick={() => changeStep(step.id, (current) => ({ ...current, otherwise: [createBlankEffect()] }))}
-                    className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
-                  >
-                    <PlusIcon className="h-3.5 w-3.5" /> Add effects for when the condition is false (otherwise…)
-                  </button>
-                )}
-                </div>
-              </div>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => update({ steps: [...draft.steps, createStep([createBlankEffect()], '')] })}
-            data-tutorial="event-editor-add-step"
-            className="event-editor__add flex h-9 w-full items-center justify-center gap-1.5 text-xs"
-          >
-            <PlusIcon className="h-3.5 w-3.5" /> Add another step (check a result, then do more)
-          </button>
+          </div>
+          {stacked && !selectedNode && (
+            <p className="flex-none border-t border-theme-border px-3 py-1.5 text-center text-[11px] text-theme-muted">
+              Select a node to edit it. Use + to add to the flow.
+            </p>
+          )}
+          {(!stacked || selectedNode) && (
+            <aside
+              aria-label={selectedNode ? 'Settings of the selected node' : 'How the graph works'}
+              className={`event-editor__panel flex-none overflow-y-auto border-theme-border ${stacked ? 'max-h-[58%] border-t' : 'w-[21rem] border-l'}`}
+            >
+              <EventNodeInspector
+                character={character}
+                draft={draft}
+                node={selectedNode}
+                problems={problems}
+                showProblems={showProblems}
+                canDrag={canDrag}
+                onChangeTrigger={(trigger) => update({ trigger })}
+                onChangeSteps={changeSteps}
+                onClose={stacked ? () => setSelectedId(null) : undefined}
+              />
+            </aside>
+          )}
         </div>
 
         <footer className="widget-edit-modal__footer flex flex-none flex-wrap items-center justify-between gap-2 border-t border-theme-border">

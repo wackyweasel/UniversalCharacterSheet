@@ -11,6 +11,7 @@ A TTRPG character sheet application with an infinite canvas and customizable wid
 - **Automations**: Effects add bonuses or penalties to numeric values, including formula results. Formulas stay unchanged, and downstream formulas and Events use the final adjusted values. Value limits still apply unless an Effect allows exceeding them; removing the Effect restores the latest formula result. Circular Effect activation dependencies are rejected. Widget and group templates preserve internal Effect targets and save underlying values without baking in bonuses. Narrow screens tuck search and filters behind compact toolbar buttons.
 - **Guided Tutorials**: Start with the Automations overview, continue with Formulas (expressions, tables and inline text) or Events (triggers, conditions and actions), and explore storage, sharing and layouts in Various. Compendium walks through creating an item with Effects, equipping a copy and transferring your catalog.
 - **Event Dice Rolls**: All dice in an expression (such as `8d6` or `2d6 + 1d8`) roll together. Rolls in later event steps wait for earlier results.
+- **Event Graph Editor**: An event is edited as a graph: its trigger, then conditions and effects joined by links. Select a node to change its settings, use the + on a link to add an effect or a condition there, and drag an effect onto a + to move it.
 - **Drag & Drop**: Arrange widgets freely with grid snapping.
 - **Installable App**: Install from a supported browser and keep working with cached sheets while offline.
 
