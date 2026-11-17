@@ -340,6 +340,8 @@ interface StoreState {
   updateCharacterEvent: (id: string, event: Omit<CharacterEvent, 'id'>, telemetrySource?: EventTelemetrySource) => void;
   removeCharacterEvent: (id: string, telemetrySource?: EventTelemetrySource) => void;
   duplicateCharacterEvent: (id: string) => string | null;
+  /** Adds events, already given fresh ids, after the existing ones as one undoable change. */
+  importCharacterEvents: (events: CharacterEvent[]) => boolean;
   moveCharacterEvent: (id: string, newIndex: number) => void;
   setCharacterEventEnabled: (id: string, enabled: boolean, telemetrySource?: EventTelemetrySource) => void;
   deleteAllAutomations: (tab: AutomationsTab, editableFormulasOnly?: boolean) => boolean;
@@ -3350,6 +3352,16 @@ export const useStore = create<StoreState>((rawSet, get) => {
       });
       if (duplicated) recordCharacterEvent('event_duplicated', source, 'events_panel');
       return copyId;
+    },
+
+    importCharacterEvents: (events) => {
+      if (events.length === 0 || !get().activeCharacterId) return false;
+      const imported = applyCharacterTransform('Import events', (character) => ({
+        ...character,
+        events: [...(character.events ?? []), ...events.map(withEffectIds)],
+      }));
+      if (imported) events.forEach((event) => recordCharacterEvent('event_imported', event, 'events_panel'));
+      return imported;
     },
 
     moveCharacterEvent: (id, newIndex) => {

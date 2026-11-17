@@ -10,8 +10,10 @@ import { describeEffect, describeTrigger, getEventProblems, getTriggerDef } from
 import { runEventNow, subscribeEventFirings } from '../../events/runtime';
 import { getAllSteps, getEventEffects } from '../../events/steps';
 import { getEventTelemetryDetails } from '../../events/telemetry';
+import type { EventsImportPlan } from '../../events/transfer';
 import { Tooltip } from '../Tooltip';
-import AutomationsPanelHeader from '../AutomationsPanelHeader';
+import AutomationsPanelHeader, { actionClass } from '../AutomationsPanelHeader';
+import { ExportEventsDialog, ImportEventsDialog } from './EventTransferDialogs';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -20,10 +22,12 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DotsVerticalIcon,
+  DownloadIcon,
   PencilIcon,
   PlayIcon,
   PlusIcon,
   TrashIcon,
+  UploadIcon,
   XIcon,
 } from '../icons';
 import { EventFlow } from './EventFlow';
@@ -78,6 +82,7 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
   const character = useStore((state) => state.characters.find((item) => item.id === state.activeCharacterId) ?? null);
   const setEventEnabled = useStore((state) => state.setCharacterEventEnabled);
   const duplicateEvent = useStore((state) => state.duplicateCharacterEvent);
+  const importEvents = useStore((state) => state.importCharacterEvents);
   const moveEvent = useStore((state) => state.moveCharacterEvent);
   const removeEvent = useStore((state) => state.removeCharacterEvent);
   const undo = useStore((state) => state.undo);
@@ -88,6 +93,7 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
   const [actionsId, setActionsId] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [toast, setToast] = useState<{ message: string; undoable: boolean } | null>(null);
+  const [transfer, setTransfer] = useState<{ kind: 'import' } | { kind: 'export'; events: CharacterEvent[] } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const pendingFocusRef = useRef<string | null>(null);
 
@@ -235,6 +241,16 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
     if (id) pendingFocusRef.current = id;
   };
 
+  const handleImport = ({ events, missingWidgets }: EventsImportPlan) => {
+    if (!importEvents(events)) return;
+    pendingFocusRef.current = events[0].id;
+    setFilter('all');
+    setQuery('');
+    const count = `${events.length} event${events.length === 1 ? '' : 's'}`;
+    const missing = missingWidgets ? ` ${missingWidgets} widget${missingWidgets === 1 ? '' : 's'} couldn't be matched.` : '';
+    setToast({ message: `Imported ${count}.${missing}`, undoable: true });
+  };
+
   const handleMove = (item: PanelItem, offset: number) => {
     moveEvent(item.event.id, item.index + offset);
     pendingFocusRef.current = item.event.id;
@@ -360,6 +376,9 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
             <button type="button" onClick={() => handleDuplicate(item)} aria-label={`Duplicate ${name || 'event'}`} className={buttonClass}>
               <CopyIcon className="h-3.5 w-3.5" /> Duplicate
             </button>
+            <button type="button" onClick={() => { setActionsId(null); setTransfer({ kind: 'export', events: [item.event] }); }} aria-label={`Export ${name || 'event'}`} className={buttonClass}>
+              <DownloadIcon className="h-3.5 w-3.5" /> Export
+            </button>
             <button type="button" onClick={() => handleMove(item, -1)} disabled={item.index === 0} className={buttonClass}>
               <ArrowUpIcon className="h-3.5 w-3.5" /> Move up
             </button>
@@ -396,6 +415,12 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
         deletion={{ tab: 'events', count: items.length }}
         addAction={<button type="button" aria-label="New event" title="Add event" data-tutorial="events-new" onClick={() => openEditor()} className={`${primaryButtonClass} ${tutorialStepId === 'events-new' ? tutorialTargetClass : ''}`}><PlusIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Add event</span></button>}
         onCollapseAll={() => setAllCollapsed(true)}
+        transferActions={(
+          <>
+            <button type="button" title="Import events" onClick={() => setTransfer({ kind: 'import' })} className={actionClass}><UploadIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Import</span></button>
+            <button type="button" title="Export all events" onClick={() => setTransfer({ kind: 'export', events: items.map((item) => item.event) })} disabled={items.length === 0} className={actionClass}><DownloadIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Export</span></button>
+          </>
+        )}
         onExpandAll={() => setAllCollapsed(false)}
         collapseDisabled={visibleItems.length === 0 || visibleItems.every((item) => collapsedIds.has(item.event.id))}
         expandDisabled={!visibleItems.some((item) => collapsedIds.has(item.event.id))}
@@ -464,6 +489,8 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
           </button>
         </div>
       )}
+      {character && transfer?.kind === 'export' && <ExportEventsDialog character={character} events={transfer.events} onClose={() => setTransfer(null)} />}
+      {character && transfer?.kind === 'import' && <ImportEventsDialog character={character} onImport={handleImport} onClose={() => setTransfer(null)} />}
     </section>
   );
 }

@@ -13,6 +13,8 @@ interface Props<T extends string> {
   onFilterChange: (filter: T) => void;
   filterLabel: string;
   addAction?: ReactNode;
+  /** Extra buttons shown before Collapse all / Expand all. */
+  transferActions?: ReactNode;
   deletion: AutomationDeletion;
   onCollapseAll: () => void;
   onExpandAll: () => void;
@@ -20,11 +22,11 @@ interface Props<T extends string> {
   expandDisabled: boolean;
 }
 
-const actionClass = 'inline-flex h-8 w-8 items-center justify-center gap-1 rounded-button border border-theme-border text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-2';
+export const actionClass = 'inline-flex h-8 w-8 items-center justify-center gap-1 rounded-button border border-theme-border text-xs font-body text-theme-ink transition-colors hover:bg-theme-accent hover:text-theme-paper disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-2';
 
 export default function AutomationsPanelHeader<T extends string>({
   description, searchLabel, searchPlaceholder, query, onQueryChange, filter, filters, onFilterChange,
-  filterLabel, addAction, deletion, onCollapseAll, onExpandAll, collapseDisabled, expandDisabled,
+  filterLabel, addAction, transferActions, deletion, onCollapseAll, onExpandAll, collapseDisabled, expandDisabled,
 }: Props<T>) {
   const [searchOpen, setSearchOpen] = useState(Boolean(query));
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -118,6 +120,7 @@ export default function AutomationsPanelHeader<T extends string>({
         </button>
         <AutomationsDeleteAllButton key={deletion.tab} {...deletion} />
         <div className="ml-auto flex gap-1.5">
+          {transferActions}
           <button type="button" title="Collapse all" onClick={onCollapseAll} disabled={collapseDisabled} className={actionClass}><ChevronsUpIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Collapse all</span></button>
           <button type="button" title="Expand all" onClick={onExpandAll} disabled={expandDisabled} className={actionClass}><ChevronsDownIcon className="h-3.5 w-3.5" /><span className="sr-only sm:not-sr-only">Expand all</span></button>
         </div>
