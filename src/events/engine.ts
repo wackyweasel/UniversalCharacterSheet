@@ -4,6 +4,7 @@ import { DieValueNeeded } from '../utils/diceExpression';
 import { collectLabels, evaluateFormulaValue, resolveCharacterFormulas, type FormulaChange } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
 import { END_EVENT_KIND } from './constants';
+import { GLOBAL_LOAD_SLOT } from './defs/numeric';
 import { evaluateAmount, evaluateCondition, findWidget, formatNumber, patchWidgetData } from './helpers';
 import { fillParams, getEffectDef, getEventIcon, getEventTitle, getResultLabels, getTriggerDef, getTriggerLabels, isGlobalEffectKind, isGlobalTriggerKind } from './registry';
 import { getStepEffects, normalizeEvent } from './steps';
@@ -132,7 +133,9 @@ function findMatches(
       const global = isGlobalTriggerKind(trigger.kind);
       const prevWidget = findWidget(prev, trigger.widgetId);
       const nextWidget = findWidget(current, trigger.widgetId);
-      if (!global && (!prevWidget || !nextWidget || prevWidget === nextWidget)) continue;
+      // The global weight sums other widgets' items, so the watched widget itself may be untouched.
+      const watchesGlobal = trigger.target === GLOBAL_LOAD_SLOT && !!prevWidget && !!nextWidget;
+      if (!global && (!prevWidget || !nextWidget || (prevWidget === nextWidget && !watchesGlobal))) continue;
       match = def.detect({
         trigger,
         params,

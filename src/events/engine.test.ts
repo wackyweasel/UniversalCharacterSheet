@@ -957,6 +957,35 @@ describe('event engine', () => {
     expect(result.firings.slice(1).map((firing) => firing.effects[0].text)).toEqual(['Torch Lit: 0 → 1', 'Carrying 11']);
   });
 
+  it('watches the global weight across inventory widgets', () => {
+    const bag = (id: string, weight: number, include: boolean): Widget => ({
+      id,
+      type: 'INVENTORY',
+      x: 0,
+      y: 0,
+      data: {
+        label: id,
+        inventoryEncumbrance: { enabled: true, unit: 'lb', globalCapacity: 10, includeInGlobalLoad: include, showGlobalCounter: false },
+        inventoryItems: [{ id: `${id}-i`, name: 'Rock', fields: [{ id: `${id}-w`, name: 'Weight', type: 'number', value: weight, reserved: 'weight' }] }],
+      },
+    });
+    const drop: CharacterEvent = {
+      id: 'e-drop',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      effects: [{ id: 'f1', kind: 'inventory.setField', widgetId: 'w-a', target: 'Weight', params: { name: 'Rock',       value: '9' } }],
+    };
+    const over: CharacterEvent = {
+      id: 'e-over',
+      enabled: true,
+      trigger: { kind: 'value.crosses', widgetId: 'w-b', target: 'globalLoad', params: { compare: 'above', threshold: '100%' } },
+      effects: [{ id: 'f1', kind: 'log.message', params: { message: 'Global {@event_value}' } }],
+    };
+    const before = character([bag('w-a', 1, true), bag('w-b', 2, true), bag('w-c', 50, false)], [drop, over]);
+    const result = runEvents({ before, after: before, manualEventId: 'e-drop' });
+    expect(result.firings.slice(1).map((firing) => firing.effects[0].text)).toEqual(['Global 11']);
+  });
+
   it('enters threshold track zones in the chosen direction', () => {
     const wounds: Widget = {
       id: 'w-track',

@@ -1,7 +1,7 @@
 import type { Character, Widget, WidgetData, WidgetType } from '../../types';
 import { numericTargetKey } from '../../utils/numericTargets';
 import { getPoolSize, MAX_POOL_BONUS, MAX_POOL_DICE, normalizePoolBonus } from '../../utils/dicePool';
-import { getInventoryItemQuantity, getInventoryLoad, normalizeInventoryQuantity } from '../../utils/inventory';
+import { getCharacterGlobalInventoryLoad, getInventoryItemQuantity, getInventoryLoad, normalizeInventoryQuantity } from '../../utils/inventory';
 import { DEFAULT_MIXED_FIELD_DICE_CHAIN } from '../../utils/mixedFields';
 import { getClockSegments, getClockValue } from '../../utils/progressClock';
 import { normalizeSkillPoints } from '../../utils/skillTree';
@@ -38,6 +38,9 @@ export interface NumericSlot {
   set?: (value: number) => Partial<WidgetData>;
 }
 
+/** Slot key of the character-wide weight, which also changes when a different widget's items do. */
+export const GLOBAL_LOAD_SLOT = 'globalLoad';
+
 export const DEFAULT_STEP_DICE_CHAIN = ['1d4', '1d6', '1d8', '1d10', '1d12', '1d20'];
 
 const finite = (value: unknown, fallback: number) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
@@ -67,7 +70,7 @@ function replaceAt<T>(items: T[], index: number, item: T): T[] {
   return next;
 }
 
-const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData, widgetId: string, effectValues?: Character['itemEffectValues']) => NumericSlot[]>> = {
+const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData, widgetId: string, character?: Character) => NumericSlot[]>> = {
   HEALTH_BAR: (data) => {
     const max = Math.max(0, finite(data.maxValue, 10));
     const slots = [fieldSlot(data, 'current', 'Current HP', 'currentValue', finite(data.currentValue, 10), { min: 0, max })];
@@ -120,10 +123,10 @@ const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData, widgetId: st
     max: optional(item.maxValue),
     set: hasFormula(item.valueFormula) ? undefined : (next) => ({ displayNumbers: replaceAt(data.displayNumbers ?? [], index, { ...item, value: next }) }),
   })),
-  PROGRESS_CLOCK: (data, widgetId, effectValues) => (data.clockItems ?? []).map((clock, index) => ({
+  PROGRESS_CLOCK: (data, widgetId, character) => (data.clockItems ?? []).map((clock, index) => ({
     key: itemKey(clock.name, index, clock.id),
     label: itemTitle(clock.name, index, 'Clock'),
-    value: effectValues?.[numericTargetKey({ kind: 'widget', widgetId, collection: 'clockItems', entryId: clock.id, field: 'value' })]
+    value: character?.itemEffectValues?.[numericTargetKey({ kind: 'widget', widgetId, collection: 'clockItems', entryId: clock.id, field: 'value' })]
       ? finite(clock.value, 0) : getClockValue(clock.value, clock.segments),
     min: 0,
     max: getClockSegments(clock.segments),
@@ -166,7 +169,7 @@ const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData, widgetId: st
     });
     return slots;
   },
-  INVENTORY: (data) => {
+  INVENTORY: (data, _widgetId, character) => {
     const items = data.inventoryItems ?? [];
     const slots: NumericSlot[] = items.flatMap((item, index) => {
       const quantity = getInventoryItemQuantity(item);
@@ -184,6 +187,8 @@ const SLOT_PROVIDERS: Partial<Record<WidgetType, (data: WidgetData, widgetId: st
       const unit = encumbrance.unit?.trim();
       // Read-only: the weight follows the items, and 100% means the bag is full.
       slots.push({ key: 'load', label: `Carried weight${unit ? ` (${unit})` : ''}`, value: getInventoryLoad(items), min: 0, max: optional(encumbrance.localCapacity) });
+      // Read-only: the sum of the inventory widgets across the character's sheets that count toward the global weight.
+      slots.push({ key: GLOBAL_LOAD_SLOT, label: `Global weight${unit ? ` (${unit})` : ''}`, value: getCharacterGlobalInventoryLoad(character), min: 0, max: optional(encumbrance.globalCapacity) });
     }
     return slots;
   },
@@ -220,13 +225,13 @@ SLOT_PROVIDERS.COMPENDIUM = SLOT_PROVIDERS.INVENTORY;
 
 export const NUMERIC_WIDGET_TYPES = Object.keys(SLOT_PROVIDERS) as WidgetType[];
 
-export function getNumericSlots(widget: Widget | undefined, effectValues?: Character['itemEffectValues']): NumericSlot[] {
+export function getNumericSlots(widget: Widget | undefined, character?: Character): NumericSlot[] {
   if (!widget) return [];
-  return SLOT_PROVIDERS[widget.type]?.(widget.data, widget.id, effectValues) ?? [];
+  return SLOT_PROVIDERS[widget.type]?.(widget.data, widget.id, character) ?? [];
 }
 
-export function findNumericSlot(widget: Widget | undefined, key: string | undefined, effectValues?: Character['itemEffectValues']): NumericSlot | undefined {
-  const slots = getNumericSlots(widget, effectValues);
+export function findNumericSlot(widget: Widget | undefined, key: string | undefined, character?: Character): NumericSlot | undefined {
+  const slots = getNumericSlots(widget, character);
   if (!key) return slots[0];
   const lower = key.toLowerCase();
   return slots.find((slot) => slot.key === key) ?? slots.find((slot) => slot.key.toLowerCase() === lower);
@@ -247,8 +252,8 @@ const slotTarget = (settableOnly: boolean) => ({
 });
 
 function readSlots(ctx: StateTriggerContext) {
-  const prev = findNumericSlot(ctx.prev, ctx.trigger.target, ctx.prevCharacter.itemEffectValues);
-  const next = findNumericSlot(ctx.next, ctx.trigger.target, ctx.nextCharacter.itemEffectValues);
+  const prev = findNumericSlot(ctx.prev, ctx.trigger.target, ctx.prevCharacter);
+  const next = findNumericSlot(ctx.next, ctx.trigger.target, ctx.nextCharacter);
   return prev && next ? { prev, next } : null;
 }
 
@@ -330,18 +335,18 @@ function changeSlot(ctx: EffectContext, compute: (slot: NumericSlot, readAmount:
     };
   };
   if (!all) {
-    const slot = findNumericSlot(ctx.widget, ctx.effect.target, ctx.character.itemEffectValues);
+    const slot = findNumericSlot(ctx.widget, ctx.effect.target, ctx.character);
     return slot ? change(slot) : null;
   }
   if (!ctx.widget) return null;
-  const slots = getNumericSlots(ctx.widget, ctx.character.itemEffectValues);
+  const slots = getNumericSlots(ctx.widget, ctx.character);
   let widget = ctx.widget;
   let changed = false;
   const messages: string[] = [];
   slots.forEach((original, index) => {
     if (!original.set) return;
     // Rebuild setters so collection replacements retain earlier writes.
-    const outcome = change(getNumericSlots(widget, ctx.character.itemEffectValues)[index]);
+    const outcome = change(getNumericSlots(widget, ctx.character)[index]);
     if (outcome.data) {
       widget = { ...widget, data: { ...widget.data, ...outcome.data } };
       changed = true;
