@@ -1,5 +1,5 @@
 import type { Character, CharacterEvent, WidgetType } from '../types';
-import { getEventEffects } from './steps';
+import { getAllSteps, getEventEffects } from './steps';
 
 /** Where an event was created or changed. */
 export type EventTelemetrySource = 'events_panel' | 'widget_settings' | 'event_button' | 'text_button' | 'tutorial';
@@ -24,14 +24,15 @@ export function getEventTelemetryDetails(character: Character, event: Omit<Chara
     }
   }
   const effects = getEventEffects(event);
+  const steps = getAllSteps(event.steps);
   return {
     widgetType,
     metadata: {
       triggerKind: event.trigger.kind,
       effectKinds: [...new Set(effects.map((effect) => effect.kind))].join(','),
       effectCount: effects.length,
-      hasCondition: event.steps.some((step) => Boolean(step.condition?.trim())),
-      stepCount: event.steps.length,
+      hasCondition: steps.some((step) => Boolean(step.condition?.trim())),
+      stepCount: steps.length,
       enabled: event.enabled,
       eventCount: character.events?.length ?? 0,
     },

@@ -1,11 +1,13 @@
-import type { Character, CharacterEvent, CharacterEventEffect } from '../types';
+import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventStep } from '../types';
 import { getWidgetTitle } from '../utils/characterVariables';
 import { DieValueNeeded } from '../utils/diceExpression';
 import { collectLabels, evaluateFormulaValue, resolveCharacterFormulas, type FormulaChange } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
+import { END_EVENT_KIND } from './constants';
 import { evaluateAmount, evaluateCondition, findWidget, formatNumber, patchWidgetData } from './helpers';
 import { fillParams, getEffectDef, getEventIcon, getEventTitle, getResultLabels, getTriggerDef, getTriggerLabels, isGlobalEffectKind, isGlobalTriggerKind } from './registry';
-import { normalizeEvent } from './steps';
+import { getStepEffects, normalizeEvent } from './steps';
+import { PromptNeeded, type EventAnswer } from './prompt';
 import type { EffectContext, EffectOutcome, EventDiceDisplay, TriggerMatch, WidgetAction } from './types';
 import { prepareItemArrivals, reconcileItemEffects } from '../utils/itemEffects';
 
@@ -13,7 +15,7 @@ import { prepareItemArrivals, reconcileItemEffects } from '../utils/itemEffects'
 export const MAX_CHAIN_DEPTH = 15;
 
 // Effects whose whole point is their timeline text, so they never count as skipped.
-const REPORT_ONLY_EFFECTS = new Set(['log.message']);
+const REPORT_ONLY_EFFECTS = new Set(['log.message', 'dialog.show', END_EVENT_KIND]);
 
 export interface EventEffectResult {
   effectId: string;
@@ -21,9 +23,15 @@ export interface EventEffectResult {
   text: string;
   /** The effect couldn't run or had nothing to do. */
   skipped?: boolean;
-  /** Index of the step the effect belongs to. */
+  /** The effect couldn't run, as opposed to having nothing to change. */
+  failed?: boolean;
+  /** The effect only ends the event, so the timeline doesn't mention it. */
+  quiet?: boolean;
+  /** The text is a message that gets its own timeline entry. */
+  entry?: boolean;
+  /** Index of the first-level step the effect belongs to, whatever its depth inside it. */
   step?: number;
-  /** The effect ran because its step's condition was false. */
+  /** The effect is on the side of its condition that runs when it is false. */
   otherwise?: boolean;
 }
 
@@ -33,9 +41,9 @@ export interface EventFiring {
   /** What triggered the event. */
   trigger: string;
   effects: EventEffectResult[];
-  /** A step's condition was false, so its effects were skipped (and its "otherwise" effects ran). */
+  /** A condition was false, at any depth, so the event took its "otherwise" side. */
   conditionFailed?: boolean;
-  /** Indexes of the steps whose condition was false. */
+  /** Indexes of the first-level steps whose condition was false. */
   failedSteps?: number[];
   manual?: boolean;
   /** 0 for events fired by the original change, 1+ for events fired by other events. */
@@ -52,6 +60,8 @@ export interface EventRunInput {
   actions?: WidgetAction[];
   /** Runs this event's effects whatever its trigger, as the Run button does. */
   manualEventId?: string;
+  /** What the player answered so far, in the order the questions come up; a question without an answer stops the run with PromptNeeded. */
+  answers?: readonly EventAnswer[];
 }
 
 export interface EventRunResult {
@@ -163,6 +173,7 @@ function runEffect(
   character: Character,
   effect: CharacterEventEffect,
   labels: FormulaLabels,
+  ask: EffectContext['ask'],
 ): { outcome: EffectOutcome | null; icon: string; prefix: string; error?: string } {
   const def = getEffectDef(effect.kind);
   const widget = findWidget(character, effect.widgetId);
@@ -180,12 +191,13 @@ function runEffect(
     labels,
     amount: (key) => evaluateAmount(params[key], labels),
     text: (key) => interpolateText(params[key] ?? '', labels),
+    ask,
   };
   try {
     const outcome = def.apply(ctx);
     return outcome ? { outcome, icon, prefix } : { outcome: null, icon, prefix, error: `${def.label}: nothing to do` };
   } catch (error) {
-    if (error instanceof DieValueNeeded) throw error;
+    if (error instanceof DieValueNeeded || error instanceof PromptNeeded) throw error;
     console.error('Event effect failed', effect, error);
     return { outcome: null, icon, prefix, error: `${def.label}: failed` };
   }
@@ -206,7 +218,8 @@ export function runEvents(input: EventRunInput): EventRunResult {
   const formulaChanges: FormulaChange[] = [];
   let nextActions: WidgetAction[] = [];
   let truncated = false;
-
+  const answers = input.answers ?? [];
+  let answered = 0;
   // Why an event can't be run by another one, or null when it can.
   const runBlocker = (eventId: string, depth: number): string | null => {
     const target = current.events?.find((item) => item.id === eventId);
@@ -230,14 +243,22 @@ export function runEvents(input: EventRunInput): EventRunResult {
     // Named results of the effects that ran so far, read by later conditions and effects.
     const results: FormulaLabels = {};
 
-    const runEffects = (effects: CharacterEventEffect[], step: number, otherwise: boolean) => {
+    const ask: EffectContext['ask'] = (prompt) => {
+      const answer = answers[answered];
+      if (!answer) throw new PromptNeeded({ ...prompt, eventTitle: title });
+      answered += 1;
+      return answer;
+    };
+
+    /** Runs the effects in order and tells whether one of them ended the event. */
+    const runEffects = (effects: CharacterEventEffect[], step: number, otherwise: boolean): boolean => {
       for (const effect of effects) {
         const labels = withEventLabels(collectLabels(current), event, match, results);
-        const { outcome, icon, prefix, error } = runEffect(current, effect, labels);
+        const { outcome, icon, prefix, error } = runEffect(current, effect, labels, ask);
         Object.assign(results, getResultLabels(effect, outcome?.result));
         const where = { step, ...(otherwise ? { otherwise } : {}) };
         if (!outcome) {
-          firing.effects.push({ effectId: effect.id, icon, text: `${prefix}${error}`, skipped: true, ...where });
+          firing.effects.push({ effectId: effect.id, icon, text: `${prefix}${error}`, skipped: true, failed: true, ...where });
           continue;
         }
 
@@ -247,7 +268,7 @@ export function runEvents(input: EventRunInput): EventRunResult {
         const changed = next !== current;
         current = next;
 
-        for (const roll of outcome.rolls ?? []) rolls.push({ ...roll, eventId: event.id });
+        if (effect.params?.showResult !== 'hide') for (const roll of outcome.rolls ?? []) rolls.push({ ...roll, eventId: event.id });
         if (outcome.actions) nextActions.push(...outcome.actions);
 
         const blocker = outcome.runEventId ? runBlocker(outcome.runEventId, depth) : null;
@@ -256,28 +277,37 @@ export function runEvents(input: EventRunInput): EventRunResult {
           icon,
           text: blocker ? `Can't run: ${blocker}` : withPrefix(prefix, outcome.text),
           skipped: blocker !== null || (!changed && !outcome.rolls?.length && !outcome.actions?.length && !outcome.runEventId && !REPORT_ONLY_EFFECTS.has(effect.kind)),
+          ...(outcome.entry && !blocker ? { entry: true } : {}),
+          ...(blocker ? { failed: true } : {}),
+          ...(effect.kind === END_EVENT_KIND ? { quiet: true } : {}),
           ...where,
         });
         const linked = outcome.runEventId && !blocker ? current.events?.find((item) => item.id === outcome.runEventId) : undefined;
         if (linked) fire(linked, { text: `Run by "${title}"` }, depth + 1);
+        if (outcome.stop) return true;
       }
+      return false;
     };
 
-    const steps = normalizeEvent(event).steps;
-    for (let index = 0; index < steps.length; index += 1) {
-      const step = steps[index];
-      const passed = evaluateCondition(step.condition, withEventLabels(collectLabels(current), event, match, results));
-      // Results of the branch that doesn't run still read as 0 or empty text, so later steps can use them.
-      for (const effect of [...step.effects, ...(step.otherwise ?? [])]) Object.assign(results, getResultLabels(effect));
-      if (passed) {
-        runEffects(step.effects, index, false);
-        continue;
+    /** Runs the steps in order and tells whether one of them ended the event. `outer` is the index of the first-level step they are nested in. */
+    const runSteps = (steps: CharacterEventStep[], outer?: number): boolean => {
+      for (let index = 0; index < steps.length; index += 1) {
+        const step = steps[index];
+        const top = outer ?? index;
+        const passed = evaluateCondition(step.condition, withEventLabels(collectLabels(current), event, match, results));
+        // Results of the sides that don't run still read as 0 or empty text, so later steps can use them.
+        if (outer === undefined) for (const effect of getStepEffects(step)) Object.assign(results, getResultLabels(effect));
+        if (passed) {
+          if (runEffects(step.effects, top, false) || runSteps(step.steps ?? [], top)) return true;
+          continue;
+        }
+        firing.conditionFailed = true;
+        if (outer === undefined) firing.failedSteps = [...(firing.failedSteps ?? []), index];
+        if (runEffects(step.otherwise ?? [], top, true) || runSteps(step.otherwiseSteps ?? [], top) || step.stopIfFalse) return true;
       }
-      firing.conditionFailed = true;
-      firing.failedSteps = [...(firing.failedSteps ?? []), index];
-      runEffects(step.otherwise ?? [], index, true);
-      if (step.stopIfFalse) return;
-    }
+      return false;
+    };
+    runSteps(normalizeEvent(event).steps);
   };
 
   for (let depth = 0; ; depth += 1) {

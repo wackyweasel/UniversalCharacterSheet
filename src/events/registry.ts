@@ -2,7 +2,7 @@ import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventPar
 import { getWidgetTitle } from '../utils/characterVariables';
 import { collectLabels } from '../utils/formulaEngine';
 import type { FormulaLabels } from '../utils/formulaSyntax';
-import { eventLabel, findEventLabelRefs, resultLabel, RUN_EVENT_KIND } from './constants';
+import { END_EVENT_KIND, eventLabel, findEventLabelRefs, resultLabel, RUN_EVENT_KIND } from './constants';
 import { EVENT_BUTTON_TRIGGERS } from './defs/button';
 import {
   CARD_EFFECTS,
@@ -46,7 +46,7 @@ import {
 } from './defs/time';
 import { CHECKLIST_DEFS, CONDITION_DEFS, DICE_POOL_TRAIT_DEFS, MIXED_SWITCH_DEFS, SKILL_DEFS, SWITCH_DEFS } from './defs/toggles';
 import { findWidget, isAnyTarget } from './helpers';
-import { getEventEffects } from './steps';
+import { getEventEffects, getEventParts, type EventPart } from './steps';
 import type { EffectDef, EventOption, EventParamSpec, SpecContext, TargetSpec, TriggerData, TriggerDef, TriggerOutput, WidgetEventDefs } from './types';
 
 const NUMERIC: WidgetEventDefs = { triggers: NUMERIC_TRIGGERS, effects: NUMERIC_EFFECTS };
@@ -154,6 +154,8 @@ const GLOBAL_ICONS: Record<string, string> = {
   'label.add': '🏷️',
   'dice.roll': '🎲',
   'log.message': '📝',
+  'dialog.show': '💬',
+  [END_EVENT_KIND]: '🏁',
   [RUN_EVENT_KIND]: '⚡',
 };
 
@@ -256,17 +258,11 @@ export function getUnknownEventLabels(character: Character, event: Pick<Characte
       if (!(ref in provided)) unknown.add(ref);
     }
   };
-  event.steps.forEach((step, stepIndex) => {
-    check(step.condition, getEventLabelsAt(event, stepIndex, 'condition'));
-    step.effects.forEach((effect, index) => {
-      const provided = getEventLabelsAt(event, stepIndex, 'effects', index);
-      paramValues(effect, getEffectDef(effect.kind)).forEach((value) => check(value, provided));
-    });
-    (step.otherwise ?? []).forEach((effect, index) => {
-      const provided = getEventLabelsAt(event, stepIndex, 'otherwise', index);
-      paramValues(effect, getEffectDef(effect.kind)).forEach((value) => check(value, provided));
-    });
-  });
+  for (const part of getEventParts(event)) {
+    const provided = getEventLabelsAt(event, part);
+    if (part.effect) paramValues(part.effect, getEffectDef(part.effect.kind)).forEach((value) => check(value, provided));
+    else check(part.step.condition, provided);
+  }
   if (unknown.size === 0) return [];
   const labels = collectLabels(character);
   return Array.from(unknown).filter((ref) => !(ref in labels));
@@ -287,22 +283,10 @@ export function getResultLabels(effect: Pick<CharacterEventEffect, 'kind' | 'res
   return labels;
 }
 
-export type EventSection = 'condition' | 'effects' | 'otherwise';
-
-/** The `event_…` labels available at a point of an event: the trigger's data and the named results of effects that run before it.
- *  An `otherwise` branch only follows the condition, so it never sees its own step's effects. */
-export function getEventLabelsAt(
-  event: Pick<CharacterEvent, 'trigger' | 'steps'>,
-  stepIndex: number,
-  section: EventSection,
-  effectIndex = 0,
-): FormulaLabels {
+/** The `event_…` labels a condition or effect of an event can read: the trigger's data and the named results of the effects before it. */
+export function getEventLabelsAt(event: Pick<CharacterEvent, 'trigger'>, part: Pick<EventPart, 'before'>): FormulaLabels {
   const labels = getTriggerLabels(event.trigger.kind);
-  const add = (effects: CharacterEventEffect[]) => effects.forEach((effect) => Object.assign(labels, getResultLabels(effect)));
-  event.steps.slice(0, stepIndex).forEach((step) => add([...step.effects, ...(step.otherwise ?? [])]));
-  const step = event.steps[stepIndex];
-  if (step && section === 'effects') add(step.effects.slice(0, effectIndex));
-  if (step && section === 'otherwise') add((step.otherwise ?? []).slice(0, effectIndex));
+  for (const effect of part.before) Object.assign(labels, getResultLabels(effect));
   return labels;
 }
 
@@ -417,7 +401,9 @@ export function getTriggerProblem(character: Character, trigger: CharacterEventT
 }
 
 export function getEffectProblem(character: Character, effect: CharacterEventEffect): string | null {
-  return sourceProblem(character, effect.kind, effect.widgetId, effect.target, getEffectDef(effect.kind), isGlobalEffectKind(effect.kind), (defs) => defs.effects);
+  const def = getEffectDef(effect.kind);
+  const problem = sourceProblem(character, effect.kind, effect.widgetId, effect.target, def, isGlobalEffectKind(effect.kind), (defs) => defs.effects);
+  return problem ?? def?.check?.(fillParams(def.params, effect.params)) ?? null;
 }
 
 /** Problems that keep an event from working fully, such as deleted widgets or items. */
@@ -431,12 +417,15 @@ export function getEventProblems(character: Character, event: CharacterEvent): s
     if (problem) problems.push(`${label}: ${problem}`);
     getResultNameProblems(event, effect).forEach((nameProblem) => problems.push(`${label}: ${nameProblem}`));
   };
-  event.steps.forEach((step, stepIndex) => {
-    const prefix = event.steps.length > 1 ? `Step ${stepIndex + 1}, ` : '';
-    step.effects.forEach((effect, index) => check(`${prefix}${prefix ? 'effect' : 'Effect'} ${index + 1}`, effect));
-    (step.otherwise ?? []).forEach((effect, index) => check(`${prefix}${prefix ? 'otherwise' : 'Otherwise'} ${index + 1}`, effect));
-    if (step.otherwise?.length && !step.condition?.trim()) problems.push(`${prefix}${prefix ? 'otherwise' : 'Otherwise'} effects never run without a condition`);
-  });
+  const parts = getEventParts(event);
+  // Steps are only numbered when there are several, counting nested ones in the order they're laid out.
+  const numbered = parts.filter((part) => !part.effect).length > 1;
+  for (const part of parts) {
+    const prefix = numbered ? `Step ${part.stepNumber}, ` : '';
+    const otherwise = `${prefix}${prefix ? 'otherwise' : 'Otherwise'}`;
+    if (part.effect) check(part.section === 'otherwise' ? `${otherwise} ${part.index + 1}` : `${prefix}${prefix ? 'effect' : 'Effect'} ${part.index + 1}`, part.effect);
+    else if ((part.step.otherwise?.length || part.step.otherwiseSteps?.length) && !part.step.condition?.trim()) problems.push(`${otherwise} effects never run without a condition`);
+  }
   const unknown = getUnknownEventLabels(character, event);
   if (unknown.length) problems.push(`Uses ${unknown.map((ref) => `@${ref}`).join(', ')}, which isn't available where it's used`);
   return problems;

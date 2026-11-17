@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CardTableCard, Character, CharacterEvent, CharacterEventEffect, InventoryItem, NumericTargetReference, Sheet, Widget, WidgetType } from '../types';
 import { RUN_EVENT_KIND } from '../events/constants';
-import { normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
+import { mapSteps, normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
 import { numericTargetKey } from './numericTargets';
 import { copyVariableData } from './variableGroups';
 import { copyCompendiumData } from './compendium';
@@ -158,7 +158,7 @@ export function remapEventIds(events: StoredCharacterEvent[], widgetIdMap: Map<s
     ...event,
     id: eventIdMap.get(events[index].id)!,
     trigger: { ...event.trigger, widgetId: remap(event.trigger.widgetId), params: event.trigger.params ? { ...event.trigger.params } : undefined },
-    steps: event.steps.map((step) => ({
+    steps: mapSteps(event.steps, (step) => ({
       ...step,
       id: uuidv4(),
       effects: remapEffects(step.effects),

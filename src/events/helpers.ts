@@ -3,7 +3,7 @@ import { formatDiceRollDetail, rollDiceExpression, type DiceExpressionRollResult
 import { evaluateFormula, evaluateFormulaValue } from '../utils/formulaEngine';
 import type { FormulaLabels, FormulaValue } from '../utils/formulaSyntax';
 import { resolveInlineDiceExpression } from '../utils/inlineDice';
-import { ANY_TARGET, type EventAmount, type EventOption, type TriggerData, type TriggerOutput, type WidgetAction } from './types';
+import { ANY_TARGET, type EventAmount, type EventOption, type EventParamSpec, type TriggerData, type TriggerOutput, type WidgetAction } from './types';
 
 export function findWidget(character: Character, widgetId: string | undefined): Widget | undefined {
   if (!widgetId) return undefined;
@@ -241,6 +241,15 @@ export const ROLL_OUTPUTS: TriggerOutput[] = [
   { key: 'highest', label: 'Highest die', type: 'number' },
   { key: 'lowest', label: 'Lowest die', type: 'number' },
 ];
+
+/** Lets a rolling effect skip the dialog that shows its result; the roll still counts and is logged. */
+export const SHOW_RESULT_PARAM: EventParamSpec = {
+  key: 'showResult',
+  label: 'Dice result',
+  type: 'select',
+  options: [{ value: 'show', label: 'Show the result' }, { value: 'hide', label: 'Hide it' }],
+  default: 'show',
+};
 
 export function rollResultData(total: number | undefined, dice: number[]): TriggerData {
   const data: TriggerData = dice.length ? { highest: Math.max(...dice), lowest: Math.min(...dice) } : {};

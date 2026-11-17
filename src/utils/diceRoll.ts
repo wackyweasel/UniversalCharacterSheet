@@ -118,24 +118,55 @@ export const rerollExpressionDice = async (
   return { ...result, total: terms.reduce((sum, rollTerm) => sum + rollTerm.signedTotal, 0), terms };
 };
 
+/** Runs `run` with `Math.random` repeating the numbers an earlier attempt got, so a replay makes the same random choices. */
+const withReplayedRandom = <T>(numbers: number[], run: () => T): T => {
+  const original = Math.random;
+  let next = 0;
+  Math.random = () => {
+    if (next < numbers.length) return numbers[next++];
+    const value = original();
+    numbers.push(value);
+    next += 1;
+    return value;
+  };
+  try {
+    return run();
+  } finally {
+    Math.random = original;
+  }
+};
+
 /**
  * Rolls each expression's dice together on the 3D table, then replays the synchronous event run
  * with those values. Later expressions wait for earlier results, preserving dependent steps.
  * Dice the table can't show fall back to random results.
+ *
+ * `onInterrupt` handles any other error that stops the run (such as a question for the player):
+ * it returns true to replay the run, which repeats every die and random choice made so far.
  */
-export const rollEventDice = async <T>(run: () => T): Promise<T> => {
-  if (!useDiceSettingsStore.getState().threeDDiceEnabled) return run();
+export const rollEventDice = async <T>(
+  run: () => T,
+  onInterrupt?: (error: unknown) => Promise<boolean>,
+): Promise<T> => {
+  const threeD = useDiceSettingsStore.getState().threeDDiceEnabled;
+  if (!threeD && !onInterrupt) return run();
 
   const values: number[] = [];
+  const randoms: number[] = [];
+  const attempt = () => (onInterrupt ? withReplayedRandom(randoms, run) : run());
   for (;;) {
     let next = 0;
     try {
+      if (!threeD) return attempt();
       return withDieRoller((faces, diceFaces) => {
         if (next < values.length) return values[next++];
         throw new DieValueNeeded(faces, diceFaces);
-      }, run);
+      }, attempt);
     } catch (error) {
-      if (!(error instanceof DieValueNeeded)) throw error;
+      if (!(error instanceof DieValueNeeded)) {
+        if (onInterrupt && await onInterrupt(error)) continue;
+        throw error;
+      }
       const dice = error.diceFaces.flatMap((faces) => physicalRequestsForDie(faces) ?? []);
       const physicalValues = dice.length > 0 ? await rollPhysicalDice(dice) : null;
       let physicalIndex = 0;

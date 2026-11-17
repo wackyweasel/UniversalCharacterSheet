@@ -4,6 +4,7 @@ import CharacterList from './components/CharacterList';
 import ChangelogDialog, { useChangelogOnLoad } from './components/ChangelogDialog';
 import DicePhysicsOverlay from './components/DicePhysicsOverlay';
 import DiceResultHost from './components/DiceResultDialog';
+import EventPromptHost from './components/events/EventPromptDialog';
 import Sheet from './components/Sheet';
 import StorageWarning from './components/StorageWarning';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -173,6 +174,7 @@ function App() {
       {changelog && <ChangelogDialog darkMode={darkMode} onClose={closeChangelog} lastSeenVersion={changelog.lastSeenVersion} />}
       {!isSwitchingWorkspace && <DicePhysicsOverlay />}
       <DiceResultHost />
+      <EventPromptHost />
     </div>
   );
 }

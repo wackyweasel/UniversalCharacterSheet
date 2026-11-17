@@ -851,7 +851,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'events-try-new-result',
     title: 'Check the Result',
-    message: 'On a hit of 12 or more, the timeline shows the Damage roll and your message. On a miss, Hit is logged as "condition not met" and does nothing else. You can roll again later to see the other outcome.',
+    message: 'On a hit of 12 or more, the timeline shows the Damage roll and your message. On a miss, nothing is logged for it. You can roll again later to see the other outcome.',
     targetSelector: '[data-tutorial="timeline-panel"]',
     position: 'left',
     page: 'sheet',

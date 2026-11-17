@@ -9,6 +9,7 @@ import type {
 import type { DiceExpressionRollResult } from '../utils/diceExpression';
 import type { DiceResultView } from '../utils/diceResult';
 import type { FormulaLabels } from '../utils/formulaSyntax';
+import type { EventAnswer, EventPrompt } from './prompt';
 
 export interface EventOption {
   value: string;
@@ -23,7 +24,7 @@ export interface SpecContext {
   target?: string;
 }
 
-export type EventParamType = 'text' | 'formula' | 'amount' | 'select' | 'dice';
+export type EventParamType = 'text' | 'formula' | 'amount' | 'select' | 'dice' | 'icon';
 
 export interface EventParamSpec {
   key: string;
@@ -32,6 +33,8 @@ export interface EventParamSpec {
   options?: EventOption[] | ((ctx: SpecContext) => EventOption[]);
   default?: string;
   placeholder?: string;
+  /** Text fields only: a taller box that accepts line breaks. */
+  multiline?: boolean;
   help?: string;
   /** Hides the field unless it applies to the current choices. */
   visible?: (params: CharacterEventParams, ctx: SpecContext) => boolean;
@@ -152,6 +155,8 @@ export interface EffectContext {
   amount: (key: string) => EventAmount | null;
   /** Text param with inline `{formulas}` replaced by their values. */
   text: (key: string) => string;
+  /** The player's answer to a question; the run stops here and starts over once the player has answered. */
+  ask: (prompt: Omit<EventPrompt, 'eventTitle'>) => EventAnswer;
 }
 
 export interface EventDiceDisplay {
@@ -169,6 +174,8 @@ export interface EffectOutcome {
   character?: Character;
   /** What happened, for the timeline. */
   text: string;
+  /** The text is a message for the player: it gets a timeline entry of its own instead of joining the event's entry. */
+  entry?: boolean;
   /** Rolls to show in the dice result dialog. */
   rolls?: EventDiceDisplay[];
   /** Widget actions caused by the effect, which can trigger further events. */
@@ -177,6 +184,8 @@ export interface EffectOutcome {
   runEventId?: string;
   /** Values for the outputs the effect declares, read by later steps under the effect's result name. */
   result?: TriggerData;
+  /** Ends the event after this effect. */
+  stop?: boolean;
 }
 
 export interface EffectDef {
@@ -184,6 +193,8 @@ export interface EffectDef {
   label: string;
   target?: TargetSpec;
   params?: EventParamSpec[];
+  /** Explains what is wrong with the effect's params, or null when they work. */
+  check?: (params: CharacterEventParams) => string | null;
   /** Data the effect passes to later conditions and effects once it has a result name. */
   outputs?: TriggerOutput[];
   /** Returns null when the effect can't do anything; `text` explains a skipped effect. */

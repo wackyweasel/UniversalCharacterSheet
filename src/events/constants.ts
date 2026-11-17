@@ -16,6 +16,12 @@ export function findEventLabelRefs(source: string | undefined): string[] {
 /** Timeline `widgetType` and icon used for entries logged by events. */
 export const EVENT_TIMELINE_TYPE = 'EVENT';
 export const EVENT_TIMELINE_ICON = '⚡';
+/** Timeline `widgetType` and icon of the entries written by "Write in the timeline" effects; kept apart so hiding event entries doesn't hide them. */
+export const EVENT_MESSAGE_TYPE = 'MESSAGE';
+export const EVENT_MESSAGE_ICON = '📝';
+
+/** Effect that ends the whole event where it is reached. */
+export const END_EVENT_KIND = 'event.end';
 
 /** Effect that runs another event; its target is that event's id. */
 export const RUN_EVENT_KIND = 'event.run';

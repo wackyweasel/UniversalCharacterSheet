@@ -8,7 +8,7 @@ import type { CharacterEvent } from '../../types';
 import { findWidgetSheetId } from '../../events/drafts';
 import { describeEffect, describeTrigger, getEventProblems, getTriggerDef } from '../../events/registry';
 import { runEventNow, subscribeEventFirings } from '../../events/runtime';
-import { getEventEffects } from '../../events/steps';
+import { getAllSteps, getEventEffects } from '../../events/steps';
 import { getEventTelemetryDetails } from '../../events/telemetry';
 import { Tooltip } from '../Tooltip';
 import AutomationsPanelHeader from '../AutomationsPanelHeader';
@@ -102,7 +102,7 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
         event.name ?? '',
         describeTrigger(character, event.trigger),
         ...getEventEffects(event).map((effect) => describeEffect(character, effect)),
-        ...event.steps.map((step) => step.condition ?? ''),
+        ...getAllSteps(event.steps).map((step) => step.condition ?? ''),
       ].join('\n').toLowerCase(),
     }));
   }, [character]);
@@ -200,9 +200,9 @@ export default function EventsPanel({ onRevealWidget, isBottom }: EventsPanelPro
     return state.characters.find((item) => item.id === state.activeCharacterId);
   };
 
-  const handleRun = (item: PanelItem) => {
+  const handleRun = async (item: PanelItem) => {
     const before = getActiveCharacter();
-    const result = runEventNow(item.event.id);
+    const result = await runEventNow(item.event.id);
     if (!result) return;
     const firing = result.firings.find((entry) => entry.eventId === item.event.id);
     setToast({

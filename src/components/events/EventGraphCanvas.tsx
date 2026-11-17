@@ -1,4 +1,4 @@
-import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BaseEdge,
@@ -8,6 +8,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useUpdateNodeInternals,
   ViewportPortal,
   type Edge,
   type EdgeProps,
@@ -21,10 +22,12 @@ import type { Character } from '../../types';
 import type { EventDraft } from '../../events/editorDraft';
 import {
   findEffect,
+  findStep,
   GRAPH_SIZES,
   isSlotBeside,
   type EffectLocation,
   type EventGraph,
+  type GraphDirection,
   type GraphEdge,
   type GraphNode,
   type GraphSlot,
@@ -45,83 +48,101 @@ type NodeData = {
 };
 type FlowNode = Node<NodeData>;
 type FlowEdge = Edge<{ link: GraphEdge }>;
+/** What the "+" of a link or a placeholder can add. */
+type AddKind = 'effect' | 'condition' | 'end';
 
 interface GraphUi {
+  direction: GraphDirection;
   /** Link whose "+" a dragged effect would drop on. */
   dropEdgeId: string | null;
   /** Where the effect being dragged comes from. */
   dragFrom: EffectLocation | null;
   menuEdgeId: string | null;
   onPlus: (link: GraphEdge, button: HTMLElement) => void;
-  onAdd: (slot: GraphSlot) => void;
+  onAdd: (slot: GraphSlot, kind: AddKind) => void;
 }
 
-const GraphUiContext = createContext<GraphUi>({ dropEdgeId: null, dragFrom: null, menuEdgeId: null, onPlus: () => {}, onAdd: () => {} });
+const GraphUiContext = createContext<GraphUi>({ direction: 'down', dropEdgeId: null, dragFrom: null, menuEdgeId: null, onPlus: () => {}, onAdd: () => {} });
+
+/** The edges of a node that links use: where the flow comes in, where it goes on, and where a condition's "no" side leaves. */
+const PORTS = {
+  down: { entry: Position.Top, exit: Position.Bottom, side: Position.Right },
+  right: { entry: Position.Left, exit: Position.Right, side: Position.Bottom },
+};
+const usePorts = () => PORTS[useContext(GraphUiContext).direction];
 
 const CORNER = 12;
 /** How close, in graph units, a dragged effect must be to a "+" to drop on it. */
 const DROP_RADIUS = 90;
 const MENU_WIDTH = 208;
-const MENU_HEIGHT = 104;
+const MENU_HEIGHT = 156;
 const VIEW_PADDING = 24;
 /** A long event opens no smaller than this, so its text stays readable; the rest is a pan away. */
 const MIN_START_ZOOM = 0.85;
 
-const isTrunkSlot = (slot: GraphSlot) => slot.kind === 'gap' || slot.trunk;
+const ADD_HINT = 'Add an effect, a condition or an end here';
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function CardNode({ data }: NodeProps<FlowNode>) {
+  const ports = usePorts();
   const { graph, pill, tone, icon, text, blank, problem } = data;
   const isCondition = graph.kind === 'condition';
   return (
     <div
-      className={`event-node event-node--${graph.kind} ${graph.section === 'otherwise' ? 'event-node--otherwise' : ''} ${problem ? 'event-node--problem' : ''}`}
+      className={`event-node event-node--${graph.kind} ${graph.kind === 'effect' && graph.side === 'no' ? 'event-node--otherwise' : ''} ${problem ? 'event-node--problem' : ''}`}
       title={problem}
     >
-      {graph.kind !== 'trigger' && <Handle type="target" position={Position.Top} isConnectable={false} />}
+      {graph.kind !== 'trigger' && <Handle type="target" position={ports.entry} isConnectable={false} />}
       <span className="event-node__icon" aria-hidden="true">{problem ? '⚠️' : icon}</span>
       <span className="min-w-0 flex-1">
         <span className={`event-flow__pill event-flow__pill--${tone} event-node__pill`}>{pill}</span>
         <span className={`event-node__text ${blank ? 'event-node__text--blank' : isCondition ? 'event-node__text--formula' : ''}`}>{text}</span>
       </span>
-      <Handle type="source" position={Position.Bottom} id={isCondition ? 'yes' : undefined} isConnectable={false} />
-      {isCondition && <Handle type="source" position={Position.Right} id="no" isConnectable={false} />}
+      <Handle type="source" position={ports.exit} id={isCondition ? 'yes' : undefined} isConnectable={false} />
+      {isCondition && <Handle type="source" position={ports.side} id="no" isConnectable={false} />}
     </div>
   );
 }
 
 function AddNode({ data }: NodeProps<FlowNode>) {
   const ui = useContext(GraphUiContext);
+  const ports = PORTS[ui.direction];
   const { graph, problem } = data;
+  const className = `event-node-add nodrag nopan ${problem ? 'event-node-add--problem' : ''}`;
   return (
-    <button
-      type="button"
-      className={`event-node-add nodrag nopan ${problem ? 'event-node-add--problem' : ''}`}
-      title={problem}
-      onClick={() => graph.slot && ui.onAdd(graph.slot)}
-    >
-      <Handle type="target" position={Position.Top} isConnectable={false} />
-      <PlusIcon className="h-3.5 w-3.5" /> Add an effect
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
-    </button>
+    <div className="event-node-add-pair" title={problem}>
+      <Handle type="target" position={ports.entry} isConnectable={false} />
+      <button type="button" className={className} onClick={() => graph.slot && ui.onAdd(graph.slot, 'effect')}>
+        <PlusIcon className="h-3.5 w-3.5" /> Effect
+      </button>
+      <button type="button" className={className} onClick={() => graph.slot && ui.onAdd(graph.slot, 'condition')}>
+        <PlusIcon className="h-3.5 w-3.5" /> Condition
+      </button>
+      <button type="button" className={className} onClick={() => graph.slot && ui.onAdd(graph.slot, 'end')}>
+        <PlusIcon className="h-3.5 w-3.5" /> End
+      </button>
+      <Handle type="source" position={ports.exit} isConnectable={false} />
+    </div>
   );
 }
 
 function JoinNode() {
+  const ports = usePorts();
   return (
     <div className="event-node-join">
-      <Handle type="target" position={Position.Top} id="top" isConnectable={false} />
-      <Handle type="target" position={Position.Right} id="side" isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <Handle type="target" position={ports.entry} id="top" isConnectable={false} />
+      <Handle type="target" position={ports.side} id="side" isConnectable={false} />
+      <Handle type="source" position={ports.exit} isConnectable={false} />
     </div>
   );
 }
 
 function EndNode({ data }: NodeProps<FlowNode>) {
+  const ports = usePorts();
   const stops = data.graph.kind === 'stop';
   return (
     <div className={`event-node-end ${stops ? 'event-node-end--stop' : ''}`} title={stops ? 'The event stops here when the condition is false' : undefined}>
-      <Handle type="target" position={Position.Top} isConnectable={false} />
+      <Handle type="target" position={ports.entry} isConnectable={false} />
       {stops ? 'Stop' : 'End'}
     </div>
   );
@@ -129,14 +150,21 @@ function EndNode({ data }: NodeProps<FlowNode>) {
 
 const nodeTypes = { trigger: CardNode, condition: CardNode, effect: CardNode, add: AddNode, join: JoinNode, stop: EndNode, end: EndNode };
 
-function linkPath(link: GraphEdge, sx: number, sy: number, tx: number, ty: number): string {
-  if (link.shape === 'out') return `M ${sx} ${sy} H ${tx - CORNER} Q ${tx} ${sy} ${tx} ${sy + CORNER} V ${ty}`;
-  if (link.shape === 'in') return `M ${sx} ${sy} V ${ty - CORNER} Q ${sx} ${ty} ${sx - CORNER} ${ty} H ${tx}`;
+/**
+ * The path of a link between two points, with rounded corners. It is worked out along the flow and across it,
+ * so the same bends serve a flow that runs down and one that runs right.
+ */
+function linkPath(link: GraphEdge, direction: GraphDirection, sourceX: number, sourceY: number, targetX: number, targetY: number): string {
+  const down = direction === 'down';
+  const at = (main: number, cross: number) => (down ? `${cross} ${main}` : `${main} ${cross}`);
+  const [sm, sc, tm, tc] = down ? [sourceY, sourceX, targetY, targetX] : [sourceX, sourceY, targetX, targetY];
+  if (link.shape === 'out') return `M ${at(sm, sc)} L ${at(sm, tc - CORNER)} Q ${at(sm, tc)} ${at(sm + CORNER, tc)} L ${at(tm, tc)}`;
+  if (link.shape === 'in') return `M ${at(sm, sc)} L ${at(tm - CORNER, sc)} Q ${at(tm, sc)} ${at(tm, sc - CORNER)} L ${at(tm, tc)}`;
   if (link.shape === 'around') {
-    const via = link.viaX ?? sx + CORNER * 2;
-    return `M ${sx} ${sy} H ${via - CORNER} Q ${via} ${sy} ${via} ${sy + CORNER} V ${ty - CORNER} Q ${via} ${ty} ${via - CORNER} ${ty} H ${tx}`;
+    const via = link.via ?? sc + CORNER * 2;
+    return `M ${at(sm, sc)} L ${at(sm, via - CORNER)} Q ${at(sm, via)} ${at(sm + CORNER, via)} L ${at(tm - CORNER, via)} Q ${at(tm, via)} ${at(tm, via - CORNER)} L ${at(tm, tc)}`;
   }
-  return `M ${sx} ${sy} L ${tx} ${ty}`;
+  return `M ${at(sm, sc)} L ${at(tm, tc)}`;
 }
 
 function LinkEdge({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps<FlowEdge>) {
@@ -146,7 +174,7 @@ function LinkEdge({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps<Fl
   return (
     <BaseEdge
       id={id}
-      path={linkPath(link, sourceX, sourceY, targetX, targetY)}
+      path={linkPath(link, ui.direction, sourceX, sourceY, targetX, targetY)}
       interactionWidth={0}
       className={`event-link ${link.otherwise ? 'event-link--otherwise' : ''} ${ui.dropEdgeId === id ? 'event-link--drop' : ''}`}
     />
@@ -174,17 +202,17 @@ function LinkControls({ graph }: { graph: EventGraph }) {
         const source = nodes.get(link.source);
         // The links of an effect follow it while it is dragged, so their "+" would float away from them.
         const hidden = !!ui.dragFrom && !!slot && isSlotBeside(ui.dragFrom, slot);
-        const trunk = !!slot && isTrunkSlot(slot);
-        const hint = trunk ? 'Add an effect or a condition here' : 'Add an effect here';
+        // Each mark sits by the edge its link leaves from, just off the link and clear of its "+".
+        const ahead = ui.direction === 'down' ? label === 'Yes' : label === 'No';
         return (
           <Fragment key={link.id}>
             {label && source && (
               <span
                 className="event-link__label"
                 style={{
-                  transform: label === 'Yes'
+                  transform: ahead
                     ? `translate(${source.x + source.width / 2 + 8}px, ${source.y + source.height + 5}px)`
-                    : `translate(${source.x + source.width + 8}px, ${source.y + source.height / 2 - 19}px)`,
+                    : `translate(${source.x + source.width + 8}px, ${source.y + source.height / 2 - (ui.direction === 'down' ? 19 : 27)}px)`,
                 }}
               >
                 {label}
@@ -195,10 +223,10 @@ function LinkControls({ graph }: { graph: EventGraph }) {
                 type="button"
                 className={`event-link__add nodrag nopan ${ui.dragFrom ? 'event-link__add--target' : ''} ${ui.dropEdgeId === link.id ? 'event-link__add--drop' : ''}`}
                 style={{ transform: `translate(-50%, -50%) translate(${plus.x}px, ${plus.y}px)` }}
-                aria-label={hint}
-                title={hint}
-                aria-haspopup={trunk ? 'menu' : undefined}
-                aria-expanded={trunk ? ui.menuEdgeId === link.id : undefined}
+                aria-label={ADD_HINT}
+                title={ADD_HINT}
+                aria-haspopup="menu"
+                aria-expanded={ui.menuEdgeId === link.id}
                 onClick={(event) => ui.onPlus(link, event.currentTarget)}
               >
                 <PlusIcon className="h-3 w-3" />
@@ -218,19 +246,22 @@ export interface EventGraphCanvasProps {
   selectedId: string | null;
   /** Problems to show on nodes, by node id. */
   problems: Map<string, string[]>;
-  /** Node to bring into view; `tick` changes with each request, and `roomBelow` also shows what follows the node. */
-  reveal: { id: string; tick: number; roomBelow?: boolean } | null;
+  /** Node to bring into view; `tick` changes with each request, and `roomAfter` also shows what follows the node. */
+  reveal: { id: string; tick: number; roomAfter?: boolean } | null;
   /** Effects can be dragged onto a "+" to move them. */
   canDrag: boolean;
   onSelect: (nodeId: string | null) => void;
   onAddEffect: (slot: GraphSlot) => void;
   onAddCondition: (slot: GraphSlot) => void;
+  onAddEnd: (slot: GraphSlot) => void;
   onMoveEffect: (effectId: string, slot: GraphSlot) => void;
   onRemoveEffect: (effectId: string) => void;
 }
 
-function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag, onSelect, onAddEffect, onAddCondition, onMoveEffect, onRemoveEffect }: EventGraphCanvasProps) {
+function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag, onSelect, onAddEffect, onAddCondition, onAddEnd, onMoveEffect, onRemoveEffect }: EventGraphCanvasProps) {
   const flow = useReactFlow<FlowNode, FlowEdge>();
+  const updateNodeInternals = useUpdateNodeInternals();
+  const down = graph.direction === 'down';
   const wrapperRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLElement | null>(null);
@@ -277,13 +308,13 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
       });
     }
     if (node.kind === 'condition') {
-      const formula = draft.steps.find((step) => step.id === node.stepId)?.condition?.trim();
+      const formula = findStep(draft.steps, node.stepId)?.condition?.trim();
       return card({ pill: 'Only if', tone: 'if', icon: '🔀', text: formula || 'Write the condition', blank: !formula });
     }
     if (node.kind === 'effect') {
       const effect = node.effectId ? findEffect(draft.steps, node.effectId)?.effect : undefined;
       if (!effect) return passive;
-      const otherwise = node.section === 'otherwise';
+      const otherwise = node.side === 'no';
       return card({
         pill: otherwise ? 'Else' : 'Then',
         tone: otherwise ? 'else' : 'then',
@@ -351,19 +382,45 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
     // Sized from the wrapper, which already has its new size when the settings panel has just opened over the graph.
     const { clientWidth: width, clientHeight: height } = wrapper;
     const margin = 16;
-    // A node that was just added also shows what hangs under it, such as the "+" that continues the flow.
-    const below = margin + (reveal.roomBelow ? (GRAPH_SIZES.gap + GRAPH_SIZES.addHeight) * zoom : 0);
+    // A node that was just added also shows what hangs after it, such as the "+" that continues the flow.
+    const after = reveal.roomAfter ? (GRAPH_SIZES.gap + GRAPH_SIZES.addHeight) * zoom : 0;
+    const endX = margin + (down ? 0 : after);
+    const endY = margin + (down ? after : 0);
     const left = node.x * zoom + x;
     const top = node.y * zoom + y;
     const right = left + node.width * zoom;
     const bottom = top + node.height * zoom;
     // Moves the view by just what brings the node in, keeping its top left corner when it can't all fit.
-    const shiftX = left < margin || right - left > width - margin * 2 ? margin - left : right > width - margin ? width - margin - right : 0;
-    const shiftY = top < margin || bottom - top > height - margin - below ? margin - top : bottom > height - below ? height - below - bottom : 0;
+    const shiftX = left < margin || right - left > width - margin - endX ? margin - left : right > width - endX ? width - endX - right : 0;
+    const shiftY = top < margin || bottom - top > height - margin - endY ? margin - top : bottom > height - endY ? height - endY - bottom : 0;
     if (shiftX === 0 && shiftY === 0) return;
     flow.setViewport({ x: x + shiftX, y: y + shiftY, zoom }, { duration: prefersReducedMotion() ? 0 : 250, interpolate: 'linear' });
     // Only when asked: the graph changing under a node that was revealed earlier shouldn't move the view.
   }, [revealTick, ready]);
+
+  // The editor grows in as it opens, and React Flow measures where links attach while it is still scaled down,
+  // which leaves them a few pixels off: they are measured again once it has settled.
+  useEffect(() => {
+    const running: Animation[] = [];
+    for (let element: Element | null = wrapperRef.current; element; element = element.parentElement) running.push(...element.getAnimations());
+    if (running.length === 0) return;
+    let stopped = false;
+    void Promise.allSettled(running.map((animation) => animation.finished)).then(() => {
+      if (!stopped) updateNodeInternals(flow.getNodes().map((node) => node.id));
+    });
+    return () => {
+      stopped = true;
+    };
+  }, [flow, updateNodeInternals]);
+
+  // Turning the flow moves the points links attach to, which React Flow only measures again when told, and starts the view over.
+  const shownDirection = useRef(graph.direction);
+  useLayoutEffect(() => {
+    if (!ready || shownDirection.current === graph.direction) return;
+    shownDirection.current = graph.direction;
+    updateNodeInternals(graph.nodes.map((node) => node.id));
+    showStart();
+  });
 
   // Keeps the graph in the middle when the room for it changes width, as when a phone is turned.
   useEffect(() => {
@@ -399,9 +456,9 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
     if (!effectId) return;
     const from = drag?.id === node.id ? drag.from : findEffect(draft.steps, effectId);
     setDrag({ id: node.id, x: node.position.x, y: node.position.y, from });
-    // Measured from the top of the node, where its link comes in, so the "+" it would take stays in sight above it.
-    const anchorX = node.position.x + GRAPH_SIZES.nodeWidth / 2;
-    const anchorY = node.position.y;
+    // Measured from where the node's link comes in, so the "+" it would take stays in sight ahead of it.
+    const anchorX = node.position.x + (down ? GRAPH_SIZES.nodeWidth / 2 : 0);
+    const anchorY = node.position.y + (down ? 0 : GRAPH_SIZES.nodeHeight / 2);
     let nearest: GraphEdge | null = null;
     let distance = DROP_RADIUS;
     for (const link of graph.edges) {
@@ -427,11 +484,6 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
   const handlePlus = (link: GraphEdge, button: HTMLElement) => {
     const wrapper = wrapperRef.current;
     if (!link.slot || !wrapper) return;
-    if (!isTrunkSlot(link.slot)) {
-      setMenu(null);
-      onAddEffect(link.slot);
-      return;
-    }
     if (menu?.link.id === link.id) {
       setMenu(null);
       return;
@@ -449,12 +501,16 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
     });
   };
 
-  const chooseFromMenu = (kind: 'effect' | 'condition') => {
+  const addAt = (slot: GraphSlot, kind: AddKind) => {
+    if (kind === 'effect') onAddEffect(slot);
+    else if (kind === 'condition') onAddCondition(slot);
+    else onAddEnd(slot);
+  };
+
+  const chooseFromMenu = (kind: AddKind) => {
     const slot = menu?.link.slot;
     setMenu(null);
-    if (!slot) return;
-    if (kind === 'effect') onAddEffect(slot);
-    else onAddCondition(slot);
+    if (slot) addAt(slot, kind);
   };
 
   const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -483,7 +539,7 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
     onRemoveEffect(effectId);
   };
 
-  const ui: GraphUi = { dropEdgeId, dragFrom: drag?.from ?? null, menuEdgeId: menu?.link.id ?? null, onPlus: handlePlus, onAdd: onAddEffect };
+  const ui: GraphUi = { direction: graph.direction, dropEdgeId, dragFrom: drag?.from ?? null, menuEdgeId: menu?.link.id ?? null, onPlus: handlePlus, onAdd: addAt };
 
   return (
     <div ref={wrapperRef} data-touch-camera-own-pinch="true" className={`event-graph absolute inset-0 ${ready ? '' : 'opacity-0'}`}>
@@ -515,7 +571,7 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
           selectionKeyCode={null}
           deleteKeyCode={null}
           zoomOnDoubleClick={false}
-          minZoom={0.35}
+          minZoom={0.2}
           maxZoom={1.5}
           ariaLabelConfig={ariaLabels}
           aria-label="Event flow"
@@ -541,6 +597,10 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
           <button type="button" role="menuitem" onClick={() => chooseFromMenu('condition')}>
             <span aria-hidden="true">🔀</span>
             <span><strong>Condition</strong><small>Only carry on if something is true</small></span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => chooseFromMenu('end')}>
+            <span aria-hidden="true">🏁</span>
+            <span><strong>End</strong><small>Stop the event here</small></span>
           </button>
         </div>
       )}

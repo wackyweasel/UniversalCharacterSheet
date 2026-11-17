@@ -13,12 +13,15 @@ import {
   getDirectionText,
   resolveThreshold,
   ROLL_OUTPUTS,
+  SHOW_RESULT_PARAM,
   rollResultData,
   VALUE_CHANGE_OUTPUTS,
   valueChangeData,
 } from '../helpers';
 import { isLabelWritable, writeLabelValue } from '../labelWriter';
+import { END_EVENT_KIND } from '../constants';
 import type { EffectDef, EventOption, SpecContext, TargetSpec, TriggerDef } from '../types';
+import { dialogShowEffect } from './dialog';
 
 function labelOptions(ctx: SpecContext, filter?: (label: string, value: FormulaValue) => boolean): EventOption[] {
   const labels = collectLabels(ctx.character);
@@ -155,6 +158,7 @@ export const diceRollEffect: EffectDef = {
   params: [
     { key: 'dice', label: 'Dice', type: 'dice', default: '1d20', placeholder: '1d20 + @str', help: 'Any dice expression; labels are allowed.' },
     { key: 'title', label: 'Title', type: 'text', default: '', placeholder: 'Shown on the result' },
+    SHOW_RESULT_PARAM,
   ],
   apply: (ctx) => {
     const resolved = resolveDiceExpressionField(ctx.params.dice ?? '', ctx.labels);
@@ -178,11 +182,19 @@ export const logMessageEffect: EffectDef = {
   params: [{ key: 'message', label: 'Message', type: 'text', default: '', placeholder: 'You feel weakened. HP: {@hp}', help: 'Wrap formulas in {braces} to show their value.' }],
   apply: (ctx) => {
     const message = ctx.text('message').trim();
-    return { text: message || '(empty message)' };
+    return { text: message || '(empty message)', entry: true };
   },
   describe: (d) => `Write "${d.params.message?.trim() || '…'}"`,
 };
 
+/** Ends the whole event where it is reached; nothing after it runs, on any branch. */
+export const eventEndEffect: EffectDef = {
+  kind: END_EVENT_KIND,
+  label: 'End the event',
+  apply: () => ({ text: 'The event ends here', stop: true }),
+  describe: () => 'End the event',
+};
+
 /** Triggers and effects that don't belong to a widget. */
 export const GLOBAL_TRIGGERS = [labelChangedTrigger, labelCrossesTrigger, manualTrigger];
-export const GLOBAL_EFFECTS = [labelSetEffect, labelAddEffect, diceRollEffect, logMessageEffect];
+export const GLOBAL_EFFECTS = [labelSetEffect, labelAddEffect, diceRollEffect, logMessageEffect, dialogShowEffect, eventEndEffect];

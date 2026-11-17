@@ -925,15 +925,22 @@ export interface CharacterEventEffect {
   resultName?: string;
 }
 
-/** An optional condition, the effects that run when it holds, and the effects that run when it doesn't. */
+/**
+ * An optional condition, what runs when it holds and what runs when it doesn't.
+ * Each side is a list of effects followed by steps of its own, so conditions can sit inside one another.
+ */
 export interface CharacterEventStep {
   id: string;
   /** Formula that must be true (non-zero) for the effects to run. */
   condition?: string;
   effects: CharacterEventEffect[];
+  /** Steps that run after `effects`, on the same side of the condition. */
+  steps?: CharacterEventStep[];
   /** Run when the condition is false. */
   otherwise?: CharacterEventEffect[];
-  /** When the condition is false, end the event instead of going on to the next step. */
+  /** Steps that run after `otherwise`, on the same side of the condition. */
+  otherwiseSteps?: CharacterEventStep[];
+  /** When the condition is false, end the event once that side has run instead of going on with what follows. */
   stopIfFalse?: boolean;
 }
 

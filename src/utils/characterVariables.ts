@@ -1,6 +1,6 @@
 import type { Character, CharacterVariable, Widget, WidgetData } from '../types';
 import { isEventLabel } from '../events/constants';
-import { getEventEffects, mapEventEffects } from '../events/steps';
+import { getAllSteps, getEventEffects, mapEventEffects } from '../events/steps';
 import { getCalendarLabelFields } from './calendar';
 import { collectLabels } from './formulaEngine';
 import type { FormulaLabels, FormulaValue } from './formulaSyntax';
@@ -390,10 +390,9 @@ export function buildReferenceIndex(character: Character): LabelReferenceIndex {
     const effects = getEventEffects(event);
     const counts = scan({
       trigger: event.trigger.params,
-      steps: event.steps.map((step) => ({
-        formula: step.condition,
-        effects: [...step.effects, ...(step.otherwise ?? [])].map((effect) => effect.params),
-      })),
+      // Under a "formula" key, so conditions are read as formulas rather than as text with {…} pieces.
+      formula: getAllSteps(event.steps).map((step) => step.condition),
+      effects: effects.map((effect) => effect.params),
     });
     for (const part of [event.trigger, ...effects]) {
       if (part.kind.startsWith('label.') && part.target) counts.set(part.target, (counts.get(part.target) ?? 0) + 1);

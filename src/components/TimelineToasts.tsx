@@ -35,7 +35,7 @@ function Toast({ event, onDone }: { event: TimelineEvent; onDone: (id: string) =
       </span>
       <div className="min-w-0">
         <p className="font-bold text-sm font-heading break-words">{event.widgetLabel || event.widgetType}</p>
-        <p className="text-sm font-body leading-snug break-words">{event.description}</p>
+        <p className="text-sm font-body leading-snug break-words whitespace-pre-line">{event.description}</p>
       </div>
     </div>
   );

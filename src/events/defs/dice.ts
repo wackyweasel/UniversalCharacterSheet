@@ -4,7 +4,7 @@ import { formatDiceExpression, formatDiceRollDetail, formatDiceStep, rollDiceExp
 import { describePoolGroups, evaluatePoolRoll, formatPoolDice, getRollPlan } from '../../utils/dicePool';
 import type { DiceResultDie, DiceResultView } from '../../utils/diceResult';
 import { resolveDiceExpressionField } from '../../utils/inlineDice';
-import { compareValues, findItemIndex, flattenRollDice, formatNumber, isAnyTarget, itemKey, itemOptions, itemTitle, plural, resolveThreshold, ROLL_OUTPUTS, rollResultData } from '../helpers';
+import { compareValues, findItemIndex, flattenRollDice, formatNumber, isAnyTarget, itemKey, itemOptions, itemTitle, plural, resolveThreshold, ROLL_OUTPUTS, rollResultData, SHOW_RESULT_PARAM } from '../helpers';
 import { DEFAULT_STEP_DICE_CHAIN } from './numeric';
 import type { EffectDef, EffectOutcome, EventOption, EventParamSpec, TargetSpec, TriggerData, TriggerDef } from '../types';
 
@@ -168,6 +168,7 @@ export const rollerRollEffect: EffectDef = {
   kind: 'roller.roll',
   label: 'Roll the dice',
   outputs: ROLL_OUTPUTS,
+  params: [SHOW_RESULT_PARAM],
   apply: (ctx) => {
     const widget = ctx.widget;
     if (!widget || widget.type !== 'DICE_ROLLER') return null;
@@ -200,6 +201,7 @@ export const stepDiceRollEffect: EffectDef = {
   kind: 'stepdice.roll',
   label: 'Roll a trait',
   outputs: ROLL_OUTPUTS,
+  params: [SHOW_RESULT_PARAM],
   target: { ...STEP_TARGET, any: undefined },
   apply: (ctx) => {
     const widget = ctx.widget;
@@ -287,6 +289,7 @@ export const dicePoolRollEffect: EffectDef = {
     { key: 'outcome', label: 'Outcome: success, critical, partial, failure or botch', type: 'text' },
     { key: 'highest', label: 'Highest die', type: 'number' },
   ],
+  params: [SHOW_RESULT_PARAM],
   apply: (ctx) => {
     const widget = ctx.widget;
     if (!widget || widget.type !== 'DICE_POOL') return null;
@@ -365,7 +368,7 @@ export const rollTableRollEffect: EffectDef = {
     { key: 'result', label: 'Result rolled', type: 'text' },
     { key: 'results', label: 'All results, when it rolls several', type: 'text' },
   ],
-  params: [{ key: 'count', label: 'Results (blank = widget setting)', type: 'amount', default: '', placeholder: 'Widget setting' }],
+  params: [{ key: 'count', label: 'Results (blank = widget setting)', type: 'amount', default: '', placeholder: 'Widget setting' }, SHOW_RESULT_PARAM],
   apply: (ctx) => {
     const widget = ctx.widget;
     if (!widget || widget.type !== 'ROLL_TABLE') return null;
@@ -732,6 +735,7 @@ export const trayRollEffect: EffectDef = {
       options: [{ value: 'yes', label: 'Add it' }, { value: 'no', label: 'Leave it out' }],
       default: 'yes',
     },
+    SHOW_RESULT_PARAM,
   ],
   apply: (ctx) => {
     const widget = ctx.widget;

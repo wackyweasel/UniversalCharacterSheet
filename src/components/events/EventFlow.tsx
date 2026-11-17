@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import type { Character, CharacterEvent, CharacterEventEffect } from '../../types';
+import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventStep } from '../../types';
 import { findWidget } from '../../events/helpers';
 import { describeEffect, describeTrigger, getEffectProblem, getEventIcon, getTriggerProblem } from '../../events/registry';
 
@@ -49,7 +49,7 @@ interface EventFlowProps {
   onHoverWidget?: (widgetId: string | null) => void;
 }
 
-/** An event drawn as linked WHEN → ONLY IF → THEN → ELSE steps, repeated for each step. */
+/** An event drawn as linked WHEN → ONLY IF → THEN → ELSE steps, repeated for each step; steps nested in a side are drawn inside it. */
 export function EventFlow({ character, event, onRevealWidget, onHoverWidget }: EventFlowProps) {
   const lineProps = { character, onRevealWidget, onHoverWidget };
   const renderEffects = (effects: CharacterEventEffect[]) => effects.map((effect) => (
@@ -62,6 +62,43 @@ export function EventFlow({ character, event, onRevealWidget, onHoverWidget }: E
       problem={getEffectProblem(character, effect)}
     />
   ));
+
+  const renderSteps = (steps: CharacterEventStep[], nested = false) => steps.map((step, index) => {
+    const condition = step.condition?.trim();
+    const hasOtherwise = !!step.otherwise?.length || !!step.otherwiseSteps?.length;
+    return (
+      <Fragment key={step.id}>
+        {condition && (
+          <div className="event-flow__step">
+            <span className="event-flow__pill event-flow__pill--if" title="Only if">If</span>
+            <div className="flex min-h-6 min-w-0 items-center">
+              <code className="event-flow__condition text-theme-ink">{condition}</code>
+            </div>
+          </div>
+        )}
+        <div className="event-flow__step">
+          <span className="event-flow__pill event-flow__pill--then">Then</span>
+          <div className="min-w-0 space-y-0.5">
+            {step.effects.length === 0 && !step.steps?.length ? (
+              <p className="text-sm italic leading-6 text-theme-muted font-body">
+                {!nested && index === 0 && steps.length === 1 ? 'Nothing happens yet' : 'Nothing happens'}
+              </p>
+            ) : renderEffects(step.effects)}
+            {!!step.steps?.length && <div className="event-flow event-flow--nested">{renderSteps(step.steps, true)}</div>}
+          </div>
+        </div>
+        {hasOtherwise && (
+          <div className="event-flow__step">
+            <span className="event-flow__pill event-flow__pill--else" title="Otherwise">Else</span>
+            <div className="min-w-0 space-y-0.5">
+              {renderEffects(step.otherwise ?? [])}
+              {!!step.otherwiseSteps?.length && <div className="event-flow event-flow--nested">{renderSteps(step.otherwiseSteps, true)}</div>}
+            </div>
+          </div>
+        )}
+      </Fragment>
+    );
+  });
 
   return (
     <div className="event-flow">
@@ -77,37 +114,7 @@ export function EventFlow({ character, event, onRevealWidget, onHoverWidget }: E
           />
         </div>
       </div>
-      {event.steps.map((step, index) => {
-        const condition = step.condition?.trim();
-        return (
-          <Fragment key={step.id}>
-            {condition && (
-              <div className="event-flow__step">
-                <span className="event-flow__pill event-flow__pill--if" title="Only if">If</span>
-                <div className="flex min-h-6 min-w-0 items-center">
-                  <code className="event-flow__condition text-theme-ink">{condition}</code>
-                </div>
-              </div>
-            )}
-            <div className="event-flow__step">
-              <span className="event-flow__pill event-flow__pill--then">Then</span>
-              <div className="min-w-0 space-y-0.5">
-                {step.effects.length === 0 ? (
-                  <p className="text-sm italic leading-6 text-theme-muted font-body">
-                    {index === 0 && event.steps.length === 1 ? 'Nothing happens yet' : 'Nothing happens'}
-                  </p>
-                ) : renderEffects(step.effects)}
-              </div>
-            </div>
-            {!!step.otherwise?.length && (
-              <div className="event-flow__step">
-                <span className="event-flow__pill event-flow__pill--else" title="Otherwise">Else</span>
-                <div className="min-w-0 space-y-0.5">{renderEffects(step.otherwise)}</div>
-              </div>
-            )}
-          </Fragment>
-        );
-      })}
+      {renderSteps(event.steps)}
     </div>
   );
 }

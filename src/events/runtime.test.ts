@@ -4,7 +4,8 @@ import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { useTimelineStore } from '../store/useTimelineStore';
 import { useDiceResultStore } from '../store/useDiceResultStore';
-import { EVENT_TIMELINE_TYPE, emitWidgetAction, initEventRuntime, runEventNow } from './runtime';
+import { useEventPromptStore } from '../store/useEventPromptStore';
+import { describeFiring, EVENT_MESSAGE_TYPE, EVENT_TIMELINE_TYPE, emitWidgetAction, initEventRuntime, runEventNow } from './runtime';
 import { getEventProblems } from './registry';
 import { findInlineButtonNames } from './defs/textButton';
 import { ADVANCED_TUTORIAL_PRESET, AUTOMATION_TUTORIAL_PRESET, COMPENDIUM_TUTORIAL_PRESET, EVENTS_TUTORIAL_PRESET } from '../presets';
@@ -74,6 +75,8 @@ const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const widgetData = (id: string) => useStore.getState().characters[0].sheets[0].widgets.find((widget) => widget.id === id)!.data;
 const eventEntries = () => (useTimelineStore.getState().eventsByCharacter[hero.id]?.events ?? [])
   .filter((entry) => entry.widgetType === EVENT_TIMELINE_TYPE);
+const messageEntries = () => (useTimelineStore.getState().eventsByCharacter[hero.id]?.events ?? [])
+  .filter((entry) => entry.widgetType === EVENT_MESSAGE_TYPE);
 
 describe('event runtime', () => {
   let stop: () => void;
@@ -89,6 +92,22 @@ describe('event runtime', () => {
     useTimelineStore.getState().replaceWorkspaceEvents({});
     useDiceResultStore.getState().close();
     useStore.getState()._replaceWorkspaceState({ characters: [hero], activeCharacterId: hero.id, mode: 'play' });
+  });
+
+  it('describes only what happened, one line per effect', () => {
+    const firing = {
+      eventId: 'e', title: 'Hit', trigger: 'HP 8 → 5', depth: 0,
+      effects: [
+        { effectId: '1', icon: '❤️', text: 'HP: -3' },
+        { effectId: '2', icon: '🏷️', text: 'Flag: unchanged', skipped: true },
+        { effectId: '3', icon: '❌', text: 'Stats: its widget was deleted', skipped: true, failed: true },
+        { effectId: '4', icon: '🏁', text: 'The event ends here', quiet: true },
+      ],
+      failedSteps: [1],
+    };
+    expect(describeFiring(firing)).toBe('HP 8 → 5\n❤️ HP: -3\n⚠️ Stats: its widget was deleted');
+    expect(describeFiring({ ...firing, manual: true, effects: [firing.effects[0]] })).toBe('❤️ HP: -3');
+    expect(describeFiring({ ...firing, effects: [firing.effects[1], firing.effects[3]] })).toBe('');
   });
 
   it('applies effects after a change, logs them and undoes them with the change', async () => {
@@ -158,13 +177,74 @@ describe('event runtime', () => {
   it('fires action triggers from widget actions', async () => {
     emitWidgetAction({ widgetId: 'w-roller', kind: 'roll', total: 20, dice: [20], text: '1d20' });
     await settle();
-    expect(eventEntries().map((entry) => [entry.widgetLabel, entry.description])).toEqual([
-      ['Critical hit', expect.stringContaining('Natural 20!')],
+    expect(messageEntries().map((entry) => [entry.widgetLabel, entry.description, entry.characterEventId])).toEqual([
+      ['Critical hit', 'Natural 20!', 'e-crit'],
     ]);
-    expect(eventEntries()[0].characterEventId).toBe('e-crit');
     emitWidgetAction({ widgetId: 'w-roller', kind: 'roll', total: 7, dice: [7], text: '1d20' });
     await settle();
-    expect(eventEntries()).toHaveLength(1);
+    expect(messageEntries()).toHaveLength(1);
+  });
+
+  it('writes a message as its own entry beside what else the event did', async () => {
+    const lit: CharacterEvent = {
+      id: 'e-lit',
+      name: 'Torch',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      steps: [{ id: 's1', effects: [
+        { id: 'a', kind: 'switch.set', widgetId: 'w-bloodied', params: { state: 'on' } },
+        { id: 'b', kind: 'log.message', params: { message: 'It is dark' } },
+      ] }],
+    };
+    useStore.getState()._replaceWorkspaceState({ characters: [{ ...hero, events: [lit] }], activeCharacterId: hero.id, mode: 'play' });
+    runEventNow('e-lit');
+    expect(eventEntries().map((entry) => entry.description)).toEqual([expect.stringContaining('Bloodied turns on')]);
+    expect(eventEntries()[0].description).not.toContain('It is dark');
+    expect(messageEntries().map((entry) => [entry.widgetLabel, entry.description])).toEqual([['Torch', 'It is dark']]);
+    expect(messageEntries()[0].undoId).toBe(eventEntries()[0].undoId);
+  });
+
+  it('asks the player mid-event and continues with the answer, repeating earlier random rolls', async () => {
+    useDiceSettingsStore.setState({ threeDDiceEnabled: false });
+    const asking: CharacterEvent = {
+      id: 'e-ask',
+      name: 'Ambush',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      steps: [{ id: 's1', effects: [
+        { id: 'a', kind: 'dice.roll', resultName: 'r', params: { dice: '1d1000', title: 'Roll' } },
+        { id: 'b', kind: 'dialog.show', resultName: 'fight', params: { type: 'yesno', title: 'Fight the {@event_r_total}?' } },
+        { id: 'c', kind: 'log.message', params: { message: 'Answered {@event_fight_text}' } },
+      ] }],
+    };
+    useStore.getState()._replaceWorkspaceState({ characters: [{ ...hero, events: [asking] }], activeCharacterId: hero.id, mode: 'play' });
+
+    const running = runEventNow('e-ask') as Promise<unknown>;
+    expect(running).toBeInstanceOf(Promise);
+    await settle();
+    const open = useEventPromptStore.getState().current!;
+    expect(open.prompt.eventTitle).toBe('Ambush');
+    useEventPromptStore.getState().answer({ cancelled: false, value: 0, text: 'No' });
+    await running;
+
+    const asked = open.prompt.title;
+    expect(messageEntries().map((entry) => entry.description)).toEqual(['Answered No']);
+    expect(eventEntries()[0].description).toContain(`${asked} → No`);
+    expect(useEventPromptStore.getState().current).toBeNull();
+  });
+
+  it('does not open the result dialog for a roll set to hide it', () => {
+    const quiet: CharacterEvent = {
+      id: 'e-quiet',
+      name: 'Quiet roll',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      steps: [{ id: 's1', effects: [{ id: 'a', kind: 'dice.roll', resultName: 'r', params: { dice: '1d6', showResult: 'hide' } }, { id: 'b', kind: 'log.message', params: { message: 'Rolled {@event_r_total}' } }] }],
+    };
+    useStore.getState()._replaceWorkspaceState({ characters: [{ ...hero, events: [quiet] }], activeCharacterId: hero.id, mode: 'play' });
+    runEventNow('e-quiet');
+    expect(useDiceResultStore.getState().entry).toBeNull();
+    expect(messageEntries()).toHaveLength(1);
   });
 
   it('runs an event by hand, even when it is turned off, and shows its roll', () => {
@@ -333,7 +413,9 @@ describe('event runtime', () => {
     await settle();
     expect(frightened()).toBe(true);
     expect(timeline().map((entry) => entry.widgetLabel)).toContain('Bloodied');
-    expect(timeline().map((entry) => entry.description).join('\n')).toContain('Only 4 HP left');
+    const messages = (useTimelineStore.getState().eventsByCharacter[character.id]?.events ?? [])
+      .filter((entry) => entry.widgetType === EVENT_MESSAGE_TYPE);
+    expect(messages.map((entry) => entry.description).join('\n')).toContain('Only 4 HP left');
 
     runEventNow(events[2].id);
     await settle();

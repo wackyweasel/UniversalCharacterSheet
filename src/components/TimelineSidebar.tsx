@@ -81,7 +81,7 @@ function EventItem({ event, onDelete, onShowSource }: EventItemProps) {
             {formatClockTime(event.timestamp)}
           </time>
         </div>
-        <p className="mt-0.5 text-sm text-theme-ink font-body leading-snug break-words">
+        <p className="mt-0.5 text-sm text-theme-ink font-body leading-snug break-words whitespace-pre-line">
           {event.description}
         </p>
       </div>

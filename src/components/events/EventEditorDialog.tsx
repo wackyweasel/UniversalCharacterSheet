@@ -5,10 +5,11 @@ import { useEventsPanelStore, type EventEditorRequest } from '../../store/useEve
 import { useAutomationsPanelStore } from '../../store/useAutomationsPanelStore';
 import { getTutorialStepIndex, TUTORIAL_NARROW_BREAKPOINT, TUTORIAL_STEPS, useTutorialStore } from '../../store/useTutorialStore';
 import type { Character, CharacterEventStep } from '../../types';
-import { createBlankEffect, createEffect, createTrigger } from '../../events/drafts';
+import { createBlankEffect, createEffect, createEndEffect, createTrigger } from '../../events/drafts';
 import { getDraftProblems, getNodeProblems, initDraft, toEventPayload, type EventDraft } from '../../events/editorDraft';
 import {
   conditionNodeId,
+  cutAfterEnd,
   effectNodeId,
   hasCondition,
   insertCondition,
@@ -17,18 +18,41 @@ import {
   moveEffect,
   removeEffect,
   TRIGGER_NODE_ID,
+  type GraphDirection,
   type GraphSlot,
 } from '../../events/graph';
 import { getEffectDef, getTriggerDef } from '../../events/registry';
-import { createStep } from '../../events/steps';
+import { createStep, getAllSteps, getEventEffects } from '../../events/steps';
 import { collectLabels } from '../../utils/formulaEngine';
-import { BoltIcon, XIcon } from '../icons';
+import { ArrowDownIcon, ArrowRightIcon, BoltIcon, XIcon } from '../icons';
 import { EventGraphCanvas } from './EventGraphCanvas';
 import { EventNodeInspector } from './EventNodeInspector';
 import { fieldClass } from './EventPartFields';
 
 /** Body width under which the settings panel sits below the graph instead of beside it. */
 const STACKED_BELOW = 680;
+const DIRECTION_STORAGE_KEY = 'ucs:eventGraphDirection';
+
+/** The way the graph was last shown, kept for every event and character. */
+function readDirection(): GraphDirection {
+  try {
+    return localStorage.getItem(DIRECTION_STORAGE_KEY) === 'right' ? 'right' : 'down';
+  } catch {
+    return 'down';
+  }
+}
+
+function storeDirection(direction: GraphDirection) {
+  try {
+    localStorage.setItem(DIRECTION_STORAGE_KEY, direction);
+  } catch {
+    // Without storage, the choice lasts until the editor closes.
+  }
+}
+const DIRECTIONS: { value: GraphDirection; label: string; Icon: typeof ArrowDownIcon }[] = [
+  { value: 'down', label: 'Top to bottom', Icon: ArrowDownIcon },
+  { value: 'right', label: 'Left to right', Icon: ArrowRightIcon },
+];
 const NO_INSET = { top: 0, bottom: 0 };
 const tutorialTargetClass = 'outline outline-4 outline-blue-500 outline-offset-2';
 
@@ -102,7 +126,7 @@ function getLessonNode(stepId: string, draft: EventDraft): string | null | undef
 function getStartNode(draft: EventDraft | null): string | null {
   if (!draft) return null;
   if (!draft.trigger.kind) return TRIGGER_NODE_ID;
-  const blank = draft.steps.flatMap((step) => [...step.effects, ...(step.otherwise ?? [])]).find((effect) => !effect.kind);
+  const blank = getEventEffects(draft).find((effect) => !effect.kind);
   return blank ? effectNodeId(blank.id) : null;
 }
 
@@ -147,7 +171,8 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
   const [draft, setDraft] = useState<EventDraft | null>(() => initDraft(character, request));
   const [attempted, setAttempted] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(() => (isEditing ? null : getStartNode(draft)));
-  const [reveal, setReveal] = useState<{ id: string; tick: number; roomBelow?: boolean } | null>(null);
+  const [reveal, setReveal] = useState<{ id: string; tick: number; roomAfter?: boolean } | null>(null);
+  const [direction, setDirection] = useState(readDirection);
   const [stacked, setStacked] = useState(false);
   // A finger pans the graph from anywhere, so effects are moved with the panel's buttons instead of by dragging.
   const [canDrag] = useState(() => !window.matchMedia('(pointer: coarse)').matches);
@@ -164,7 +189,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
   );
   const tutorialInset = useDockedTutorialInset(inTutorialLesson);
 
-  const showNode = (nodeId: string, roomBelow = false) => setReveal((current) => ({ id: nodeId, tick: (current?.tick ?? 0) + 1, roomBelow }));
+  const showNode = (nodeId: string, roomAfter = false) => setReveal((current) => ({ id: nodeId, tick: (current?.tick ?? 0) + 1, roomAfter }));
   const select = (nodeId: string | null, isNew = false) => {
     setSelectedId(nodeId);
     if (nodeId) showNode(nodeId, isNew);
@@ -218,14 +243,14 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
   const baseLabels = useMemo(() => collectLabels(character), [character]);
   const problems = useMemo(() => (draft ? getDraftProblems(character, draft, baseLabels) : null), [baseLabels, character, draft]);
   const steps = draft?.steps;
-  const graph = useMemo(() => layoutEventGraph(steps ?? []), [steps]);
+  const graph = useMemo(() => layoutEventGraph(steps ?? [], direction), [steps, direction]);
   const showProblems = attempted || isEditing;
   const nodeProblems = useMemo(() => {
     if (!draft || !problems) return new Map<string, string[]>();
     const all = getNodeProblems(draft, problems);
     if (showProblems) return all;
     // Before a first try at saving, only a condition that was written and doesn't work is pointed out.
-    const written = new Set(draft.steps.filter((step) => step.condition?.trim()).map((step) => conditionNodeId(step.id)));
+    const written = new Set(getAllSteps(draft.steps).filter((step) => step.condition?.trim()).map((step) => conditionNodeId(step.id)));
     return new Map([...all].filter(([nodeId]) => written.has(nodeId)));
   }, [draft, problems, showProblems]);
 
@@ -233,13 +258,18 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
 
   const selectedNode = graph.nodes.find((node) => node.id === selectedId && node.kind !== 'add') ?? null;
   const update = (patch: Partial<EventDraft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
-  // Through the latest draft, so a field that was registered earlier never writes stale steps.
+  // Through the latest draft, so a field that was registered earlier never writes stale steps. What follows an End effect can never run, so it goes.
   const changeSteps = (change: (steps: CharacterEventStep[]) => CharacterEventStep[]) => setDraft((current) => (
-    current ? { ...current, steps: change(current.steps) } : current
+    current ? { ...current, steps: cutAfterEnd(change(current.steps)) } : current
   ));
 
   const addEffect = (slot: GraphSlot) => {
     const effect = createBlankEffect();
+    changeSteps((current) => insertEffect(current, slot, effect));
+    select(effectNodeId(effect.id), true);
+  };
+  const addEnd = (slot: GraphSlot) => {
+    const effect = createEndEffect();
     changeSteps((current) => insertEffect(current, slot, effect));
     select(effectNodeId(effect.id), true);
   };
@@ -303,7 +333,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
         data-tutorial="event-editor"
         className={`widget-edit-modal__aux-dialog flex h-[min(92vh,56rem)] max-h-full w-full ${inTutorialLesson ? 'sm:max-w-[min(52rem,calc(100vw-24rem))]' : 'max-w-6xl'} flex-col overflow-hidden animate-modal-in`}
       >
-        <header className="widget-edit-modal__header flex flex-none items-center justify-between gap-3 border-b border-theme-border">
+        <header className="widget-edit-modal__header event-editor__header flex flex-none items-center justify-between gap-3 border-b border-theme-border">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <BoltIcon className="h-5 w-5 flex-none text-theme-accent" aria-hidden="true" />
             <div className="min-w-0 flex-1">
@@ -321,6 +351,24 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
                 className={`${fieldClass} mt-0.5 max-w-md`}
               />
             </div>
+          </div>
+          <div className="event-editor__direction flex-none" role="group" aria-label="Direction of the flow">
+            {DIRECTIONS.map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={direction === value}
+                aria-label={label}
+                title={`Show the flow from ${label.toLowerCase()}`}
+                onClick={() => {
+                  setDirection(value);
+                  storeDirection(value);
+                }}
+              >
+                <Icon className="h-3.5 w-3.5 flex-none" />
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
           <button type="button" onClick={closeEditor} aria-label="Close event editor" className="widget-control h-8 w-8 flex-none">
             <XIcon className="h-4 w-4" />
@@ -340,6 +388,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
               onSelect={(nodeId) => select(nodeId)}
               onAddEffect={addEffect}
               onAddCondition={addCondition}
+              onAddEnd={addEnd}
               onMoveEffect={moveEffectTo}
               onRemoveEffect={(effectId) => changeSteps((current) => removeEffect(current, effectId))}
             />

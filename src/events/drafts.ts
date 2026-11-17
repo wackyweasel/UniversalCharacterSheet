@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Character, CharacterEvent, CharacterEventEffect, CharacterEventTrigger, Widget } from '../types';
+import { END_EVENT_KIND } from './constants';
 import { TEXT_BUTTON_KIND } from './defs/textButton';
 import { fillParams, getWidgetEventDefs, GLOBAL_EFFECT_DEFS, GLOBAL_TRIGGER_DEFS } from './registry';
 import { createStep, getEventEffects } from './steps';
@@ -49,6 +50,11 @@ export function createEffect(character: Character, def: EffectDef, widget?: Widg
 /** An effect whose action hasn't been chosen yet. */
 export function createBlankEffect(): CharacterEventEffect {
   return { id: uuidv4(), kind: '' };
+}
+
+/** An effect that ends the event where it is reached. */
+export function createEndEffect(): CharacterEventEffect {
+  return { id: uuidv4(), kind: END_EVENT_KIND };
 }
 
 /** A new event; from a widget it starts with the widget's first trigger, or its first effect when it has no triggers to offer. */

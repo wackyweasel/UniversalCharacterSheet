@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Character, CharacterEventEffect, CharacterEventStep, CharacterEventTrigger } from '../../types';
 import { eventLabel, resultLabel } from '../../events/constants';
 import { getAvailableData, type DraftProblems, type EventDataGroup, type EventDraft } from '../../events/editorDraft';
-import { findEffect, hasCondition, removeCondition, removeEffect, shiftEffect, type GraphNode } from '../../events/graph';
+import { findEffect, findStep, hasCondition, hasStepsAfter, removeCondition, removeEffect, shiftEffect, updateStep, type GraphNode } from '../../events/graph';
 import { findWidget } from '../../events/helpers';
 import { describeEffect, describeTrigger, getEffectOutputs, getEventIcon, getTriggerOutputs } from '../../events/registry';
 import { getEventEffects, mapEventEffects } from '../../events/steps';
@@ -43,8 +43,9 @@ function withResultName(previous: CharacterEventEffect, next: CharacterEventEffe
   if (next.resultName !== undefined || previous.kind === next.kind) return next;
   if (previous.resultName?.trim()) return { ...next, resultName: previous.resultName };
   const taken = new Set(all.filter((effect) => effect.id !== next.id).map((effect) => effect.resultName?.trim()));
-  let name = 'roll';
-  for (let index = 2; taken.has(name); index += 1) name = `roll_${index}`;
+  const fallbackName = next.kind === 'dialog.show' ? 'answer' : 'roll';
+  let name = fallbackName;
+  for (let index = 2; taken.has(name); index += 1) name = `${fallbackName}_${index}`;
   return { ...next, resultName: name };
 }
 
@@ -143,11 +144,11 @@ export function EventNodeInspector({ node, canDrag, ...props }: EventNodeInspect
     return (
       <div className="p-4">
         <h3 className="text-sm font-bold text-theme-ink">How this event runs</h3>
-        <p className="mt-1 text-xs leading-relaxed text-theme-muted">It starts at the trigger and follows the links down.</p>
+        <p className="mt-1 text-xs leading-relaxed text-theme-muted">It starts at the trigger and follows the links.</p>
         <ul className="mt-3 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-theme-ink">
           <li>Select a node to edit it here.</li>
-          <li>Use + on a link to add an effect there. On the main line it can add a condition too.</li>
-          <li>A condition sends the event down Yes when it is true and down No when it is false.</li>
+          <li>Use + on a link to add an effect or a condition there.</li>
+          <li>A condition sends the event down Yes when it is true and down No when it is false. Each side can hold its own effects and conditions, and both meet again below.</li>
           {canDrag && <li>Drag an effect onto a + to move it.</li>}
         </ul>
       </div>
@@ -225,12 +226,12 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
     );
   }
 
-  const stepIndex = draft.steps.findIndex((step) => step.id === node.stepId);
-  const step = draft.steps[stepIndex];
+  const step = node.kind === 'condition' ? findStep(draft.steps, node.stepId) : undefined;
 
-  if (node.kind === 'condition' && step && hasCondition(step)) {
-    const first = stepIndex === 0;
-    const changeStep = (change: (current: CharacterEventStep) => CharacterEventStep) => onChangeSteps((steps) => steps.map((item) => (item.id === step.id ? change(item) : item)));
+  if (step && hasCondition(step)) {
+    const first = draft.steps[0] === step;
+    const hasNoSide = !!step.otherwise?.length || !!step.otherwiseSteps?.length;
+    const changeStep = (change: (current: CharacterEventStep) => CharacterEventStep) => onChangeSteps((steps) => updateStep(steps, step.id, change));
     const makeTarget = (element: HTMLInputElement): DataTarget => ({
       element,
       mode: 'formula',
@@ -266,13 +267,13 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
         <DataChips
           owner="available"
           title="Data you can use here"
-          groups={getAvailableData(draft, stepIndex, 'condition')}
+          groups={getAvailableData(draft, { stepId: step.id })}
           hint="Click one to add it to the condition."
           chips={chips}
         />
-        {stepIndex < draft.steps.length - 1 && (
+        {hasStepsAfter(draft.steps, step.id) && (
           <div className="mt-3">
-            <Field label="When it's false" help="Applies after any effects on the No link have run.">
+            <Field label="When it's false" help="Applies once everything on the No side has run.">
               <select
                 value={step.stopIfFalse ? 'stop' : 'continue'}
                 onChange={(event) => changeStep((current) => ({ ...current, stopIfFalse: event.target.value === 'stop' }))}
@@ -289,9 +290,9 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
           <button type="button" onClick={() => onChangeSteps((steps) => removeCondition(steps, step.id))} className="widget-control gap-1.5 px-3 py-1.5 text-xs font-bold">
             <TrashIcon className="h-3.5 w-3.5" /> Remove condition
           </button>
-          {(step.effects.length > 0 || !!step.otherwise?.length) && (
+          {(step.effects.length > 0 || !!step.steps?.length || hasNoSide) && (
             <p className="mt-1.5 text-[11px] leading-snug text-theme-muted">
-              {step.otherwise?.length ? 'Its Yes effects stay and always run. Its No effects are removed with it.' : 'Its effects stay and always run.'}
+              {hasNoSide ? 'What is on its Yes side stays and always runs. Its No side is removed with it.' : 'What is on its Yes side stays and always runs.'}
             </p>
           )}
         </div>
@@ -310,8 +311,9 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
       const all = getEventEffects({ steps });
       return mapEventEffects({ steps }, (item) => (item.id === effect.id ? withResultName(item, { ...next, id: item.id }, all) : item)).steps;
     });
-    const otherwise = section === 'otherwise';
-    const title = otherwise ? 'Otherwise, do this' : hasCondition(location.step) ? 'Then, do this' : 'Do this';
+    // The side of the nearest condition above, which a run of effects further down the same line shares.
+    const otherwise = node.side === 'no';
+    const title = otherwise ? 'Otherwise, do this' : node.side === 'yes' ? 'Then, do this' : 'Do this';
     content = (
       <section aria-label="Effect" data-tutorial="event-editor-effects">
         <Header pill={otherwise ? 'else' : 'then'} pillLabel={otherwise ? 'Else' : 'Then'} title={title} onClose={onClose}>
@@ -367,7 +369,7 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
         <DataChips
           owner="available"
           title="Data you can use here"
-          groups={getAvailableData(draft, location.stepIndex, section, index)}
+          groups={getAvailableData(draft, { effectId: effect.id })}
           hint="Click one to add it where you were typing."
           chips={chips}
         />

@@ -1,5 +1,6 @@
 import type { Character, CharacterEventEffect, CharacterEventTrigger } from '../types';
 import { getEffectDef, getEventLabelsAt, getTriggerDef, getTriggerLabels } from '../events/registry';
+import { getEventParts } from '../events/steps';
 import type { EventParamSpec } from '../events/types';
 import { getWidgetTitle } from './characterVariables';
 import { collectLabels, detectCircularReference, evaluateFormulaValue, hasUnresolvedRefs } from './formulaEngine';
@@ -170,17 +171,17 @@ export function collectCharacterFormulas(character: Character): CharacterFormula
       }
     };
     params(event.trigger, getTriggerDef(event.trigger.kind)?.params, [...eventPath, 'trigger'], 'Trigger', getTriggerLabels(event.trigger.kind));
-    event.steps.forEach((step, stepIndex) => {
-      const path = [...eventPath, 'steps', stepIndex];
-      const prefix = `Step ${stepIndex + 1}`;
-      if (step.condition) add({ ...owner, runtimeLabels: getEventLabelsAt(event, stepIndex, 'condition') },
-        [...path, 'condition'], [step.id, 'condition'], `${prefix} · Condition`, step.condition, { editable: false });
-      for (const section of ['effects', 'otherwise'] as const) {
-        step[section]?.forEach((effect, effectIndex) => params(effect, getEffectDef(effect.kind)?.params,
-          [...path, section, effectIndex], `${prefix} · ${section === 'otherwise' ? 'Otherwise' : 'Action'} ${effectIndex + 1}`,
-          getEventLabelsAt(event, stepIndex, section, effectIndex)));
+    for (const part of getEventParts(event)) {
+      const path = [...eventPath, ...part.stepPath];
+      const prefix = `Step ${part.stepNumber}`;
+      const runtimeLabels = getEventLabelsAt(event, part);
+      if (part.effect) {
+        params(part.effect, getEffectDef(part.effect.kind)?.params, [...path, part.section, part.index],
+          `${prefix} · ${part.section === 'otherwise' ? 'Otherwise' : 'Action'} ${part.index + 1}`, runtimeLabels);
+      } else if (part.step.condition) {
+        add({ ...owner, runtimeLabels }, [...path, 'condition'], [part.step.id, 'condition'], `${prefix} · Condition`, part.step.condition, { editable: false });
       }
-    });
+    }
   });
   return entries;
 }

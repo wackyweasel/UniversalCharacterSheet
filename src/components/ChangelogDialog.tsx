@@ -40,6 +40,10 @@ const CHANGELOG_ENTRIES = [
     version: '1.18.1',
     changes: [
       'New event editor: events are now built as a graph of linked nodes, with a + on each link to add effects and conditions.',
+      'Events can now branch, with nested conditions, an "End the event" effect, and a graph that can run left to right or top to bottom.',
+      'New event effect: show a message or question, with a title, an icon and a description, plus yes/no, choices, dropdown, slider and other inputs. The event continues with the answer.',
+      '"Write in the timeline" now adds its own timeline entry, and dice rolls in an event can hide their result dialog.',
+      'Event timeline entries now list only what happened, one effect per line.',
     ],
   },
   {

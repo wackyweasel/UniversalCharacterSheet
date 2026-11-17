@@ -6,11 +6,13 @@ import { enqueueDiceResult, getRecentPointerPoint } from '../store/useDiceResult
 import { expressionRollToView } from '../utils/diceResult';
 import { rollEventDice } from '../utils/diceRoll';
 import { MAX_CHAIN_DEPTH, runEvents, type EventFiring, type EventRolls, type EventRunResult } from './engine';
+import { askPlayer, useEventPromptStore } from '../store/useEventPromptStore';
+import { PromptNeeded, type EventAnswer } from './prompt';
 import { areEventsSuppressed } from './suppress';
 import type { WidgetAction } from './types';
-import { EVENT_TIMELINE_ICON, EVENT_TIMELINE_TYPE } from './constants';
+import { EVENT_MESSAGE_ICON, EVENT_MESSAGE_TYPE, EVENT_TIMELINE_ICON, EVENT_TIMELINE_TYPE } from './constants';
 
-export { EVENT_TIMELINE_ICON, EVENT_TIMELINE_TYPE };
+export { EVENT_MESSAGE_TYPE, EVENT_TIMELINE_ICON, EVENT_TIMELINE_TYPE };
 
 type StoreSnapshot = ReturnType<typeof useStore.getState>;
 
@@ -19,6 +21,8 @@ interface PendingBatch {
   before: Character;
   undoId?: string;
   actions: WidgetAction[];
+  /** Answers the player already gave to this batch's questions, kept if the batch has to run again. */
+  answers?: EventAnswer[];
 }
 
 let unsubscribe: (() => void) | null = null;
@@ -62,6 +66,7 @@ function observe(state: StoreSnapshot, prevState: StoreSnapshot) {
     return;
   }
   if (state.activeCharacterId !== lastCharacterId || isBlocked(state) || prevState.editingWidgetId !== null) {
+    if (state.activeCharacterId !== lastCharacterId) useEventPromptStore.getState().cancelAll();
     lastCharacterId = state.activeCharacterId;
     lastCharacter = character;
     pending = null;
@@ -89,6 +94,13 @@ function observe(state: StoreSnapshot, prevState: StoreSnapshot) {
   scheduleFlush();
 }
 
+/** Handles a run that stopped on a question: asks the player, keeps the answer and has the run replayed. */
+const collectAnswers = (answers: EventAnswer[]) => async (error: unknown): Promise<boolean> => {
+  if (!(error instanceof PromptNeeded)) return false;
+  answers.push(await askPlayer(error.prompt));
+  return true;
+};
+
 async function flush() {
   flushScheduled = false;
   // A flush that is waiting on 3D dice picks up any changes made meanwhile when it ends.
@@ -104,8 +116,12 @@ async function flush() {
 
   rolling = true;
   let result: EventRunResult;
+  const answers = batch.answers ?? [];
   try {
-    result = await rollEventDice(() => runEvents({ before: batch.before, after, actions: batch.actions }));
+    result = await rollEventDice(
+      () => runEvents({ before: batch.before, after, actions: batch.actions, answers }),
+      collectAnswers(answers),
+    );
   } finally {
     rolling = false;
   }
@@ -117,6 +133,7 @@ async function flush() {
       ...batch,
       actions: [...batch.actions, ...(queued?.actions ?? [])],
       undoId: batch.undoId ?? queued?.undoId,
+      answers,
     };
 
     scheduleFlush();
@@ -126,17 +143,12 @@ async function flush() {
 }
 
 
+/** What the event did, one line per effect after what set it off; empty when nothing happened worth showing. */
 export function describeFiring(firing: EventFiring): string {
-  const text = (effect: EventFiring['effects'][number]) => (effect.skipped ? `${effect.text} (no change)` : effect.text);
-  const failed = firing.failedSteps ?? [];
-  const steps = [...new Set([...firing.effects.map((effect) => effect.step ?? 0), ...failed])].sort((a, b) => a - b);
-  const parts = steps.flatMap((step) => {
-    const inStep = firing.effects.filter((effect) => (effect.step ?? 0) === step);
-    if (!failed.includes(step)) return inStep.map(text);
-    return [step ? `step ${step + 1} condition not met` : 'condition not met', ...inStep.filter((effect) => effect.otherwise).map(text)];
-  });
-  const effects = parts.length === 0 ? 'no effects' : parts.join(' • ');
-  return `${firing.depth > 0 ? '↳ ' : ''}${firing.trigger} → ${effects}`;
+  const done = firing.effects.filter((effect) => !effect.entry && !effect.quiet && (!effect.skipped || effect.failed));
+  if (done.length === 0) return '';
+  const cause = firing.manual ? [] : [`${firing.depth > 0 ? '↳ ' : ''}${firing.trigger}`];
+  return [...cause, ...done.map((effect) => `${effect.failed ? '⚠️' : effect.icon} ${effect.text}`)].join('\n');
 }
 
 function showRoll(roll: EventRolls) {
@@ -167,14 +179,29 @@ function applyResult(characterId: string, after: Character, result: EventRunResu
 
   const timeline = useTimelineStore.getState();
   for (const firing of result.firings) {
-    timeline.addEvent(characterId, {
-      widgetLabel: firing.title,
-      widgetType: EVENT_TIMELINE_TYPE,
-      description: describeFiring(firing),
-      icon: EVENT_TIMELINE_ICON,
-      undoId,
-      characterEventId: firing.eventId,
-    });
+    // Messages get their own entries, and an event that did nothing worth showing gets none.
+    const description = describeFiring(firing);
+    if (description) {
+      timeline.addEvent(characterId, {
+        widgetLabel: firing.title,
+        widgetType: EVENT_TIMELINE_TYPE,
+        description,
+        icon: EVENT_TIMELINE_ICON,
+        undoId,
+        characterEventId: firing.eventId,
+      });
+    }
+    for (const effect of firing.effects) {
+      if (!effect.entry) continue;
+      timeline.addEvent(characterId, {
+        widgetLabel: firing.title,
+        widgetType: EVENT_MESSAGE_TYPE,
+        description: effect.text,
+        icon: EVENT_MESSAGE_ICON,
+        undoId,
+        characterEventId: firing.eventId,
+      });
+    }
   }
   for (const change of result.formulaChanges) {
     timeline.addEvent(characterId, {
@@ -225,14 +252,41 @@ export function emitWidgetAction(action: WidgetAction): void {
   scheduleFlush();
 }
 
-/** Runs an event's effects right away, whatever its trigger and even when it's turned off. */
-export function runEventNow(eventId: string): EventRunResult | null {
+/**
+ * Runs an event's effects right away, whatever its trigger and even when it's turned off.
+ * An event that asks the player something finishes later, so it returns a promise.
+ */
+export function runEventNow(eventId: string): EventRunResult | null | Promise<EventRunResult | null> {
   if (pending) flush();
   const state = useStore.getState();
   const character = getActiveCharacter(state);
   if (!character || !character.events?.some((event) => event.id === eventId)) return null;
 
-  const result = runEvents({ before: character, after: character, manualEventId: eventId });
+  try {
+    const result = runEvents({ before: character, after: character, manualEventId: eventId });
+    applyResult(character.id, character, result, undefined);
+    return result;
+  } catch (error) {
+    if (!(error instanceof PromptNeeded)) throw error;
+  }
+  return runEventWithPrompts(character, eventId);
+}
+
+async function runEventWithPrompts(character: Character, eventId: string): Promise<EventRunResult | null> {
+  const answers: EventAnswer[] = [];
+  rolling = true;
+  let result: EventRunResult;
+  try {
+    result = await rollEventDice(
+      () => runEvents({ before: character, after: character, manualEventId: eventId, answers }),
+      collectAnswers(answers),
+    );
+  } finally {
+    rolling = false;
+    if (pending) scheduleFlush();
+  }
+  // The sheet changed while the player was answering, so applying the result would overwrite that.
+  if (getActiveCharacter(useStore.getState()) !== character) return null;
   applyResult(character.id, character, result, undefined);
   return result;
 }

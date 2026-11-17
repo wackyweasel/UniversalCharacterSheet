@@ -69,11 +69,22 @@ describe('cloneCharacterForWorkspace', () => {
     expect(event.steps[0].id).not.toBe('step-1');
   });
 
-  it('points "run another event" effects at the copied events, including otherwise branches', () => {
+  it('points "run another event" effects at the copied events, including otherwise branches and nested steps', () => {
     const clone = cloneCharacterForWorkspace({
       ...character,
       events: [
-        { id: 'event-1', enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 's1', effects: [{ id: 'effect-1', kind: 'event.run', target: 'event-2' }], condition: '1', otherwise: [{ id: 'effect-3', kind: 'event.run', target: 'event-2' }] }] },
+        {
+          id: 'event-1',
+          enabled: true,
+          trigger: { kind: 'manual' },
+          steps: [{
+            id: 's1',
+            effects: [{ id: 'effect-1', kind: 'event.run', target: 'event-2' }],
+            condition: '1',
+            otherwise: [{ id: 'effect-3', kind: 'event.run', target: 'event-2' }],
+            otherwiseSteps: [{ id: 's3', effects: [{ id: 'effect-4', kind: 'event.run', target: 'event-2' }] }],
+          }],
+        },
         { id: 'event-2', enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 's2', effects: [{ id: 'effect-2', kind: 'event.run', target: 'gone' }] }] },
       ],
     });
@@ -82,6 +93,9 @@ describe('cloneCharacterForWorkspace', () => {
     expect(second.id).not.toBe('event-2');
     expect(first.steps[0].effects[0].target).toBe(second.id);
     expect(first.steps[0].otherwise?.[0].target).toBe(second.id);
+    const nested = first.steps[0].otherwiseSteps![0];
+    expect(nested.id).not.toBe('s3');
+    expect(nested.effects[0].target).toBe(second.id);
     expect(second.steps[0].effects[0].target).toBe('gone');
   });
 

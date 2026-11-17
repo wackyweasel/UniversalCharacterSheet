@@ -17,7 +17,8 @@ import {
   getVisibleParams,
   getWidgetEventDefs,
 } from './registry';
-import { normalizeEvent, type StoredCharacterEvent } from './steps';
+import { getEventParts, normalizeEvent, type StoredCharacterEvent } from './steps';
+import { PromptNeeded, parseOptions } from './prompt';
 import { reconcileItemEffects } from '../utils/itemEffects';
 import { withDieRoller } from '../utils/diceExpression';
 
@@ -1226,9 +1227,10 @@ describe('multi-step events', () => {
   it('only offers a result to what runs after it', () => {
     const event = attackChain(15);
     expect(getEventProblems(hero(event), event)).toEqual([]);
-    expect(getEventLabelsAt(event, 0, 'effects', 0)).toEqual({});
-    expect(Object.keys(getEventLabelsAt(event, 1, 'condition'))).toEqual(['event_attack_total', 'event_attack_highest', 'event_attack_lowest']);
-    expect(getEventLabelsAt(event, 1, 'otherwise', 0)).toHaveProperty('event_attack_total');
+    const labelsAt = (id: string) => getEventLabelsAt(event, getEventParts(event).find((part) => (part.effect?.id ?? part.step.id) === id)!);
+    expect(labelsAt('f1')).toEqual({});
+    expect(Object.keys(labelsAt('s2'))).toEqual(['event_attack_total', 'event_attack_highest', 'event_attack_lowest']);
+    expect(labelsAt('f3')).toHaveProperty('event_attack_total');
 
     const early: StepEvent = { ...event, steps: [{ ...event.steps[1], id: 's0' }, event.steps[0]] };
     expect(getEventProblems(hero(early), early)).toEqual(['Uses @event_attack_total, which isn\'t available where it\'s used']);
@@ -1263,6 +1265,171 @@ describe('multi-step events', () => {
     const before = { ...hero(attackChain(5)), events: [legacy as unknown as StepEvent] };
     const result = runEvents({ before, after: before, manualEventId: 'e-old' });
     expect(result.character.variables?.find((variable) => variable.label === 'xp')?.value).toBe(3);
+  });
+});
+
+describe('steps nested in the sides of a condition', () => {
+  const log = (id: string, message: string): CharacterEventEffect => ({ id, kind: 'log.message', params: { message } });
+  // `1d1 + n` always totals n + 1, so the roll is predictable.
+  const attack = (total: number): StepEvent => ({
+    id: 'e-nested',
+    enabled: true,
+    trigger: { kind: 'manual' },
+    steps: [
+      { id: 's1', effects: [{ id: 'f1', kind: 'dice.roll', resultName: 'attack', params: { dice: `1d1 + ${total - 1}`, title: 'Attack' } }] },
+      {
+        id: 's2',
+        condition: '@event_attack_total >= 12',
+        effects: [log('f2', 'Hit')],
+        steps: [
+          {
+            id: 's3',
+            condition: '@event_attack_total >= 20',
+            effects: [{ id: 'f3', kind: 'dice.roll', resultName: 'bonus', params: { dice: '1d1 + 5', title: 'Critical' } }],
+            otherwise: [log('f4', 'Normal')],
+          },
+          { id: 's4', effects: [log('f5', 'Damage {@event_bonus_total}')] },
+        ],
+        otherwise: [log('f6', 'Miss')],
+        otherwiseSteps: [
+          { id: 's5', condition: '@event_attack_total <= 1', effects: [log('f7', 'Fumble')], stopIfFalse: true },
+          { id: 's6', effects: [log('f8', 'Drop')] },
+        ],
+      },
+      { id: 's7', effects: [log('f9', 'Done')] },
+    ],
+  });
+  const run = (event: StepEvent) => {
+    const before = character([health], [event]);
+    return runEvents({ before, after: before, manualEventId: event.id }).firings[0];
+  };
+  const texts = (event: StepEvent) => run(event).effects.slice(1).map((effect) => effect.text);
+
+  it('follows the conditions down each side and meets again after them', () => {
+    expect(texts(attack(20))).toEqual(['Hit', expect.stringContaining('Critical'), 'Damage 6', 'Done']);
+    expect(texts(attack(15))).toEqual(['Hit', 'Normal', 'Damage 0', 'Done']);
+    expect(texts(attack(1))).toEqual(['Miss', 'Fumble', 'Drop', 'Done']);
+  });
+
+  it('ends the whole event when a nested condition says to stop', () => {
+    expect(texts(attack(5))).toEqual(['Miss']);
+  });
+
+  it('reports nested effects under their first-level step', () => {
+    const firing = run(attack(15));
+    expect(firing.conditionFailed).toBe(true);
+    // Only a first-level condition that is false is listed.
+    expect(firing.failedSteps).toBeUndefined();
+    expect(firing.effects.map((effect) => [effect.step, effect.otherwise])).toEqual([[0, undefined], [1, undefined], [1, true], [1, undefined], [2, undefined]]);
+    expect(run(attack(5)).failedSteps).toEqual([1]);
+  });
+
+  it('offers a nested result to what follows it, but not to the other side of its condition', () => {
+    const event = attack(15);
+    const hero = character([health], [event]);
+    expect(getEventProblems(hero, event)).toEqual([]);
+
+    const sideways: StepEvent = { ...event, steps: [event.steps[0], { ...event.steps[1], steps: [{ ...event.steps[1].steps![0], otherwise: [log('f4', 'Normal {@event_bonus_total}')] }] }] };
+    expect(getEventProblems(character([health], [sideways]), sideways)).toEqual(['Uses @event_bonus_total, which isn\'t available where it\'s used']);
+  });
+
+  it('gives ids to nested steps and effects that have none', () => {
+    const stored = { id: 'e', enabled: true, trigger: { kind: 'manual' }, steps: [{ id: 's1', condition: '1', effects: [], steps: [{ id: '', effects: [{ kind: 'log.message' }] }] }] };
+    const [step] = normalizeEvent(stored as unknown as StepEvent).steps;
+    expect(step.steps![0].id).toBeTruthy();
+    expect(step.steps![0].effects[0].id).toBeTruthy();
+  });
+});
+
+describe('asking the player', () => {
+  const log = (id: string, message: string): CharacterEventEffect => ({ id, kind: 'log.message', params: { message } });
+  const ask = (id: string, params: Record<string, string>, resultName = 'pick'): CharacterEventEffect => ({ id, kind: 'dialog.show', resultName, params });
+  const event = (effects: CharacterEventEffect[], extra: Partial<StepEvent['steps'][number]> = {}): StepEvent => ({
+    id: 'e-ask',
+    name: 'Rest',
+    enabled: true,
+    trigger: { kind: 'manual' },
+    steps: [{ id: 's1', effects, ...extra }],
+  });
+  const run = (item: StepEvent, answers?: Parameters<typeof runEvents>[0]['answers']) => {
+    const before = character([health], [item]);
+    return runEvents({ before, after: before, manualEventId: item.id, answers });
+  };
+  const yesNo = ask('a1', { type: 'yesno', title: 'Sleep outside?' });
+
+  it('stops with the question until it has an answer, then reads the answer in what follows', () => {
+    const item = event([yesNo, log('f1', '{@event_pick_text} = {@event_pick_value}')]);
+    try {
+      run(item);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(PromptNeeded);
+      expect((error as PromptNeeded).prompt).toMatchObject({ kind: 'yesno', title: 'Sleep outside?', icon: '', description: '', eventTitle: expect.any(String), cancellable: true });
+    }
+    const firing = run(item, [{ cancelled: false, value: 0, text: 'No' }]).firings[0];
+    expect(firing.effects.map((effect) => effect.text)).toEqual(['Sleep outside? → No', 'No = 0']);
+    expect(firing.effects[0].skipped).toBe(false);
+  });
+
+  it('asks several questions in order and lets a condition use the answer', () => {
+    const item = event([ask('a1',     { type: 'slider', title: 'How many?', min: '0', max: '5' }, 'count')], {
+          steps: [{ id: 's2', condition: '@event_count_value >= 3', effects: [ask('a2', { type: 'text', title: 'Name?' }, 'name')], otherwise: [log('f2', 'Few')] }],
+    });
+    let thrown: unknown;
+    try {
+      run(item, [{ cancelled: false, value: 4, text: '4' }]);
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as PromptNeeded).prompt.title).toBe('Name?');
+    const texts = run(item, [{ cancelled: false, value: 4, text: '4' }, { cancelled: false, value: 0, text: 'Bob' }]).firings[0].effects.map((effect) => effect.text);
+    expect(texts).toEqual(['How many? → 4', 'Name? → Bob']);
+    expect(run(item, [{ cancelled: false, value: 1, text: '1' }]).firings[0].effects.map((effect) => effect.text)).toEqual(['How many? → 1', 'Few']);
+  });
+
+  it('ends the event, nested steps included, when the player cancels', () => {
+    const item = event([yesNo, log('f1', 'After')], { steps: [{ id: 's2', effects: [log('f2', 'Nested')] }] });
+    item.steps.push({ id: 's3', effects: [log('f3', 'Later')] });
+    const firing = run(item, [{ cancelled: true, value: 0, text: '' }]).firings[0];
+    expect(firing.effects.map((effect) => effect.text)).toEqual(['Sleep outside?: cancelled']);
+  });
+
+  it('ends the event, nested steps included, at an End effect', () => {
+    const item = event([log('f1', 'Before'), { id: 'e1', kind: 'event.end' }, log('f2', 'After')], { steps: [{ id: 's2', effects: [log('f3', 'Nested')] }] });
+    item.steps.push({ id: 's3', effects: [log('f4', 'Later')] });
+    const firing = run(item).firings[0];
+    expect(firing.effects.map((effect) => effect.text)).toEqual(['Before', 'The event ends here']);
+    expect(firing.effects[1].skipped).toBe(false);
+  });
+
+  it('reports a question that has nothing to choose from', () => {
+    const item = event([ask('a1', { type: 'radio', title: 'Pick' })]);
+    expect(getEventProblems(character([health], [item]), item)).toEqual(['Effect 1: Add at least one option, separated by commas']);
+  });
+
+  it('shows a plain message with an icon and description, and can not be cancelled', () => {
+    const item = event([ask('a1', { title: 'Watch out', icon: '⚠️', description: 'Line one\nLine two' }), log('f1', 'After')]);
+    try {
+      run(item);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as PromptNeeded).prompt).toMatchObject({ kind: 'none', title: 'Watch out', icon: '⚠️', description: 'Line one\nLine two', cancellable: false });
+    }
+    const firing = run(item, [{ cancelled: false, value: 0, text: '' }]).firings[0];
+    expect(firing.effects.map((effect) => effect.text)).toEqual(['Showed "Watch out"', 'After']);
+    const empty = event([ask('a2', {})]);
+    expect(getEventProblems(character([health], [empty]), empty)).toEqual(['Effect 1: Add a title or a description']);
+  });
+});
+
+describe('parseOptions', () => {
+  it('splits on commas and numbers the options unless they give a value', () => {
+    expect(parseOptions('Easy, Normal = 5 , Hard,, ')).toEqual([
+      { label: 'Easy', value: 1 },
+      { label: 'Normal', value: 5 },
+      { label: 'Hard', value: 3 },
+    ]);
+    expect(parseOptions('a = b')).toEqual([{ label: 'a = b', value: 1 }]);
   });
 });
 

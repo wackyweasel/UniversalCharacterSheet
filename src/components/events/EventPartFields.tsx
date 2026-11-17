@@ -14,10 +14,11 @@ import {
   type TriggerDef,
 } from '../../events/types';
 import { getWidgetTitle } from '../../utils/characterVariables';
+import { IconPickerField } from './IconPickerField';
 
 /** A field that data chips can add an `@event_…` reference to. */
 export interface DataTarget {
-  element: HTMLInputElement;
+  element: HTMLInputElement | HTMLTextAreaElement;
   /** Text fields need `{…}` around a reference; formula fields take it as is. */
   mode: 'text' | 'formula';
   label: string;
@@ -27,6 +28,8 @@ export interface DataTarget {
 export type RegisterDataTarget = (target: DataTarget) => void;
 
 const GENERAL_SOURCE = 'general';
+/** Effects that belong to no widget are listed in the source dropdown itself, as `general:<kind>`. */
+const GENERAL_EFFECT_PREFIX = 'general:';
 /** Source choice for an event that nothing sets off by itself; it stores the manual trigger. */
 const NO_TRIGGER_SOURCE = 'none';
 const MANUAL_TRIGGER_KIND = 'manual';
@@ -37,7 +40,8 @@ export const fieldClass = 'h-9 w-full min-w-0 rounded-button border bg-theme-pap
 function getSourceValue(role: EventRole, part: EventPart): string {
   if (part.widgetId) return part.widgetId;
   if (role === 'trigger' && part.kind === MANUAL_TRIGGER_KIND) return NO_TRIGGER_SOURCE;
-  return part.kind && isGlobalPartKind(role, part.kind) ? GENERAL_SOURCE : '';
+  if (!part.kind || !isGlobalPartKind(role, part.kind)) return '';
+  return role === 'effect' ? `${GENERAL_EFFECT_PREFIX}${part.kind}` : GENERAL_SOURCE;
 }
 
 function getDefsFor(role: EventRole, part: EventPart, widget: Widget | undefined): (TriggerDef | EffectDef)[] {
@@ -80,7 +84,7 @@ function SourceSelect({ character, role, value, onChange }: { character: Charact
     }));
     return counts;
   }, [groups]);
-  const missing = value !== '' && value !== GENERAL_SOURCE && value !== NO_TRIGGER_SOURCE && !findWidget(character, value);
+  const missing = value !== '' && value !== GENERAL_SOURCE && value !== NO_TRIGGER_SOURCE && !value.startsWith(GENERAL_EFFECT_PREFIX) && !findWidget(character, value);
   const seen = new Map<string, number>();
 
   return (
@@ -89,7 +93,11 @@ function SourceSelect({ character, role, value, onChange }: { character: Charact
       {missing && <option value={value}>⚠ Deleted widget</option>}
       <optgroup label="General">
         {role === 'trigger' && <option value={NO_TRIGGER_SOURCE}>No trigger (run by hand or by another event)</option>}
-        <option value={GENERAL_SOURCE}>{role === 'trigger' ? '⚡ Labels' : '⚡ Labels, dice, the timeline or other events'}</option>
+        {role === 'trigger'
+          ? <option value={GENERAL_SOURCE}>⚡ Labels</option>
+          : getEffectDefsFor(undefined).map((def) => (
+            <option key={def.kind} value={`${GENERAL_EFFECT_PREFIX}${def.kind}`}>{`${getEventIcon(def.kind, undefined)} ${def.label}`}</option>
+          ))}
       </optgroup>
       {groups.map((group) => (
         <optgroup key={group.sheetId} label={character.sheets.length > 1 ? group.sheetName : 'Widgets'}>
@@ -150,25 +158,28 @@ function ParamField({ spec, ctx, value, onChange, onDataTarget }: {
       </Field>
     );
   }
+  if (spec.type === 'icon') {
+    return <IconPickerField label={spec.label} help={spec.help} value={value} onChange={onChange} />;
+  }
   const mono = spec.type !== 'text';
+  const inputProps = {
+    value,
+    onChange: (event: { target: { value: string } }) => onChange(event.target.value),
+    onFocus: onDataTarget && ((event: { currentTarget: HTMLInputElement | HTMLTextAreaElement }) => onDataTarget({
+      element: event.currentTarget,
+      mode: spec.type === 'text' ? 'text' as const : 'formula' as const,
+      label: spec.label,
+      setValue: (next: string) => onChangeRef.current(next),
+    })),
+    'data-event-data-target': onDataTarget ? 'true' : undefined,
+    placeholder: spec.placeholder,
+    autoComplete: 'off',
+    spellCheck: !mono,
+    className: `${fieldClass} ${mono ? 'font-mono' : ''}`,
+  };
   return (
     <Field label={spec.label} help={spec.help} wide={spec.type === 'text'}>
-      <input
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={onDataTarget && ((event) => onDataTarget({
-          element: event.currentTarget,
-          mode: spec.type === 'text' ? 'text' : 'formula',
-          label: spec.label,
-          setValue: (next) => onChangeRef.current(next),
-        }))}
-        data-event-data-target={onDataTarget ? 'true' : undefined}
-        placeholder={spec.placeholder}
-        autoComplete="off"
-        spellCheck={!mono}
-        className={`${fieldClass} ${mono ? 'font-mono' : ''}`}
-      />
+      {spec.multiline ? <textarea rows={4} {...inputProps} className={`${inputProps.className} resize-y`} /> : <input type="text" {...inputProps} />}
     </Field>
   );
 }
@@ -197,10 +208,27 @@ export function PartFields({ character, role, part, onChange, onDataTarget }: Pa
     kindChoices.unshift({ value: part.kind, label: `⚠ ${def?.label ?? part.kind}` });
   }
 
+  const switchTo = (nextDef: TriggerDef | EffectDef, nextWidget: Widget | undefined) => {
+    const next = buildPart(role, character, nextDef, nextWidget, part.id);
+    // Keep settings that both kinds share, such as a threshold.
+    const shared = Object.fromEntries((nextDef.params ?? []).filter((spec) => part.params?.[spec.key] !== undefined).map((spec) => [spec.key, part.params![spec.key]]));
+    const keepTarget = nextDef.target && part.target !== undefined && getTargetChoices(nextDef.target, { character, widget: nextWidget }).some((choice) => choice.value === part.target);
+    onChange({
+      ...next,
+      ...(keepTarget ? { target: part.target } : {}),
+      ...(next.params ? { params: { ...next.params, ...shared } } : {}),
+    });
+  };
+
   const changeSource = (value: string) => {
     if (value === NO_TRIGGER_SOURCE) {
       const manual = getTriggerDef(MANUAL_TRIGGER_KIND);
       if (manual) onChange(buildPart(role, character, manual, undefined, part.id));
+      return;
+    }
+    if (value.startsWith(GENERAL_EFFECT_PREFIX)) {
+      const general = getEffectDefsFor(undefined).find((item) => item.kind === value.slice(GENERAL_EFFECT_PREFIX.length));
+      if (general) switchTo(general, undefined);
       return;
     }
     const nextWidget = value === GENERAL_SOURCE ? undefined : findWidget(character, value);
@@ -211,26 +239,20 @@ export function PartFields({ character, role, part, onChange, onDataTarget }: Pa
 
   const changeKind = (kind: string) => {
     const nextDef = defs.find((item) => item.kind === kind);
-    if (!nextDef) return;
-    const next = buildPart(role, character, nextDef, widget, part.id);
-    // Keep settings that both kinds share, such as a threshold.
-    const shared = Object.fromEntries((nextDef.params ?? []).filter((spec) => part.params?.[spec.key] !== undefined).map((spec) => [spec.key, part.params![spec.key]]));
-    const keepTarget = nextDef.target && part.target !== undefined && getTargetChoices(nextDef.target, ctx).some((choice) => choice.value === part.target);
-    onChange({
-      ...next,
-      ...(keepTarget ? { target: part.target } : {}),
-      ...(next.params ? { params: { ...next.params, ...shared } } : {}),
-    });
+    if (nextDef) switchTo(nextDef, widget);
   };
 
   const changeParam = (key: string, value: string) => onChange({ ...part, params: { ...params, [key]: value } as CharacterEventParams });
+  const isEffect = role === 'effect';
+  // A general effect is already picked in the first dropdown, so there is nothing more to choose.
+  const picksKind = source !== '' && source !== NO_TRIGGER_SOURCE && !source.startsWith(GENERAL_EFFECT_PREFIX);
 
   return (
     <div className="event-inspector__fields">
-      <Field label="Widget">
+      <Field label={isEffect ? 'Effect or widget' : 'Widget'}>
         <SourceSelect character={character} role={role} value={source} onChange={changeSource} />
       </Field>
-      {source !== '' && source !== NO_TRIGGER_SOURCE && (
+      {picksKind && (
         <Field label={role === 'trigger' ? 'What happens' : 'What to do'}>
           <select value={part.kind} onChange={(event) => changeKind(event.target.value)} className={fieldClass} disabled={kindChoices.length === 0}>
             {kindChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
